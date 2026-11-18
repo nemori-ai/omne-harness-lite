@@ -247,6 +247,24 @@ describe('the items of an execution', () => {
     ])
   })
 
+  it('reads the closed items too when asked for all of them', async () => {
+    const a = await session()
+    await publish(a, nth(1, [opened('exec', ''), opened('intent', 'a1'), opened('intent', 'a2')]))
+    await publish(a, { ...nth(2, [changed('intent', 'a1', false)]), operation: 'aop_close_a1' })
+    const read2 = async (all: boolean) =>
+      decodeExecutionRecordOpenItems(
+        await read(a, 'execution-record.open-items', { ...scope, after: null, all }),
+      )
+    const open = await read2(false)
+    const every = await read2(true)
+    expect(open?.kind === 'open' ? open.items.map(item => item.item) : []).toEqual(['', 'a2'])
+    expect(every?.kind === 'open' ? every.items.map(item => [item.item, item.open]) : []).toEqual([
+      ['', true],
+      ['a1', false],
+      ['a2', true],
+    ])
+  })
+
   it('answers an execution of another session as denied', async () => {
     const a = await session()
     await publish(a, nth(1, [opened('intent', 'a1')]))

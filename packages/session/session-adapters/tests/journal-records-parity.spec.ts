@@ -15,6 +15,7 @@ import {
   type ExecutionField,
 } from '../src/testing/journal-records.ts'
 import { canonical } from '../src/testing/canonical.ts'
+import { fullViewOf } from '../src/testing/closed-items.ts'
 import { JOURNAL_OWNER } from '../src/testing/journal-values.ts'
 import { ok, operation, scene } from './fixtures/common-journal.ts'
 
@@ -144,7 +145,10 @@ describe('the reader records projected from the fold', () => {
     )
     const { key } = result.delivery
     if (key.kind !== 'result') throw new Error('fixture: a Model result key')
+    const handled = ok(await journal.load({ ...s.access, execution: s.execution }))
     await commit('processed', {
+      // The step is done with the first call: its result closes once processed.
+      checkpoint: { ...handled.checkpoint, calls: [pending2] },
       events: [
         {
           kind: 'producer',
@@ -252,11 +256,14 @@ describe('the reader records projected from the fold', () => {
       }),
     )
 
-    const { view, blobs, namespace } = s.view.controls.facts()
+    const { view, closed, blobs, namespace } = s.view.controls.facts()
     const written = [...s.view.controls.records().values()].find(item => item.id === s.execution)
     if (written === undefined) throw new Error('the writer keeps no record of the execution')
-    const folded = view.executions.get(s.execution)
-    if (folded === undefined) throw new Error('the fold holds no view of the execution')
+    const open = view.executions.get(s.execution)
+    if (open === undefined) throw new Error('the fold holds no view of the execution')
+    // The writer keeps every record it wrote: compare it with the projection of the whole record.
+    expect(open.intents.size).toBe(1)
+    const folded = fullViewOf(open, closed)
     const context = {
       tenant: s.access.tenant,
       blobs,

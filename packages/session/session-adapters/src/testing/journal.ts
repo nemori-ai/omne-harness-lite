@@ -5,7 +5,10 @@ import { createHash } from 'node:crypto'
 import { canonical, canonicalOfKept } from './canonical.ts'
 import { openEffectsAt, openSnapshotItems } from './execution-open-set.ts'
 import type { JournalCell, TransactionAnswer } from './root.ts'
-import { landClosed } from './closed-items.ts'
+import { closedObligations, landClosed } from './closed-items.ts'
+import { createInputRanges } from './input-ranges.ts'
+import { issueFacts, LEDGER_KINDS, obligationChanges, touchedBy } from './obligation-ledger.ts'
+import { closedReceived, scopeOf } from './received-records.ts'
 import {
   fixAnswer,
   operationAnswer,
@@ -132,6 +135,7 @@ import {
   emptyExecutionView,
   modelAttempt,
   receiptOf as batchReceiptOf,
+  sourceOpen,
   stampOfReceipt,
   BATCH_MAX_FACTS,
   refOf,
@@ -168,12 +172,8 @@ import {
   candidateOfView,
   listOfView,
   listsIssued,
-  issueFacts,
-  obligationChanges,
   callObligations,
   resultObligations,
-  LEDGER_KINDS,
-  touchedBy,
   routeOfView,
   settlementBlock,
   settlementOfFact,
@@ -359,28 +359,6 @@ type Attachment = {
   status: 'active' | 'detached' | 'superseded'
   handoff: DurableEvidence | null
   handoffRevision: number
-}
-
-type Range = Readonly<{ from: number; to: number }>
-
-function takenRange(
-  execution: Readonly<{ id: AgentExecutionId; inputs: readonly Readonly<{ id: InputId }>[] }>,
-  batch: Readonly<{ id: InputBatchId; ordered: readonly InputId[] }>,
-): Range | undefined {
-  const [first] = batch.ordered
-  if (first !== undefined) {
-    const from = execution.inputs.findIndex(input => input.id === first)
-    return from < 0 ? undefined : { from, to: from + batch.ordered.length }
-  }
-  const named = /\/batch\/(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/u.exec(String(batch.id))
-  if (named === null) return undefined
-  const from = Number(named[1])
-  const to = Number(named[2])
-  return from === to &&
-    to <= execution.inputs.length &&
-    batchIdOf(execution.id, from, to) === batch.id
-    ? { from, to }
-    : undefined
 }
 
 export const DEFAULT_EVENT_SCHEMA: Adoption = Object.freeze({
@@ -1254,34 +1232,15 @@ export function createJournal<P>(
   const eventSchema: Adoption = options.eventSchema ?? DEFAULT_EVENT_SCHEMA
   let admissionRule: Adoption = options.replyAdmissionRule ?? DEFAULT_REPLY_ADMISSION_RULE
   const state = () => cell.state().agent
-  // Memos of the ranges an execution minted. Its ids and records encode them, so they do not depend on how a transaction ends: one per execution, not per version.
-  const caches = new Map<
-    string,
-    {
-      batches: Map<InputBatchId, Range>
-      watermarks: Map<string, Range>
-    }
-  >()
   const admissionStatistics = admissionCounters()
   let pageLimits: AdmissionPageLimits = { items: null, bytes: null }
-  const cache = (execution: Execution) => {
-    const at = executionKey(execution.tenant, execution.id)
-    let value = caches.get(at)
-    if (!value) {
-      value = { batches: new Map(), watermarks: new Map() }
-      for (const event of execution.events)
-        if (event.body.kind === 'input-taken') {
-          const range = takenRange(execution, event.body.batch)
-          if (range !== undefined) value.batches.set(event.body.batch.id, range)
-        }
-      caches.set(at, value)
-    }
-    return value
-  }
   const executionKey = (tenant: TenantId, id: AgentExecutionId) => {
     const encoded = tenantCodec.encode(tenant)
     return JSON.stringify([encoded.ok ? encoded.value : null, id])
   }
+  const ranges = createInputRanges(cell.namespace, execution =>
+    executionKey(execution.tenant, execution.id),
+  )
 
   const writeFaults = new Map<JournalWrite, WriteFault[]>()
   const readFaults = new Map<JournalRead, number>()
@@ -1401,6 +1360,7 @@ export function createJournal<P>(
     }
     if (execution.events.at(-1)?.body.kind === 'ended') return
     for (const body of bodies) {
+      if (body.kind === 'input-taken') ranges.taken(execution, body.batch)
       execution.events.push({
         execution: execution.id,
         sequence: String(execution.events.length + 1),
@@ -1677,6 +1637,8 @@ export function createJournal<P>(
   }
 
   const mint = { owner: JOURNAL_OWNER, session: cell.namespace }
+  const recordScope = (tenant: TenantId, execution: AgentExecutionId) =>
+    scopeOf(tenant, execution, mint, state().blobs)
 
   function viewOf(execution: AgentExecutionId): ExecutionView {
     return state().view.executions.get(execution) ?? emptyExecutionView(execution)
@@ -1891,42 +1853,6 @@ export function createJournal<P>(
     })
   }
 
-  function inputBoundary(execution: Execution): Range {
-    const taken = execution.checkpoint.inputBatch
-    const range = taken === null ? undefined : cache(execution).batches.get(taken.id)
-    if (taken !== null && range === undefined)
-      throw new Error('original input batch range is unavailable')
-    const from = range?.to ?? 0
-    return { from, to: execution.inputs.length }
-  }
-
-  function watermarkRange(execution: Execution, record: string): Range | undefined {
-    const issued = cache(execution).watermarks.get(record)
-    if (issued !== undefined) return issued
-    const prefix = `${cell.namespace}/${execution.id}/inputs/`
-    if (!record.startsWith(prefix)) return undefined
-    const match = /^(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/.exec(record.slice(prefix.length))
-    if (match === null) return undefined
-    const from = Number(match[1])
-    const to = Number(match[2])
-    if (to < from || to > execution.inputs.length) return undefined
-    if (from !== 0 && ![...cache(execution).batches.values()].some(range => range.to === from))
-      return undefined
-    const range = { from, to }
-    cache(execution).watermarks.set(record, range)
-    return range
-  }
-
-  function watermarkOf(execution: Execution): DurableEvidence {
-    const range = inputBoundary(execution)
-    const evidence = journalEvidence(
-      `${cell.namespace}/${execution.id}/inputs/${range.from}-${range.to}`,
-      range.to,
-    )
-    cache(execution).watermarks.set(evidence.record, range)
-    return evidence
-  }
-
   function admissionScope(tenant: TenantId, id: AgentExecutionId): AdmissionScope {
     const encoded = tenantCodec.encode(tenant)
     return {
@@ -1956,7 +1882,7 @@ export function createJournal<P>(
         revision: revisionOf(execution.revision),
         state: shown,
         checkpoint: execution.checkpoint,
-        inputWatermark: watermarkOf(execution),
+        inputWatermark: ranges.watermarkOf(execution),
         history: journalEvidence(`${cell.namespace}/${execution.id}/history`, execution.revision),
         replyAdmissions: replyAdmissions.ok,
         executionAttachment: activeAttachment(execution)?.authority ?? null,
@@ -1971,15 +1897,10 @@ export function createJournal<P>(
       controls: [...execution.controls],
       terminalObservations: [...execution.observations],
       ...openSnapshotItems(
-        { execution, shown, from: takenFrom(execution) },
+        { execution, shown, from: ranges.takenFrom(execution) },
         handoffsOf(execution, handoff => custodyOf(execution, handoff, groups)),
       ),
     })
-  }
-
-  function takenFrom(execution: Execution): number {
-    const taken = execution.checkpoint.inputBatch
-    return taken === null ? 0 : (cache(execution).batches.get(taken.id)?.from ?? 0)
   }
 
   function readPage(
@@ -2073,6 +1994,7 @@ export function createJournal<P>(
       LEDGER_KINDS,
       room,
       touchedBy(facts),
+      obligation => sourceOpen(obligation, viewOf(id)),
     )
     return changes.facts.length === 0 ? null : changes
   }
@@ -2444,7 +2366,7 @@ export function createJournal<P>(
           origin: copy(control.stages.accepted.source),
           conclusion: { kind: 'cancelled', cause: copy(cause) },
           failure: null,
-          inputWatermark: watermarkOf(execution),
+          inputWatermark: ranges.watermarkOf(execution),
           checkpoint: copy(execution.checkpoint),
           conditions: copy(
             control.stages['intent-established']?.source ?? control.stages.accepted.source,
@@ -4197,6 +4119,8 @@ export function createJournal<P>(
             viewOf(execution.id).finish.obligations,
             `${cell.namespace}/${execution.id}`,
             execution.revision,
+            obligation => sourceOpen(obligation, viewOf(execution.id)),
+            ids => closedObligations(state(), execution.id, ids),
           )
           return {
             kind: 'batch',
@@ -4286,7 +4210,7 @@ export function createJournal<P>(
             return changed
           const closure = obligationsOf(execution, candidate, input.operation).items
           if (projectionOf(closure) !== projectionOf(list.items)) return changed
-          const boundary = watermarkRange(execution, candidate.inputWatermark.record)
+          const boundary = ranges.watermarkRange(execution, candidate.inputWatermark.record)
           if (boundary === undefined || boundary.to < execution.inputs.length) return changed
           const check = blockedReason(execution, candidate, closure, list.items)
           if (check.kind === 'changed') return changed
@@ -4481,7 +4405,7 @@ export function createJournal<P>(
       const found = owned(input, 'inputs')
       if ('failure' in found) return found
       const execution = found.ok
-      const range = watermarkRange(execution, input.watermark.record)
+      const range = ranges.watermarkRange(execution, input.watermark.record)
       if (
         range === undefined ||
         !sameEvidence(
@@ -4494,7 +4418,7 @@ export function createJournal<P>(
       )
         return fail(invalid('watermark', 'not a watermark of this execution'))
       const id = batchIdOf(execution.id, range.from, range.to)
-      cache(execution).batches.set(id, range)
+      ranges.minted(execution, id, range)
       const taken = execution.inputs.slice(range.from, range.to)
       return succeed({
         batch: {
@@ -4608,6 +4532,8 @@ export function createJournal<P>(
     owned,
     operations: () => state().operations,
     answered: (input, need) => operationAnswer(state(), input, need),
+    closedResult: (input, consumption, need) =>
+      closedReceived(state(), recordScope(input.tenant, input.execution), consumption, need),
     authorize: cell.authorize,
     gate: cell.gate,
     state: () => cell.state().receiving,
@@ -4720,7 +4646,7 @@ export function createJournal<P>(
           origin: legacy('origin'),
           conclusion: { kind: 'cancelled', cause: legacy('cause') },
           failure: null,
-          inputWatermark: watermarkOf(execution),
+          inputWatermark: ranges.watermarkOf(execution),
           checkpoint: copy(execution.checkpoint),
           conditions: legacy('conditions'),
         }

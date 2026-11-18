@@ -278,14 +278,14 @@ export async function readOperation(
   }
 }
 
+// The payload of a block; null when the store does not hold it or does not answer.
 export async function readBlob(
   read: Reader,
   tenant: string,
   digest: string,
-): Promise<string | null | 'unavailable'> {
+): Promise<string | null> {
   const output = await read(EXECUTION_RECORD_HANDLERS.blob, { tenant, digest })
-  if (output.kind === 'unread') return 'unavailable'
+  if (output.kind === 'unread') return null
   const decoded = decodeExecutionRecordBlob(output.output)
-  if (decoded === null) return 'unavailable'
-  return decoded.kind === 'blob' ? decoded.payload : null
+  return decoded?.kind === 'blob' ? decoded.payload : null
 }

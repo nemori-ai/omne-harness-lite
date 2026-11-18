@@ -607,6 +607,8 @@ export type ExecutionRecordOpenItemsRead = Readonly<{
   after: ExecutionItemKey | null
   /** Only the open items of these families; every family when absent. */
   families?: readonly string[]
+  /** Closed items too: what an execution holds once it finishes. */
+  all?: boolean
 }>
 export type ExecutionRecordOpenItemsPage =
   | Readonly<{

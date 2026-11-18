@@ -422,7 +422,12 @@ function foldFinishProved(draft: Draft, fact: FactOf<'finish.proved'>): void {
 
 function foldFinishObligation(draft: Draft, fact: FactOf<'finish.obligation'>, pub: number): void {
   const obligations = forkTrackedOf(draft.finish.obligations)
-  obligations.set(fact.id, { category: fact.category, item: fact.item, pub })
+  obligations.set(fact.id, {
+    category: fact.category,
+    item: fact.item,
+    settled: fact.settled,
+    pub,
+  })
   draft.finish = { ...draft.finish, obligations }
 }
 

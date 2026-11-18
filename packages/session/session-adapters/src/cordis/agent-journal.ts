@@ -99,7 +99,8 @@ import {
   type JournalCell,
 } from '../testing/root.ts'
 import { blobRowDigest, factDigestOf } from './journal-batch.ts'
-import { ContentRefs, keepNamed, listedDigests, refsIn, releaseBlocks } from './content-refs.ts'
+import { ContentRefs, keepNamed, releaseBlocks } from './content-refs.ts'
+import { fetchNamed } from './block-read.ts'
 import {
   ANSWER_FAMILY,
   NeedItems,
@@ -107,7 +108,17 @@ import {
   itemText,
   type ItemRef,
 } from '../testing/closed-items.ts'
-import { fetchClosed, lendFetched, readOpenView, unlend } from './item-read.ts'
+import {
+  fetchClosed,
+  closesOpen,
+  foldFull,
+  lendFetched,
+  readOpenView,
+  recordsView,
+  unlend,
+  unsettled,
+  type FullViews,
+} from './item-read.ts'
 import { SharedMap } from '../journal/shared-map.ts'
 import { boundariesOf, captureFresh, projectionOf, type Fault } from './event-projection.ts'
 import {
@@ -226,6 +237,8 @@ type Book<P> = {
   readonly refs: ContentRefs
   // Closed items this call read back by original key (null: the store holds none), by itemText.
   readonly fetched: Map<string, unknown>
+  readonly lentBlocks: Map<string, string>
+  readonly full: FullViews
 }
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
@@ -415,50 +428,29 @@ export async function readExecutionInterpretation(
   }
 }
 
-export async function fetchBlobClosure(
-  read: Reader,
-  tenant: string,
-  digests: Iterable<string>,
-  into: Map<string, string>,
-): Promise<string | null> {
-  for (const digest of digests) {
-    if (into.has(digest)) continue
-    const payload = await readBlob(read, tenant, digest)
-    if (typeof payload !== 'string') return digest
-    into.set(digest, payload)
+// The views of these executions as the store holds them open, in place of what the book held.
+function adopt<P>(
+  book: Book<P>,
+  found: Readonly<{ views: readonly ExecutionView[]; full: readonly ExecutionView[] }>,
+  published: number,
+): void {
+  const executions = new SharedMap(book.view.executions)
+  for (const view of found.views) {
+    executions.set(view.execution, view)
+    book.full.delete(view.execution)
   }
-  return null
+  for (const view of found.full) book.full.set(view.execution, view)
+  book.view = { head: Math.max(book.view.head, published), executions }
+  book.published = Math.max(book.published ?? 0, published)
+  book.copy = null
 }
 
-async function fetchNamed(
-  read: Reader,
-  tenant: string,
-  executions: Iterable<ExecutionView>,
-  into: Map<string, string>,
-): Promise<string | null> {
-  const named = new Set<string>()
-  const lists: string[] = []
-  const cursors: string[] = []
-  for (const execution of executions) {
-    for (const ref of refsIn(execution)) named.add(blobRowDigest(ref))
-    for (const list of execution.finish.lists.values()) lists.push(list.issued.listed.digest)
-    for (const candidate of execution.finish.candidates) cursors.push(candidate.cursor.digest)
-  }
-  const missing = await fetchBlobClosure(read, tenant, named, into)
-  if (missing !== null) return missing
-  const items = new Set<string>()
-  for (const digest of lists) {
-    const payload = into.get(blobRowDigest(digest))
-    if (payload === undefined) continue
-    for (const item of listedDigests(payload)) items.add(blobRowDigest(item))
-  }
-  // A candidate keeps the cursor of the step it was established on; after later steps only that cursor block names the member blocks of that step.
-  for (const digest of cursors) {
-    const payload = into.get(blobRowDigest(digest))
-    if (payload === undefined) continue
-    for (const ref of refsIn(JSON.parse(payload) as unknown)) items.add(blobRowDigest(ref))
-  }
-  return fetchBlobClosure(read, tenant, items, into)
+async function fetchBlobs<P>(book: Book<P>, read: Reader): Promise<Failure | null> {
+  const views = recordsView(book.view, book.full).executions.values()
+  const missing = await fetchNamed(read, book.tenantText, views, book.blobs)
+  return missing === null
+    ? null
+    : unavailable(`the content block ${missing} of the Agent records is not readable`)
 }
 
 function projectionContext(
@@ -676,6 +668,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         held: new Map(),
         refs: new ContentRefs(),
         fetched: new Map(),
+        lentBlocks: new Map(),
+        full: new Map(),
       }
       books.set(key, book)
     }
@@ -698,6 +692,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         resting.blobs.clear()
         resting.parsed.clear()
         resting.loaded.clear()
+        resting.full.clear()
       }
       resting = null
     }
@@ -943,7 +938,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   function build(book: Book<P>): Copy<P> {
-    keepNamed(book.refs, book.view, book)
+    const records = recordsView(book.view, book.full)
+    keepNamed(book.refs, records, book)
     const cell: JournalCell<P> = createCell<P>(book.tenant, book.session, {
       authorize: () => undefined,
       advances(execution, authority): boolean {
@@ -970,7 +966,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       book,
       cell,
       projectRecords(
-        book.view,
+        records,
         projectionContext(book.tenant, book.tenantText, book.session, book.blobs, book.parsed),
       ),
     )
@@ -1069,15 +1065,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return decodeSessionHistoryRoot(output.output) ?? unreadable
   }
 
-  // The views of these executions as the store holds them open, in place of what the book held.
-  function adopt(book: Book<P>, views: readonly ExecutionView[], published: number): void {
-    const executions = new SharedMap(book.view.executions)
-    for (const view of views) executions.set(view.execution, view)
-    book.view = { head: Math.max(book.view.head, published), executions }
-    book.published = Math.max(book.published ?? 0, published)
-    book.copy = null
-  }
-
   async function loadExecution(
     book: Book<P>,
     domain: DomainRef,
@@ -1087,7 +1074,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const found = await readOpenView(read, scopeOf(book), [execution], book.published ?? 0)
     if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
     book.loaded.add(execution)
-    if (found.views.length > 0) adopt(book, found.views, found.published)
+    if (found.views.length > 0) adopt(book, found, found.published)
     if (book.copy !== null) return succeed(book.copy)
     const missing = await fetchBlobs(book, read)
     if (missing !== null) return fail(missing)
@@ -1098,18 +1085,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       return fail(unavailable(`the Agent records do not decode: ${String(error)}`))
     }
     return succeed(book.copy)
-  }
-
-  async function fetchBlobs(book: Book<P>, read: Reader): Promise<Failure | null> {
-    const missing = await fetchNamed(
-      read,
-      book.tenantText,
-      book.view.executions.values(),
-      book.blobs,
-    )
-    return missing === null
-      ? null
-      : unavailable(`the content block ${missing} of the Agent records is not readable`)
   }
 
   async function sync(book: Book<P>, domain: DomainRef): Promise<Outcome<Copy<P>, Failure>> {
@@ -1132,7 +1107,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       if (open.kind === 'unavailable') return fail(unavailable(open.diagnostic))
       const found = await readOpenView(read, scopeOf(book), open.executions, open.published)
       if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
-      adopt(book, found.views, Math.min(found.published, open.published))
+      adopt(book, found, Math.min(found.published, open.published))
       for (const execution of open.executions) book.loaded.add(execution)
     } else if (book.published < published) {
       const touched = await readTouched(read, scopeOf(book), book.published)
@@ -1140,8 +1115,16 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       const executions = [...touched.executions].filter(item => book.loaded.has(item))
       const found = await readOpenView(read, scopeOf(book), executions, touched.published)
       if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
-      adopt(book, found.views, Math.min(found.published, touched.published))
-    } else if (!excluded && book.copy !== null) return succeed(book.copy)
+      adopt(book, found, Math.min(found.published, touched.published))
+    }
+    // Every execution that finishes is held in full.
+    const owed = unsettled(book.view.executions.values(), book.full)
+    if (!excluded && book.copy !== null && owed.length === 0) return succeed(book.copy)
+    if (owed.length > 0) {
+      const found = await readOpenView(read, scopeOf(book), owed, book.published ?? 0)
+      if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
+      adopt(book, found, Math.min(found.published, book.published ?? 0))
+    }
     const missing = await fetchBlobs(book, read)
     if (missing !== null) return fail(missing)
     try {
@@ -1521,6 +1504,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         `the batch folded at ${String(prepared.pub)} was published at ${String(pub)}`,
       )
     book.view = { ...prepared.view, head: Math.max(prepared.view.head, pub) }
+    const execution = job.written.execution as AgentExecutionId
+    const { dropped } = foldFull(book.full, execution, prepared, pub)
     for (const blob of prepared.blobs) book.blobs.set(blob.digest, blob.payload)
     const released = releaseBlocks(book.refs, prepared.changes, book)
     book.published = pub
@@ -1547,7 +1532,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         root.agent.blobs.set(factDigestOf(blob.digest), JSON.parse(blob.payload) as unknown)
       for (const digest of released) root.agent.blobs.delete(digest)
     })
-    book.copy = job.copy
+    // Records project the open view: once an open item closes or finishing ends, they are rebuilt.
+    book.copy = dropped || closesOpen(prepared.changes) ? null : job.copy
     for (const at of book.held.keys()) {
       const record = job.after.agent.operations.get(at)
       if (record !== undefined && record.kind !== 'pending') book.held.delete(at)
@@ -1633,9 +1619,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     call: (core: Copy<P>['core']) => Promise<Outcome<T, Failure>>,
   ): Promise<Outcome<T, Failure>> {
     return serial(book, async () => {
-      book.fetched.clear()
       // What an earlier call read back held at its head only: "none" may have changed since.
-      if (book.copy !== null) unlend(book.copy.cell)
+      if (book.copy !== null) unlend(book.copy.cell, book, digest => book.refs.has(digest))
+      else {
+        book.fetched.clear()
+        book.lentBlocks.clear()
+      }
       const domain = await domainOf(book)
       if ('failure' in domain) return domain
       const named = (input as { execution?: unknown }).execution

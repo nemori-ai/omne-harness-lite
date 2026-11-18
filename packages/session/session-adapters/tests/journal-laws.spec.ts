@@ -815,6 +815,7 @@ describe('the issue of obligations does not grow with the Tool calls', () => {
       id: obligationId(item),
       category: item.kind,
       item: refOf(item),
+      settled: item.disposition.kind === 'settled',
     }))
     expect(whole.length + 1).toBeGreaterThan(BATCH_MAX_FACTS)
     expect(

@@ -195,7 +195,12 @@ export type ObligationListView = Readonly<{
   }>
 }>
 
-export type ObligationView = Readonly<{ category: string; item: Ref | null; pub: number }>
+export type ObligationView = Readonly<{
+  category: string
+  item: Ref | null
+  settled: boolean
+  pub: number
+}>
 
 export const listKey = (candidate: AgentOperationId, list: number): string => `${candidate}/${list}`
 

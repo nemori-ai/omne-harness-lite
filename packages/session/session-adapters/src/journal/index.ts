@@ -39,6 +39,8 @@ export type {
 } from './facts.ts'
 export { advances, fold, foldAll, foldItems } from './fold.ts'
 export {
+  finishing,
+  sourceOpen,
   itemChanges,
   viewItems,
   viewOfItems,

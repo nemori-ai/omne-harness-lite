@@ -886,13 +886,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         quarantine: cell.quarantine,
         root: () => cell.current().position,
         facts: () => {
-          const agent = cell.current().agent
-          return {
-            log: agent.log,
-            view: agent.view,
-            blobs: agent.blobs as ReadonlyMap<string, unknown>,
-            namespace: cell.namespace,
-          }
+          const { log, view, closed, blobs } = cell.current().agent
+          return { log, view, closed, blobs, namespace: cell.namespace }
         },
         records: () => cell.current().agent.executions as ReadonlyMap<string, MemoryExecution>,
         operations: () => cell.current().agent.operations as ReadonlyMap<string, OperationRecord>,

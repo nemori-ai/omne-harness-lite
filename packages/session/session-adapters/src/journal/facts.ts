@@ -289,6 +289,8 @@ export type FactBody =
       id: string
       category: string
       item: Ref | null
+      // Whether the obligation is settled: the ledger keeps an unsettled one open.
+      settled: boolean
     }>
   | Readonly<{
       kind: 'finish.obligations'

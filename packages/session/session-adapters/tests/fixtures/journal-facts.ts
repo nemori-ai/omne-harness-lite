@@ -492,6 +492,7 @@ function obligation(builder: Builder, id: string, category: string): FactBody {
     id: `${builder.execution}/${id}`,
     category,
     item: blob({ obligation: id, detail: 'd'.repeat(6000) }),
+    settled: false,
   }
 }
 

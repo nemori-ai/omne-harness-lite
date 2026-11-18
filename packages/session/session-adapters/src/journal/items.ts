@@ -1,7 +1,13 @@
 import { SharedMap, forkOf } from './shared-map.ts'
 import { factKey } from './facts.ts'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
-import { emptyExecutionView, type ExecutionView } from './view.ts'
+import {
+  emptyExecutionView,
+  type ExecutionView,
+  type IntentView,
+  type ObligationView,
+  type ResultView,
+} from './view.ts'
 
 // An execution view as items by original key; the store keeps all of them, the view the open ones.
 
@@ -23,7 +29,9 @@ type List = Readonly<{
 export type ItemFamily = Readonly<{
   family: string
   holder: Table | List
-  open: (entry: never, view: ExecutionView) => boolean
+  open: (entry: never, view: ExecutionView, item: string) => boolean
+  // A family whose closed items stay out of a finishing view: its rule says what holds, not how long.
+  apart?: true
 }>
 
 export type ItemChange = Readonly<{
@@ -80,6 +88,43 @@ const keyOf = (fact: Parameters<typeof factKey>[0]): string => {
   return key.slice(key.indexOf('/') + 1)
 }
 
+// An execution that settles or has ended holds every item: finishing reads the whole record.
+export const finishing = (view: ExecutionView): boolean =>
+  view.cursor.state === 'settling' || view.finish.ended !== null
+
+type Open = (entry: Entry, view: ExecutionView, item: string) => boolean
+
+function openIn(family: ItemFamily, entry: Entry, view: ExecutionView, item: string): boolean {
+  if (finishing(view) && family.apart !== true) return true
+  return (family.open as Open)(entry, view, item)
+}
+
+const intentHeld = (item: IntentView, view: ExecutionView): boolean =>
+  view.cursor.holds?.actions.includes(item.action) ?? true
+
+function callHeld(consumption: string, view: ExecutionView): boolean {
+  if (view.cursor.holds?.consumptions.includes(consumption as never) ?? true) return true
+  for (const intent of view.intents.values())
+    if (intent.pending.consumption === consumption && intentHeld(intent, view)) return true
+  return false
+}
+
+const resultOpen = (item: ResultView, view: ExecutionView): boolean =>
+  item.stages.processed === undefined ||
+  (item.stages.recorded !== undefined && item.stages.released === undefined) ||
+  callHeld(item.consumption, view)
+
+export function sourceOpen(id: string, view: ExecutionView): boolean {
+  const [kind, key] = JSON.parse(id) as [string, string]
+  if (kind === 'call') {
+    const intent = view.intents.get(key as never)
+    return intent !== undefined && intentHeld(intent, view)
+  }
+  if (kind !== 'result') return true
+  const result = view.results.get((JSON.parse(key) as string[])[2] as never)
+  return result !== undefined && resultOpen(result, view)
+}
+
 export const EXEC_FAMILY = 'exec'
 
 export const ITEM_FAMILIES: readonly ItemFamily[] = [
@@ -108,8 +153,16 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
     open: always,
   },
   { family: 'voided', holder: list(at('voided'), keyOf, byPubOrd), open: always },
-  { family: 'intent', holder: table(at('intents')), open: always },
-  { family: 'result', holder: table(at('results')), open: always },
+  {
+    family: 'intent',
+    holder: table(at('intents')),
+    open: intentHeld,
+  },
+  {
+    family: 'result',
+    holder: table(at('results')),
+    open: resultOpen,
+  },
   { family: 'placeholder', holder: table(at('placeholders')), open: always },
   {
     family: 'admission',
@@ -152,22 +205,28 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
     open: always,
   },
   { family: 'material', holder: table(at('materials')), open: always },
-  { family: 'op', holder: table(at('ops')), open: closedAtBirth },
+  { family: 'op', holder: table(at('ops')), open: closedAtBirth, apart: true },
   {
     family: 'exclusion',
     holder: table(at('excluded')),
     open: (entry: ExecutionView['excluded'] extends ReadonlyMap<unknown, infer E> ? E : never) =>
       entry.revived !== true,
+    apart: true,
   },
   { family: 'rejection', holder: table(at('rejections')), open: always },
-  { family: 'reached', holder: table(at('reached'), Number), open: closedAtBirth },
+  { family: 'reached', holder: table(at('reached'), Number), open: closedAtBirth, apart: true },
   {
     family: 'candidate',
     holder: list(finishAt('candidates'), item => item.candidate, byPub),
     open: always,
   },
   { family: 'list', holder: table(finishAt('lists')), open: always },
-  { family: 'obligation', holder: table(finishAt('obligations')), open: always },
+  {
+    family: 'obligation',
+    holder: table(finishAt('obligations')),
+    open: (item: ObligationView, view: ExecutionView, id: string) =>
+      !item.settled || sourceOpen(id, view),
+  },
 ]
 
 const EXEC_MEMBERS = [
@@ -229,7 +288,6 @@ export type ViewItem = Readonly<{ family: string; item: string; open: boolean; b
 export function viewItems(view: ExecutionView): ViewItem[] {
   const items: ViewItem[] = [{ family: EXEC_FAMILY, item: '', open: true, body: execBody(view) }]
   for (const family of ITEM_FAMILIES) {
-    const open = family.open as (entry: Entry, view: ExecutionView) => boolean
     const { holder } = family
     const entries: Iterable<readonly [string, Entry]> =
       holder.kind === 'table'
@@ -238,20 +296,25 @@ export function viewItems(view: ExecutionView): ViewItem[] {
             .of(view)
             .map(entry => [(holder.key as (entry: Entry) => string)(entry), entry] as const)
     for (const [item, entry] of entries)
-      items.push({ family: family.family, item, open: open(entry, view), body: entry })
+      items.push({
+        family: family.family,
+        item,
+        open: openIn(family, entry, view, item),
+        body: entry,
+      })
   }
   return items
 }
 
-// Entries this fold left unchanged that the state of the view has closed.
 export function closings(after: ExecutionView, changed: readonly ItemChange[]): ItemChange[] {
+  if (finishing(after)) return []
   const touched = new Set(changed.map(change => `${change.family}\0${change.item}`))
   const closing: ItemChange[] = []
   for (const family of ITEM_FAMILIES) {
     if (family.open === always) continue
-    const open = family.open as (entry: Entry, view: ExecutionView) => boolean
+    const open = family.open as Open
     for (const [item, entry] of entriesOf(family, after))
-      if (!touched.has(`${family.family}\0${item}`) && !open(entry, after))
+      if (!touched.has(`${family.family}\0${item}`) && !open(entry, after, item))
         closing.push({
           family: family.family,
           item,
@@ -307,7 +370,7 @@ export function itemChanges(before: ExecutionView | undefined, after: ExecutionV
       ...(before === undefined ? {} : { before: execBody(before) }),
     })
   for (const family of ITEM_FAMILIES) {
-    const open = family.open as (entry: Entry, view: ExecutionView) => boolean
+    const open = (entry: Entry, item: string) => openIn(family, entry, after, item)
     const { holder } = family
     if (holder.kind === 'table') {
       const prior = before === undefined ? undefined : holder.of(before)
@@ -319,7 +382,7 @@ export function itemChanges(before: ExecutionView | undefined, after: ExecutionV
           family: family.family,
           item: String(key),
           change: prior?.get(key) === undefined ? 'opened' : 'changed',
-          open: open(entry, after),
+          open: open(entry, String(key)),
           body: entry,
           ...(prior?.get(key) === undefined ? {} : { before: prior.get(key) }),
         })
@@ -339,7 +402,7 @@ export function itemChanges(before: ExecutionView | undefined, after: ExecutionV
         family: family.family,
         item,
         change: was === undefined ? 'opened' : 'changed',
-        open: open(entry, after),
+        open: open(entry, item),
         body: entry,
         ...(was === undefined ? {} : { before: was }),
       })
@@ -348,7 +411,7 @@ export function itemChanges(before: ExecutionView | undefined, after: ExecutionV
   return changes
 }
 
-type Row = Readonly<{ family: string; item: string; body: unknown }>
+type Row = Readonly<{ family: string; item: string; body: unknown; open?: boolean }>
 
 const compareOrder = (left: readonly number[], right: readonly number[]): number => {
   for (let at = 0; at < Math.max(left.length, right.length); at += 1) {
@@ -358,14 +421,15 @@ const compareOrder = (left: readonly number[], right: readonly number[]): number
   return 0
 }
 
-// The view an execution's items make: a cold load builds it from the open rows of the store.
 export function viewOfItems(execution: AgentExecutionId, rows: readonly Row[]): ExecutionView {
   const empty = emptyExecutionView(execution)
   const exec = rows.find(row => row.family === EXEC_FAMILY)?.body as ExecBody | undefined
   let view: ExecutionView =
     exec === undefined ? empty : { ...empty, ...exec, finish: { ...empty.finish, ...exec.finish } }
   for (const family of ITEM_FAMILIES) {
-    const own = rows.filter(row => row.family === family.family)
+    const own = rows.filter(
+      row => row.family === family.family && (row.open !== false || family.apart !== true),
+    )
     if (own.length === 0) continue
     const { holder } = family
     if (holder.kind === 'table') {

@@ -3,7 +3,6 @@ import type {
   AcceptedInput,
   Adoption,
   AgentEvent,
-  AgentExecutionId,
   AgentEventBody,
   AgentOperationId,
   CommandReceipt,
@@ -13,14 +12,12 @@ import type {
   HandoffOutcome,
   HandoffResolution,
   PendingCall,
-  ReceivedEntry,
   ResultResponsibility,
   TerminalObservation,
 } from '@omne-harness/agent-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { canonical } from './canonical.ts'
 import {
-  batchEvidence,
   checkpointOf,
   receivedViews,
   type ProducerCall,
@@ -29,7 +26,6 @@ import {
   type Mint,
   type HandoffView,
   type Stamp,
-  type PublishedBatch,
   type ResultView,
   type SessionJournalView,
 } from '../journal/index.ts'
@@ -42,14 +38,11 @@ import {
   type OperationRecord,
 } from './journal.ts'
 import { finishingOf } from './journal-finishing.ts'
-import {
-  bindTarget,
-  emptyReceivingState,
-  type Kept,
-  type ReceivingState,
-} from './journal-receiving.ts'
+import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
+import { bindTarget } from './binding-targets.ts'
 import { journalEvidence, operationText, revisionOf, semanticKey } from './journal-values.ts'
 import { captureHuman } from './human.ts'
+import { receivedRecord, stampReceipt } from './received-records.ts'
 import type { CommonRoot } from './root.ts'
 
 export const EXECUTION_FIELDS = [
@@ -92,24 +85,6 @@ export type ProjectionContext = Readonly<{
 }>
 
 type CustodyAttempt = MemoryExecution['custodyAttempts'] extends Map<unknown, infer V> ? V : never
-
-export function stampReceipt(
-  mint: Mint,
-  execution: AgentExecutionId,
-  stamp: Stamp,
-): CommandReceipt {
-  return {
-    operation: stamp.op,
-    execution,
-    revision: revisionOf(stamp.revision),
-    evidence: batchEvidence(
-      mint,
-      { execution, pub: stamp.pub, envelope: { digest: stamp.digest } } as PublishedBatch,
-      stamp.revision,
-    ),
-    state: stateOf2(methodOf(stamp.digest)),
-  }
-}
 
 function pubOf(evidence: DurableEvidence): number | null {
   const found = /\/pub\/(\d+)$/u.exec(evidence.record)
@@ -488,11 +463,6 @@ export function projectExecution(
   return projected
 }
 
-const methodOf = (key: string): string => key.split(':')[0] ?? ''
-
-const stateOf2 = (method: string): CommandReceipt['state'] =>
-  method === 'submit' || method === 'control' ? 'accepted' : 'applied'
-
 // The open operations of the execution are its exclusions; what one answered is a closed item.
 export function projectOperations(
   view: ExecutionView,
@@ -654,32 +624,16 @@ export function projectReceiving(
             blob(context.blobs, binding.pending),
           ),
       })
+    const scope = { tenantText, execution: execution.id, mint: context.mint, blobs: context.blobs }
     for (const received of receivedViews(view)) {
-      const { op } = received
-      const value = blob<ReceivedEntry>(context.blobs, received.custody)
-      const kept: Kept = {
-        entry: value,
-        receipt: stampReceipt(context.mint, execution.id, received),
-        saved: methodOf(received.digest) === 'received' ? received.saved : null,
-      }
-      const delivery = canonical([
-        tenantText,
-        execution.id,
-        value.delivery.producer,
-        value.delivery.key,
-      ])
+      const { delivery, kept, material } = receivedRecord(scope, received)
       items.push({
         pub: received.pub,
         ord: 1,
         apply: () => {
           state.deliveries.set(delivery, kept)
-          state.aliases.set(keyOf(op), kept)
-          if (received.material !== null)
-            state.materials.set(canonical(value.material), {
-              tenant: tenantText,
-              execution: execution.id,
-              value: blob(context.blobs, received.material),
-            })
+          state.aliases.set(keyOf(received.op), kept)
+          if (material !== null) state.materials.set(canonical(kept.entry.material), material)
         },
       })
     }
