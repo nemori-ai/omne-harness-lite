@@ -3,7 +3,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { AssetsDriver, type LocalFile } from './assets-driver.ts'
-import type { Action, AssetsState, Detail } from './assets-machine.ts'
+import { listShown, type Action, type AssetsState, type Detail } from './assets-machine.ts'
 import { NOT_CREATING, type Creating } from './creation.ts'
 import { holdingsOf, type Holding } from './holdings.ts'
 import { SettingsDriver } from './settings-driver.ts'
@@ -83,7 +83,7 @@ const READING_ASSETS: CategoryAssets = { kind: 'reading' }
 function listedAssets(assets: AssetsState, holdings: readonly Holding[]): CategoryAssets {
   const list = assets.list
   if (list.kind === 'failed') return { kind: 'unreadable', notice: list.notice }
-  const listed = list.kind === 'read' ? list : list.kind === 'reading' ? list.shown : null
+  const listed = listShown(list)
   if (listed === null) return READING_ASSETS
   const settingsOf = new Map(holdings.map(holding => [holding.name, holding.rows]))
   const entries = listed.items.map(row => ({
@@ -115,16 +115,20 @@ export function snapshotOf(
               row => row.view.owner.kind === 'asset' && row.view.owner.category === category,
             )
       const holdings = holdingsOf(rows)
-      return {
-        kind: 'read',
-        holdings,
-        partial: list.partial,
-        assets: assets === undefined ? NOT_BY_CATEGORY : listedAssets(assets, holdings),
-        creation: assets?.category.kind === 'read' ? assets.category.creation : null,
-        hint: assets?.category.kind === 'read' ? assets.category.hint : null,
-        creating: assets?.creating ?? NOT_CREATING,
-      }
+      return { kind: 'read', holdings, partial: list.partial, ...categoryParts(assets, holdings) }
     }
+  }
+}
+
+function categoryParts(assets: AssetsState | undefined, holdings: readonly Holding[]) {
+  if (assets === undefined)
+    return { assets: NOT_BY_CATEGORY, creation: null, hint: null, creating: NOT_CREATING }
+  const info = assets.category.kind === 'read' ? assets.category : null
+  return {
+    assets: listedAssets(assets, holdings),
+    creation: info?.creation ?? null,
+    hint: info?.hint ?? null,
+    creating: assets.creating,
   }
 }
 

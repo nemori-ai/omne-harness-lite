@@ -54,18 +54,19 @@ function fieldControl(schema: JsonValue): FieldControl | undefined {
   return undefined
 }
 
+function requiredKeys(schema: JsonValue): ReadonlySet<string> {
+  const required = member(schema, 'required')
+  if (required?.kind !== 'array') return new Set()
+  return new Set(required.items.flatMap(item => (item.kind === 'string' ? [item.value] : [])))
+}
+
 /** A top-level object of strings, enums, booleans and numbers is drawn; any other shape is JSON. */
 export function formOf(schema: JsonValue): DataForm {
   const type = member(schema, 'type')
   const properties = member(schema, 'properties')
   if (type?.kind !== 'string' || type.value !== 'object' || properties?.kind !== 'object')
     return JSON_FORM
-  const required = member(schema, 'required')
-  const needed = new Set(
-    required?.kind === 'array'
-      ? required.items.flatMap(item => (item.kind === 'string' ? [item.value] : []))
-      : [],
-  )
+  const needed = requiredKeys(schema)
   const fields: FormField[] = []
   for (const { key, value } of properties.entries) {
     const control = fieldControl(value)

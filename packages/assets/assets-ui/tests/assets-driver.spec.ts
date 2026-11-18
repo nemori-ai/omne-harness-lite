@@ -228,6 +228,43 @@ describe('the assets driver creating', () => {
     expect(fake.calls.some(call => call.operation === 'commit-asset-upload')).toBe(false)
   })
 
+  it('a refused begin sends no part; its reason is what the slot shows', async () => {
+    const { fake, driver } = await listed()
+    driver.create(
+      { kind: 'directory', name: 'review', manifest: [{ path: 'SKILL.md', bytes: 4 }] },
+      [{ path: 'SKILL.md', bytes: bytes('0123') }],
+    )
+    ;(await fake.next('begin-asset-upload')).answer({
+      outcome: 'invalid',
+      body: { reason: '缺 SKILL.md' },
+    })
+    await settle()
+    expect(driver.getState().creating).toMatchObject({
+      kind: 'refused',
+      notice: { text: '服务端没有收下：缺 SKILL.md。' },
+    })
+    expect(fake.calls.some(call => call.operation === 'append-asset-upload')).toBe(false)
+  })
+
+  it('a refused part stops the upload before the commit', async () => {
+    const { fake, driver } = await listed()
+    driver.create(
+      { kind: 'directory', name: 'review', manifest: [{ path: 'SKILL.md', bytes: 4 }] },
+      [{ path: 'SKILL.md', bytes: bytes('0123') }],
+    )
+    ;(await fake.next('begin-asset-upload')).answer({
+      outcome: 'succeeded',
+      body: { partBytes: 8, received: [] },
+    })
+    ;(await fake.next('append-asset-upload')).answer({ outcome: 'not-found', body: {} })
+    await settle()
+    expect(driver.getState().creating).toMatchObject({
+      kind: 'refused',
+      notice: { text: '这次上传已经过期或不在了，没有新建。请重新提交。' },
+    })
+    expect(fake.calls.some(call => call.operation === 'commit-asset-upload')).toBe(false)
+  })
+
   it('an unknown directory creation is recalled as its commit; a data one with its body', async () => {
     const { fake, driver } = await listed()
     driver.create({ kind: 'data', name: 'notes', body: { kind: 'null' } })

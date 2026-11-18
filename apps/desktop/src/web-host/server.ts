@@ -223,24 +223,29 @@ export function createWebHost(options: WebHostOptions): WebHost {
     response.end(answer.body)
   }
 
+  const routes = new Map<string, (request: IncomingMessage, response: ServerResponse) => unknown>([
+    [`POST ${BRIDGE.call}`, call],
+    [`POST ${BRIDGE.observe}`, observe],
+    [`POST ${BRIDGE.unobserve}`, unobserve],
+    [`GET ${BRIDGE.events}`, events],
+    [`POST ${BRIDGE.login}`, login],
+    [`POST ${BRIDGE.logout}`, logout],
+    [`GET ${BRIDGE.loginState}`, (_request, response) => loginState(response)],
+  ])
+
   async function route(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const path = new URL(request.url ?? '/', 'http://host').pathname
-    const post = request.method === 'POST'
-    if (!trusted(request, post)) {
+    const method = request.method ?? ''
+    if (!trusted(request, method === 'POST')) {
       // Header values only (no body, no proof): enough to see which check refused a browser.
       log(
-        `refused ${request.method ?? ''} ${path}: host=${request.headers.host ?? ''} origin=${request.headers.origin ?? ''}`,
+        `refused ${method} ${path}: host=${request.headers.host ?? ''} origin=${request.headers.origin ?? ''}`,
       )
       return send(response, 403, 'text/plain', 'forbidden')
     }
-    if (post && path === BRIDGE.call) return call(request, response)
-    if (post && path === BRIDGE.observe) return observe(request, response)
-    if (post && path === BRIDGE.unobserve) return unobserve(request, response)
-    if (request.method === 'GET' && path === BRIDGE.events) return events(request, response)
-    if (post && path === BRIDGE.login) return login(request, response)
-    if (post && path === BRIDGE.logout) return logout(request, response)
-    if (request.method === 'GET' && path === BRIDGE.loginState) return loginState(response)
-    if (request.method === 'GET' && !path.startsWith('/bridge/')) return page(path, response)
+    const handler = routes.get(`${method} ${path}`)
+    if (handler !== undefined) return void (await handler(request, response))
+    if (method === 'GET' && !path.startsWith('/bridge/')) return page(path, response)
     send(response, 404, 'text/plain', 'not found')
   }
 

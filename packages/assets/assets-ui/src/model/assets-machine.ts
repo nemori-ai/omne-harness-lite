@@ -153,15 +153,15 @@ function withEntry<V>(map: ReadonlyMap<string, V>, key: string, value: V | undef
   return next
 }
 
+/** What the list shows now: the last read, kept while the next one runs; null before any. */
+export function listShown(list: AssetList): ListedAssets | null {
+  if (list.kind === 'read') return { items: list.items, partial: list.partial }
+  return list.kind === 'reading' ? list.shown : null
+}
+
 function readList(state: AssetsState): AssetsStep {
   const token = state.issued + 1
-  const list = state.list
-  const shown =
-    list.kind === 'read'
-      ? { items: list.items, partial: list.partial }
-      : list.kind === 'reading'
-        ? list.shown
-        : null
+  const shown = listShown(state.list)
   return {
     state: {
       ...state,
@@ -255,13 +255,7 @@ function reread(state: AssetsState): AssetsStep {
 function holdingOf(state: AssetsState, name: string): string | undefined {
   const detail = state.details.get(name)
   if (detail?.kind === 'read') return detail.asset.item.holding
-  const items =
-    state.list.kind === 'read'
-      ? state.list.items
-      : state.list.kind === 'reading'
-        ? (state.list.shown?.items ?? [])
-        : []
-  return items.find(item => item.name === name)?.holding
+  return listShown(state.list)?.items.find(item => item.name === name)?.holding
 }
 
 const busy = (action: Action | undefined): boolean =>

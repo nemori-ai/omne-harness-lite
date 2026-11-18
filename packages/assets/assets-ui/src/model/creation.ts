@@ -119,6 +119,19 @@ function settle(
 const busy = (creating: Creating): boolean =>
   creating.kind === 'sending' || creating.kind === 'unknown'
 
+type Recalling = Extract<Creating, { kind: 'unknown' }>
+
+const NOT_COMMITTED: Notice = { kind: 'unavailable', text: '上一次没有生效，可以再试一次。' }
+const RECALL_AGAIN = new Set(['unavailable', 'uncertain', 'basis-unavailable'])
+
+/** The recall answers what happened to the first submission; it says nothing new while it cannot tell. */
+function recalled(creating: Recalling, answer: CreateRecallAnswer, listed: boolean): CreationStep {
+  if (answer.outcome === 'not-committed') return same({ kind: 'refused', notice: NOT_COMMITTED })
+  if (RECALL_AGAIN.has(answer.outcome))
+    return same({ ...creating, confirming: false, notice: noticeOf(answer.outcome) })
+  return settle(creating.request, creating.operation, answer, listed)
+}
+
 /** The creation slot of one category: one creation at a time, an unknown one recalled, not resent. */
 export function stepCreation(
   creating: Creating,
@@ -136,13 +149,18 @@ export function stepCreation(
       }
     }
     case 'create-progress':
-      return creating.kind === 'sending' && creating.operation === event.operation
-        ? same({ ...creating, received: event.received })
-        : same(creating)
+      if (creating.kind !== 'sending' || creating.operation !== event.operation)
+        return same(creating)
+      return same({ ...creating, received: event.received })
     case 'create-answered':
-      return creating.kind === 'sending' && creating.operation === event.operation
-        ? settle(creating.request, creating.operation, event.answer, listed(creating.request.name))
-        : same(creating)
+      if (creating.kind !== 'sending' || creating.operation !== event.operation)
+        return same(creating)
+      return settle(
+        creating.request,
+        creating.operation,
+        event.answer,
+        listed(creating.request.name),
+      )
     case 'confirm-create':
       if (creating.kind !== 'unknown' || creating.confirming) return same(creating)
       return {
@@ -152,23 +170,9 @@ export function stepCreation(
         ],
         reread: false,
       }
-    case 'confirm-create-answered': {
+    case 'confirm-create-answered':
       if (creating.kind !== 'unknown' || !creating.confirming) return same(creating)
       if (creating.operation !== event.operation) return same(creating)
-      const { outcome } = event.answer
-      if (outcome === 'not-committed')
-        return same({
-          kind: 'refused',
-          notice: { kind: 'unavailable', text: '上一次没有生效，可以再试一次。' },
-        })
-      if (outcome === 'unavailable' || outcome === 'uncertain' || outcome === 'basis-unavailable')
-        return same({ ...creating, confirming: false, notice: noticeOf(outcome) })
-      return settle(
-        creating.request,
-        creating.operation,
-        event.answer,
-        listed(creating.request.name),
-      )
-    }
+      return recalled(creating, event.answer, listed(creating.request.name))
   }
 }
