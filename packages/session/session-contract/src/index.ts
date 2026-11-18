@@ -304,12 +304,39 @@ export {
   type DirectCallControl,
 } from './call-control.ts'
 export {
-  BACKGROUND_INPUT_OWNER,
   backgroundInputId,
   judgeBackgroundOutcome,
   type BackgroundOutcomeJudgment,
 } from './background-outcome.ts'
 export type { SessionIntakeLimits } from './intake.ts'
+export {
+  INTAKE_GUARD_OWNER,
+  admitDerived,
+  admitSource,
+  createInputSourceRegistry,
+  inputSourceName,
+  commandInput,
+  prepareEntriesTerms,
+  prepareIntakeTerms,
+  withIntakeTerms,
+  intakeTermsOf,
+  parseInputSourceName,
+  type AdmittedSource,
+  type DerivedAdmission,
+  type DerivedInputKind,
+  type InputSourceDeclaration,
+  type InputSourceLookup,
+  type InputSourceName,
+  type InputSourceRegistry,
+  type InputSources,
+  type IntakeBasis,
+  type IntakeSubject,
+  type SourceTerms,
+  type IntakeTerms,
+  type SessionDerivedInputs,
+  type SourceAdmission,
+  type SourceRefusal,
+} from './input-sources.ts'
 export type {
   TodoItem,
   VisibleTodoItem,

@@ -37,6 +37,8 @@ const documentedPairs = {
   sessionReplayFactsKey: 'SessionReplayFactsService',
   sessionScopeLookupKey: 'SessionScopeLookupService',
   sessionAdoptedRequestsKey: 'SessionAdoptedRequestsService',
+  sessionInputSourcesKey: 'SessionInputSourcesService',
+  sessionDerivedInputsKey: 'SessionDerivedInputsService',
 } as const
 
 const documentedKeys = {
@@ -66,12 +68,18 @@ const documentedKeys = {
   sessionReplayFactsKey: 'sessionReplayFacts',
   sessionScopeLookupKey: 'sessionScopeLookup',
   sessionAdoptedRequestsKey: 'sessionAdoptedRequests',
+  sessionInputSourcesKey: 'sessionInputSources',
+  sessionDerivedInputsKey: 'sessionDerivedInputs',
 } as const
 
 describe('the ./cordis entry', () => {
-  it('exports exactly the twenty-four classes and their keys', () => {
+  it('exports exactly the documented classes and their keys, and the plugin of the sources point', () => {
     expect(Object.keys(cordis).sort()).toEqual(
-      [...Object.keys(documentedPairs), ...Object.values(documentedPairs)].sort(),
+      [
+        ...Object.keys(documentedPairs),
+        ...Object.values(documentedPairs),
+        'sessionInputSourcesPlugin',
+      ].sort(),
     )
   })
 

@@ -137,7 +137,9 @@ function applyIntakeRouted(
   }
   if (draft.pending.includes(entry.input)) return `input ${entry.input} accepted twice`
   draft.pending = [...draft.pending, entry.input]
-  if (entry.wakes === false) {
+  if (!entry.source.countsTowardCapacity)
+    draft.uncountedInputs = [...(draft.uncountedInputs ?? []), entry.input]
+  if (!entry.source.wakes) {
     draft.quietInputs = [...(draft.quietInputs ?? []), entry.input]
     return null
   }

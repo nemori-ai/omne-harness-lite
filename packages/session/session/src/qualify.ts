@@ -76,6 +76,7 @@ export async function qualify<P>(
             ...(decision.writeQualification === undefined
               ? {}
               : { writeQualification: decision.writeQualification }),
+            ...(decision.subject === undefined ? {} : { subject: decision.subject }),
           }),
         )
       } catch (error) {

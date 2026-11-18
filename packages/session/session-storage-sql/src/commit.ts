@@ -16,6 +16,8 @@ import {
   type SessionCommand,
   type SessionFailure,
   type SessionOperationId,
+  prepareIntakeTerms,
+  withIntakeTerms,
 } from '@omne-harness/session-contract'
 import {
   commitRejectionNature,
@@ -311,7 +313,13 @@ export async function commit<P, K extends MutationName>(
   if ('failure' in domain) return domain
   let facts: FactCommandV2
   try {
-    const base = sessionCommandFacts(command, input.guards, context.intakeLimits)
+    const terms = prepareIntakeTerms(command, {
+      subject: allowed.ok.subject,
+      sources: context.options.sources ?? null,
+      derived: context.options.derived ?? null,
+    })
+    const guards = withIntakeTerms(input.guards, terms)
+    const base = sessionCommandFacts(command, guards, context.intakeLimits)
     facts = { ...base, facts: { ...base.facts, evidence: encodeValue(allowed.ok.evidence) } }
   } catch (error) {
     return failure({

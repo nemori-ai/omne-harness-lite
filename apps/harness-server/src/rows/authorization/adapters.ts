@@ -14,6 +14,7 @@ import type { AgentAccessCheck, AgentAccessDecision } from '@omne-harness/agent-
 import type { ActingForTenantPrincipal, SystemPrincipal } from '@omne-harness/identity'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type {
+  IntakeSubject,
   MutationName,
   SessionAccessCheck,
   SessionAccessDecision,
@@ -359,9 +360,21 @@ function sessionMatrixRequest(
   }
 }
 
+// Which kind of subject the verified principal is. A work principal sends no ordinary input.
+function intakeSubjectOf(principal: unknown): IntakeSubject | undefined {
+  const who = classify(principal)
+  if (who?.column === 'login') return { kind: 'member' }
+  if (who?.column === 'system') return { kind: 'system', component: who.principal.component }
+  return undefined
+}
+
 export function createSessionAccessCheck(ports: AccessPorts): SessionAccessCheck<unknown> {
-  const check: SessionAccessCheck<unknown>['check'] = input =>
-    answer(() => planSession(input), ports)
+  const check: SessionAccessCheck<unknown>['check'] = async input => {
+    const decision = await answer(() => planSession(input), ports)
+    const subject =
+      decision.kind === 'allowed' ? intakeSubjectOf(input.access.principal) : undefined
+    return subject === undefined ? decision : Object.freeze({ ...decision, subject })
+  }
   return Object.freeze({ check })
 }
 

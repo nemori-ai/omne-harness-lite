@@ -30,6 +30,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
+  'session-input-sources': { provides: ['sessionInputSources'] },
   'asset-categories': { provides: ['assetCategories'] },
   'tenant-assets': {
     provides: ['tenantAssets', 'assetPublishing'],
@@ -184,7 +185,9 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'session',
     ],
   },
-  'session-call-control': { provides: ['sessionCallControl', 'sessionCallStates'] },
+  'session-call-control': {
+    provides: ['sessionCallControl', 'sessionCallStates', 'sessionDerivedInputs'],
+  },
   'session-ad15': {
     provides: ['sessionScopeRelease'],
     injects: ['executionEnvironment', 'session'],

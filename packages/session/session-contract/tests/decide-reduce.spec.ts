@@ -1,4 +1,9 @@
-import { createMemorySessionHistorySource } from '@omne-harness/session-contract/testing'
+import {
+  createMemorySessionHistorySource,
+  TESTING_SOURCES,
+  TESTING_SYSTEM_COMPONENT,
+  testingIntakeGuards,
+} from '@omne-harness/session-contract/testing'
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import { accountCodec, workspaceEquals } from '@omne-harness/legal-identity'
@@ -20,6 +25,7 @@ import {
   routeInput,
   type CommittedBatch,
   type HistoryEntry,
+  type GuardCommand,
   type SessionCommand,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -30,7 +36,6 @@ import {
   memoryAccess,
   memoryOtherAccess,
   operationId,
-  guard,
   ordinaryInput,
   testingWorkspace,
 } from '@omne-harness/session-contract/testing'
@@ -43,15 +48,9 @@ const history = createMemorySessionHistorySource()
 const historyRows: HistoryEntry[] = []
 const base = { tenant: access.tenant, session: access.session }
 
-function loginRead(previous: WorkSnapshot | null) {
-  const first = previous?.pending[0]
-  return first === undefined
-    ? {}
-    : { firstInput: { input: first, origin: ordinaryInput(first).origin } }
-}
-
 function commit(previous: WorkSnapshot | null, command: SessionCommand): WorkSnapshot {
-  const guards = command.kind === 'startRun' ? [] : initializationGuards(command, previous)
+  const own = command.kind === 'startRun' ? [] : initializationGuards(command, previous)
+  const guards = [...own, ...testingIntakeGuards(command)]
   if (previous === null) historyRows.length = 0
   const material =
     previous === null
@@ -70,7 +69,6 @@ function commit(previous: WorkSnapshot | null, command: SessionCommand): WorkSna
   const decision = decide(previous, command, guards, null, {
     compaction: null,
     ...(material === undefined ? {} : { history: material.reads }),
-    ...(command.kind === 'startRun' ? loginRead(previous) : {}),
   })
   if (decision.kind !== 'entries') throw new Error(`decide: ${JSON.stringify(decision)}`)
   const revision = String(
@@ -680,39 +678,40 @@ describe('the pure judgments at their edges', () => {
     expect(judgeCompletion(dormant(), 'none')).toEqual({ kind: 'allowed' })
   })
 
-  it('an interactive startRun reads the login gate from the stored first input, not from the guards', () => {
-    const previous = accepted()
-    const first = previous.pending[0]!
-    const command = (entry: 'interactive' | 'dispatch'): SessionCommand => ({
-      kind: 'startRun',
-      input: {
-        ...base,
-        operation: operationId('start-gate'),
-        entry,
-        candidate: creation().definition.candidate,
-        instance: { owner: 'agent', id: 'i' },
+  it('an input is accepted on the terms of the commit only: none, unavailable, refused and of another source', () => {
+    const previous = dormant()
+    const value = ordinaryInput('input-terms')
+    const command: SessionCommand = {
+      kind: 'accept',
+      input: { ...base, operation: operationId('accept-terms'), value },
+    }
+    const decided = (guards: readonly GuardCommand[]) =>
+      decide(previous, command, guards, null, { compaction: null })
+    const unavailable = { kind: 'rejected', failure: { kind: 'unavailable' } }
+    expect(decided([])).toMatchObject(unavailable)
+    expect(decided(testingIntakeGuards(command, null))).toMatchObject(unavailable)
+    expect(decided(testingIntakeGuards(command, { kind: 'system', component: 'x' }))).toEqual({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'value.source', reason: 'subject-not-accepted' },
+    })
+    const system = { ...value, source: TESTING_SOURCES.system }
+    const other = { ...command, input: { ...command.input, value: system } } as SessionCommand
+    const component = { kind: 'system', component: TESTING_SYSTEM_COMPONENT } as const
+    expect(decided(testingIntakeGuards(other, component))).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'value.source' },
+    })
+    expect(
+      decide(previous, other, testingIntakeGuards(other, component), null, { compaction: null }),
+    ).toEqual({
+      kind: 'rejected',
+      failure: {
+        kind: 'invalid',
+        field: 'value.message.role',
+        reason: 'this source authors system_reminder messages only',
       },
     })
-    const login = ordinaryInput(first).origin
-    const decided = (entry: 'interactive' | 'dispatch', reads: object, guards = []) =>
-      decide(previous, command(entry), guards, null, { compaction: null, ...reads })
-    const refusal = { kind: 'rejected', failure: { kind: 'login-required' } }
-    expect(decided('interactive', { firstInput: { input: first, origin: login } }).kind).toBe(
-      'entries',
-    )
-    expect(decided('interactive', {})).toEqual(refusal)
-    expect(
-      decided('interactive', { firstInput: { input: first, origin: evidence('intake') } }),
-    ).toEqual(refusal)
-    expect(decided('interactive', { firstInput: { input: 'other-input', origin: login } })).toEqual(
-      refusal,
-    )
-    expect(
-      decide(previous, command('interactive'), [guard('bridge', 'login-entry', 'x')], null, {
-        compaction: null,
-      }),
-    ).toEqual(refusal)
-    expect(decided('dispatch', {}).kind).toBe('entries')
+    expect(decided(testingIntakeGuards(command)).kind).toBe('entries')
   })
 
   it('names no Run for a control that ended none', () => {

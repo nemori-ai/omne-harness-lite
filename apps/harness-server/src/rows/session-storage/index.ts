@@ -26,6 +26,8 @@ import {
   sessionPrincipalBindingsKey,
   sessionScopeOwnersKey,
   sessionTransactionsKey,
+  sessionDerivedInputsKey,
+  sessionInputSourcesKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionCommitNotifier } from '@omne-harness/session-cordis/cordis'
 import {
@@ -407,6 +409,13 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
     domains: directory.access,
     accessCheck,
     cursorSigning: lateBoundCursorSigning(ctx),
+    // Both are taken at each commit: while one is away, the intake that needs it is unavailable.
+    sources: {
+      lookup: name => ctx.get(sessionInputSourcesKey)?.lookup(name) ?? { kind: 'absent' },
+    },
+    derived: {
+      admission: kind => ctx.get(sessionDerivedInputsKey)?.admission(kind) ?? null,
+    },
     // Without the service the commit has no time; it is never the wall clock of this process.
     clock: {
       sample: () =>

@@ -28,6 +28,9 @@ import {
   ordinaryInput,
   sessionId,
   testingTenant,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import {
@@ -306,8 +309,10 @@ export async function openRealApp(options: RealAppOptions = {}) {
     ...(options.protectedBasis === undefined ? {} : { protectedBasis: options.protectedBasis }),
     storage,
     domains,
-    accessCheck,
+    accessCheck: withMemberSubject(accessCheck),
     cursorSigning: createFixedSessionCursorSigning(),
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
     combination: { combinationVersion: COMBINATION, manifestDigest: digest },
   }
   const port = createSessionStorage<string>(storageOptions)

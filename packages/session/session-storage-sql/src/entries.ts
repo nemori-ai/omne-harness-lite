@@ -4,6 +4,7 @@ import {
   type SessionEntriesReceipt,
   type SessionEntriesStart,
   type SessionFailure,
+  prepareEntriesTerms,
 } from '@omne-harness/session-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
@@ -27,6 +28,7 @@ export async function commitEntries<P>(
         intent: 'entries',
         observation: encodeValue(observation),
         start: encodeValue(start),
+        derived: encodeValue(prepareEntriesTerms(context.options.derived ?? null)),
       },
     }
   } catch (error) {

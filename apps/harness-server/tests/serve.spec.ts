@@ -103,6 +103,7 @@ describe('serve: the release tree of doubles', () => {
         'identity:real',
         'authorization:real',
         'session-storage:real',
+        'session-input-sources:real',
         'asset-categories:real',
         'tenant-assets:real',
         'governance:real',

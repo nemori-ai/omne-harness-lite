@@ -26,6 +26,11 @@
       "config": {}
     },
     {
+      "id": "session-input-sources",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "asset-categories",
       "plugin": "stubPlugin",
       "config": {}

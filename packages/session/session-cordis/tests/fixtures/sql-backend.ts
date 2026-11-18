@@ -1,3 +1,8 @@
+import {
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
+} from '@omne-harness/session-contract/testing'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -143,8 +148,10 @@ export const sqlBackend: BackendFactory = {
     const { transactions, delegated } = createSessionStoragePair<string>({
       storage: created.storage,
       domains,
-      accessCheck,
+      accessCheck: withMemberSubject(accessCheck),
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       combination: { combinationVersion: COMBINATION, manifestDigest: digest },
     })
     return {

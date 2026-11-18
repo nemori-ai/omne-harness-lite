@@ -12,6 +12,7 @@ import {
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
+import { provideBackgroundSources } from './background-sources.ts'
 import { createToolCallStates, provideSessionCallStates } from './tool-call-states.ts'
 
 const OWNER = 'session-adapters/tool-call-control'
@@ -91,13 +92,14 @@ class SessionCallControlProvider extends SessionCallControlService {
   }
 }
 
-/** Provides `sessionCallControl`: Session hands a control of a backgrounded call straight to Tool. */
+/** Provides `sessionCallControl` and the two input sources of background calls. */
 export function createSessionCallControlPlugin<P>(input: ToolCallControlInput<P>) {
   return {
     name: 'session-call-control',
     apply(ctx: Context) {
       new SessionCallControlProvider(ctx, createToolCallControl(input))
       provideSessionCallStates(ctx, createToolCallStates(input))
+      provideBackgroundSources(ctx)
     },
   }
 }

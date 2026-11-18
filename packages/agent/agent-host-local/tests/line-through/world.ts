@@ -143,6 +143,9 @@ import {
   memoryOtherAccess,
   sessionId,
   type SessionAccessScript,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { createSessionCommitNotifier, SessionProvider } from '@omne-harness/session-cordis/cordis'
 import {
@@ -580,8 +583,10 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
             },
           }),
       },
-      accessCheck: sessionChecks,
+      accessCheck: withMemberSubject(sessionChecks),
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       combination,
     })
   const pair = pairOver(storage)

@@ -101,6 +101,11 @@
       "config": {}
     },
     {
+      "id": "session-input-sources",
+      "plugin": "sessionInputSourcesRow",
+      "config": {}
+    },
+    {
       "id": "asset-categories",
       "plugin": "assetCategoriesRow",
       "config": {}

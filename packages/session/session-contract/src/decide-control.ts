@@ -149,7 +149,14 @@ export function decideStopCall(
   const value = { kind: 'stop-call', producer, initiator, reason } as const
   const decision = decideControl(snapshot, { kind: 'control', value }, operation, reads)
   if (decision.kind !== 'entries' || placed === null || initiator !== 'user') return decision
-  const reminder = stopReminderEntries(snapshot, placed, { initiator, reason, operation })
+  const admission = reads.intake?.derived?.['background-stop']
+  const reminder = stopReminderEntries(
+    snapshot,
+    placed,
+    { initiator, reason, operation },
+    admission,
+  )
+  if (reminder.kind === 'rejected') return reminder
   return {
     ...decision,
     entries: [...decision.entries, ...reminder.entries],

@@ -1,6 +1,12 @@
 // @module-tag slow
+import type { SessionCommand } from '@omne-harness/session-contract'
 import { afterEach, expect, it } from 'vitest'
-import { evidence, operationId, ordinaryInput } from '@omne-harness/session-contract/testing'
+import {
+  evidence,
+  operationId,
+  ordinaryInput,
+  testingIntakeGuards,
+} from '@omne-harness/session-contract/testing'
 import {
   SESSION_LOG_PARTICIPANTS,
   decodeSessionPermissionCurrent,
@@ -55,24 +61,20 @@ async function read(app: RealApp): Promise<SessionPermissionCurrent> {
 }
 
 function capture(app: RealApp, current: SessionPermissionCurrent, name: string) {
+  const accept: SessionCommand = {
+    kind: 'accept',
+    input: {
+      tenant: TENANT_A,
+      session: app.access(TENANT_A).session,
+      operation: operationId(name),
+      value: ordinaryInput(name),
+    },
+  }
   return app.storage.commit({
     identity: identityOf(TENANT_A, app.domainOf(TENANT_A), name),
     ...app.combination,
     commands: [
-      ...sessionCommitCommands([
-        sessionCommandFacts(
-          {
-            kind: 'accept',
-            input: {
-              tenant: TENANT_A,
-              session: app.access(TENANT_A).session,
-              operation: operationId(name),
-              value: ordinaryInput(name),
-            },
-          },
-          [],
-        ),
-      ]),
+      ...sessionCommitCommands([sessionCommandFacts(accept, testingIntakeGuards(accept))]),
       sessionPermissionGuardFacts(current),
     ],
   })

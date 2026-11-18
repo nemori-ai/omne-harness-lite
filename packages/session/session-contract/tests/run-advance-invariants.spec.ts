@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { createMemorySessionHistorySource } from '@omne-harness/session-contract/testing'
+import {
+  createMemorySessionHistorySource,
+  testingIntakeGuards,
+} from '@omne-harness/session-contract/testing'
 import {
   decide,
   expectedRevision,
@@ -36,14 +39,9 @@ function random(seed: number) {
 function log() {
   const history = createMemorySessionHistorySource()
   const rows: HistoryEntry[] = []
-  const loginRead = (previous: WorkSnapshot | null) => {
-    const first = previous?.pending[0]
-    return first === undefined
-      ? {}
-      : { firstInput: { input: first, origin: ordinaryInput(first).origin } }
-  }
   return (previous: WorkSnapshot | null, command: SessionCommand): WorkSnapshot | null => {
-    const guards = command.kind === 'startRun' ? [] : initializationGuards(command, previous)
+    const own = command.kind === 'startRun' ? [] : initializationGuards(command, previous)
+    const guards = [...own, ...testingIntakeGuards(command)]
     const material =
       previous === null
         ? undefined
@@ -63,7 +61,6 @@ function log() {
     const decision = decide(read, command, guards, null, {
       compaction: null,
       ...(material === undefined ? {} : { history: material.reads }),
-      ...(command.kind === 'startRun' ? loginRead(read) : {}),
     })
     if (decision.kind !== 'entries') return null
     const revision = String(

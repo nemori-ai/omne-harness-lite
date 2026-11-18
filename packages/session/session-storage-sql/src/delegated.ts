@@ -26,8 +26,12 @@ function viewOf<P>(port: SessionTransactionPort<P>): SessionTransactionPort<P> {
 }
 
 function boundStep<P>(checked: SessionCheckedAccess<P>): AccessStep<P> {
-  const { request: bound, evidence, writeQualification } = checked
-  const allowed = writeQualification === undefined ? { evidence } : { evidence, writeQualification }
+  const { request: bound, evidence, writeQualification, subject } = checked
+  const allowed = {
+    evidence,
+    ...(writeQualification === undefined ? {} : { writeQualification }),
+    ...(subject === undefined ? {} : { subject }),
+  }
   return request =>
     Promise.resolve(
       withinBinding(bound, request)

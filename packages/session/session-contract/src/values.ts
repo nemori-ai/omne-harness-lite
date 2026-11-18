@@ -25,6 +25,7 @@ import type {
   SessionRevision,
 } from './identity.ts'
 
+import type { InputSourceName } from './input-sources.ts'
 export type ResidentTool = Readonly<{
   capability: string
   version: string
@@ -126,7 +127,14 @@ export type ControlTarget =
   | Readonly<{ kind: 'producer'; producer: ProducerRef }>
   | Readonly<{ kind: 'session' }>
 export type RoutedInput =
-  | Readonly<{ kind: 'ordinary'; input: InputId; message: Message; origin: DurableEvidence }>
+  | Readonly<{
+      kind: 'ordinary'
+      input: InputId
+      message: Message
+      origin: DurableEvidence
+      source: InputSourceName
+      wake?: boolean
+    }>
   | Readonly<{
       kind: 'card-decision'
       card: DurableEvidence
@@ -395,7 +403,7 @@ export type WorkSnapshot = Readonly<{
   /** The calls in the background, with their short numbers; the last number given so far. */
   backgroundCalls?: readonly BackgroundCallRecord[]
   backgroundOrdinal?: number
-  backgroundInputs?: readonly InputId[]
+  uncountedInputs?: readonly InputId[]
   /** Pending inputs that cannot start a Run on their own; they go in with the next batch. */
   quietInputs?: readonly InputId[]
   /** Inputs delivered to the model view since the last assistant message. */

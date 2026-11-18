@@ -1,3 +1,4 @@
+import type { InputSources, SessionDerivedInputs } from '@omne-harness/session-contract'
 import { sessionIntakeLimits, type SessionIntakeLimits } from '@omne-harness/session-contract'
 import { randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -24,6 +25,10 @@ import { PROTOCOL } from './worker/schema.ts'
 
 export type SessionStorageOptions<P> = Readonly<{
   intakeLimits?: SessionIntakeLimits
+  /** The registered input sources, read at each commit. Absent: every intake is unavailable. */
+  sources?: InputSources
+  /** The admissions of the inputs Session derives from its own log. */
+  derived?: SessionDerivedInputs
   storage: SqlStorage
   domains: TenantDomainAccess
   accessCheck: SessionAccessCheck<P>

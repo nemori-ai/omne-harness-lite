@@ -4,23 +4,27 @@ import * as testing from '@omne-harness/session-contract/testing'
 
 it('exports exactly the declared root runtime surface', () => {
   expect(Object.keys(session).sort()).toEqual([
-    'BACKGROUND_INPUT_OWNER',
     'CONTEXT_SCOPE_KINDS',
     'DEFAULT_SESSION_INTAKE_LIMITS',
     'INGRESS_FAMILIES',
     'INITIALIZATION_PROTOCOL',
+    'INTAKE_GUARD_OWNER',
+    'admitDerived',
+    'admitSource',
     'archiveCollapse',
     'backgroundCallView',
     'backgroundCalls',
     'backgroundInputId',
     'batchEvidence',
     'commandDigest',
+    'commandInput',
     'compactionCallChangeOf',
     'compactionContextForView',
     'contextScopeOf',
     'contextScopesOf',
     'controlAnswer',
     'controlRoutes',
+    'createInputSourceRegistry',
     'decide',
     'decideCompactionCommit',
     'decideControlConsequences',
@@ -34,7 +38,9 @@ it('exports exactly the declared root runtime surface', () => {
     'expectedHolds',
     'expectedRevision',
     'initializationRegistrationCommit',
+    'inputSourceName',
     'inputsToDeliver',
+    'intakeTermsOf',
     'isAcceptedInputRecord',
     'isDeferredFact',
     'judgeAdvance',
@@ -46,7 +52,10 @@ it('exports exactly the declared root runtime surface', () => {
     'judgeWaiting',
     'mutationAccessRequest',
     'openWork',
+    'parseInputSourceName',
     'pendingIntakeCount',
+    'prepareEntriesTerms',
+    'prepareIntakeTerms',
     'projectCompactionCommit',
     'projectSessionEntries',
     'projectSessionLog',
@@ -68,6 +77,7 @@ it('exports exactly the declared root runtime surface', () => {
     'shortCallId',
     'uninterpretedCalls',
     'wakingInputs',
+    'withIntakeTerms',
   ])
 })
 
@@ -79,7 +89,10 @@ it('keeps the entry codec and the testing values off the root entry', () => {
 it('exports the suite, the doubles and the legal values from ./testing', () => {
   expect(Object.keys(testing).sort()).toEqual([
     'NotApplicable',
+    'TESTING_DECLARATIONS',
     'TESTING_OWNER',
+    'TESTING_SOURCES',
+    'TESTING_SYSTEM_COMPONENT',
     'adoptedInitializationFixture',
     'adoption',
     'agentDriveConformance',
@@ -108,7 +121,6 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'initializationFixtureFacts',
     'initializationFixtureGuard',
     'inputId',
-    'intakeInput',
     'isNotApplicable',
     'memoryAccess',
     'memoryOtherAccess',
@@ -135,9 +147,13 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'sessionTransactionsConformance',
     'shapeOf',
     'succeeded',
+    'testingDerivedInputs',
+    'testingInputSources',
+    'testingIntakeGuards',
     'testingTenant',
     'testingWorkspace',
     'userMessage',
+    'withMemberSubject',
   ])
 })
 

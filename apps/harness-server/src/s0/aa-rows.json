@@ -6,6 +6,7 @@
     "identity",
     "authorization",
     "session-storage",
+    "session-input-sources",
     "asset-categories",
     "tenant-assets",
     "governance",

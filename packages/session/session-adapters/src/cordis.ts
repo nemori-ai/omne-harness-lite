@@ -92,3 +92,9 @@ export {
   type ToolLogConsumed,
   type ToolLogTarget,
 } from './cordis/tool-log-consumption.ts'
+export {
+  BACKGROUND_CALLS_COMPONENT,
+  BACKGROUND_OUTCOME_SOURCE,
+  BACKGROUND_STOP_SOURCE,
+  createBackgroundDerivedInputs,
+} from './cordis/background-sources.ts'
