@@ -415,6 +415,7 @@ export function advanceEntriesProgress(
       execution: row.execution,
       channel: row.channel,
       through: row.through,
+      position: row.position,
       interpreted: evidence,
     }
     progress = progress.some(sameChannel)

@@ -22,4 +22,4 @@
 
 这是局部归纳论证，不是机器穷举整个实现。它不保证 GC 的执行时刻。公开内存反例使用同进程 GC。
 
-内存边界：已静止会话的 Book 只留排队身份。未终结执行的 V 与 C 没有字节上界，它们随该执行的事实增长。`readExecutionRecords` 的折叠另有个数与块文本两个上界，淘汰规则由 [records-fold-bound.spec.ts](../../tests/records-fold-bound.spec.ts) 守护。真实发行上的组合读数见历史成本对照（`apps/harness-server/tests/history-cost/control.ts`）：强制回收后的活堆按调用记录。
+内存边界：已静止会话的 Book 只留排队身份。未终结执行的 V 只持有开放项，C 是 V 的投影，开放项一关闭，下一次调用就从 V 重建 C；两者随开放工作变化，不随该执行的历史增长。收尾中与已结束的执行另持全视图，它随 Run 数增长，不随步数增长。`readExecutionRecords` 按原键读存储里的项，不再折叠。真实发行上的组合读数见历史成本对照（`apps/harness-server/tests/history-cost/control.ts`）：强制回收后的活堆按调用记录。

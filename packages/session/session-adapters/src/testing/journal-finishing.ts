@@ -52,8 +52,8 @@ import {
   type Blob,
   type BlobStore,
 } from '../journal/decide.ts'
-import type { CursorMembers, FactBody, FactOf, Ref } from '../journal/facts.ts'
-import type { CandidateView, ExecutionView, ObligationListView } from '../journal/view.ts'
+import type { CursorMembers, FactOf, Ref } from '../journal/facts.ts'
+import type { CandidateView, ExecutionView, ObligationListView, Stamp } from '../journal/view.ts'
 
 export type FinishingRecords = {
   candidates: FinishCandidate[]
@@ -860,7 +860,7 @@ function block<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: str
   return structuredClone(blobs.get(ref.digest)) as T
 }
 
-function refOfBlob([digest, value]: Blob): Ref {
+export function refOfBlob([digest, value]: Blob): Ref {
   return { digest, size: Buffer.byteLength(canonical(value), 'utf8') }
 }
 
@@ -975,107 +975,6 @@ export function readObligation(stored: FinishObligation, revision: number): Fini
     return Object.fromEntries(Object.entries(record).map(([key, member]) => [key, walk(member)]))
   }
   return walk(stored) as FinishObligation
-}
-
-export type ObligationLedger = ReadonlyMap<string, Readonly<{ category: string; item: Ref | null }>>
-
-export const LEDGER_KINDS: ReadonlySet<string> = new Set(['call', 'result'])
-
-const BROAD: ReadonlySet<string> = new Set([
-  'control.stage',
-  'control.rejected',
-  'finish.candidate',
-  'intent.voided',
-  'settlement.recorded',
-  'exec.attached',
-  'op.excluded',
-])
-
-export function touchedBy(facts: readonly FactBody[]): (item: FinishObligation) => boolean {
-  if (facts.some(fact => BROAD.has(fact.kind))) return () => true
-  const names = new Set<string>()
-  for (const fact of facts) {
-    if ('action' in fact && typeof fact.action === 'string') names.add(fact.action)
-    if ('consumption' in fact && typeof fact.consumption === 'string') names.add(fact.consumption)
-  }
-  return item =>
-    item.kind === 'call'
-      ? names.has(item.action) || names.has(item.pending.consumption)
-      : item.kind === 'result'
-        ? names.has(item.responsibility.consumption)
-        : true
-}
-
-export function obligationChanges(
-  items: readonly FinishObligation[],
-  ledger: ObligationLedger,
-  execution: string,
-  revision: number,
-  complete: ReadonlySet<string> | null,
-  room: number = Number.POSITIVE_INFINITY,
-  consider: (item: FinishObligation) => boolean = () => true,
-): Readonly<{
-  facts: readonly FactOf<'finish.obligation'>[]
-  blobs: readonly Blob[]
-  listed: readonly (readonly [id: string, digest: string])[]
-}> {
-  const facts: FactOf<'finish.obligation'>[] = []
-  const blobs: Blob[] = []
-  const listed: (readonly [string, string])[] = []
-  const present = new Set<string>()
-  for (const item of items) {
-    const id = obligationId(item)
-    present.add(id)
-    if (!consider(item) && ledger.get(id)?.item != null) continue
-    const stored = blobOf(storedObligation(item, execution, revision))
-    listed.push([id, stored[0]])
-    if (ledger.get(id)?.item?.digest === stored[0] || facts.length >= room) continue
-    facts.push({ kind: 'finish.obligation', id, category: item.kind, item: refOfBlob(stored) })
-    blobs.push(stored)
-  }
-  if (complete !== null)
-    for (const [id, known] of ledger)
-      if (
-        complete.has(known.category) &&
-        known.item !== null &&
-        !present.has(id) &&
-        facts.length < room
-      )
-        facts.push({ kind: 'finish.obligation', id, category: known.category, item: null })
-  return { facts, blobs, listed }
-}
-
-export function issueFacts(
-  candidate: AgentOperationId,
-  list: number,
-  items: readonly FinishObligation[],
-  coverage: ResponsibilityCoverage,
-  evidence: DurableEvidence,
-  ledger: ObligationLedger,
-  execution: string,
-  revision: number,
-): Readonly<{
-  facts: readonly (FactOf<'finish.obligation'> | FactOf<'finish.obligations'>)[]
-  blobs: readonly Blob[]
-}> {
-  const changes = obligationChanges(items, ledger, execution, revision, null)
-  const listed = blobOf(changes.listed)
-  const covered = blobOf(coverage)
-  return {
-    facts: [
-      ...changes.facts,
-      {
-        kind: 'finish.obligations',
-        candidate,
-        list,
-        count: items.length,
-        evidence,
-        coverage: refOfBlob(covered),
-        listed: refOfBlob(listed),
-      },
-    ],
-    blobs: [...changes.blobs, listed, covered],
-  }
 }
 
 export function listOfView(
@@ -1288,7 +1187,7 @@ export function supersessionOf(
 }
 
 export type FinishingMint = Readonly<{
-  receipt: (op: AgentOperationId, pub: number, revision: number) => CommandReceipt
+  receipt: (stamp: Stamp) => CommandReceipt
   checkpoint: (candidate: AgentOperationId, revision: number) => DurableEvidence
 }>
 
@@ -1298,12 +1197,10 @@ export function finishingOf(
   mint: FinishingMint,
 ): FinishingRecords {
   const records = emptyFinishing()
-  const opOf = new Map<number, AgentOperationId>()
-  for (const [op, entry] of view.ops) if (entry.target === null) opOf.set(entry.pub, op)
   type Step =
     | Readonly<{ pub: number; kind: 'candidate'; view: CandidateView }>
     | Readonly<{ pub: number; kind: 'list'; view: ObligationListView }>
-    | Readonly<{ pub: number; kind: 'settlement'; record: Ref }>
+    | Readonly<{ pub: number; kind: 'settlement'; record: Ref; stamp: Stamp }>
   const steps: Step[] = [
     ...view.finish.candidates.map(item => ({
       pub: item.pub,
@@ -1317,6 +1214,7 @@ export function finishingOf(
       pub: item.pub,
       kind: 'settlement' as const,
       record: item.record,
+      stamp: item,
     })),
   ].sort((left, right) => left.pub - right.pub)
   for (const step of steps) {
@@ -1348,11 +1246,9 @@ export function finishingOf(
         break
       }
       case 'settlement': {
-        const op = recorded(opOf.get(step.pub), `the operation of the settlement at ${step.pub}`)
-        const revision = recorded(view.ops.get(op), `the index entry of ${op}`).revision
         applySettlement(
           records,
-          settlementOfFact(step.record, mint.receipt(op, step.pub, revision), records, blobs),
+          settlementOfFact(step.record, mint.receipt(step.stamp), records, blobs),
         )
         break
       }
@@ -1362,9 +1258,6 @@ export function finishingOf(
       }
     }
   }
-  for (const intent of view.intents.values()) {
-    const op = opOf.get(intent.pub)
-    if (op !== undefined) records.effectOperations.set(intent.action, op)
-  }
+  for (const intent of view.intents.values()) records.effectOperations.set(intent.action, intent.op)
   return records
 }

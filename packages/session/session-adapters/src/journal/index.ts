@@ -37,12 +37,23 @@ export type {
   Ref,
   ResultStage,
 } from './facts.ts'
-export { advances, fold, foldAll } from './fold.ts'
+export { advances, fold, foldAll, foldItems } from './fold.ts'
+export {
+  finishing,
+  sourceOpen,
+  itemChanges,
+  viewItems,
+  viewOfItems,
+  ITEM_FAMILIES,
+  EXEC_FAMILY,
+  type ItemChange,
+  type ItemFamily,
+  type ViewItem,
+} from './items.ts'
 export {
   emptyExecutionView,
   emptySessionView,
   handoffKey,
-  openCalls,
   receivedViews,
   viewDigest,
   viewText,
@@ -50,7 +61,6 @@ export {
 export type {
   AdmissionView,
   AttachmentView,
-  BatchView,
   CandidateView,
   ControlView,
   EventView,
@@ -61,20 +71,13 @@ export type {
   InputView,
   IntentView,
   OperationEntry,
-  PassageView,
   RequestView,
   ResultView,
   ReceivedView,
   SessionJournalView,
+  Stamp,
 } from './view.ts'
-export {
-  answer,
-  answeredRevision,
-  batchEvidence,
-  batchOf as batchOfOperation,
-  operationState,
-  receiptOf,
-} from './answer.ts'
+export { answer, answeredRevision, batchEvidence, receiptOf, stampOfReceipt } from './answer.ts'
 export type { Answer, Mint } from './answer.ts'
 export {
   batchOf,

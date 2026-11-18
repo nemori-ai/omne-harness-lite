@@ -400,6 +400,7 @@ export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionR
     digest: 'sha256:joint',
     facts: [{ kind: 'exec.opened', body: { receipt: 'joint' } }],
     blobs: [],
+    items: [],
     boundaries: [
       {
         execution: 'exe_1',
@@ -482,6 +483,7 @@ export function agentPublisher(input: {
     operation: `aop_fixture_${String(writes)}`,
     digest: `sha256:fixture-${String(writes)}`,
     blobs: [],
+    items: [],
   })
   return {
     async publish(event: AgentEvent): Promise<void> {

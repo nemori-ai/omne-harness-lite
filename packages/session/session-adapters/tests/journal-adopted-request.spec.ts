@@ -72,6 +72,9 @@ function adoptedRows(s: SqlScene): AdoptedRow[] {
   }))
 }
 
+// The order of an adoption is the publication of the batch that adopted it.
+const adoptedPub = (s: SqlScene): string => String(adoptedRows(s).at(-1)?.pub)
+
 function published(s: SqlScene): bigint {
   const row = s.controls?.select(
     `SELECT published FROM er_root WHERE session = '${s.access.session}'`,
@@ -128,7 +131,7 @@ describe('a main-purpose M0 appends the request.adopted fact in the same batch a
     expect(blobHeld(s, fact.record.digest)).toBe(true)
     const { adoptedRequest, adoptedContext } = m0Checkpoint(targetOf(s), '1')
     expect(await adoptedOf(s)).toEqual({
-      order: '1',
+      order: String(rows[0]!.pub),
       execution: s.execution,
       reference: adoptedRequest.reference,
       fixed: adoptedRequest.fixed,
@@ -149,12 +152,12 @@ describe('a main-purpose M0 appends the request.adopted fact in the same batch a
     ok(await commit(s, s.view.journal, authority, 'plain-3', c => ({ ...c, position: 'E4' })))
     expect(published(s)).toBe(count + 2n)
     expect(adoptedRows(s)).toEqual(written)
-    expect((await adoptedOf(s))?.order).toBe('1')
+    expect((await adoptedOf(s))?.order).toBe(String(written[0]!.pub))
   })
 })
 
 describe('the adoption order', () => {
-  it('goes up by one with each M0 across two executions, and is not an execution revision', async () => {
+  it('goes up with each M0 across two executions, and is not an execution revision', async () => {
     const { s, authority } = await opened('adopted-order')
     ok(await commit(s, s.view.journal, authority, 'plain-1', moved('E4')))
     ok(await commit(s, s.view.journal, authority, 'plain-2', moved('E5')))
@@ -173,11 +176,10 @@ describe('the adoption order', () => {
     ).revision
     expect(first?.execution).toBe(s.execution)
     expect(after?.execution).toBe(t.execution)
-    expect(BigInt(after?.order ?? '0')).toBe(BigInt(first?.order ?? '0') + 1n)
-    expect([first?.order, after?.order]).toEqual(['1', '2'])
+    expect(BigInt(after?.order ?? '0')).toBeGreaterThan(BigInt(first?.order ?? '0'))
+    expect([first?.order, after?.order]).toEqual(adoptedRows(s).map(row => String(row.pub)))
+    // The later adoption orders after the first although its execution's revision is lower.
     expect([firstRevision, secondRevision].map(String)).toEqual(['4', '3'])
-    for (const order of [first?.order, after?.order])
-      expect([String(firstRevision), String(secondRevision)]).not.toContain(order)
   })
 })
 
@@ -203,7 +205,8 @@ describe('a provider that did not write the request reads it as the writer does'
     expect(await adoptedOf(s, cold)).toEqual(warm)
     const coldView = cold.forSession(s.access)
     ok(await m0(s, coldView.journal, authority, '2'))
-    expect((await adoptedOf(s, cold))?.order).toBe('2')
+    expect((await adoptedOf(s, cold))?.order).toBe(adoptedPub(s))
+    expect(BigInt(adoptedPub(s))).toBeGreaterThan(BigInt(warm?.order ?? '0'))
     expect(await adoptedOf(s)).toEqual(await adoptedOf(s, cold))
   })
 
@@ -233,11 +236,11 @@ describe('a provider that did not write the request reads it as the writer does'
     expect(outcomes[0]).toBe('rolled_back')
     expect(lost).toHaveProperty('failure')
     const won = await adoptedOf(s)
-    expect(won?.order).toBe('1')
+    expect(won?.order).toBe(adoptedPub(s))
     expect(won?.reference).toBe(m0Checkpoint(targetOf(s), 'w').adoptedRequest.reference)
     expect(await adoptedOf(s, losing)).toEqual(won)
     ok(await m0(s, loser, authority, 'l2'))
-    expect((await adoptedOf(s, losing))?.order).toBe('2')
+    expect((await adoptedOf(s, losing))?.order).toBe(adoptedPub(s))
     expect(await adoptedOf(s)).toEqual(await adoptedOf(s, losing))
   })
 })
@@ -258,7 +261,7 @@ describe('the request.adopted fact does not grow with the rounds of a session', 
       expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(2)
       expect(sizes.at(-1)! - sizes[19]!).toBeLessThanOrEqual(1)
       expect(new Set(rows.slice(1))).toEqual(new Set([rows[1]]))
-      expect((await adoptedOf(s))?.order).toBe('200')
+      expect((await adoptedOf(s))?.order).toBe(adoptedPub(s))
     },
   )
 })
@@ -275,7 +278,7 @@ describe('the publication count after a publication that did not commit plainly'
     ok(await m0(s, other.forSession(s.access).journal, authority, 'f'))
     expect(await m0(s, s.view.journal, authority, '2')).toHaveProperty('failure')
     ok(await m0(s, s.view.journal, authority, '3'))
-    expect((await adoptedOf(s))?.order).toBe('3')
+    expect((await adoptedOf(s))?.order).toBe(adoptedPub(s))
   })
 
   it('a write whose outcome stays unknown makes every call read the root until it is decided', async () => {

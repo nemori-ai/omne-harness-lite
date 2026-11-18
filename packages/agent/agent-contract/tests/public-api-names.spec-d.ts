@@ -1288,6 +1288,7 @@ describe('the discriminants of the Journal chapter', () => {
       | 'readCancellationInstallation'
       | 'readFinish'
       | 'query'
+      | 'inputAcceptance'
       | 'output'
     >()
     expectTypeOf<keyof AgentJournalAttachment<string>>().toEqualTypeOf<
@@ -1450,16 +1451,23 @@ describe('Tool association and control references', () => {
     }>().not.toExtend<ActionJudgment>()
   })
 
-  it('requires invocation and nullable operation only for Tool controls', () => {
+  it('requires invocation and nullable operation for Tool controls, the invocation for Model ones', () => {
     type Base = Pick<ControlRecord, 'operation' | 'stages'>
     type Tool = Base & {
       command: Extract<ExecutionControl, { call: T.ToolCallId }>
       toolInvocation: T.ToolInvocationRef
       toolOperation: T.ToolOperationRef | null
     }
-    type Other = Base & {
-      command: Extract<ExecutionControl, { kind: 'cancel' | 'suspend' | 'interrupt-model' }>
+    type Model = Base & {
+      command: Extract<ExecutionControl, { kind: 'interrupt-model' }>
+      modelInvocation: M.ModelInvocationRef
     }
+    type Other = Base & {
+      command: Extract<ExecutionControl, { kind: 'cancel' | 'suspend' }>
+    }
+    expectTypeOf<Model>().toExtend<ControlRecord>()
+    expectTypeOf<Omit<Model, 'modelInvocation'>>().not.toExtend<ControlRecord>()
+    expectTypeOf<Other & { modelInvocation: M.ModelInvocationRef }>().not.toExtend<ControlRecord>()
     expectTypeOf<Tool>().toExtend<ControlRecord>()
     expectTypeOf<Omit<Tool, 'toolInvocation'>>().not.toExtend<ControlRecord>()
     expectTypeOf<Omit<Tool, 'toolOperation'>>().not.toExtend<ControlRecord>()

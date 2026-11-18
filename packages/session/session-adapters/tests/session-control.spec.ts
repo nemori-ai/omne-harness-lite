@@ -156,6 +156,7 @@ describe('commitEntries', () => {
     operation,
     after: '0',
     through: '1',
+    position: '1',
     boundary: {
       execution: 'execution-never',
       channel: 'tool-received',

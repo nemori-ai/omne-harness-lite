@@ -11,3 +11,15 @@ export function canonical(value: unknown): string {
     .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
   return `{${members.map(([key, member]) => `${JSON.stringify(key)}:${canonical(member)}`).join(',')}}`
 }
+
+const keptForms = new WeakMap<object, string>()
+
+// A value that is kept and never changed in place has one canonical form: it is computed once.
+export function canonicalOfKept(value: object): string {
+  let form = keptForms.get(value)
+  if (form === undefined) {
+    form = canonical(value)
+    keptForms.set(value, form)
+  }
+  return form
+}
