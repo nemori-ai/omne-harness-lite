@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -463,7 +463,7 @@ describe('宿主的通道：一页一条事件流的边界', () => {
   })
 
   it('GET 不在桥下的路径给页面文件，桥下没有的路径与别的方法答 404', async () => {
-    const pageRoot = mkdtempSync(join(tmpdir(), 'web-host-page-'))
+    const pageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'web-host-page-')))
     writeFileSync(join(pageRoot, 'index.html'), '<p>page</p>')
     mkdirSync(join(pageRoot, 'bridge'))
     writeFileSync(join(pageRoot, 'bridge', 'shadow.html'), '<p>shadow</p>')
