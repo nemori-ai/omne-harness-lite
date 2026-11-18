@@ -6,11 +6,9 @@ import { expect, it } from 'vitest'
 import type { LoopExtensionDeclaration, Passage } from '@omne-harness/agent-contract'
 import type { BuiltinExtensions } from '@omne-harness/loop-extension-contract'
 import { unpackText } from '@omne-harness/sql-contract/worker'
-import { savedTenant } from '../../r9/support.ts'
 import { shellRound, shellScript } from '../../governance/tenant-settings-support.ts'
 import { historyOf, onReleaseTree, type ReleaseTree } from '../../support/release-tree.ts'
-import { tenantHoldingsHolder } from '../../../src/rows/governance/tenant-holdings.ts'
-import { assetOf, hold, publish, runSwitch } from './support.ts'
+import { assetOf, runSwitch, tenantOf } from './support.ts'
 
 const GUARD: LoopExtensionDeclaration = {
   name: 'guard',
@@ -89,7 +87,7 @@ async function kindsOf(tree: ReleaseTree, session: string): Promise<string[]> {
 
 it('with a builtin probe and a command probe enabled, the same request leaves in the session log exactly the calls of these two and their consequence, each naming its extension; a failing and an unlawful version are recorded as errors and the Run goes on', async () => {
   const exit = await onReleaseTree({ script: shellScript }, async tree => {
-    const tenantRef = savedTenant(tree.home)
+    const tenant = await tenantOf(tree)
     const workspace = join(dirname(tree.storageRoot), 'workspace')
     const ledgers = join(tree.storageRoot, 'loop-extension-calls')
 
@@ -97,22 +95,16 @@ it('with a builtin probe and a command probe enabled, the same request leaves in
     expect(without.started).toBe(true)
     expect(extensionCalls(tree.storageRoot)).toEqual([])
 
-    const holder = tenantHoldingsHolder(tree.scope)
-    const real = await holder.of?.(tenantRef)
-    if (real === undefined) throw new Error('the governance of the tenant is not open')
     const builtins = tree.scope.get('loopExtensionBuiltins') as BuiltinExtensions
     builtins.register('guard', async () => ({
       kind: 'output',
       value: { kind: 'veto', reason: 'the guard probe does not let Shell run' },
     }))
-    const guard = await publish(real, GUARD)
-    const watch = await publish(real, WATCH, { 'watch.mjs': WATCH_SCRIPT })
-    await hold(real, tenantRef, 'guard')
-    await hold(real, tenantRef, 'watch')
-    const stand = runSwitch(real)
+    const guard = await tenant.publish(GUARD)
+    const watch = await tenant.publish(WATCH, { 'watch.mjs': WATCH_SCRIPT })
+    const stand = runSwitch(tree)
     stand.set('guard', true)
     stand.set('watch', true)
-    holder.of = async () => stand.holdings
 
     const guarded = await shellRound(tree, 'same')
     expect(guarded).toMatchObject({
@@ -154,7 +146,7 @@ it('with a builtin probe and a command probe enabled, the same request leaves in
     expect(steps).toEqual(['intended', 'resource', 'started', 'ended'])
 
     stand.set('guard', false)
-    const failing = await publish(real, WATCH, { 'watch.mjs': 'process.exit(3)\n' })
+    const failing = await tenant.publish(WATCH, { 'watch.mjs': 'process.exit(3)\n' })
     const failed = await shellRound(tree, 'fail')
     expect(failed.started).toBe(true)
     const second = byName(extensionCalls(tree.storageRoot), 'watch').find(
@@ -163,7 +155,7 @@ it('with a builtin probe and a command probe enabled, the same request leaves in
     expect(conclusionOf(second)).toMatchObject({ skipped: 'errored' })
     expect(JSON.stringify(conclusionOf(second))).toContain('nonzero_exit')
 
-    const unlawful = await publish(real, WATCH, {
+    const unlawful = await tenant.publish(WATCH, {
       'watch.mjs': 'process.stdout.write("this is not an output")\n',
     })
     const garbled = await shellRound(tree, 'garbled')

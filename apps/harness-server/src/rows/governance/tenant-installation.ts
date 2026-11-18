@@ -1,10 +1,11 @@
 import type { CategoryView } from '@omne-harness/assets'
 import type { AssetsLocal } from '@omne-harness/assets-local'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
-import type { SettingDefinitions } from '@omne-harness/settings'
+import type { SettingDefinitions, createSettingsRegistry } from '@omne-harness/settings'
 import { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { governedCapture } from './governed-capture.ts'
+import { heldDefinitionsOf } from './held-definitions.ts'
 import { independentTargetsOf } from './independent-settings.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { installToolGovernance, toolInstallationGrants } from './tool-installation.ts'
@@ -25,6 +26,8 @@ export type InstalledTenantOptions = Omit<
   categories: Pick<CategoryView, 'list' | 'lookup'>
   tenantAssets(): Promise<AssetsLocal | undefined>
   independentSettings(): readonly SettingDefinitions[]
+  /** The registry the catalog reads: the definitions of held versions are registered in it before a read. */
+  registry: ReturnType<typeof createSettingsRegistry>
 }
 
 export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) {
@@ -105,8 +108,10 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         : assets.readHolding(input)
     },
   }
+  const heldDefinitions = heldDefinitionsOf(options)
   const readSettings: TenantSettingsAccess['read'] = async request => {
     await independentTargets.ensure(options.independentSettings())
+    await heldDefinitions.ensure(await options.tenantAssets())
     return assembly.readSettings(request)
   }
   return {

@@ -218,7 +218,6 @@ export const governanceRow = defineRow({
         const assets = settings === undefined ? undefined : await ctx.tenantAssets.open(tenantRef)
         return assets === undefined || settings === undefined ? undefined : { assets, settings }
       },
-      registry,
       deploymentRef: config.deploymentId,
     })
     new SessionBackend(ctx, host)

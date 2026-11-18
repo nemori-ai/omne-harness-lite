@@ -25,8 +25,8 @@ import {
 import { createEnabledExtensions } from '../../src/entry/loop-extensions.ts'
 import { sessionModesInstallationKey } from '../../src/rows/session-ad03/modes.ts'
 import type { PublishedViewPorts } from '../../src/rows/session-ad03/published-view.ts'
-import { tenantHoldingsHolder } from '../../src/rows/governance/tenant-holdings.ts'
-import { hold, publish, runSwitch } from '../rows/loop-extension/support.ts'
+import { runSwitch, tenantOf as extensionTenantOf } from '../rows/loop-extension/support.ts'
+import type { EntryEnv } from '../../src/types.ts'
 import { startAssembly } from '../history-cost/assembly.ts'
 import { PAYLOAD_FILE } from '../history-cost/payload.ts'
 import { bodyOf, savedTenant } from '../r9/support.ts'
@@ -168,6 +168,7 @@ const tap = createTelemetryTap()
 let round = 0
 const retained: Buffer[] = []
 let scope: Context | undefined
+let entryEnv: EntryEnv | undefined
 let workPrincipals: (() => SessionWorkPrincipals<unknown> | undefined) | undefined
 let trusted: (<K extends keyof Context & string>(name: K) => Context[K] | undefined) | undefined
 const PROBE = -4
@@ -179,6 +180,7 @@ const assembly = await startAssembly('inline', undefined, {
   record: tap.record,
   onScope: (given, env) => {
     scope = given
+    entryEnv = env
     workPrincipals = () =>
       env.readTrusted(sessionWorkPrincipalsKey).get(sessionWorkPrincipalsKey) as
         | SessionWorkPrincipals<unknown>
@@ -286,31 +288,29 @@ async function probeReads(session: string) {
   )
 }
 
-// Installs observing builtin extensions for the tenant, before the model call: every round passes there twice.
-async function installObservers(tenantRef: string): Promise<void> {
-  if (scope === undefined) throw new Error('the scope of the serving tree was not given')
-  const holder = tenantHoldingsHolder(scope)
-  const real = await holder.of?.(tenantRef)
+// Installs observing builtin extensions for the tenant, before the model call: every round passes there twice. Published through the release entry; run is turned on by the stand-in, the release has no write path for it yet.
+async function installObservers(): Promise<void> {
+  if (scope === undefined || entryEnv === undefined)
+    throw new Error('the scope of the serving tree was not given')
   const builtins = scope.get('loopExtensionBuiltins') as BuiltinExtensions | undefined
-  if (real === undefined || builtins === undefined)
-    throw new Error('the governance of the tenant or the loop-extension row is not there')
-  const stand = runSwitch(real)
+  if (builtins === undefined) throw new Error('the loop-extension row is not there')
+  const tree = { scope, env: entryEnv, home }
+  const tenant = await extensionTenantOf(tree)
+  const stand = runSwitch(tree)
   for (let index = 0; index < extensions; index += 1) {
     const name = `observer-${String(index)}`
     builtins.register(name, async () => {
       extensionCalls.count += 1
       return { kind: 'output', value: { kind: 'observed' } }
     })
-    await publish(real, {
+    await tenant.publish({
       name,
       position: 'before_model_call',
       power: 'observe',
       implementation: { kind: 'builtin', builtinName: name },
     })
-    await hold(real, tenantRef, name)
     stand.set(name, true)
   }
-  holder.of = async () => stand.holdings
 }
 
 const machine = {
@@ -333,7 +333,7 @@ try {
     bodyOf(await assembly.cli(home, ['create-session', '--definition', 'coding']))['session'],
   )
   const tenant = tenantOf(savedTenant(home))
-  if (extensions > 0) await installObservers(savedTenant(home))
+  if (extensions > 0) await installObservers()
 
   const calibrateAndSnapshot = async (at: number): Promise<Record<string, number>> => {
     count.setPhase(CALIBRATION - at * 1000)

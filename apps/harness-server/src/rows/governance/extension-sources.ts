@@ -7,11 +7,7 @@ import {
   type TenantExtensionSources,
 } from '@omne-harness/loop-extension-contract'
 import { ExtensionSourcesService } from '@omne-harness/loop-extension-cordis-contract/cordis'
-import {
-  evaluateSettings,
-  type SettingDefinitions,
-  type createSettingsRegistry,
-} from '@omne-harness/settings'
+import { evaluateSettings } from '@omne-harness/settings'
 import type { TenantSettingsAccess } from './tenant-runtime.ts'
 
 type Holdings = Readonly<{ assets: AssetsLocal; settings: TenantSettingsAccess }>
@@ -24,8 +20,6 @@ export function tenantExtensionSources(
     Readonly<{
       tenantRef: string
       deploymentRef: string
-      /** Makes the settings definition of a held version known to the settings catalog; false when it cannot. */
-      declare(definition: SettingDefinitions): boolean
     }>,
 ): TenantExtensionSources {
   const { assets, settings, tenantRef } = input
@@ -67,8 +61,6 @@ export function tenantExtensionSources(
       const held = await assets.readHeldCapability({ capability })
       if (held.kind === 'rejected') return UNAVAILABLE
       if (held.kind === 'absent') return { kind: 'absent' }
-      const definition = held.selected?.definition ?? null
-      if (definition !== null && !input.declare(definition)) return UNAVAILABLE
       return run(held.holding.holdingRef)
     },
     async basis() {
@@ -92,7 +84,6 @@ export function tenantExtensionSources(
 
 type SourcesInput = Readonly<{
   holdings(tenantRef: string): Promise<Holdings | undefined>
-  registry: Pick<ReturnType<typeof createSettingsRegistry>, 'registerContribution'>
   deploymentRef: string
 }>
 
@@ -103,18 +94,9 @@ export class GovernanceExtensionSources extends ExtensionSourcesService<unknown>
     string,
     Readonly<{ holdings: Holdings; sources: TenantExtensionSources }>
   >()
-  private readonly declared = new Set<string>()
   constructor(ctx: Context, input: SourcesInput) {
     super(ctx)
     this.input = input
-  }
-  // A tenant publishes its versions while the server runs: the catalog learns each definition once, when it is first read.
-  private makeKnown(definition: SettingDefinitions): boolean {
-    const key = JSON.stringify([definition.providerId, definition.definitionId, definition.version])
-    if (this.declared.has(key)) return true
-    if (this.input.registry.registerContribution(definition).kind !== 'registered') return false
-    this.declared.add(key)
-    return true
   }
   async of(access: Parameters<ExtensionSourcesService<unknown>['of']>[0]) {
     const tenant = tenantCodec.encode(access.tenant)
@@ -127,7 +109,6 @@ export class GovernanceExtensionSources extends ExtensionSourcesService<unknown>
       ...holdings,
       tenantRef: tenant.value,
       deploymentRef: this.input.deploymentRef,
-      declare: definition => this.makeKnown(definition),
     })
     this.known.set(tenant.value, { holdings, sources })
     return sources
