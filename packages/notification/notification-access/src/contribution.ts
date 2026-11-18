@@ -6,7 +6,9 @@ import type {
   InboxReadRefusal,
   InboxRefusal,
   Outcome,
+  ParseRefusal,
   RecipientRefusal,
+  SendRefusal,
   SubscriptionRefusal,
   SubscriptionRemovalRefusal,
 } from '@omne-harness/notification-contract'
@@ -29,6 +31,7 @@ export type NotificationContributionInput = Readonly<{
   principals: NotificationPrincipals
   faces: () => NotificationFaces | undefined
   changes: () => NotificationChangeFeed | undefined
+  now: () => string
 }>
 
 type Handlers = AccessContribution<NotificationProtocol>['operations']
@@ -70,6 +73,32 @@ function subscriptionRefusal(reason: SubscriptionRefusal) {
     case 'not-own-recipient':
     case 'confirmation-mismatch':
       return DENIED
+  }
+}
+
+/** A send through the protocol has no origin, so its causal depth is never over the limit. */
+function sendRefusal(reason: ParseRefusal | SendRefusal) {
+  switch (reason) {
+    case 'too-large':
+    case 'content-too-large':
+      return invalid('too-large')
+    case 'unknown-event-type':
+    case 'standing-type':
+    case 'invalid-subject':
+    case 'naming-not-allowed':
+    case 'recipient-not-admissible':
+      return invalid(reason)
+    case 'conflict':
+      return { outcome: 'conflict', body: { reason: 'different-content' } } as const
+    case 'not-permitted':
+      return DENIED
+    case 'causal-depth-exceeded':
+    case 'invalid-source-name':
+    case 'incomplete-identity':
+    case 'invalid-scope':
+    case 'invalid-term':
+    case 'invalid-request':
+      return REQUEST
   }
 }
 
@@ -207,6 +236,29 @@ function inboxHandlers(input: NotificationContributionInput) {
     'read-notification': readNotification,
     mark,
     'query-send': querySend,
+  }
+}
+
+function sendHandler(input: NotificationContributionInput): Handlers['send'] {
+  return async (call, body) => {
+    const ready = await prepare(input, call.principal, body.tenant)
+    if (ready.outcome !== null) return ready
+    const { type, subject, title, locator, replaceKey, renotify, named } = body
+    const event = {
+      type,
+      subject,
+      at: input.now(),
+      content: { title, body: body.body, locator },
+      replaceKey,
+      renotify,
+      named,
+      origin: null,
+    }
+    return committing(
+      () => ready.faces.sending.send(ready.ctx, { identity: identityOf(ready.ctx, body), event }),
+      (accepted, recalled) => committed(recalled, { recipients: accepted.recipients }),
+      sendRefusal,
+    )
   }
 }
 
@@ -363,6 +415,7 @@ export function createNotificationContribution(
 ): Omit<AccessContribution<NotificationProtocol>, 'protocol'> {
   return {
     operations: {
+      send: sendHandler(input),
       ...inboxHandlers(input),
       ...subscriptionHandlers(input),
       ...destinationHandlers(input),

@@ -21,7 +21,7 @@ export interface NotificationPrincipals {
 
 /** Taken at each call; absent while the notification row is not there. */
 export type NotificationFaces = Readonly<{
-  sending: Pick<NotificationSending, 'querySend'>
+  sending: NotificationSending
   inbox: NotificationInbox
   subscriptions: NotificationSubscriptions
   destinations: NotificationDestinations
