@@ -2,7 +2,11 @@ import type { Context } from '@deepseek-ai/cordis'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import type { TargetTenantPrincipals, TenantSettingsPort } from '@omne-harness/assets-access'
 import { createAssetsAccessPlugin } from '@omne-harness/assets-access/cordis'
-import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
+import {
+  assetCategoriesKey,
+  assetChangesKey,
+  assetManagementKey,
+} from '@omne-harness/assets-cordis-contract'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { defineRow } from '../../row.ts'
 import { tenantSettingsKey } from '../governance/tenant-settings-service.ts'
@@ -31,6 +35,8 @@ const plugin = createAssetsAccessPlugin({
   principals: targetTenantPrincipals,
   settings: settingsOf,
   categories: ctx => ctx.get(assetCategoriesKey)?.view,
+  management: ctx => ctx.get(assetManagementKey)?.management,
+  changes: ctx => ctx.get(assetChangesKey),
 })
 
 export const assetsAccessRow = defineRow({

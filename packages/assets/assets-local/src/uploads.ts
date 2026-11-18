@@ -142,209 +142,225 @@ function stagedReader(files: string, manifest: PackageManifest): PackageReader {
   }
 }
 
+type Staging = Readonly<{
+  base: string
+  categories: Pick<CategoryView, 'lookup'>
+  policy: UploadPolicy
+  clock: () => number
+  queue: ReturnType<typeof serialized>
+}>
+
+const placeOf = (operationId: string) => digest(operationId)
+
+async function declared(dir: string): Promise<Declaration | undefined> {
+  try {
+    return declarationOf(await readFile(join(dir, DECLARED), 'utf8'))
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return undefined
+    throw error
+  }
+}
+
+async function touch(staging: Staging, dir: string): Promise<void> {
+  const seconds = staging.clock() / 1000
+  await utimes(dir, seconds, seconds)
+}
+
+async function received(dir: string, entries: readonly UploadEntry[]): Promise<UploadEntry[]> {
+  const files = join(dir, FILES)
+  return Promise.all(
+    entries.map(async entry => ({
+      path: entry.path,
+      bytes: await sizeOf(join(files, entry.path)),
+    })),
+  )
+}
+
+async function places(base: string): Promise<string[]> {
+  let items: Dirent[]
+  try {
+    items = await readdir(base, { withFileTypes: true })
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return []
+    throw error
+  }
+  return items.filter(item => item.isDirectory()).map(item => item.name)
+}
+
+async function sweepIdle(staging: Staging): Promise<number> {
+  let removed = 0
+  for (const place of await places(staging.base))
+    removed += await staging.queue(place, async () => {
+      const dir = join(staging.base, place)
+      let touched: number
+      try {
+        touched = (await stat(dir)).mtimeMs
+      } catch (error) {
+        if (errorCode(error) === 'ENOENT') return 0
+        throw error
+      }
+      if (staging.clock() - touched <= staging.policy.idleMs) return 0
+      await rm(dir, { recursive: true, force: true })
+      return 1
+    })
+  return removed
+}
+
+async function make(staging: Staging, dir: string, declaration: Declaration): Promise<void> {
+  await mkdir(join(dir, FILES), { recursive: true })
+  const draft = join(dir, `${DECLARED}.draft`)
+  await writeFile(draft, JSON.stringify(declaration))
+  await rename(draft, join(dir, DECLARED))
+  await touch(staging, dir)
+}
+
+function declarationOfRequest(request: BeginRequest): Declaration {
+  return {
+    operationId: request.operationId,
+    category: request.capability.category,
+    name: request.capability.name,
+    entries: request.entries.map(({ path, bytes }) => ({ path, bytes })),
+  }
+}
+
+async function standing(
+  staging: Staging,
+  declaration: Declaration,
+  dir: string,
+  keepAlive: boolean,
+): Promise<UploadResume> {
+  const known = await declared(dir)
+  if (known === undefined) return { kind: 'absent' }
+  if (!equal(known, declaration)) return { kind: 'operation-conflict' }
+  if (keepAlive) await touch(staging, dir)
+  return {
+    kind: 'accepted',
+    partBytes: staging.policy.partBytes,
+    received: await received(dir, declaration.entries),
+  }
+}
+
+async function resume(staging: Staging, request: BeginRequest): Promise<UploadResume> {
+  const place = placeOf(request.operationId)
+  const declaration = declarationOfRequest(request)
+  return staging.queue(place, () =>
+    standing(staging, declaration, join(staging.base, place), false),
+  )
+}
+
+async function begin(staging: Staging, request: BeginRequest): Promise<UploadBegin> {
+  const contract = staging.categories.lookup(request.capability.category)
+  if (contract === undefined) return { kind: 'unknown-category' }
+  if (contract.layout === undefined) return { kind: 'invalid', reason: 'not-a-directory-category' }
+  const rejection = declarationRejection(request, contract.layout.limits)
+  if (rejection !== undefined) return { kind: 'invalid', reason: rejectionReason(rejection) }
+  const declaration = declarationOfRequest(request)
+  const place = placeOf(request.operationId)
+  const dir = join(staging.base, place)
+  const opened = await staging.queue(place, () => standing(staging, declaration, dir, true))
+  if (opened.kind !== 'absent') return opened
+  const full = async () => (await places(staging.base)).length >= staging.policy.maxOpen
+  if (await full()) await sweepIdle(staging)
+  if (await full()) return { kind: 'busy' }
+  return staging.queue(place, async () => {
+    const made = await standing(staging, declaration, dir, true)
+    if (made.kind !== 'absent') return made
+    await make(staging, dir, declaration)
+    return {
+      kind: 'accepted',
+      partBytes: staging.policy.partBytes,
+      received: await received(dir, declaration.entries),
+    }
+  })
+}
+
+async function append(
+  staging: Staging,
+  request: Parameters<LocalUploads['append']>[0],
+): Promise<UploadAppend> {
+  const place = placeOf(request.operationId)
+  const dir = join(staging.base, place)
+  return staging.queue(place, async () => {
+    const declaration = await declared(dir)
+    if (declaration === undefined) return { kind: 'absent' }
+    const entry = declaration.entries.find(one => one.path === request.path)
+    if (entry === undefined) return { kind: 'invalid', reason: 'undeclared-path' }
+    const target = join(dir, FILES, entry.path)
+    const current = await sizeOf(target)
+    if (request.offset !== current) return { kind: 'received', bytes: current }
+    if (current + request.bytes.length > entry.bytes)
+      return { kind: 'invalid', reason: 'beyond-declared' }
+    await mkdir(dirname(target), { recursive: true })
+    await appendFile(target, request.bytes)
+    await touch(staging, dir)
+    return { kind: 'received', bytes: current + request.bytes.length }
+  })
+}
+
+async function reader(staging: Staging, operationId: string): Promise<UploadReader> {
+  const place = placeOf(operationId)
+  const dir = join(staging.base, place)
+  return staging.queue(place, async () => {
+    const declaration = await declared(dir)
+    if (declaration === undefined) return { kind: 'absent' }
+    const id = capabilityId(declaration.category, declaration.name)
+    if (!id.ok) return { kind: 'unavailable' }
+    const arrived = await received(dir, declaration.entries)
+    const missing = declaration.entries
+      .filter((entry, index) => arrived[index]?.bytes !== entry.bytes)
+      .map(entry => entry.path)
+    if (missing.length > 0) return { kind: 'incomplete', missing }
+    const files = join(dir, FILES)
+    const entries = await Promise.all(
+      declaration.entries.map(async entry => ({
+        ...entry,
+        digest: digestBytes(await readFile(join(files, entry.path))),
+      })),
+    )
+    return { kind: 'ready', capability: id.id, from: stagedReader(files, { entries }) }
+  })
+}
+
+const UNAVAILABLE = Object.freeze({ kind: 'unavailable' } as const)
+
 export function createLocalUploads(input: {
   root: string | undefined
   categories: Pick<CategoryView, 'lookup'>
   policy: UploadPolicy
   clock?: (() => number) | undefined
 }): LocalUploads {
-  const { root, categories, policy } = input
-  const clock = input.clock ?? Date.now
-  const queue = serialized()
-  const base = root === undefined ? undefined : join(root, UPLOADS)
-  const placeOf = (operationId: string) => digest(operationId)
-
-  async function declared(dir: string): Promise<Declaration | undefined> {
-    try {
-      return declarationOf(await readFile(join(dir, DECLARED), 'utf8'))
-    } catch (error) {
-      if (errorCode(error) === 'ENOENT') return undefined
-      throw error
-    }
-  }
-
-  async function touch(dir: string): Promise<void> {
-    const seconds = clock() / 1000
-    await utimes(dir, seconds, seconds)
-  }
-
-  async function received(dir: string, entries: readonly UploadEntry[]): Promise<UploadEntry[]> {
-    const files = join(dir, FILES)
-    return Promise.all(
-      entries.map(async entry => ({
-        path: entry.path,
-        bytes: await sizeOf(join(files, entry.path)),
-      })),
-    )
-  }
-
-  async function places(): Promise<string[]> {
-    if (base === undefined) return []
-    let items: Dirent[]
-    try {
-      items = await readdir(base, { withFileTypes: true })
-    } catch (error) {
-      if (errorCode(error) === 'ENOENT') return []
-      throw error
-    }
-    return items.filter(item => item.isDirectory()).map(item => item.name)
-  }
-
-  async function sweepIdle(): Promise<number> {
-    if (base === undefined) return 0
-    let removed = 0
-    for (const place of await places())
-      removed += await queue(place, async () => {
-        const dir = join(base, place)
-        let touched: number
-        try {
-          touched = (await stat(dir)).mtimeMs
-        } catch (error) {
-          if (errorCode(error) === 'ENOENT') return 0
-          throw error
+  const staging: Staging | undefined =
+    input.root === undefined
+      ? undefined
+      : {
+          base: join(input.root, UPLOADS),
+          categories: input.categories,
+          policy: input.policy,
+          clock: input.clock ?? Date.now,
+          queue: serialized(),
         }
-        if (clock() - touched <= policy.idleMs) return 0
-        await rm(dir, { recursive: true, force: true })
-        return 1
-      })
-    return removed
-  }
-
-  async function make(dir: string, declaration: Declaration): Promise<void> {
-    await mkdir(join(dir, FILES), { recursive: true })
-    const draft = join(dir, `${DECLARED}.draft`)
-    await writeFile(draft, JSON.stringify(declaration))
-    await rename(draft, join(dir, DECLARED))
-    await touch(dir)
-  }
-
-  function declarationOfRequest(request: BeginRequest): Declaration {
-    return {
-      operationId: request.operationId,
-      category: request.capability.category,
-      name: request.capability.name,
-      entries: request.entries.map(({ path, bytes }) => ({ path, bytes })),
-    }
-  }
-
-  /** The upload of this operation as it stands, compared with the declaration asked for. */
-  async function standing(
-    declaration: Declaration,
-    dir: string,
-    keepAlive: boolean,
-  ): Promise<UploadResume> {
-    const known = await declared(dir)
-    if (known === undefined) return { kind: 'absent' }
-    if (!equal(known, declaration)) return { kind: 'operation-conflict' }
-    if (keepAlive) await touch(dir)
-    return {
-      kind: 'accepted',
-      partBytes: policy.partBytes,
-      received: await received(dir, declaration.entries),
-    }
-  }
-
-  async function resume(request: BeginRequest, uploads: string): Promise<UploadResume> {
-    const place = placeOf(request.operationId)
-    const declaration = declarationOfRequest(request)
-    return queue(place, () => standing(declaration, join(uploads, place), false))
-  }
-
-  async function begin(request: BeginRequest, uploads: string): Promise<UploadBegin> {
-    const contract = categories.lookup(request.capability.category)
-    if (contract === undefined) return { kind: 'unknown-category' }
-    if (contract.layout === undefined)
-      return { kind: 'invalid', reason: 'not-a-directory-category' }
-    const rejection = declarationRejection(request, contract.layout.limits)
-    if (rejection !== undefined) return { kind: 'invalid', reason: rejectionReason(rejection) }
-    const declaration = declarationOfRequest(request)
-    const place = placeOf(request.operationId)
-    const dir = join(uploads, place)
-    const opened = await queue(place, () => standing(declaration, dir, true))
-    if (opened.kind !== 'absent') return opened
-    if ((await places()).length >= policy.maxOpen) await sweepIdle()
-    if ((await places()).length >= policy.maxOpen) return { kind: 'busy' }
-    return queue(place, async () => {
-      const made = await standing(declaration, dir, true)
-      if (made.kind !== 'absent') return made
-      await make(dir, declaration)
-      return {
-        kind: 'accepted',
-        partBytes: policy.partBytes,
-        received: await received(dir, declaration.entries),
-      }
-    })
-  }
-
-  async function append(
-    request: Parameters<LocalUploads['append']>[0],
-    uploads: string,
-  ): Promise<UploadAppend> {
-    const place = placeOf(request.operationId)
-    const dir = join(uploads, place)
-    return queue(place, async () => {
-      const declaration = await declared(dir)
-      if (declaration === undefined) return { kind: 'absent' }
-      const entry = declaration.entries.find(one => one.path === request.path)
-      if (entry === undefined) return { kind: 'invalid', reason: 'undeclared-path' }
-      const target = join(dir, FILES, entry.path)
-      const current = await sizeOf(target)
-      if (request.offset !== current) return { kind: 'received', bytes: current }
-      if (current + request.bytes.length > entry.bytes)
-        return { kind: 'invalid', reason: 'beyond-declared' }
-      await mkdir(dirname(target), { recursive: true })
-      await appendFile(target, request.bytes)
-      await touch(dir)
-      return { kind: 'received', bytes: current + request.bytes.length }
-    })
-  }
-
-  async function reader(operationId: string, uploads: string): Promise<UploadReader> {
-    const place = placeOf(operationId)
-    const dir = join(uploads, place)
-    return queue(place, async () => {
-      const declaration = await declared(dir)
-      if (declaration === undefined) return { kind: 'absent' }
-      const id = capabilityId(declaration.category, declaration.name)
-      if (!id.ok) return { kind: 'unavailable' }
-      const arrived = await received(dir, declaration.entries)
-      const missing = declaration.entries
-        .filter((entry, index) => arrived[index]?.bytes !== entry.bytes)
-        .map(entry => entry.path)
-      if (missing.length > 0) return { kind: 'incomplete', missing }
-      const files = join(dir, FILES)
-      const entries = await Promise.all(
-        declaration.entries.map(async entry => ({
-          ...entry,
-          digest: digestBytes(await readFile(join(files, entry.path))),
-        })),
-      )
-      return { kind: 'ready', capability: id.id, from: stagedReader(files, { entries }) }
-    })
-  }
-
-  const UNAVAILABLE = Object.freeze({ kind: 'unavailable' } as const)
   const guarded =
-    <A, T>(task: (argument: A, uploads: string) => Promise<T>) =>
+    <A, T>(task: (staging: Staging, argument: A) => Promise<T>) =>
     async (argument: A): Promise<T | typeof UNAVAILABLE> => {
-      if (base === undefined) return UNAVAILABLE
+      if (staging === undefined) return UNAVAILABLE
       try {
-        return await task(argument, base)
+        return await task(staging, argument)
       } catch {
         return UNAVAILABLE
       }
     }
-
   return {
     begin: guarded(begin),
     resume: guarded(resume),
     append: guarded(append),
     reader: guarded(reader),
     async discard(operationId) {
-      if (base === undefined) return
+      if (staging === undefined) return
       const place = placeOf(operationId)
-      await queue(place, () => rm(join(base, place), { recursive: true, force: true }))
+      await staging.queue(place, () =>
+        rm(join(staging.base, place), { recursive: true, force: true }),
+      )
     },
-    sweep: sweepIdle,
+    sweep: async () => (staging === undefined ? 0 : sweepIdle(staging)),
   }
 }

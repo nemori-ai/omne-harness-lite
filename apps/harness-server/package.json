@@ -144,6 +144,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@omne-harness/assets-protocol": "workspace:*",
     "@omne-harness/cli": "workspace:*",
     "@omne-harness/content-block": "workspace:*",
     "@omne-harness/human-intervention-protocol": "workspace:*",

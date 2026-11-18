@@ -8,7 +8,7 @@ export function createAssetChangeFeed(): AssetChangeFeed {
   const listeners = new Map<string, Set<AssetChangeListener>>()
   let closed = false
   const each = (set: Iterable<AssetChangeListener>, call: (one: AssetChangeListener) => void) => {
-    for (const listener of [...set])
+    for (const listener of set)
       try {
         call(listener)
       } catch {

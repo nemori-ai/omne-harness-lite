@@ -362,13 +362,16 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     durability: options.packageDurability,
     records: packageRecordsOf(local),
   })
-  const uploads = createLocalUploads({
+  return { ...local, packages, uploads: uploadsOf(options) }
+}
+
+function uploadsOf(options: AssetsLocalOptions) {
+  return createLocalUploads({
     root: options.uploads === undefined ? undefined : options.packageRoot,
     categories: options.categories,
     policy: options.uploads ?? { idleMs: 0, maxOpen: 0, partBytes: 0 },
     clock: options.clock,
   })
-  return { ...local, packages, uploads }
 }
 
 function packageRecordsOf(local: Omit<AssetsLocal, 'packages' | 'uploads'>): PackageRecords {
