@@ -175,7 +175,9 @@ export function receiptBinds(
     (receipt.replayPrefix === undefined ||
       (receipt.replayFormat !== undefined &&
         receipt.replayPrefix.length > 0 &&
-        receipt.replayPrefix.length <= REPLAY_PREFIX_MAX_LENGTH))
+        receipt.replayPrefix.length <= REPLAY_PREFIX_MAX_LENGTH)) &&
+    (receipt.replayCarried === undefined ||
+      (receipt.replayCarried === true && receipt.replayFormat !== undefined))
   )
 }
 export function dispatchOf(call: CallDocument, id: string): DispatchDocument | ModelFailure {

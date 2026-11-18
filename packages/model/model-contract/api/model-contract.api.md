@@ -2103,6 +2103,7 @@ export type MaterializationReceipt = Readonly<{
     payloadDigest: string;
     replayFormat?: string;
     replayPrefix?: string;
+    replayCarried?: true;
 }>;
 export interface MaterializedTransport {
     readonly receipt: MaterializationReceipt;

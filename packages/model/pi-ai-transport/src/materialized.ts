@@ -61,7 +61,13 @@ export async function materialize(
       supplier: supplier.adoption,
       representation: request.representation,
       payloadDigest: digestOf(body),
-      ...(replayFormat === null ? {} : { replayFormat, replayPrefix: encoded.ok.replayPrefix }),
+      ...(replayFormat === null
+        ? {}
+        : {
+            replayFormat,
+            replayPrefix: encoded.ok.replayPrefix,
+            ...(encoded.ok.replayCarried ? { replayCarried: true as const } : {}),
+          }),
     })
     const materialized = createMaterialized({
       ...input,

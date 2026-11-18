@@ -152,7 +152,12 @@ it('a materialization receipt names the supplier, the representation and the pay
     budget,
   }
   expectTypeOf<keyof MaterializationReceipt>().toEqualTypeOf<
-    'supplier' | 'representation' | 'payloadDigest' | 'replayFormat' | 'replayPrefix'
+    | 'supplier'
+    | 'representation'
+    | 'payloadDigest'
+    | 'replayFormat'
+    | 'replayPrefix'
+    | 'replayCarried'
   >()
   void [noDigest, withBudget]
 })

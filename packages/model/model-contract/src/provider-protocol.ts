@@ -121,6 +121,8 @@ export type MaterializationReceipt = Readonly<{
   replayFormat?: string
   /** The prefix the request was encoded on; present with a replay format. */
   replayPrefix?: string
+  /** The request carried reasoning state back; present, with a replay format, only when it did. */
+  replayCarried?: true
 }>
 export interface MaterializedTransport {
   readonly receipt: MaterializationReceipt

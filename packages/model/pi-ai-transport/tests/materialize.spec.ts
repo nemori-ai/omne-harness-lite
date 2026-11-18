@@ -115,6 +115,19 @@ describe('materialize', () => {
     await sent.close()
   })
 
+  it('says in the receipt that the request carried reasoning state back, and only when it did', async () => {
+    const { prepare, probe } = setup()
+    probe.replayFormat = 'test-format-v1'
+    probe.replayCarried = true
+    const carried = await materialized(await prepare())
+    expect(carried.receipt).toMatchObject({ replayFormat: 'test-format-v1', replayCarried: true })
+    await carried.close()
+    probe.replayCarried = false
+    const plain = await materialized(await prepare())
+    expect(Object.hasOwn(plain.receipt, 'replayCarried')).toBe(false)
+    await plain.close()
+  })
+
   it('leaves the replay format out of the receipt when the binding produces none', async () => {
     const { prepare, probe } = setup()
     probe.replayFormat = null

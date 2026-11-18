@@ -293,6 +293,16 @@ describe('the replay range a settlement records', () => {
     expect(Object.hasOwn(f.settled, 'replay')).toBe(false)
   })
 
+  it('binds the mark of carried reasoning only with a format, and keeps it on the dispatch record', async () => {
+    const binding = { failure: { kind: 'invalid', field: 'receipt', reason: 'binding' } }
+    expect(await (await receipted({ replayCarried: true })).record()).toEqual(binding)
+    const f = await receipted({ replayFormat: FORMAT, replayPrefix: 'h:1', replayCarried: true })
+    unbox(await f.record())
+    const { principal, tenant, call } = f.admit
+    const records = unbox(await f.commands.dispatches({ principal, tenant, call }))
+    expect(records[0]?.materialization?.receipt.replayCarried).toBe(true)
+  })
+
   it('binds a prefix only with a format, and only within its length', async () => {
     const binding = { failure: { kind: 'invalid', field: 'receipt', reason: 'binding' } }
     const max = REPLAY_PREFIX_MAX_LENGTH

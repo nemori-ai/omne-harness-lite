@@ -84,6 +84,7 @@ export type FamilyProbe = {
   acquireGate: Promise<void> | undefined
   encodeFailure: TransportFailure | undefined
   replayFormat: string | null
+  replayCarried: boolean
 }
 
 export function createTestFamily(): Readonly<{
@@ -100,6 +101,7 @@ export function createTestFamily(): Readonly<{
     acquireGate: undefined,
     encodeFailure: undefined,
     replayFormat: null,
+    replayCarried: false,
   }
   const families: PiFamilyContributions = {
     async acquire(supplier, signal) {
@@ -167,7 +169,7 @@ function binding(supplier: Supplier, probe: FamilyProbe): PiFamilyBinding {
           },
           diagnostics: probe.encodeDiagnostics,
           replayPrefix: 'h:test.s:test.t:test.p:test',
-          replayCarried: false,
+          replayCarried: probe.replayCarried,
         },
       }
     },
