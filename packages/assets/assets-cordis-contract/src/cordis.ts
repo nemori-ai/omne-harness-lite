@@ -4,8 +4,11 @@ import {
   type CategoryContribution,
   type CategoryPoint,
   type CategoryView,
+  type TenantPublishing,
+  type TenantPublishOutcome,
+  type TenantPublishRequest,
 } from '@omne-harness/assets'
-import { assetCategoriesKey } from './index.ts'
+import { assetCategoriesKey, assetPublishingKey } from './index.ts'
 
 /** @owner packages/assets/assets-cordis-contract */
 export class AssetCategoriesService extends Service {
@@ -24,9 +27,24 @@ export class AssetCategoriesService extends Service {
   }
 }
 
+/** @owner packages/assets/assets-cordis-contract */
+export class AssetPublishingService extends Service implements TenantPublishing<unknown> {
+  static readonly provide = assetPublishingKey
+  private readonly publishing: TenantPublishing<unknown>
+  constructor(ctx: Context, publishing: TenantPublishing<unknown>) {
+    super(ctx, AssetPublishingService.provide)
+    this.publishing = publishing
+  }
+
+  publish(request: TenantPublishRequest<unknown>): Promise<TenantPublishOutcome> {
+    return this.publishing.publish(request)
+  }
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     assetCategories: AssetCategoriesService
+    assetPublishing: AssetPublishingService
   }
 }
 

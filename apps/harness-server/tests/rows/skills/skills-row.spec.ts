@@ -22,7 +22,7 @@ import {
 import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 import { toolBodyContract, toolCategoryDisplay } from '@omne-harness/tool-contract'
 import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
-import { assetsSettingsProjectionCommand } from '@omne-harness/assets-local'
+import { assetsSettingsProjectionCommand, createTenantPublisher } from '@omne-harness/assets-local'
 import { SettingsOwnerProjectionSchema } from '@omne-harness/settings-local'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
@@ -33,11 +33,15 @@ import {
   sessionWorkIssuerOf,
 } from '../../../src/entry/principals.ts'
 import {
-  domainRoot,
-  openTenantSkills,
   routedSkills,
+  tenantSkills,
   TenantSkillsHost,
 } from '../../../src/rows/skills/tenant-skills.ts'
+import {
+  domainRoot,
+  openTenantAssets,
+  TenantAssetsHost,
+} from '../../../src/rows/tenant-assets/host.ts'
 import { createBoundSkills } from '../../../src/rows/tool-bindings/skills.ts'
 import { productionStorageCatalog } from '../../../src/rows/storage/production-catalog.ts'
 import { governanceStorageCombinations } from '../../../src/rows/governance/storage-combinations.ts'
@@ -46,6 +50,7 @@ import { preferenceCategory } from '../../../src/rows/governance/preference-sett
 import { fixtureEnv, fixtureTenant, okOf } from '../../entry/support.ts'
 import { providerConfig } from '../storage/fixtures/tree.ts'
 import {
+  directoryReader,
   openSkillPublisher,
   publishSkill,
   SAMPLE_LINE,
@@ -110,10 +115,17 @@ async function world() {
   })
   categories.contribute(preferenceCategory)
   categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
-  const store = { storage: made.storage, materials, packageRoot, ranking, categories }
-  const host = new TenantSkillsHost({
+  const store = { storage: made.storage, materials, packageRoot, categories }
+  const tenantAssets = new TenantAssetsHost({
     domains: lookup,
-    open: (tenant, domain) => openTenantSkills(store, tenant, domain),
+    open: domain => openTenantAssets(store, domain),
+  })
+  cleanups.push(() => tenantAssets.close())
+  const host = new TenantSkillsHost({
+    async open(tenant, tenantRef) {
+      const assets = await tenantAssets.open(tenantRef)
+      return assets === undefined ? undefined : tenantSkills(assets, tenant, ranking)
+    },
   })
   cleanups.push(() => host.close())
   const routed = routedSkills(host)
@@ -187,6 +199,21 @@ async function world() {
         await publisher.close()
       }
     },
+    async publishThroughTenantAssets(name: string) {
+      const dir = await writeSampleSkill(join(root, 'sources', name), name)
+      const encoded = tenantCodec.encode(alpha)
+      if (!encoded.ok) throw new Error('tenant')
+      const tenantRef = encoded.value
+      const assets = await tenantAssets.open(tenantRef)
+      if (assets === undefined) throw new Error('the local assets of alpha did not open')
+      const made = capabilityId('skill', name)
+      if (!made.ok) throw new Error('capability')
+      return createTenantPublisher(assets, tenantRef).publish({
+        operationId: `publish-${name}`,
+        capability: made.id,
+        content: { kind: 'directory', from: directoryReader(dir) },
+      })
+    },
     host,
     storage: made,
     lookups: () => lookups,
@@ -203,6 +230,20 @@ const search = (skills: SkillsAccess, query: string) =>
   skills.search({ query, after: null, limit: 10 }, signal)
 
 describe('the skills row and the Skills binding over a real store', () => {
+  it('publishes a Skill directory into the one local assets of the tenant, and Skills reads it', async () => {
+    const w = await world()
+    expect(await w.publishThroughTenantAssets('weekly-report')).toMatchObject({
+      kind: 'published',
+      holdingRef: 'skill/weekly-report',
+      changed: true,
+    })
+    expect(await search(w.alpha, '出周报')).toMatchObject({
+      ok: { entries: [{ kind: 'available', name: 'weekly-report' }] },
+    })
+    const body = await w.alpha.read({ skill: 'weekly-report', offset: 0, maxBytes: 65536 }, signal)
+    expect(body).toMatchObject({ ok: { text: expect.stringContaining('scripts/collect.mjs') } })
+  })
+
   it('cleans what an interrupted publish left when the tenant set opens, and keeps what was recorded', async () => {
     const w = await world()
     await w.publish('weekly-report')

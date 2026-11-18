@@ -507,6 +507,39 @@ describe('the recovery scan', () => {
     expect(existsSync(placeOf(root))).toBe(true)
   })
 
+  it('never takes a directory whose name is no version for an unrecorded version', async () => {
+    const asked: string[] = []
+    const { root, packages } = setup({
+      records: {
+        async readVersionRecord(_assetRef, version) {
+          asked.push(version)
+          return { ok: undefined }
+        },
+      },
+    })
+    mkdirSync(join(root, 'bundles'), { recursive: true })
+    writeFileSync(join(root, 'bundles', '.category'), 'bundle')
+    const names = ['loose', 'sha256', 'a-b-c', 'sha256-0', `sha512-${'0'.repeat(64)}`]
+    for (const name of names) writeTree(join(root, 'bundles', 'report', name), FILES)
+    expect(await packages.recover()).toMatchObject({ discarded: 0, deferred: [] })
+    expect(asked).toEqual([])
+    expect(readdirSync(join(root, 'bundles', 'report')).sort()).toEqual([...names].sort())
+  })
+
+  it('reports each capability of a withdrawn category once in deferred', async () => {
+    const { root, packages } = setup()
+    mkdirSync(join(root, 'gones'), { recursive: true })
+    writeFileSync(join(root, 'gones', '.category'), 'gone')
+    const versions = [`sha256-${'0'.repeat(64)}`, `sha256-${'1'.repeat(64)}`]
+    for (const name of ['first', 'second'])
+      for (const version of versions) writeTree(join(root, 'gones', name, version), FILES)
+    const { deferred, discarded } = await packages.recover()
+    expect(discarded).toBe(0)
+    expect(deferred).toHaveLength(2)
+    expect(deferred).toEqual(expect.arrayContaining([id('gone', 'first'), id('gone', 'second')]))
+    expect(readdirSync(join(root, 'gones', 'first')).sort()).toEqual(versions)
+  })
+
   it('keeps a recorded version directory and a directory whose name is no version', async () => {
     const { root, packages } = setup({ records: { readVersionRecord: async () => recordOf() } })
     mkdirSync(join(root, 'bundles'), { recursive: true })

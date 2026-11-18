@@ -173,11 +173,12 @@ it('names on the root entry exactly the types and values that the SPEC gives it'
     'projectAssetBody',
     'sameCapability',
     'skillBodyContract',
+    'skillCategoryDisplay',
     'toPackagePath',
   ])
 })
 
-const src = fileURLToPath(new URL('../src/', import.meta.url))
+const src =fileURLToPath(new URL('../src/', import.meta.url))
 
 const SPECIFIER = /(?:\bfrom|\bimport\s*\(?)\s*(['"])([^'"]+)\1/g
 

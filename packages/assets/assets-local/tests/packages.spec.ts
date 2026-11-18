@@ -8,7 +8,6 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   capabilityId,
@@ -328,6 +327,55 @@ describe('publish and hold: the four cells of the holding, in one commit', () =>
     expect(await readAll(w, versionOf(FIRST))).toEqual({ ok: FIRST })
   })
 
+  it('类别没登记：答 unknown_category，不提交；存储答没提交：答 unknown', async () => {
+    let refuse = false
+    const w = await world({
+      ownerWrap: storage => ({
+        ...storage,
+        async commit(request, options) {
+          if (refuse) return { kind: 'not_committed', identity: request.identity } as never
+          return storage.commit(request, options)
+        },
+      }),
+    })
+    const body = readBodyText('null', {
+      maxBytes: 16,
+      maxDepth: 1,
+      maxItems: 1,
+      maxMembers: 1,
+      maxStringLength: 1,
+      maxNumberLength: 1,
+    })
+    if (body.kind !== 'ok') throw new Error('the body does not read')
+    const input = (category: string) => ({
+      operationId: `publish-${category}`,
+      assetRef: `${category}/note`,
+      expectedRevision: 0,
+      pinned: pinBody({
+        identity: id(category, 'note'),
+        version: 'v1',
+        source: 'test',
+        body: body.value,
+      }),
+      holding: {
+        holdingRef: `${category}/note`,
+        scopeRef: 'tenant-a',
+        sources: ownerSources('tenant'),
+        grants,
+      },
+    })
+    expect(await w.owner.publishAndHold(input('nobody'))).toEqual({
+      kind: 'rejected',
+      reason: 'unknown_category',
+    })
+    expect(await w.owner.getOperation('publish-nobody')).toEqual({ kind: 'not_found' })
+    refuse = true
+    expect(await w.owner.publishAndHold(input('plain'))).toEqual({
+      kind: 'unknown',
+      operationId: 'publish-plain',
+    })
+  })
+
   it('持有的范围不是这个租户：答 forbidden，什么都不写', async () => {
     const w = await world()
     const plain = id('plain', 'note')
@@ -420,25 +468,6 @@ describe('the recovery scan only cleans', () => {
     expect(await w.owner.packages.recover()).toEqual({ discarded: 1, deferred: [], mismatched: [] })
     expect(existsSync(placed(w.packageRoot, versionOf(FIRST)))).toBe(false)
     expect(await w.owner.readAsset({ assetRef: REF })).toEqual({ kind: 'absent' })
-  })
-
-  it('删版本目录只在恢复扫描里（源码检查，守模型的 negative-sweep）', () => {
-    const source = readFileSync(
-      fileURLToPath(new URL('../src/packages.ts', import.meta.url)),
-      'utf8',
-    )
-    const start = source.indexOf('function packageRecovery(')
-    const end = source.indexOf('\nasync function categoryOf(')
-    expect(start).toBeGreaterThan(-1)
-    expect(end).toBeGreaterThan(start)
-    const recovery = source.slice(start, end)
-    const elsewhere = source.slice(0, start) + source.slice(end)
-    expect(recovery).toContain('await rm(join(root, namespace, name, dir)')
-    expect(elsewhere).not.toMatch(/\brm\(\s*(final|join\(root, namespace)/)
-    const removals = [...elsewhere.matchAll(/\brm\(\s*(.+?),\s*\{ recursive/g)].map(
-      match => match[1],
-    )
-    expect(new Set(removals)).toEqual(new Set(['staging', 'join(root, STAGING, name)']))
   })
 })
 

@@ -3,12 +3,14 @@ import { join } from 'node:path'
 import {
   capabilityId,
   createCategoryPoint,
+  createTenantPublishing,
   type CapabilityId,
   type PackageReader,
 } from '@omne-harness/assets'
 import {
   assetsSqlMaterials,
   createAssetsLocal,
+  createTenantPublisher,
   publishedRef,
   tenantLayerSource,
   type AssetsLocal,
@@ -179,20 +181,21 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
     const capability = made.id
     const assetRef = publishedRef(capability)
 
-    const published = await assets.packages.publish({
-      capability,
-      from: directoryReader(directories, options.packageDir),
-      operationId: 'publish-sample-skill',
-      holding: {
-        sources: [
-          {
-            sourceId: 'tenant',
-            ownerRef: tenantRef,
-            scope: { kind: 'owner', subjectRef: 'skills' },
-          },
-        ],
-        grants: [],
+    const publishing = createTenantPublishing<Readonly<{ tenant: string }>>({
+      acting: {
+        admit: async ({ principal, tenant }) =>
+          principal.tenant === tenant ? 'admitted' : 'denied',
       },
+      categories,
+      publisherOf: async tenant =>
+        tenant === tenantRef ? createTenantPublisher(assets, tenantRef) : undefined,
+    })
+    const published = await publishing.publish({
+      operationId: 'publish-sample-skill',
+      tenant: tenantRef,
+      principal: { tenant: tenantRef },
+      capability,
+      content: { kind: 'directory', from: directoryReader(directories, options.packageDir) },
     })
     if (published.kind !== 'published') throw new Error(JSON.stringify(published))
 

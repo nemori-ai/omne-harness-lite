@@ -1,4 +1,5 @@
 import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-assets.ts'
+import { openTenantAssets } from '../../../src/rows/tenant-assets/host.ts'
 import { canonicalText } from '@omne-harness/authorization'
 import { CurrentPermissionService } from '../../../src/rows/governance/current-permission-service.ts'
 // @module-tag slow
@@ -711,6 +712,15 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
     contract: createToolAssetCategory(w.release),
     display: toolCategoryDisplay,
   })
+  const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'governance-assets-')))
+  cleanup.push(() => rmSync(packageRoot, { recursive: true, force: true }))
+  let local: ReturnType<typeof openTenantAssets> | undefined
+  const tenantAssets = () =>
+    (local ??= openTenantAssets(
+      { storage: w.options.storage, materials: w.options.materials, packageRoot, categories },
+      w.options.domain,
+    ))
+  cleanup.push(async () => (await local)?.close())
   function prepare(organizationTargets = targets) {
     const prepared = prepareInstalledTenantGovernance({
       ...w.options,
@@ -718,6 +728,7 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
       release: w.release,
       organizationTargets,
       categories,
+      tenantAssets,
       registry,
       clock: { now: () => 1794096000000 },
       cursorLifetimeMs: 60000,

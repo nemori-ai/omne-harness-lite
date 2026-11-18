@@ -99,10 +99,11 @@ export function versionDirectoryName(version: string): string {
   return version.replaceAll(':', '-')
 }
 
+const VERSION_DIRECTORY = /^sha256-([0-9a-f]{64})$/
+
 function versionOfDirectory(name: string): string | undefined {
-  const at = name.indexOf('-')
-  const version = at > 0 ? `${name.slice(0, at)}:${name.slice(at + 1)}` : ''
-  return version !== '' && versionDirectoryName(version) === name ? version : undefined
+  const hex = VERSION_DIRECTORY.exec(name)?.[1]
+  return hex === undefined ? undefined : `sha256:${hex}`
 }
 
 export function publishedRef(capability: CapabilityId): string {

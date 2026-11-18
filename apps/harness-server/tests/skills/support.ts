@@ -7,7 +7,7 @@ import type { PackageLocator } from '@omne-harness/skill-contract/provider'
 import { createDirectorySource } from '@omne-harness/skill-host-local'
 import type { DomainRef, SqlMaterialCatalog, SqlStorage } from '@omne-harness/sql-contract'
 import { governanceStorageCombinations } from '../../src/rows/governance/storage-combinations.ts'
-import { domainRoot } from '../../src/rows/skills/tenant-skills.ts'
+import { domainRoot } from '../../src/rows/tenant-assets/host.ts'
 
 export const SAMPLE_LINE = 'weekly report collected 3 changes'
 
@@ -29,7 +29,7 @@ export async function writeSampleSkill(
   return dir
 }
 
-function directoryReader(root: string): PackageReader {
+export function directoryReader(root: string): PackageReader {
   const source = createDirectorySource()
   const locator: PackageLocator = { kind: 'directory', root }
   return {

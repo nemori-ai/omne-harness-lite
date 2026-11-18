@@ -182,13 +182,12 @@ async function commitMutation(
   }
 }
 
-async function recallOperation(options: Store, operationId: string, same?: SameOperation) {
+async function recallOperation(options: Store, operationId: string) {
   try {
     return receiptResult(
       await options.storage.query(identity(options.domain, operationId)),
       options.domain,
       operationId,
-      same,
     )
   } catch {
     return { kind: 'unknown' as const, operationId }
@@ -215,8 +214,6 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     return promise
   }
   const commit = (command: Mutation, same?: SameOperation) => commitMutation(options, command, same)
-  const recall = (operationId: string, same?: SameOperation) =>
-    recallOperation(options, operationId, same)
   async function change(value: unknown): Promise<AssetsMutationResult> {
     if (!withinBudget(value)) return fail('limit_exceeded')
     const parsed = mutationSchema.safeParse(value)
@@ -246,10 +243,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
       run(async () => {
         const { holding, ...published } = input
         const command = publishCommand(options, published, holding)
-        if (command.kind === 'rejected') return command
-        const same = samePublication(command)
-        const recalled = await recall(command.operationId, same)
-        return recalled.kind === 'not_found' ? commit(command, same) : recalled
+        return command.kind === 'rejected' ? command : commit(command, samePublication(command))
       }),
     hold: input =>
       run(async () => {
@@ -299,7 +293,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     getOperation: operationId =>
       run(async () => {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
-        return recall(operationId)
+        return recallOperation(options, operationId)
       }),
     close() {
       return (closed ??= Promise.allSettled(active).then(() => undefined))

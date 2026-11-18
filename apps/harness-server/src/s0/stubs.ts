@@ -31,6 +31,17 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
   'asset-categories': { provides: ['assetCategories'] },
+  'tenant-assets': {
+    provides: ['tenantAssets', 'assetPublishing'],
+    injects: [
+      'storage',
+      'tenantDomainLookup',
+      'principalVerifier',
+      'tenantStanding',
+      'assetCategories',
+    ],
+    phase: 'composition',
+  },
   governance: {
     provides: [
       'sessionPermissionBackend',
@@ -50,6 +61,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'identityGovernance',
       'toolContributionAuthority',
       'assetCategories',
+      'tenantAssets',
     ],
     phase: 'composition',
   },
@@ -281,7 +293,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   skills: {
     provides: ['skillCatalog', 'skillAccess'],
-    injects: ['storage', 'tenantDomainLookup', 'assetCategories'],
+    injects: ['tenantAssets', 'assetCategories'],
     phase: 'composition',
   },
   'tool-runtime': {

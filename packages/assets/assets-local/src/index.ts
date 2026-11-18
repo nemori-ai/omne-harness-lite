@@ -18,6 +18,7 @@ export type {
   PublishedPackages,
 } from './packages.ts'
 export { publishedRef } from './packages.ts'
+export { createTenantPublisher } from './tenant-publisher.ts'
 export {
   assetsPublicationFact,
   AssetPublicationRefSchema,

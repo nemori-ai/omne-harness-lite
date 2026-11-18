@@ -35,6 +35,7 @@ import { createToolAssetCategory } from './tool-assets.ts'
 import { PREFERENCE_SETTINGS, preferenceCategory } from './preference-settings.ts'
 import { preferenceSettingsKey, providePreferenceSettings } from './preference-settings-service.ts'
 import { TenantGovernanceHost } from './tenant-host.ts'
+import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import { tenantDomainRegistrationKey } from './tenant-domain-registration-service.ts'
 import { openOrganizationSettingsSources } from './organization-settings.ts'
 import { permissionOriginsOf } from './permission-origins.ts'
@@ -107,6 +108,7 @@ export const governanceRow = defineRow({
       governanceInstallationPrincipalsKey,
       toolContributionAuthorityKey,
       assetCategoriesKey,
+      tenantAssetsKey,
     ],
     sameProviderGroup: null,
   },
@@ -170,6 +172,7 @@ export const governanceRow = defineRow({
           login: () => ctx.identityGovernance,
           release,
           categories,
+          tenantAssets: () => ctx.tenantAssets.open(tenantRef),
           permissionOrigins: () => permissionOriginsOf(ctx),
           organizationTargets: sources.targets,
           scope,

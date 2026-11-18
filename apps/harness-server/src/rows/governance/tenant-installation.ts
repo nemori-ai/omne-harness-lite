@@ -1,5 +1,5 @@
 import type { CategoryView } from '@omne-harness/assets'
-import { createAssetsLocal } from '@omne-harness/assets-local'
+import type { AssetsLocal } from '@omne-harness/assets-local'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
 import type { ToolRelease } from '../../entry/tool-release.ts'
@@ -18,6 +18,7 @@ export type InstalledTenantOptions = Omit<
   release: Extract<ToolRelease, { kind: 'trusted' }>
   organizationTargets: ReturnType<typeof createStandaloneSettingsOwner>
   categories: Pick<CategoryView, 'list' | 'lookup'>
+  tenantAssets(): Promise<AssetsLocal | undefined>
 }
 
 export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) {
@@ -26,12 +27,6 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
     scope: structuredClone(input.scope),
     domain: structuredClone(input.domain),
   }
-  const assets = createAssetsLocal({
-    ...governanceStorageCombinations(options.materials).assets,
-    domain: options.domain,
-    storage: options.storage,
-    categories: options.categories,
-  })
   const assembly = prepareTenantGovernanceWithSettings({
     ...options,
     capture: governedCapture(options.categories),
@@ -56,21 +51,19 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
   async function open(): ReturnType<TenantGovernanceAssembly['open']> {
     const runtime = await assembly.open()
     if (runtime.kind !== 'created') {
-      await assets.close()
       await preferenceTargets.close()
       return runtime
     }
     const closeRuntime = runtime.close
     async function close() {
       const result = await closeRuntime()
-      if (result.kind === 'closed') {
-        await assets.close()
-        await preferenceTargets.close()
-      }
+      if (result.kind === 'closed') await preferenceTargets.close()
       return result
     }
     let fault: string | undefined
     try {
+      const assets = await options.tenantAssets()
+      if (assets === undefined) throw new Error('the local assets of the tenant are unavailable')
       const installed = await installToolGovernance({
         principal: options.installationPrincipal,
         scope: options.scope,
@@ -102,6 +95,13 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         }
   }
   let opening: ReturnType<typeof open> | undefined
-  const holdings: TenantAssetsAccess = { readHolding: input => assets.readHolding(input) }
+  const holdings: TenantAssetsAccess = {
+    async readHolding(input) {
+      const assets = await options.tenantAssets()
+      return assets === undefined
+        ? { kind: 'rejected', reason: 'unavailable' }
+        : assets.readHolding(input)
+    },
+  }
   return { ...assembly, assets: holdings, open: () => (opening ??= open()) }
 }
