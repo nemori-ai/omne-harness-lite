@@ -390,6 +390,9 @@ importers:
       '@omne-harness/identity-protocol':
         specifier: workspace:*
         version: link:../../packages/identity/identity-protocol
+      '@omne-harness/notification-protocol':
+        specifier: workspace:*
+        version: link:../../packages/notification/notification-protocol
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
