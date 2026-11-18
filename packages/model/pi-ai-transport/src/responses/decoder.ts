@@ -464,7 +464,6 @@ function counted(name: string, lexeme: string | null): CallAccountReport['usage'
     : { name, state: 'known', lexeme, unit: 'token' }
 }
 
-// input_tokens holds the cached and the written input too; the account counts them apart.
 function uncachedInput({ input, cacheRead, cacheWrite }: Finished['usage']): string | null {
   if (input === null || cacheRead === null || cacheWrite === null) return null
   const remainder = BigInt(input) - BigInt(cacheRead) - BigInt(cacheWrite)
