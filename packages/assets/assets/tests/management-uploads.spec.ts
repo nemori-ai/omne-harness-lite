@@ -3,6 +3,7 @@ import {
   capabilityId,
   createCategoryPoint,
   createTenantManagement,
+  isReadBody,
   type BodyContract,
   type CapabilityId,
   type PackageReader,
@@ -23,7 +24,7 @@ function id(category: string, name: string): CapabilityId {
 
 const base = {
   schema: { kind: 'null' },
-  judge: () => ({ ok: true }),
+  judge: () => ({ ok: true }) as const,
   deriveDeclarations: () => ({ entries: [] }),
   references: () => [],
 } as const
@@ -148,6 +149,29 @@ describe('creating from data', () => {
         content: { kind: 'data', body },
       },
     ])
+  })
+
+  it('a body from outside is read first: the publisher gets a read copy; a malformed one is refused and nothing is published', async () => {
+    const s = setup()
+    const body = { kind: 'object', entries: [{ key: 'a', value: { kind: 'string', value: 'x' } }] }
+    await s.management.createFromData({
+      ...scope,
+      operationId: 'op-1',
+      capability: id('note', 'a'),
+      body: body as never,
+    })
+    const sent = s.published[0]?.content
+    expect(sent?.kind === 'data' && isReadBody(sent.body)).toBe(true)
+    expect(sent).toEqual({ kind: 'data', body })
+    expect(
+      await s.management.createFromData({
+        ...scope,
+        operationId: 'op-2',
+        capability: id('note', 'a'),
+        body: { kind: 'string' } as never,
+      }),
+    ).toEqual({ kind: 'invalid', reason: 'body-not-read' })
+    expect(s.published).toHaveLength(1)
   })
 
   it('a publishing service that throws leaves the outcome unknown', async () => {
