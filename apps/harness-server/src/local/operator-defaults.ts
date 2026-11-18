@@ -495,10 +495,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       ? ([['skills', { packageRoot: locations.assetsRoot, ranking: SEARCH_RANKING }]] as const)
       : []),
     ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
-    [
-      'request-context',
-      { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
-    ],
+    ['request-context', {}],
     ['agent-context', {}],
     ['agent-host', AGENT_HOST],
     ['session-ad03', { scopeIndexEntries: 4096, pageBytes: 65_536 }],

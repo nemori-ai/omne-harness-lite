@@ -26,21 +26,12 @@ export type ProducerRegistration<
 }> &
   (
     | Readonly<{
-        declaration: SuppliedBlockDescriptor<K, BlockValue<K>> & { volatility: 'per-request' }
-        scoped: boolean
-        supply: SupplyCallback<BlockValue<K>, P>
-      }>
-    | Readonly<{
-        declaration: SuppliedBlockDescriptor<K, BlockValue<K>> & {
-          volatility: 'stable' | 'per-step'
-        }
+        declaration: SuppliedBlockDescriptor<K, BlockValue<K>>
         scoped: false
         supply: SupplyCallback<BlockValue<K>, P>
       }>
     | Readonly<{
-        declaration: SuppliedBlockDescriptor<K, BlockValue<K>> & {
-          volatility: 'stable' | 'per-step'
-        }
+        declaration: SuppliedBlockDescriptor<K, BlockValue<K>>
         scoped: true
         supply?: SupplyCallback<BlockValue<K>, P>
       }>

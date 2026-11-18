@@ -364,72 +364,74 @@ async function tenantInvalidateBatchAtomic<P>(fixture: RuntimeContextFixture<P>)
 }
 
 async function supplyAnswerMapping<P>(fixture: RuntimeContextFixture<P>) {
-  const { subject, ports } = await start(fixture)
-  const target = scope('answers')
-  await openScope(subject, ports, fixture.principal, target, fixture.tenant)
-  let next: () => Promise<SupplyAnswer<unknown>> = async () => ({ kind: 'value', value: 1 })
-  const p = await subject.registerProducer(fixture.principal, {
-    key: 'suite.value',
-    tenant: fixture.tenant,
-    producer: { producer: 'answers' },
-    declaration: declaration({ volatility: 'per-request' }),
-    scoped: true,
-    supply: () => next(),
-  })
-  assert.ok(p.kind === 'registered')
-  await subject.applyCommit(fixture.principal, {
-    kind: 'registration',
-    commit: { commit: 'answers' },
-    after: null,
-    change: {
-      kind: 'add',
-      creating: true,
-      scope: target,
-      tenant: fixture.tenant,
-      key: 'suite.value',
-      basedOn: 0,
-      required: true,
-      bindings: [],
-      parameters: undefined,
-    },
-  })
-  const issued = await subject.issueEligibility(fixture.principal, {
-    scope: target,
-    tenant: fixture.tenant,
-    principal: fixture.principal,
-    consumer: 'model',
-    keys: ['suite.value'],
-    bindings: [],
-    registrationRevision: 1,
-    supersedes: null,
-  })
-  assert.ok(issued.kind === 'issued')
-  const bound = await subject.bind(issued.eligibility.id)
-  assert.ok(bound.kind === 'bound')
-  const reader = bound.reader
-  next = async () => ({ kind: 'refused' })
-  assert.deepEqual(await reader.snapshot(), { kind: 'refused', reason: 'unauthorized' })
   const nonsense = async (): Promise<SupplyAnswer<unknown>> => JSON.parse('{"kind":"nonsense"}')
+  const unknown = { kind: 'unknown', cause: 'source-unknown' }
+  const missing = (cause: string) => ({ missing: cause })
   const cases: readonly [() => Promise<SupplyAnswer<unknown>>, object][] = [
-    [async () => ({ kind: 'unknown' }), { kind: 'unknown', cause: 'source-unknown' }],
+    [async () => ({ kind: 'refused' }), { kind: 'refused', reason: 'unauthorized' }],
+    [async () => ({ kind: 'unknown' }), unknown],
     [
       async () => {
         throw new Error('source failed')
       },
-      { kind: 'unknown', cause: 'source-unknown' },
+      unknown,
     ],
-    [nonsense, { kind: 'unknown', cause: 'source-unknown' }],
-    [async () => ({ kind: 'unavailable' }), { kind: 'missing', cause: 'source-unavailable' }],
-    [
-      async () => ({ kind: 'value', value: 'not a number' }),
-      { kind: 'missing', cause: 'uninterpretable' },
-    ],
-    [async () => ({ kind: 'none' }), { kind: 'missing', cause: 'no-value' }],
+    [nonsense, unknown],
+    [async () => ({ kind: 'unavailable' }), missing('source-unavailable')],
+    [async () => ({ kind: 'value', value: 'not a number' }), missing('uninterpretable')],
+    [async () => ({ kind: 'none' }), missing('no-value')],
   ]
-  for (const [answer, expected] of cases) {
-    next = answer
-    const r = await reader.snapshot()
-    assert.ok(r.kind === 'success', `snapshot: ${r.kind}`)
-    assert.deepEqual(r.value.perRequest[0], { key: 'suite.value', ...expected })
+  for (const [index, [answer, expected]] of cases.entries()) {
+    const { subject, ports } = await start(fixture)
+    const target = scope(`answers-${index}`)
+    await openScope(subject, ports, fixture.principal, target, fixture.tenant)
+    const p = await subject.registerProducer(fixture.principal, {
+      key: 'suite.value',
+      tenant: fixture.tenant,
+      producer: { producer: `answers-${index}` },
+      declaration: declaration(),
+      scoped: false,
+      supply: answer,
+    })
+    assert.ok(p.kind === 'registered')
+    await subject.applyCommit(fixture.principal, {
+      kind: 'registration',
+      commit: { commit: `answers-${index}` },
+      after: null,
+      change: {
+        kind: 'add',
+        creating: true,
+        scope: target,
+        tenant: fixture.tenant,
+        key: 'suite.value',
+        basedOn: 0,
+        required: true,
+        bindings: [],
+        parameters: undefined,
+      },
+    })
+    const issued = await subject.issueEligibility(fixture.principal, {
+      scope: target,
+      tenant: fixture.tenant,
+      principal: fixture.principal,
+      consumer: 'model',
+      keys: ['suite.value'],
+      bindings: [],
+      registrationRevision: 1,
+      supersedes: null,
+    })
+    assert.ok(issued.kind === 'issued')
+    const bound = await subject.bind(issued.eligibility.id)
+    assert.ok(bound.kind === 'bound')
+    const read = await bound.reader.snapshot()
+    if ('missing' in expected) {
+      assert.ok(read.kind === 'success', `answer ${index}: ${read.kind}`)
+      assert.deepEqual(
+        read.value.missing.map(item => item.cause),
+        [expected.missing],
+        `answer ${index}`,
+      )
+      assert.equal(read.value.blocks.length, 0)
+    } else assert.deepEqual(read, expected, `answer ${index}`)
   }
 }

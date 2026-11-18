@@ -291,11 +291,6 @@
       "config": {}
     },
     {
-      "id": "agent-account-outlet",
-      "plugin": "stubPlugin",
-      "config": {}
-    },
-    {
       "id": "runtime-context",
       "plugin": "stubPlugin",
       "config": {}

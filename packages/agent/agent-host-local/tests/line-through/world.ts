@@ -26,7 +26,6 @@ import {
   type RuntimeConditions,
   type SelectedModel,
 } from '@omne-harness/agent-contract'
-import { createMemoryAgentAccountOutlet } from '@omne-harness/agent-contract/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
   AgentContextProvider,
@@ -35,7 +34,6 @@ import {
 import {
   ActionAdmissionService,
   AgentAccessCheckService,
-  AgentAccountOutletService,
   AgentAdoptionsService,
   AgentClockService,
   ContextCompactionService,
@@ -920,7 +918,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   const instance = decodeModelInstanceId('minst_cp3')
   if ('failure' in instance) throw new Error('model instance')
   const scripted = createScriptedModelProvider<unknown>({ instance: instance.ok })
-  const outlet = createMemoryAgentAccountOutlet<unknown>()
   const receiverState = createModelReceiverState<unknown>()
   const pushes: Promise<unknown>[] = []
   const admits: unknown[] = []
@@ -988,7 +985,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
                 return fail({ kind: 'denied', action: 'resolve' })
               },
             },
-      outlet,
       models: scripted.provider.runtime.calls,
       capacity: () => ({
         records: options.receiverRecords ?? 10000,
@@ -1033,9 +1029,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   }
   await mount(serviceOf(ModelRuntimeService, models, 'ModelRuntime'))
-  await mount(
-    serviceOf(AgentAccountOutletService as unknown as AbstractService, outlet, 'AccountOutlet'),
-  )
   // These lines never reach the compaction budget; a scripted provider answers unavailable.
   await mount(
     serviceOf(
@@ -1116,7 +1109,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     receivedProvider,
     access,
     tools,
-    outlet,
     scripted,
     pusher,
     receiverState,

@@ -156,7 +156,7 @@ Agent 定义消费端口并发起压缩任务；提供者决定算法与内部�
 |---|---|---|
 | [request-context-contract](../../../packages/context/SPEC.md#应然设计) | module | 组装输入六组、候选与装入裁定、三类失败、覆盖证据、操作组 `AssemblyOperations` 与已检数据上的纯函数、来源集合与 `createAssemblyOperations`、三层布局的规则常量、历史源与策略端口类型、解码与判定 |
 | [request-context-cordis-contract](../../../packages/context/SPEC.md#cordis-装配) | service-contract | 唯一服务定义 `requestContext`：贡献登记面、策略提供者选择，来源登记表的 `register` 与 `replace`，以及组装入口 `assembly(target)`（返回已按配置绑定策略、借用该目标当前登记的来源集合的一组操作；目标没有登记时返回不可用；每次调用时从登记面现取该作用域的贡献） |
-| [request-context](../../../packages/context/SPEC.md#账目) | module | 索引、候选缓存、表示策略及可复用的压缩纯计算 |
+| [request-context](../../../packages/context/SPEC.md#总体架构)                    | module           | 索引、候选缓存、表示策略及可复用的压缩纯计算                                                                                                                                                                                                                     |
 | [request-context-cordis](../../../packages/context/SPEC.md#cordis-装配) | service-provider | Service 实现：贡献登记表、作用域遮蔽、策略实现选择与配置校验 |
 
 依赖方向：契约依赖模型、工具、内容块、消息与 Runtime Context 契约的读取结果类型；不依赖协调者与持有者的契约，二者依赖本域。请求准备适配器翻译到经 `assembly(target)` 取得的操作组；先按目标登记来源集合，再组装候选并交模型准备。压缩消费与提供者独立装配，原结果由历史持有者采用后重新组装，不经准备端口推导内部步骤。独立调用者用契约根入口的 `createAssemblyOperations` 绑定自己的来源集合与策略，或只要已检数据上的纯函数时直接用契约根入口，自己提供输入与依赖，没有协调者就没有共同提交。调模型之前的扩展位置归协调者，本域只接受其改写证据与经过；压缩服务结果不能由扩展改写。

@@ -281,7 +281,7 @@ export function createReplay<P>(world: World<P>) {
       for (const key of s.registrations.keys())
         if (world.descriptors.get(key)?.kind !== 'stateful') s.needsSupply.set(key, s.replayEpoch)
     }
-    if (changed) world.changed(s, null)
+    if (changed) world.changed(s)
     const result: FinishReplayResult = {
       kind: 'ready',
       state: s.ended ? 'ended' : 'open',

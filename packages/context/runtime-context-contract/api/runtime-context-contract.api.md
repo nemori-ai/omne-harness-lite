@@ -65,7 +65,6 @@
 - `NeedRequest` · `reader.d.ts`
 - `NeedValue` · `reader.d.ts`
 - `OrdinaryHolderAction` · `authority.d.ts`
-- `PerRequestEntry` · `reader.d.ts`
 - `PrepareRegistrationResult` · `operations.d.ts`
 - `PreviousValue` · `reader.d.ts`
 - `ProducerAction` · `authority.d.ts`
@@ -284,7 +283,7 @@ export interface BlockDescriptorBase<K extends ContextBlockKey, V> {
     readonly required: boolean;
     readonly disclosure: 'plain' | 'eligibility-checked';
     readonly carriesPrevious: boolean;
-    readonly volatility: 'stable' | 'per-step' | 'per-request';
+    readonly volatility: 'stable' | 'per-step';
     readonly parameterSchema?: StandardSchemaV1<unknown, unknown>;
 }
 export interface SuppliedBlockDescriptor<K extends ContextBlockKey, V> extends BlockDescriptorBase<K, V> {
@@ -322,7 +321,7 @@ export declare function diffForReminder(input: DiffInput): readonly ChangeMateri
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { Cursor, ReadRefusalReason, MissingCause, UnknownCause, MissingItem, RevisionPair, ReadOutcome, SourceEvidence, NeedValue, NeedRequest, ReadResult, BlockState, BlockEntry, PerRequestEntry, Snapshot, ChangeEntry, Changes, SnapshotResult, CursorInvalidated, ChangesResult, ContextReader, PreviousValue, ChangeMaterial, } from './reader.js';
+export type { Cursor, ReadRefusalReason, MissingCause, UnknownCause, MissingItem, RevisionPair, ReadOutcome, SourceEvidence, NeedValue, NeedRequest, ReadResult, BlockState, BlockEntry, Snapshot, ChangeEntry, Changes, SnapshotResult, CursorInvalidated, ChangesResult, ContextReader, PreviousValue, ChangeMaterial, } from './reader.js';
 export type { RegisterProducerResult, ProducerOperations, PrepareRegistrationResult, IssueEligibilityResult, RevokeEligibilityResult, CommitInput, ApplyCommitResult, HolderOperations, BindResult, ReaderOperations, RuntimeContextOperations, } from './operations.js';
 export type { ContextUpdate, StepBlockMaterial, StepCommit } from './update.js';
 export type { Registration, RegistrationChange, EligibilityId, EligibilityState, Eligibility, EligibilityMaterial, } from './registration.js';
@@ -568,21 +567,11 @@ export type ProducerRegistration<K extends ContextBlockKey = ContextBlockKey, P 
     tenant: TenantId;
     producer: ProducerRef;
 }> & (Readonly<{
-    declaration: SuppliedBlockDescriptor<K, BlockValue<K>> & {
-        volatility: 'per-request';
-    };
-    scoped: boolean;
-    supply: SupplyCallback<BlockValue<K>, P>;
-}> | Readonly<{
-    declaration: SuppliedBlockDescriptor<K, BlockValue<K>> & {
-        volatility: 'stable' | 'per-step';
-    };
+    declaration: SuppliedBlockDescriptor<K, BlockValue<K>>;
     scoped: false;
     supply: SupplyCallback<BlockValue<K>, P>;
 }> | Readonly<{
-    declaration: SuppliedBlockDescriptor<K, BlockValue<K>> & {
-        volatility: 'stable' | 'per-step';
-    };
+    declaration: SuppliedBlockDescriptor<K, BlockValue<K>>;
     scoped: true;
     supply?: SupplyCallback<BlockValue<K>, P>;
 }>);
@@ -735,28 +724,12 @@ export type BlockEntry = Readonly<{
     evidence: SourceEvidence;
     volatility: BlockDescriptorBase<ContextBlockKey, unknown>['volatility'];
 }>;
-export type PerRequestEntry = Readonly<{
-    key: ContextBlockKey;
-}> & (Readonly<{
-    kind: 'value';
-    value: unknown;
-    evidence: SourceEvidence;
-}> | Readonly<{
-    kind: 'none';
-}> | Readonly<{
-    kind: 'missing';
-    cause: MissingCause;
-}> | Readonly<{
-    kind: 'unknown';
-    cause: UnknownCause;
-}>);
 export type Snapshot = Readonly<{
     scope: ScopeRef;
     viewRevision: ViewRevision;
     cursor: Cursor;
     blocks: readonly BlockEntry[];
     missing: readonly MissingItem[];
-    perRequest: readonly PerRequestEntry[];
 }>;
 export type ChangeEntry = Readonly<{
     key: ContextBlockKey;
@@ -771,7 +744,6 @@ export type Changes = Readonly<{
     cursor: Cursor;
     entries: readonly ChangeEntry[];
     missing: readonly MissingItem[];
-    perRequest: readonly PerRequestEntry[];
 }>;
 export type SnapshotResult = ReadOutcome<Snapshot>;
 export type CursorInvalidated = Readonly<{
@@ -1097,7 +1069,6 @@ export declare const RUNTIME_CONTEXT_OBLIGATIONS: readonly [
     "translated-block-not-readable-raw",
     "translation-throw-reads-missing",
     "unlisted-binding-refused",
-    "per-request-block-outside-snapshot",
     "optional-need-reads-none",
     "child-scope-shadows-parent",
     "declaration-digest-mismatch-refused",
@@ -1152,7 +1123,6 @@ export declare const EXTENDED_OBLIGATIONS: readonly [
     'translated-block-not-readable-raw',
     'translation-throw-reads-missing',
     'unlisted-binding-refused',
-    'per-request-block-outside-snapshot',
     'optional-need-reads-none',
     'child-scope-shadows-parent',
     'declaration-digest-mismatch-refused',
@@ -1171,11 +1141,6 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import type { TestAuthorityPorts } from './ports.js';
 export declare const numberSchema: StandardSchemaV1<unknown, number>;
 export declare function scope(ref: string, parent?: ScopeRef): ScopeRef;
-export declare function declaration(overrides: Partial<SuppliedBlockDescriptor<'suite.value', unknown>> & {
-    volatility: 'per-request';
-}): SuppliedBlockDescriptor<'suite.value', unknown> & {
-    volatility: 'per-request';
-};
 export declare function declaration(overrides?: Partial<SuppliedBlockDescriptor<'suite.value', unknown>> & {
     volatility?: 'stable';
 }): SuppliedBlockDescriptor<'suite.value', unknown> & {
@@ -1407,7 +1372,7 @@ export interface World<P> {
         get(key: ContextBlockKey): Descriptor | undefined;
     };
     state(scope: ScopeRef): ScopeState | undefined;
-    changed(s: ScopeState, key: ContextBlockKey | null): void;
+    changed(s: ScopeState): void;
     put(s: ScopeState, key: ContextBlockKey, value: unknown, generation: number | null, present: boolean, cause?: Stored['cause']): void;
     nextSeq(s: ScopeState, key: ContextBlockKey): number;
     registration(scope: ScopeRef, key: ContextBlockKey): Registered | undefined;

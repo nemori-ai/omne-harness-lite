@@ -3,7 +3,7 @@ import { decodeRevision } from '@omne-harness/model-contract'
 import { parseRecordEntryRef, parseMessageId } from '@omne-harness/message'
 import { decodeEpochId, decodeBatchRef, decodeHistorySequence } from './refs.js'
 import { PREFIX_BREAK_REASONS, type Coverage } from './values.js'
-import { record, integer, revision, adoption, isEvidence } from './schema-primitives.js'
+import { record, integer, adoption, isEvidence } from './schema-primitives.js'
 function ref(value: unknown): boolean {
   return typeof value === 'string' && parseRecordEntryRef(value) !== null
 }
@@ -58,16 +58,9 @@ function history(value: unknown): boolean {
     record(value) &&
     !('failure' in decodeEpochId(value.epoch)) &&
     isHistoryUpper(value.upper) &&
-    Array.isArray(value.anchors) &&
-    value.anchors.every(anchor)
-  )
-}
-function anchor(value: unknown): boolean {
-  return (
-    record(value) &&
-    ['history-head', 'snapshot-reminder', 'history-body'].includes(String(value.layer)) &&
-    sequence(value.seq) &&
-    typeof value.prefixDigest === 'string'
+    (record(value.upper) && value.upper.kind === 'empty'
+      ? value.prefixDigest === null
+      : typeof value.prefixDigest === 'string')
   )
 }
 function compactions(value: unknown): boolean {
@@ -82,27 +75,6 @@ function inputs(value: unknown): boolean {
     record(value) &&
     !('failure' in decodeBatchRef(value.batch)) &&
     (value.saved === null || isEvidence(value.saved))
-  )
-}
-function snapshotAnchor(value: unknown): boolean {
-  return (
-    record(value) &&
-    !('failure' in decodeEpochId(value.epoch)) &&
-    isHistoryUpper(value.position) &&
-    (record(value.position) && value.position.kind === 'empty'
-      ? value.prefixDigest === null
-      : typeof value.prefixDigest === 'string')
-  )
-}
-function snapshot(value: unknown): boolean {
-  return (
-    record(value) &&
-    scope(value.scope) &&
-    record(value.eligibility) &&
-    typeof value.eligibility.eligibility === 'string' &&
-    revision(value.revision) &&
-    snapshotAnchor(value.anchor) &&
-    (value.content === 'full' || value.content === 'incremental')
   )
 }
 function section(value: unknown): boolean {
@@ -163,7 +135,6 @@ export function isCoverage(value: unknown): value is Coverage {
     history(value.history),
     compactions(value.compactions),
     inputs(value.inputs),
-    snapshot(value.snapshot),
     prompt(value.prompt),
     model(value.model),
     tools(value.tools),

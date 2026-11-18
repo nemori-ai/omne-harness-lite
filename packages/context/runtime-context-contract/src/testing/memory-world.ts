@@ -114,7 +114,7 @@ export interface World<P> {
   readonly listeners: Set<(scope: ScopeRef, revision: number) => void>
   readonly catalog: { get(key: ContextBlockKey): Descriptor | undefined }
   state(scope: ScopeRef): ScopeState | undefined
-  changed(s: ScopeState, key: ContextBlockKey | null): void
+  changed(s: ScopeState): void
   put(
     s: ScopeState,
     key: ContextBlockKey,
@@ -147,8 +147,7 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
     listeners: new Set<(scope: ScopeRef, revision: number) => void>(),
     catalog: { get: (key: ContextBlockKey) => world.descriptors.get(key) },
     state: (scope: ScopeRef) => world.scopes.get(scope.ref),
-    changed(s: ScopeState, key: ContextBlockKey | null) {
-      if (key !== null && world.descriptors.get(key)?.volatility === 'per-request') return
+    changed(s: ScopeState) {
       s.view++
       for (const listener of world.listeners) {
         try {
@@ -171,7 +170,7 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
         present,
         cause,
       })
-      world.changed(s, key)
+      world.changed(s)
     },
     nextSeq(s: ScopeState, key: ContextBlockKey): number {
       const next = (s.supplySeq.get(key) ?? 0) + 1

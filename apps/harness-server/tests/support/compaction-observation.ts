@@ -5,7 +5,6 @@ import {
   agentMaterialsKey,
   agentRequestsKey,
   agentJournalKey,
-  agentModelContextKey,
   agentMessageHandoffKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import {
@@ -22,7 +21,6 @@ export function observeCompactionFailures(scope: Context) {
     [agentMaterialsKey, ['read']],
     [agentRequestsKey, ['prepare', 'assessCompaction', 'resume']],
     [agentJournalKey, ['commit']],
-    [agentModelContextKey, ['read']],
     [agentMessageHandoffKey, ['prepare', 'lookup']],
     [modelPreparationResourcesKey, ['acquire']],
     [modelRequestPreparationKey, ['prepare']],

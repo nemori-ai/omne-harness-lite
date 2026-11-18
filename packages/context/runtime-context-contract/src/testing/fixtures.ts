@@ -28,11 +28,6 @@ export function scope(ref: string, parent?: ScopeRef): ScopeRef {
   return decoded.ok
 }
 export function declaration(
-  overrides: Partial<SuppliedBlockDescriptor<'suite.value', unknown>> & {
-    volatility: 'per-request'
-  },
-): SuppliedBlockDescriptor<'suite.value', unknown> & { volatility: 'per-request' }
-export function declaration(
   overrides?: Partial<SuppliedBlockDescriptor<'suite.value', unknown>> & { volatility?: 'stable' },
 ): SuppliedBlockDescriptor<'suite.value', unknown> & { volatility: 'stable' }
 export function declaration(

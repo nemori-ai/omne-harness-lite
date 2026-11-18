@@ -590,9 +590,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
         candidate: record.candidate,
         order: order.ok,
         committed: saved.fixed,
-        windowTokens: record.windowTokens,
-        accounting: { kind: 'unsettled' },
-        forecast: record.forecast,
         continuation: record.continuation,
       },
     }

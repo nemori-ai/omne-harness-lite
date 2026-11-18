@@ -13,7 +13,6 @@ import {
   decodePassageRef,
   decodePositionRef,
   encodeFixedRequestRecord,
-  forecastOf,
   type Access,
   type Adoption,
   type AssemblyCall,
@@ -23,6 +22,8 @@ import {
   type ContextSourceRegistry,
   type ContextTarget,
   type ConversionResultSource,
+  type HistoryEvidence,
+  type TransitionEvidence,
   type PassageRef,
   type RequestCandidate,
   type SourceSettlement,
@@ -30,7 +31,7 @@ import {
 import type { ContextHolderParts } from '@omne-harness/request-context-cordis-contract'
 import { createContextMeasurer, type ContextMeasure } from './measure.ts'
 import type { ModelRequestPreparation } from './translate.ts'
-import type { ContextMaterials, Place, ReadMaterial } from './materials.ts'
+import type { ContextMaterials, Place } from './materials.ts'
 import { canonical, digest, tenantText } from './records.ts'
 import { createStaging, type StagedGroups } from './staging.ts'
 import { createCompactionAssessment, freezeCompaction } from './compaction.ts'
@@ -162,20 +163,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }
   }
 
-  function readOf(
-    evidence: Preparation['source'],
-    tenant: string,
-    action: string,
-  ): Answer<ReadMaterial> {
-    const key = materials.key(evidence)
-    if (key === null) return { failure: invalid('context.source', 'foreign-evidence') }
-    if (key.tenant !== tenant) return { failure: denied(action) }
-    const material = materials.read(evidence)
-    return material === undefined
-      ? { failure: unavailable('context-material-lost') }
-      : { ok: material }
-  }
-
   function common(
     input: Readonly<{ action: Preparation['id']; position: Preparation['position'] }>,
     purpose: Preparation['purpose'],
@@ -253,8 +240,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
           target,
           candidate: candidate.candidate,
           coverage: candidate.coverage,
-          windowTokens: input.selection.resolution.profile.definition.context.window.provided,
-          forecast: forecastOf(candidate.verdict.report),
           continuation: null,
         }),
       },
@@ -327,8 +312,8 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       | 'conditions'
       | 'alterations'
     >,
-    read: ReadMaterial,
-    history: ReadMaterial['history'],
+    history: HistoryEvidence,
+    transition: TransitionEvidence | null,
   ): Promise<Answer<StagedGroups<P>>> {
     const target = history.target
     const access: Access<P> = { principal: input.principal, tenant: input.tenant }
@@ -365,9 +350,9 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
           value: {
             evidence: history,
             inputs: { batch: batch.ok, entries, saved: input.inputs.watermark },
+            transition,
           },
         },
-        context: { kind: 'value', value: { contextRead: read.group, transition: null } },
         prompt: await promptGroupOf(access, target.scope, input.definition),
         model: { kind: 'value', value: selectedModel(input.selection) },
         tools: await options.tools({ access, conditions: input.conditions }),
@@ -392,8 +377,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     const access: Access<P> = { principal: input.principal, tenant: input.tenant }
     const tenant = tenantText(input.tenant)
     if (tenant === null) return fail(denied('prepare'))
-    const read = readOf(input.context.source, tenant, 'prepare')
-    if ('failure' in read) return fail(read.failure)
     const resolved = await parts.resolveHistory({ access, evidence: input.history })
     if (resolved.kind !== 'value')
       return fail(failureOfRead(resolved, 'history-holder', 'resolve-history'))
@@ -403,7 +386,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     const position = decodePositionRef(`position_${digest(input.position)}`)
     if ('failure' in candidate) return fail(invalid('action', candidate.failure.reason))
     if ('failure' in position) return fail(invalid('position', position.failure.reason))
-    const groups = await groupsOf(input, read.ok, resolved.value)
+    const groups = await groupsOf(input, resolved.value, null)
     if ('failure' in groups) return fail(groups.failure)
     const call: AssemblyCall<P> = {
       access,
@@ -476,22 +459,18 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       return fail(invalid('original', 'original-request-invalid'))
     if (originalKey.tenant !== tenant || originalKey.execution !== input.advance.execution)
       return fail(denied('resume'))
-    const read = readOf(input.context.source, tenant, 'resume')
-    if ('failure' in read) return fail(read.failure)
-    if (
-      read.ok.transition === null ||
-      canonical(read.ok.transition) !== canonical(input.transition) ||
-      read.ok.target.scope.ref !== memento.scope ||
-      originalKey.scope !== memento.scope ||
-      input.context.content !== 'full'
-    )
+    const resolved = await parts.resolveHistory({ access, evidence: input.history })
+    if (resolved.kind !== 'value')
+      return fail(failureOfRead(resolved, 'history-holder', 'resolve-history'))
+    if (tenantText(resolved.value.target.tenant) !== tenant) return fail(denied('resume'))
+    if (resolved.value.target.scope.ref !== memento.scope || originalKey.scope !== memento.scope)
       return fail({ kind: 'changed' })
     const candidate = decodeCandidateRef(input.original.id)
     const position = decodePositionRef(`position_${digest(input.original.position)}`)
     if ('failure' in candidate || 'failure' in position)
       return fail(invalid('original', 'call-identity'))
-    const target = read.ok.target
-    const prepared = await groupsOf(
+    const target = resolved.value.target
+    const groups = await groupsOf(
       {
         ...access,
         inputs: memento.inputs,
@@ -502,24 +481,10 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
         beforeModelCall: input.original.original.beforeModelCall,
         ...(memento.definition === null ? {} : { definition: memento.definition }),
       },
-      read.ok,
-      read.ok.history,
+      resolved.value,
+      { candidate: candidate.ok, committed: input.transition, epoch: resolved.value.epoch },
     )
-    if ('failure' in prepared) return fail(prepared.failure)
-    const groups: StagedGroups<P> = {
-      ...prepared.ok,
-      context: {
-        kind: 'value',
-        value: {
-          contextRead: read.ok.group,
-          transition: {
-            candidate: candidate.ok,
-            committed: input.transition,
-            epoch: read.ok.history.epoch,
-          },
-        },
-      },
-    }
+    if ('failure' in groups) return fail(groups.failure)
     const outcome: Outcome = {
       access,
       input: {
@@ -537,7 +502,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       position: position.ok,
       purpose: input.original.purpose,
     }
-    const answer = await staged(tenant, access, target, call, groups, async operations =>
+    const answer = await staged(tenant, access, target, call, groups.ok, async operations =>
       preparationOf(outcome, await operations.resume(call), async () => ({
         ok: {
           ...common(outcome.input, outcome.purpose, outcome.place, { resumed: 'needs-compaction' }),

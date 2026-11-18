@@ -1,7 +1,6 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness/message'
-import { createContextAccounting } from '@omne-harness/request-context'
 import type {
   Access,
   ContextHolderParts,
@@ -9,11 +8,7 @@ import type {
   HistoryEvidence,
   HistoryReadResult,
 } from '@omne-harness/request-context-cordis-contract'
-import {
-  decodeRecoveryGrantRef,
-  type ContextTarget,
-  type HistoryCursor,
-} from '@omne-harness/request-context-contract'
+import { type ContextTarget, type HistoryCursor } from '@omne-harness/request-context-contract'
 import {
   ContextHolderSourcesService,
   contextHolderSourcesKey,
@@ -809,9 +804,6 @@ describe('the narrow adoption source reads the a part of the session', () => {
       candidate: record.candidate,
       order: '1',
       committed: saved.fixed,
-      windowTokens: record.windowTokens,
-      accounting: { kind: 'unsettled' },
-      forecast: record.forecast,
       continuation: null,
     }
     expect(Object.keys(answer.value).sort()).toEqual(Object.keys(expected).sort())
@@ -951,47 +943,6 @@ describe('the narrow adoption source reads the a part of the session', () => {
     expect(answer).toMatchObject({
       kind: 'value',
       value: { order: '1', committed: ready.source, candidate: 'action-1' },
-    })
-  })
-
-  it('the window usage of the real accounting is not-fixed before the first M0 and an estimate after it', async () => {
-    const { w, parts, target } = await adoptedWorld()
-    const accounting = createContextAccounting<unknown>({
-      sourceAuthority: { check: async () => ({ kind: 'allowed' }) },
-      readEligibility: parts.eligibility,
-      adoptedSource: parts.adopted,
-      recoveryAuthority: {
-        check: async () => ({ kind: 'allowed' }),
-        checkFact: async () => ({ kind: 'allowed' }),
-      },
-      limits: { maxTargets: 4, maxFactsPerTarget: 16, maxRevisionsPerDispatch: 8 },
-    })
-    const grant = decodeRecoveryGrantRef('grant_1')
-    if ('failure' in grant) throw new Error('the fixture grant is invalid')
-    const rebuilt = await accounting.recovery.rebuildAccounts({
-      access: { scope: 'system', principal: 'host', grant: grant.ok },
-      target,
-      replay: {
-        snapshot: evidence('accounts'),
-        facts: (async function* (): AsyncGenerator<never> {})(),
-      },
-    })
-    expect(rebuilt.kind).toBe('rebuilt')
-    const usage = () => accounting.inbox.usage({ access: w.access, target })
-    expect(await usage()).toEqual({ kind: 'value', value: { kind: 'not-fixed' } })
-    const { saved, record } = savedOf(target, '1', '1', {
-      windowTokens: '128000',
-      forecast: { kind: 'estimate', usedTokens: '1200' },
-    })
-    w.provider.state.saved = saved
-    expect(await usage()).toMatchObject({
-      kind: 'value',
-      value: {
-        kind: 'estimate',
-        candidate: record.candidate,
-        usedTokens: '1200',
-        windowTokens: '128000',
-      },
     })
   })
 })

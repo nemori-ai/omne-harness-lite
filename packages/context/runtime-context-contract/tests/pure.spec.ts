@@ -97,7 +97,7 @@ it('reduces accepted updates only, preserves order and refuses async schemas and
     [],
   )
 })
-it('reminders omit private and per-request blocks and withhold disallowed previous values', () => {
+it('reminders omit private blocks and withhold disallowed previous values', () => {
   const target = scope('reminder'),
     key = 'suite.value',
     before: Snapshot = {
@@ -105,7 +105,6 @@ it('reminders omit private and per-request blocks and withhold disallowed previo
       viewRevision: 1,
       cursor: { cursor: 'one' },
       missing: [],
-      perRequest: [],
       blocks: [
         {
           key,
@@ -148,13 +147,6 @@ it('reminders omit private and per-request blocks and withhold disallowed previo
       previous: before,
       next,
       descriptors: { get: () => declaration({ consumers: ['tool'] }) },
-    }),
-  ).toEqual([])
-  expect(
-    diffForReminder({
-      previous: before,
-      next,
-      descriptors: { get: () => declaration({ volatility: 'per-request' }) },
     }),
   ).toEqual([])
 })

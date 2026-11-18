@@ -33,13 +33,13 @@ it('an old generation publication, a supply timeout and a failing change outlet 
     'published',
   )
   await producer(h, tenantA, 'test.slow', {
-    declaration: { ...supplied('test.slow'), volatility: 'per-request' },
+    declaration: supplied('test.slow'),
     supply: () => new Promise(() => {}),
   })
   await register(h, a, tenantA, 'test.slow', 1)
   const r = await reader(h, await issue(h, a, tenantA, ['test.secret', 'test.slow']))
-  const s = await r.snapshot()
-  expect(s.kind).toBe('success')
+  // A stable block whose source timed out reads unknown, never empty.
+  expect(await r.snapshot()).toEqual({ kind: 'unknown', cause: 'source-unknown' })
   const kinds = new Set(h.diagnostics.map(d => d.kind))
   expect(kinds).toContain('stale-publication')
   expect(kinds).toContain('supply-timeout')

@@ -621,7 +621,6 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
           check: async () => ({ kind: 'allowed', evidence: evidence('agent-access') }),
         },
         targets: t.service<ModelReceptionTargets<unknown>>(agentModelReceptionTargetsKey),
-        outlet: { deliver: async () => ({ kind: 'received' }) },
         models: root.get(modelRuntimeKey)!.calls,
         capacity: () => ({ records: 10, bytes: 1_000_000, attachments: 10, inFlight: 4 }),
       },

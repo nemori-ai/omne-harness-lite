@@ -25,16 +25,9 @@ const evidence = (record: string) => ({ owner: 'test', record, revision: '1', di
 
 export function sampleCoverage(target: ContextTarget, tag = '1'): Coverage {
   const value = {
-    history: { epoch: 'epoch:1', upper: { kind: 'entry', seq: '2' }, anchors: [] },
+    history: { epoch: 'epoch:1', upper: { kind: 'entry', seq: '2' }, prefixDigest: 'chain:2' },
     compactions: { record: null, derivation: null },
     inputs: { batch: 'batch:1', saved: evidence('inputs') },
-    snapshot: {
-      scope: target.scope,
-      eligibility: { eligibility: 'eligibility:1' },
-      revision: 1,
-      anchor: { epoch: 'epoch:1', position: { kind: 'empty' }, prefixDigest: null },
-      content: 'full',
-    },
     prompt: {
       sections: [{ name: 'system', scope: null, source: adoption('prompt'), revision: '1' }],
       digest: `prompt-${tag}`,
@@ -52,7 +45,7 @@ export function sampleCoverage(target: ContextTarget, tag = '1'): Coverage {
     alterations: [],
     representations: [],
     budget: { inputDigest: `input-${tag}`, kind: 'complete', deferred: [], unknownLimits: [] },
-    prefixBreak: 'new-full-read',
+    prefixBreak: 'system-prompt-changed',
   }
   return value as unknown as Coverage
 }
@@ -73,8 +66,6 @@ export function coverageDigest(coverage: Coverage): string {
 }
 
 export type FixedValues = Readonly<{
-  windowTokens?: string
-  forecast?: FixedRequestRecord['forecast']
   candidate?: string
 }>
 
@@ -84,9 +75,6 @@ export function fixedRecord(target: ContextTarget, tag = '1', values: FixedValue
     target,
     candidate: must(decodeCandidateRef(values.candidate ?? `candidate:${tag}`)),
     coverage: sampleCoverage(target, tag),
-    windowTokens: values.windowTokens ?? '128000',
-    forecast:
-      values.forecast === undefined ? { kind: 'estimate', usedTokens: '1200' } : values.forecast,
     continuation: null,
   }
   const encoded = encodeFixedRequestRecord(record) as JsonValue

@@ -76,7 +76,6 @@ import type {
   VoidedIntent,
   ConsumerRef,
   ConsumptionId,
-  ContextContent,
   Continuation,
   ControlRecord,
   ControlStage,
@@ -173,8 +172,6 @@ import type {
   MessageSource,
   NamedCapturedRead,
   NeedDeclaration,
-  ModelContextRead,
-  ModelContextReader,
   ModelPurpose,
   ModelRecipient,
   ModelReplyAdmission,
@@ -258,7 +255,6 @@ type Landed = {
   CompactionState: CompactionState
   ConsumerRef: ConsumerRef
   ConsumptionId: ConsumptionId
-  ContextContent: ContextContent
   Continuation: Continuation
   CurrentConditions: CurrentConditions<string>
   DecisionCards: DecisionCards<string>
@@ -303,8 +299,6 @@ type Landed = {
   Material: Material<ContentBlock>
   MessageHandoff: MessageHandoff<string>
   MessageSource: MessageSource
-  ModelContextRead: ModelContextRead
-  ModelContextReader: ModelContextReader<string>
   ModelPurpose: ModelPurpose
   ModelRecipient: ModelRecipient
   ModelReplyAdmission: ModelReplyAdmission
@@ -760,9 +754,8 @@ describe('the discriminants of the request chapter', () => {
     expectTypeOf<Preparation['purpose']>().toEqualTypeOf<ModelPurpose>()
   })
 
-  it('CompactionAssessment and ContextContent keep their literals', () => {
+  it('CompactionAssessment keeps its literals', () => {
     expectTypeOf<KindOf<CompactionAssessment>>().toEqualTypeOf<'accepted' | 'cannot-fit'>()
-    expectTypeOf<ContextContent>().toEqualTypeOf<'full' | 'incremental'>()
     expectTypeOf<CompactionState['ended']>().toEqualTypeOf<'committed' | 'failed' | null>()
     expectTypeOf<CompactionState>().not.toHaveProperty('stepRequest')
   })

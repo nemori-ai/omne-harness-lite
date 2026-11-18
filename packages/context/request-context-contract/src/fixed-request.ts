@@ -1,9 +1,7 @@
-import type * as M from '@omne-harness/model-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
-import { measuredAmount } from './internal.js'
 import { decodeCandidateRef, type CandidateRef, type ContextTarget } from './refs.js'
 import { isCoverage } from './coverage-validation.js'
 import { record } from './schema-primitives.js'
@@ -16,23 +14,11 @@ export type FixedRequestRecord = Readonly<{
   target: ContextTarget
   candidate: CandidateRef
   coverage: Coverage
-  windowTokens: string
-  forecast: Readonly<{ kind: 'estimate'; usedTokens: string }> | null
   continuation: ContinuationBasis | null
 }>
 export type FixedRequestRecordRejection = Readonly<{ field: string; reason: 'unsupported-format' }>
 
-const POSITIVE = /^[1-9][0-9]*$/u
-const INTEGER = /^(0|[1-9][0-9]*)$/u
-const KEYS = [
-  'schema',
-  'target',
-  'candidate',
-  'coverage',
-  'windowTokens',
-  'forecast',
-  'continuation',
-] as const
+const KEYS = ['schema', 'target', 'candidate', 'coverage', 'continuation'] as const
 
 function exactKeys(v: Record<string, unknown>, keys: readonly string[]): boolean {
   const own = Object.keys(v)
@@ -42,31 +28,12 @@ const bad = (field: string): Outcome<never, FixedRequestRecordRejection> => ({
   failure: { field, reason: 'unsupported-format' },
 })
 
-function decodeForecast(value: unknown): FixedRequestRecord['forecast'] | undefined {
-  if (value === null) return null
-  if (
-    record(value) &&
-    exactKeys(value, ['kind', 'usedTokens']) &&
-    value.kind === 'estimate' &&
-    typeof value.usedTokens === 'string' &&
-    INTEGER.test(value.usedTokens)
-  )
-    return { kind: 'estimate', usedTokens: value.usedTokens }
-  return undefined
-}
-
 function decodeTarget(value: unknown): ContextTarget | undefined {
   if (!record(value) || !exactKeys(value, ['tenant', 'scope']) || typeof value.tenant !== 'string')
     return undefined
   const tenant = tenantCodec.parse(value.tenant)
   const scope = decodeScopeRef(value.scope)
   return tenant.ok && 'ok' in scope ? { tenant: tenant.value, scope: scope.ok } : undefined
-}
-
-export function forecastOf(report: M.RequestBudget): FixedRequestRecord['forecast'] {
-  const amounts = report.checks.filter(c => c.metric === 'input-tokens').map(measuredAmount)
-  if (amounts.length === 0) return null
-  return { kind: 'estimate', usedTokens: amounts.reduce((a, b) => (a > b ? a : b)).toString() }
 }
 
 export function encodeFixedRequestRecord(value: FixedRequestRecord): JsonValue {
@@ -78,8 +45,6 @@ export function encodeFixedRequestRecord(value: FixedRequestRecord): JsonValue {
       target: { tenant: tenant.value, scope: value.target.scope },
       candidate: value.candidate,
       coverage: value.coverage,
-      windowTokens: value.windowTokens,
-      forecast: value.forecast,
       continuation: value.continuation,
     }),
   ) as JsonValue
@@ -95,10 +60,6 @@ export function decodeFixedRequestRecord(
   const candidate = decodeCandidateRef(value.candidate)
   if ('failure' in candidate) return bad('candidate')
   if (!isCoverage(value.coverage)) return bad('coverage')
-  if (typeof value.windowTokens !== 'string' || !POSITIVE.test(value.windowTokens))
-    return bad('windowTokens')
-  const forecast = decodeForecast(value.forecast)
-  if (forecast === undefined) return bad('forecast')
   if (value.continuation !== null) return bad('continuation')
   return {
     ok: {
@@ -106,8 +67,6 @@ export function decodeFixedRequestRecord(
       target,
       candidate: candidate.ok,
       coverage: structuredClone(value.coverage),
-      windowTokens: value.windowTokens,
-      forecast,
       continuation: null,
     },
   }

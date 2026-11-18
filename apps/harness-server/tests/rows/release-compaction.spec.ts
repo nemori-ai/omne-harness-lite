@@ -6,7 +6,6 @@ import {
   agentMaterialsKey,
   agentRequestsKey,
   agentJournalKey,
-  agentModelContextKey,
   agentToolReceptionTargetsKey,
   agentMessageHandoffKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
@@ -30,7 +29,6 @@ const WATCHED = [
   [agentMaterialsKey, ['read']],
   [agentRequestsKey, ['prepare', 'assessCompaction', 'resume']],
   [agentJournalKey, ['commit', 'load', 'query', 'recordResult', 'recordHandoff']],
-  [agentModelContextKey, ['read']],
   [agentToolReceptionTargetsKey, ['resolve']],
   [agentMessageHandoffKey, ['prepare', 'lookup']],
 ] as const
@@ -131,10 +129,9 @@ function modelScript(requests: string[], cycles: number, oldToolCalls: number) {
   }
 }
 
-function stopsWaiting(failures: readonly ServiceFailure[], compacted: boolean): boolean {
+function stopsWaiting(failures: readonly ServiceFailure[]): boolean {
   return failures.some(
     ({ operation, failure }) =>
-      (compacted && operation === `${agentModelContextKey}.read`) ||
       operation === `${agentRequestsKey}.resume` ||
       operation === `${agentRequestsKey}.assessCompaction` ||
       (typeof failure === 'object' &&
@@ -203,9 +200,7 @@ async function compactionRun(cycles: number, oldToolCalls: number): Promise<Comp
       const history = await pollUntil(
         'compaction and original Run completion',
         () => historyOf(world, session),
-        seen =>
-          seen.some(entry => entry.kind === 'run.terminal') ||
-          stopsWaiting(failures, compactions.length > 0),
+        seen => seen.some(entry => entry.kind === 'run.terminal') || stopsWaiting(failures),
       )
       outcome = {
         requests,

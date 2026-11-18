@@ -11,7 +11,6 @@ import {
   createAssemblyFixture,
   text,
   row,
-  evidence,
   fixtureBudget,
   type AssemblyFixture,
   type AssemblyFixtureOptions,
@@ -87,28 +86,6 @@ function requestContextCases(subject: ConformanceSubject): readonly BoundCase[] 
       })
       assert.ok(isCandidate((await o.assemble(fixture.call)).kind))
     }),
-    caseOf('resume-full-snapshot-required', 'RQ11-15', async () => {
-      const { fixture, o } = await make()
-      const context = fixture.sources.values().context
-      fixture.sources.update('context', {
-        contextRead: { ...context.contextRead, read: { kind: 'cursor-invalidated' } },
-        transition: {
-          candidate: fixture.call.candidate,
-          committed: evidence,
-          epoch: fixture.sources.values().history.evidence.epoch,
-        },
-      })
-      assert.equal((await o.resume(fixture.call)).kind, 'invalid')
-    }),
-    caseOf('incremental-material-required', 'RQ11-19', async () => {
-      const { fixture, o } = await make()
-      const context = fixture.sources.values().context
-      fixture.sources.update('context', {
-        ...context,
-        contextRead: { ...context.contextRead, snapshot: null },
-      })
-      assert.equal((await o.assemble(fixture.call)).kind, 'invalid')
-    }),
     caseOf('carried-content-reuses-history', 'RQ11-2', async () => {
       const { fixture, o } = await make()
       const first = await o.assemble(fixture.call)
@@ -138,35 +115,6 @@ function requestContextCases(subject: ConformanceSubject): readonly BoundCase[] 
         previous: { candidate: fixture.call.candidate, enteredCompaction: true },
       })
       assert.equal((await o.assemble(fixture.call)).kind, 'cannot-fit')
-    }),
-    caseOf('tail-facts-never-enter-snapshot', 'RQ11-24', async () => {
-      const { fixture, o } = await make()
-      const context = fixture.sources.values().context
-      fixture.sources.update('context', {
-        ...context,
-        contextRead: {
-          ...context.contextRead,
-          perRequest: [
-            {
-              key: 'test.tail',
-              revision: 1,
-              value: 'live',
-              previous: null,
-              volatility: 'per-request',
-            },
-          ],
-        },
-      })
-      const result = await o.assemble(fixture.call)
-      assert.ok(result.kind === 'candidate-before-extension' || result.kind === 'candidate-fixable')
-      assert.equal(result.candidate.layers.tailFacts.blocks.length, 1)
-      assert.ok(
-        result.candidate.layers.snapshotReminder.blocks.every(b => b.volatility !== 'per-request'),
-      )
-      assert.equal(
-        result.candidate.assembled.messages.at(-1)?.id,
-        result.candidate.layers.tailFacts.message?.id,
-      )
     }),
     caseOf('pages-share-evidence', 'RQ11-26', async () => {
       const { fixture, o } = await make({ rows: [row(0), row(1)] })
@@ -426,11 +374,8 @@ export const REQUEST_CONTEXT_OBLIGATIONS = [
   'same-input-is-deterministic',
   'fixed-overflow-is-outcome',
   'unknown-limits-remain-candidates',
-  'resume-full-snapshot-required',
-  'incremental-material-required',
   'carried-content-reuses-history',
   'entered-plan-changes-outcome',
-  'tail-facts-never-enter-snapshot',
   'pages-share-evidence',
   'unknown-source-not-empty',
   'unstable-group-is-unavailable',

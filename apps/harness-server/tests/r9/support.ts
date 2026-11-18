@@ -423,7 +423,7 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'request-context',
-        config: { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
+        config: {},
       },
       {
         kind: 'replace',

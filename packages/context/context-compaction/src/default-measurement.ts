@@ -30,11 +30,7 @@ export function assembledFor(
   return {
     system: frame ? input.frame.system : [],
     tools: frame ? input.frame.tools : [],
-    messages: [
-      ...messages,
-      ...(frame && input.frame.snapshotReminder !== null ? [input.frame.snapshotReminder] : []),
-      ...(frame && input.frame.tailFacts !== null ? [input.frame.tailFacts] : []),
-    ],
+    messages,
     toolChoice: 'auto',
     parameters: input.target.parameters,
     representation: input.target.profile.profile.definition.representation,

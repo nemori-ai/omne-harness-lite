@@ -14,7 +14,7 @@
 | [PA-08](../../../../session/SPEC.md#终态控制与取消) | 按权威顺序处理取消与正常终结的竞争。Agent 已结束但 Session 尚未解释时，取消仍可先成为 Run 终态                      |
 | [Session C3](../../../../session/SPEC.md#协调器与调度器)                    | 保存取消意图之后，沿原关联传播。传播完成不等于生产者已停止                                                          |
 
-本模型补上派发、取消和接收的组合交错。现有 [Finishing 模型](../../../agent-contract/verification/models/Finishing.tla) 继续负责候选、判断、责任清单、原操作认回和条件终结的细节。Model reception 模型 继续负责接收共同提交、资格核验和账目出站。本资源不替换这两份模型，也没有证明三个模型之间的精化关系。
+本模型补上派发、取消和接收的组合交错。现有 [Finishing 模型](../../../agent-contract/verification/models/Finishing.tla) 继续负责候选、判断、责任清单、原操作认回和条件终结的细节。Model reception 模型 继续负责接收共同提交与资格核验。本资源不替换这两份模型，也没有证明三个模型之间的精化关系。
 
 ## 状态、范围和动作
 
@@ -85,7 +85,7 @@
 | Tool 派发第一步：invoke   | A2 的 `sendAction`                                                                                                                                                   | 意图已保存后，协调者读最新快照，核对推进资格和有效取消，再调用 `tools.invoke`。这一步对应 `Dispatch(c)`。核对与 invoke 不是一个原子动作。F0 与这一步在同一个协调者内顺序执行，所以围栏确认不会落在核对与 invoke 之间。远端旧快照和跨进程围栏不在这一保证内                                                                                                      |
 | Tool 派发第二步：关联提交 | A2 的 `associate`                                                                                                                                                    | 这一步把 Tool 返回的调用引用写进 checkpoint。它记录 `Dispatch(c)` 已经发生的事实，不是新的派发。取消在 invoke 返回之后、关联提交之前生效时，关联仍然提交。F0 再按这个引用对该调用发出逐调用中断，对应 `ApplyCancel` 对前台调用的中断请求。迟到的结果按原引用接收，对应 `ReceiveContent`、`ReceiveCost`。没有引用的意图不对应任何已派发的调用，F0 不对它发出中断 |
 | Agent 控制入口            | [provider.ts](../../src/provider.ts) 的 `control.control`，[control.ts](../../src/control.ts) 的 `advanceControl`                                                    | 入口先保存命令，再按保存的记录推进。取消记录意图成立和推进资格撤销，对应 `Revoke` 中撤销推进资格的部分。Run 终态归 Session。中断只作用于原调用。任何一步失败时，入口把失败原样返回。调用方用同一 operation 重试，已保存的阶段按原操作认回，不重复建立                                                                                                           |
-| 内容与费用保存            | [receiving.ts](../../src/receiving.ts)、[receiving-outlet.ts](../../src/receiving-outlet.ts)                                                                         | 需验证取消、单调用中断和逻辑终态之后，原材料、费用与接收责任继续可读。共同提交和原操作认回另由 reception 模型覆盖                                                                                                                                                                                                                                               |
+| 内容与费用保存            | [receiving.ts](../../src/receiving.ts)                                                                         | 需验证取消、单调用中断和逻辑终态之后，原材料、费用与接收责任继续可读。共同提交和原操作认回另由 reception 模型覆盖                                                                                                                                                                                                                                               |
 | 责任交接与收束            | [Finishing 的映射](../../../agent-contract/verification/formal-mapping.md)及 Journal 的 `commitSettlement` / `tryFinish`                                             | 本模型只记录接收责任交接，不证明 U-29 的 Rh 保管、磁盘耐久或跨进程恢复                                                                                                                                                                                                                                                                                          |
 
 跨进程消息被抽象成可任意延迟的独立动作。权威撤权与生产者新受理必须在同一排序依据上核对，本模型用 `eligible` 表示该依据。实现应验证远端旧快照、缓存许可、失联和重新挂接时的围栏，本模型没有假定进程内布尔值能够提供这些保证。

@@ -14,10 +14,7 @@ const decoded = tenantCodec.parse(
 )
 if (!decoded.ok) throw new Error('Invalid fixture tenant')
 const tenant = decoded.value
-async function source(
-  supply: SupplyCallback<unknown>,
-  options: { perRequest?: boolean; required?: boolean } = {},
-) {
+async function source(supply: SupplyCallback<unknown>, options: { required?: boolean } = {}) {
   const ports = createTestAuthorityPorts<string>()
   const memory = createMemoryRuntimeContext<string>(ports)
   const target = scope('source-lifecycle')
@@ -29,15 +26,10 @@ async function source(
     scoped: false,
     supply,
   } as const
-  const registered = options.perRequest
-    ? await memory.registerProducer('source', {
-        ...registration,
-        declaration: declaration({ volatility: 'per-request', required: options.required ?? true }),
-      })
-    : await memory.registerProducer('source', {
-        ...registration,
-        declaration: declaration({ required: options.required ?? true }),
-      })
+  const registered = await memory.registerProducer('source', {
+    ...registration,
+    declaration: declaration({ required: options.required ?? true }),
+  })
   if (registered.kind !== 'registered') throw new Error('Producer refused')
   const commit = memory.applyCommit('source', {
     kind: 'registration',
@@ -119,47 +111,6 @@ for (const late of ['value', 'error'] as const) {
     expect(await s.reader.snapshot()).toMatchObject({
       kind: 'success',
       value: { blocks: [{ state: { kind: 'value', value: 99 } }], missing: [] },
-    })
-  })
-}
-for (const required of [true, false]) {
-  it(`keeps per-request source outcomes distinct with required=${required}`, async () => {
-    let answer: 'throw' | SupplyAnswer<unknown> = 'throw'
-    const s = await source(
-      async () => {
-        if (answer === 'throw') throw new Error('Request source failure')
-        return answer
-      },
-      { perRequest: true, required },
-    )
-    await s.commit
-    expect(await s.reader.snapshot()).toMatchObject({
-      kind: 'success',
-      value: { blocks: [], perRequest: [{ kind: 'unknown', cause: 'source-unknown' }] },
-    })
-    answer = { kind: 'unavailable' }
-    expect(await s.reader.snapshot()).toMatchObject({
-      kind: 'success',
-      value: { perRequest: [{ kind: 'missing', cause: 'source-unavailable' }] },
-    })
-    answer = { kind: 'none' }
-    expect(await s.reader.snapshot()).toMatchObject({
-      kind: 'success',
-      value: { perRequest: [required ? { kind: 'missing', cause: 'no-value' } : { kind: 'none' }] },
-    })
-    answer = { kind: 'value', value: 'wrong shape' }
-    expect(await s.reader.snapshot()).toMatchObject({
-      kind: 'success',
-      value: { perRequest: [{ kind: 'missing', cause: 'uninterpretable' }] },
-    })
-    await s.handle.dispose()
-    expect(await s.reader.snapshot()).toMatchObject({
-      kind: 'success',
-      value: {
-        perRequest: [
-          required ? { kind: 'missing', cause: 'producer-withdrawn' } : { kind: 'none' },
-        ],
-      },
     })
   })
 }

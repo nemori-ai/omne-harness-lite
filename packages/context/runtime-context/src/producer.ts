@@ -240,7 +240,7 @@ export function createSupplier<P>(world: World<P>) {
           generation: producer.generation,
           ...(outcome.kind === 'unknown' ? { unknown: true } : { refused: true }),
         })
-        world.changed(s, key)
+        world.changed(s)
         return
       default:
         return
@@ -248,7 +248,7 @@ export function createSupplier<P>(world: World<P>) {
   }
 
   function drivesSupply(producer: Producer<P>): boolean {
-    return !producer.scoped && producer.declaration.volatility !== 'per-request'
+    return !producer.scoped
   }
 
   async function afterRegistration(s: ScopeState, key: ContextBlockKey) {
@@ -274,8 +274,7 @@ export function createSupplier<P>(world: World<P>) {
       return { kind: 'rejected', reason: 'declaration-mismatch' }
     if (old?.active && old.producer.producer !== input.producer.producer)
       return { kind: 'rejected', reason: 'other-producer' }
-    if ((!input.scoped || input.declaration.volatility === 'per-request') && !input.supply)
-      return { kind: 'rejected', reason: 'declaration-missing' }
+    if (!input.scoped && !input.supply) return { kind: 'rejected', reason: 'declaration-missing' }
     return undefined
   }
 

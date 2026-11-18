@@ -24,20 +24,9 @@ type Prepare<P> = Parameters<RequestPreparation<P>['prepare']>[0]
 type Need = Extract<AssemblyResult, { kind: 'needs-compaction' }>
 
 function representationOf(candidate: RequestCandidate) {
-  const { layers, assembled, preparation } = candidate
-  const head = layers.historyHead.length
-  const hasSnapshot = layers.snapshotReminder.message !== null
-  const hasTail = layers.tailFacts.message !== null
-  const bodyStart = head + Number(hasSnapshot)
-  const history = [
-    ...assembled.messages.slice(0, head),
-    ...assembled.messages.slice(bodyStart, bodyStart + layers.historyBody.length),
-  ]
-  if (
-    history.length !== preparation.view.messages.length ||
-    assembled.messages.length !== history.length + Number(hasSnapshot) + Number(hasTail)
-  )
-    return null
+  const { assembled, preparation } = candidate
+  const history = assembled.messages
+  if (history.length !== preparation.view.messages.length) return null
   const represented = new Map(
     preparation.view.messages.map((entry, i) => [entry.entry, history[i]]),
   )
@@ -46,8 +35,6 @@ function representationOf(candidate: RequestCandidate) {
     frame: {
       system: assembled.system,
       tools: assembled.tools,
-      snapshotReminder: hasSnapshot ? (assembled.messages[head] ?? null) : null,
-      tailFacts: hasTail ? (assembled.messages.at(-1) ?? null) : null,
     },
   }
 }
@@ -205,13 +192,7 @@ export function createCompactionAssessment<P>(
     const retained = input.message.retained.flatMap(ref => byRef.get(ref)?.represented ?? [])
     const afterRefs = new Set(window.after.map(entry => entry.ref))
     const after = frozen.history.entries.filter(entry => afterRefs.has(entry.ref))
-    const messages = [
-      ...retained,
-      ...summary.messages,
-      ...after.flatMap(e => e.represented),
-      ...(frozen.frame.snapshotReminder === null ? [] : [frozen.frame.snapshotReminder]),
-      ...(frozen.frame.tailFacts === null ? [] : [frozen.frame.tailFacts]),
-    ]
+    const messages = [...retained, ...summary.messages, ...after.flatMap(e => e.represented)]
     const present = new Set(messages.map(message => message.id))
     const sources = frozen.history.entries.flatMap(entry =>
       entry.sourceCall !== undefined && present.has(entry.message.id)

@@ -1,7 +1,8 @@
 // @module-tag slow
 import { afterEach, describe, expect, it } from 'vitest'
 import { operationId } from '@omne-harness/session-contract/testing'
-import { TENANT, intakeAccess, ok } from './world.ts'
+import { intakeAccess, ok } from './world.ts'
+import { entriesOf } from '../host-support.ts'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
 
 const worlds: W2World[] = []
@@ -65,15 +66,14 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
     for (let check = 0; check < 3; check += 1) await w.until(async () => true)
     expect(w.modelCalls).toHaveLength(requests)
     expect(w.tools.invoke.calls).toHaveLength(0)
-    const reported = () =>
-      w.outlet
-        .received(TENANT)
-        .some(kept => kept.account.cost.some(cost => 'lexeme' in cost && cost.lexeme === '0.25'))
-    await w.until(reported).catch(() => undefined)
-    const accounts = w.outlet.received(TENANT)
-    expect(accounts.map(kept => kept.account.cost)).toContainEqual([
-      expect.objectContaining({ lexeme: '0.25' }),
-    ])
+    const reported = async () =>
+      (await entriesOf(w.freshEntries(), { ...w.agentAccess, execution })).flatMap(entry =>
+        entry.kind === 'received' && 'accounts' in entry.delivery
+          ? entry.delivery.accounts.map(kept => kept.account?.cost ?? [])
+          : [],
+      )
+    await w.until(async () => (await reported()).length > 0).catch(() => undefined)
+    expect(await reported()).toContainEqual([expect.objectContaining({ lexeme: '0.25' })])
     expect(await cancel()).toEqual({ ok: receipt })
   })
 })

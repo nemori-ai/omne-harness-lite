@@ -121,32 +121,12 @@
               "pending": false
             },
             {
-              "name": "WindowUsageValue",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "windowRatio",
-              "kind": "value",
-              "pending": false
-            },
-            {
               "name": "compactionSettingsSchema",
               "kind": "value",
               "pending": false
             },
             {
-              "name": "windowUsageSchema",
-              "kind": "value",
-              "pending": false
-            },
-            {
               "name": "compactionSettingsBlock",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "windowUsageBlock",
               "kind": "value",
               "pending": false
             },
@@ -157,26 +137,6 @@
             },
             {
               "name": "assembleSystemPrompt",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "Placement",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "PlacementInput",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SNAPSHOT_ANCHOR_RULE",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "placeContext",
               "kind": "value",
               "pending": false
             },
@@ -245,16 +205,6 @@
             },
             {
               "name": "CommitOrder",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountingGeneration",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "RecoveryGrantRef",
               "kind": "type",
               "pending": false
             },
@@ -334,16 +284,6 @@
               "pending": false
             },
             {
-              "name": "decodeAccountingGeneration",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "decodeRecoveryGrantRef",
-              "kind": "value",
-              "pending": false
-            },
-            {
               "name": "decodePrincipalKey",
               "kind": "value",
               "pending": false
@@ -390,11 +330,6 @@
             },
             {
               "name": "ContentControl",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SnapshotIdentity",
               "kind": "type",
               "pending": false
             },
@@ -480,71 +415,6 @@
             },
             {
               "name": "ContextRegistryOptions",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountingOrigin",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ReceivedAccountFact",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ContextAccountingInput",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountReceipt",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ContextAccountingInbox",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SystemRecoveryAccess",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountReplay",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "RecoveryResult",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ContextRecovery",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountingSourceAuthority",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "RecoveryAuthority",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountingLimits",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "AccountingOptions",
               "kind": "type",
               "pending": false
             },
@@ -699,21 +569,6 @@
               "pending": false
             },
             {
-              "name": "BlockMaterial",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SnapshotMaterial",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ContextReadGroup",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "AssemblyContext",
               "kind": "type",
               "pending": false
@@ -784,16 +639,6 @@
               "pending": false
             },
             {
-              "name": "LayerAnchor",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SnapshotAnchor",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "Coverage",
               "kind": "type",
               "pending": false
@@ -810,16 +655,6 @@
             },
             {
               "name": "RepresentationChoice",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "SnapshotReminder",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "TailFacts",
               "kind": "type",
               "pending": false
             },
@@ -905,11 +740,6 @@
             },
             {
               "name": "decodeFixedRequestRecord",
-              "kind": "value",
-              "pending": false
-            },
-            {
-              "name": "forecastOf",
               "kind": "value",
               "pending": false
             },
@@ -1206,10 +1036,7 @@
     {
       "module": "@omne-harness/runtime-context-contract",
       "interface": "ContextBlocks",
-      "members": [
-        "context.compaction-settings",
-        "context.window-usage"
-      ],
+      "members": ["context.compaction-settings"],
       "pending": false
     }
   ]

@@ -16,7 +16,6 @@ export type HostStatics = Readonly<{
   compactionInputs: AgentDependencies<unknown, ContentBlock>['compactionInputs']
   received: AgentDependencies<unknown, ContentBlock>['received']
   selection: AgentDependencies<unknown, ContentBlock>['selection']
-  modelContext: AgentDependencies<unknown, ContentBlock>['modelContext']
   handoff: AgentDependencies<unknown, ContentBlock>['handoff']
   clock: AgentDependencies<unknown, ContentBlock>['clock']
 }>

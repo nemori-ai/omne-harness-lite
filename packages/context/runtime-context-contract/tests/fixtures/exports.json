@@ -264,11 +264,6 @@
               "pending": false
             },
             {
-              "name": "PerRequestEntry",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "Snapshot",
               "kind": "type",
               "pending": false

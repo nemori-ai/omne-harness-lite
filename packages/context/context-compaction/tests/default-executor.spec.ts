@@ -58,6 +58,7 @@ function fixture(
   let acks = 0
   let cancellations = 0
   let preparations = 0
+  const admitted: unknown[] = []
   let loseAdmission = options.loseAdmission ?? false
   let loseAck = options.loseAck ?? false
   const supplier = input.input.target.profile.profile.definition.suppliers[0]
@@ -97,8 +98,8 @@ function fixture(
                 const compacted = given.assembled.messages.some(
                   message => message.role === 'compaction',
                 )
-                const summary = given.assembled.system.some(
-                  block => block.id === 'compaction-summary-instruction',
+                const summary = given.assembled.messages.some(message =>
+                  message.blocks.some(block => block.id === 'compaction-summary-instruction'),
                 )
                 return succeed({
                   kind: 'complete',
@@ -167,6 +168,7 @@ function fixture(
     calls: {
       async admit(given) {
         admissions++
+        admitted.push(given.request)
         expect(given.request.tools).toEqual([])
         expect(given.request.toolChoice).toBe('none')
         calls.set(given.call, {
@@ -284,6 +286,7 @@ function fixture(
     store,
     create,
     counts: () => ({ admissions, acks, cancellations }),
+    admitted: () => admitted,
     preparations: () => preparations,
     restart(configuration?: DefaultCompactionConfiguration) {
       executor = create(configuration)
@@ -301,6 +304,19 @@ function fixture(
     },
   }
 }
+
+it('sends the summary instruction as the last message, in the user role', async () => {
+  const f = fixture()
+  ok(await f.provider.service.admit({ ...access, request: f.input }))
+  await f.drive()
+  const [sent] = f.admitted() as readonly {
+    messages: readonly { role: string; blocks: { id: string }[] }[]
+  }[]
+  if (sent === undefined) throw new Error('no summary call')
+  const last = sent.messages.at(-1)
+  expect(last?.role).toBe('user')
+  expect(last?.blocks.map(block => block.id)).toEqual(['compaction-summary-instruction'])
+})
 
 it('recovers unknown admission and ACK without issuing a second summary call', async () => {
   const f = fixture({ loseAdmission: true, loseAck: true })
@@ -385,7 +401,7 @@ it('finishes a recorded original intent after cancellation without starting anot
   expect(f.counts()).toEqual({ admissions: 1, acks: 1, cancellations: 1 })
 })
 
-it.each(['system', 'tools', 'snapshotReminder', 'tailFacts'] as const)(
+it.each(['system', 'tools'] as const)(
   'refuses a summary that fits alone but exceeds the target with the frozen %s',
   async component => {
     const original = request()
@@ -417,8 +433,6 @@ it.each(['system', 'tools', 'snapshotReminder', 'tailFacts'] as const)(
             ],
           }
         : {}),
-      ...(component === 'snapshotReminder' ? { snapshotReminder: reminder.ok } : {}),
-      ...(component === 'tailFacts' ? { tailFacts: reminder.ok } : {}),
     }
     const candidate = { ...original, input: { ...original.input, frame } }
     const given = {

@@ -59,7 +59,6 @@
     "request-context",
     "agent-context",
     "context-compaction",
-    "agent-account-outlet",
     "runtime-context",
     "session-observation",
     "server-entry",
