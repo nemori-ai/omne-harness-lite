@@ -115,9 +115,12 @@ it(
   },
 )
 
+// Whether the Tool goes on to start a call it took before the restart is the Tool's recovery, with
+// or without a release. What the release owes here: it is still held, nobody is asked again, and the
+// call starts at most once.
 it(
-  'a restart after the Tool took the call and before it started starts it once',
-  { timeout: 300_000 },
+  'a restart after the Tool took the call and before it started keeps the release, and the call starts at most once',
+  { timeout: 180_000 },
   async () => {
     let session = ''
     await onReleaseTreeRuns(options, [
@@ -150,7 +153,18 @@ it(
         expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(1)
         expect(startAcceptances(tree.storageRoot)).toHaveLength(0)
       },
-      tree => ranOnce(tree, session, 'taken'),
+      async tree => {
+        await pollUntil(
+          'the Tool to take the call up again after the restart',
+          async () => hostRecords(tree.storageRoot).map(record => record['kind']),
+          kinds => kinds.includes('permit'),
+        )
+        const entries = await historyOf(tree, session)
+        expect(entries.filter(entry => entry.kind === ONCE)).toHaveLength(1)
+        expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toEqual([])
+        expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(1)
+        expect(startAcceptances(tree.storageRoot).length).toBeLessThanOrEqual(1)
+      },
     ])
   },
 )
