@@ -221,11 +221,13 @@ describe('an admission that asks a person', () => {
       expect(assembly.controls.admission.admit.calls[1]?.decision?.answer).toEqual(reply)
       const [message, ...others] = await toolMessages(assembly)
       expect(others).toEqual([])
-      return message?.blocks.flatMap(block => (block.kind === 'text' ? [block.text] : []))
+      // Every block counts: a denial message is its fixed text, plus the words only for guidance.
+      return message?.blocks.map(block => (block.kind === 'text' ? block.text : block.kind))
     }
 
     it('carries the words of the person after the guidance message', async () => {
       expect(await denialTexts('guidance')).toEqual([
+        'tool_result',
         'The tool call did not run. The person answered the approval card with guidance instead of a decision. Their words follow.',
         WORDS,
       ])
@@ -245,7 +247,7 @@ describe('an admission that asks a person', () => {
     ] as const)(
       'gives %s its own message, and the words are not guidance then',
       async (category, text) => {
-        expect(await denialTexts(category)).toEqual([text])
+        expect(await denialTexts(category)).toEqual(['tool_result', text])
       },
     )
   })

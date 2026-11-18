@@ -93,7 +93,9 @@ export function createToolActionResolution(
       })
       if (intent === null) return invalid('arguments', 'tools-execute-arguments')
       const resolved = await resolveForwardTarget(ports, input, intent)
-      if ('failure' in resolved) return resolved
+      // A target the forward refuses (resident, not included, not available) is no target either.
+      if ('failure' in resolved)
+        return resolved.failure.kind === 'denied' ? invalid('name', 'target-refused') : resolved
       return succeed({
         kind: 'carried',
         carrier: { name: input.name, definition: tools.ok.adoption },

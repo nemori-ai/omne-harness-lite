@@ -7,6 +7,7 @@ import {
   onReleaseTree,
   pollUntil,
   toolCalls,
+  toolCallsThenText,
   toolResults,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
@@ -48,6 +49,46 @@ async function answered(tree: ReleaseTree, label: string, reply: readonly string
     started: toolCalls(tree.storageRoot).some(row => row.tool === 'Shell'),
   }
 }
+
+const toolsScript = toolCallsThenText(body => {
+  const label = /start: tools ([a-z0-9-]+)/.exec(body)?.[1]
+  return label === undefined
+    ? []
+    : [
+        {
+          id: `call_${label}`,
+          tool: 'Tools',
+          arguments: JSON.stringify({
+            command: 'execute',
+            intent: 'run Shell through Tools',
+            params: {
+              name: 'Shell',
+              command: 'execute',
+              arguments: { script: `echo ${label}-done` },
+            },
+          }),
+        },
+      ]
+})
+
+// Every release tool is resident, so Tools forwards none of them: admission judges only Tools,
+// which answers the model, and the Run ends instead of waiting on a target it cannot resolve.
+it('a call through Tools naming a resident tool ends the Run without starting the tool', async () => {
+  const exit = await onReleaseTree(
+    { script: toolsScript, permission: 'bypass-permissions' },
+    async tree => {
+      const session = await tree.startSession('start: tools carried')
+      const entries = await pollUntil(
+        'the Run through Tools to end',
+        () => historyOf(tree, session),
+        value => value.some(entry => entry.kind === 'run.terminal'),
+      )
+      expect(toolResults(entries).join('\n')).not.toContain('carried-done')
+      expect(toolCalls(tree.storageRoot).some(row => row.tool === 'Shell')).toBe(false)
+    },
+  )
+  expect(exit).toBe(0)
+})
 
 it('a release card the person does not release never starts the call, whatever the answer', async () => {
   const exit = await onReleaseTree(

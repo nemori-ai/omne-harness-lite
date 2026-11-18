@@ -42,7 +42,13 @@ describe('the content of a release card', () => {
       ['allow-always', '始终放行'],
       ['deny-always', '始终禁止'],
     ])
-    for (const option of card.options) expect(option.scope.length).toBeGreaterThan(0)
+    expect(card.options.map(option => option.scope)).toEqual([
+      '这一次调用不执行',
+      '只执行这一次调用，参数不变',
+      '这个会话里调用 Shell 不再问你；设置变了会重新问',
+      '把 Shell 在你的租户里设成自动，所有会话下一次起生效',
+      '把 Shell 在你的租户里设成禁止，所有会话下一次起生效',
+    ])
     expect(card.options.filter(option => option.lasting).map(option => option.id)).toEqual([
       'allow-session',
       'allow-always',
@@ -84,6 +90,19 @@ describe('the content of a release card', () => {
     )
     expect(card.arguments.text.endsWith('�')).toBe(false)
     expect(card.arguments.digest).toBe(digestOf(long))
+  })
+
+  it('keeps arguments exactly at the limit whole, and a replacement character the model wrote', () => {
+    const at = `{"cmd":"${'a'.repeat(RELEASE_ARGUMENTS_LIMIT - 10)}"}`
+    expect(new TextEncoder().encode(at).byteLength).toBe(RELEASE_ARGUMENTS_LIMIT)
+    expect(releaseCard({ ...action, effectiveArguments: at }, all).arguments).toMatchObject({
+      text: at,
+      truncated: false,
+    })
+    const written = `{"cmd":"�${'汉'.repeat(RELEASE_ARGUMENTS_LIMIT)}"}`
+    const cut = releaseCard({ ...action, effectiveArguments: written }, all).arguments
+    expect(cut.truncated).toBe(true)
+    expect(cut.text.startsWith('{"cmd":"�汉')).toBe(true)
   })
 
   it('a function tool is named without a command', () => {

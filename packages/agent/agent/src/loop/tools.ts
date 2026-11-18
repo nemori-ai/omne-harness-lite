@@ -587,7 +587,7 @@ export function deniedCandidate(
   denial: Readonly<{ category: DenialCategory; words: string | null }>,
 ): Message {
   const words =
-    denial.category === 'guidance' && denial.words !== null
+    denial.words !== null
       ? [
           {
             kind: 'text' as const,

@@ -163,30 +163,28 @@ export function afterAdmission(
   return stepped(action, passages, resolve(before, denial, action.judgment.evidence))
 }
 
-const CATEGORIES: ReadonlySet<string> = new Set<DenialCategory>([
-  'rule',
+// The categories a chain names; any other denial, with a chain or without, is a rule's.
+const NAMED: ReadonlySet<string> = new Set<DenialCategory>([
   'not-released',
   'prohibited',
   'card-closed',
   'guidance',
 ])
 
-/** Why the action was denied, read from its chain: a denial with no chain is a rule's. */
+/** Why the action was denied, read from its chain, which the batch adopted before any message. */
 export function denialOf(
   passages: readonly Passage[],
   action: ActionId,
 ): Readonly<{ category: DenialCategory; words: string | null }> {
   const progress = passages.find(passage => admissionActionOf(passage.id) === action)?.progress
-  if (progress?.kind !== 'resolved' && progress?.kind !== 'applied')
-    return { category: 'rule', words: null }
+  if (progress?.kind !== 'applied') return { category: 'rule', words: null }
   const { output } = progress.conclusion
   const category =
-    output?.kind === 'veto' && CATEGORIES.has(output.reason)
-      ? (output.reason as DenialCategory)
-      : 'rule'
+    output?.kind === 'veto' && NAMED.has(output.reason) ? (output.reason as DenialCategory) : 'rule'
   const last = progress.rounds.at(-1)?.progress
   const response = last?.kind === 'processed' ? last.cards[0]?.response : undefined
-  return { category, words: response?.kind === 'remark' ? response.text : null }
+  const words = category === 'guidance' && response?.kind === 'remark' ? response.text : null
+  return { category, words }
 }
 
 export function presentRequest(chain: Passage): Readonly<{

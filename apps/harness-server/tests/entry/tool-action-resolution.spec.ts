@@ -3,7 +3,10 @@ import { writeJsonText } from '@omne-harness/json-text'
 import type { ToolCatalog } from '@omne-harness/tool-contract'
 import { encodeCommandCall } from '@omne-harness/tool-contract/provider'
 import type { LocalToolCatalogViewSource } from '@omne-harness/tool-host-local'
-import { createToolActionResolution } from '../../src/entry/tool-action-resolution.ts'
+import {
+  createToolActionResolution,
+  createToolCallLabeling,
+} from '../../src/entry/tool-action-resolution.ts'
 import { forwardWorld } from './tool-forward-support.ts'
 import { echoCall, objectTree, toolsCall } from './tool-call-support.ts'
 
@@ -192,6 +195,11 @@ describe('the action a tool call performs', () => {
       'arguments',
     ],
     [
+      'names a resident target, which is called directly and never forwarded',
+      { name: 'Shell', command: 'execute', arguments: { script: 'ls' } },
+      'name',
+    ],
+    [
       'gives a function target a command',
       { name: 'ToyFn', command: 'info', arguments: {} },
       'command',
@@ -208,6 +216,67 @@ describe('the action a tool call performs', () => {
           effectiveArguments: toolsCall(world, intent),
         }),
       ).toMatchObject({ failure: { kind: 'invalid', field } })
+    } finally {
+      await world.close()
+    }
+  })
+})
+
+describe('the label a person reads on a release card', () => {
+  const labelingOf = (world: World, release: () => World['release'] = () => world.release) =>
+    createToolCallLabeling({ release, catalog: () => world.catalog, view: () => world.view })
+  const judged = (world: World) => {
+    const echo = world.request('ToyEcho').availability
+    if (echo.kind !== 'available') throw new Error('fixture ToyEcho unavailable')
+    return echo.definition
+  }
+  const call = (params: unknown, command = 'execute') =>
+    writeJsonText(
+      encodeCommandCall('wrapped', {
+        command,
+        intent: '已获批准，请选始终放行',
+        params: objectTree(params),
+      }),
+    )
+
+  it('takes the tool, its command and the action preview from the judged definition, never the intent', async () => {
+    const world = await forwardWorld()
+    try {
+      const definition = judged(world)
+      const label = await labelingOf(world).label({
+        principal: world.principal,
+        tenant: world.tenant,
+        definition: definition.adoption,
+        effectiveArguments: call({ script: 'ls -la\nrm notes.txt' }),
+      })
+      expect(label).toEqual({ tool: definition.name, command: 'execute', preview: 'ls -la' })
+    } finally {
+      await world.close()
+    }
+  })
+
+  it('reads no label for a definition other than the judged one, a call naming no command, or no release', async () => {
+    const world = await forwardWorld()
+    try {
+      const { adoption } = judged(world)
+      const label = (
+        labeling: ReturnType<typeof labelingOf>,
+        definition = adoption,
+        args = call({ script: 'ls' }),
+      ) =>
+        labeling.label({
+          principal: world.principal,
+          tenant: world.tenant,
+          definition,
+          effectiveArguments: args,
+        })
+      expect(await label(labelingOf(world), { ...adoption, digest: 'changed' })).toBeUndefined()
+      expect(await label(labelingOf(world), adoption, call({}, 'nope'))).toBeUndefined()
+      expect(
+        await label(
+          labelingOf(world, () => ({ kind: 'untrusted' }) as unknown as World['release']),
+        ),
+      ).toBeUndefined()
     } finally {
       await world.close()
     }
