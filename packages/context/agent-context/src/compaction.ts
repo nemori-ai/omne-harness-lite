@@ -7,7 +7,12 @@ import {
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { replaySourceCall } from '@omne-harness/model-contract'
-import { judgeCompaction, type CompactionContext, type Message } from '@omne-harness/message'
+import {
+  judgeCompaction,
+  type CompactionContext,
+  type Message,
+  type MessageId,
+} from '@omne-harness/message'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   chooseRepresentations,
@@ -155,6 +160,19 @@ function roundedAmount(check: M.BudgetCheck): bigint {
   return (a.n * m.d + m.n * a.d + d - 1n) / d
 }
 
+/** The calls a request cites: each message it holds names the call that produced it. */
+function citedSources(
+  entries: readonly Readonly<{ message: Message; sourceCall?: M.ModelCallId }>[],
+  present: ReadonlySet<MessageId>,
+): readonly Readonly<{ message: MessageId; call: M.ModelCallId }>[] {
+  return entries.flatMap(entry => {
+    const call = entry.sourceCall ?? replaySourceCall(entry.message)
+    return call !== null && present.has(entry.message.id)
+      ? [{ message: entry.message.id, call }]
+      : []
+  })
+}
+
 export function createCompactionAssessment<P>(
   options: Readonly<{
     inputs: CompactionInputStore<P>
@@ -195,12 +213,7 @@ export function createCompactionAssessment<P>(
     const after = frozen.history.entries.filter(entry => afterRefs.has(entry.ref))
     const messages = [...retained, ...summary.messages, ...after.flatMap(e => e.represented)]
     const present = new Set(messages.map(message => message.id))
-    const sources = frozen.history.entries.flatMap(entry => {
-      const call = entry.sourceCall ?? replaySourceCall(entry.message)
-      return call !== null && present.has(entry.message.id)
-        ? [{ message: entry.message.id, call }]
-        : []
-    })
+    const sources = citedSources(frozen.history.entries, present)
     const selection = selectedModel({
       resolution: frozen.target.profile,
       parameters: frozen.target.parameters,

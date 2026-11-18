@@ -7,7 +7,7 @@ import { parseMessageId } from '@omne-harness/message'
 import { isCoverage, isHistoryUpper } from './coverage-validation.js'
 import { decodeEpochId } from './refs.js'
 import { adoption, isEvidence, record } from './schema-primitives.js'
-import type { ContinuationPrefix, Coverage, HistoryUpper } from './values.js'
+import type { ContinuationPrefix, Coverage, HistoryEvidence, HistoryUpper } from './values.js'
 
 const SCHEMA = 'request-context/fixed-request/1'
 
@@ -48,24 +48,28 @@ function continuationJson(value: ContinuationPrefix | null): unknown {
   return { ...value, history }
 }
 
+function decodeHistory(value: unknown, target: ContextTarget): HistoryEvidence | undefined {
+  if (!record(value) || !exactKeys(value, ['epoch', 'upper'])) return undefined
+  const epoch = decodeEpochId(value.epoch)
+  if ('failure' in epoch || !isHistoryUpper(value.upper)) return undefined
+  return { target, epoch: epoch.ok, upper: value.upper as HistoryUpper }
+}
+
+function isMessagePrefix(value: unknown): boolean {
+  return Array.isArray(value) && value.every(id => typeof id === 'string' && parseMessageId(id).ok)
+}
+
 function decodeContinuation(
   value: unknown,
   target: ContextTarget,
 ): ContinuationPrefix | null | undefined {
   if (value === null) return null
   if (!record(value) || !exactKeys(value, PREFIX_KEYS)) return undefined
-  const { history, messagePrefix } = value
-  if (!record(history) || !exactKeys(history, ['epoch', 'upper'])) return undefined
-  const epoch = decodeEpochId(history.epoch)
-  if ('failure' in epoch || !isHistoryUpper(history.upper)) return undefined
-  if (!Array.isArray(messagePrefix)) return undefined
-  const ids = messagePrefix.map(id => (typeof id === 'string' ? parseMessageId(id) : null))
-  if (!ids.every(id => id?.ok === true) || !adoption(value.projection)) return undefined
-  if (!EVIDENCE_KEYS.every(key => isEvidence(value[key]))) return undefined
-  return structuredClone({
-    ...(value as unknown as ContinuationPrefix),
-    history: { target, epoch: epoch.ok, upper: history.upper as HistoryUpper },
-  })
+  const history = decodeHistory(value.history, target)
+  if (history === undefined || !isMessagePrefix(value.messagePrefix)) return undefined
+  if (!adoption(value.projection) || !EVIDENCE_KEYS.every(key => isEvidence(value[key])))
+    return undefined
+  return structuredClone({ ...(value as unknown as ContinuationPrefix), history })
 }
 
 export function encodeFixedRequestRecord(value: FixedRequestRecord): JsonValue {
