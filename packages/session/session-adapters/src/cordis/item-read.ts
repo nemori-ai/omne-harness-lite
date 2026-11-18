@@ -194,7 +194,7 @@ export type OpenViewRead =
     }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-// The open views of the named executions from their open items at one head (else the given one).
+// The open views of the named executions; one that finishes is read in full, and that read decides.
 export async function readOpenView(
   read: Reader,
   scope: Readonly<{ tenant: string; session: string }>,
@@ -211,15 +211,23 @@ export async function readOpenView(
       if (found.kind === 'unavailable') return found
       if (found.items.length === 0) continue
       const id = execution as AgentExecutionId
-      const finishes = finishing(viewOfItems(id, found.items))
-      if (finishes) found = await readOpenItems(read, { ...scope, execution }, null, true)
-      if (found.kind === 'unavailable') return found
+      let finishes = finishing(viewOfItems(id, found.items))
+      if (finishes) {
+        found = await readOpenItems(read, { ...scope, execution }, null, true)
+        if (found.kind === 'unavailable') return found
+        finishes = finishing(viewOfItems(id, found.items))
+      }
       if (head !== null && found.published !== head) {
         moved = true
         break
       }
       head = found.published
-      views.push(viewOfItems(id, finishes ? found.items.filter(row => row.open) : found.items))
+      views.push(
+        viewOfItems(
+          id,
+          found.items.filter(row => row.open),
+        ),
+      )
       if (finishes) full.push(viewOfItems(id, found.items))
     }
     if (!moved) return { kind: 'read', published: head ?? published, views, full }
