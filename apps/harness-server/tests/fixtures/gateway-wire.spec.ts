@@ -772,6 +772,17 @@ describe('chatRequestOf and interfacePath: what a request says about its interfa
     expect(interfacePath(CHAT, responsesBody)).toBe(RESPONSES)
   })
 
+  it('a Messages body on the chat-completions path speaks Messages', () => {
+    const messagesBody = JSON.stringify({
+      max_tokens: 1024,
+      messages: [{ content: [{ text: 'hi', type: 'text' }], role: 'user' }],
+      model: 'anthropic/claude-opus-5.5',
+      stream: true,
+      thinking: { type: 'adaptive' },
+    })
+    expect(interfacePath(CHAT, messagesBody)).toBe(MESSAGES)
+  })
+
   it.each([
     ['a chat-completions body', CHAT, chatBody, CHAT],
     ['a path that names its interface', MESSAGES, responsesBody, MESSAGES],

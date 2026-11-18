@@ -75,8 +75,10 @@ function wireOf(path: string): Wire | null {
 
 /**
  * The path of the interface a request speaks. An operator address replaces the address of every
- * endpoint of the release, so a Responses request can arrive on the chat-completions path; its
- * body tells it: `input` and no `messages`, which no chat-completions request has.
+ * endpoint of the release, so a request can arrive on the chat-completions path whatever it
+ * speaks; its body tells it. A Responses body has `input` and no `messages`; a Messages body has
+ * `messages` and the `thinking` member the Messages engine always writes. A chat-completions body
+ * has neither.
  */
 export function interfacePath(path: string, raw: string): string {
   if (wireOf(path) !== null) return path
@@ -86,9 +88,10 @@ export function interfacePath(path: string, raw: string): string {
   } catch {
     return path
   }
-  const responses =
-    typeof body === 'object' && body !== null && 'input' in body && !('messages' in body)
-  return responses ? '/api/v1/responses' : path
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return path
+  if ('input' in body && !('messages' in body)) return '/api/v1/responses'
+  if ('messages' in body && 'thinking' in body) return '/api/v1/messages'
+  return path
 }
 
 /**
