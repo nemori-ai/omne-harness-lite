@@ -56,7 +56,7 @@ import {
 } from '../journal-commit.ts'
 import { canonical } from '../testing/canonical.ts'
 import { type SessionCoordinatorPrincipalFailure, sessionScopeEvidence } from './agent-drive.ts'
-import { readExecutionRecords } from './agent-journal.ts'
+import { readExecutionRecords } from './execution-records.ts'
 import { attemptOfAuthority, type GrantedAttachment } from './attempt-grant.ts'
 import { decodeState, encodeState } from './durable-codec.ts'
 
@@ -377,14 +377,11 @@ function createMessageHandoff<P>(
   }
 
   async function internal(bound: Bound, prepare: Extract<HandoffPrepare, { kind: 'execution' }>) {
-    const records = await readExecutionRecords(ports, bound)
+    const records = await readExecutionRecords(ports, bound, prepare.request.reference)
     if (records.kind === 'unavailable') return fail(unavailable(records.diagnostic))
     const execution = records.execution
     if (execution === null) return fail(denied('prepare'))
-    const saved = execution.handoffs.find(
-      item => canonical(item.handoff) === canonical(prepare.request.reference),
-    )
-    if (saved === undefined || canonical(saved.request) !== canonical(prepare.request))
+    if (execution.request === null || canonical(execution.request) !== canonical(prepare.request))
       return fail<Failure>({
         kind: 'invalid',
         field: 'request',

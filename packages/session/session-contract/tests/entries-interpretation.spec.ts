@@ -111,6 +111,7 @@ function b0(c: Context): SessionEntriesObservation {
     operation: operationId('op-1'),
     after: '0',
     through: '2',
+    position: '2',
     boundary: {
       execution: c.ex1,
       channel: 'tool-received',
@@ -123,7 +124,14 @@ function b0(c: Context): SessionEntriesObservation {
 }
 
 const saved1 = (c: Context): readonly SessionEntriesProgress[] => [
-  { run: c.r1, execution: c.ex1, channel: 'tool-received', through: '2', interpreted: P2 },
+  {
+    run: c.r1,
+    execution: c.ex1,
+    channel: 'tool-received',
+    through: '2',
+    position: '2',
+    interpreted: P2,
+  },
 ]
 
 type Input = Parameters<typeof projectSessionEntries>[1]
@@ -190,6 +198,7 @@ describe('projectSessionEntries: the legal range', () => {
       kind: 'entries.interpreted',
       ...decision.progress,
       after: '0',
+      position: '2',
       boundary: { revision: '7', executionEvidence: E7, count: '3' },
       interpreted: decision.interpreted,
     })
@@ -268,6 +277,10 @@ describe('projectSessionEntries: one case per rule', () => {
       judge(c, { observation: { ...b0(c), operation: '' as SessionOperationId } }),
       'operation',
     )
+  })
+
+  it('an empty position is invalid: the next round could not read on from it', () => {
+    expectInvalid(judge(c, { observation: { ...b0(c), position: '' } }), 'position')
   })
 
   const receipt: CommitReceipt = {
@@ -459,6 +472,7 @@ describe('projectSessionEntries: one case per rule', () => {
         { kind: 'saved', progress: { ...progress, interpreted: evidence('session/batch/9') } },
       ],
       [saved1(c), { kind: 'saved', progress: { ...progress, channel: 'model-received' } }],
+      [saved1(c), { kind: 'saved', progress: { ...progress, position: '9' } }],
     ]
     for (const [saved, start] of cases)
       expectInvalid(judge(c, { saved, start, observation: next }), 'start')
@@ -569,6 +583,7 @@ function progressRow(
     {
       kind: 'entries.interpreted',
       ...row,
+      position: row.through,
       channel: 'tool-received',
       boundary: { revision: '7', executionEvidence: E7, count: '9' },
       interpreted: [],
@@ -601,6 +616,7 @@ describe('reduce: the progress chain in WorkSnapshot.entriesProgress', () => {
           operation: operationId('op-2'),
           after: '2',
           through: '3',
+          position: '5',
           items: oneItem('3'),
         },
         start,
@@ -624,6 +640,7 @@ describe('reduce: the progress chain in WorkSnapshot.entriesProgress', () => {
         execution: c.ex1,
         channel: 'tool-received',
         through: '2',
+        position: '2',
         interpreted: one.source,
       },
     ])
@@ -634,6 +651,7 @@ describe('reduce: the progress chain in WorkSnapshot.entriesProgress', () => {
         execution: c.ex1,
         channel: 'tool-received',
         through: '3',
+        position: '5',
         interpreted: two.source,
       },
     ])

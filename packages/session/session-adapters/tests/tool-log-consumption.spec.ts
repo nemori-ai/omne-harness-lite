@@ -266,6 +266,8 @@ async function assembled(s: ToolScene, options: Options = {}) {
     }
     readonly read: AgentJournalEntries<string>['read'] = input =>
       (wraps.entries ?? s.view.entries.read)(input)
+    readonly receivedOf: AgentJournalEntries<string>['receivedOf'] = input =>
+      s.view.entries.receivedOf(input)
   }
   class Materials extends Service {
     constructor(scope: Context) {
@@ -1101,6 +1103,57 @@ describe('loading and stopping on real Cordis 4.0.4', () => {
     })
     expect(f.commits).toHaveLength(1)
     expect(await progressOf(s)).toMatchObject({ through: '1' })
+  })
+})
+
+describe('a round reads only the entries after the saved position', () => {
+  type ToolAccount = Extract<
+    ReceivedEntry['delivery'],
+    { producer: 'tool'; key: { kind: 'account' } }
+  >
+  const isToolAccount = (delivery: ReceivedEntry['delivery']): delivery is ToolAccount =>
+    delivery.producer === 'tool' && delivery.key.kind === 'account'
+
+  function accountAt(s: ToolScene, at: number): ReceivedEntry {
+    const { delivery } = s.account
+    if (!isToolAccount(delivery)) throw new Error('fixture: a Tool account entry')
+    const revision = String(at)
+    const key = { ...delivery.key, event: `event-${at}`, revision }
+    return {
+      ...s.account,
+      delivery: { ...delivery, key, account: { ...delivery.account, revision } },
+    }
+  }
+
+  async function lastRoundReads(prefix: number) {
+    const s = await toolScene(`position-${prefix}`)
+    await receive(s, s.result, 'result')
+    const read: number[] = []
+    const f = await assembled(s, {
+      wraps: {
+        entries: async input => {
+          const page = await s.view.entries.read(input)
+          if ('ok' in page) read.push(page.ok.items.length)
+          return page
+        },
+      },
+    })
+    ok(await f.consume())
+    for (let at = 1; at <= prefix; at += 1) {
+      await receive(s, accountAt(s, at), `a${at}`)
+      ok(await f.consume())
+    }
+    await receive(s, accountAt(s, prefix + 1), 'last')
+    read.length = 0
+    const answer = ok(await f.consume())
+    expect(answer).toMatchObject({ committed: true, progress: { through: String(prefix + 2) } })
+    return read.reduce((sum, items) => sum + items, 0)
+  }
+
+  it('the entries read by one round stay the same at three history lengths', async () => {
+    const tiers = [await lastRoundReads(4), await lastRoundReads(16), await lastRoundReads(48)]
+
+    expect(tiers).toEqual([1, 1, 1])
   })
 })
 

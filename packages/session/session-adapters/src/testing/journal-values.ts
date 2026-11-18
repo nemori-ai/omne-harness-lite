@@ -3,6 +3,8 @@ import {
   decodeExecutionAttachmentId,
   decodeExecutionRevision,
   decodeInputBatchId,
+  type AgentExecutionId,
+  type AgentOperationId,
   type DurableEvidence,
   type ExecutionAttachmentId,
   type ExecutionRevision,
@@ -92,4 +94,12 @@ export function completeEvidence(value: unknown): value is DurableEvidence {
         String(value[key as keyof typeof value]).length > 0,
     )
   )
+}
+
+export function operationText(
+  tenant: string,
+  execution: AgentExecutionId,
+  operation: AgentOperationId,
+): string {
+  return JSON.stringify([tenant, execution, operation])
 }

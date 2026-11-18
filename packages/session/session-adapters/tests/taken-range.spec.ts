@@ -11,22 +11,21 @@ afterEach(async () => {
 
 type Json = { [key: string]: unknown }
 
+// The open items of a rebuilt copy, with the empty batch renamed in its step and the cursor.
 function renamed(output: JsonValue, id: string): JsonValue {
-  const copy = structuredClone(output) as {
-    batches: { facts: { kind: string; body: Json }[] }[]
-  }
-  for (const fact of copy.batches.flatMap(batch => batch.facts)) {
-    const text = typeof fact.body === 'string'
-    const body = (text ? JSON.parse(fact.body as unknown as string) : fact.body) as Json
-    if (fact.kind === 'step.begun') {
+  const copy = structuredClone(output) as { items?: { family: string; body: Json }[] }
+  for (const item of copy.items ?? []) {
+    const text = typeof item.body === 'string'
+    const body = (text ? JSON.parse(item.body as unknown as string) : item.body) as Json
+    if (item.family === 'step') {
       const batch = body['batch'] as { id: string; ordered: unknown[] } | undefined
       if (batch?.ordered.length === 0) batch.id = id
     }
-    if (fact.kind === 'cursor.moved') {
-      const members = body['members'] as Json
-      if (typeof members['inputBatch'] === 'string') members['inputBatch'] = id
+    if (item.family === 'exec') {
+      const cursor = body['cursor'] as Json
+      if (typeof cursor['inputBatch'] === 'string') cursor['inputBatch'] = id
     }
-    fact.body = (text ? JSON.stringify(body) : body) as Json
+    item.body = (text ? JSON.stringify(body) : body) as Json
   }
   return copy as unknown as JsonValue
 }
@@ -97,7 +96,7 @@ describe('the range of an empty batch in a rebuilt Journal copy', () => {
     const s = await afterEmptyTake('taken-range-foreign')
     const bad = id(String(s.execution))
     s.rewriteReads.current = (request, answer) =>
-      request.handler === EXECUTION_RECORD_HANDLERS.facts && answer.kind === 'read'
+      request.handler === EXECUTION_RECORD_HANDLERS.openItems && answer.kind === 'read'
         ? { ...answer, output: renamed(answer.output, bad) }
         : answer
     await expect(load(s)).rejects.toThrow('original input batch range is unavailable')

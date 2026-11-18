@@ -20,7 +20,8 @@ export function captureModelSettlement(
   admission: ModelReplyAdmission | null,
 ): readonly ModelSettlement[] {
   if (!admission || !admission.resultVersion || !completeEvidence(admission.source)) return []
-  if (!execution.admissions.some(item => canonical(item.fact) === canonical(admission))) return []
+  if (!execution.admissions.some(item => item && canonical(item.fact) === canonical(admission)))
+    return []
   const candidates = pendingCalls(execution)
     .filter(
       (pending): pending is Extract<PendingCall, { kind: 'model' }> =>

@@ -1351,6 +1351,7 @@ export type SessionEntry = Readonly<{
     channel: SessionEntriesChannel;
     after: string;
     through: string;
+    position: string;
     boundary: Readonly<{
         revision: string;
         executionEvidence: DurableEvidence;
@@ -2331,6 +2332,7 @@ export type SessionEntriesObservation = Omit<SessionAccess<never>, 'principal'> 
     operation: SessionOperationId;
     after: string;
     through: string;
+    position: string;
     boundary: SessionEntriesBoundary;
     items: readonly SessionEntriesItem[];
 }>;
@@ -2339,6 +2341,7 @@ export type SessionEntriesProgress = Readonly<{
     execution: string;
     channel: SessionEntriesChannel;
     through: string;
+    position: string;
     interpreted: DurableEvidence;
 }>;
 export type SessionEntriesStart = Readonly<{
@@ -3308,8 +3311,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:d07fe960af6dbaf8f9301f31f0dbbaef7e0609794ec083a4e571117a5b52dee4";
-export declare const SESSION_RELEASE_DIGEST = "sha256:d07fe960af6dbaf8f9301f31f0dbbaef7e0609794ec083a4e571117a5b52dee4";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:75056f6acec6e39c09451af354007ab98b27e3ad29aa139b0117ee9ed7138bf8";
+export declare const SESSION_RELEASE_DIGEST = "sha256:75056f6acec6e39c09451af354007ab98b27e3ad29aa139b0117ee9ed7138bf8";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

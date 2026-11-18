@@ -52,7 +52,6 @@ import {
 } from './root.ts'
 import {
   createJournal,
-  operationText,
   outrunParticipation,
   type JointDecision,
   type JournalWrite,
@@ -72,7 +71,7 @@ import {
   HistoryFailure,
 } from './history.ts'
 import { canonical, digestOf, materializeModelView, rowData } from './session-values.ts'
-import { journalEvidence } from './journal-values.ts'
+import { journalEvidence, operationText } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
 import { cancelBatchRow, fieldOf, sessionCaller } from './factory-values.ts'
 import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
@@ -887,13 +886,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         quarantine: cell.quarantine,
         root: () => cell.current().position,
         facts: () => {
-          const agent = cell.current().agent
-          return {
-            log: agent.log,
-            view: agent.view,
-            blobs: agent.blobs as ReadonlyMap<string, unknown>,
-            namespace: cell.namespace,
-          }
+          const { log, view, closed, blobs } = cell.current().agent
+          return { log, view, closed, blobs, namespace: cell.namespace }
         },
         records: () => cell.current().agent.executions as ReadonlyMap<string, MemoryExecution>,
         operations: () => cell.current().agent.operations as ReadonlyMap<string, OperationRecord>,

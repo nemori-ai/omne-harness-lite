@@ -606,19 +606,15 @@ describe('failures stay failures and commit nothing', () => {
     expect(f.commits).toHaveLength(0)
   })
 
-  it('a saved progress past the Model entries of the Journal answers unavailable', async () => {
+  it('a saved position the Journal does not hold answers unavailable', async () => {
     const s = await modelScene('progress-ahead')
     await receive(s, s.result, 'result')
-    let strip = false
+    let ahead = false
     const f = await assembled(s, {
-      entries: async input => {
-        const read = await s.view.entries.read(input)
-        if (!strip || 'failure' in read) return read
-        return succeed({ ...read.ok, items: [] })
-      },
+      entries: input => s.view.entries.read(ahead ? { ...input, after: '9' } : input),
     })
     ok(await f.consume())
-    strip = true
+    ahead = true
 
     expect(await f.consume()).toMatchObject({ failure: { kind: 'unavailable' } })
     expect(f.commits).toHaveLength(1)
@@ -711,6 +707,41 @@ describe('an entry whose call Session has not bound', () => {
 
     await s.bindCall()
     expect(ok(await f.consume())).toMatchObject({ committed: true, waiting: 0 })
+  })
+})
+
+describe('a round reads only the entries after the saved position', () => {
+  async function lastRoundReads(prefix: number) {
+    const s = await modelScene(`position-${prefix}`)
+    await receive(s, s.result, 'result')
+    const read: number[] = []
+    const f = await assembled(s, {
+      entries: async input => {
+        const page = await s.view.entries.read(input)
+        if ('ok' in page) read.push(page.ok.items.length)
+        return page
+      },
+    })
+    ok(await f.consume())
+    for (let at = 1; at <= prefix; at += 1) {
+      await receive(s, sampleReceivedModelAccount(s.access.tenant, s.name, String(at)), `a${at}`)
+      ok(await f.consume())
+    }
+    await receive(
+      s,
+      sampleReceivedModelAccount(s.access.tenant, s.name, String(prefix + 1)),
+      'last',
+    )
+    read.length = 0
+    const answer = ok(await f.consume())
+    expect(answer).toMatchObject({ committed: true, progress: { through: String(prefix + 2) } })
+    return read.reduce((sum, items) => sum + items, 0)
+  }
+
+  it('the entries read by one round stay the same at three history lengths', async () => {
+    const tiers = [await lastRoundReads(4), await lastRoundReads(16), await lastRoundReads(48)]
+
+    expect(tiers).toEqual([1, 1, 1])
   })
 })
 

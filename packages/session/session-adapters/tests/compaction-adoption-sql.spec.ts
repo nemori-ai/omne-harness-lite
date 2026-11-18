@@ -142,8 +142,9 @@ it.each([
       expect(ok(await recovered.commit(request))).toEqual(adopted)
       const state = ok(await recovered.load({ ...s.access, execution: s.execution }))
       expect(
-        state.results.find(item => item.consumption === retained.value.consumption)?.completion,
-      ).toEqual(adopted.evidence)
+        state.results,
+        'the adopted result is processed and released, so it left the snapshot',
+      ).toEqual([])
       const sessionState = ok(await s.port.readWork(s.access))
       expect(sessionState.run).toMatchObject({
         kind: 'active',
