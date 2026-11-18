@@ -4,6 +4,8 @@ import {
   emptySessionView,
   foldItems,
   viewItems,
+  viewOfItems,
+  viewText,
   type PublishedBatch,
   type SessionJournalView,
 } from '../src/journal/index.ts'
@@ -59,6 +61,41 @@ describe('the items of the journal view', () => {
         for (const [key, stored] of replayed.store)
           if (stored.open && !held.has(key))
             return `the store holds ${key} open, which the view does not`
+        return null
+      },
+    })
+  })
+
+  it('the open rows of the store rebuild the view the fold holds, execution by execution', () => {
+    forAll('rebuild', {
+      runs: 60,
+      generate: rng => scene(rng),
+      check: ({ log }) => {
+        let view = emptySessionView()
+        const rows = new Map<
+          string,
+          { execution: string; family: string; item: string; open: boolean; body: unknown }
+        >()
+        for (const batch of log) {
+          const folded = foldItems(view, batch)
+          for (const change of folded.changes)
+            rows.set(JSON.stringify([batch.execution, change.family, change.item]), {
+              execution: batch.execution,
+              family: change.family,
+              item: change.item,
+              open: change.open,
+              body: JSON.parse(JSON.stringify(change.body)) as unknown,
+            })
+          view = folded.view
+        }
+        for (const [execution, held] of view.executions) {
+          const open = [...rows.values()].filter(row => row.execution === execution && row.open)
+          const rebuilt = viewOfItems(execution, open)
+          const text = (one: typeof held) =>
+            viewText({ head: 0, executions: new Map([[execution, one]]) })
+          if (text(rebuilt) !== text(held))
+            return `${execution} rebuilds otherwise:\n${text(rebuilt).slice(0, 600)}\n${text(held).slice(0, 600)}`
+        }
         return null
       },
     })

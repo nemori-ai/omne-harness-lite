@@ -1,21 +1,23 @@
 import { SharedMap, forkOf } from './shared-map.ts'
 import { factKey } from './facts.ts'
-import type { ExecutionView } from './view.ts'
+import type { AgentExecutionId } from '@omne-harness/agent-contract'
+import { emptyExecutionView, type ExecutionView } from './view.ts'
 
-// An execution view as items: each family holds entries by original key, the execution is one item.
-// The store keeps every item, open or closed; the view in memory keeps the open ones.
+// An execution view as items by original key; the store keeps all of them, the view the open ones.
 
 type Entry = unknown
 type Table = Readonly<{
   kind: 'table'
   of(view: ExecutionView): ReadonlyMap<unknown, Entry>
   put(view: ExecutionView, table: ReadonlyMap<unknown, Entry>): ExecutionView
+  parse(item: string): unknown
 }>
 type List = Readonly<{
   kind: 'list'
   of(view: ExecutionView): readonly Entry[]
   put(view: ExecutionView, list: readonly Entry[]): ExecutionView
   key(entry: never): string
+  order(entry: never): readonly number[]
 }>
 
 export type ItemFamily = Readonly<{
@@ -50,18 +52,29 @@ const finishAt = <M extends FinishMember>(member: M): Holder<ExecutionView['fini
   of: view => view.finish[member],
   put: (view, value) => ({ ...view, finish: { ...view.finish, [member]: value } }),
 })
-// The registry holds every family alike: each keeps its own entry type behind these casts.
-const table = <K, V>(holder: Holder<ReadonlyMap<K, V>>): Table => ({
+const table = <K, V>(
+  holder: Holder<ReadonlyMap<K, V>>,
+  parse: (item: string) => K = item => item as K,
+): Table => ({
   kind: 'table',
   of: holder.of,
   put: holder.put as unknown as Table['put'],
+  parse,
 })
-const list = <E>(holder: Holder<readonly E[]>, key: (entry: E) => string): List => ({
+// A list keeps its entries in the order its batches wrote them: order answers that order.
+const list = <E>(
+  holder: Holder<readonly E[]>,
+  key: (entry: E) => string,
+  order: (entry: E) => readonly number[],
+): List => ({
   kind: 'list',
   of: holder.of,
   put: holder.put as unknown as List['put'],
   key: key as List['key'],
+  order: order as List['order'],
 })
+const byPub = (entry: Readonly<{ pub: number }>) => [entry.pub]
+const byPubOrd = (entry: Readonly<{ pub: number; ord: number }>) => [entry.pub, entry.ord]
 const keyOf = (fact: Parameters<typeof factKey>[0]): string => {
   const key = factKey(fact)
   return key.slice(key.indexOf('/') + 1)
@@ -72,17 +85,17 @@ export const EXEC_FAMILY = 'exec'
 export const ITEM_FAMILIES: readonly ItemFamily[] = [
   {
     family: 'attachment',
-    holder: list(at('attachments'), item => item.authority.executionAttachment),
+    holder: list(at('attachments'), item => item.authority.executionAttachment, byPub),
     open: always,
   },
   {
     family: 'input',
-    holder: list(at('inputs'), item => item.input),
+    holder: list(at('inputs'), item => item.input, byPub),
     open: always,
   },
   {
     family: 'step',
-    holder: list(at('steps'), item => `${item.step}#${item.batch.id}`),
+    holder: list(at('steps'), item => `${item.step}#${item.batch.id}`, byPub),
     // Only the latest step of the batch the cursor has taken is read: a later step closes it.
     open: (item: ExecutionView['steps'][number], view: ExecutionView) =>
       view.cursor.inputBatch === item.batch.id &&
@@ -91,43 +104,51 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
   // A step can adopt again under the same attempt: a request is its model invocation.
   {
     family: 'request',
-    holder: list(at('requests'), item => item.reference),
+    holder: list(at('requests'), item => item.reference, byPub),
     open: always,
   },
-  { family: 'voided', holder: list(at('voided'), keyOf), open: always },
+  { family: 'voided', holder: list(at('voided'), keyOf, byPubOrd), open: always },
   { family: 'intent', holder: table(at('intents')), open: always },
   { family: 'result', holder: table(at('results')), open: always },
   { family: 'placeholder', holder: table(at('placeholders')), open: always },
   {
     family: 'admission',
-    holder: list(at('admissions'), item => String(item.sequence)),
+    holder: list(
+      at('admissions'),
+      item => String(item.sequence),
+      item => [item.sequence],
+    ),
     open: always,
   },
   { family: 'handoff', holder: table(at('handoffs')), open: always },
   { family: 'control', holder: table(at('controls')), open: always },
   {
     family: 'settlement',
-    holder: list(at('settlements'), item => item.op),
+    holder: list(at('settlements'), item => item.op, byPub),
     open: always,
   },
   {
     family: 'observation',
-    holder: list(at('observations'), item => item.passage),
+    holder: list(at('observations'), item => item.passage, byPub),
     open: always,
   },
   {
     family: 'fence',
-    holder: list(at('fences'), item => item.operation),
+    holder: list(at('fences'), item => item.operation, byPubOrd),
     open: always,
   },
   {
     family: 'event',
-    holder: list(at('events'), item => String(item.eseq)),
+    holder: list(
+      at('events'),
+      item => String(item.eseq),
+      item => [item.eseq],
+    ),
     open: always,
   },
   {
     family: 'binding',
-    holder: list(at('bindings'), item => `${item.reference}/${item.pending.digest}`),
+    holder: list(at('bindings'), item => `${item.reference}/${item.pending.digest}`, byPubOrd),
     open: always,
   },
   { family: 'material', holder: table(at('materials')), open: always },
@@ -139,17 +160,33 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
       entry.revived !== true,
   },
   { family: 'rejection', holder: table(at('rejections')), open: always },
-  { family: 'reached', holder: table(at('reached')), open: closedAtBirth },
+  { family: 'reached', holder: table(at('reached'), Number), open: closedAtBirth },
   {
     family: 'candidate',
-    holder: list(finishAt('candidates'), item => item.candidate),
+    holder: list(finishAt('candidates'), item => item.candidate, byPub),
     open: always,
   },
   { family: 'list', holder: table(finishAt('lists')), open: always },
   { family: 'obligation', holder: table(finishAt('obligations')), open: always },
 ]
 
-export function execBody(view: ExecutionView): unknown {
+const EXEC_MEMBERS = [
+  'revision',
+  'head',
+  'gen',
+  'opened',
+  'cursor',
+  'cursorMoved',
+  'adopted',
+  'waits',
+  'acknowledged',
+  'acknowledgedAt',
+] as const
+
+type ExecBody = Pick<ExecutionView, 'execution' | (typeof EXEC_MEMBERS)[number]> &
+  Readonly<{ finish: Pick<ExecutionView['finish'], 'current' | 'ended'> }>
+
+export function execBody(view: ExecutionView): ExecBody {
   const { finish } = view
   return {
     execution: view.execution,
@@ -166,19 +203,6 @@ export function execBody(view: ExecutionView): unknown {
     finish: { current: finish.current, ended: finish.ended },
   }
 }
-
-const EXEC_MEMBERS = [
-  'revision',
-  'head',
-  'gen',
-  'opened',
-  'cursor',
-  'cursorMoved',
-  'adopted',
-  'waits',
-  'acknowledged',
-  'acknowledgedAt',
-] as const
 
 function execChanged(before: ExecutionView, after: ExecutionView): boolean {
   return (
@@ -322,4 +346,38 @@ export function itemChanges(before: ExecutionView | undefined, after: ExecutionV
     }
   }
   return changes
+}
+
+type Row = Readonly<{ family: string; item: string; body: unknown }>
+
+const compareOrder = (left: readonly number[], right: readonly number[]): number => {
+  for (let at = 0; at < Math.max(left.length, right.length); at += 1) {
+    const difference = (left[at] ?? 0) - (right[at] ?? 0)
+    if (difference !== 0) return difference
+  }
+  return 0
+}
+
+// The view an execution's items make: a cold load builds it from the open rows of the store.
+export function viewOfItems(execution: AgentExecutionId, rows: readonly Row[]): ExecutionView {
+  const empty = emptyExecutionView(execution)
+  const exec = rows.find(row => row.family === EXEC_FAMILY)?.body as ExecBody | undefined
+  let view: ExecutionView =
+    exec === undefined ? empty : { ...empty, ...exec, finish: { ...empty.finish, ...exec.finish } }
+  for (const family of ITEM_FAMILIES) {
+    const own = rows.filter(row => row.family === family.family)
+    if (own.length === 0) continue
+    const { holder } = family
+    if (holder.kind === 'table') {
+      view = holder.put(view, new SharedMap(own.map(row => [holder.parse(row.item), row.body])))
+      continue
+    }
+    const order = holder.order as (entry: Entry) => readonly number[]
+    const entries = own.map(row => row.body)
+    view = holder.put(
+      view,
+      entries.sort((left, right) => compareOrder(order(left), order(right))),
+    )
+  }
+  return view
 }

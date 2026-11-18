@@ -49,10 +49,6 @@ export type ReadBatch = Readonly<{
   events: readonly ExecutionFact[]
 }>
 
-export type BatchesRead =
-  | Readonly<{ kind: 'read'; published: number; batches: readonly ReadBatch[] }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-
 function rowOf(scope: Scope, pub: number, operation: string | null, fact: ExecutionFact): FactRow {
   const envelope =
     fact.ord === 0 &&
@@ -94,30 +90,33 @@ export function splitBatch(scope: Scope, stored: ExecutionBatch): ReadBatch | 'm
   return { pub, batch: decoded.ok[0] ?? null, events }
 }
 
-export async function readBatches(
-  read: Reader,
-  scope: Scope,
-  after: number,
-  execution: string | null = null,
-): Promise<BatchesRead> {
-  const unread = (diagnostic: string): BatchesRead => ({ kind: 'unavailable', diagnostic })
+export type OpenRead =
+  | Readonly<{ kind: 'read'; published: number; executions: readonly string[] }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+export type TouchedRead =
+  | Readonly<{ kind: 'read'; published: number; executions: ReadonlySet<string> }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+// The executions the batches after a head touched: what another writer changed since then.
+export async function readTouched(read: Reader, scope: Scope, after: number): Promise<TouchedRead> {
+  const unread = (diagnostic: string): TouchedRead => ({ kind: 'unavailable', diagnostic })
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
     let from = String(after)
     let published: string | null = null
-    const batches: ReadBatch[] = []
+    const executions = new Set<string>()
     let moved = false
     for (;;) {
       const output = await read(EXECUTION_RECORD_HANDLERS.facts, {
         tenant: scope.tenant,
         session: scope.session,
         after: from,
-        ...(execution === null ? {} : { execution }),
       })
       if (output.kind === 'unread')
         return unread(`the Agent records of the session are not readable: ${output.reason}`)
       const page = decodeExecutionRecordFacts(output.output)
       if (page === null) return unread('the Agent records of the session do not decode')
-      if (page.kind === 'denied') return { kind: 'read', published: 0, batches: [] }
+      if (page.kind === 'denied') return { kind: 'read', published: 0, executions }
       if (page.kind === 'missing')
         return unread('the Agent records of the session are not all there (a gap or older records)')
       if (published !== null && page.published !== published) {
@@ -125,22 +124,15 @@ export async function readBatches(
         break
       }
       published = page.published
-      for (const stored of page.batches) {
-        const split = splitBatch(scope, stored)
-        if (split === 'malformed') return unread('a batch of the Agent records does not decode')
-        batches.push(split)
-      }
-      if (page.next === null) return { kind: 'read', published: Number(published), batches }
+      for (const stored of page.batches)
+        for (const fact of stored.facts) executions.add(fact.execution)
+      if (page.next === null) return { kind: 'read', published: Number(published), executions }
       from = page.next
     }
     if (!moved) break
   }
   return unread('the Agent records of the session kept changing while they were read')
 }
-
-export type OpenRead =
-  | Readonly<{ kind: 'read'; published: number; executions: readonly string[] }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 export async function readOpenExecutions(read: Reader, scope: Scope): Promise<OpenRead> {
   const unread = (diagnostic: string): OpenRead => ({ kind: 'unavailable', diagnostic })
@@ -173,35 +165,6 @@ export async function readOpenExecutions(read: Reader, scope: Scope): Promise<Op
     if (!moved) break
   }
   return unread('the open executions of the session kept changing while they were read')
-}
-
-export async function readColdStart(read: Reader, scope: Scope) {
-  const open = await readOpenExecutions(read, scope)
-  if (open.kind === 'unavailable') return open
-  const batches = new Map<number, ReadBatch>()
-  for (const execution of open.executions) {
-    const found = await readBatches(read, scope, 0, execution)
-    if (found.kind === 'unavailable') return found
-    for (const batch of found.batches) {
-      const known = batches.get(batch.pub)
-      batches.set(
-        batch.pub,
-        known === undefined
-          ? batch
-          : {
-              pub: batch.pub,
-              batch: known.batch ?? batch.batch,
-              events: [...known.events, ...batch.events],
-            },
-      )
-    }
-  }
-  return {
-    kind: 'read' as const,
-    published: open.published,
-    executions: open.executions,
-    batches: [...batches.values()].sort((left, right) => left.pub - right.pub),
-  }
 }
 
 export type EventsRead =

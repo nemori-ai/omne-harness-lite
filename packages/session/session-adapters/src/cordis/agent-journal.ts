@@ -68,7 +68,6 @@ import {
 import {
   BATCH_OVERHEAD_BYTES,
   emptySessionView,
-  fold,
   receiptOf as batchReceiptOf,
   type ExecutionView,
   type ParticipationKind,
@@ -108,7 +107,8 @@ import {
   itemText,
   type ItemRef,
 } from '../testing/closed-items.ts'
-import { fetchClosed, lendFetched, unlend } from './item-read.ts'
+import { fetchClosed, lendFetched, readOpenView, unlend } from './item-read.ts'
+import { SharedMap } from '../journal/shared-map.ts'
 import { boundariesOf, captureFresh, projectionOf, type Fault } from './event-projection.ts'
 import {
   JOURNAL_PROVIDER,
@@ -122,14 +122,13 @@ import {
   type ProjectionContext,
 } from '../testing/journal-records.ts'
 import {
-  readBatches,
   readBlob,
-  readColdStart,
   readEvents,
+  readOpenExecutions,
+  readTouched,
   readOperation,
   readOutput,
   readerOf,
-  type ReadBatch,
   type Reader,
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
@@ -1070,20 +1069,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return decodeSessionHistoryRoot(output.output) ?? unreadable
   }
 
-  function foldRead(book: Book<P>, batches: readonly ReadBatch[], published: number): void {
-    for (const batch of batches) if (batch.batch !== null) book.view = fold(book.view, batch.batch)
-    book.view = { ...book.view, head: Math.max(book.view.head, published) }
-    book.published = published
-    book.copy = null
-  }
-
-  function foldExecution(book: Book<P>, batches: readonly ReadBatch[]): void {
-    let side = emptySessionView()
-    for (const batch of batches) if (batch.batch !== null) side = fold(side, batch.batch)
-    book.view = {
-      head: book.view.head,
-      executions: new Map([...book.view.executions, ...side.executions]),
-    }
+  // The views of these executions as the store holds them open, in place of what the book held.
+  function adopt(book: Book<P>, views: readonly ExecutionView[], published: number): void {
+    const executions = new SharedMap(book.view.executions)
+    for (const view of views) executions.set(view.execution, view)
+    book.view = { head: Math.max(book.view.head, published), executions }
+    book.published = Math.max(book.published ?? 0, published)
     book.copy = null
   }
 
@@ -1093,10 +1084,10 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     execution: string,
   ): Promise<Outcome<Copy<P>, Failure>> {
     const read = readerOf(options.storage, domain)
-    const found = await readBatches(read, scopeOf(book), 0, execution)
+    const found = await readOpenView(read, scopeOf(book), [execution], book.published ?? 0)
     if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
     book.loaded.add(execution)
-    if (found.batches.length > 0) foldExecution(book, found.batches)
+    if (found.views.length > 0) adopt(book, found.views, found.published)
     if (book.copy !== null) return succeed(book.copy)
     const missing = await fetchBlobs(book, read)
     if (missing !== null) return fail(missing)
@@ -1134,15 +1125,22 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       counts.confirm(book.key, published)
     }
     const read = readerOf(options.storage, domain)
+    // Cold: the open items of the session. Another writer published: the open items of the
+    // executions its batches touched, read again.
     if (book.published === null) {
-      const cold = await readColdStart(read, scopeOf(book))
-      if (cold.kind === 'unavailable') return fail(unavailable(cold.diagnostic))
-      foldRead(book, cold.batches, cold.published)
-      for (const execution of cold.executions) book.loaded.add(execution)
-    } else if (book.published < published) {
-      const found = await readBatches(read, scopeOf(book), book.published)
+      const open = await readOpenExecutions(read, scopeOf(book))
+      if (open.kind === 'unavailable') return fail(unavailable(open.diagnostic))
+      const found = await readOpenView(read, scopeOf(book), open.executions, open.published)
       if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
-      foldRead(book, found.batches, found.published)
+      adopt(book, found.views, Math.min(found.published, open.published))
+      for (const execution of open.executions) book.loaded.add(execution)
+    } else if (book.published < published) {
+      const touched = await readTouched(read, scopeOf(book), book.published)
+      if (touched.kind === 'unavailable') return fail(unavailable(touched.diagnostic))
+      const executions = [...touched.executions].filter(item => book.loaded.has(item))
+      const found = await readOpenView(read, scopeOf(book), executions, touched.published)
+      if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
+      adopt(book, found.views, Math.min(found.published, touched.published))
     } else if (!excluded && book.copy !== null) return succeed(book.copy)
     const missing = await fetchBlobs(book, read)
     if (missing !== null) return fail(missing)

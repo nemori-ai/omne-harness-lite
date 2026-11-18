@@ -41,6 +41,7 @@ export { advances, fold, foldAll, foldItems } from './fold.ts'
 export {
   itemChanges,
   viewItems,
+  viewOfItems,
   ITEM_FAMILIES,
   EXEC_FAMILY,
   type ItemChange,

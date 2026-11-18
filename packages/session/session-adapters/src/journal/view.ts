@@ -46,6 +46,9 @@ export type Stamp = Readonly<{
   revision: number
 }>
 
+// A voided intent as the view holds it: in the order the batches voided them.
+export type VoidedView = FactOf<'intent.voided'> & Readonly<{ pub: number; ord: number }>
+
 export type AttachmentView = Readonly<{
   authority: Authority
   grant: DurableEvidence | null
@@ -226,6 +229,7 @@ export type BindingView = Readonly<{
   consumption: ConsumptionId
   instance: AgentInstanceId
   pub: number
+  ord: number
 }>
 
 export type ExclusionEntry = Readonly<{
@@ -277,7 +281,7 @@ export type ExecutionView = Readonly<{
   steps: readonly Readonly<{ step: StepId; batch: InputBatch; pub: number }>[]
   requests: readonly RequestView[]
   adopted: RequestView | null
-  voided: readonly FactOf<'intent.voided'>[]
+  voided: readonly VoidedView[]
   intents: ReadonlyMap<ActionId, IntentView>
   results: ReadonlyMap<ConsumptionId, ResultView>
   /** The placeholder a call that went to the background delivered; at most one per call. */
@@ -312,6 +316,7 @@ export type ExecutionView = Readonly<{
     }>
     fence: DurableEvidence
     pub: number
+    ord: number
   }>[]
   events: readonly EventView[]
   bindings: readonly BindingView[]

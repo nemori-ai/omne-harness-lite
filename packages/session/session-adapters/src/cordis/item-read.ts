@@ -5,6 +5,8 @@ import {
   type ExecutionItem,
   type ExecutionItemKey,
 } from '@omne-harness/session-storage-sql/participants'
+import type { AgentExecutionId } from '@omne-harness/agent-contract'
+import { viewOfItems, type ExecutionView } from '../journal/index.ts'
 import { READ_ATTEMPTS, type Reader } from './journal-read.ts'
 import { itemText, type ItemRef } from '../testing/closed-items.ts'
 import type { JournalCell } from '../testing/root.ts'
@@ -18,8 +20,7 @@ export type ItemsRead =
 
 const unread = (diagnostic: string): ItemsRead => ({ kind: 'unavailable', diagnostic })
 
-// The open items of one execution, of the named families or of all: every page at one head, read
-// again when the head moved between pages.
+// The open items of one execution (of the named families, or all), every page at one head.
 export async function readOpenItems(
   read: Reader,
   scope: ItemScope,
@@ -106,4 +107,38 @@ export function lendFetched<P>(lender: Lender, cell: JournalCell<P>): void {
     for (const [text, body] of lender.fetched) if (!closed.has(text)) closed.set(text, body)
     cell.touch()
   })
+}
+
+export type OpenViewRead =
+  | Readonly<{ kind: 'read'; published: number; views: readonly ExecutionView[] }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+// The open views of the named executions from their open items at one head (else the given one).
+export async function readOpenView(
+  read: Reader,
+  scope: Readonly<{ tenant: string; session: string }>,
+  executions: readonly string[],
+  published: number,
+): Promise<OpenViewRead> {
+  for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
+    const views: ExecutionView[] = []
+    let head: number | null = null
+    let moved = false
+    for (const execution of executions) {
+      const found = await readOpenItems(read, { ...scope, execution }, null)
+      if (found.kind === 'unavailable') return found
+      if (found.items.length === 0) continue
+      if (head !== null && found.published !== head) {
+        moved = true
+        break
+      }
+      head = found.published
+      views.push(viewOfItems(execution as AgentExecutionId, found.items))
+    }
+    if (!moved) return { kind: 'read', published: head ?? published, views }
+  }
+  return {
+    kind: 'unavailable',
+    diagnostic: 'the open items of the session kept changing while they were read',
+  }
 }

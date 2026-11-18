@@ -361,7 +361,12 @@ function foldControlRejected(draft: Draft, fact: FactOf<'control.rejected'>, sta
     draft.rejections.set(op, { control: fact.control, audit: fact.audit, pub, revision })
 }
 
-function foldTargetBound(draft: Draft, fact: FactOf<'target.bound'>, pub: number): void {
+function foldTargetBound(
+  draft: Draft,
+  fact: FactOf<'target.bound'>,
+  pub: number,
+  ord: number,
+): void {
   const definition = draft.cursor.definition ?? draft.opened?.definition
   if (definition === undefined)
     throw new TypeError('a call binding requires its original Agent definition')
@@ -374,6 +379,7 @@ function foldTargetBound(draft: Draft, fact: FactOf<'target.bound'>, pub: number
       consumption: fact.consumption,
       instance: fact.instance,
       pub,
+      ord,
     },
   ]
 }
@@ -517,11 +523,16 @@ function foldOpExcluded(draft: Draft, fact: FactOf<'op.excluded'>, pub: number):
     })
 }
 
-function foldFenceStarted(draft: Draft, fact: FactOf<'fence.started'>, pub: number): void {
+function foldFenceStarted(
+  draft: Draft,
+  fact: FactOf<'fence.started'>,
+  pub: number,
+  ord: number,
+): void {
   if (!draft.fences.some(item => item.operation === fact.operation))
     draft.fences = [
       ...draft.fences,
-      { operation: fact.operation, guard: fact.guard, fence: fact.fence, pub },
+      { operation: fact.operation, guard: fact.guard, fence: fact.fence, pub, ord },
     ]
 }
 
@@ -558,7 +569,7 @@ function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
       foldRequestAdopted(draft, fact, pub)
       break
     case 'intent.voided':
-      Object.assign(draft, foldVoided(draft, fact))
+      Object.assign(draft, foldVoided(draft, fact, pub, ord))
       break
     case 'call.intended':
       foldCallIntended(draft, fact, stamp)
@@ -596,7 +607,7 @@ function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
       draft.waits = { step: fact.step, waits: fact.waits, pub }
       break
     case 'target.bound':
-      foldTargetBound(draft, fact, pub)
+      foldTargetBound(draft, fact, pub, ord)
       break
     case 'finish.candidate':
       foldFinishCandidate(draft, fact, pub, revision)
@@ -631,7 +642,7 @@ function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
       foldOpExcluded(draft, fact, pub)
       break
     case 'fence.started':
-      foldFenceStarted(draft, fact, pub)
+      foldFenceStarted(draft, fact, pub, ord)
       break
     case 'cursor.moved':
       foldCursorMoved(draft, fact, pub)
