@@ -159,17 +159,19 @@ describe('the inbox page', () => {
     expect(title.getAttribute('aria-expanded')).toBe('false')
   })
 
+  /** A title holds no instant: an instant has no JSON form, and a reporter writes titles as JSON. */
+  const bodiless = () => ({
+    outcome: 'succeeded',
+    body: { ...view(entry('e1', 1), ''), subject: null },
+  })
   it.each([
-    [
-      { outcome: 'succeeded', body: { ...view(entry('e1', 1), ''), subject: null } },
-      '这一条没有正文。',
-    ],
-    [{ outcome: 'not-found', body: {} }, '这一条已经不在收件箱里了。'],
-    [{ outcome: 'basis-unavailable' }, '正文现在读不出，稍后再试。'],
-  ])('an opened notification answered %j shows it in place of the body', async (reply, text) => {
+    ['without a body', bodiless, '这一条没有正文。'],
+    ['that is gone', () => ({ outcome: 'not-found', body: {} }), '这一条已经不在收件箱里了。'],
+    ['that cannot be read', () => ({ outcome: 'basis-unavailable' }), '正文现在读不出，稍后再试。'],
+  ])('an opened notification %s shows that in place of the body', async (_label, reply, text) => {
     const { fake } = await shown([entry('e1', 1, { marks: seen })])
     await click(screen.getByRole('button', { name: 'Title e1' }))
-    await answer(fake, 'read-notification', reply)
+    await answer(fake, 'read-notification', reply())
     expect(rowOf('Title e1').getByText(text)).toBeTruthy()
     expect(screen.queryByText(/^对象：/)).toBeNull()
     expect(screen.queryByText(/^去处：/)).toBeNull()
@@ -177,11 +179,14 @@ describe('the inbox page', () => {
 
   it('switches to everything and back, and reads again each time', async () => {
     const { fake } = await shown([entry('e1', 1)])
-    await click(screen.getByRole('radio', { name: '全部' }))
+    const option = (name: string, pressed: boolean) => screen.getByRole('button', { name, pressed })
+    expect(option('未了结', true)).toBeTruthy()
+    await click(option('全部', false))
+    expect(option('全部', true)).toBeTruthy()
     const all = await answer(fake, 'list-inbox', page([]))
     expect(all.body).toMatchObject({ filter: 'all' })
     expect(screen.getByText('收件箱是空的')).toBeTruthy()
-    await click(screen.getByRole('radio', { name: '未了结' }))
+    await click(option('未了结', false))
     expect((await fake.next('list-inbox')).body).toMatchObject({ filter: 'unresolved' })
   })
 
