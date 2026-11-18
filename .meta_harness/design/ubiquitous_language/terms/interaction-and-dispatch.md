@@ -784,13 +784,14 @@
 ### UL-asset-governance-port · 资产治理口 · Asset Governance Port
 
 > **中**：**资产的界面模块交给一类资产的界面模块的一个口。**
-> 经它拿得到：这一类资产在一个租户下有哪些份，每一份的设置项与它们此刻的值，改与清除这些值的操作，以及现成的默认部件。
+> 经它拿得到：这一类资产在一个租户下有哪些份，每一份的[资产简介](capabilities-and-composition.md#ul-asset-summary--资产简介--asset-summary)、内容、设置项与它们此刻的值，改与清除这些值的操作，新建、启用、禁用、移除一份资产的操作，以及现成的默认部件。
 > 类别的界面模块声明自己要的形状，资产的界面模块来适配，应用的装配把它交过去；两个界面模块互不导入。
 >
 > **EN**: **A port that the UI module of assets gives to the UI module of one asset category.**
-> Through it the category gets the assets of that category in one tenant, the setting entries of
-> each asset with their current values, the operations that change or clear those values, and
-> ready-made default parts. The UI module of the category declares the shape that it needs. The
+> Through it the category gets the assets of that category in one tenant, the asset summary, the
+> content and the setting entries of each asset with their current values, the operations that
+> change or clear those values, the operations that create, enable, disable and remove an asset,
+> and ready-made default parts. The UI module of the category declares the shape that it needs. The
 > assets UI module adapts to that shape, and the application assembly passes the port on. The
 > two UI modules do not import each other.
 
