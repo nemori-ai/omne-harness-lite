@@ -1,5 +1,5 @@
 import { readTenantText } from '@omne-harness/public-contract'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { InboxDriver } from '../src/model/inbox-driver.ts'
 import { InboxHub } from '../src/model/inbox-hub.ts'
 import { keyOf } from '../src/model/inbox-machine.ts'
@@ -163,6 +163,70 @@ describe('the driver of one inbox', () => {
     driver.refresh()
     expect(driver.getState()).toBe(before)
     expect(fake.calls.filter(item => item.operation === 'list-inbox')).toHaveLength(1)
+  })
+})
+
+describe('the driver on real timers', () => {
+  it('cancels the reconnect it scheduled when it is disposed', async () => {
+    vi.useFakeTimers()
+    try {
+      const fake = createFakeClient()
+      const driver = new InboxDriver({ client: fake.client, tenant })
+      driver.retain()
+      fake.observations[0]!.end({ kind: 'unavailable' })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(driver.getState().live).toEqual({ kind: 'retrying', attempt: 1 })
+      expect(vi.getTimerCount()).toBe(1)
+      driver.dispose()
+      expect(vi.getTimerCount()).toBe(0)
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(fake.observations).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('cancels the reconnect when nobody watches any more, and watches again from a new observation', async () => {
+    vi.useFakeTimers()
+    try {
+      const fake = createFakeClient()
+      const driver = new InboxDriver({ client: fake.client, tenant })
+      const release = driver.retain()
+      fake.observations[0]!.end({ kind: 'unavailable' })
+      await vi.advanceTimersByTimeAsync(0)
+      release()
+      expect(vi.getTimerCount()).toBe(0)
+      driver.retain()
+      expect(fake.observations).toHaveLength(2)
+      expect(fake.observations[1]!.signal.aborted).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reconnects after the wait when nothing stops it', async () => {
+    vi.useFakeTimers()
+    try {
+      const fake = createFakeClient()
+      const driver = new InboxDriver({ client: fake.client, tenant })
+      driver.retain()
+      fake.observations[0]!.end({ kind: 'unavailable' })
+      await vi.advanceTimersByTimeAsync(199)
+      expect(fake.observations).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(fake.observations).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('a driver nobody ever watched', () => {
+  it('is disposed without having anything to stop', () => {
+    const fake = createFakeClient()
+    const driver = new InboxDriver({ client: fake.client, tenant })
+    expect(() => driver.dispose()).not.toThrow()
+    expect(fake.observations).toEqual([])
   })
 })
 

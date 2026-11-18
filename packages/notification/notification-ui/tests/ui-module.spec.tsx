@@ -149,6 +149,9 @@ it('another domain puts a section into the panel through the point, and takes it
     '持续事项有一件事还开着',
   ])
   expect(first.getByRole('heading', { name: '持续事项' })).toBeTruthy()
+  expect(
+    [...extra.querySelectorAll('section')].map(section => section.querySelectorAll('h3').length),
+  ).toEqual([0, 1])
   expect(seenBy[0]).toEqual({ scope: TENANT, subject: { recipient: 'person' } })
   cleanup()
   await other.dispose()

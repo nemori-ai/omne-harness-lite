@@ -79,7 +79,7 @@ export type Event =
   | Readonly<{ kind: 'watch' | 'unwatch' | 'refresh' | 'close' }>
   | Readonly<{ kind: 'filter'; filter: Filter }>
   | Readonly<{ kind: 'frame'; generation: number; about: 'inbox' | 'catalog' }>
-  | Readonly<{ kind: 'observation-ended'; generation: number; end: InboxEnd }>
+  | Readonly<{ kind: 'observation-ended'; generation: number; denied: boolean }>
   | Readonly<{ kind: 'reconnect-due'; generation: number }>
   | Readonly<{ kind: 'list-answered'; token: number; answer: ListAnswer }>
   | Readonly<{ kind: 'mark'; key: string; operation: MarkOperation }>
@@ -143,7 +143,8 @@ function listAnswered(state: State, event: Extract<Event, { kind: 'list-answered
   return read.again ? restart(ready) : still(ready)
 }
 
-const deniedEnd = (end: InboxEnd): boolean =>
+/** Whether an observation ended because the login may not watch this tenant. Any other end is retried. */
+export const deniedEnd = (end: InboxEnd): boolean =>
   (end.kind === 'ended' && end.reason === 'denied') ||
   (end.kind === 'refused' && end.outcome === 'denied')
 
@@ -152,7 +153,7 @@ function observationEnded(
   event: Extract<Event, { kind: 'observation-ended' }>,
 ): Step {
   if (event.generation !== state.generation || state.live.kind === 'off') return still(state)
-  if (deniedEnd(event.end))
+  if (event.denied)
     return still({
       ...state,
       live: { kind: 'denied' },

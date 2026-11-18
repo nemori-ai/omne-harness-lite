@@ -80,7 +80,7 @@ export function EntryRow({ entry, state, driver }: EntryRowProps): JSX.Element {
   const opened = state.opened?.key === key ? state.opened : null
   const label = stateOf(entry)
   return (
-    <li className="notification-row" data-level={entry.level} data-open={opened !== null}>
+    <li className="notification-row">
       <div className="notification-line">
         <Button
           variant="link"

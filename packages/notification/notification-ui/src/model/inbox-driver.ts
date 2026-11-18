@@ -4,6 +4,7 @@ import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import {
   INITIAL,
+  deniedEnd,
   step,
   type Effect,
   type Event,
@@ -43,8 +44,9 @@ export class InboxDriver {
   readonly #client: ClientOf<NotificationProtocol>
   readonly #tenant: TenantId
   readonly #schedule: Schedule
-  readonly #observations = new Map<number, AbortController>()
-  readonly #timers = new Set<() => void>()
+  /** At most one observation is open and at most one reconnect is waiting. */
+  #observation: AbortController | undefined
+  #cancelRetry: (() => void) | undefined
   #holders = 0
   #disposed = false
 
@@ -64,7 +66,7 @@ export class InboxDriver {
   /** Watches while anything on screen holds it. */
   retain = (): (() => void) => {
     this.#holders += 1
-    if (this.#holders === 1) this.dispatch({ kind: 'watch' })
+    this.dispatch({ kind: 'watch' })
     let held = true
     return () => {
       if (!held) return
@@ -97,7 +99,6 @@ export class InboxDriver {
   dispose(): void {
     this.#disposed = true
     this.#stop()
-    this.#listeners.clear()
   }
 
   dispatch(event: Event): void {
@@ -110,10 +111,8 @@ export class InboxDriver {
   }
 
   #stop(): void {
-    for (const controller of this.#observations.values()) controller.abort()
-    this.#observations.clear()
-    for (const cancel of this.#timers) cancel()
-    this.#timers.clear()
+    this.#observation?.abort()
+    this.#cancelRetry?.()
   }
 
   #run(effect: Effect): void {
@@ -154,16 +153,14 @@ export class InboxDriver {
   }
 
   #reconnectLater(generation: number, attempt: number): void {
-    const cancel = this.#schedule(defaultBackoff.delayMs(attempt - 1), () => {
-      this.#timers.delete(cancel)
-      this.dispatch({ kind: 'reconnect-due', generation })
-    })
-    this.#timers.add(cancel)
+    this.#cancelRetry = this.#schedule(defaultBackoff.delayMs(attempt - 1), () =>
+      this.dispatch({ kind: 'reconnect-due', generation }),
+    )
   }
 
   async #observe(generation: number): Promise<void> {
     const controller = new AbortController()
-    this.#observations.set(generation, controller)
+    this.#observation = controller
     const frames = this.#client.observe['observe-changes'](
       { tenant: this.#tenant },
       { signal: controller.signal },
@@ -172,15 +169,14 @@ export class InboxDriver {
       for (;;) {
         const next = await frames.next()
         if (next.done === true) {
-          this.dispatch({ kind: 'observation-ended', generation, end: next.value })
+          const denied = deniedEnd(next.value)
+          this.dispatch({ kind: 'observation-ended', generation, denied })
           return
         }
         this.dispatch({ kind: 'frame', generation, about: next.value.about })
       }
     } catch {
-      this.dispatch({ kind: 'observation-ended', generation, end: { kind: 'uncertain' } })
-    } finally {
-      if (this.#observations.get(generation) === controller) this.#observations.delete(generation)
+      this.dispatch({ kind: 'observation-ended', generation, denied: false })
     }
   }
 }

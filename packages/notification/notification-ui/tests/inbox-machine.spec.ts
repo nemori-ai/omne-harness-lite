@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   INITIAL,
   PAGE_CAP,
+  deniedEnd,
   keyOf,
   openCount,
   sectionsOf,
@@ -43,10 +44,11 @@ describe('watching', () => {
     expect(framed.effects).toEqual([{ kind: 'list', token: 1, filter: 'unresolved', after: null }])
   })
 
-  it('a catalogue frame reads nothing', () => {
+  it('a catalogue frame reads nothing, and changes nothing while it is live', () => {
     expect(run([{ kind: 'watch' }, frame(1, 'catalog')]).effects).toEqual([
       { kind: 'observe', generation: 1 },
     ])
+    expect(step(READY, frame(1, 'catalog')).state).toBe(READY)
   })
 
   it('stops the observation when nobody watches, keeps the list, and ignores what still arrives', () => {
@@ -55,7 +57,7 @@ describe('watching', () => {
     expect(stopped.state).toMatchObject({ live: { kind: 'off' }, entries: [e1, e2] })
     expect(run([{ kind: 'unwatch' }], stopped.state).effects).toEqual([])
     expect(run([frame()], stopped.state)).toEqual({ state: stopped.state, effects: [] })
-    const ended = { kind: 'observation-ended', generation: 1, end: { kind: 'aborted' } } as const
+    const ended = { kind: 'observation-ended', generation: 1, denied: false } as const
     expect(run([ended], stopped.state)).toEqual({ state: stopped.state, effects: [] })
     expect(run([{ kind: 'watch' }], stopped.state).effects).toEqual([
       { kind: 'observe', generation: 2 },
@@ -64,11 +66,7 @@ describe('watching', () => {
 
   it('ignores a frame and an end of an observation it already replaced', () => {
     expect(run([frame(7)], READY)).toEqual({ state: READY, effects: [] })
-    const ended = {
-      kind: 'observation-ended',
-      generation: 7,
-      end: { kind: 'unavailable' },
-    } as const
+    const ended = { kind: 'observation-ended', generation: 7, denied: true } as const
     expect(run([ended], READY)).toEqual({ state: READY, effects: [] })
   })
 })
@@ -151,35 +149,24 @@ describe('reading the list', () => {
 })
 
 describe('an observation that ends', () => {
-  const ended = (end: object, generation = 1) =>
-    ({ kind: 'observation-ended', generation, end }) as never
+  const ended = (denied = false, generation = 1) =>
+    ({ kind: 'observation-ended', generation, denied }) as const
 
-  it.each([
-    [{ kind: 'unavailable' }],
-    [{ kind: 'uncertain' }],
-    [{ kind: 'ended', reason: 'unavailable' }],
-    [{ kind: 'refused', outcome: 'basis-unavailable' }],
-  ])(
-    '%j: keeps the list, retries later with a longer wait each time, and opens a new observation',
-    end => {
-      const first = run([ended(end)], READY)
-      expect(first.state).toMatchObject({
-        live: { kind: 'retrying', attempt: 1 },
-        entries: [e1, e2],
-      })
-      expect(first.effects).toEqual([{ kind: 'reconnect-later', generation: 1, attempt: 1 }])
-      const due = run([{ kind: 'reconnect-due', generation: 1 }], first.state)
-      expect(due.effects).toEqual([{ kind: 'observe', generation: 2 }])
-      const second = run([ended(end, 2)], due.state)
-      expect(second.effects).toEqual([{ kind: 'reconnect-later', generation: 2, attempt: 2 }])
-      const back = run([{ kind: 'reconnect-due', generation: 2 }, frame(3)], second.state)
-      expect(back.state.live).toEqual({ kind: 'on' })
-      expect(back.effects.at(-1)).toMatchObject({ kind: 'list' })
-    },
-  )
+  it('keeps the list, retries later with a longer wait each time, and opens a new observation', () => {
+    const first = run([ended()], READY)
+    expect(first.state).toMatchObject({ live: { kind: 'retrying', attempt: 1 }, entries: [e1, e2] })
+    expect(first.effects).toEqual([{ kind: 'reconnect-later', generation: 1, attempt: 1 }])
+    const due = run([{ kind: 'reconnect-due', generation: 1 }], first.state)
+    expect(due.effects).toEqual([{ kind: 'observe', generation: 2 }])
+    const second = run([ended(false, 2)], due.state)
+    expect(second.effects).toEqual([{ kind: 'reconnect-later', generation: 2, attempt: 2 }])
+    const back = run([{ kind: 'reconnect-due', generation: 2 }, frame(3)], second.state)
+    expect(back.state.live).toEqual({ kind: 'on' })
+    expect(back.effects.at(-1)).toMatchObject({ kind: 'list' })
+  })
 
   it('reads once anyway when the observation ended before it ever said anything', () => {
-    const blind = run([{ kind: 'watch' }, ended({ kind: 'unavailable' })])
+    const blind = run([{ kind: 'watch' }, ended()])
     expect(blind.effects).toEqual([
       { kind: 'observe', generation: 1 },
       { kind: 'reconnect-later', generation: 1, attempt: 1 },
@@ -187,23 +174,32 @@ describe('an observation that ends', () => {
     ])
   })
 
-  it.each([[{ kind: 'ended', reason: 'denied' }], [{ kind: 'refused', outcome: 'denied' }]])(
-    '%j: shows nothing and does not retry',
-    end => {
-      const denied = run([ended(end)], READY)
-      expect(denied.state).toMatchObject({
-        live: { kind: 'denied' },
-        entries: [],
-        read: { kind: 'failed', reason: 'denied' },
-      })
-      expect(denied.effects).toEqual([])
-    },
-  )
+  it('when it was refused it shows nothing and does not retry', () => {
+    const denied = run([ended(true)], READY)
+    expect(denied.state).toMatchObject({
+      live: { kind: 'denied' },
+      entries: [],
+      read: { kind: 'failed', reason: 'denied' },
+    })
+    expect(denied.effects).toEqual([])
+  })
 
   it('a reconnect that is due for an observation it replaced, or when it is not retrying, does nothing', () => {
     expect(run([{ kind: 'reconnect-due', generation: 1 }], READY).effects).toEqual([])
-    const retrying = run([ended({ kind: 'unavailable' })], READY).state
+    const retrying = run([ended()], READY).state
     expect(run([{ kind: 'reconnect-due', generation: 9 }], retrying).effects).toEqual([])
+  })
+
+  it.each([
+    [{ kind: 'ended', reason: 'denied' }, true],
+    [{ kind: 'refused', outcome: 'denied' }, true],
+    [{ kind: 'ended', reason: 'unavailable' }, false],
+    [{ kind: 'refused', outcome: 'basis-unavailable' }, false],
+    [{ kind: 'unavailable' }, false],
+    [{ kind: 'uncertain' }, false],
+    [{ kind: 'aborted' }, false],
+  ])('an end of %j is a refusal: %s', (end, denied) => {
+    expect(deniedEnd(end as never)).toBe(denied)
   })
 })
 
@@ -223,10 +219,12 @@ describe('marking', () => {
     expect(answered.state.marking).toEqual({})
     expect(answered.effects).toEqual([])
     const recalled = run(
-      [{ kind: 'mark', key: k1, operation: 'done' }, marked({ outcome: 'no-change', body: done })],
-      answered.state,
+      [{ kind: 'mark', key: k1, operation: 'seen' }, marked({ outcome: 'no-change', body: seen })],
+      READY,
     )
-    expect(recalled.state.entries[0]!.marks).toEqual(done)
+    expect(recalled.state.entries[0]!.marks).toEqual(seen)
+    expect(recalled.state.notices).toEqual({})
+    expect(recalled.effects).toHaveLength(1)
   })
 
   it('does nothing for a notification that is not in the list, or an answer nobody waits for', () => {

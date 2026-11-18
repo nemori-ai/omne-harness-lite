@@ -73,12 +73,13 @@ describe('the inbox page', () => {
       'Title e2',
       'Title e1',
     ])
-    expect(rows[0]!.textContent).toContain('agent.posts · 弱提醒')
-    expect(rows[0]!.textContent).not.toContain('未读')
-    expect(rows[1]!.textContent).toContain('demo.things · 强提醒')
-    expect(rows[1]!.textContent).toContain('未读')
-    expect(rows[1]!.getAttribute('data-level')).toBe('strong')
+    const meta = (row: HTMLElement) => row.querySelector('.notification-meta')!.textContent
+    expect(meta(rows[0]!)).toMatch(/^agent\.posts · 弱提醒 · \S.*[^l]$/)
+    expect(meta(rows[0]!)).not.toMatch(/未读|null|undefined/)
+    expect(meta(rows[1]!)).toMatch(/^demo\.things · 强提醒 · .* · 未读$/)
     expect(screen.queryByRole('region', { name: '已了结' })).toBeNull()
+    for (const role of ['alert', 'status']) expect(screen.queryByRole(role)).toBeNull()
+    expect(screen.queryByText(/读不出|没有列全|没有未了结的通知|收件箱是空的/)).toBeNull()
   })
 
   it('offers done and dismiss for what is open, restore for what is settled, nothing for what was replaced', async () => {
@@ -99,9 +100,11 @@ describe('the inbox page', () => {
     expect(names('Title old')).toEqual([])
     const settled = region('已了结')
     expect(settled.getByRole('heading').textContent).toBe('已了结（3）')
-    expect(settled.getByText(/已办完/)).toBeTruthy()
-    expect(settled.getByText(/已划掉/)).toBeTruthy()
-    expect(settled.getByText(/已被顶替/)).toBeTruthy()
+    const labelOf = (title: string) => rowOf(title).getByText(/ · 已/).textContent
+    expect(labelOf('Title done')).toMatch(/ · 已办完$/)
+    expect(labelOf('Title dismissed')).toMatch(/ · 已划掉$/)
+    expect(labelOf('Title old')).toMatch(/ · 已被顶替$/)
+    expect(screen.queryByText(/没有未了结的通知|收件箱是空的/)).toBeNull()
   })
 
   it('marks done: the buttons wait for the answer, and the row moves when the server says so', async () => {
@@ -119,21 +122,57 @@ describe('the inbox page', () => {
   })
 
   it.each([
-    [{ outcome: 'conflict', body: { reason: 'restore-first' } }, '要先恢复才能改'],
-    [{ outcome: 'conflict', body: { reason: 'superseded' } }, '已经被更新的一条顶替了'],
-    [{ outcome: 'not-found', body: {} }, '已经不在收件箱里了'],
-    [{ outcome: 'unknown' }, '不确定有没有办成'],
-    [{ outcome: 'denied' }, '没有权限处置这一条'],
-    [{ outcome: 'basis-unavailable' }, '现在办不了，这一条没有变'],
-  ])('a mark answered %j says so on the row and does not move it', async (reply, text) => {
-    const { fake } = await shown([entry('e1', 1)])
+    [{ outcome: 'conflict', body: { reason: 'restore-first' } }, '要先恢复才能改', 'caution'],
+    [{ outcome: 'conflict', body: { reason: 'superseded' } }, '已经被更新的一条顶替了', 'caution'],
+    [{ outcome: 'not-found', body: {} }, '已经不在收件箱里了', 'caution'],
+    [{ outcome: 'unknown' }, '不确定有没有办成', 'caution'],
+    [{ outcome: 'denied' }, '没有权限处置这一条', 'danger'],
+    [{ outcome: 'basis-unavailable' }, '现在办不了，这一条没有变', 'caution'],
+  ])('a mark answered %j says so on the row and does not move it', async (reply, text, tone) => {
+    const { fake } = await shown([entry('e1', 1), entry('e2', 2)])
     await click(rowOf('Title e1').getByRole('button', { name: '划掉' }))
-    await answer(fake, 'mark', reply)
-    expect(rowOf('Title e1').getByText(new RegExp(text))).toBeTruthy()
-    expect(region('未了结').getAllByRole('listitem')).toHaveLength(1)
+    const call = await answer(fake, 'mark', reply)
+    expect(call.body).toMatchObject({ event: 'e1', operation: 'dismiss' })
+    const said = rowOf('Title e1').getByRole('status')
+    expect(said.textContent).toMatch(new RegExp(text))
+    expect(said.getAttribute('data-tone')).toBe(tone)
+    expect(rowOf('Title e2').queryByRole('status')).toBeNull()
+    expect(region('未了结').getAllByRole('listitem')).toHaveLength(2)
     expect(rowOf('Title e1').getByRole('button', { name: '划掉' }).hasAttribute('disabled')).toBe(
       false,
     )
+  })
+
+  it('with as many settled as open it shows both sections and no empty state', async () => {
+    await shown([entry('e1', 1), entry('e2', 2, { marks: done })])
+    expect(region('未了结').getAllByRole('listitem')).toHaveLength(1)
+    expect(region('已了结').getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.queryByText(/没有未了结的通知|收件箱是空的|正在读取/)).toBeNull()
+  })
+
+  it('opens only the notification that was asked for', async () => {
+    const { fake } = await shown([entry('e1', 1, { marks: seen }), entry('e2', 2, { marks: seen })])
+    await click(screen.getByRole('button', { name: 'Title e1' }))
+    await answer(fake, 'read-notification', { outcome: 'succeeded', body: view(entry('e1', 1)) })
+    expect(rowOf('Title e1').getByText('Body')).toBeTruthy()
+    expect(rowOf('Title e2').queryByText('Body')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Title e2' }).getAttribute('aria-expanded')).toBe(
+      'false',
+    )
+  })
+
+  it('follows the tenant it is given: the old inbox is let go and the new one is observed', async () => {
+    const { fake, hub, rendered } = await shown([entry('e1', 1)])
+    const other = TENANT.replace('acc_00000000000000000000000001', 'acc_00000000000000000000000002')
+    rendered.rerender(<InboxPage hub={hub} tenant={other} />)
+    await settle()
+    expect(fake.observations).toHaveLength(2)
+    expect(fake.observations[0]!.signal.aborted).toBe(true)
+    expect(fake.observations[1]!.signal.aborted).toBe(false)
+    expect(screen.queryByRole('region', { name: '未了结' })).toBeNull()
+    await act(async () => fake.observations[1]!.frame())
+    await answer(fake, 'list-inbox', page([entry('theirs', 1)]))
+    expect(screen.getByRole('button', { name: 'Title theirs' })).toBeTruthy()
   })
 
   it('opens a notification: shows its body, marks it seen, and closes again', async () => {
@@ -256,6 +295,7 @@ describe('the inbox page', () => {
     await act(async () => refused.fake.observations[0]!.end({ kind: 'ended', reason: 'denied' }))
     await settle()
     expect(screen.getByRole('alert').textContent).toContain('没有权限看这个收件箱')
+    expect(screen.queryByText(/读不出/)).toBeNull()
     expect(screen.queryByRole('region', { name: '未了结' })).toBeNull()
     expect(screen.queryByText('没有未了结的通知')).toBeNull()
   })
