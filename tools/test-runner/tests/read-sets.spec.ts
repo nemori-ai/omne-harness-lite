@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process'
+import { repositoryEnv } from '@omne-harness/repo-toolchain/core/git-environment'
 import {
   existsSync,
   mkdirSync,
@@ -19,6 +21,7 @@ import {
   READ_SETS_ENV,
   READ_SETS_HOME_ENV,
   RUNTIME_KEY,
+  TYPECHECK_ONLY,
   compareRecords,
   describeReadSets,
   digestKey,
@@ -135,10 +138,11 @@ describe('一份用例文件的读集', () => {
     expect(reads).toEqual(['content:a.spec.ts', RUNTIME_KEY])
   })
 
-  it('没有记录器交回的记录时标不全；记录器给的原因原样带上', () => {
+  it('没有记录器交回的记录时标不全；只做类型检查的文件写明是它；记录器给的原因原样带上', () => {
     const root = tree()
     const { recorded: _, ...bare } = raw(root, 'a.spec.ts')
     expect(readsOf(root, bare, []).incomplete).toEqual([NO_RECORDER])
+    expect(readsOf(root, { ...bare, typecheck: true }, []).incomplete).toEqual([TYPECHECK_ONLY])
     expect(
       readsOf(
         root,
@@ -195,10 +199,36 @@ describe('一项读的摘要', () => {
     writeFileSync(join(root, 'a.txt'), 'two')
     expect(digest('content:a.txt')).toBe(first)
   })
+
+  it('通配：在 git 的文件清单（已跟踪的与没被忽略的）里匹配，匹配到的文件内容变了、多了、少了都变；不匹配的、被忽略的多了不变；不是 git 仓库时记读不出', () => {
+    const root = tree({
+      '.gitignore': 'ignored/\n',
+      'turbo.json': '{}',
+      'packages/a/turbo.json': '{}',
+      'packages/a/src/x.ts': '',
+    })
+    const key = 'glob:**/turbo.json'
+    expect(digestKey(root, key)).toBe('unreadable')
+    execFileSync('git', ['init', '-q'], { cwd: root, env: repositoryEnv(process.env) })
+    const before = digestKey(root, key)
+    writeFileSync(join(root, 'packages/a/src/y.ts'), '')
+    mkdirSync(join(root, 'ignored'))
+    writeFileSync(join(root, 'ignored/turbo.json'), '{}')
+    expect(digestKey(root, key)).toBe(before)
+    writeFileSync(join(root, 'packages/a/turbo.json'), '{"tasks":{}}')
+    const changed = digestKey(root, key)
+    expect(changed).not.toBe(before)
+    mkdirSync(join(root, 'packages/b'))
+    writeFileSync(join(root, 'packages/b/turbo.json'), '{}')
+    expect(digestKey(root, key)).not.toBe(changed)
+    rmSync(join(root, 'packages/b/turbo.json'))
+    expect(digestKey(root, key)).toBe(changed)
+    expect(digestKey(root, 'glob:tsconfig*.json')).not.toBe(digestKey(root, key))
+  })
 })
 
 function record(files: ReadSetRecord['files'], tree: ReadSetRecord['tree']): ReadSetRecord {
-  return { version: 1, head: 'h', recordedAt: 't', tree, files }
+  return { version: 2, head: 'h', recordedAt: 't', tree, files }
 }
 
 describe('对着上一次的记录', () => {
@@ -267,9 +297,9 @@ describe('对着上一次的记录', () => {
 })
 
 describe('读回存下的东西', () => {
-  const good: ReadSetRecord = { version: 1, head: 'h', recordedAt: 't', tree: {}, files: {} }
+  const good: ReadSetRecord = { version: 2, head: 'h', recordedAt: 't', tree: {}, files: {} }
 
-  it('记录：形状对才认，没有、不是 JSON、版本不对、树或文件表不是对象的都按没有记录算', () => {
+  it('记录：形状对才认，没有、不是 JSON、版本不对（含底里没有通配键的版本 1）、树或文件表不是对象的都按没有记录算', () => {
     const root = tree()
     const at = (name: string, text: string) => {
       writeFileSync(join(root, name), text)
@@ -280,12 +310,13 @@ describe('读回存下的东西', () => {
     expect(readRecord(at('bad.json', '{'))).toBeUndefined()
     expect(readRecord(at('null.json', 'null'))).toBeUndefined()
     for (const broken of [
-      { ...good, version: 2 },
+      { ...good, version: 1 },
+      { ...good, version: 3 },
       { ...good, tree: null },
       { ...good, tree: 'x' },
       { ...good, files: null },
       { ...good, files: 'x' },
-      { version: 1, head: 'h', recordedAt: 't', tree: {} },
+      { version: 2, head: 'h', recordedAt: 't', tree: {} },
     ])
       expect(readRecord(at('broken.json', JSON.stringify(broken)))).toBeUndefined()
   })
@@ -332,7 +363,7 @@ describe('一次运行的记录与报告', () => {
     expect(made.tree['content:pkg/tests/a.spec.ts']).toBe(
       digestKey(root, 'content:pkg/tests/a.spec.ts'),
     )
-    expect(made).toMatchObject({ version: 1, ...at })
+    expect(made).toMatchObject({ version: 2, ...at })
   })
 
   it('同一棵树连记两次：第一次都没有记录，第二次全部命中且相同；改一个读到的文件，只有读它的那份变', () => {
@@ -427,7 +458,7 @@ describe('一次运行的记录与报告', () => {
     member(root, runDir, 'pkg', [raw(root, 'pkg/tests/a.spec.ts')])
     expect(recordReadSets(options)[0]?.outcomes[0]?.cell).toBe('no-record')
     expect(JSON.parse(readFileSync(recordPath(home, 'pkg', 'fast'), 'utf8'))).toMatchObject({
-      version: 1,
+      version: 2,
     })
   })
 

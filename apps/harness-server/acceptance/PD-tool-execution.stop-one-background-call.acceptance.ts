@@ -7,6 +7,8 @@ import {
   callOf,
   factsOf,
   history,
+  lastOutcomeOf,
+  likeARealModel,
   LIMIT_MS,
   omne,
   record,
@@ -29,15 +31,19 @@ it(
   { timeout: 4 * LIMIT_MS },
   async () => {
     const bodies: string[] = []
-    const script = toolCallsByRequest(body => {
-      bodies.push(body)
-      return body.includes(OPENING) && !body.includes('"role":"tool"')
-        ? [
-            { id: 'call_s5_stop', tool: 'Shell', arguments: waitingCommand('never-s5') },
-            { id: 'call_s5_keep', tool: 'Shell', arguments: waitingCommand('go-s5') },
-          ]
-        : []
-    })
+    const asked = { ownReply: 0 }
+    const script = likeARealModel(
+      toolCallsByRequest(body => {
+        bodies.push(body)
+        return body.includes(OPENING) && !body.includes('"role":"tool"')
+          ? [
+              { id: 'call_s5_stop', tool: 'Shell', arguments: waitingCommand('never-s5') },
+              { id: 'call_s5_keep', tool: 'Shell', arguments: waitingCommand('go-s5') },
+            ]
+          : []
+      }),
+      asked,
+    )
     const observed: Record<string, unknown> = {}
     let passed = false
     const exitCode = await onReleaseTree(
@@ -128,6 +134,18 @@ it(
           assert.equal(factsOf(tree, target).starts, 1)
           assert.deepEqual(await backgroundCalls(tree, session), [])
           await untilQuiet(tree, session, 2)
+          observed['wokenOutcome'] = lastOutcomeOf(await history(tree, session))
+          observed['requestsEndingWithOwnReply'] = asked.ownReply
+          assert.equal(
+            observed['wokenOutcome'],
+            'completed',
+            'the turn the other outcome opened ends completed',
+          )
+          assert.equal(
+            asked.ownReply,
+            0,
+            'no model request ends with a reply the model already finished',
+          )
           passed = true
         } finally {
           record('S5', passed, observed)

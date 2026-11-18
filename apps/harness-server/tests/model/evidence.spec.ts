@@ -9,6 +9,8 @@ import {
 import type { HandoffEvidenceInput } from '@omne-harness/model/commands'
 import { expect, it } from 'vitest'
 import { createModelEvidence } from '../../src/model/evidence.ts'
+import type { ModelCommandsEvidence } from '@omne-harness/model/commands'
+import { createDefaultRetryPolicy } from '@omne-harness/model'
 import { DEFAULT_COMPACTION_CONSUMER } from '@omne-harness/context-compaction'
 
 function must<T>(outcome: { ok: T } | { failure: unknown }): T {
@@ -52,6 +54,7 @@ function evidenceWith(asked: AgentCustodyQuestion<unknown>[]) {
   return createModelEvidence(ADOPTION, {
     initial: () => undefined,
     reader: () => undefined,
+    receive: () => undefined,
     custody: () => ({
       verify: input => {
         asked.push(input)
@@ -69,6 +72,7 @@ it('routes the default summary owner to its own durable completion proof', async
   const evidence = createModelEvidence(ADOPTION, {
     initial: () => undefined,
     reader: () => undefined,
+    receive: () => undefined,
     custody: () => undefined,
     compaction: () => ({
       verify: async given => {
@@ -100,4 +104,78 @@ it('answers unavailable for the ACK of another owner and does not ask the Agent 
     },
   })
   expect(asked).toEqual([])
+})
+
+type ReceiveInput = Parameters<ModelCommandsEvidence['receive']>[0]
+type RetryInput = Parameters<ModelCommandsEvidence['retry']>[0]
+
+it('asks the installed receive record for the proof, and answers unavailable while none is installed', async () => {
+  const asked: ReceiveInput[] = []
+  const proof = { ok: { window: 'w', batchDigest: 'd', paused: true, noPrefetch: true } } as const
+  const reader: { current: { prove(input: ReceiveInput): typeof proof } | undefined } = {
+    current: undefined,
+  }
+  const evidence = createModelEvidence(ADOPTION, {
+    initial: () => undefined,
+    reader: () => undefined,
+    receive: () => reader.current as never,
+    custody: () => undefined,
+  })
+  const input = { window: 'w' } as unknown as ReceiveInput
+
+  expect(await evidence.receive(input)).toEqual({
+    failure: {
+      kind: 'unavailable',
+      dependency: 'model-receive-evidence',
+      diagnostic: 'receive-window-unproven',
+    },
+  })
+  reader.current = {
+    prove: given => {
+      asked.push(given)
+      return proof
+    },
+  }
+  expect(await evidence.receive(input)).toBe(proof)
+  expect(asked).toEqual([input])
+})
+
+it('accepts the retry decision of the default policy, and refuses the same source for another decision', async () => {
+  const evidence = evidenceWith([])
+  const position = {
+    operation: must(decodeModelOperationId('mop_position')),
+    dispatch: 'mdisp_one',
+    policy: ADOPTION,
+    consumer: { owner: 'policy', work: call, position: 'mdisp_one', purpose: 'model-retry' },
+  } as unknown as RetryInput['position']
+  const supplier = { adoption: ADOPTION } as RetryInput['request']['suppliers'][number]
+  const request = {
+    retryPolicy: ADOPTION,
+    fallback: false,
+    suppliers: [supplier],
+  } as unknown as RetryInput['request']
+  const policy = createDefaultRetryPolicy<unknown>({
+    adoption: ADOPTION,
+    policy: { maxAttempts: 2, maxElapsedMs: 1000, delaysMs: [0], jitter: 0 },
+    clock: { now: () => '2026-11-17T00:00:00.000Z' },
+    random: () => 0,
+  })
+  const answer = await policy.decide({
+    position,
+    request,
+    dispatches: [{}],
+    failure: { cause: 'upstream-unavailable', upstreamStatus: '503', diagnostic: 'http-503' },
+  } as unknown as Parameters<typeof policy.decide>[0])
+  if (!('ok' in answer) || answer.ok.kind !== 'decided') throw new Error(JSON.stringify(answer))
+  const { decision, source } = answer.ok
+  expect(decision.kind).toBe('retry')
+
+  const given = { position, decision, source, request } as RetryInput
+  expect(await evidence.retry(given)).toEqual({ ok: source })
+  expect(
+    await evidence.retry({
+      ...given,
+      decision: { kind: 'stop', fault: { cause: 'runtime-lost' } },
+    } as RetryInput),
+  ).toEqual({ failure: { kind: 'invalid', field: 'source', reason: 'untrusted' } })
 })

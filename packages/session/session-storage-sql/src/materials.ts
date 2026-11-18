@@ -29,6 +29,8 @@ import {
   FACT_BLOB_TABLES,
   FACT_BODY_MIGRATION,
   FACT_BODY_TABLES,
+  ITEM_MIGRATION,
+  ITEM_TABLES,
   EXECUTION_RECORD_INDEX_TABLES,
   EXECUTION_RECORD_MIGRATION,
   EXECUTION_RECORD_TABLES,
@@ -125,6 +127,7 @@ const factBlobMigrationRef = Object.freeze({
   owner: FACT_BLOB_MIGRATION.owner,
   id: FACT_BLOB_MIGRATION.id,
 })
+const itemMigrationRef = Object.freeze({ owner: ITEM_MIGRATION.owner, id: ITEM_MIGRATION.id })
 const indexMigrations = [
   migrationRef,
   attemptGrantMigrationRef,
@@ -133,6 +136,7 @@ const indexMigrations = [
   factBlobMigrationRef,
 ]
 const factMigrations = [migrationRef, recordMigrationRef, factBlobMigrationRef]
+const itemMigrations = [...factMigrations, itemMigrationRef]
 
 export type SessionStorageMaterialsOptions = Readonly<{
   readOutputLimitBytes: number
@@ -333,6 +337,28 @@ export const HANDLERS: readonly Handler[] = [
     migrations: [factBlobMigrationRef],
   },
   {
+    handler: 'execution-record.blobs',
+    file: 'read-blobs',
+    tables: ['sl_blob'],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [factBlobMigrationRef],
+    maxRowsRead: 20_000,
+  },
+  {
+    handler: 'execution-record.open-items',
+    file: 'read-execution-open-items',
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', ...ITEM_TABLES],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: itemMigrations,
+  },
+  {
+    handler: 'execution-record.items',
+    file: 'read-execution-items',
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', ...ITEM_TABLES],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: itemMigrations,
+  },
+  {
     handler: 'execution-record.preadmission',
     file: 'read-preadmission',
     tables: PREADMISSION_TABLES,
@@ -403,6 +429,7 @@ export function sessionStorageMaterials(
           ...STATE_PART_TABLES,
           ...FACT_BODY_TABLES,
           ...FACT_BLOB_TABLES,
+          ...ITEM_TABLES,
         ],
         readTables: [],
         requiresFacts: [],
@@ -473,6 +500,7 @@ export function sessionStorageMaterials(
         statePartMigrationRef,
         factBodyMigrationRef,
       ]),
+      migrationOf(itemMigrationRef, 'item-migration', [factBlobMigrationRef]),
     ],
     readHandlers: HANDLERS.map(item => {
       const file = module(item.file)

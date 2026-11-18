@@ -7,9 +7,12 @@
         "member": "apps/harness-server",
         "tier": "slow",
         "tokens": 2,
-        "why": "保守值，待量：用例里另起服务端进程。已有读数是 2 个 vitest 进程跑 824 到 843 秒、6 个进程过载变红；按账本的 CPU 秒数 ÷（墙钟秒数 × 进程数）量出来后改成那个数（向上取到 0.5 的倍数），并写上是哪一次量的"
+        "why": "没有实测读数时的起始值：用例里另起服务端进程，6 个进程一个令牌一个时过载变红。运行器量到这个成员这一层的 CPU 之后以读数为准"
       }
-    ]
+    ],
+    "weight": { "floor": 0.5, "ceiling": 4, "readings": 3, "minProcessSeconds": 10 },
+    "batchSeconds": 90,
+    "startupShare": 0.05
   },
   "affected": {
     "excludeRoots": ["examples"],
@@ -28,6 +31,7 @@
       "scripts/test-tier.sh",
       "tools/test-runner/test-runs.config.json",
       "tools/test-runner/src/testing/scope.ts",
+      "tools/test-runner/src/testing/path-pattern.ts",
       "tools/test-runner/src/testing/turbo.ts",
       "tools/test-runner/src/testing/cli.ts",
       "tools/test-runner/src/testing/config.ts",
@@ -41,6 +45,9 @@
       "tools/test-runner/src/testing/typecheck-scope.ts",
       "tools/test-runner/src/testing/member-turbo.ts",
       "tools/test-runner/src/testing/parallelism.ts",
+      "tools/test-runner/src/testing/cpu-meter.ts",
+      "tools/test-runner/src/testing/batches.ts",
+      "tools/test-runner/src/testing/read-set-skip.ts",
       "tools/test-runner/src/testing/token-pool.ts",
       "tools/test-runner/src/testing/token-ledger.ts",
       "tools/test-runner/src/testing/member-history.ts",

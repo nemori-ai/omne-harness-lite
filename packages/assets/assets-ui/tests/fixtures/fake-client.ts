@@ -45,6 +45,7 @@ export function createFakeClient(): FakeClient {
     'describe-setting': operation('describe-setting'),
     'set-setting': operation('set-setting'),
     'clear-setting': operation('clear-setting'),
+    'list-categories': operation('list-categories'),
     observe: {},
   } as unknown as Client
 

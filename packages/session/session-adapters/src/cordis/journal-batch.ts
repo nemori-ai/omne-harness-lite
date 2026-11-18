@@ -32,12 +32,16 @@ export type EventProjection = Readonly<{
 
 export type DerivedFact = Readonly<{ fact: FactBody; event: EventProjection | null }>
 
+// Only the blocks this write added can be missing from storage: an earlier write either stored its blocks or had its copy rebuilt.
 export function coreBlobRows(
   values: ReadonlyMap<string, unknown>,
+  added: Iterable<string>,
   stored: (row: string) => boolean,
   into: BlobSink,
 ): void {
-  for (const [digest, value] of values) {
+  for (const digest of added) {
+    if (!values.has(digest)) continue
+    const value = values.get(digest)
     const row = blobRowDigest(digest)
     if (stored(row) || into.has(row)) continue
     const payload = canonical(value)

@@ -7,6 +7,7 @@ import {
   decodeValue,
   EXECUTION_BATCH_MAX_FACTS,
   EXECUTION_FACT_MAX_BYTES,
+  EXECUTION_ITEM_MAX_BYTES,
   sha256,
 } from '../codec.ts'
 import { findPreadmission, preadmissionRecord } from './read-preadmission.ts'
@@ -37,6 +38,15 @@ type Boundary = Readonly<{
 type Event = Readonly<{ sequence: string; kinds: readonly string[]; projection: Json }>
 type Fact = Readonly<{ execution: string; kind: string; event: Event | null; body: string }>
 type Blob = Readonly<{ digest: string; media: string; payload: string }>
+// One item of an execution view this publication opens or changes; `open` is its state after it.
+type Item = Readonly<{
+  execution: string
+  family: string
+  item: string
+  change: 'opened' | 'changed'
+  open: boolean
+  body: string
+}>
 type Admission = Readonly<{
   input: string
   execution: string
@@ -57,6 +67,7 @@ type Write = Readonly<{
   digest: string
   facts: readonly Fact[]
   blobs: readonly Blob[]
+  items: readonly Item[]
   boundaries: readonly Boundary[]
   admissions: readonly Admission[]
 }>
@@ -137,6 +148,20 @@ function parseBlob(item: Json): Blob | null {
     : null
 }
 
+function parseItem(execution: string): (item: Json) => Item | null {
+  return raw => {
+    const owner = raw['execution'] ?? execution
+    const { family, item, change, open } = raw
+    if (!isText(owner) || !isText(family) || typeof item !== 'string' || !('body' in raw))
+      return null
+    if ((change !== 'opened' && change !== 'changed') || typeof open !== 'boolean') return null
+    const body = JSON.stringify(raw['body'] ?? null)
+    return utf8(body) > EXECUTION_ITEM_MAX_BYTES
+      ? null
+      : { execution: owner, family, item, change, open, body }
+  }
+}
+
 function parseAdmission(item: Json): Admission | null {
   const { input, execution, operation, attachment, attempt } = item
   const named = attempt === undefined || attempt === null || isText(attempt)
@@ -188,15 +213,19 @@ function parseWrite(raw: JsonValue | undefined): Write | null {
   if (head === null) return null
   const facts = listOf(raw['facts'], parseFact(head.execution))
   const blobs = listOf(raw['blobs'] ?? [], parseBlob)
+  const items = listOf(raw['items'] ?? [], parseItem(head.execution))
   const boundaries = listOf(raw['boundaries'], parseBoundary)
   const admissions = listOf(raw['admissions'], parseAdmission)
-  if (facts === null || blobs === null || boundaries === null || admissions === null) return null
+  if (facts === null || blobs === null || items === null) return null
+  if (boundaries === null || admissions === null) return null
   if (facts.length === 0 || facts.length > EXECUTION_BATCH_MAX_FACTS) return null
   const events = facts.flatMap(fact =>
     fact.event === null ? [] : [JSON.stringify([fact.execution, fact.event.sequence])],
   )
   if (new Set(events).size !== events.length) return null
-  return { ...head, facts, blobs, boundaries, admissions }
+  const keys = items.map(item => JSON.stringify([item.execution, item.family, item.item]))
+  if (new Set(keys).size !== keys.length) return null
+  return { ...head, facts, blobs, items, boundaries, admissions }
 }
 
 const json = (value: JsonValue): string => JSON.stringify(value)
@@ -220,6 +249,54 @@ function appendBatch(port: Executor, write: Write, pub: bigint): void {
       ],
     ),
   )
+}
+
+const ITEM_KEY = 'tenant = ? AND execution = ? AND family = ? AND item = ?'
+
+// An item opens once and only an open item changes: the first item of the publication that breaks
+// this, with what the store holds for its key, or null when every item holds.
+function itemConflict(port: Executor, write: Write): ParticipantReply | null {
+  for (const item of write.items) {
+    const row = oneRow(port, `SELECT open FROM er_item WHERE ${ITEM_KEY} LIMIT 1`, [
+      write.tenant,
+      item.execution,
+      item.family,
+      item.item,
+    ])
+    const held = row === undefined ? 'none' : big(row['open']) === 1n ? 'open' : 'closed'
+    if (item.change === 'opened' ? held === 'none' : held === 'open') continue
+    return {
+      kind: 'conflict',
+      basis: {
+        kind: 'item',
+        execution: item.execution,
+        family: item.family,
+        item: item.item,
+        held,
+      },
+    }
+  }
+  return null
+}
+
+function writeItems(port: Executor, write: Write, pub: bigint): void {
+  for (const item of write.items) {
+    const open = item.open ? 1n : 0n
+    const body = packText(item.body)
+    if (item.change === 'opened') {
+      port.execute(
+        'INSERT INTO er_item (tenant, execution, family, item, open, pub, body) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [write.tenant, item.execution, item.family, item.item, open, pub, body],
+      )
+      continue
+    }
+    const changed = port.execute(
+      `UPDATE er_item SET open = ?, pub = ?, body = ? WHERE ${ITEM_KEY} AND open = 1`,
+      [open, pub, body, write.tenant, item.execution, item.family, item.item],
+    )
+    if (changed.changes !== 1n)
+      throw new Error('an open item checked in this publication did not change')
+  }
 }
 
 function storeBlobs(port: Executor, tenant: string, blobs: readonly Blob[]): void {
@@ -307,8 +384,11 @@ function publish(port: Executor, write: Write): ParticipantReply {
       kind: 'conflict',
       basis: { kind: 'revision', revision: current, published: String(published) },
     }
+  const refused = itemConflict(port, write)
+  if (refused !== null) return refused
   const next = published + 1n
   appendBatch(port, write, next)
+  writeItems(port, write, next)
   storeBlobs(port, tenant, write.blobs)
   port.execute(
     'INSERT INTO er_operation (tenant, operation, session, execution, digest, published) VALUES (?, ?, ?, ?, ?, ?)',

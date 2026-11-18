@@ -46,6 +46,7 @@
     "@omne-harness/message": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/retry": "workspace:*",
     "@omne-harness/stream-arrival": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*"
   },

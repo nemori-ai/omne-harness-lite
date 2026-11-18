@@ -267,16 +267,26 @@ export function settlementFailure(
 ): ModelFailure | null {
   if (encodedBytes(termination) > MAX_TERMINATION_BYTES)
     return invalid('termination', 'encoded-byte-limit')
-  if (executionFailed(termination)) return null
+  if (executionFailed(termination) || policyUnavailable(call, termination)) return null
   return settlementPendingFailure(call) ?? settlementActualFailure(call, termination)
+}
+function policyUnavailable(call: CallDocument, termination: Termination): boolean {
+  return (
+    termination.kind === 'failed' &&
+    termination.fault.cause === 'policy-unavailable' &&
+    call.retryPosition !== null &&
+    call.retry === null &&
+    call.state.control.kind === 'none'
+  )
 }
 export function executionFailed(termination: Termination): boolean {
   return termination.kind === 'failed' && termination.fault.cause === 'persistence'
 }
 function settlementPendingFailure(call: CallDocument): ModelFailure | null {
   const latest = call.dispatches.at(-1)
-  if (call.retryPosition && call.retry === null) return invalid('termination', 'retry-pending')
-  if (call.retry?.kind === 'retry') return invalid('termination', 'retry-pending')
+  const awaited =
+    call.retryPosition !== null && (call.retry === null || call.retry.kind === 'retry')
+  if (awaited && call.state.control.kind === 'none') return invalid('termination', 'retry-pending')
   if (latest && [...latest.windows.values()].includes('open'))
     return invalid('termination', 'receive-pending')
   return undecidedRetryFailure(call)

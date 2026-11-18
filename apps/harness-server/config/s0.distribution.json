@@ -26,6 +26,11 @@
       "config": {}
     },
     {
+      "id": "asset-categories",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "governance",
       "plugin": "stubPlugin",
       "config": {}
@@ -212,6 +217,11 @@
     },
     {
       "id": "tool-bindings",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "skills",
       "plugin": "stubPlugin",
       "config": {}
     },

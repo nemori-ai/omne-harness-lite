@@ -10,7 +10,7 @@ import {
   createSqlCompactionInputs,
   type SessionCompactionInputsOptions,
 } from '../src/cordis/compaction-inputs-sql.ts'
-import { sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
+import { sqlScene, takeInputs, type SqlScene } from './fixtures/sql-scene.ts'
 import { evidence, ok } from './fixtures/common-journal.ts'
 
 function options(s: SqlScene): SessionCompactionInputsOptions<string> {
@@ -24,6 +24,8 @@ function options(s: SqlScene): SessionCompactionInputsOptions<string> {
 }
 
 async function inputOf(s: SqlScene) {
+  ok(await s.view.journal.open(s.openInput))
+  await takeInputs(s, s.view.journal)
   const { outputMessageId: _allocatedByHolder, ...sample } = sampleCompactionInput()
   const page = ok(
     await s.port.history.readModelView({
@@ -234,6 +236,14 @@ it('freezes references to existing history and recovers them after the current e
   const s = await sqlScene('compaction-input-references')
   try {
     const value = await inputOf(s)
+    const blobs = () =>
+      s.controls?.select('SELECT payload FROM sl_blob').rows.map(row => {
+        const cell = row[0]
+        if (!(cell instanceof Uint8Array)) throw new Error('expected packed body')
+        return unpackText(cell)
+      }) ?? []
+    // The Agent records already hold the message of the input the execution took.
+    const before = new Set(blobs())
     const ref = ok(
       await createSqlCompactionInputs(options(s)).freeze({
         ...s.access,
@@ -242,12 +252,8 @@ it('freezes references to existing history and recovers them after the current e
         value,
       }),
     )
-    const stored =
-      s.controls?.select('SELECT payload FROM sl_blob').rows.map(row => {
-        const cell = row[0]
-        if (!(cell instanceof Uint8Array)) throw new Error('expected packed body')
-        return unpackText(cell)
-      }) ?? []
+    const stored = blobs().filter(payload => !before.has(payload))
+    expect(stored.length).toBeGreaterThan(0)
     const body = value.history.entries[0]!.message.blocks.find(block => block.kind === 'text')
     if (body?.kind !== 'text') throw new Error('expected fixture text')
     expect(stored.some(payload => payload.includes(body.text))).toBe(false)

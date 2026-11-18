@@ -641,6 +641,7 @@ async function backgroundedCall(f: Awaited<ReturnType<typeof controlFixture>>) {
         operation: operationId('entries-placeholder'),
         after: '0',
         through: '1',
+        position: '1',
         boundary: {
           execution,
           channel: 'tool-received',

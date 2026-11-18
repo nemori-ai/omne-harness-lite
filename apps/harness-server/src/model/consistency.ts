@@ -49,6 +49,10 @@ export function checkModelRowConsistency(rows: readonly TreeRow[]): void {
         { row: 'model-host', config: host, path: ['runtime', field] },
       )
     }
+    same(
+      { row: 'model-records', config: records, path: ['sendStage', 'profiles', 'retryPolicy'] },
+      { row: 'model-host', config: host, path: ['retry', 'adoption'] },
+    )
   }
   const sessionStorage = configOf(rows, 'session-storage', MODEL_ROW_EXPORTS.sessionStorage)
   if (sessionStorage !== undefined)

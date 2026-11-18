@@ -268,10 +268,18 @@ export class FakeNotices {
   }
 }
 
+export type Progress = Readonly<{
+  allowed: number
+  made: number
+  last: Readonly<{ cause: string; upstreamStatus: string | null; diagnostic: string }> | null
+  notBefore: string | null
+}>
+const progressOf = (attempts: Progress | undefined) => (attempts === undefined ? {} : { attempts })
+
 type ModelAnswer =
   | Readonly<{
       ok: Readonly<{
-        state: Readonly<{ phase: string }>
+        state: Readonly<{ phase: string; attempts?: Progress }>
         current: Readonly<{ ref: string }> | null
       }>
     }>
@@ -429,7 +437,7 @@ export function snapshot(ref: string, n: number, phase = 'running') {
   }
 }
 
-export function delta(ref: string, n: number, phase = 'running') {
+export function delta(ref: string, n: number, phase = 'running', attempts?: Progress) {
   return {
     kind: 'delta',
     from: `c${String(n - 1)}`,
@@ -439,14 +447,14 @@ export function delta(ref: string, n: number, phase = 'running') {
       dispatch: 'mdisp_a',
       from: { outputCursor: cursor(n - 1), revision: cursor(n - 1) },
       outputCursor: cursor(n),
-      state: { phase, revision: cursor(n) },
+      state: { phase, revision: cursor(n), ...progressOf(attempts) },
       blocks: [],
     },
   }
 }
 
-export const stream = (ref: string, phase = 'running') => ({
-  ok: { state: { phase }, current: { ref } },
+export const stream = (ref: string, phase = 'running', attempts?: Progress) => ({
+  ok: { state: { phase, ...progressOf(attempts) }, current: { ref } },
 })
 
 export type World = Readonly<{

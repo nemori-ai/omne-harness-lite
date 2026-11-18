@@ -92,7 +92,7 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
       required: [],
       registry,
       project: binding => [
-        assetsSettingsProjectionCommand(binding),
+        assetsSettingsProjectionCommand(binding, { excluded: [] }),
         standaloneSettingsProjectionCommand(binding),
       ],
       clock: { now: () => 1000 },

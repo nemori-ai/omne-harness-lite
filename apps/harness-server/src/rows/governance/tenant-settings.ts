@@ -39,7 +39,7 @@ export function prepareTenantGovernanceWithSettings(
     clock: options.clock,
     cursorLifetimeMs: options.cursorLifetimeMs,
     project: binding => [
-      assetsSettingsProjectionCommand(binding),
+      assetsSettingsProjectionCommand(binding, options.capture()),
       standaloneSettingsProjectionCommand(binding),
     ],
   })

@@ -75,6 +75,12 @@ const STATE = {
   phase: 'running' as const,
   dispatch: DISPATCH,
   firstContent: 'observed' as const,
+  attempts: {
+    allowed: 2,
+    made: 2,
+    last: { cause: 'upstream-unavailable' as const, upstreamStatus: '503', diagnostic: 'http-503' },
+    notBefore: null,
+  },
 }
 const SEALED = {
   kind: 'sealed' as const,
@@ -216,6 +222,7 @@ describe('parse of a call read', () => {
   it('gives back every field of the document, its version, pending flag and parts', () => {
     const read = ok(parse(outputOf()))
     expect(read.record?.document).toEqual(documentOf())
+    expect(read.record?.document.state.attempts).toEqual(STATE.attempts)
     expect(read.record?.version).toBe(4)
     expect(read.record?.pending).toBe(true)
     expect(read.record?.parts).toEqual(PARTS)

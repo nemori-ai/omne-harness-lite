@@ -32,11 +32,6 @@ export type BodyContract = {
   readonly layout?: PackageLayout
 }
 
-export type CategoryRegistry = {
-  readonly register: (contract: BodyContract) => void
-  readonly lookup: (category: string) => BodyContract | undefined
-}
-
 export function capabilityId(
   category: string,
   name: string,

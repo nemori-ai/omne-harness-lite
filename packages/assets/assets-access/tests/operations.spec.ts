@@ -77,7 +77,12 @@ const bodies = (login: FixtureLogin) => ({
   'clear-setting': body('clear-setting', { tenant: login.tenantText, ...WRITE }),
 })
 
-function call<K extends Name>(world: World, name: K, login: FixtureLogin, target = login) {
+function call<K extends Exclude<Name, 'list-categories'>>(
+  world: World,
+  name: K,
+  login: FixtureLogin,
+  target = login,
+) {
   const handler = world.contribution.operations[name] as (
     context: ReturnType<typeof as>,
     value: unknown,

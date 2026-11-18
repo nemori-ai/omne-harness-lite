@@ -47,6 +47,7 @@ export function transportOver(
     auth?: PiRouteAuth
     limits?: PiTransportLimits
     onConnectRetry?: PiTransportConfig['onConnectRetry']
+    onResponseBody?: PiTransportConfig['onResponseBody']
   }>,
 ): TransportUnderTest {
   const family = createTestFamily()
@@ -65,6 +66,7 @@ export function transportOver(
     credential: options.credential ?? { read: () => new Map([['apiKey', 'test-secret']]) },
     limits: options.limits ?? LIMITS,
     ...(options.onConnectRetry === undefined ? {} : { onConnectRetry: options.onConnectRetry }),
+    ...(options.onResponseBody === undefined ? {} : { onResponseBody: options.onResponseBody }),
   })
   async function prepare(): Promise<PreparedTransport> {
     const prepared = await built.transport.prepare(REQUEST, SUPPLIER, { resent: [] })

@@ -338,12 +338,15 @@ export interface TestBuild {
   readonly readSets?: boolean
 }
 
+export const TEST_BATCH_ENV = 'OMNE_TEST_BATCH'
+
 export function turboTestCommand(
   name: string,
   tier: RunTier,
   workers: number,
   reportDirectory: string,
   readSets = false,
+  batch: readonly string[] | undefined = undefined,
 ): { readonly args: string[]; readonly env: NodeJS.ProcessEnv } {
   return {
     args: [
@@ -356,11 +359,14 @@ export function turboTestCommand(
       '--log-prefix=task',
       '--output-logs=full',
       '--no-color',
+      ...(batch === undefined ? [] : ['--', '--passWithNoTests', ...batch]),
     ],
     env: turboEnv({
+      ...ONE_CORE_PER_TASK,
       [TEST_REPORT_DIR_ENV]: reportDirectory,
       [VITEST_MAX_WORKERS_ENV]: String(workers),
       [READ_SETS_ENV]: readSets ? '1' : '',
+      [TEST_BATCH_ENV]: batch === undefined ? '' : '1',
     }),
   }
 }

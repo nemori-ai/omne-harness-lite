@@ -27,6 +27,7 @@
 - `CredentialLayer` · `root.d.ts`
 - `CustodyState` · `result.d.ts`
 - `DispatchId` · `root.d.ts`
+- `DispatchProgress` · `result.d.ts`
 - `DispatchRecord` · `call-surface.d.ts`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `FixedModelRequest` · `root.d.ts`
@@ -290,6 +291,7 @@
 - `ModelProviderBody` · `provider-asset.d.ts`
 - `ModelProviderBodyRejection` · `provider-asset.d.ts`
 - `modelProviderBodyContract` · `provider-asset.d.ts`
+- `modelProviderCategoryDisplay` · `provider-asset.d.ts`
 - `parseModelProviderBody` · `provider-asset.d.ts`
 - `readModelProviderBody` · `provider-asset.d.ts`
 
@@ -1933,10 +1935,11 @@ export type ReplayProjection = Readonly<{
 ## 声明文件 `provider-asset.d.ts`
 
 ```ts
-import { type BodyContract } from '@omne-harness/assets';
+import { type BodyContract, type CategoryDisplay } from '@omne-harness/assets';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { ProviderName } from './root.ts';
 export declare const MODEL_PROVIDER_CATEGORY = "model-provider";
+export declare const modelProviderCategoryDisplay: CategoryDisplay;
 export type CredentialItemDeclaration = Readonly<{
     item: string;
     title: string;
@@ -2150,6 +2153,7 @@ export type RecoveryRecord = Readonly<{
     execution: ExecutionRef | null;
     retry: RetryDecision | null;
     retryPosition: RetryPosition | null;
+    retrySource?: DurableEvidence | null;
     unresolved: readonly ModelOperationId[];
     tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[];
 }>;
@@ -2296,6 +2300,7 @@ export interface ModelInstanceHost<P> {
     schedule(input: Readonly<{
         tenant: TenantId;
         call: ModelCallId;
+        notBefore?: string;
     }>): Reply<Readonly<{
         queued: true;
     }>>;
@@ -2621,12 +2626,19 @@ export type CustodyState = Readonly<{
     cleanup: 'pending' | 'running' | 'blocked' | 'released';
     diagnostic: string | null;
 }>;
+export type DispatchProgress = Readonly<{
+    allowed: number;
+    made: number;
+    last: ModelFault | null;
+    notBefore: string | null;
+}>;
 export type CallState = Readonly<{
     call: ModelCallId;
     revision: Revision;
     consumer: ConsumerRef;
     control: ControlState;
     custody: CustodyState;
+    attempts?: DispatchProgress;
 }> & (Readonly<{
     phase: 'accepted';
 }> | Readonly<{

@@ -1,11 +1,12 @@
 import { expect, it } from 'vitest'
 import {
   capabilityId,
-  createCategoryRegistry,
+  createCategoryPoint,
   pinBody,
   readBodyText,
   projectAssetSettings,
   type BodyContract,
+  type CategoryView,
 } from '../src/index.ts'
 import { defineSettings } from '@omne-harness/settings'
 const body = readBodyText('{"enabled":true}', {
@@ -68,10 +69,12 @@ function category(settings?: BodyContract['settings']): BodyContract {
     ...(settings ? { settings } : {}),
   }
 }
+function only(contract: BodyContract): Pick<CategoryView, 'lookup'> {
+  return { lookup: name => (name === contract.category ? contract : undefined) }
+}
 it('derives settings from the selected fixed body and preserves concrete asset identity', () => {
-  const registry = createCategoryRegistry()
   let selected: unknown
-  registry.register(
+  const registry = only(
     category((body, context) => {
       selected = { body, context }
       return definition
@@ -94,23 +97,20 @@ it('derives settings from the selected fixed body and preserves concrete asset i
   })
 })
 it('allows categories without settings and does not create a holding', () => {
-  const registry = createCategoryRegistry()
-  registry.register(category())
+  const registry = only(category())
   expect(projectAssetSettings(registry, { assetRef: 'asset-a', pinned })).toEqual({ kind: 'none' })
 })
 it('distinguishes absent category, invalid body and unavailable declaration provider', () => {
-  expect(projectAssetSettings(createCategoryRegistry(), { assetRef: 'asset-a', pinned })).toEqual({
+  expect(projectAssetSettings(createCategoryPoint(), { assetRef: 'asset-a', pinned })).toEqual({
     kind: 'rejected',
     reason: 'unknown_category',
   })
-  const rejecting = createCategoryRegistry()
-  rejecting.register({ ...category(), judge: () => ({ ok: false, rejected: 'invalid' }) })
+  const rejecting = only({ ...category(), judge: () => ({ ok: false, rejected: 'invalid' }) })
   expect(projectAssetSettings(rejecting, { assetRef: 'asset-a', pinned })).toEqual({
     kind: 'rejected',
     reason: 'invalid_body',
   })
-  const unavailable = createCategoryRegistry()
-  unavailable.register(
+  const unavailable = only(
     category(() => {
       throw new Error('private details')
     }),
@@ -121,8 +121,7 @@ it('distinguishes absent category, invalid body and unavailable declaration prov
   })
 })
 it('rejects invalid semantic metadata from a provider', () => {
-  const registry = createCategoryRegistry()
-  registry.register(
+  const registry = only(
     category(() => ({ ...definition, groups: [{ ...definition.groups[0]!, title: '' }] })),
   )
   expect(projectAssetSettings(registry, { assetRef: 'asset-a', pinned })).toEqual({

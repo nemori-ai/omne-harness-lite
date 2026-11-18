@@ -31,7 +31,7 @@ import {
 import type { DomainRef, SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
-import { readExecutionRecords } from './agent-journal.ts'
+import { readExecutionRecords } from './execution-records.ts'
 import { attemptOfAuthority } from './attempt-grant.ts'
 
 const OWNER = 'session-adapters/conditions'

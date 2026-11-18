@@ -18,6 +18,11 @@ const nullable = <const R extends Rule>(rule: R) =>
 
 const assetQuery = object({ category: { rule: text, optional: true }, name: { rule: text } })
 const assetRef = object({ category: { rule: text }, name: { rule: text } })
+const categoryView = object({
+  category: { rule: text },
+  title: { rule: text },
+  summary: { rule: text },
+})
 
 const itemTarget = { tenant: { rule: tenant }, asset: { rule: assetQuery }, item: { rule: text } }
 const writeTarget = {
@@ -204,6 +209,25 @@ export const assetsProtocol = defineProtocol({
         invalid: empty,
         conflict: empty,
         'not-writable': notWritable,
+      },
+    },
+    'list-categories': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(
+        object({
+          after: { rule: nullable(text) },
+          limit: { rule: { kind: 'page-limit' } },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({
+            items: { rule: { kind: 'array', item: categoryView } },
+            next: { rule: nullable(text) },
+          }),
+        ),
       },
     },
   },

@@ -17,7 +17,7 @@ const input = z
 const w = await openCatalogWorld({
   assets: {
     materials: assetsSqlMaterials(),
-    command: assetsSettingsProjectionCommand,
+    command: binding => assetsSettingsProjectionCommand(binding, { excluded: [] }),
   },
 })
 const assets = createAssetsLocal({ ...w.terminalOptions, categories })

@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import type { CapabilityId, CategoryRegistry, PinnedBody } from '@omne-harness/assets'
+import type { CapabilityId, CategoryView, PinnedBody } from '@omne-harness/assets'
 import type { LocalPackages, PackageDurability, PackageStep } from './packages.ts'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import type {
@@ -22,7 +22,7 @@ export type AssetsLocalOptions = Readonly<{
   domain: DomainRef
   combinationVersion: string
   manifestDigest: string
-  categories: CategoryRegistry
+  categories: Pick<CategoryView, 'lookup'>
   packageRoot?: string
   afterPackageStep?: (step: PackageStep) => void | Promise<void>
   packageDurability?: PackageDurability

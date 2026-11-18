@@ -9,6 +9,7 @@ import type { AssetsProtocol } from '@omne-harness/assets-protocol'
 import type { JsonValue } from '@omne-harness/json-text'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type {
+  CategoriesPort,
   ReadRefusal,
   SettingInput,
   SettingJson,
@@ -20,6 +21,7 @@ import type {
 
 export type AssetsContributionInput = Readonly<{
   settings: () => TenantSettingsPort | undefined
+  categories: () => CategoriesPort | undefined
   principals: TargetTenantPrincipals
 }>
 
@@ -286,6 +288,26 @@ export function createAssetsContribution(
             }),
           ),
         )
+      },
+      async 'list-categories'(_call, body) {
+        const categories = input.categories()
+        if (categories === undefined) return UNAVAILABLE
+        const listed = await read(async () => categories.list())
+        if ('outcome' in listed) return listed
+        const after = body.after
+        const rest = after === null ? listed : listed.filter(entry => entry.category > after)
+        const page = rest.slice(0, body.limit)
+        return {
+          outcome: 'succeeded',
+          body: {
+            items: page.map(({ category, display }) => ({
+              category,
+              title: display.title,
+              summary: display.summary,
+            })),
+            next: rest.length > page.length ? (page.at(-1)?.category ?? null) : null,
+          },
+        }
       },
     },
     observations: {},

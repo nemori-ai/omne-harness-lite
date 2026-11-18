@@ -13,13 +13,13 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   capabilityId,
-  createCategoryRegistry,
   digestBytes,
   packageDigest,
   type CapabilityId,
   type JsonValue,
   type PackageReader,
 } from '@omne-harness/assets'
+import { lookupOf } from './lookup.ts'
 import {
   createPublishedPackages,
   versionDirectoryName,
@@ -45,29 +45,29 @@ function id(category: string, name: string): CapabilityId {
 const report = id('bundle', 'report')
 
 function categories(declaration: () => JsonValue = () => OBJECT, judged = true) {
-  const registry = createCategoryRegistry()
-  registry.register({
-    category: 'bundle',
-    schema: { kind: 'null' },
-    judge: () => (judged ? { ok: true } : { ok: false, rejected: 'name-mismatch' }),
-    deriveDeclarations: () => ({ entries: [] }),
-    references: () => [],
-    layout: {
-      namespace: 'bundles',
-      limits: { files: 3, fileBytes: 64, totalBytes: 128 },
-      async inspect() {
-        return { ok: declaration() }
+  return lookupOf(
+    {
+      category: 'bundle',
+      schema: { kind: 'null' },
+      judge: () => (judged ? { ok: true } : { ok: false, rejected: 'name-mismatch' }),
+      deriveDeclarations: () => ({ entries: [] }),
+      references: () => [],
+      layout: {
+        namespace: 'bundles',
+        limits: { files: 3, fileBytes: 64, totalBytes: 128 },
+        async inspect() {
+          return { ok: declaration() }
+        },
       },
     },
-  })
-  registry.register({
-    category: 'plain',
-    schema: { kind: 'null' },
-    judge: () => ({ ok: true }),
-    deriveDeclarations: () => ({ entries: [] }),
-    references: () => [],
-  })
-  return registry
+    {
+      category: 'plain',
+      schema: { kind: 'null' },
+      judge: () => ({ ok: true }),
+      deriveDeclarations: () => ({ entries: [] }),
+      references: () => [],
+    },
+  )
 }
 
 type Entry = Readonly<{ path: string; text: string }>
@@ -464,12 +464,14 @@ describe('the recovery scan', () => {
     expect(await setup({ root: undefined }).packages.recover()).toEqual({
       completed: 0,
       discarded: 0,
+      deferred: [],
       mismatched: [],
     })
     const missing = join(scratch(), 'not-yet')
     expect(await setup({ root: missing }).packages.recover()).toEqual({
       completed: 0,
       discarded: 0,
+      deferred: [],
       mismatched: [],
     })
   })
@@ -477,7 +479,12 @@ describe('the recovery scan', () => {
   it('discards a staging without meta.json', async () => {
     const { root, packages } = setup()
     writeTree(join(root, '.staging', 'half', 'files'), { 'SKILL.md': 'half' })
-    expect(await packages.recover()).toEqual({ completed: 0, discarded: 1, mismatched: [] })
+    expect(await packages.recover()).toEqual({
+      completed: 0,
+      discarded: 1,
+      deferred: [],
+      mismatched: [],
+    })
     expect(stagingOf(root)).toEqual([])
   })
 

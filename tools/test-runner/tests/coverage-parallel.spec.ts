@@ -6,6 +6,9 @@ const POLICY: ParallelPolicy = {
   maxWorkersPerMember: 8,
   reserveCores: 2,
   tokensPerWorker: [],
+  weight: { floor: 0.5, ceiling: 4, readings: 3, minProcessSeconds: 5 },
+  batchSeconds: 90,
+  startupShare: 0.05,
 }
 
 const budget = (workers: number, cores = 24): Budget => ({ workers, cores, source: 'env' })

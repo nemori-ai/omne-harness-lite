@@ -9,6 +9,7 @@ import {
 import {
   packageEntryOf,
   sealEntries,
+  type PackageLocator,
   type SkillPackageSource,
   type SourceFailure,
 } from '@omne-harness/skill-contract/provider'
@@ -16,6 +17,11 @@ import {
 export type PackageReaderOf = (
   locator: Readonly<{ ref: string; digest: PackageDigest }>,
 ) => PackageReader
+
+/** `null`: this assembly keeps no local directory for the package. */
+export type PackageDirectoryOf = (
+  locator: Readonly<{ ref: string; digest: PackageDigest }>,
+) => Promise<Outcome<string | null, 'unavailable'>>
 
 const KEPT_SNAPSHOTS = 256
 
@@ -35,8 +41,9 @@ function failureOf(failure: PackageSourceFailure): SourceFailure {
 type ContentLocator = Readonly<{ ref: string; digest: PackageDigest }>
 
 export function createContentStoreSource(
-  options: Readonly<{ readerOf: PackageReaderOf }>,
+  options: Readonly<{ readerOf: PackageReaderOf; directoryOf?: PackageDirectoryOf }>,
 ): SkillPackageSource {
+  const { directoryOf } = options
   const sealed = new Map<PackageDigest, SkillPackageSnapshot>()
 
   function keep(digest: PackageDigest, snapshot: SkillPackageSnapshot): void {
@@ -89,5 +96,13 @@ export function createContentStoreSource(
         .open(path, entry.digest)
       return 'ok' in opened ? opened : fail(failureOf(opened.failure))
     },
+    ...(directoryOf === undefined
+      ? {}
+      : {
+          async directory(locator: PackageLocator, digest: PackageDigest) {
+            if (locator.kind !== 'content-store') return succeed(null)
+            return directoryOf({ ref: locator.ref, digest })
+          },
+        }),
   }
 }

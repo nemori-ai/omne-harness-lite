@@ -14,6 +14,8 @@ import { TOOL_GOVERNANCE_OWNER } from '../../entry/tool-permission-release.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import type { ToolReleaseEntry } from '../../entry/tool-release-manifest.ts'
 
+const TOOL_CATEGORY = 'tool'
+
 const limits = {
   maxBytes: 256 * 1024,
   maxDepth: 24,
@@ -73,7 +75,7 @@ export function createToolAssetCategory(
     return canonicalDigest(native) === canonicalDigest(bodyOf(entry)) ? entry : undefined
   }
   return {
-    category: 'tool',
+    category: TOOL_CATEGORY,
     schema: readBody({ enum: release.manifest.entries.map(bodyOf) }),
     judge: (body, context) =>
       entryFor(body, context) === undefined

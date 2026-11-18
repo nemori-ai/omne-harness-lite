@@ -33,6 +33,7 @@ export interface MemberRun {
   readonly report?: VitestJsonReport
   readonly timing?: TimingReport
   readonly problem?: string
+  readonly cpuSeconds?: number
 }
 
 export function emptyLedger(): Ledger {

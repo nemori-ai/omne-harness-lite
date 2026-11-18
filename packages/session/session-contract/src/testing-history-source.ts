@@ -213,9 +213,8 @@ export function createMemorySessionHistorySource(): MemorySessionHistorySource {
         )
         return committed === undefined ? [] : [{ ...batch, commit: receipt(committed.row) }]
       })
-      const index: SessionHistoryIndex = { root, inputs, executions, attempts, batches, taken }
       return {
-        index,
+        index: { root, inputs, executions, attempts, batches, taken },
         reads: {
           root,
           scope,
@@ -237,6 +236,7 @@ export function createMemorySessionHistorySource(): MemorySessionHistorySource {
           prefixes: [],
           attempts,
           taken,
+          uninterpreted: [],
         },
       }
     },

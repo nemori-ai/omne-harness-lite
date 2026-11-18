@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   capabilityId,
-  createCategoryRegistry,
+  createCategoryPoint,
   type CapabilityId,
   type PackageReader,
 } from '@omne-harness/assets'
@@ -22,9 +22,14 @@ import {
   type SqlMaterialCatalog,
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
-import { createPackageInspection, createSkillAccess } from '@omne-harness/skill'
+import { createSkillAccess } from '@omne-harness/skill'
 import {
+  isControlFile,
+  MANIFEST_PATH,
+  parseSkillPackage,
   skillBodyContract,
+  skillCategoryDisplay,
+  type Bytes,
   type ReadResult,
   type ResourceListing,
 } from '@omne-harness/skill-contract'
@@ -155,8 +160,8 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
   const tenantRef = 'demo-tenant'
   await mkdir(options.stateDir, { recursive: true })
   const opened = await openStorage(options.stateDir, tenantRef)
-  const categories = createCategoryRegistry()
-  categories.register(skillBodyContract())
+  const categories = createCategoryPoint()
+  categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
   const assets: AssetsLocal = createAssetsLocal({
     storage: opened.storage,
     domain: opened.domain,
@@ -193,11 +198,21 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
     })
     if (held.kind !== 'committed') throw new Error(JSON.stringify(held))
 
-    const inspection = createPackageInspection(directories)
     async function official(): Promise<SkillLayerInput> {
       const root = options.officialDir
-      const inspected = await inspection.inspect({ kind: 'directory', root })
-      if (!('ok' in inspected)) return { layer: 'official', state: 'unavailable' }
+      const locator: PackageLocator = { kind: 'directory', root }
+      const unavailable: SkillLayerInput = { layer: 'official', state: 'unavailable' }
+      const taken = await directories.snapshot(locator)
+      if (!('ok' in taken)) return unavailable
+      const control: { manifest?: Bytes; declaration?: Bytes } = {}
+      for (const entry of taken.ok.entries) {
+        if (!isControlFile(entry.path)) continue
+        const bytes = await directories.open(locator, taken.ok.digest, entry.path)
+        if (!('ok' in bytes)) return unavailable
+        control[entry.path === MANIFEST_PATH ? 'manifest' : 'declaration'] = bytes.ok
+      }
+      const inspected = parseSkillPackage({ snapshot: taken.ok, control })
+      if (!('ok' in inspected)) return unavailable
       const { manifest, declaration, snapshot } = inspected.ok
       const candidate: SkillCandidate = {
         asset: 'official/skill/sample-skill',
@@ -211,7 +226,6 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
           name: manifest.name,
           description: manifest.description,
           tools: declaration.dependencies,
-          settings: declaration.settings,
         },
       }
       return { layer: 'official', state: 'read', candidates: [candidate] }

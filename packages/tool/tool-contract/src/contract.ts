@@ -5,9 +5,15 @@ import {
   readSnapshot,
   refusal,
   type BodyContract,
+  type CategoryDisplay,
   type JsonValue,
   type Judgment,
 } from '@omne-harness/assets'
+
+export const toolCategoryDisplay: CategoryDisplay = Object.freeze({
+  title: '工具',
+  summary: '代理可以调用的函数，带它的设置项与调用权限。',
+})
 import { bodySettings, toolSettingDefinitions } from './settings.ts'
 
 const schemaRead = readBodyText(

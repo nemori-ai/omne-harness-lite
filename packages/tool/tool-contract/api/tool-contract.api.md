@@ -178,6 +178,7 @@
 - `selectCommandText` · `command-call.d.ts`
 - `toolAssetBody` · `asset-body.d.ts`
 - `toolBodyContract` · `contract.d.ts`
+- `toolCategoryDisplay` · `contract.d.ts`
 - `toolsCapabilityOf` · `tools-capability.d.ts`
 
 ## 入口 `./binding` · `binding.d.ts`
@@ -1495,7 +1496,8 @@ export {};
 ## 声明文件 `contract.d.ts`
 
 ```ts
-import { type BodyContract } from '@omne-harness/assets';
+import { type BodyContract, type CategoryDisplay } from '@omne-harness/assets';
+export declare const toolCategoryDisplay: CategoryDisplay;
 export declare function toolBodyContract(): BodyContract;
 ```
 
@@ -2317,7 +2319,7 @@ export type { ToolExecutionRef } from './execution.ts';
 export type { DecisionValue, ToolStartRecord } from './ports.ts';
 export type { ToolCatalog, ToolCatalogSearchEntry, ToolConsumerProfile, ToolDeclarations, ToolInspection, ToolSettingPresentation, ToolSettingsDeclaration, ToolUsage, } from './authoring.ts';
 export { toolAssetBody } from './asset-body.ts';
-export { toolBodyContract } from './contract.ts';
+export { toolBodyContract, toolCategoryDisplay } from './contract.ts';
 export type { ClockSegment, ControlProgress, ControlRecord, ExternalResponse, PhysicalExecution, ProtocolIdentity, QueuePosition, ResponseProgress, ResponseRecord, ToolTiming, WaitIntent, WaitRecord, } from './records.ts';
 export type { ContentPage, DiagnosticPage, ProcessSnapshot, RawOutput } from './custody.ts';
 export { judgeToolDelivery } from './result-delivery.ts';

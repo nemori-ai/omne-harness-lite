@@ -9,6 +9,7 @@ import {
   WAIT_REQUEST_MAX_BYTES,
   WAIT_RESPONSE_MAX_BYTES,
 } from '@omne-harness/tool-contract/provider'
+import { SEARCH_RANKING } from '../../src/entry/search-ranking.ts'
 import { resolveLocations } from '../../src/local/locations.ts'
 import { captureShellEnvironment, isSecretName } from '../../src/local/settings.ts'
 import {
@@ -143,14 +144,10 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
-  it('gives the Agent the retry budget of a failed main model call', () => {
-    expect(configOf(layer, 'agent-host')).toMatchObject({
-      modelRetry: {
-        maxAttempts: 4,
-        maxElapsedMs: 120_000,
-        delaysMs: [1_000, 5_000, 30_000],
-        jitter: 0.2,
-      },
+  it('gives the retry values to the Model host, and none to the Agent', () => {
+    expect(configOf(layer, 'agent-host')).not.toHaveProperty('modelRetry')
+    expect(configOf(layer, 'model-host')).toMatchObject({
+      retry: { policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [1_000], jitter: 0.2 } },
     })
   })
 
@@ -218,6 +215,20 @@ describe('localOperatorLayer over the bundled distribution', () => {
         maxPendingAccounts: calls,
       },
     })
+  })
+
+  it('gives the skills row the assets root of the state and the shared search parameters, only when the release has the row', () => {
+    expect(configOf(layer, 'skills')).toEqual({
+      packageRoot: input('linux').locations.assetsRoot,
+      ranking: SEARCH_RANKING,
+    })
+    const without = localOperatorLayer({
+      ...input('linux'),
+      distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
+    })
+    expect(without.ops.map(op => op.id)).toEqual(
+      layer.ops.map(op => op.id).filter(id => id !== 'skills' && id !== 'secret-custody'),
+    )
   })
 
   it('does not overwrite any key that the release gives a replaced row', () => {
@@ -292,11 +303,12 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Files',
       'Schedules',
       'Shell',
+      'Skills',
       'TodoItems',
       'Tools',
       'Web',
     ])
-    for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask'])
+    for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask', 'Skills'])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
     for (const tool of ['Tools', 'BkgToolCalls', 'Calendar', 'Schedules'])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeLessThanOrEqual(inline)

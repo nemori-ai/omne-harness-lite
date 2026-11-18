@@ -6,6 +6,7 @@ import {
   type SessionIntakeLimits,
 } from './intake.ts'
 import { decideTodos } from './decide-todos.ts'
+import { decideDelivery } from './decide-delivery.ts'
 import { requiredWorkEntries } from './work-entry-state.ts'
 import { decodeEntries } from './entries.ts'
 import { validateFrontierBatch } from './frontier-state.ts'
@@ -42,6 +43,7 @@ import {
   type EncodedEntry,
   type OperationRecord,
 } from './judgments.ts'
+import type { SessionHistoryReads } from './history-values.ts'
 import { decideCompactionCommit } from './compaction-commit.ts'
 import { decideManagement, decideControl } from './decide-management.ts'
 import { closeControlFailure, decideNamedControl } from './decide-control.ts'
@@ -354,6 +356,7 @@ function decideRecordMessage(
   command: Extract<SessionCommand, { kind: 'recordMessage' }>,
 ): Decision {
   const { participation, value } = command.input
+  if ('deliveries' in value) return decideDelivery(snapshot, participation, value)
   if (participation.joint !== 'message')
     return invalid('participation.joint', 'not the message hand-over')
   const judgment = judgeAdvance(snapshot, {
@@ -485,13 +488,14 @@ function boundedBasis(operation: SessionOperationId, bounded: BoundedClose): Bou
 function decideReceive(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'receive' }>,
+  history: SessionHistoryReads | undefined,
 ): Decision {
   const { fact } = command.input
   switch (fact.kind) {
     case 'input-handover':
       return decideHandover(snapshot, fact)
     default:
-      return decideProducerFact(snapshot, command)
+      return decideProducerFact(snapshot, command, undefined, history)
   }
 }
 
@@ -872,7 +876,7 @@ function decideCommand(
     case 'recordMessage':
       return decideRecordMessage(previous, command)
     case 'receive':
-      return decideReceive(previous, command)
+      return decideReceive(previous, command, reads.history)
     case 'finishRun':
       return decideFinishRun(previous, command)
     case 'change':
@@ -885,7 +889,7 @@ function decideCommand(
     case 'preserveResult':
     case 'completeConsumption':
     case 'completeExternalConsumption':
-      return decideResults(previous, command)
+      return decideResults(previous, command, reads.history)
     case 'commitDerived':
       return decideDerived(previous, command, reads)
     case 'interrupt':

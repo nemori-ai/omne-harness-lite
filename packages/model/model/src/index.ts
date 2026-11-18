@@ -20,3 +20,4 @@ export type {
   SendResources,
   SendStart,
 } from './send.ts'
+export { createDefaultRetryPolicy, verifyRetryDecision } from './retry-policy.ts'

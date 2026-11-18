@@ -4,9 +4,15 @@ import {
   readSnapshot,
   refusal,
   type BodyContract,
+  type CategoryDisplay,
   type JudgeContext,
   type Judgment,
 } from '@omne-harness/assets'
+
+export const mcpCategoryDisplay: CategoryDisplay = Object.freeze({
+  title: 'MCP',
+  summary: '按地址接入的 MCP 服务端，它的动作作为工具交给代理。',
+})
 import { judgeJsonValue, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { ENDPOINT_BODY_SCHEMA } from './endpoint-schema.ts'

@@ -138,12 +138,18 @@ export const mutationBindingSchema = z.strictObject({
   domain: domainSchema,
   command: mutationSchema,
 })
+export const captureExcludedSchema = z.array(z.string().min(1).max(64)).max(16)
 export const workerCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('mutate'), binding: mutationBindingSchema }),
-  z.strictObject({ kind: z.literal('capture'), binding: SettingsProjectionBindingSchema }),
+  z.strictObject({
+    kind: z.literal('capture'),
+    binding: SettingsProjectionBindingSchema,
+    excluded: captureExcludedSchema,
+  }),
   z.strictObject({
     kind: z.literal('capturePublication'),
     binding: SettingsProjectionBindingSchema,
+    excluded: captureExcludedSchema,
   }),
 ])
 export const failureSchema = z.strictObject({
@@ -163,6 +169,7 @@ export const failureSchema = z.strictObject({
     'operation_conflict',
     'closing',
     'unsupported',
+    'unknown_category',
   ]),
 })
 export const committedSchema = z.strictObject({

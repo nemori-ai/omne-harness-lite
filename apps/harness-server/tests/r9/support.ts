@@ -19,6 +19,7 @@ import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
 import { LOCAL_TOKENIZERS, LOCAL_TOOL_RESULT_BYTES } from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
 import { DEFAULT_COMPACTION_BINDING } from '../../src/assembly/compaction-provider.ts'
+import { SEARCH_RANKING } from '../../src/entry/search-ranking.ts'
 
 export const memberDir = fileURLToPath(new URL('../..', import.meta.url))
 export const serverBin = join(memberDir, 'dist', 'bin.js')
@@ -110,8 +111,11 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       observerCheckIntervalMs: 25,
       readIdleMs: 1000,
       resultPageTargetBytes: 4096,
-      retryBackoffMs: 0,
       cleanupRetryMs: 1000,
+    },
+    retry: {
+      adoption: profiles.retryPolicy,
+      policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [50], jitter: 0 },
     },
     results: {
       maxConcurrentCalls: 4,
@@ -242,7 +246,6 @@ function agentHostOperatorConfig(): Record<string, unknown> {
     denialBackoffMs: 0,
     toolConcurrency: 1,
     loopGuardPolicy: { ...MODEL_TEST_ADOPTION, name: 'loop-guard' },
-    modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
     instanceIdleMs: 60_000,
   }
 }
@@ -278,6 +281,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       BkgToolCalls: { resultMaxBytes: 65_536 },
       Ask: { resultMaxBytes: 1_048_576 },
       Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
+      Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
       Calendar: { resultMaxBytes: 65_536 },
       Schedules: { resultMaxBytes: 65_536 },
     },
@@ -408,6 +412,14 @@ export function operatorLayer(options: {
         },
       },
       { kind: 'replace', id: 'execution-host', config: tools.host },
+      {
+        kind: 'replace',
+        id: 'skills',
+        config: {
+          packageRoot: join(dirname(options.storageRoot), 'assets'),
+          ranking: SEARCH_RANKING,
+        },
+      },
       {
         kind: 'replace',
         id: 'request-context',

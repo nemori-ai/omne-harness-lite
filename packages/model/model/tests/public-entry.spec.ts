@@ -7,11 +7,13 @@ it('the public entry exports standalone execution and runtime construction', asy
   const root = await import('@omne-harness/model')
   expect(Object.keys(root).sort()).toEqual(
     [
+      'createDefaultRetryPolicy',
       'createModelPreparationResources',
       'createModelProfiles',
       'createModelRuntime',
       'createModelSendBoundary',
       'executeModel',
+      'verifyRetryDecision',
     ].sort(),
   )
 })

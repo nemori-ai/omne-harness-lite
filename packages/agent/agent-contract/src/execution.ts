@@ -132,6 +132,7 @@ export type ControlStageFact = Readonly<{
   source: DurableEvidence
 }>
 type ToolControl = Extract<ExecutionControl, { call: T.ToolCallId }>
+type ModelControl = Extract<ExecutionControl, { kind: 'interrupt-model' }>
 export type ControlRecord = Readonly<{
   operation: AgentOperationId
   stages: Readonly<
@@ -143,11 +144,20 @@ export type ControlRecord = Readonly<{
   (
     | Readonly<{
         command: ToolControl
+        modelInvocation?: never
         toolInvocation: T.ToolInvocationRef
         toolOperation: T.ToolOperationRef | null
       }>
     | Readonly<{
-        command: Exclude<ExecutionControl, ToolControl>
+        command: ModelControl
+        /** The invocation the Journal resolved at acceptance; a control never looks its call up later. */
+        modelInvocation: M.ModelInvocationRef
+        toolInvocation?: never
+        toolOperation?: never
+      }>
+    | Readonly<{
+        command: Exclude<ExecutionControl, ToolControl | ModelControl>
+        modelInvocation?: never
         toolInvocation?: never
         toolOperation?: never
       }>

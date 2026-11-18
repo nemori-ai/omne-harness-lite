@@ -58,7 +58,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolRuntime } from '@omne-harness/tool-contract'
 import { toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { AgentHostConfig } from './host-config.ts'
-import { cryptoRandom, modelRetryingRecord } from './model-retry.ts'
 import { stagePort } from './stage-ports.ts'
 
 export type RuntimeFactory = (
@@ -68,7 +67,7 @@ export type RuntimeFactory = (
 ) => Reply<AgentProvider<unknown>>
 
 export type HostRuntimeExtras = Required<
-  Pick<AgentRuntimeExtras, 'failed' | 'endedFailed' | 'waiting' | 'modelRetrying'>
+  Pick<AgentRuntimeExtras, 'failed' | 'endedFailed' | 'waiting'>
 >
 
 export type { HostStatics } from './host-statics.ts'
@@ -745,7 +744,6 @@ export function createHost(input: HostInput): Host {
       materials: stagePort(ctx, agentMaterialsKey),
       reads: stagePort(ctx, agentReadsKey),
       registration: entry.handle,
-      random: cryptoRandom,
     }
   }
 
@@ -780,8 +778,6 @@ export function createHost(input: HostInput): Host {
           },
           endedFailed: event => record('warn', runEndedFailedRecord(event)),
           waiting: event => record('warn', runWaitingRecord(event)),
-          modelRetrying: event =>
-            record('warn', modelRetryingRecord(event, tenantTextOf(event.tenant))),
         },
       )
       if ('failure' in created) {

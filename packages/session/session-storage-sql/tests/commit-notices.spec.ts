@@ -157,6 +157,7 @@ async function entriesScene() {
     operation: operationId('entries-1'),
     after: '0',
     through: '2',
+    position: '2',
     boundary: {
       execution,
       channel: 'tool-received',

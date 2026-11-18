@@ -12,9 +12,11 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
     'POSITIONS',
     'POSITION_OUTPUTS',
     'POWERS',
+    'acceptanceIn',
     'admissionActionOf',
     'admissionPassageOf',
     'agentBodyContract',
+    'agentDefinitionCategoryDisplay',
     'cardDraftOf',
     'cardRequestOf',
     'compactionGeneration',
@@ -58,6 +60,7 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
     'judgeInputOrigin',
     'judgeLoopExtensions',
     'obligationCategoryOf',
+    'openItems',
   ])
 })
 

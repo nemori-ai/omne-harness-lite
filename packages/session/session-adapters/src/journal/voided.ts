@@ -20,7 +20,15 @@ export function voidedFacts(
     const request = view.requests.findLast(request => request.reference === item.reference)
     if (request === undefined) return null
     const { step, attempt } = request
-    facts.push({ ...closed, intent: 'model', step, attempt, cause: item.cause })
+    facts.push({
+      ...closed,
+      intent: 'model',
+      step,
+      attempt,
+      action: item.action,
+      reference: item.reference,
+      cause: item.cause,
+    })
   }
   return facts
 }
@@ -30,8 +38,8 @@ export function modelAttempt(checkpoint: Pick<AgentCheckpoint, 'step' | 'voided'
   return voided.filter(item => item.kind === 'model' && item.step === step).length
 }
 
-export function foldVoided(view: Closing, fact: Voided): Closing {
-  const voided = [...view.voided, fact]
+export function foldVoided(view: Closing, fact: Voided, pub: number, ord: number): Closing {
+  const voided = [...view.voided, { ...fact, pub, ord }]
   if (fact.intent === 'tool') return { voided, requests: view.requests, adopted: view.adopted }
   const requests = view.requests.map(item =>
     item.step === fact.step && item.attempt === fact.attempt

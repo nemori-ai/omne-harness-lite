@@ -162,6 +162,7 @@ function createMaterialized(
       route,
       limits: config.limits,
       diagnostics: input.diagnostics,
+      onResponseBody: config.onResponseBody,
     })
   }
 

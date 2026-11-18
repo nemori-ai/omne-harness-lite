@@ -5,7 +5,6 @@ import {
   CAPABILITY,
   CONTROL_PATH,
   GUIDE_PATH,
-  locatorOf,
   NEW_PATH,
   scope,
   type MaterialIndex,
@@ -20,15 +19,12 @@ export type Part = 'body' | 'guide' | 'new' | 'control' | 'bad'
 export type BasisRef = Readonly<{ name: Name; index: MaterialIndex }>
 
 export type Request =
-  | Readonly<{ op: 'describe'; name: Name; basis?: BasisRef }>
   | Readonly<{ op: 'read'; name: Name; part: Part; basis?: BasisRef; range?: ByteRange }>
   | Readonly<{ op: 'list'; name: Name; basis?: BasisRef }>
-  | Readonly<{ op: 'export'; name: Name; basis: BasisRef }>
   | Readonly<{ op: 'summaries'; names?: readonly Name[] }>
   | Readonly<{ op: 'search'; text: string }>
-  | Readonly<{ op: 'inspect'; name: Name }>
 
-export type AccessRequest = Extract<Request, { op: 'describe' | 'read' | 'list' | 'export' }>
+export type AccessRequest = Extract<Request, { op: 'read' | 'list' }>
 
 export type Observation = Readonly<{ outcome: unknown }> | Readonly<{ thrown: string }>
 
@@ -47,13 +43,6 @@ async function operate(run: Run, who: Principal, request: Request): Promise<unkn
   const access = ACCESS[who]
   const { signal } = run
   switch (request.op) {
-    case 'describe':
-      return run.access.describe(
-        access,
-        scope,
-        CAPABILITY[request.name],
-        basisOption(request.basis),
-      )
     case 'read':
       return run.access.read(
         access,
@@ -76,14 +65,6 @@ async function operate(run: Run, who: Principal, request: Request): Promise<unkn
         ...basisOption(request.basis),
         signal,
       })
-    case 'export':
-      return run.access.export(
-        access,
-        scope,
-        CAPABILITY[request.name],
-        basisOf(request.basis.name, request.basis.index),
-        { signal },
-      )
     case 'summaries':
       return run.catalog.summaries(
         access,
@@ -92,8 +73,6 @@ async function operate(run: Run, who: Principal, request: Request): Promise<unkn
       )
     case 'search':
       return run.catalog.search(access, scope, { text: request.text })
-    case 'inspect':
-      return run.inspection.inspect(locatorOf(request.name))
     default: {
       const exhaustive: never = request
       return exhaustive
@@ -203,10 +182,8 @@ export function accessRequests(
   for (const name of names)
     for (const basis of bases) {
       const withBasis = basis === undefined ? {} : { basis }
-      requests.push({ op: 'describe', name, ...withBasis })
       for (const part of parts) requests.push({ op: 'read', name, part, ...withBasis })
       requests.push({ op: 'list', name, ...withBasis })
-      if (basis !== undefined) requests.push({ op: 'export', name, basis })
     }
   return requests
 }

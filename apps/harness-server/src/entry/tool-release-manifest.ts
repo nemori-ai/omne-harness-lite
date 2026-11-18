@@ -80,6 +80,13 @@ export const RELEASE_TOOLS = Object.freeze([
     construction: Object.freeze(['resultMaxBytes', 'maxSearchResults']),
   }),
   Object.freeze({
+    name: 'Skills',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
+    export: 'skillsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
     name: 'Calendar',
     package: CALENDAR_TOOLS_PACKAGE,
     capabilities: Object.freeze(['calendar.read']),

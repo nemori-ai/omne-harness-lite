@@ -3,11 +3,9 @@ import {
   isAssetVersion,
   isPackageDigest,
   isSafeReason,
-  isSettingCategory,
   isSkillDescription,
   isSkillName,
   type DeclaredProjection,
-  type SettingDeclaration,
   type SourceLayer,
   type StandIn,
 } from '@omne-harness/skill-contract'
@@ -113,26 +111,12 @@ function refOf(value: unknown): SkillRef | undefined {
   return Object.freeze({ capability, layer, ...assetVersion, locator, ...digest })
 }
 
-function settingOf(value: unknown): SettingDeclaration | undefined {
-  const name = text(fieldOf(value, 'name'))
-  const category = fieldOf(value, 'category')
-  if (name === undefined || !isSettingCategory(category)) return undefined
-  return Object.freeze({ name, category })
-}
-
 function declaredOf(value: unknown): DeclaredProjection | undefined {
   const name = fieldOf(value, 'name')
   const description = optional(value, 'description', guarded(isSkillDescription))
   const tools = listOf(fieldOf(value, 'tools'), capabilityOf)
-  const settings = listOf(fieldOf(value, 'settings'), settingOf)
-  if (
-    !isSkillName(name) ||
-    description === undefined ||
-    tools === undefined ||
-    settings === undefined
-  )
-    return undefined
-  return Object.freeze({ name, ...description, tools, settings })
+  if (!isSkillName(name) || description === undefined || tools === undefined) return undefined
+  return Object.freeze({ name, ...description, tools })
 }
 
 export function adoptedOf(

@@ -1,7 +1,7 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
-import { createModelRuntime } from '@omne-harness/model'
+import { createDefaultRetryPolicy, createModelRuntime } from '@omne-harness/model'
 import type { DurableEvidence } from '@omne-harness/model-contract'
-import type { ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider'
+import type { ModelSendBoundary } from '@omne-harness/model-contract/provider'
 import {
   ModelSendBoundaryService,
   modelClockKey,
@@ -22,17 +22,6 @@ import { modelHostPortOf } from '../../model/ports.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import { modelHostConfig, type ModelHostConfig } from './config.ts'
-
-const RETRY_UNAVAILABLE = {
-  kind: 'unavailable' as const,
-  dependency: 'model-retry-policy',
-  diagnostic: 'not-configured',
-}
-
-export const unavailableRetry: ModelRetryPolicy<unknown> = Object.freeze({
-  inspect: async () => ({ failure: RETRY_UNAVAILABLE }),
-  decide: async () => ({ failure: RETRY_UNAVAILABLE }),
-})
 
 export function lateBoundSendBoundary(ctx: Context): ModelSendBoundary<unknown> {
   const boundary: ModelSendBoundary<unknown> = {
@@ -98,7 +87,7 @@ function hostPlugin(
               clock,
               instances: host,
               send,
-              retry: unavailableRetry,
+              retry: createDefaultRetryPolicy({ ...config.retry, clock, random: Math.random }),
               liveness,
             },
             config.runtime,

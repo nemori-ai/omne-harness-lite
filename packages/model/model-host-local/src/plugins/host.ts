@@ -100,6 +100,32 @@ async function driveOnce(
   }
 }
 
+type WakeQueue = Readonly<{ wakes: Map<string, Wake>; owed: Set<string>; stop: AbortSignal }>
+
+function createLaterWakes(
+  { clock, settings }: Pick<HostInput, 'clock' | 'settings'>,
+  { wakes, owed, stop }: WakeQueue,
+  pump: () => void,
+) {
+  const afterPause = () => new Date(Date.parse(clock.now()) + settings.scanIntervalMs).toISOString()
+  return async function wakeLater(key: string, target: Wake, at = afterPause()): Promise<void> {
+    if (owed.has(key)) return
+    owed.add(key)
+    try {
+      for (let instant = at; ; instant = afterPause()) {
+        const waited = await clock.waitUntil(instant, stop)
+        if (waited !== 'elapsed') return
+        if (wakes.has(key) || wakes.size < settings.wakeCapacity) break
+      }
+      wakes.set(key, target)
+    } catch {
+    } finally {
+      owed.delete(key)
+    }
+    pump()
+  }
+}
+
 function createLocalDriverHost(input: HostInput): LocalDriverHost {
   const { settings, clock, report } = input
   const wakes = new Map<string, Wake>()
@@ -113,23 +139,7 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
   const drive = (driver: ModelDriver<unknown>, target: Wake) =>
     driveOnce(input, stopDrives.signal, driver, target)
 
-  async function wakeLater(key: string, target: Wake): Promise<void> {
-    if (owed.has(key)) return
-    owed.add(key)
-    try {
-      for (;;) {
-        const instant = new Date(Date.parse(clock.now()) + settings.scanIntervalMs).toISOString()
-        const waited = await clock.waitUntil(instant, stopDrives.signal)
-        if (waited !== 'elapsed') return
-        if (wakes.has(key) || wakes.size < settings.wakeCapacity) break
-      }
-      wakes.set(key, target)
-    } catch {
-    } finally {
-      owed.delete(key)
-    }
-    pump()
-  }
+  const wakeLater = createLaterWakes(input, { wakes, owed, stop: stopDrives.signal }, () => pump())
 
   function start(driver: ModelDriver<unknown>, key: string, target: Wake): void {
     const task = drive(driver, target).then(again => {
@@ -204,12 +214,16 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
       return { ok: binding }
     },
 
-    async schedule({ tenant, call }) {
+    async schedule({ tenant, call, notBefore }) {
       const refused = usable()
       if (refused) return refused
       const key = keyOf(tenant, call)
       if (key === undefined)
         return { failure: { kind: 'invalid', field: 'tenant', reason: 'invalid-identity' } }
+      if (notBefore !== undefined && Date.parse(notBefore) > Date.parse(clock.now())) {
+        void wakeLater(key, { tenant, call }, notBefore)
+        return { ok: { queued: true } }
+      }
       if (!wakes.has(key)) {
         if (wakes.size >= settings.wakeCapacity) return unavailable('queue-full')
         wakes.set(key, { tenant, call })

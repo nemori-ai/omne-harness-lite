@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { judgeMessage } from '@omne-harness/message'
-import { sqlScene } from './fixtures/sql-scene.ts'
+import { sqlScene, takeInputs } from './fixtures/sql-scene.ts'
 import { retainedCompaction, compactionFixtureGeneration } from './fixtures/compaction.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
 import type { SqlStorage } from '@omne-harness/sql-contract'
@@ -17,7 +17,8 @@ it.each([
   async (name, storage, fault) => {
     const s = await sqlScene(name, { storage })
     try {
-      const opened = ok(await s.view.journal.open(s.openInput))
+      const began = ok(await s.view.journal.open(s.openInput))
+      const opened = { ...began, receipt: await takeInputs(s, s.view.journal) }
       const page = ok(
         await s.port.history.readModelView({
           ...s.access,
@@ -141,8 +142,9 @@ it.each([
       expect(ok(await recovered.commit(request))).toEqual(adopted)
       const state = ok(await recovered.load({ ...s.access, execution: s.execution }))
       expect(
-        state.results.find(item => item.consumption === retained.value.consumption)?.completion,
-      ).toEqual(adopted.evidence)
+        state.results,
+        'the adopted result is processed and released, so it left the snapshot',
+      ).toEqual([])
       const sessionState = ok(await s.port.readWork(s.access))
       expect(sessionState.run).toMatchObject({
         kind: 'active',
