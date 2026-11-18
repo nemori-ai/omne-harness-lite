@@ -596,7 +596,7 @@
       },
       "packages/session/session/src/advance.ts": {
         "count": 1,
-        "longest": 522
+        "longest": 506
       },
       "packages/session/session/src/command.ts": {
         "count": 1,

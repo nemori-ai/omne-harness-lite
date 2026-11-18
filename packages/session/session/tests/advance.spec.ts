@@ -509,6 +509,61 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     expect(answers[1]).toBe(answers[0])
   })
 
+  it('a startRun that answers unavailable is tried again after the first delay, from a fresh read', async () => {
+    const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
+    await h.create()
+    let refused = 0
+    h.view.onCommit(async (input, next) => {
+      if (input.command.kind === 'startRun' && refused === 0) {
+        refused += 1
+        return fail({
+          kind: 'unavailable' as const,
+          owner: 'session-history',
+          diagnostic: 'the predecessor execution is not read through yet',
+        })
+      }
+      return next()
+    })
+    await h.accept('input-1')
+    await vi.waitFor(() => {
+      expect(refused).toBe(1)
+    })
+    expect((await read(h)).run.kind).not.toBe('active')
+    h.clock.controls.advance(1000)
+    await vi.waitFor(async () => {
+      expect((await read(h)).handed).toEqual(['input-1'])
+    })
+  })
+
+  it('a startRun that keeps answering unavailable stops after the configured delays and reports it', async () => {
+    const h = await service({ policy: { advance: { retryDelaysMs: [1000] } } })
+    await h.create()
+    let refused = 0
+    h.view.onCommit(async (input, next) => {
+      if (input.command.kind !== 'startRun') return next()
+      refused += 1
+      return fail({ kind: 'unavailable' as const, owner: 'session-history', diagnostic: 'not yet' })
+    })
+    await h.accept('input-1')
+    await vi.waitFor(() => {
+      expect(refused).toBe(1)
+    })
+    h.clock.controls.advance(1000)
+    await vi.waitFor(() => {
+      expect(refused).toBe(2)
+    })
+    await vi.waitFor(() => {
+      expect(
+        h
+          .diagnostics()
+          .some(item => item.step === 'startRun' && item.reason === 'retries-exhausted'),
+      ).toBe(true)
+    })
+    h.clock.controls.advance(60_000)
+    expect(refused).toBe(2)
+    expect((await read(h)).pending).toEqual(['input-1'])
+  })
+
   it('a first input that the message admission refuses closes the Run as failed (PM-02)', async () => {
     const h = await service()
     await h.create()
