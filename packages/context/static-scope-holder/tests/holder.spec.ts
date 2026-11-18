@@ -358,6 +358,14 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
       },
     )
 
+    it('answers denied when the authority refuses to issue the reader', async () => {
+      const w = fresh()
+      w.ports.script(call =>
+        call.face === 'holder' && call.action.kind === 'issue' ? { kind: 'refused' } : undefined,
+      )
+      expect(await entriesOf(w)).toEqual({ kind: 'denied' })
+    })
+
     it('answers the failure of the ensure, and of the bind, without reading', async () => {
       const w = fresh()
       w.ports.script(call =>
@@ -390,6 +398,22 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
     await w.rc.close()
     expect(await w.holder.ensure('holder', tenantA)).toMatchObject({
       failure: { kind: 'unavailable', diagnostic: expect.stringContaining('closed') },
+    })
+  })
+
+  it('answers unavailable for a scope that has ended: the recovery of an ended scope is refused', async () => {
+    const w = fresh()
+    const scope = w.holder.scopeOf(tenantA)
+    const ended = await w.rc.applyCommit('holder', {
+      kind: 'scope',
+      commit: { commit: 'the end' },
+      scope,
+      tenant: tenantA,
+      scopeEnded: true,
+    })
+    expect(ended).toMatchObject({ kind: 'applied' })
+    expect(await w.holder.ensure('holder', tenantA)).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('finishReplay') },
     })
   })
 

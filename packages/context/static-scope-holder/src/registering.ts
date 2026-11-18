@@ -10,7 +10,7 @@ import type {
   StaticBlock,
   StaticScopeFailure,
 } from '@omne-harness/runtime-context-contract'
-import { refusal, unavailable } from './answers.ts'
+import { refusal } from './answers.ts'
 import { chainOf, changeOf, commitOf, stepsBetween, type Content } from './content.ts'
 
 type Producing = Readonly<{ block: StaticBlock; handle: ProducerHandle }>
@@ -55,7 +55,6 @@ async function open<P>(at: Target<P>, state: Held, wanted: Content): Promise<Don
     material: { registrations: chainOf({ scope, tenant }, wanted), checkpoints: [], end: null },
   })
   if (finished.kind !== 'ready') return refusal('finishReplay', finished)
-  if (finished.state !== 'open') return unavailable('the static scope has ended')
   state.opened = true
   state.revision = finished.registrationRevision
   for (const [key, entry] of wanted) state.registered.set(key, entry.digest)

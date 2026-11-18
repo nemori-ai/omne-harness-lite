@@ -390,7 +390,12 @@ describe('the channel registry', () => {
     expect(registry.lookup(mail.name)).toEqual({ kind: 'absent' })
     expect(registry.list()).toEqual([])
     expect(changes).toHaveLength(2)
-    expect(await offered.channel.deliver('late' as never)).toEqual(CHANNEL_WITHDRAWN)
+    expect(await offered.channel.deliver('late' as never)).toEqual({
+      kind: 'failed',
+      reason: 'channel-withdrawn',
+      retryable: true,
+    })
+    expect(CHANNEL_WITHDRAWN).toMatchObject({ reason: 'channel-withdrawn' })
     expect(calls).toEqual(['first'])
     expect(() => registry.register(fakeChannel('mail'))).toThrow(/already registered/u)
     await Promise.resolve()
@@ -403,6 +408,18 @@ describe('the channel registry', () => {
     registry.register(fakeChannel('mail'))
     expect(registry.lookup(mail.name)).toMatchObject({ kind: 'registered' })
     expect(changes).toHaveLength(3)
+  })
+
+  it('frees the name at once when the deliveries it took have all landed', async () => {
+    const registry = createChannelRegistry()
+    const withdraw = registry.register(fakeChannel('mail'))
+    const offered = registry.lookup('mail' as never)
+    if (offered.kind !== 'registered') throw new Error('fixture: not registered')
+    await offered.channel.deliver('first' as never)
+    await Promise.resolve()
+    void withdraw()
+    registry.register(fakeChannel('mail'))
+    expect(registry.lookup('mail' as never)).toMatchObject({ kind: 'registered' })
   })
 
   it('a delivery that throws or rejects has landed too: the withdrawal does not wait for ever', async () => {
