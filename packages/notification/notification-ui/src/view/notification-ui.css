@@ -1,0 +1,74 @@
+.notification-page {
+  min-height: 0;
+  overflow-y: auto;
+  font-size: var(--omne-text-ui);
+}
+
+.notification-section {
+  display: grid;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+
+.notification-section-title {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  font-weight: var(--omne-weight-strong);
+}
+
+.notification-list {
+  display: grid;
+  gap: var(--omne-space-inline);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-row {
+  display: grid;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+
+.notification-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+
+.notification-actions {
+  display: flex;
+  gap: var(--omne-space-inline);
+  margin-inline-start: auto;
+}
+
+.notification-meta {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+
+.notification-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.notification-detail {
+  display: grid;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+
+.notification-extra {
+  display: grid;
+  gap: var(--omne-space-block);
+  min-width: 0;
+}
+
+.notification-badge {
+  font-size: var(--omne-text-caption);
+}

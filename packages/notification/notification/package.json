@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft notification package; complete the accepted public contract before delivery",
+  "description": "Notification rules: accepting sends, inboxes, subscriptions and delivery, independent of Cordis and storage",
   "engines": {
     "node": ">=24"
   },
@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "files": [
@@ -22,9 +27,13 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
-    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "verify:formal": "python3 verification/check.py",
+    "walkthrough": "node --conditions=source --experimental-strip-types tests/walkthrough/run.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/notification-contract": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

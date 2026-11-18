@@ -196,8 +196,7 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/14",
-        "manifestDigest": "71fd1be2297525bccee7203c94c28d9b983bc15f43238a4017f888842b7e896c"
+        "combinationVersion": "session-composite/14"
       }
     },
     {
@@ -209,8 +208,7 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/14",
-        "manifestDigest": "71fd1be2297525bccee7203c94c28d9b983bc15f43238a4017f888842b7e896c"
+        "combinationVersion": "session-composite/14"
       }
     },
     {

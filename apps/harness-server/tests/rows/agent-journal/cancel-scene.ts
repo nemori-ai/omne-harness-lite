@@ -170,7 +170,7 @@ export async function cancelTree(cancellation: 'release' | 'absent'): Promise<Ca
         cancellation === 'release'
           ? (await import('../../../src/rows/agent-journal/index.ts')).agentJournalRow
           : createAgentJournalRow({}),
-        combination,
+        { combinationVersion: combination.combinationVersion },
       ),
     ],
   })

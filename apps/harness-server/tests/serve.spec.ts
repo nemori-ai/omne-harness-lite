@@ -188,10 +188,15 @@ describe('serve: the release tree of doubles', () => {
   it.each([
     ['agent-journal', 'agentJournalRow'],
     ['session-handoff', 'sessionHandoffRow'],
-  ])('the release gives %s the combination that session-storage registers', (id, plugin) => {
-    const row = release.rows.find(r => r.id === id)
-    expect(row).toMatchObject({ plugin, config: agentJournalCombination() })
-  })
+  ])(
+    'the release gives %s the combination version alone; the row takes the digest from the catalog',
+    (id, plugin) => {
+      const row = release.rows.find(r => r.id === id)
+      const { combinationVersion } = agentJournalCombination()
+      expect(row).toMatchObject({ plugin })
+      expect(row?.config).toEqual({ combinationVersion })
+    },
+  )
 
   it('only s0.assemblyLifecycle carries the s0. prefix', async () => {
     const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
