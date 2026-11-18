@@ -36,9 +36,10 @@ export type SendPrecheck =
   | Readonly<{ kind: 'refused'; reason: SendRefusal }>
   | Readonly<{ kind: 'basis-unavailable' }>
 
-export type SendDecision =
+/** `recalled` carries the earlier send as the caller knows it. */
+export type SendDecision<K extends SendFacts = SendFacts> =
   | Readonly<{ kind: 'proceed'; declared: EventTypeDeclaration }>
-  | Readonly<{ kind: 'recalled' }>
+  | Readonly<{ kind: 'recalled'; known: K }>
   | Readonly<{ kind: 'refused'; reason: SendRefusal }>
   | Readonly<{ kind: 'basis-unavailable' }>
 
@@ -106,16 +107,16 @@ function checkNamed(
 }
 
 /** Recall comes before the source lookup: an accepted send is recalled after its source is gone. */
-export function decideSend(
-  known: SendFacts | null,
+export function decideSend<K extends SendFacts>(
+  known: K | null,
   request: SendRequest,
   source: SourceLookup,
   named: readonly NamedCheck[],
   limits: SendLimits,
-): SendDecision {
+): SendDecision<K> {
   const { event } = request
   if (known !== null)
-    return sameSend(known.event, event) ? { kind: 'recalled' } : refuse('conflict')
+    return sameSend(known.event, event) ? { kind: 'recalled', known } : refuse('conflict')
   const type = checkDeclared(source, event)
   if (type.kind !== 'declared') return type
   const naming = checkNamed(event, type.declared, named)

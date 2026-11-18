@@ -237,6 +237,7 @@ describe('destinations and the catalogue', () => {
       destinations: [
         destination,
         { ...destination, blockedSince: instant, state: 'channel-absent' },
+        { ...destination, state: 'disabled' },
       ],
     })
     const add = { tenant, recipient: person, channel: 'mail', address: 'me@x', minLevel: 'strong' }
@@ -275,6 +276,19 @@ describe('destinations and the catalogue', () => {
         { name: 'demo.builds', label: 'Builds', types: [type, { ...type, kind: 'standing' }] },
       ],
     })
+    const typed = operations['list-sources'].outcomes.succeeded
+    const withType = (more: object) => ({
+      sources: [{ name: 's.s', label: 'S', types: [{ ...type, ...more }] }],
+    })
+    for (const presence of ['none', 'optional', 'required'])
+      expectRoundTrip(typed, withType({ subject: { presence, hint: 'h' } }))
+    for (const more of [
+      { subject: { presence: 'sometimes', hint: '' } },
+      { kind: 'other' },
+      { defaults: { person: 'loud', agent: 'off' } },
+      { subscribable: ['team'] },
+    ])
+      expect(readSample(typed, withType(more)).ok).toBe(false)
     expectRoundTrip(operations['list-channels'].outcomes.succeeded, {
       channels: [{ name: 'in-app', label: '应用内', leavesSystem: false, addressHint: '' }],
     })
@@ -322,5 +336,22 @@ describe('the invalid outcome', () => {
       const foreign = ['out-of-range', 'address', 'term-in-past'].filter(r => !more.includes(r))
       for (const reason of ['', ...foreign]) expect(readSample(codec, { reason }).ok).toBe(false)
     }
+  })
+})
+
+describe('the closed sets of the protocol', () => {
+  it('takes both ways a notification is resolved and nothing else', () => {
+    const codec = operations.mark.outcomes.succeeded
+    for (const how of ['done', 'dismissed'])
+      expectRoundTrip(codec, { ...marks, resolved: { how, at: instant } })
+    expect(readSample(codec, { ...marks, resolved: { how: 'gone', at: instant } }).ok).toBe(false)
+  })
+
+  it('takes the three states of a destination and nothing else', () => {
+    const codec = operations['add-destination'].outcomes.succeeded
+    for (const state of ['enabled', 'disabled', 'channel-absent'])
+      expectRoundTrip(codec, { ...destination, state })
+    expect(readSample(codec, { ...destination, state: 'gone' }).ok).toBe(false)
+    expect(readSample(codec, { ...destination, minLevel: 'off' }).ok).toBe(false)
   })
 })

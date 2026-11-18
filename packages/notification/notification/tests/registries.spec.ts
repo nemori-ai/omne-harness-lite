@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { createSourceRegistry, NotificationRegistrationError } from '@omne-harness/notification'
+import {
+  createChannelRegistry,
+  createSourceRegistry,
+  NotificationRegistrationError,
+} from '@omne-harness/notification'
+import { fakeChannel } from '@omne-harness/notification/testing'
 import { declaration, declared, source } from './world.ts'
 
 describe('the source registry', () => {
@@ -41,5 +46,51 @@ describe('the source registry', () => {
     ['an invalid event type name', declaration(declared({ name: 'Bad Name' as never }))],
   ])('refuses %s', (_case, bad) => {
     expect(() => createSourceRegistry().register(bad)).toThrow(NotificationRegistrationError)
+  })
+})
+
+describe('a registration that fails says what is wrong', () => {
+  const failure = (run: () => unknown): Error => {
+    try {
+      run()
+    } catch (error) {
+      return error as Error
+    }
+    throw new Error('expected the registration to fail')
+  }
+
+  it('for a source: its name, a repeated or invalid event type, a name that is taken', () => {
+    const registry = createSourceRegistry()
+    const badName = failure(() =>
+      registry.register({ ...declaration(), name: 'Bad Name' as never }),
+    )
+    expect([badName.name, badName.message]).toEqual([
+      'NotificationRegistrationError',
+      'invalid source name: Bad Name',
+    ])
+    const twice = failure(() => registry.register(declaration(declared(), declared())))
+    expect(twice.message).toBe('invalid or repeated event type in demo.things: changed')
+    const badType = failure(() =>
+      registry.register(declaration(declared({ name: 'Bad Type' as never }))),
+    )
+    expect(badType.message).toBe('invalid or repeated event type in demo.things: Bad Type')
+    registry.register(declaration())
+    expect(failure(() => registry.register(declaration())).message).toBe(
+      'source already registered: demo.things',
+    )
+  })
+
+  it('for a channel: its name, a name that is taken', () => {
+    const registry = createChannelRegistry()
+    const mail = fakeChannel('mail')
+    const badName = failure(() => registry.register({ ...mail, name: 'Bad Name' as never }))
+    expect([badName.name, badName.message]).toEqual([
+      'NotificationRegistrationError',
+      'invalid channel name: Bad Name',
+    ])
+    registry.register(mail)
+    expect(failure(() => registry.register(fakeChannel('mail'))).message).toBe(
+      'channel already registered: mail',
+    )
   })
 })

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { context, subscriptionKey } from '@omne-harness/notification/testing'
 import type { Subscription } from '@omne-harness/notification-contract'
-import { agent, declared, person, request, source, typeName, world } from './world.ts'
+import { createSending } from '@omne-harness/notification'
+import { agent, declared, defaults, person, request, source, typeName, world } from './world.ts'
 
 const unavailable = { kind: 'basis-unavailable' }
 const refused = (reason: string) => ({ kind: 'refused', reason })
@@ -307,5 +308,107 @@ describe('asking about an earlier send', () => {
     expect(await w.sending.querySend(other, request('e1', {}, 't2').identity)).toMatchObject({
       value: { kind: 'not-submitted' },
     })
+  })
+})
+
+describe('what sending asks, and what it does when the store knows more than it read', () => {
+  it('asks whether the subject may send as the source, to send and to query', async () => {
+    const w = world()
+    await w.sending.send(w.ctx, request('e1'))
+    await w.sending.querySend(w.ctx, request('e1').identity)
+    const sendAs = { kind: 'send-as', source }
+    expect(w.authority.asked()).toEqual([sendAs, sendAs])
+  })
+
+  it('does not ask about the named recipients of a send it recalls', async () => {
+    const w = world()
+    const named = request('e1', { named: [agent('a')] })
+    await w.sending.send(w.ctx, named)
+    const asked = w.authority.asked().length
+    expect(await w.sending.send(w.ctx, named)).toMatchObject({ kind: 'done', recalled: true })
+    expect(w.authority.asked().slice(asked)).toEqual([{ kind: 'send-as', source }])
+  })
+
+  /** A sending whose read of the earlier send comes back empty, as when another send commits in between. */
+  function racing(w: ReturnType<typeof world>, accepted?: (tenant: unknown) => void) {
+    const store = { ...w.store, send: async () => ({ kind: 'read', value: null }) as const }
+    return createSending({
+      authority: w.authority,
+      store,
+      sources: w.sources,
+      clock: w.clock,
+      limits: { bodyLength: 1000, causalDepth: 3 },
+      defaults,
+      ...(accepted === undefined ? {} : { accepted }),
+    })
+  }
+
+  it('recalls a send the transaction finds already written, and wakes nobody for it', async () => {
+    const w = world()
+    await w.sending.send(w.ctx, request('e1'))
+    const woken: unknown[] = []
+    const late = racing(w, tenant => void woken.push(tenant))
+    expect(await late.send(w.ctx, request('e1'))).toEqual({
+      kind: 'done',
+      recalled: true,
+      value: { identity: { ...request('e1').identity }, recipients: [person] },
+    })
+    expect(woken).toEqual([])
+    expect(w.store.commits()).toBe(1)
+    expect(await late.send(w.ctx, request('e2'))).toMatchObject({ kind: 'done', recalled: false })
+    expect(woken).toEqual([w.ctx.tenant])
+  })
+
+  it('refuses as a conflict a send the transaction finds written with other content', async () => {
+    const w = world()
+    await w.sending.send(w.ctx, request('e1'))
+    const other = request('e1', { content: { title: 'Other', body: '', locator: null } })
+    expect(await racing(w).send(w.ctx, other)).toEqual(refused('conflict'))
+    expect((await w.list()).map(entry => entry.title)).toEqual(['Title e1'])
+  })
+
+  it('sends without anyone to wake', async () => {
+    const w = world()
+    expect(await racing(w).send(w.ctx, request('e9'))).toMatchObject({
+      kind: 'done',
+      recalled: false,
+    })
+  })
+
+  it('a source registry that cannot be read is an unavailable basis, and a recall still works', async () => {
+    const w = world()
+    await w.sending.send(w.ctx, request('e1'))
+    const broken = createSending({
+      authority: w.authority,
+      store: w.store,
+      sources: {
+        ...w.sources,
+        lookup: () => {
+          throw new Error('registry is down')
+        },
+      },
+      clock: w.clock,
+      limits: { bodyLength: 1000, causalDepth: 3 },
+      defaults,
+    })
+    expect(await broken.send(w.ctx, request('e2'))).toEqual(unavailable)
+    expect(await broken.send(w.ctx, request('e1'))).toMatchObject({ kind: 'done', recalled: true })
+  })
+
+  it('a query answers the refusal of an identity that is not one, and what the authority answers', async () => {
+    const w = world()
+    await w.sending.send(w.ctx, request('e1'))
+    expect(await w.sending.querySend(w.ctx, { ...request('e1').identity, source: 'Bad' })).toEqual(
+      refused('invalid-source-name'),
+    )
+    expect(await w.sending.querySend(w.ctx, { ...request('e1').identity, eventId: '' })).toEqual(
+      refused('invalid-request'),
+    )
+    w.authority.answer(() => 'unavailable')
+    expect(await w.sending.querySend(w.ctx, request('e1').identity)).toEqual(unavailable)
+    w.authority.answer(() => 'denied')
+    expect(await w.sending.querySend(w.ctx, request('e1').identity)).toEqual(
+      refused('not-permitted'),
+    )
   })
 })

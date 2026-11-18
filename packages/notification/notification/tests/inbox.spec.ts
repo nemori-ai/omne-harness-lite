@@ -185,3 +185,58 @@ describe('disposing of a notification', () => {
     )
   })
 })
+
+describe('what the inbox asks and refuses before it reads', () => {
+  const identity = (eventId: string) => ({ tenant: 't1', source: 'demo.things', eventId })
+
+  it('asks the authority about the recipient, to read or to dispose', async () => {
+    const w = await filled('e1')
+    const target = agent('a')
+    const ref = { recipient: target, identity: identity('e1') }
+    await w.inbox.list(w.ctx, { recipient: target, filter: 'all', after: null, limit: 5 })
+    await w.inbox.read(w.ctx, ref)
+    await w.inbox.mark(w.ctx, ref, 'seen')
+    const read = { kind: 'read-inbox', recipient: target }
+    expect(w.authority.asked().slice(-3)).toEqual([
+      read,
+      read,
+      { kind: 'dispose', recipient: target },
+    ])
+  })
+
+  it('takes a page of one and a cursor of zero, and refuses a page of none and a cursor below zero', async () => {
+    const w = await filled('e1', 'e2')
+    const list = (more: object) =>
+      w.inbox.list(w.ctx, { recipient: person, filter: 'all', after: null, limit: 1, ...more })
+    expect(await list({})).toMatchObject({
+      kind: 'done',
+      value: { entries: [{ sequence: 1 }], next: 1 },
+    })
+    expect(await list({ after: 0, limit: 2 })).toMatchObject({
+      value: { entries: [{}, {}], next: null },
+    })
+    expect(await list({ limit: 0 })).toEqual(refused('invalid-request'))
+    expect(await list({ after: -1 })).toEqual(refused('invalid-request'))
+    expect(await list({ limit: 50 })).toMatchObject({ kind: 'done' })
+    expect(await list({ limit: 51 })).toEqual(refused('invalid-request'))
+  })
+
+  it.each([
+    ['a recipient that is not one', { recipient: { kind: 'team' }, identity: identity('e1') }],
+    ['an identity that is not one', { recipient: person, identity: identity('') }],
+    ['neither', { recipient: { kind: 'team' }, identity: identity('') }],
+  ])('refuses to read or mark with %s, and asks nobody', async (_label, ref) => {
+    const w = await filled('e1')
+    const asked = w.authority.asked().length
+    expect(await w.inbox.read(w.ctx, ref as never)).toEqual(refused('invalid-request'))
+    expect(await w.inbox.mark(w.ctx, ref as never, 'seen')).toEqual(refused('invalid-request'))
+    expect(w.authority.asked()).toHaveLength(asked)
+  })
+
+  it('a read is never a recall', async () => {
+    const w = await filled('e1')
+    const ref = { recipient: person, identity: identity('e1') }
+    expect(await w.inbox.read(w.ctx, ref)).toMatchObject({ kind: 'done', recalled: false })
+    expect(await w.inbox.read(w.ctx, ref)).toMatchObject({ kind: 'done', recalled: false })
+  })
+})

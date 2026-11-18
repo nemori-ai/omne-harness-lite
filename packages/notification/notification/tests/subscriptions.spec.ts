@@ -171,6 +171,25 @@ describe('an agent subscribes', () => {
     })
   })
 
+  it('refuses to remove a key that is not one, and writes nothing', async () => {
+    const w = world()
+    const key = keyOf(change({ recipient: person }))
+    const long = { kind: 'subject', equals: 'x'.repeat(501) }
+    expect(await w.subscriptions.remove(w.ctx, { ...key, scope: long } as never)).toEqual(
+      refused('invalid-scope'),
+    )
+    for (const broken of [
+      { ...key, source: 'Not A Source' },
+      { ...key, recipient: { kind: 'team' } },
+      { ...key, extra: 1 },
+    ])
+      expect(await w.subscriptions.remove(w.ctx, broken as never)).toEqual(
+        refused('invalid-request'),
+      )
+    expect(w.authority.asked()).toEqual([])
+    expect(w.store.commits()).toBe(0)
+  })
+
   it('cannot subscribe or unsubscribe for another recipient, nor set a beat', async () => {
     const w = world()
     const self = w.as('a')
@@ -291,6 +310,99 @@ describe('what blocks a subscription', () => {
   })
 })
 
+describe('what each operation asks and reads', () => {
+  it('asks the authority about the recipient it touches, by the kind of the operation', async () => {
+    const w = world()
+    const target = agent('a')
+    const key = keyOf(change({ recipient: target }))
+    await w.subscriptions.set(w.ctx, change({ recipient: target }))
+    await w.subscriptions.remove(w.ctx, key)
+    await w.subscriptions.list(w.ctx, target)
+    await w.subscriptions.beat(w.ctx, target)
+    await w.subscriptions.setBeat(w.ctx, target, { kind: 'off' })
+    const write = { kind: 'subscribe-for', recipient: target }
+    const read = { kind: 'read-inbox', recipient: target }
+    expect(w.authority.asked()).toEqual([write, write, read, read, write])
+  })
+
+  it('removing answers what the authority answered', async () => {
+    const w = world()
+    await w.subscriptions.set(w.ctx, change({ recipient: person }))
+    const key = keyOf(change({ recipient: person }))
+    w.authority.answer(() => 'denied')
+    expect(await w.subscriptions.remove(w.ctx, key)).toEqual(refused('not-permitted'))
+    w.authority.answer(() => 'unavailable')
+    expect(await w.subscriptions.remove(w.ctx, key)).toEqual(unavailable)
+    w.authority.answer(() => 'allowed')
+    expect(await w.subscriptions.list(w.ctx, person)).toMatchObject({
+      value: [{ level: 'strong' }],
+    })
+  })
+
+  it('facts that cannot be read are an unavailable basis for set, remove and list, and nothing is written', async () => {
+    const w = world()
+    await w.subscriptions.set(w.ctx, change({ recipient: person }))
+    const commits = w.store.commits()
+    const key = keyOf(change({ recipient: person }))
+    w.store.fail('read-unavailable')
+    expect(await w.subscriptions.set(w.ctx, change({ recipient: person, level: 'weak' }))).toEqual(
+      unavailable,
+    )
+    w.store.fail('read-unavailable')
+    expect(await w.subscriptions.remove(w.ctx, key)).toEqual(unavailable)
+    w.store.fail('read-unavailable')
+    expect(await w.subscriptions.list(w.ctx, person)).toEqual(unavailable)
+    expect(w.store.commits()).toBe(commits)
+    expect(await w.subscriptions.list(w.ctx, person)).toMatchObject({
+      value: [{ level: 'strong' }],
+    })
+  })
+
+  it('refuses what is not a request before it asks anyone', async () => {
+    const w = world()
+    const bad = { ...change({ recipient: person }), source: 'Not A Source' }
+    expect(await w.subscriptions.set(w.ctx, bad as never)).toEqual(refused('invalid-request'))
+    expect(await w.subscriptions.list(w.ctx, { kind: 'team' } as never)).toEqual(
+      refused('invalid-request'),
+    )
+    expect(w.authority.asked()).toEqual([])
+  })
+
+  it('a declaration that cannot be read, or a rule that throws, is an unavailable basis', async () => {
+    const w = world(
+      declared({
+        subject: {
+          presence: 'optional',
+          hint: '',
+          accepts: () => {
+            throw new Error('rule is broken')
+          },
+        },
+      }),
+    )
+    const exact = change({ recipient: person, scope: { kind: 'subject', equals: 'repo/a' } })
+    expect(await w.subscriptions.set(w.ctx, exact)).toEqual(unavailable)
+    w.unregister()
+    expect(await w.subscriptions.set(w.ctx, change({ recipient: person }))).toEqual(unavailable)
+    expect(w.store.commits()).toBe(0)
+    const blind = createSubscriptions({
+      authority: w.authority,
+      store: w.store,
+      sources: {
+        ...w.sources,
+        lookup: () => {
+          throw new Error('registry is down')
+        },
+      },
+      consent: w.consent,
+      clock: w.clock,
+      defaults,
+      beatRange: { min: 5, max: 1440 },
+    })
+    expect(await blind.set(w.ctx, change({ recipient: person }))).toEqual(unavailable)
+  })
+})
+
 describe('the beat of a recipient', () => {
   it('is set by the owner within the allowed range', async () => {
     const w = world()
@@ -308,6 +420,21 @@ describe('the beat of a recipient', () => {
     for (const minutes of [4, 1441])
       expect(await w.subscriptions.setBeat(w.ctx, person, { kind: 'every', minutes })).toEqual(
         refused('out-of-range'),
+      )
+    for (const minutes of [5, 1440])
+      expect(await w.subscriptions.setBeat(w.ctx, person, { kind: 'every', minutes })).toEqual({
+        kind: 'done',
+        recalled: false,
+        value: { kind: 'every', minutes },
+      })
+    for (const beat of [
+      { kind: 'every', minutes: 0 },
+      { kind: 'every', minutes: -5 },
+      { kind: 'every' },
+      null,
+    ])
+      expect(await w.subscriptions.setBeat(w.ctx, person, beat as never)).toEqual(
+        refused('invalid-request'),
       )
     for (const beat of [{ kind: 'every', minutes: 1.5 }, { kind: 'sometimes' }])
       expect(await w.subscriptions.setBeat(w.ctx, person, beat as never)).toEqual(
@@ -335,6 +462,25 @@ describe('the beat of a recipient', () => {
     w.authority.answer(() => 'allowed')
     w.store.fail('read-unavailable')
     expect(await read()).toEqual(unavailable)
+  })
+
+  it('recalls a beat only when it is the same beat', async () => {
+    const w = world()
+    const set = async (beat: object) => {
+      const before = w.store.commits()
+      const answer = await w.subscriptions.setBeat(w.ctx, person, beat as never)
+      if (answer.kind !== 'done') throw new Error(answer.kind)
+      return { recalled: answer.recalled, wrote: w.store.commits() - before }
+    }
+    expect(await set({ kind: 'default' })).toEqual({ recalled: true, wrote: 0 })
+    expect(await set({ kind: 'every', minutes: 30 })).toEqual({ recalled: false, wrote: 1 })
+    expect(await set({ kind: 'every', minutes: 30 })).toEqual({ recalled: true, wrote: 0 })
+    expect(await set({ kind: 'every', minutes: 45 })).toEqual({ recalled: false, wrote: 1 })
+    expect(await set({ kind: 'off' })).toEqual({ recalled: false, wrote: 1 })
+    expect(await set({ kind: 'off' })).toEqual({ recalled: true, wrote: 0 })
+    expect(await set({ kind: 'every', minutes: 45 })).toEqual({ recalled: false, wrote: 1 })
+    expect(await set({ kind: 'default' })).toEqual({ recalled: false, wrote: 1 })
+    expect(await w.subscriptions.beat(w.ctx, person)).toMatchObject({ value: { kind: 'default' } })
   })
 
   it('answers what the authority and the store answered', async () => {

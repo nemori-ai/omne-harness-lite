@@ -15,7 +15,6 @@ import {
   type ParseRefusal,
   type RecipientRef,
   type Subscription,
-  type SubscriptionActor,
   type SubscriptionChange,
   type SubscriptionDecision,
   type SubscriptionKey,
@@ -40,9 +39,6 @@ export type SubscriptionsDependencies = Readonly<{
 const UNAVAILABLE = { kind: 'basis-unavailable' } as const
 const refuse = <R extends string>(reason: R) => ({ kind: 'refused', reason }) as const
 type Blocked = typeof UNAVAILABLE | ReturnType<typeof refuse<'not-permitted'>>
-
-const actorOf = (ctx: CallContext): SubscriptionActor =>
-  ctx.actor.kind === 'owner' ? ctx.actor : { kind: 'agent', recipient: ctx.actor.recipient }
 
 function declaredType(
   sources: NotificationSources,
@@ -97,7 +93,7 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
     const declared = declaredType(deps.sources, change)
     const mode = await consentMode(ctx)
     if (declared === null || mode === 'unavailable') return null
-    const facts = { tenant: ctx.tenant, change, current, actor: actorOf(ctx), declared }
+    const facts = { tenant: ctx.tenant, change, current, actor: ctx.actor, declared }
     try {
       return decideSubscription({ ...facts, mode, confirmation, now: deps.clock.now() })
     } catch {
@@ -141,11 +137,9 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
 
     async remove(ctx, input) {
       const parsed = parseWith(subscriptionKeySchema, input)
-      if ('refused' in parsed)
-        return refuse(parsed.refused === 'invalid-scope' ? parsed.refused : 'invalid-request')
+      if ('refused' in parsed) return refuse(keyRefusal(parsed.refused))
       const key = parsed.ok
-      const own = ctx.actor.kind === 'owner' || sameRecipient(ctx.actor.recipient, key.recipient)
-      if (!own) return refuse('not-own-recipient')
+      if (!isOwn(ctx, key.recipient)) return refuse('not-own-recipient')
       const blocked = await gate(ctx, 'subscribe-for', key.recipient)
       if (blocked !== null) return blocked
       const current = await deps.store.subscription(ctx.tenant, key)
@@ -197,6 +191,13 @@ function validBeat(beat: Beat): boolean {
   if (beat?.kind === 'default' || beat?.kind === 'off') return true
   return beat?.kind === 'every' && Number.isInteger(beat.minutes) && beat.minutes > 0
 }
+
+const keyRefusal = (refusal: ParseRefusal) =>
+  refusal === 'invalid-scope' ? refusal : 'invalid-request'
+
+/** The owner acts for any recipient of the tenant; an agent only for itself. */
+const isOwn = (ctx: CallContext, recipient: RecipientRef) =>
+  ctx.actor.kind === 'owner' || sameRecipient(ctx.actor.recipient, recipient)
 
 const parseRefusal = (refusal: ParseRefusal) =>
   refusal === 'invalid-scope' || refusal === 'invalid-term' ? refusal : 'invalid-request'

@@ -53,11 +53,17 @@ export type Selected = Readonly<{
   hit: Subscription | null
 }>
 
-export function sameScope(a: Scope, b: Scope): boolean {
-  if (a.kind === 'all' || b.kind === 'all') return a.kind === b.kind
-  if (a.kind === 'subject') return b.kind === 'subject' && a.equals === b.equals
-  return b.kind === 'subject-prefix' && a.prefix === b.prefix
+function scopeKey(scope: Scope): string {
+  if (scope.kind === 'subject') return `=${scope.equals}`
+  return scope.kind === 'subject-prefix' ? `^${scope.prefix}` : '*'
 }
+const termKey = (term: Term) => (term.kind === 'until' ? `until ${term.at}` : term.kind)
+function basisKey(basis: Basis): string {
+  if (basis.kind === 'blanket') return `blanket ${String(basis.generation)}`
+  return basis.kind === 'granular' ? `granular ${basis.decision}` : 'owner'
+}
+
+export const sameScope = (a: Scope, b: Scope): boolean => scopeKey(a) === scopeKey(b)
 
 export function sameSubscriptionKey(a: SubscriptionKey, b: SubscriptionKey): boolean {
   return (
@@ -68,16 +74,7 @@ export function sameSubscriptionKey(a: SubscriptionKey, b: SubscriptionKey): boo
   )
 }
 
-export function sameTerm(a: Term, b: Term): boolean {
-  if (a.kind === 'until') return b.kind === 'until' && a.at === b.at
-  return a.kind === b.kind
-}
-
-function sameBasis(a: Basis, b: Basis): boolean {
-  if (a.kind === 'blanket') return b.kind === 'blanket' && a.generation === b.generation
-  if (a.kind === 'granular') return b.kind === 'granular' && a.decision === b.decision
-  return b.kind === 'owner'
-}
+export const sameTerm = (a: Term, b: Term): boolean => termKey(a) === termKey(b)
 
 /** Null is "no subscription". Two subscriptions are the same when every stored part agrees. */
 export function sameSubscription(a: Subscription | null, b: Subscription | null): boolean {
@@ -87,7 +84,7 @@ export function sameSubscription(a: Subscription | null, b: Subscription | null)
     a.level === b.level &&
     a.note === b.note &&
     sameTerm(a.term, b.term) &&
-    sameBasis(a.basis, b.basis) &&
+    basisKey(a.basis) === basisKey(b.basis) &&
     a.expired === b.expired
   )
 }

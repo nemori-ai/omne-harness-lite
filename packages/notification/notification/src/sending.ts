@@ -11,7 +11,6 @@ import {
   type NotificationSending,
   type Outcome,
   type ParseRefusal,
-  type RecipientRef,
   type SendDecision,
   type SendLimits,
   type SendRefusal,
@@ -23,6 +22,7 @@ import { ask, type Clock, type NotificationAuthority } from './ports.ts'
 import type { NotificationSources } from './registries.ts'
 import type { NotificationStore } from './store.ts'
 import type { RecipientDefaults } from './transactions/destinations.ts'
+import type { SendRecord } from './txn.ts'
 
 export type SendingDependencies = Readonly<{
   authority: NotificationAuthority
@@ -37,14 +37,7 @@ export type SendingDependencies = Readonly<{
 
 type SendOutcome = Outcome<Accepted, ParseRefusal | SendRefusal>
 const UNAVAILABLE = { kind: 'basis-unavailable' } as const
-
-function lookupSource(sources: NotificationSources, request: SendRequest): SourceLookup {
-  try {
-    return sources.lookup(request.identity.source)
-  } catch {
-    return { kind: 'unreadable' }
-  }
-}
+const NOT_ASKED: SourceLookup = { kind: 'absent' }
 
 async function namedChecks(
   deps: SendingDependencies,
@@ -61,9 +54,7 @@ async function namedChecks(
 }
 
 type Admitted = Readonly<{ request: SendRequest }>
-type Decided =
-  | Exclude<SendDecision, { kind: 'recalled' }>
-  | Readonly<{ kind: 'recalled'; recipients: readonly RecipientRef[] }>
+type Decided = SendDecision<SendRecord> | typeof UNAVAILABLE
 type Blocked = Exclude<SendOutcome, { kind: 'done' }>
 
 /** Steps one and two: the request parses, names this tenant, fits, and the subject may send. */
@@ -90,16 +81,15 @@ async function decide(
 ): Promise<Decided> {
   const known = await deps.store.send(ctx.tenant, request.identity)
   if (known.kind === 'unavailable') return UNAVAILABLE
-  const source = lookupSource(deps.sources, request)
-  const named = known.value === null ? await namedChecks(deps, ctx, request) : []
   const record = known.value?.record ?? null
+  /** A send that was accepted before is recalled without its source and without asking about its recipients again. */
+  const named = record === null ? await namedChecks(deps, ctx, request) : []
   try {
-    const decision = decideSend(record, request, source, named, deps.limits)
-    if (decision.kind !== 'recalled') return decision
+    const source = record === null ? deps.sources.lookup(request.identity.source) : NOT_ASKED
+    return decideSend(record, request, source, named, deps.limits)
   } catch {
     return UNAVAILABLE
   }
-  return { kind: 'recalled', recipients: record?.recipients ?? [] }
 }
 
 export function createSending(deps: SendingDependencies): NotificationSending {
@@ -128,7 +118,7 @@ export function createSending(deps: SendingDependencies): NotificationSending {
     const { request } = admitted
     const decision = await decide(deps, ctx, request)
     if (decision.kind === 'recalled') {
-      const value = { identity: request.identity, recipients: decision.recipients }
+      const value = { identity: request.identity, recipients: decision.known.recipients }
       return { kind: 'done', recalled: true, value }
     }
     if (decision.kind !== 'proceed') return decision

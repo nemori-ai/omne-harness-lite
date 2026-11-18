@@ -182,16 +182,21 @@ export type Parsed<T> = Readonly<{ ok: T }> | Readonly<{ refused: ParseRefusal }
 
 type Issue = Readonly<{ path: readonly PropertyKey[]; code: string }>
 
+type Located = Readonly<{ path: readonly string[]; code: string }>
+const under = (path: readonly string[], ...keys: string[]) =>
+  keys.every((key, index) => path[index] === key)
+
+const REFUSALS: readonly (readonly [(issue: Located) => boolean, ParseRefusal])[] = [
+  [({ path }) => under(path, 'identity', 'source') || under(path, 'source'), 'invalid-source-name'],
+  [({ path }) => under(path, 'identity'), 'incomplete-identity'],
+  [({ path, code }) => under(path, 'event', 'content') && code === 'too_big', 'content-too-large'],
+  [({ path }) => path.includes('scope'), 'invalid-scope'],
+  [({ path }) => path.includes('term'), 'invalid-term'],
+]
+
 function refusalOf(issues: readonly Issue[]): ParseRefusal {
-  const first = issues[0]
-  const path = first === undefined ? [] : first.path.map(String)
-  const at = (...keys: string[]) => keys.every((key, index) => path[index] === key)
-  if (at('identity', 'source') || at('source')) return 'invalid-source-name'
-  if (at('identity')) return 'incomplete-identity'
-  if (at('event', 'content') && first?.code === 'too_big') return 'content-too-large'
-  if (path.includes('scope')) return 'invalid-scope'
-  if (path.includes('term')) return 'invalid-term'
-  return 'invalid-request'
+  const first = issues.slice(0, 1).map(({ path, code }) => ({ path: path.map(String), code }))
+  return REFUSALS.find(([fits]) => first.some(fits))?.[1] ?? 'invalid-request'
 }
 
 /** Parses an input at the boundary. Inside the domain the parsed type is not checked again. */

@@ -20,7 +20,6 @@ export type Ref = Pick<Entry, 'source' | 'event'>
 
 export const keyOf = (ref: Ref): string => JSON.stringify([ref.source, ref.event])
 
-/** How many pages one read takes. Past it the list says that there is more. */
 export const PAGE_CAP = 20
 
 export type Read =
@@ -115,19 +114,23 @@ function restart(state: State): Step {
   }
 }
 
+/** A refused read shows nothing. Any other failure keeps what was read before. */
+function listFailed(state: State, outcome: string): State {
+  const denied = outcome === 'denied' || outcome === 'not-found'
+  return {
+    ...state,
+    entries: denied ? [] : state.entries,
+    read: { kind: 'failed', reason: denied ? 'denied' : 'unavailable' },
+  }
+}
+
+const finished = (again: boolean, state: State): Step => (again ? restart(state) : still(state))
+
 function listAnswered(state: State, event: Extract<Event, { kind: 'list-answered' }>): Step {
   const { read } = state
   if (read.kind !== 'reading' || read.token !== event.token) return still(state)
   const { answer } = event
-  if (answer.outcome !== 'succeeded') {
-    const denied = answer.outcome === 'denied' || answer.outcome === 'not-found'
-    const failed: State = {
-      ...state,
-      entries: denied ? [] : state.entries,
-      read: { kind: 'failed', reason: denied ? 'denied' : 'unavailable' },
-    }
-    return read.again ? restart(failed) : still(failed)
-  }
+  if (answer.outcome !== 'succeeded') return finished(read.again, listFailed(state, answer.outcome))
   const collected = [...read.collected, ...answer.body.entries]
   const { next } = answer.body
   if (next !== null && read.pages < PAGE_CAP)
@@ -140,7 +143,7 @@ function listAnswered(state: State, event: Extract<Event, { kind: 'list-answered
     entries: collected,
     read: { kind: 'ready', more: next !== null },
   }
-  return read.again ? restart(ready) : still(ready)
+  return finished(read.again, ready)
 }
 
 /** Whether an observation ended because the login may not watch this tenant. Any other end is retried. */
@@ -240,48 +243,50 @@ function frame(state: State, event: Extract<Event, { kind: 'frame' }>): Step {
   return event.about === 'inbox' ? reload(live) : still(live)
 }
 
-export function step(state: State, event: Event): Step {
-  switch (event.kind) {
-    case 'watch': {
-      if (state.live.kind !== 'off') return still(state)
-      const generation = state.generation + 1
-      return {
-        state: { ...state, generation, live: { kind: 'on' } },
-        effects: [{ kind: 'observe', generation }],
-      }
-    }
-    case 'unwatch':
-      if (state.live.kind === 'off') return still(state)
-      return { state: { ...state, live: { kind: 'off' } }, effects: [{ kind: 'stop-observing' }] }
-    case 'refresh':
-      return reload(state)
-    case 'filter':
-      return event.filter === state.filter
-        ? still(state)
-        : restart({ ...state, filter: event.filter })
-    case 'frame':
-      return frame(state, event)
-    case 'observation-ended':
-      return observationEnded(state, event)
-    case 'reconnect-due': {
-      if (event.generation !== state.generation || state.live.kind !== 'retrying')
-        return still(state)
-      const generation = state.generation + 1
-      return { state: { ...state, generation }, effects: [{ kind: 'observe', generation }] }
-    }
-    case 'list-answered':
-      return listAnswered(state, event)
-    case 'mark':
-      return mark(state, event.key, event.operation)
-    case 'mark-answered':
-      return markAnswered(state, event)
-    case 'open':
-      return open(state, event.key)
-    case 'close':
-      return still(state.opened === null ? state : { ...state, opened: null })
-    case 'read-answered':
-      return readAnswered(state, event)
+function watch(state: State): Step {
+  if (state.live.kind !== 'off') return still(state)
+  const generation = state.generation + 1
+  return {
+    state: { ...state, generation, live: { kind: 'on' } },
+    effects: [{ kind: 'observe', generation }],
   }
+}
+
+function unwatch(state: State): Step {
+  if (state.live.kind === 'off') return still(state)
+  return { state: { ...state, live: { kind: 'off' } }, effects: [{ kind: 'stop-observing' }] }
+}
+
+function reconnectDue(state: State, event: Extract<Event, { kind: 'reconnect-due' }>): Step {
+  if (event.generation !== state.generation || state.live.kind !== 'retrying') return still(state)
+  const generation = state.generation + 1
+  return { state: { ...state, generation }, effects: [{ kind: 'observe', generation }] }
+}
+
+type Handlers = {
+  readonly [K in Event['kind']]: (state: State, event: Extract<Event, { kind: K }>) => Step
+}
+
+const HANDLERS: Handlers = {
+  watch,
+  unwatch,
+  refresh: reload,
+  filter: (state, { filter }) =>
+    filter === state.filter ? still(state) : restart({ ...state, filter }),
+  frame,
+  'observation-ended': observationEnded,
+  'reconnect-due': reconnectDue,
+  'list-answered': listAnswered,
+  mark: (state, event) => mark(state, event.key, event.operation),
+  'mark-answered': markAnswered,
+  open: (state, event) => open(state, event.key),
+  close: state => still(state.opened === null ? state : { ...state, opened: null }),
+  'read-answered': readAnswered,
+}
+
+export function step(state: State, event: Event): Step {
+  const handle = HANDLERS[event.kind] as (state: State, event: Event) => Step
+  return handle(state, event)
 }
 
 const newestFirst = (a: Entry, b: Entry) => b.sequence - a.sequence

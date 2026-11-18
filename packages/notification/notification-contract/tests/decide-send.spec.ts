@@ -55,7 +55,7 @@ describe('decideSend: recall, then the source, then naming, then depth', () => {
       ['unreadable', { kind: 'unreadable' }],
       ['registered', registered],
     ] as const)('is recalled while the source is %s', (_case, lookup) => {
-      expect(decideSend(known, request(), lookup, [], limits)).toEqual({ kind: 'recalled' })
+      expect(decideSend(known, request(), lookup, [], limits)).toEqual({ kind: 'recalled', known })
     })
 
     it('is recalled when only the instant, the renotify switch or the origin differ', () => {
@@ -64,7 +64,7 @@ describe('decideSend: recall, then the source, then naming, then depth', () => {
         renotify: true,
         origin: { emitter: person, depth: 9 },
       })
-      expect(decideSend(known, again, registered, [], limits)).toEqual({ kind: 'recalled' })
+      expect(decideSend(known, again, registered, [], limits)).toEqual({ kind: 'recalled', known })
     })
 
     it.each([
@@ -168,6 +168,7 @@ describe('decideSend: recall, then the source, then naming, then depth', () => {
     )
     expect(decideSend(known, request(locator('s1')), registered, [], limits)).toEqual({
       kind: 'recalled',
+      known,
     })
   })
 

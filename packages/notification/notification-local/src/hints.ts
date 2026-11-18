@@ -37,7 +37,6 @@ export function createWakeUps(
     stop() {
       stopped = true
       for (const { timer } of scheduled.values()) timers.clear(timer)
-      scheduled.clear()
     },
   }
 }
