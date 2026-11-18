@@ -323,6 +323,7 @@ export {
 } from './background-outcome.ts'
 export type { SessionIntakeLimits } from './intake.ts'
 export {
+  INTAKE_BUDGET_REQUIRED,
   INTAKE_GUARD_OWNER,
   admitDerived,
   admitDerivedOf,
@@ -333,6 +334,7 @@ export {
   prepareEntriesTerms,
   prepareIntakeTerms,
   budgetTermsOf,
+  commitWithinBudget,
   withIntakeTerms,
   intakeTermsOf,
   parseInputSourceName,

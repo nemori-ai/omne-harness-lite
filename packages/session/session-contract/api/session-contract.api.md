@@ -89,6 +89,7 @@
 - `INGRESS_FAMILIES` · `operations.d.ts`
 - `INITIALIZATION_PROTOCOL` · `initialization-schema.d.ts`
 - `INPUT_FATE_KINDS` · `input-fate.d.ts`
+- `INTAKE_BUDGET_REQUIRED` · `input-sources.d.ts`
 - `INTAKE_GUARD_OWNER` · `input-sources.d.ts`
 - `IdleCoverage` · `values.d.ts`
 - `IdleJudgment` · `judgments.d.ts`
@@ -296,6 +297,7 @@
 - `budgetTermsOf` · `input-sources.d.ts`
 - `commandDigest` · `decide.d.ts`
 - `commandInput` · `input-sources.d.ts`
+- `commitWithinBudget` · `input-sources.d.ts`
 - `compactionCallChangeOf` · `work-entry-state.d.ts`
 - `compactionContextForView` · `model-view.d.ts`
 - `contextScopeOf` · `context-scopes.d.ts`
@@ -2288,7 +2290,7 @@ export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, 
 export { archiveCollapse, backgroundCalls, controlAnswer, controlRoutes, type ArchiveCollapse, type ControlRoutes, type DirectCallControl, } from './call-control.ts';
 export { backgroundInputId, judgeBackgroundOutcome, type BackgroundOutcomeJudgment, } from './background-outcome.ts';
 export type { SessionIntakeLimits } from './intake.ts';
-export { INTAKE_GUARD_OWNER, admitDerived, admitDerivedOf, admitSource, createInputSourceRegistry, inputSourceName, commandInput, prepareEntriesTerms, prepareIntakeTerms, budgetTermsOf, withIntakeTerms, intakeTermsOf, parseInputSourceName, type AdmittedSource, type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSourceRegistry, type InputSources, type IntakeBasis, type IntakeSubject, type SourceTerms, type IntakeTerms, type SessionDerivedInputs, type SessionIntakeBudget, type BudgetTerms, type SourceAdmission, type SourceRefusal, } from './input-sources.ts';
+export { INTAKE_BUDGET_REQUIRED, INTAKE_GUARD_OWNER, admitDerived, admitDerivedOf, admitSource, createInputSourceRegistry, inputSourceName, commandInput, prepareEntriesTerms, prepareIntakeTerms, budgetTermsOf, commitWithinBudget, withIntakeTerms, intakeTermsOf, parseInputSourceName, type AdmittedSource, type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSourceRegistry, type InputSources, type IntakeBasis, type IntakeSubject, type SourceTerms, type IntakeTerms, type SessionDerivedInputs, type SessionIntakeBudget, type BudgetTerms, type SourceAdmission, type SourceRefusal, } from './input-sources.ts';
 export type { TodoItem, VisibleTodoItem, TodoMutationReceipt, TodoPageCursor, TodoPage, SessionTodos, } from './todos.ts';
 export type { SessionPermissionAssignment, SessionPermissions, SessionPermissionChangeBasis, SessionPermissionWriteQualification, } from './permission-values.ts';
 export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts';
@@ -2448,6 +2450,8 @@ export declare function pendingAfterTerminal(snapshot: Pick<WorkSnapshot, 'pendi
 
 ```ts
 import type { TenantId } from '@omne-harness/legal-identity';
+import type { Outcome } from '@omne-harness/operation-result';
+import type { SessionFailure } from './faces.ts';
 import { type SessionIntakeLimits } from './intake.ts';
 import type { GuardCommand, SessionCommand } from './ports.ts';
 import type { RoutedInput } from './values.ts';
@@ -2531,6 +2535,8 @@ export type BudgetTerms = Readonly<{
     limits: SessionIntakeLimits;
 }> | Readonly<{
     kind: 'unavailable';
+}> | Readonly<{
+    kind: 'deferred';
 }>;
 export interface SessionIntakeBudget {
     read(tenant: TenantId): Promise<SessionIntakeLimits | null>;
@@ -2541,6 +2547,7 @@ export type IntakeTerms = Readonly<{
     derived?: Readonly<Partial<Record<DerivedInputKind, DerivedAdmission>>>;
 }>;
 export declare const INTAKE_GUARD_OWNER = "session-intake";
+export declare const INTAKE_BUDGET_REQUIRED = "the answer depends on the intake budget of the tenant";
 type Ordinary = Extract<RoutedInput, {
     kind: 'ordinary';
 }>;
@@ -2552,6 +2559,8 @@ export type IntakeBasis = Readonly<{
     budget?: BudgetTerms | undefined;
 }>;
 export declare function budgetTermsOf(budget: SessionIntakeBudget | null | undefined, command: SessionCommand): Promise<BudgetTerms | undefined>;
+type Attempt<R> = (budget: BudgetTerms | undefined) => Promise<Outcome<R, SessionFailure>>;
+export declare function commitWithinBudget<R>(budget: SessionIntakeBudget | null | undefined, command: SessionCommand, attempt: Attempt<R>): Promise<Outcome<R, SessionFailure>>;
 export declare function prepareIntakeTerms(command: SessionCommand, basis: IntakeBasis): IntakeTerms | null;
 export declare function prepareEntriesTerms(derived: SessionDerivedInputs | null): IntakeTerms['derived'];
 export declare function withIntakeTerms(guards: readonly GuardCommand[], terms: IntakeTerms | null): readonly GuardCommand[];
@@ -3670,8 +3679,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:1c5846a8d0f83dc885495c06e3c3aaec2ecc4ef5aac2eca05ef940d064374831";
-export declare const SESSION_RELEASE_DIGEST = "sha256:1c5846a8d0f83dc885495c06e3c3aaec2ecc4ef5aac2eca05ef940d064374831";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:221f957151afa076cbf352e75fc71a273ada1ad37f7190740e96b3e3275cc39d";
+export declare const SESSION_RELEASE_DIGEST = "sha256:221f957151afa076cbf352e75fc71a273ada1ad37f7190740e96b3e3275cc39d";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

@@ -36,7 +36,7 @@ export type SessionStorageOptions<P> = Readonly<{
   sources?: InputSources
   /** The admissions of the inputs Session derives from its own log. */
   derived?: SessionDerivedInputs
-  /** The budget of a tenant, read at each commit of an input. Absent: `intakeLimits` applies. */
+  /** The budget of a tenant, read when an input already waits. Absent: `intakeLimits` applies. */
   budget?: SessionIntakeBudget
   storage: SqlStorage
   domains: TenantDomainAccess

@@ -71,8 +71,8 @@ import { createTenantEnumeration } from './enumeration.ts'
 
 export const OWNER = 'apps/harness-server/session-storage'
 
-// The pending limit is the tenant's setting, read through the tenant-level scope at each commit
-// of an input; the size limit stays this row's. While the scope is away the input is unavailable.
+// The pending limit is the tenant's setting, read through the tenant-level scope when an input
+// already waits; the size limit stays this row's. While the scope is away that input is unavailable.
 function tenantBudgetOf(ctx: Context, config: SessionStorageRowConfig) {
   return createIntakeBudgetReader<unknown>({
     scope: () => ctx.get(runtimeContextTenantScopeKey),

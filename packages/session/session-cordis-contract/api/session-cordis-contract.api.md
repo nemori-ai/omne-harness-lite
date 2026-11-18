@@ -89,6 +89,7 @@
 - `INGRESS_FAMILIES` · 包 `@omne-harness/session-contract`
 - `INITIALIZATION_PROTOCOL` · 包 `@omne-harness/session-contract`
 - `INPUT_FATE_KINDS` · 包 `@omne-harness/session-contract`
+- `INTAKE_BUDGET_REQUIRED` · 包 `@omne-harness/session-contract`
 - `INTAKE_GUARD_OWNER` · 包 `@omne-harness/session-contract`
 - `IdleCoverage` · 包 `@omne-harness/session-contract`
 - `IdleJudgment` · 包 `@omne-harness/session-contract`
@@ -307,6 +308,7 @@
 - `budgetTermsOf` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
 - `commandInput` · 包 `@omne-harness/session-contract`
+- `commitWithinBudget` · 包 `@omne-harness/session-contract`
 - `compactionCallChangeOf` · 包 `@omne-harness/session-contract`
 - `compactionContextForView` · 包 `@omne-harness/session-contract`
 - `contextScopeOf` · 包 `@omne-harness/session-contract`

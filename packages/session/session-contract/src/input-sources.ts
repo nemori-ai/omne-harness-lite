@@ -1,5 +1,7 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
+import type { Outcome } from '@omne-harness/operation-result'
+import type { SessionFailure } from './faces.ts'
 import { sessionIntakeLimits, type SessionIntakeLimits } from './intake.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import type { RoutedInput } from './values.ts'
@@ -156,6 +158,7 @@ export type SourceTerms =
 export type BudgetTerms =
   | Readonly<{ kind: 'given'; limits: SessionIntakeLimits }>
   | Readonly<{ kind: 'unavailable' }>
+  | Readonly<{ kind: 'deferred' }>
 
 export interface SessionIntakeBudget {
   read(tenant: TenantId): Promise<SessionIntakeLimits | null>
@@ -169,6 +172,7 @@ export type IntakeTerms = Readonly<{
 }>
 
 export const INTAKE_GUARD_OWNER = 'session-intake'
+export const INTAKE_BUDGET_REQUIRED = 'the answer depends on the intake budget of the tenant'
 const INTAKE_PROTOCOL: GuardCommand['protocol'] = Object.freeze({
   owner: 'session',
   name: 'intake-terms',
@@ -221,6 +225,25 @@ export async function budgetTermsOf(
   } catch {
     return { kind: 'unavailable' }
   }
+}
+
+type Attempt<R> = (budget: BudgetTerms | undefined) => Promise<Outcome<R, SessionFailure>>
+
+export async function commitWithinBudget<R>(
+  budget: SessionIntakeBudget | null | undefined,
+  command: SessionCommand,
+  attempt: Attempt<R>,
+): Promise<Outcome<R, SessionFailure>> {
+  if (budget === null || budget === undefined || commandInput(command) === null)
+    return attempt(undefined)
+  const first = await attempt({ kind: 'deferred' })
+  if (!('failure' in first)) return first
+  const { failure } = first
+  const required =
+    failure.kind === 'unavailable' &&
+    failure.owner === INTAKE_GUARD_OWNER &&
+    failure.diagnostic === INTAKE_BUDGET_REQUIRED
+  return required ? attempt(await budgetTermsOf(budget, command)) : first
 }
 
 /** Computes the terms of a command where it is committed. It never fails: `decide` answers. */
@@ -279,7 +302,7 @@ function isAdmittedSource(value: unknown): value is AdmittedSource {
 function isBudgetTerms(value: unknown): boolean {
   if (value === undefined) return true
   const budget = value as BudgetTerms
-  if (budget?.kind === 'unavailable') return true
+  if (budget?.kind === 'unavailable' || budget?.kind === 'deferred') return true
   if (budget?.kind !== 'given') return false
   try {
     sessionIntakeLimits(budget.limits)

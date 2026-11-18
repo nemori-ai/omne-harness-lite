@@ -208,6 +208,7 @@ export type RealAppOptions = Readonly<{
   extraParticipants?: SqlMaterialCatalog['participants']
   policy?: Parameters<typeof createPolicySessionAccessCheck<string>>[0]
   protectedBasis?: SessionStorageOptions<string>['protectedBasis']
+  budget?: SessionStorageOptions<string>['budget']
 }>
 
 export async function openRealApp(options: RealAppOptions = {}) {
@@ -307,6 +308,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
   const storageOptions = {
     ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
     ...(options.protectedBasis === undefined ? {} : { protectedBasis: options.protectedBasis }),
+    ...(options.budget === undefined ? {} : { budget: options.budget }),
     storage,
     domains,
     accessCheck: withMemberSubject(accessCheck),

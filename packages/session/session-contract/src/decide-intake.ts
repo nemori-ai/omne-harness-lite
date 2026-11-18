@@ -1,6 +1,12 @@
 import type { GuardCommand } from './ports.ts'
 import { invalid, rejected } from './decision-support.ts'
-import { INTAKE_GUARD_OWNER, intakeTermsOf, type AdmittedSource } from './input-sources.ts'
+import {
+  INTAKE_BUDGET_REQUIRED,
+  INTAKE_GUARD_OWNER,
+  intakeTermsOf,
+  type AdmittedSource,
+  type BudgetTerms,
+} from './input-sources.ts'
 import { judgeSessionIntake, type SessionIntakeLimits } from './intake.ts'
 import type { DecideReads, Decision } from './judgments.ts'
 import type { RoutedInput } from './values.ts'
@@ -42,15 +48,26 @@ export function admitInput(
   const source = admittedSourceOf(input, intake.reads, field)
   if ('kind' in source) return source
   if (!source.countsTowardCapacity) return { source }
-  const budget = intake.reads.intake?.budget
-  if (budget?.kind === 'unavailable')
-    return rejected({
-      kind: 'unavailable',
-      owner: INTAKE_GUARD_OWNER,
-      diagnostic: 'the intake budget of this tenant is not available',
-    })
-  const limited = judgeSessionIntake(pending, input, budget?.limits ?? intake.limits)
+  const limits = budgetLimits(intake.reads.intake?.budget, pending, intake.limits)
+  if (typeof limits === 'string')
+    return rejected({ kind: 'unavailable', owner: INTAKE_GUARD_OWNER, diagnostic: limits })
+  const limited = judgeSessionIntake(pending, input, limits)
   return limited === null ? { source } : rejected(limited)
+}
+
+const BUDGET_UNAVAILABLE = 'the intake budget of this tenant is not available'
+
+// While no input waits, every limit a tenant can set (at least one) admits the next one, so the
+// answer does not depend on the budget: only the size is judged, on the limit of the writer.
+function budgetLimits(
+  budget: BudgetTerms | undefined,
+  pending: number,
+  own: SessionIntakeLimits,
+): SessionIntakeLimits | string {
+  if (budget === undefined) return own
+  if (budget.kind === 'given') return budget.limits
+  if (pending === 0) return { maxInputBytes: own.maxInputBytes, maxPendingInputs: 1 }
+  return budget.kind === 'deferred' ? INTAKE_BUDGET_REQUIRED : BUDGET_UNAVAILABLE
 }
 
 // The writer's terms ride with the guards of the commit; every decider reads them as `reads.intake`.

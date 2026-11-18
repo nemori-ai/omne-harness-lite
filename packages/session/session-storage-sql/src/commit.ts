@@ -16,8 +16,9 @@ import {
   type SessionCommand,
   type SessionFailure,
   type SessionOperationId,
-  budgetTermsOf,
+  commitWithinBudget,
   prepareIntakeTerms,
+  type BudgetTerms,
   withIntakeTerms,
 } from '@omne-harness/session-contract'
 import {
@@ -313,13 +314,33 @@ export async function commit<P, K extends MutationName>(
   if ('failure' in allowed) return allowed
   const domain = await domainOf(context, command.input.tenant)
   if ('failure' in domain) return domain
-  const budget = await budgetTermsOf(context.options.budget, command)
+  const basis = { access, allowed: allowed.ok, domain: domain.ok }
+  return commitWithinBudget(context.options.budget, command, budget =>
+    commitAllowed(context, { command, guards: input.guards }, { ...basis, budget }),
+  )
+}
+
+type Allowed<P> = Extract<Awaited<ReturnType<Context<P>['access']>>, { ok: unknown }>['ok']
+
+// The part of a commit that runs again with the budget once the decider says it depends on it.
+async function commitAllowed<P>(
+  context: Context<P>,
+  input: Readonly<{ command: SessionCommand; guards: readonly GuardCommand[] }>,
+  basis: Readonly<{
+    access: SessionAccess<P>
+    allowed: Allowed<P>
+    domain: TenantDomainRef
+    budget: BudgetTerms | undefined
+  }>,
+): Promise<Outcome<unknown, SessionFailure>> {
+  const { command } = input
+  const { access, allowed, domain, budget } = basis
   let facts: FactCommandV2
   try {
-    const terms = prepareIntakeTerms(command, intakeBasisOf(context, allowed.ok.subject, budget))
+    const terms = prepareIntakeTerms(command, intakeBasisOf(context, allowed.subject, budget))
     const guards = withIntakeTerms(input.guards, terms)
     const base = sessionCommandFacts(command, guards, context.intakeLimits)
-    facts = { ...base, facts: { ...base.facts, evidence: encodeValue(allowed.ok.evidence) } }
+    facts = { ...base, facts: { ...base.facts, evidence: encodeValue(allowed.evidence) } }
   } catch (error) {
     return failure({
       kind: 'invalid',
@@ -335,12 +356,12 @@ export async function commit<P, K extends MutationName>(
     command.kind !== 'change' ||
     command.input.declaration.kind !== 'permission-assignment'
   )
-    return commitFacts(context, domain.ok, command.input.session, expected, facts)
-  const qualification = allowed.ok.writeQualification
+    return commitFacts(context, domain, command.input.session, expected, facts)
+  const qualification = allowed.writeQualification
   if (qualification === undefined) return failure({ kind: 'denied', action: command.kind })
   return commitFacts(
     context,
-    domain.ok,
+    domain,
     command.input.session,
     expected,
     facts,
