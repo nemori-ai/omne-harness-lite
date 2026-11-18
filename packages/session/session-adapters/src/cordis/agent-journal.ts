@@ -1597,7 +1597,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     scratch: Scratch,
     outcome: JournalCommitResult,
   ): Promise<void> {
-    if (outcome.kind === 'refused') return
+    const compacted = scratch.commands.some(item => item.kind === 'commitDerived')
+    if (!compacted || outcome.kind === 'refused') return
     forgetTold(book, scratch.snapshot)
     if (outcome.kind !== 'committed') return
     const fresh = await snapshotOf(book, domain)
@@ -1697,10 +1698,10 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         kind: 'answer',
         value: fail(unavailable(`a ${written.method} changed the Agent records without a batch`)),
       }
-    if (beginsStep(appended)) {
-      const told = await tellModel<T>(book, domain, input as ExecutionMutation<P>, scratch.snapshot)
-      if (told !== null) return told
-    }
+    const told = beginsStep(appended)
+      ? await tellModel<T>(book, domain, input as ExecutionMutation<P>, scratch.snapshot)
+      : null
+    if (told !== null) return told
     const execution = appended[0]!.execution
     const operation = storageOperation(
       execution,
@@ -1777,8 +1778,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           : null,
       journal: { published: book.published === null ? null : String(book.published) },
     })
-    if (scratch.commands.some(item => item.kind === 'commitDerived'))
-      await tellAfterCompaction(book, domain, input as ExecutionMutation<P>, scratch, outcome)
+    await tellAfterCompaction(book, domain, input as ExecutionMutation<P>, scratch, outcome)
     return settled
   }
 

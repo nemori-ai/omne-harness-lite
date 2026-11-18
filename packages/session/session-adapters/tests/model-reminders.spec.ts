@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { accountCodec, organizationCodec, tenant as mintTenant } from '@omne-harness/legal-identity'
 import type {
+  BindResult,
   BlockEntry,
   ChangesResult,
   ContextReader,
@@ -62,6 +63,7 @@ function world() {
   let changes: ChangesResult = changesOf(1, 1, [])
   let eligibility: ReaderEligibilityResult = { kind: 'current', eligibility: { eligibility: 'e1' } }
   let binds = 0
+  let refusal: Exclude<BindResult, { kind: 'bound' }> | null = null
   const reader: ContextReader = {
     consumer: 'model',
     scope,
@@ -81,7 +83,7 @@ function world() {
     runtimeContext: {
       bind: async () => {
         binds++
-        return { kind: 'bound', reader }
+        return refusal ?? { kind: 'bound', reader }
       },
     },
     descriptors: {
@@ -98,6 +100,7 @@ function world() {
     setSnapshot: (next: SnapshotResult) => (snapshot = next),
     setChanges: (next: ChangesResult) => (changes = next),
     setEligibility: (next: ReaderEligibilityResult) => (eligibility = next),
+    refuseBind: (next: typeof refusal) => (refusal = next),
     prepare: (at = '7') => reminders.prepare({ principal: 'coordinator', tenant, scope, at }),
   }
 }
@@ -188,6 +191,30 @@ describe('the reminders of the model (T4)', () => {
     })
     w.setEligibility({ kind: 'refused' })
     expect(await w.prepare()).toEqual({ failure: { kind: 'denied' } })
+  })
+
+  it('an eligibility the holder cannot give and a reader Runtime Context will not bind are failures', async () => {
+    const w = world()
+    for (const answer of [{ kind: 'absent' }, { kind: 'unknown' }] as const) {
+      w.setEligibility(answer)
+      expect(await w.prepare()).toMatchObject({ failure: { kind: 'unavailable' } })
+    }
+    w.setEligibility({ kind: 'unavailable', diagnostic: 'holder stopped' })
+    expect(await w.prepare()).toEqual({
+      failure: { kind: 'unavailable', diagnostic: 'holder stopped' },
+    })
+    expect(w.binds()).toBe(0)
+    w.setEligibility({ kind: 'current', eligibility: { eligibility: 'e1' } })
+    w.refuseBind({ kind: 'refused', reason: 'unauthorized' })
+    expect(await w.prepare()).toEqual({ failure: { kind: 'denied' } })
+    w.refuseBind({ kind: 'refused', reason: 'scope-ended' })
+    expect(await w.prepare()).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('scope-ended') },
+    })
+    w.refuseBind({ kind: 'unknown', cause: 'replay-unknown' })
+    expect(await w.prepare()).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('replay-unknown') },
+    })
   })
 
   it('gives the same message id for the same read at the same Session revision, another at another', async () => {
