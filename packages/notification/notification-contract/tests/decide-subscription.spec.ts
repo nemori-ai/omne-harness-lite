@@ -117,7 +117,7 @@ describe('decideSubscription: the owner', () => {
 
   it('is recalled when nothing would change, and sets when anything would', () => {
     const current = subscription(a, { kind: 'all' }, { level: 'strong' })
-    expect(decide({ current, actor: owner })).toEqual({ kind: 'recalled' })
+    expect(decide({ current, actor: owner })).toEqual({ kind: 'recalled', current })
     for (const next of [{ level: 'weak' }, { note: 'new' }, { term: { kind: 'once' } }] as const)
       expect(decide({ current, change: change(next), actor: owner })).toEqual({
         kind: 'set',
@@ -226,11 +226,17 @@ describe('decideSubscription: an agent', () => {
   })
 
   it('is recalled when nothing would change', () => {
-    expect(decide({ current: standingStrong })).toEqual({ kind: 'recalled' })
+    expect(decide({ current: standingStrong })).toEqual({
+      kind: 'recalled',
+      current: standingStrong,
+    })
   })
 
   it('keeps a subscription made under automatic consent valid after the mode changed', () => {
     const blanket = subscription(a, { kind: 'all' }, { basis: { kind: 'blanket', generation: 1 } })
-    expect(decide({ current: blanket, mode: perRequest })).toEqual({ kind: 'recalled' })
+    expect(decide({ current: blanket, mode: perRequest })).toEqual({
+      kind: 'recalled',
+      current: blanket,
+    })
   })
 })

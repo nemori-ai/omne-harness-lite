@@ -62,7 +62,6 @@ export type InboxFilter = 'unresolved' | 'all'
 export type InboxQuery = Readonly<{
   recipient: RecipientRef
   filter: InboxFilter
-  /** The sequence of the last entry of the previous page, or null for the first page. */
   after: number | null
   limit: number
 }>
@@ -104,14 +103,12 @@ export interface NotificationInbox {
 export type SubscriptionChangeInput = z.input<typeof subscriptionChangeSchema>
 export type SubscriptionKeyInput = z.input<typeof subscriptionKeySchema>
 
-/** What the owner is asked to confirm. The tool member turns it into a card. */
 export type ConfirmationRequest = Readonly<{ content: string; change: SubscriptionChange }>
 
 export type SubscriptionOutcome =
   | Outcome<Subscription, SubscriptionRefusal>
   | Readonly<{ kind: 'needs-confirmation'; request: ConfirmationRequest }>
 
-/** How often a recipient is reminded of what waits: the default, never, or every so many minutes. */
 export type Beat =
   | Readonly<{ kind: 'default' }>
   | Readonly<{ kind: 'off' }>

@@ -8,6 +8,7 @@ import {
   subscriptionKeySchema,
   type Beat,
   type CallContext,
+  type Confirmation,
   type ConsentMode,
   type EventTypeDeclaration,
   type NotificationSubscriptions,
@@ -15,6 +16,8 @@ import {
   type RecipientRef,
   type Subscription,
   type SubscriptionActor,
+  type SubscriptionChange,
+  type SubscriptionDecision,
   type SubscriptionKey,
   type SubscriptionRefusal,
 } from '@omne-harness/notification-contract'
@@ -52,6 +55,16 @@ function declaredType(
 }
 
 export function createSubscriptions(deps: SubscriptionsDependencies): NotificationSubscriptions {
+  /** Only the owner sets a beat, and only within the governed range. */
+  function beatRefusal(ctx: CallContext, beat: Beat): SubscriptionRefusal | null {
+    if (!validBeat(beat)) return 'invalid-request'
+    if (ctx.actor.kind !== 'owner') return 'not-permitted'
+    const { min, max } = deps.beatRange
+    return beat.kind === 'every' && (beat.minutes < min || beat.minutes > max)
+      ? 'out-of-range'
+      : null
+  }
+
   async function gate(
     ctx: CallContext,
     kind: 'subscribe-for' | 'read-inbox',
@@ -69,6 +82,24 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
       return await deps.consent.mode(ctx)
     } catch {
       return 'unavailable'
+    }
+  }
+
+  /** Null: something the decision needs cannot be read right now. */
+  async function decide(
+    ctx: CallContext,
+    change: SubscriptionChange,
+    current: Subscription | null,
+    confirmation: Confirmation | null,
+  ): Promise<SubscriptionDecision | null> {
+    const declared = declaredType(deps.sources, change)
+    const mode = await consentMode(ctx)
+    if (declared === null || mode === 'unavailable') return null
+    const facts = { tenant: ctx.tenant, change, current, actor: actorOf(ctx), declared }
+    try {
+      return decideSubscription({ ...facts, mode, confirmation, now: deps.clock.now() })
+    } catch {
+      return null
     }
   }
 
@@ -91,23 +122,13 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
       const { level, note, term, ...key } = change
       const blocked = await gate(ctx, 'subscribe-for', change.recipient)
       if (blocked !== null) return blocked
-      const declared = declaredType(deps.sources, key)
-      if (declared === null) return UNAVAILABLE
       const current = await deps.store.subscription(ctx.tenant, key)
-      const mode = await consentMode(ctx)
-      if (current.kind === 'unavailable' || mode === 'unavailable') return UNAVAILABLE
-      const now = deps.clock.now()
-      let decision
-      try {
-        const actor = actorOf(ctx)
-        const facts = { tenant: ctx.tenant, change, current: current.value, actor, declared }
-        decision = decideSubscription({ ...facts, mode, confirmation, now })
-      } catch {
-        return UNAVAILABLE
-      }
+      if (current.kind === 'unavailable') return UNAVAILABLE
+      const decision = await decide(ctx, change, current.value, confirmation)
+      if (decision === null) return UNAVAILABLE
       if (decision.kind === 'refused') return decision
       if (decision.kind === 'recalled')
-        return { kind: 'done', recalled: true, value: current.value! }
+        return { kind: 'done', recalled: true, value: decision.current }
       if (decision.kind === 'needs-confirmation')
         return { kind: 'needs-confirmation', request: { content: decision.content, change } }
       const next = { ...key, level, note, term, basis: decision.basis, expired: false }
@@ -142,11 +163,9 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
 
     async setBeat(ctx, input, beat) {
       const recipient = parseWith(recipientRefSchema, input)
-      if ('refused' in recipient || !validBeat(beat)) return refuse('invalid-request')
-      if (ctx.actor.kind !== 'owner') return refuse('not-permitted')
-      const { min, max } = deps.beatRange
-      if (beat.kind === 'every' && (beat.minutes < min || beat.minutes > max))
-        return refuse('out-of-range')
+      if ('refused' in recipient) return refuse('invalid-request')
+      const refusal = beatRefusal(ctx, beat)
+      if (refusal !== null) return refuse(refusal)
       const blocked = await gate(ctx, 'subscribe-for', recipient.ok)
       if (blocked !== null) return blocked
       const current = await deps.store.beat(ctx.tenant, recipient.ok)
@@ -160,13 +179,13 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
   }
 }
 
+function validBeat(beat: Beat): boolean {
+  if (beat?.kind === 'default' || beat?.kind === 'off') return true
+  return beat?.kind === 'every' && Number.isInteger(beat.minutes) && beat.minutes > 0
+}
+
 const parseRefusal = (refusal: ParseRefusal): SubscriptionRefusal =>
   refusal === 'invalid-scope' || refusal === 'invalid-term' ? refusal : 'invalid-request'
 
 const sameBeat = (a: Beat, b: Beat) =>
   a.kind === b.kind && (a.kind !== 'every' || (b.kind === 'every' && a.minutes === b.minutes))
-
-function validBeat(beat: Beat): boolean {
-  if (beat?.kind === 'default' || beat?.kind === 'off') return true
-  return beat?.kind === 'every' && Number.isInteger(beat.minutes) && beat.minutes > 0
-}

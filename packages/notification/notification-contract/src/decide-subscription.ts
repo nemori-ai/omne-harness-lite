@@ -7,6 +7,7 @@ import {
   noteSchema,
   recipientKey,
   recipientRefSchema,
+  sameRecipient,
   scopeSchema,
   sourceNameSchema,
   termSchema,
@@ -66,7 +67,7 @@ export type SubscriptionRefusal =
 
 export type SubscriptionDecision =
   | Readonly<{ kind: 'set'; basis: Basis }>
-  | Readonly<{ kind: 'recalled' }>
+  | Readonly<{ kind: 'recalled'; current: Subscription }>
   | Readonly<{ kind: 'needs-confirmation'; content: string }>
   | Readonly<{ kind: 'refused'; reason: SubscriptionRefusal }>
 
@@ -114,28 +115,41 @@ function consent(input: SubscriptionDecisionInput): SubscriptionDecision {
     : { kind: 'refused', reason: 'confirmation-mismatch' }
 }
 
-/** Whether setting a subscription takes effect, needs the owner's confirmation, or is refused. */
-export function decideSubscription(input: SubscriptionDecisionInput): SubscriptionDecision {
-  const { change, actor, declared, now } = input
-  const current = input.current !== null && isLive(input.current, now) ? input.current : null
-  const refuse = (reason: SubscriptionRefusal) => ({ kind: 'refused', reason }) as const
-  if (change.term.kind === 'until' && change.term.at <= now) return refuse('term-in-past')
-  if (!declared.subscribable.includes(change.recipient.kind)) return refuse('not-subscribable')
-  if (!scopeFits(change, declared)) return refuse('scope-does-not-fit')
-  const unchanged =
-    current !== null &&
+function admissibility(input: SubscriptionDecisionInput): SubscriptionRefusal | null {
+  const { change, declared, now } = input
+  if (change.term.kind === 'until' && change.term.at <= now) return 'term-in-past'
+  if (!declared.subscribable.includes(change.recipient.kind)) return 'not-subscribable'
+  return scopeFits(change, declared) ? null : 'scope-does-not-fit'
+}
+
+function unchanged(current: Subscription, change: SubscriptionChange): boolean {
+  return (
     current.level === change.level &&
     current.note === change.note &&
     sameTerm(current.term, change.term)
-  if (actor.kind === 'owner')
-    return unchanged ? { kind: 'recalled' } : { kind: 'set', basis: { kind: 'owner' } }
-  if (recipientKey(actor.recipient) !== recipientKey(change.recipient))
-    return refuse('not-own-recipient')
-  if (unchanged) return { kind: 'recalled' }
-  const lowering =
-    current !== null &&
+  )
+}
+
+/** Lower or equal level, the same note, a term that is not longer: this needs nobody's consent. */
+function lowers(current: Subscription, change: SubscriptionChange): boolean {
+  return (
     RANK[change.level] <= RANK[current.level] &&
     current.note === change.note &&
     notLonger(change.term, current.term)
-  return lowering && current !== null ? { kind: 'set', basis: current.basis } : consent(input)
+  )
+}
+
+/** Whether setting a subscription takes effect, needs the owner's confirmation, or is refused. */
+export function decideSubscription(input: SubscriptionDecisionInput): SubscriptionDecision {
+  const { change, actor, now } = input
+  const refusal = admissibility(input)
+  if (refusal !== null) return { kind: 'refused', reason: refusal }
+  if (actor.kind === 'agent' && !sameRecipient(actor.recipient, change.recipient))
+    return { kind: 'refused', reason: 'not-own-recipient' }
+  const current = input.current !== null && isLive(input.current, now) ? input.current : null
+  if (current !== null && unchanged(current, change)) return { kind: 'recalled', current }
+  if (actor.kind === 'owner') return { kind: 'set', basis: { kind: 'owner' } }
+  return current !== null && lowers(current, change)
+    ? { kind: 'set', basis: current.basis }
+    : consent(input)
 }

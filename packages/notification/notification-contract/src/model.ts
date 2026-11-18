@@ -97,7 +97,6 @@ export function subscriptionKeyOf(subscription: Subscription): SubscriptionKey {
   return { recipient, source, type, scope }
 }
 
-/** A subscription hits only while its term holds. */
 export function isLive(subscription: Subscription, now: Instant): boolean {
   if (subscription.expired) return false
   return subscription.term.kind !== 'until' || now < subscription.term.at
