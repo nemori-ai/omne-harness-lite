@@ -73,6 +73,7 @@ describe('command catalog', () => {
       'read-session-diagnostics',
       'cancel-run',
       'stop-call',
+      'select-model',
       'archive-session',
       'unarchive-session',
       'list-archived-sessions',

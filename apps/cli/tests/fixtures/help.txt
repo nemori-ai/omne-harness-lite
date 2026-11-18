@@ -16,6 +16,7 @@ Commands
   omne read-session-diagnostics --session <id>                                                                       Read the diagnostics of the runs of a session.
   omne cancel-run --session <id> --run <id>                                                                          Cancel a run.
   omne stop-call --session <id> --producer-kind <kind> --call <id>                                                   Stop a model or tool call.
+  omne select-model --session <id> --model <route>                                                                   Select the model of a session: the next model request uses it.
   omne archive-session --session <id>                                                                                Archive a session: its run ends and its background calls are withdrawn.
   omne unarchive-session --session <id>                                                                              Take a session back from the archive.
   omne list-archived-sessions [--since <instant>] [--before <instant>] [--by person|auto|parent] [--title <text>]    List the archived sessions, the latest archived first.

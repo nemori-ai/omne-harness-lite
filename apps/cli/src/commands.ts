@@ -447,6 +447,35 @@ const stopCall: ExistingCommand<Targeted & { kind: 'model' | 'tool'; call: strin
   },
 }
 
+// Selecting a model is a control of the session: a control id makes a retry the same selection.
+const selectModel: ExistingCommand<Targeted & { model: string }> = {
+  kind: 'existing',
+  name: 'select-model',
+  accepted: ['--session', '--model', '--tenant', '--control-id', serverOption],
+  required: ['--session', '--model'],
+  parse: values => {
+    const target = targeted(values)
+    const model = values.get('--model') ?? ''
+    if (target === undefined || model === '') return undefined
+    return { ...target, model }
+  },
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { owner: tenant, newId }) => {
+    const messageId = newId()
+    const controlId = parsed.controlId ?? newId()
+    return {
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'select-model',
+          { tenant, session: parsed.session, controlId, model: parsed.model },
+          messageId,
+        ),
+      echo: { messageId, controlId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
 export const productionCommands: readonly CommandSpec[] = [
   {
     name: 'register',
@@ -501,6 +530,12 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id> --producer-kind <kind> --call <id>',
     summary: 'Stop a model or tool call.',
     run: (args, output, environment) => runSession(stopCall, args, output, environment),
+  },
+  {
+    name: 'select-model',
+    usage: '--session <id> --model <route>',
+    summary: 'Select the model of a session: the next model request uses it.',
+    run: (args, output, environment) => runSession(selectModel, args, output, environment),
   },
   {
     name: 'archive-session',
