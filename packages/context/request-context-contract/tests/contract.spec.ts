@@ -6,6 +6,8 @@ import {
   compactionSettingsBlock,
   compactionPolicySchema,
   coverageSchema,
+  decodeCandidateRef,
+  decodeEpochId,
 } from '@omne-harness/request-context-contract'
 import {
   fixture,
@@ -174,7 +176,33 @@ describe('assembly closed outcomes and source boundaries', () => {
   it('resume requires the compaction transition before reading and counting', async () => {
     const f = fixture()
     const result = await resume({ ...f.input, transition: null }, f.ports, f.policies)
-    expect(result).toMatchObject({ kind: 'invalid', reason: 'missing-input' })
+    expect(result).toMatchObject({
+      kind: 'invalid',
+      reason: 'missing-input',
+      field: 'history.transition',
+    })
+    expect(f.counts().meters).toBe(0)
+  })
+  it('resume refuses a transition of another candidate or another epoch', async () => {
+    const f = fixture()
+    const transition = {
+      candidate: f.input.identity.candidate,
+      committed: { owner: 'test', record: 'transition', revision: '1', digest: 'd' },
+      epoch: f.input.history.epoch,
+    }
+    const other = must(decodeCandidateRef('candidate:other'))
+    const otherEpoch = must(decodeEpochId('epoch:other'))
+    for (const changed of [
+      { ...transition, candidate: other },
+      { ...transition, epoch: otherEpoch },
+    ]) {
+      const result = await resume({ ...f.input, transition: changed }, f.ports, f.policies)
+      expect(result).toEqual({
+        kind: 'invalid',
+        reason: 'transition-mismatch',
+        field: 'history.transition',
+      })
+    }
     expect(f.counts().meters).toBe(0)
   })
 })

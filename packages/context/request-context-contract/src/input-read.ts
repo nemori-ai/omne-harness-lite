@@ -48,10 +48,6 @@ export function combinedToken(parts: readonly GroupToken[]): GroupToken {
   return token.ok
 }
 
-function groupToken(before: readonly GroupToken[]): GroupToken {
-  return before.length === 1 && before[0] !== undefined ? before[0] : combinedToken(before)
-}
-
 export async function stableGroup<T>(
   name: string,
   counts: readonly (() => Promise<SourceRead<GroupToken>>)[],
@@ -75,7 +71,7 @@ export async function stableGroup<T>(
     if (material.kind === 'got' && before.every((token, index) => token === after[index]))
       return {
         kind: 'stable',
-        token: groupToken(before),
+        token: before.length === 1 && before[0] !== undefined ? before[0] : combinedToken(before),
         value: material.value,
       }
   }
@@ -202,7 +198,7 @@ export async function readInputs<P>(
       if (adopted.kind !== 'got') return adopted
       return readHistoryValue(call, sources, options, {
         value: { ...read0.value, adopted: adopted.value },
-        token: groupToken(before),
+        token: combinedToken(before),
         carried: control.value.previous?.carried,
         attempt,
       })

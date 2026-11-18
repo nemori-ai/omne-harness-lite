@@ -63,6 +63,27 @@ describe('FixedRequestRecord format', () => {
     ).toEqual(refused('target'))
   })
 
+  it('keeps the digest of the last history row exactly when the history has an upper row', async () => {
+    const value = stored(await recordOf())
+    const coverage = value['coverage'] as Record<string, unknown>
+    const history = coverage['history'] as Record<string, unknown>
+    expect(history['upper']).toMatchObject({ kind: 'entry' })
+    const withHistory = (changes: Record<string, unknown>) => ({
+      ...value,
+      coverage: { ...coverage, history: { ...history, ...changes } },
+    })
+    expect(decodeFixedRequestRecord(withHistory({ prefixDigest: null }))).toEqual(
+      refused('coverage'),
+    )
+    expect(decodeFixedRequestRecord(withHistory({ upper: { kind: 'empty' } }))).toEqual(
+      refused('coverage'),
+    )
+    const empty = decodeFixedRequestRecord(
+      withHistory({ upper: { kind: 'empty' }, prefixDigest: null }),
+    )
+    expect('ok' in empty).toBe(true)
+  })
+
   it('refuses a stored continuation until the basis has a stored form', async () => {
     const value = stored(await recordOf())
     expect(decodeFixedRequestRecord({ ...value, continuation: {} })).toEqual(

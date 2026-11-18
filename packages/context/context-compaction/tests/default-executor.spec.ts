@@ -310,9 +310,13 @@ it('sends the summary instruction as the last message, in the user role', async 
   ok(await f.provider.service.admit({ ...access, request: f.input }))
   await f.drive()
   const [sent] = f.admitted() as readonly {
+    system: readonly unknown[]
+    tools: readonly unknown[]
     messages: readonly { role: string; blocks: { id: string }[] }[]
   }[]
   if (sent === undefined) throw new Error('no summary call')
+  expect(sent.system).toEqual([])
+  expect(sent.tools).toEqual([])
   const last = sent.messages.at(-1)
   expect(last?.role).toBe('user')
   expect(last?.blocks.map(block => block.id)).toEqual(['compaction-summary-instruction'])

@@ -72,8 +72,6 @@ export async function prepareDefaultSummary<P>(
   // ends with their own turn, and the material it summarizes stays as it was in the history.
   const assembled: M.AssembledModelInput = {
     ...assembledFor(input, [...planned.ok.messages, instruction.ok], false),
-    system: [],
-    tools: [],
     toolChoice: 'none',
     source: request.provider,
   }
