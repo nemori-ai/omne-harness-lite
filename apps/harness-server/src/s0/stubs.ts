@@ -48,7 +48,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'standingDestinationResolver',
       'currentToolPermission',
       'tenantSettings',
-      'preferenceSettings',
+      'independentSettings',
+      'tenantIndependentSettings',
     ],
     injects: [
       'storage',
@@ -67,12 +68,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   calendar: {
     provides: ['calendarQuery', 'calendarCalculator'],
-    injects: ['storage', 'tenantStanding', 'preferenceSettings'],
+    injects: ['storage', 'tenantStanding', 'tenantIndependentSettings'],
     phase: 'composition',
   },
   schedule: {
     provides: ['scheduleCommands', 'scheduleQueries'],
-    injects: ['storage', 'tenantDomainLookup', 'calendarQuery', 'preferenceSettings'],
+    injects: ['storage', 'tenantDomainLookup', 'calendarQuery', 'tenantIndependentSettings'],
     phase: 'composition',
   },
   'session-storage': {

@@ -1,13 +1,18 @@
 import type { CategoryView } from '@omne-harness/assets'
 import type { AssetsLocal } from '@omne-harness/assets-local'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
+import type { SettingDefinitions } from '@omne-harness/settings'
 import { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { governedCapture } from './governed-capture.ts'
-import { installPreferenceTargets } from './preference-settings.ts'
+import { independentTargetsOf } from './independent-settings.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { installToolGovernance, toolInstallationGrants } from './tool-installation.ts'
-import type { TenantAssetsAccess, TenantGovernanceAssembly } from './tenant-runtime.ts'
+import type {
+  TenantAssetsAccess,
+  TenantGovernanceAssembly,
+  TenantSettingsAccess,
+} from './tenant-runtime.ts'
 import { prepareTenantGovernanceWithSettings } from './tenant-settings.ts'
 
 export type InstalledTenantOptions = Omit<
@@ -19,6 +24,7 @@ export type InstalledTenantOptions = Omit<
   organizationTargets: ReturnType<typeof createStandaloneSettingsOwner>
   categories: Pick<CategoryView, 'list' | 'lookup'>
   tenantAssets(): Promise<AssetsLocal | undefined>
+  independentSettings(): readonly SettingDefinitions[]
 }
 
 export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) {
@@ -42,22 +48,23 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
   })
   const { participants: _participants, ...targetsRegistration } = governanceStorageCombinations(
     options.materials,
-  ).preferenceTargets
-  const preferenceTargets = createStandaloneSettingsOwner({
+  ).independentTargets
+  const targetsOwner = createStandaloneSettingsOwner({
     storage: options.storage,
     domain: options.domain,
     ...targetsRegistration,
   })
+  const independentTargets = independentTargetsOf(targetsOwner, options.scope.tenantRef)
   async function open(): ReturnType<TenantGovernanceAssembly['open']> {
     const runtime = await assembly.open()
     if (runtime.kind !== 'created') {
-      await preferenceTargets.close()
+      await targetsOwner.close()
       return runtime
     }
     const closeRuntime = runtime.close
     async function close() {
       const result = await closeRuntime()
-      if (result.kind === 'closed') await preferenceTargets.close()
+      if (result.kind === 'closed') await targetsOwner.close()
       return result
     }
     let fault: string | undefined
@@ -74,11 +81,6 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         organizationTargets: options.organizationTargets,
       })
       fault = installed.kind === 'installed' ? undefined : `tool installation ${installed.phase}`
-      if (
-        fault === undefined &&
-        (await installPreferenceTargets(preferenceTargets, options.scope.tenantRef)) !== 'ready'
-      )
-        fault = 'preference settings installation unavailable'
     } catch {
       fault = 'tool installation threw'
     } finally {
@@ -103,5 +105,15 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         : assets.readHolding(input)
     },
   }
-  return { ...assembly, assets: holdings, open: () => (opening ??= open()) }
+  const readSettings: TenantSettingsAccess['read'] = async request => {
+    await independentTargets.ensure(options.independentSettings())
+    return assembly.readSettings(request)
+  }
+  return {
+    ...assembly,
+    readSettings,
+    settings: { ...assembly.settings, read: readSettings },
+    assets: holdings,
+    open: () => (opening ??= open()),
+  }
 }

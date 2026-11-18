@@ -189,6 +189,9 @@ it('changes the actual selected asset definition and requires explicit re-adopti
       expectedRevision: 1,
     }),
   ).toMatchObject({ kind: 'committed' })
+  expect(await w.service.queries.evaluate(w.principal, { ...w.view, targets: [w.target] })).toEqual(
+    { kind: 'rejected', reason: 'unavailable' },
+  )
   w.registry.registerContribution(definition('2', true))
   expect(await w.service.queries.evaluate(w.principal, { ...w.view, targets: [w.target] })).toEqual(
     { kind: 'rejected', reason: 'definition_changed' },

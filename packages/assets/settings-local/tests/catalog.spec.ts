@@ -33,12 +33,12 @@ it('aggregates real target state, retains values across declaration unload and d
   w.registry.releaseContribution(w.registration.registrationId)
   expect(await w.service.queries.readCatalog(w.principal, request(w.view))).toMatchObject({
     kind: 'catalog',
-    completeness: 'partial',
-    entries: [],
+    completeness: 'complete',
+    entries: [{ resolution: { value: { kind: 'value', value: true } } }],
   })
-  expect(await w.service.queries.evaluate(w.principal, w.view)).toEqual({
-    kind: 'rejected',
-    reason: 'unavailable',
+  expect(await w.service.queries.evaluate(w.principal, w.view)).toMatchObject({
+    kind: 'complete',
+    entries: [{ resolution: { value: { value: true } } }],
   })
   w.registry.registerContribution(definition)
   expect(await w.service.queries.evaluate(w.principal, w.view)).toMatchObject({

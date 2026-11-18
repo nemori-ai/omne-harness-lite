@@ -25,9 +25,11 @@ import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { access, organizationCodec } from '@omne-harness/legal-identity'
 import {
+  createIndependentSettingsPoint,
   createSettingsRegistry,
   SettingDefinitionsSchema,
   targetSortKey,
+  type SettingDefinitions,
 } from '@omne-harness/settings'
 import {
   capabilityId,
@@ -40,7 +42,10 @@ import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createAssetsLocal } from '@omne-harness/assets-local'
 import { createToolAssetCategory } from '../../../src/rows/governance/tool-assets.ts'
 import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
-import { PREFERENCE_SETTINGS } from '../../../src/rows/governance/preference-settings.ts'
+import { calendarEnvironmentSettings } from '@omne-harness/calendar-local'
+import { scheduleAgentAuthoringSettings } from '@omne-harness/schedule-local'
+
+const SHIPPED_INDEPENDENT_SETTINGS = [calendarEnvironmentSettings, scheduleAgentAuthoringSettings]
 import {
   combinationManifest,
   manifestDigest,
@@ -705,8 +710,8 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
   for (const entry of w.release.manifest.entries)
     for (const definition of entry.governance.declaration.settings)
       expect(registry.registerContribution(definition).kind).toBe('registered')
-  for (const definition of PREFERENCE_SETTINGS)
-    expect(registry.registerContribution(definition).kind).toBe('registered')
+  const independent = createIndependentSettingsPoint(registry)
+  for (const definition of SHIPPED_INDEPENDENT_SETTINGS) independent.contribute(definition)
   const sources = await openOrganizationSettingsSources(w.options)
   if (sources.kind !== 'created') throw new Error(JSON.stringify(sources))
   cleanup.push(sources.close)
@@ -725,7 +730,10 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
       w.options.domain,
     ))
   cleanup.push(async () => (await local)?.close())
-  function prepare(organizationTargets = targets) {
+  function prepare(
+    organizationTargets = targets,
+    independentSettings: () => readonly SettingDefinitions[] = () => independent.list(),
+  ) {
     const prepared = prepareInstalledTenantGovernance({
       ...w.options,
       installationPrincipal: w.installationPrincipal,
@@ -733,6 +741,7 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
       organizationTargets,
       categories,
       tenantAssets,
+      independentSettings,
       registry,
       clock: { now: () => 1794096000000 },
       cursorLifetimeMs: 60000,
@@ -740,7 +749,7 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
     w.setDestination(prepared.destination)
     return prepared
   }
-  return { w, sources, prepare, registry, categories }
+  return { w, sources, prepare, registry, categories, independent }
 }
 
 it('installs the actual Tool release and adopts its original holdings before exposing the tenant backend', async () => {
@@ -1025,6 +1034,48 @@ it('closes an interrupted installation and resumes from original partial holding
   expect(catalog.items.every(item => item.availability === 'available')).toBe(true)
 })
 
+it('a group that cannot be opened leaves the tenant, the other group and the asset settings available', async () => {
+  const { w, prepare } = await installedWorld()
+  const altered: SettingDefinitions = {
+    ...calendarEnvironmentSettings,
+    groups: calendarEnvironmentSettings.groups.map(group => ({
+      ...group,
+      description: `${group.description}（同一版本的另一份内容）`,
+    })),
+  }
+  const request = {
+    deploymentRef: w.options.scope.deploymentId,
+    mode: 'management' as const,
+    targets: [],
+    selectionRef: null,
+  }
+  const earlier = prepare(undefined, () => [altered, scheduleAgentAuthoringSettings])
+  const first = await earlier.open()
+  if (first.kind !== 'created') throw new Error(JSON.stringify(first))
+  expect(await earlier.readSettings(request)).toHaveProperty('views')
+  expect(await first.close()).toEqual({ kind: 'closed' })
+
+  const later = prepare(undefined, () => SHIPPED_INDEPENDENT_SETTINGS)
+  const runtime = await later.open()
+  expect(runtime).toMatchObject({ kind: 'created' })
+  if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+  cleanup.push(runtime.close)
+  const settings = await later.readSettings(request)
+  if ('kind' in settings) throw new Error(JSON.stringify(settings))
+  expect(settings).toMatchObject({ completeness: 'complete', unavailableProviders: [] })
+  const independent = settings.views.filter(view => view.target.kind === 'independent')
+  expect(independent.map(view => view.definition.providerId).sort()).toEqual([
+    'calendar',
+    'schedule',
+  ])
+  expect(independent.find(view => view.definition.providerId === 'calendar')?.definition).toEqual(
+    altered,
+  )
+  expect(settings.views.filter(view => view.target.kind === 'asset')).toHaveLength(
+    w.release.manifest.entries.length,
+  )
+})
+
 it('preserves a nonempty Settings assignment across default tenant installation remount', async () => {
   const configuration = {
     destination: 'settings.installation-preservation',
@@ -1202,6 +1253,63 @@ it('preserves a nonempty Settings assignment across default tenant installation 
   expect(after.views).toEqual(before.views)
 })
 
+it('opens a group of independent settings declared only in this test, and keeps its target when it is withdrawn', async () => {
+  const { w, prepare, independent } = await installedWorld()
+  const gadget = SettingDefinitionsSchema.parse({
+    providerId: 'test.gadget',
+    definitionId: 'environment',
+    version: '1',
+    groups: [
+      { id: 'general', parentId: null, title: '小工具', description: '只在这个用例里', order: 0 },
+    ],
+    items: [
+      {
+        id: 'mode',
+        groupId: 'general',
+        category: 'preference',
+        presentation: {
+          title: '方式',
+          description: '小工具怎样跑',
+          impact: '下一次读时生效',
+          clear: '回到默认',
+          adoption: 'next-read',
+        },
+        valueSchema: { type: 'string' },
+        default: { kind: 'value', value: 'quiet' },
+        merge: 'override',
+        sensitivity: 'ordinary',
+      },
+    ],
+  })
+  const withdraw = independent.contribute(gadget)
+  const assembly = prepare()
+  const runtime = await assembly.open()
+  if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+  cleanup.push(runtime.close)
+  const request = {
+    deploymentRef: w.options.scope.deploymentId,
+    mode: 'management' as const,
+    targets: [],
+    selectionRef: null,
+  }
+  const groups = async () => {
+    const read = await assembly.readSettings(request)
+    if ('kind' in read) throw new Error(JSON.stringify(read))
+    return read.views
+      .filter(view => view.target.kind === 'independent')
+      .map(view => targetSortKey(view.target).slice(2).join('/'))
+      .sort()
+  }
+  const opened = await groups()
+  expect(opened).toEqual([
+    'calendar/environment',
+    'schedule/agent-authoring',
+    'test.gadget/environment',
+  ])
+  withdraw()
+  expect(await groups()).toEqual(opened)
+})
+
 it('lists the settings of a holding whose category exists only in this test, beside the tools', async () => {
   const { w, prepare, registry, categories } = await installedWorld()
   const gadget = SettingDefinitionsSchema.parse({
@@ -1310,7 +1418,7 @@ it('lists the settings of a holding whose category exists only in this test, bes
     return page.items.map(item => `${item.asset.category}/${item.asset.name}/${item.item}`)
   }
   const tools = w.release.manifest.entries.map(entry => `tool/${entry.asset.name}/invoke`).sort()
-  const preferences = PREFERENCE_SETTINGS.flatMap(definition =>
+  const preferences = SHIPPED_INDEPENDENT_SETTINGS.flatMap(definition =>
     definition.items.map(item => `preference/${definition.providerId}/${item.id}`),
   ).sort()
   const first = await listed()

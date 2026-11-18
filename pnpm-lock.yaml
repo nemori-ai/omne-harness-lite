@@ -1309,6 +1309,9 @@ importers:
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../assets
+      '@omne-harness/settings':
+        specifier: workspace:*
+        version: link:../settings
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1638,6 +1641,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/calendar':
         specifier: workspace:*
         version: link:../calendar
@@ -3711,6 +3717,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/calendar':
         specifier: workspace:*
         version: link:../../calendar/calendar

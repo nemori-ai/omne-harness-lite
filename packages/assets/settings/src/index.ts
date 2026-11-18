@@ -44,6 +44,11 @@ export {
   type SettingsRegistrationResult,
   type SettingsRegistrySnapshot,
 } from './registry.ts'
+export {
+  createIndependentSettingsPoint,
+  type IndependentSettingsPoint,
+  type IndependentSettingsView,
+} from './independent-point.ts'
 export { SettingsRebaseSchema, decideSettingsRebase, type SettingsRebase } from './rebase.ts'
 export {
   SettingInputSchema,
