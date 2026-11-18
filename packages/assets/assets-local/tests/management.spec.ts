@@ -280,6 +280,29 @@ describe('the management service over the local assets of a tenant', () => {
     expect(await w.names()).toEqual(['a:off'])
   })
 
+  it('a recall of a change asks with its holding and its change; another holding, change or kind under that operation is a conflict', async () => {
+    const w = await world()
+    const a = await w.publish('a')
+    const b = await w.publish('b')
+    const off = { ...ALICE, operationId: 'off', holding: a, enabled: false }
+    expect(await w.management.setEnabled(off)).toEqual({ kind: 'changed' })
+    const recall = (request: Parameters<typeof w.management.recall>[0]['request']) =>
+      w.management.recall({ ...ALICE, operationId: 'off', request })
+    expect(await recall({ kind: 'setEnabled', holding: a, enabled: false })).toEqual({
+      kind: 'changed',
+    })
+    expect(await recall({ kind: 'setEnabled', holding: b, enabled: false })).toEqual({
+      kind: 'operation-conflict',
+    })
+    expect(await recall({ kind: 'setEnabled', holding: a, enabled: true })).toEqual({
+      kind: 'operation-conflict',
+    })
+    expect(await recall({ kind: 'remove', holding: a })).toEqual({ kind: 'operation-conflict' })
+    expect(await recall({ kind: 'create', capability: id('note', 'a') })).toEqual({
+      kind: 'operation-conflict',
+    })
+  })
+
   it('a holding the deployment installed is official: it is listed, but not disabled or removed', async () => {
     const w = await world()
     await w.owner.publish({

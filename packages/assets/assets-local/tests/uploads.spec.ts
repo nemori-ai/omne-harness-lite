@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -181,6 +181,7 @@ describe('begin (table one, first row)', () => {
     ).toEqual({ kind: 'unavailable' })
     expect(await uploads.reader('up-1')).toEqual({ kind: 'unavailable' })
     expect(await uploads.sweep()).toBe(0)
+    await expect(uploads.discard('up-1')).resolves.toBeUndefined()
   })
 })
 
@@ -340,6 +341,19 @@ describe('the reader (the start of a commit, table one, third row)', () => {
     const ready = await w.uploads.reader('up-1')
     if (ready.kind !== 'ready') throw new Error(ready.kind)
     rmSync(join(w.root, '.uploads'), { recursive: true, force: true })
+    expect(await ready.from.open('README.md', digestBytes(encoder.encode('hello')))).toEqual({
+      failure: 'material-unavailable',
+    })
+  })
+
+  it('a file changed after it was received answers material-unavailable, never the changed bytes', async () => {
+    const w = world()
+    await w.begin()
+    await collect(w)
+    const ready = await w.uploads.reader('up-1')
+    if (ready.kind !== 'ready') throw new Error(ready.kind)
+    const [place] = readdirSync(join(w.root, '.uploads'))
+    writeFileSync(join(w.root, '.uploads', place ?? '', 'files', 'README.md'), 'HELLO')
     expect(await ready.from.open('README.md', digestBytes(encoder.encode('hello')))).toEqual({
       failure: 'material-unavailable',
     })
