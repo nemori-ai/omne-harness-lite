@@ -14,7 +14,6 @@ import type {
 } from '@omne-harness/agent-contract'
 import { admissionActionOf } from '@omne-harness/agent-contract'
 import type { Message } from '@omne-harness/message'
-import type { DispatchRecord } from '@omne-harness/model-contract'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import type { PassSubject } from './extension-drive.ts'
@@ -188,4 +187,3 @@ export function batchSubject(batch: ActionBatch): Subject {
     }),
   }
 }
-

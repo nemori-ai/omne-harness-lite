@@ -19,5 +19,6 @@ it('exports the category, the package format, the block and the command protocol
     'enabledExtensionsDescriptor',
     'enabledExtensionsProducer',
     'loopExtensionBodyContract',
+    'loopExtensionCategoryDisplay',
   ])
 })

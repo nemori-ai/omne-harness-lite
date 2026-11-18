@@ -95,6 +95,7 @@ describe('publishAndHold: the version and the holding in one participant call', 
       operationId: 'p1',
       revision: 1,
       changed: true,
+      domainRevision: 2,
     })
     expect(held(port)).toMatchObject({
       holdingRef: REF,
@@ -120,6 +121,7 @@ describe('publishAndHold: the version and the holding in one participant call', 
       operationId: 'p3',
       revision: 2,
       changed: false,
+      domainRevision: 3,
     })
   })
 
@@ -208,7 +210,13 @@ describe('publishAndHold: the version and the holding in one participant call', 
       { kind: 'publishAndHold' }
     >
     const published = run(port, mutationSchema.parse({ ...fields, kind: 'publish' }))
-    expect(published).toEqual({ kind: 'committed', operationId: 'p1', revision: 1, changed: true })
+    expect(published).toEqual({
+      kind: 'committed',
+      operationId: 'p1',
+      revision: 1,
+      changed: true,
+      domainRevision: 1,
+    })
     expect(held(port)).toBeNull()
     expect(
       run(
@@ -230,7 +238,13 @@ describe('publishAndHold: the version and the holding in one participant call', 
           grants: [],
         }),
       ),
-    ).toEqual({ kind: 'committed', operationId: 'h1', revision: 1, changed: true })
+    ).toEqual({
+      kind: 'committed',
+      operationId: 'h1',
+      revision: 1,
+      changed: true,
+      domainRevision: 2,
+    })
     expect(selected(port)).toBe('v1')
   })
 

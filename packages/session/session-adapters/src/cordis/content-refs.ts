@@ -40,7 +40,6 @@ type CursorLike = Readonly<{
   chain?: Readonly<{ digest?: string }> | null
 }>
 
-// The blocks behind the extension calls and the chain a cursor names: each call block, and the declarations they refer to.
 export function cursorReach(
   cursor: unknown,
   payloadOf: (digest: string) => string | undefined,

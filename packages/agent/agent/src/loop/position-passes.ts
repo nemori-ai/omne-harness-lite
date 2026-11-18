@@ -149,7 +149,6 @@ async function afterFailure<P>(
 ) {
   const { access, ports, runner } = host
   const read = () => ports.models.calls.dispatches({ ...access, call })
-  // The call has settled: its failure passes once, as the final one, and retrying is no output of it.
   return runner.run('I3', {
     id: `${action}/after_model_call`,
     position: 'after_model_call',

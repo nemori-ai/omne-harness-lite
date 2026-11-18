@@ -101,7 +101,13 @@ function reader(
 function records(overrides: Partial<PackageRecords> = {}): PackageRecords {
   return {
     async publishAndHold(input) {
-      return { kind: 'committed', operationId: input.operationId, revision: 1, changed: true, domainRevision: 1 }
+      return {
+        kind: 'committed',
+        operationId: input.operationId,
+        revision: 1,
+        changed: true,
+        domainRevision: 1,
+      }
     },
     async readAssetRevision() {
       return { ok: 0 }
@@ -338,7 +344,13 @@ describe('publish while it stages and records', () => {
         },
         async publishAndHold(input) {
           asked.push(input)
-          return { kind: 'committed', operationId: input.operationId, revision: 5, changed: true, domainRevision: 1 }
+          return {
+            kind: 'committed',
+            operationId: input.operationId,
+            revision: 5,
+            changed: true,
+            domainRevision: 1,
+          }
         },
       },
       afterStep(step) {
