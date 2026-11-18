@@ -475,7 +475,7 @@ export function settlementOf(
       revision: String(BigInt(call.state.revision) + 1n),
       digest: digest(input.termination),
     },
-    ...(replay === undefined ? {} : { replay }),
+    ...(replay === undefined ? {} : { replay: { ...replay, call: String(input.call) } }),
   }
 }
 export function completionOf(

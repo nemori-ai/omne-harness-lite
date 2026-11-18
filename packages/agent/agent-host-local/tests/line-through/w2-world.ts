@@ -124,8 +124,12 @@ export function reasoningStateBlock(id: string, payload = 'opaque'): Original {
 export type ModelStep = Readonly<{
   parts: readonly (ContentBlock | Original)[]
   reason: 'stop' | 'tool-suggestions'
+  /** The replay range the result settles with, as Model writes it for a reply that carries state. */
+  replay?: Readonly<{ scope: string; format: string; call?: string }>
   delayMs?: number
   cost?: string
+  /** The output count the account of this call reports, when the step needs one. */
+  outputTokens?: string
   partial?: readonly ContentBlock[]
   hold?: Promise<unknown>
 }>
@@ -495,6 +499,7 @@ export async function openW2World(options: W2Options) {
           source: evidenceOf(`w2/model/${call}`),
           pageSize: 10,
           pageTargetBytes: 65536,
+          ...(step.replay === undefined ? {} : { replay: step.replay }),
         })
         pushed = await pusher.settled(target)
         afterSave()
@@ -714,7 +719,19 @@ export async function openW2World(options: W2Options) {
         terminal: { kind: 'completed', reason: step.reason },
         account: {
           subject: { kind: 'model_call', id: call },
-          usage: [{ name: 'input', state: 'known', lexeme: '10', unit: 'token' }],
+          usage: [
+            { name: 'input', state: 'known', lexeme: '10', unit: 'token' },
+            ...(step.outputTokens === undefined
+              ? []
+              : [
+                  {
+                    name: 'output',
+                    state: 'known' as const,
+                    lexeme: step.outputTokens,
+                    unit: 'token',
+                  },
+                ]),
+          ],
           cost: [{ state: 'known', lexeme: step.cost ?? '0', unit: 'USD', source: 'billable' }],
           trimmed: { state: 'unknown', unit: 'token' },
           place: 'suite',

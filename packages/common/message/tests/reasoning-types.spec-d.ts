@@ -37,9 +37,15 @@ it('ReasoningStatePart is a closed readonly shape, and a message part', () => {
   expectTypeOf<ReasoningStatePart>().toExtend<MessagePart>()
 })
 
-it('ReasoningReplay has scope, format, at and an optional prefix, and nothing else', () => {
+it('ReasoningReplay has scope, format, at, an optional prefix and call, and nothing else', () => {
   expectTypeOf<ReasoningReplay>().toEqualTypeOf<
-    Readonly<{ scope: string; format: string; at: readonly number[]; prefix?: string }>
+    Readonly<{
+      scope: string
+      format: string
+      at: readonly number[]
+      prefix?: string
+      call?: string
+    }>
   >()
 })
 

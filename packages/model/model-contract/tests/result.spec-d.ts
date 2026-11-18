@@ -93,9 +93,9 @@ it('ModelFault, Termination and Settlement describe the single end of a call', (
   void [ends, settlement, cause, noControl]
 })
 
-it('a settled replay names the scope and format of its reasoning state, and the prefix only when bound', () => {
+it('a settled replay names the scope and format of its reasoning state, the prefix only when bound, and the call that produced it', () => {
   expectTypeOf<SettledReplay>().toEqualTypeOf<
-    Readonly<{ scope: string; format: string; prefix?: string }>
+    Readonly<{ scope: string; format: string; prefix?: string; call?: string }>
   >()
   expectTypeOf<Settlement['replay']>().toEqualTypeOf<SettledReplay | undefined>()
 })

@@ -432,7 +432,7 @@
       },
       "packages/model/model-contract/src/testing/controller.ts": {
         "count": 1,
-        "longest": 164
+        "longest": 159
       },
       "packages/model/model-contract/src/testing/pusher.ts": {
         "count": 1,

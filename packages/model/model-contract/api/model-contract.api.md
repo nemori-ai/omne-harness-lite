@@ -2635,6 +2635,7 @@ export type SettledReplay = Readonly<{
     scope: string;
     format: string;
     prefix?: string;
+    call?: string;
 }>;
 export type Settlement = Readonly<{
     version: ResultVersion;

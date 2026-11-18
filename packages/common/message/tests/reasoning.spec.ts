@@ -330,3 +330,19 @@ describe('the prefix of a replay mark', () => {
     expect('ok' in judgeMessage(prefixed('x'.repeat(REPLAY_PREFIX_MAX_LENGTH)))).toBe(true)
   })
 })
+
+describe('the call of a replay mark', () => {
+  it('keeps the model call that produced the message, alone or with a prefix', () => {
+    for (const extra of [{ call: 'mcall_1' }, { call: 'mcall_1', prefix: 'h:1.s:2.t:3.p:4' }]) {
+      const judged = judgeMessage(assistant({ replay: { ...replay, ...extra } }))
+      if (!('ok' in judged) || judged.ok.role !== 'assistant') throw new Error('expected a message')
+      expect(judged.ok.replay).toEqual({ ...replay, ...extra })
+    }
+    expect(judgeMessage(assistant({ replay: { ...replay, call: '' } }))).toEqual({
+      rejected: 'replay',
+    })
+    expect(judgeMessage(assistant({ replay: { ...replay, other: 'x' } }))).toEqual({
+      rejected: 'replay',
+    })
+  })
+})

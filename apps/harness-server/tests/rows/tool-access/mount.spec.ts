@@ -126,15 +126,19 @@ describe('tool-access and session-call-control rows', () => {
             terminal: { kind: 'completed' },
           })
           // The reminder joins the Run still going, or wakes a follow-up Run once that one ended.
+          // Runtime context reminders are system reminders too; the call's own is the other one.
+          const callReminder = (entry: { kind: string; payload?: unknown }) =>
+            entry.kind === 'message.system_reminder' &&
+            !JSON.stringify(entry.payload).includes('Runtime context')
           const entries = await pollUntil(
             'the reminder and a Run that took it',
             () => historyOf(tree, session),
             value => {
-              const at = value.findIndex(entry => entry.kind === 'message.system_reminder')
+              const at = value.findIndex(callReminder)
               return at >= 0 && value.slice(at).some(entry => entry.kind === 'run.terminal')
             },
           )
-          const reminder = entries.find(entry => entry.kind === 'message.system_reminder')
+          const reminder = entries.find(callReminder)
           expect(JSON.stringify(reminder?.payload)).toContain('bg-done')
           const after = await post(tree, '/api/session/v1/list-background-calls', {
             tenant,

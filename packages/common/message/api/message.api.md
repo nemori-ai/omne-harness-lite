@@ -317,6 +317,7 @@ export type ReasoningReplay = Readonly<{
     format: string;
     at: readonly number[];
     prefix?: string;
+    call?: string;
 }>;
 export type ReasoningStateField = 'id' | 'visibility' | 'payload' | 'pairs';
 export declare const REASONING_STATE_FIELDS: readonly ReasoningStateField[];

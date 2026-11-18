@@ -26,6 +26,8 @@ export type ReasoningReplay = Readonly<{
   at: readonly number[]
   /** The digest of what preceded this message when its reasoning state was produced. */
   prefix?: string
+  /** The model call that produced this message. */
+  call?: string
 }>
 
 export type ReasoningStateField = 'id' | 'visibility' | 'payload' | 'pairs'
@@ -98,14 +100,26 @@ function isPrefix(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= REPLAY_PREFIX_MAX_LENGTH
 }
 
+const OPTIONAL_REPLAY_KEYS = ['prefix', 'call'] as const
+
 export function judgeReplay(raw: unknown): ReasoningReplay | undefined {
-  const prefixed = closedFields(raw, [...REPLAY_KEYS, 'prefix'])
-  const fields = prefixed ?? closedFields(raw, REPLAY_KEYS)
+  const present =
+    typeof raw === 'object' && raw !== null
+      ? OPTIONAL_REPLAY_KEYS.filter(key => Object.hasOwn(raw, key))
+      : []
+  const fields = closedFields(raw, [...REPLAY_KEYS, ...present])
   if (fields === undefined) return undefined
-  const { scope, format, prefix } = fields
+  const { scope, format, prefix, call } = fields
   if (!isReplayTag(scope) || !isReplayTag(format)) return undefined
   const at = readAt(fields.at)
   if (at === undefined) return undefined
-  if (prefixed === undefined) return Object.freeze({ scope, format, at })
-  return isPrefix(prefix) ? Object.freeze({ scope, format, at, prefix }) : undefined
+  if (present.includes('prefix') && !isPrefix(prefix)) return undefined
+  if (present.includes('call') && !isReplayTag(call)) return undefined
+  return Object.freeze({
+    scope,
+    format,
+    at,
+    ...(present.includes('prefix') ? { prefix: prefix as string } : {}),
+    ...(present.includes('call') ? { call: call as string } : {}),
+  })
 }

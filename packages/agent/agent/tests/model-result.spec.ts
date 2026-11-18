@@ -100,3 +100,54 @@ describe('noReplyReason', () => {
     )
   })
 })
+
+describe('consumeModelResult keeps the reasoning state of a result that carries a replay range (C11)', () => {
+  const thinking: ResultPart = {
+    kind: 'sealed',
+    trims: [],
+    block: {
+      kind: 'thinking',
+      id: 'k1' as never,
+      visibility: { toHuman: true, toModel: true },
+      text: 'why',
+    },
+  }
+  const state: ResultPart = {
+    kind: 'sealed',
+    trims: [],
+    block: {
+      kind: 'reasoning_state',
+      id: 's1' as never,
+      visibility: { toHuman: false, toModel: true },
+      payload: 'SEALED',
+      pairs: ['k1' as never],
+    },
+  }
+  const range = { scope: 'vendor/model', format: 'f1', prefix: 'h:1.s:2.t:3.p:4' }
+  const of = (replay: Settlement['replay'] | undefined) =>
+    ok(
+      consumeModelResult([execution(), step], {
+        produced: producedResult('call-1'),
+        settlement: { ...settlement(completed), ...(replay === undefined ? {} : { replay }) },
+        parts: [thinking, state, text],
+      }),
+    )
+
+  it('keeps the thinking and the reasoning state, and marks the reply with the range and the position', () => {
+    const result = of(range)
+    if (result.kind !== 'reply') throw new Error(result.kind)
+    expect(result.reply.blocks.map(block => block.kind)).toEqual([
+      'thinking',
+      'reasoning_state',
+      'text',
+    ])
+    expect(result.reply.replay).toEqual({ ...range, at: [1] })
+  })
+
+  it('leaves the reasoning out, as before, when the result carries no replay range', () => {
+    const result = of(undefined)
+    if (result.kind !== 'reply') throw new Error(result.kind)
+    expect(result.reply.blocks.map(block => block.kind)).toEqual(['text'])
+    expect('replay' in result.reply).toBe(false)
+  })
+})

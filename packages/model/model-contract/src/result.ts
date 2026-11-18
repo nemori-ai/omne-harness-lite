@@ -95,7 +95,13 @@ export type Termination =
   | Readonly<{ kind: 'failed'; fault: ModelFault }>
   | Readonly<{ kind: 'interrupted'; control: ModelOperationId }>
 /** The replay range of a completed result: what its reasoning state belongs to, and on what prefix. */
-export type SettledReplay = Readonly<{ scope: string; format: string; prefix?: string }>
+export type SettledReplay = Readonly<{
+  scope: string
+  format: string
+  prefix?: string
+  /** The call that produced the result; the meter counts carried reasoning by its output. */
+  call?: string
+}>
 export type Settlement = Readonly<{
   version: ResultVersion
   termination: Termination
