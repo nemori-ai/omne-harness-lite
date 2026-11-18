@@ -114,6 +114,8 @@ export type CursorMembers = Readonly<{
     actions: readonly ActionId[]
     consumptions: readonly ConsumptionId[]
     handoffs: readonly string[]
+    // The sequence of the reply admission prefix the checkpoint has verified (0: none).
+    admissionsFrom: number
   }>
 }>
 export type CursorMember = keyof CursorMembers

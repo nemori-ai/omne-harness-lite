@@ -67,6 +67,10 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
       handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
         slot.handoff === null ? [] : [handoffKey(slot.handoff)],
       ),
+      admissionsFrom:
+        checkpoint.replyAdmissionRead.kind === 'verified'
+          ? Number(checkpoint.replyAdmissionRead.prefix.sequence)
+          : 0,
     },
   }
 }

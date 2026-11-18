@@ -256,21 +256,27 @@ function foldReplyJudged(
   pub: number,
   revision: number,
 ): void {
-  if (!draft.admissions.some(item => item.sequence === fact.sequence))
-    draft.admissions = [
-      ...draft.admissions,
-      {
-        sequence: fact.sequence,
-        fact: fact.fact,
-        basis: fact.basis,
-        publication: fact.publication,
-        message: fact.message,
-        source: fact.source,
-        history: fact.history,
-        pub,
-        revision,
-      },
-    ]
+  if (fact.sequence <= draft.admitted.sequence) return
+  const known = draft.admitted
+  draft.admitted =
+    fact.fact.decision === 'rejected'
+      ? { ...known, consecutive: known.consecutive + 1, total: known.total + 1 }
+      : { ...known, consecutive: 0, last: fact.fact.source }
+  draft.admitted = { ...draft.admitted, sequence: fact.sequence, basis: fact.basis }
+  draft.admissions = [
+    ...draft.admissions,
+    {
+      sequence: fact.sequence,
+      fact: fact.fact,
+      basis: fact.basis,
+      publication: fact.publication,
+      message: fact.message,
+      source: fact.source,
+      history: fact.history,
+      pub,
+      revision,
+    },
+  ]
 }
 
 function foldHandoffPrepared(draft: Draft, fact: FactOf<'handoff.prepared'>, pub: number): void {

@@ -22,6 +22,7 @@ import {
   receivedViews,
   type ProducerCall,
   type BlobStore,
+  type AdmissionView,
   type ExecutionView,
   type Mint,
   type HandoffView,
@@ -29,14 +30,8 @@ import {
   type ResultView,
   type SessionJournalView,
 } from '../journal/index.ts'
-import {
-  type AdmissionLedger,
-  type AdmissionProjection,
-  type AdmissionRecord,
-  type HandoffRecord,
-  type MemoryExecution,
-  type OperationRecord,
-} from './journal.ts'
+import { type HandoffRecord, type MemoryExecution, type OperationRecord } from './journal.ts'
+import type { AdmissionLedger, AdmissionProjection, AdmissionRecord } from './reply-admissions.ts'
 import { finishingOf } from './journal-finishing.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
 import { bindTarget } from './binding-targets.ts'
@@ -311,12 +306,7 @@ export function projectExecution(
         }),
       ),
     ),
-    admissions: view.admissions.map((item): AdmissionRecord => ({
-      fact: item.fact,
-      publication: item.publication,
-      basis: item.basis,
-      present: true,
-    })),
+    admissions: admissionRecords(view),
     entries: view.events.flatMap(event => {
       if (event.fact.kind === 'result.received')
         return [blob<MemoryExecution['entries'][number]>(context.blobs, event.fact.custody)]
@@ -397,31 +387,12 @@ export function projectExecution(
     `${JSON.stringify(parts)}/reply-admission-prefix/0`,
     originRevision,
   )
-  let projection: AdmissionProjection = {
+  const { admitted } = view
+  const projection: AdmissionProjection = {
     rule: context.admissionRule,
-    consecutive: 0,
-    total: 0,
-    last: null,
-    sequence: 0,
-    basis: origin,
+    ...admitted,
+    basis: admitted.basis ?? origin,
   }
-  for (const item of view.admissions)
-    projection =
-      item.fact.decision === 'rejected'
-        ? {
-            ...projection,
-            consecutive: projection.consecutive + 1,
-            total: projection.total + 1,
-            sequence: projection.sequence + 1,
-            basis: item.basis,
-          }
-        : {
-            ...projection,
-            consecutive: 0,
-            last: item.fact.source,
-            sequence: projection.sequence + 1,
-            basis: item.basis,
-          }
   const ledger: AdmissionLedger = { origin, retainedFrom: 1, rangesFrom: 0, projection }
   projected.admissionLedger = ledger
   projected.handoffs = [...view.handoffs.values()].flatMap((item): HandoffRecord[] => {
@@ -571,6 +542,19 @@ function originOf(
       association: { sequence: event.sequence, pending: value, source: event.cause },
     })
 }
+
+export function admissionRecords(view: ExecutionView): (AdmissionRecord | undefined)[] {
+  const records: (AdmissionRecord | undefined)[] = Array.from({ length: view.admitted.sequence })
+  for (const item of view.admissions) records[item.sequence - 1] = admissionRecord(item)
+  return records
+}
+
+export const admissionRecord = (item: AdmissionView): AdmissionRecord => ({
+  fact: item.fact,
+  publication: item.publication,
+  basis: item.basis,
+  present: true,
+})
 
 export function projectFragments(
   execution: MemoryExecution,

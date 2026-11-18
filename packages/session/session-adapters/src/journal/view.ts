@@ -111,6 +111,14 @@ export type ResultView = Readonly<{
 
 export type ReceivedView = NonNullable<ResultView['received']>
 
+export type AdmittedView = Readonly<{
+  consecutive: number
+  total: number
+  last: DurableEvidence | null
+  sequence: number
+  basis: DurableEvidence | null
+}>
+
 export type AdmissionView = Readonly<{
   sequence: number
   fact: ModelReplyAdmission
@@ -311,6 +319,8 @@ export type ExecutionView = Readonly<{
     Stamp)[]
   acknowledged: number
   acknowledgedAt: number
+  /** The reply admission ledger the admissions fold into: the open ones are only its tail. */
+  admitted: AdmittedView
   fences: readonly Readonly<{
     operation: string
     guard: Readonly<{
@@ -378,6 +388,7 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     observations: [],
     acknowledged: 0,
     acknowledgedAt: 0,
+    admitted: { consecutive: 0, total: 0, last: null, sequence: 0, basis: null },
     fences: [],
     events: [],
     bindings: [],

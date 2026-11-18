@@ -3,6 +3,7 @@ import { factKey } from './facts.ts'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import {
   emptyExecutionView,
+  type AdmissionView,
   type BindingView,
   type ExecutionView,
   type IntentView,
@@ -177,7 +178,8 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
       item => String(item.sequence),
       item => [item.sequence],
     ),
-    open: always,
+    open: (item: AdmissionView, view: ExecutionView) =>
+      item.sequence >= (view.cursor.holds?.admissionsFrom ?? 0),
   },
   { family: 'handoff', holder: table(at('handoffs')), open: always },
   { family: 'control', holder: table(at('controls')), open: always },
@@ -249,6 +251,7 @@ const EXEC_MEMBERS = [
   'waits',
   'acknowledged',
   'acknowledgedAt',
+  'admitted',
 ] as const
 
 type ExecBody = Pick<ExecutionView, 'execution' | (typeof EXEC_MEMBERS)[number]> &
@@ -268,6 +271,7 @@ export function execBody(view: ExecutionView): ExecBody {
     waits: view.waits,
     acknowledged: view.acknowledged,
     acknowledgedAt: view.acknowledgedAt,
+    admitted: view.admitted,
     finish: { current: finish.current, ended: finish.ended },
   }
 }
