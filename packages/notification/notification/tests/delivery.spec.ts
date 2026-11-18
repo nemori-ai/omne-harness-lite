@@ -128,10 +128,12 @@ describe('one notification, several destinations', () => {
     expect(members(w.inApp.deliveries)).toEqual([['e1']])
     expect(members(mail.deliveries)).toEqual([['e1']])
     expect(mail.deliveries[0]?.unit.id).not.toBe(w.inApp.deliveries[0]?.unit.id)
-    expect((await personDestinations(w)).map(entry => [entry.channel, entry.blocked])).toEqual([
-      ['in-app', false],
-      ['mail', true],
-    ])
+    expect((await personDestinations(w)).map(entry => [entry.channel, entry.blockedSince])).toEqual(
+      [
+        ['in-app', null],
+        ['mail', '2026-11-18T06:01:00.000Z'],
+      ],
+    )
   })
 
   it('does not push to a new destination what was in the inbox before it was added', async () => {
@@ -216,7 +218,7 @@ describe('a delivery that does not succeed', () => {
     await w.advance()
     expect(w.inApp.deliveries).toHaveLength(2)
     expect(w.inApp.deliveries[1]?.unit).toEqual(w.inApp.deliveries[0]?.unit)
-    expect((await personDestinations(w))[0]?.blocked).toBe(false)
+    expect((await personDestinations(w))[0]?.blockedSince).toBeNull()
   })
 
   it('stops at the limit, keeps the notification, and reports the destination as blocked', async () => {
@@ -228,12 +230,12 @@ describe('a delivery that does not succeed', () => {
       w.clock.advance(MINUTE)
     }
     expect(w.inApp.deliveries).toHaveLength(3)
-    expect((await personDestinations(w))[0]?.blocked).toBe(true)
+    expect((await personDestinations(w))[0]?.blockedSince).toBe('2026-11-18T06:03:00.000Z')
     expect(await w.list(person, 'unresolved')).toHaveLength(1)
     await w.sending.send(w.ctx, request('e2'))
     await w.advance()
     expect(members(w.inApp.deliveries).at(-1)).toEqual(['e2'])
-    expect((await personDestinations(w))[0]?.blocked).toBe(false)
+    expect((await personDestinations(w))[0]?.blockedSince).toBeNull()
   })
 
   it('stops at once when the channel says it can never deliver', async () => {
@@ -244,7 +246,7 @@ describe('a delivery that does not succeed', () => {
     w.clock.advance(MINUTE)
     await w.advance()
     expect(w.inApp.deliveries).toHaveLength(1)
-    expect((await personDestinations(w))[0]?.blocked).toBe(true)
+    expect((await personDestinations(w))[0]?.blockedSince).toBe('2026-11-18T06:01:00.000Z')
   })
 
   it('delivers the same unit again when its result could not be recorded', async () => {

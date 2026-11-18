@@ -64,10 +64,11 @@ function parseNew(input: NewDestination): NewTarget | null {
 
 export function createDestinations(deps: DestinationsDependencies): NotificationDestinations {
   function view(destination: Destination): DestinationView {
-    const { recipient, id, channel, address, minLevel, builtin, blocked, enabled } = destination
+    const { recipient, id, channel, address, minLevel, builtin, blockedSince, enabled } =
+      destination
     const present = deps.channels.lookup(channel).kind === 'registered'
     const state = !present ? 'channel-absent' : enabled ? 'enabled' : 'disabled'
-    return { recipient, id, channel, address, minLevel, builtin, blocked, state }
+    return { recipient, id, channel, address, minLevel, builtin, blockedSince, state }
   }
 
   /** Only the owner manages destinations: they decide where content is pushed. */

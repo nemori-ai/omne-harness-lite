@@ -35,7 +35,7 @@ export function builtinDestination(
     lastStrongAt: null,
     strongCursor: cursor,
     strongUnits: 0,
-    blocked: false,
+    blockedSince: null,
   }
 }
 
@@ -113,7 +113,7 @@ function add(txn: NotificationTxn, command: Add): DestinationResult {
     lastStrongAt: null,
     strongCursor: txn.currentSequence(),
     strongUnits: 0,
-    blocked: false,
+    blockedSince: null,
   }
   txn.putDestination(destination)
   return { kind: 'written', destination }

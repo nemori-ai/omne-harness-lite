@@ -408,8 +408,14 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
       )
       const [inbox] = value(await store.destinations(T1, PERSON))
       assert.deepEqual(
-        [inbox?.builtin, inbox?.enabled, inbox?.blocked, inbox?.lastStrongAt, inbox?.strongUnits],
-        [true, true, false, at(2), 1],
+        [
+          inbox?.builtin,
+          inbox?.enabled,
+          inbox?.blockedSince,
+          inbox?.lastStrongAt,
+          inbox?.strongUnits,
+        ],
+        [true, true, null, at(2), 1],
       )
       assert.deepEqual(committed(await form(3)), { kind: 'nothing' })
       committed(await store.accept(T1, strong('s3', 4)))
@@ -424,6 +430,43 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
       assert.deepEqual(committed(await form(40, { recipient: PERSON, id: 'nope' })), {
         kind: 'nothing',
       })
+    },
+  },
+  {
+    name: 'only an unresolved strong notification that did not quietly replace another is pending for a strong unit',
+    async run(create) {
+      const store = await create()
+      const mark = (eventId: string, operation: 'done' | 'dismiss') => {
+        const ref = { recipient: PERSON, identity: command(eventId).request.identity }
+        return store.mark(T1, { ref, operation, now: at(3) })
+      }
+      committed(await store.accept(T1, command('weak')))
+      const keyed = (eventId: string, key: string, minute: number): AcceptCommand => ({
+        ...strong(eventId, minute),
+        request: request(eventId, { replaceKey: key }),
+      })
+      committed(await store.accept(T1, keyed('replaced', 'k', 1)))
+      committed(await store.accept(T1, keyed('quiet', 'k', 2)))
+      committed(await store.accept(T1, keyed('older', 'r', 1)))
+      const loud = request('loud', { replaceKey: 'r', renotify: true })
+      committed(await store.accept(T1, { ...strong('loud', 2), request: loud }))
+      committed(await store.accept(T1, strong('done')))
+      committed(await store.accept(T1, strong('dismissed')))
+      committed(await store.accept(T1, strong('live')))
+      committed(await mark('done', 'done'))
+      committed(await mark('dismissed', 'dismiss'))
+      const pending = value(await store.pendingStrong(T1, INBOX))
+      assert.deepEqual(
+        pending.map(entry => entry.identity.eventId),
+        ['loud', 'live'],
+      )
+      const open = value(await store.unresolved(T1, PERSON))
+      assert.deepEqual(
+        open.map(entry => entry.identity.eventId),
+        ['weak', 'quiet', 'loud', 'live'],
+      )
+      assert.deepEqual(value(await store.pendingStrong(T1, { recipient: PERSON, id: 'nope' })), [])
+      assert.deepEqual(value(await store.pendingStrong(T2, INBOX)), [])
     },
   },
   {
@@ -512,7 +555,7 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
       const policy = { maxAttempts: 2, backoffMs: [MINUTE] }
       const record = (unit: string, kind: 'unknown' | 'delivered', minute: number) =>
         store.recordDelivery(T1, { unit, result: { kind }, policy, now: at(minute) })
-      const blocked = async () => value(await store.destinations(T1, PERSON))[0]?.blocked
+      const blocked = async () => value(await store.destinations(T1, PERSON))[0]?.blockedSince
       const dueAt = async (minute: number) =>
         value(await store.delivery(T1, at(minute))).due.map(unit => [unit.id, unit.attempts])
       committed(await store.accept(T1, strong('s1')))
@@ -526,28 +569,28 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
       })
       assert.deepEqual(await dueAt(2), [])
       assert.deepEqual(await dueAt(3), [[unit, 1]])
-      assert.equal(await blocked(), false)
+      assert.equal(await blocked(), null)
       assert.deepEqual(committed(await record(unit, 'unknown', 3)), {
         kind: 'recorded',
         plan: { kind: 'stop' },
       })
       assert.deepEqual(await dueAt(60), [])
-      assert.equal(await blocked(), true)
+      assert.equal(await blocked(), at(3))
       committed(await store.accept(T1, strong('s2', 20)))
       const next = committed(await store.formStrong(T1, { ...FORM, now: at(21) }))
       if (next.kind !== 'formed') throw new Error(next.kind)
       committed(await record(next.unit.id, 'unknown', 21))
-      assert.equal(await blocked(), true)
+      assert.equal(await blocked(), at(3))
       assert.deepEqual(committed(await record(next.unit.id, 'delivered', 22)), {
         kind: 'recorded',
         plan: { kind: 'settled' },
       })
-      assert.equal(await blocked(), false)
+      assert.equal(await blocked(), null)
       assert.deepEqual(committed(await record(next.unit.id, 'unknown', 23)), {
         kind: 'settled-before',
       })
       assert.deepEqual(await dueAt(60), [])
-      assert.equal(await blocked(), false)
+      assert.equal(await blocked(), null)
     },
   },
   {
@@ -567,10 +610,10 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
       } as const
       const added = await write(mail)
       if (added.kind !== 'written') throw new Error(added.kind)
-      const { id, builtin, enabled, blocked, minLevel, strongCursor } = added.destination
+      const { id, builtin, enabled, blockedSince, minLevel, strongCursor } = added.destination
       assert.deepEqual(
-        [builtin, enabled, blocked, minLevel, strongCursor],
-        [false, true, false, 'strong', 0],
+        [builtin, enabled, blockedSince, minLevel, strongCursor],
+        [false, true, null, 'strong', 0],
       )
       assert.deepEqual(await write({ ...mail, minLevel: 'weak' }), {
         kind: 'recalled',

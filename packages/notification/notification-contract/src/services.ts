@@ -140,7 +140,7 @@ export type DestinationState = 'enabled' | 'disabled' | 'channel-absent'
 
 export type DestinationView = Pick<
   Destination,
-  'recipient' | 'id' | 'channel' | 'address' | 'minLevel' | 'builtin' | 'blocked'
+  'recipient' | 'id' | 'channel' | 'address' | 'minLevel' | 'builtin' | 'blockedSince'
 > &
   Readonly<{ state: DestinationState }>
 

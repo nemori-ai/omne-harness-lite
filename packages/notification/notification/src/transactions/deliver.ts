@@ -162,7 +162,9 @@ export function recordDelivery(txn: NotificationTxn, command: RecordCommand): Re
   const dueAt = plan.kind === 'retry' ? plan.at : unit.dueAt
   txn.putUnit({ ...unit, attempts, state: STATE[plan.kind], dueAt, last: command.result })
   const destination = destinationOf(txn, unit.destination)
-  if (destination !== null && plan.kind !== 'retry')
-    txn.putDestination({ ...destination, blocked: plan.kind === 'stop' })
+  if (destination !== null && plan.kind !== 'retry') {
+    const blockedSince = plan.kind === 'stop' ? (destination.blockedSince ?? command.now) : null
+    txn.putDestination({ ...destination, blockedSince })
+  }
   return { kind: 'recorded', plan }
 }

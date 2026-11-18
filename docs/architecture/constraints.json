@@ -663,6 +663,22 @@
       "source": "packages/notification/SPEC.md"
     },
     {
+      "id": "packages/notification/notification-cordis-contract",
+      "paths": ["packages/notification/notification-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["notification"],
+      "status": "candidate",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "packages/notification/notification-local",
+      "paths": ["packages/notification/notification-local/src/**"],
+      "layer": "assembly",
+      "domains": ["notification"],
+      "status": "adopted",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
       "id": "packages/notification/notification",
       "paths": ["packages/notification/notification/src/**"],
       "layer": "unknown",
@@ -1011,6 +1027,21 @@
       ],
       "to": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
       "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-NOTIFICATION-PURE",
+      "from": ["packages/notification/notification-contract", "packages/notification/notification"],
+      "to": [
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-local"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-DEFINITION",
+      "from": ["packages/notification/notification-cordis-contract"],
+      "to": ["packages/notification/notification", "packages/notification/notification-local"],
+      "source": "packages/notification/SPEC.md"
     },
     {
       "id": "DIR-CALENDAR-PURE",

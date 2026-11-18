@@ -6,6 +6,7 @@ import type {
   RecipientKind,
   RecipientRef,
   SourceName,
+  TenantId,
 } from './values.ts'
 
 export type SubjectRule = Readonly<{
@@ -66,6 +67,7 @@ export type ChannelAddressRule = Readonly<{
 }>
 
 export type ChannelDelivery = Readonly<{
+  tenant: TenantId
   recipient: RecipientRef
   address: string
   unit: DeliveryUnit

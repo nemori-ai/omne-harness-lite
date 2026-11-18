@@ -197,7 +197,7 @@ export function createDelivery(deps: DeliveryDependencies): NotificationDelivery
     const channel = channels.lookup(destination.channel)
     if (!destination.enabled || channel.kind !== 'registered') return
     const { recipient, address } = destination
-    const delivery = { recipient, address, unit }
+    const delivery = { tenant: pass.tenant, recipient, address, unit }
     const answer = await record(await attempt(channel.channel, delivery, config.deliverTimeoutMs))
     if (answer.kind !== 'committed' || answer.value.kind !== 'recorded') return
     const { plan } = answer.value

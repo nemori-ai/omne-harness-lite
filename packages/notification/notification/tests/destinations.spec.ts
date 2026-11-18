@@ -37,7 +37,7 @@ describe('the destinations of a recipient', () => {
           address: '',
           minLevel: 'weak',
           builtin: true,
-          blocked: false,
+          blockedSince: null,
           state: 'enabled',
         },
       ],
@@ -140,7 +140,7 @@ describe('the destinations of a recipient', () => {
     expect(pager).toMatchObject({
       kind: 'done',
       recalled: false,
-      value: { channel: 'pager', blocked: false },
+      value: { channel: 'pager', blockedSince: null },
     })
     expect(await w.destinations.list(w.ctx, person)).toMatchObject({
       value: [{}, { channel: 'mail' }, { channel: 'pager' }],
@@ -264,7 +264,7 @@ describe('what blocks managing destinations', () => {
       (w: ReturnType<typeof world>) =>
         w.destinations.change(w.ctx, { recipient: person, id: 'default' }, {
           enabled: true,
-          blocked: false,
+          blockedSince: null,
         } as never),
     ],
     [

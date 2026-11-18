@@ -25,7 +25,8 @@ export type Destination = DestinationRef &
     /** Every strong notification up to this inbox position was planned for this destination. */
     strongCursor: number
     strongUnits: number
-    blocked: boolean
+    /** Since when delivery to this destination is stopped, or null while it is not. */
+    blockedSince: Instant | null
   }>
 
 export type BoxEntry = NotificationRecord &
