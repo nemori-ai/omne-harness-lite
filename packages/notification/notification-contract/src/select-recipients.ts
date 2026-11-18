@@ -1,12 +1,5 @@
 import type { EventTypeFacts } from './declarations.ts'
-import {
-  isLive,
-  scopeMatches,
-  scopeRank,
-  subscriptionKeyOf,
-  type Selected,
-  type Subscription,
-} from './model.ts'
+import { isLive, scopeMatches, scopeRank, type Selected, type Subscription } from './model.ts'
 import {
   sameRecipient,
   type Cause,
@@ -59,7 +52,7 @@ function selectOne(
     recipient,
     level: value,
     cause: causeOf(named, subscription),
-    hit: subscription === null ? null : subscriptionKeyOf(subscription),
+    hit: subscription,
   }
 }
 

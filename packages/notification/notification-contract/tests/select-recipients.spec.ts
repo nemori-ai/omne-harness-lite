@@ -29,7 +29,7 @@ describe('selectRecipients', () => {
         recipient: a,
         level: 'strong',
         cause: { kind: 'subscription', scope: { kind: 'all' }, note: 'triage it' },
-        hit: { recipient: a, source: sub.source, type: sub.type, scope: { kind: 'all' } },
+        hit: sub,
       },
     ])
   })
@@ -97,7 +97,7 @@ describe('selectRecipients', () => {
         recipient: a,
         level: 'strong',
         cause: { kind: 'named' },
-        hit: { recipient: a, source: strong.source, type: strong.type, scope: { kind: 'all' } },
+        hit: strong,
       },
     ])
   })

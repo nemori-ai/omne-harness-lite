@@ -32,6 +32,5 @@ export function writeSubscription(
 export type BeatCommand = Readonly<{ recipient: RecipientRef; beat: Beat }>
 
 export function writeBeat(txn: NotificationTxn, command: BeatCommand): void {
-  txn.ensureRecipient(command.recipient)
   txn.setBeat(command.recipient, command.beat)
 }

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   confirmationContent,
   decideSubscription,
+  subscriptionChangeSchema,
+  subscriptionKeySchema,
   tenantIdSchema,
   type ConsentMode,
   type Confirmation,
@@ -92,6 +94,14 @@ describe('decideSubscription: what anyone meets first', () => {
     expect(
       decide({ change: change({ scope }), declared: declared({ subject }), actor: owner }),
     ).toEqual(refused('scope-does-not-fit'))
+  })
+
+  it('accepts the scope all on a type without subjects', () => {
+    const subject = { presence: 'none', hint: '' } as const
+    expect(decide({ declared: declared({ subject }), actor: owner })).toEqual({
+      kind: 'set',
+      basis: { kind: 'owner' },
+    })
   })
 
   it('accepts a prefix scope without asking the notation rule', () => {
@@ -225,6 +235,45 @@ describe('decideSubscription: an agent', () => {
     expect(decide({ current, change: change(next) }).kind).toBe('needs-confirmation')
   })
 
+  it.each([
+    [
+      'once stays once at a lower level',
+      { term: { kind: 'once' } },
+      { term: { kind: 'once' }, level: 'weak' },
+    ],
+    [
+      'until moves earlier at a lower level',
+      { term: { kind: 'until', at: at(60) } },
+      { term: { kind: 'until', at: at(30) }, level: 'weak' },
+    ],
+    [
+      'until stays at the same instant at a lower level',
+      { term: { kind: 'until', at: at(60) } },
+      { term: { kind: 'until', at: at(60) }, level: 'weak' },
+    ],
+  ] as const)('lowers without consent when %s', (_case, held, next) => {
+    const current = subscription(a, { kind: 'all' }, held)
+    expect(decide({ current, change: change(next) })).toEqual({
+      kind: 'set',
+      basis: { kind: 'owner' },
+    })
+  })
+
+  it('needs consent for a lower level when the term would grow', () => {
+    const until = subscription(a, { kind: 'all' }, { term: { kind: 'until', at: at(30) } })
+    const later = change({ level: 'weak', term: { kind: 'until', at: at(31) } })
+    expect(decide({ current: until, change: later }).kind).toBe('needs-confirmation')
+    const once = subscription(a, { kind: 'all' }, { term: { kind: 'once' } })
+    for (const term of [{ kind: 'standing' }, { kind: 'until', at: at(60) }] as const)
+      expect(decide({ current: once, change: change({ level: 'weak', term }) }).kind).toBe(
+        'needs-confirmation',
+      )
+  })
+
+  it('treats a missing consent mode as per-request', () => {
+    expect(decide({ mode: null }).kind).toBe('needs-confirmation')
+  })
+
   it('is recalled when nothing would change', () => {
     expect(decide({ current: standingStrong })).toEqual({
       kind: 'recalled',
@@ -238,5 +287,25 @@ describe('decideSubscription: an agent', () => {
       kind: 'recalled',
       current: blanket,
     })
+  })
+})
+
+describe('the shapes a subscription request must have', () => {
+  const valid = {
+    recipient: { kind: 'agent', ref: 'a' },
+    source: 'demo.things',
+    type: 'changed',
+    scope: { kind: 'all' },
+  }
+
+  it('parses a key and a change, and refuses a stray or a missing field', () => {
+    expect(subscriptionKeySchema.parse(valid)).toEqual(valid)
+    expect(subscriptionKeySchema.safeParse({ ...valid, level: 'weak' }).success).toBe(false)
+    expect(subscriptionKeySchema.safeParse({ ...valid, scope: undefined }).success).toBe(false)
+    const full = { ...valid, level: 'weak', note: null, term: { kind: 'once' } }
+    expect(subscriptionChangeSchema.parse(full)).toEqual(full)
+    expect(subscriptionChangeSchema.safeParse({ ...full, extra: 1 }).success).toBe(false)
+    expect(subscriptionChangeSchema.safeParse({ ...full, note: '' }).success).toBe(false)
+    expect(subscriptionChangeSchema.safeParse(valid).success).toBe(false)
   })
 })

@@ -1,6 +1,5 @@
 import {
   sameSend,
-  sameSubscriptionKey,
   selectRecipients,
   supersede,
   UNMARKED,
@@ -18,8 +17,6 @@ export type AcceptResult =
   | Readonly<{ kind: 'accepted'; recipients: readonly RecipientRef[] }>
   | Readonly<{ kind: 'recalled'; recipients: readonly RecipientRef[] }>
   | Readonly<{ kind: 'conflict' }>
-
-const PERSON: RecipientRef = { kind: 'person' }
 
 /** Puts one recipient's notification in its inbox and applies what the event replaces. */
 function box(txn: NotificationTxn, command: AcceptCommand, entry: Selected): void {
@@ -53,7 +50,6 @@ export function acceptSend(txn: NotificationTxn, command: AcceptCommand): Accept
     return sameSend(known.event, event)
       ? { kind: 'recalled', recipients: known.recipients }
       : { kind: 'conflict' }
-  txn.ensureRecipient(PERSON)
   for (const named of event.named) txn.ensureRecipient(named)
   const subscriptions = txn.subscriptionsFor(identity.source, event.type)
   const selected = selectRecipients(
@@ -65,10 +61,7 @@ export function acceptSend(txn: NotificationTxn, command: AcceptCommand): Accept
   )
   for (const entry of selected) {
     box(txn, command, entry)
-    const hit = entry.hit
-    if (hit === null) continue
-    const subscription = subscriptions.find(candidate => sameSubscriptionKey(candidate, hit))
-    if (subscription?.term.kind === 'once') txn.expireSubscription(hit)
+    if (entry.hit?.term.kind === 'once') txn.expireSubscription(entry.hit)
   }
   const recipients = selected.map(entry => entry.recipient)
   txn.insertSend({ identity, event, acceptedAt: command.now, recipients })

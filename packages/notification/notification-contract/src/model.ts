@@ -50,7 +50,7 @@ export type Selected = Readonly<{
   level: BoxedLevel
   cause: Cause
   /** The subscription that set the level. A `once` subscription expires in the same commit. */
-  hit: SubscriptionKey | null
+  hit: Subscription | null
 }>
 
 export function sameScope(a: Scope, b: Scope): boolean {
@@ -90,11 +90,6 @@ export function sameSubscription(a: Subscription | null, b: Subscription | null)
     sameBasis(a.basis, b.basis) &&
     a.expired === b.expired
   )
-}
-
-export function subscriptionKeyOf(subscription: Subscription): SubscriptionKey {
-  const { recipient, source, type, scope } = subscription
-  return { recipient, source, type, scope }
 }
 
 export function isLive(subscription: Subscription, now: Instant): boolean {
