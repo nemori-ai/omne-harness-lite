@@ -1,0 +1,540 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "**Calculating intersections and multiples**\n\nI"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " compute"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " also"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " look"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " at"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Then"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " there's"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " intersection"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " with"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 42"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 63"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 84"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " should"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " clarify"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " it"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " results"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " in"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " exactly"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " one"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " factor"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " when"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " adding"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " then"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " subtract"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ing"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 8"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " get"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "’ll"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " make"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " sure"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " use"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " appropriate"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " tool"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " gather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " this"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " data"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " effectively"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "!"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "city"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\":\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "**Calculating intersections and multiples**\n\nI need to compute 33 multiples of 3, and also look at 14 and 7. Then, there's the intersection with 4 multiples, which are 21, 42, 63, and 84. I should clarify that it results in exactly one factor when adding 33 to 14, then subtracting 8 to get 39. I’ll make sure to use the appropriate tool to gather this data effectively!"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_cTETvSjeUEmkI7ODw6eFM4Tt",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"item\":{\"encrypted_content\":\"gAAAAABq_akCFQKN3hYkqqxZvQjYOwBegINmuXTAVs4Z2S5E7HIrhk4075YN8p0zweXU6jZ5F7yApTCNUr7Wsh5zdK_pq0ZIwOp4v8zaP8wZBWkOQGOhZMeoZ2CByr3qtRHcDba896XaeN6NPgZFc9Zas1SndoqYUI9Y-PGiE4OpPWvoegjKPGbYGUvVLVhaqPbypsJkKlETXmlC92NptN5djh7OtFNnDwzC4sNClvfnO5colgvCtZlE9utBgH_upXF4g5DEAzZIDBwbAY4bkudMRwPHJJW9D6dlxmtBKoC1_s2Ru1nEi4f4KSZuMsMnH7xL4hOhBNgU4x88uZq-RIgShNnKzMzALA-hODaNEnY_thxTH5bgFuhOtNWo51elRLcqDMPP7ZkiEdQCw8P7iPpVu_DD19TSqAOj_C0EJKiEvlfG792kxqOcMFG-ZXYVZrev1eR3z9O1ewXEaONnZtbIb0w5nHv9B3u6wBu5phKi4_VomVb5-Abx9tX_Ai9PhwRXYJgW14-JS49EqUGj2bGtQ0GHnDMiDaGjiaNIbAUe5zuJvgO4nv_BlObKGqjqYMFn41n0Z2QNqppNXM3c8Fzh55qdL8ZHHPgw9oSIVF8HKkVvFF3xx3UxUrr6wUN2hlu0t077wIPTni90xL_D5ddZ5VwVhiCV8ivvgsL4PvuRqc60nScVtL-KOo9aQ-VsEgOKtgk6_ErGvazTTfDB5IQn5C1YWNUkFknRCoFPRJ2fX38ABcV2CdNPJYrjulO6mdeCSXDvULBjqY-fmJBg-A-ssWCCvNG3JDKZ5u3MNEUIhETjTMIMC-EaeNuDNuE7iPFevr-VYfXx_TSe0wN-EVL-4uePCSatQDTlVrkc6lW9TIjv66ezo20otCf8eCwJXmImgA11oZE4iST6BUdhqRFFgmFV1VrM_RkKyHHGyTrKNOmvuFMwg_ER5mxC7bJzkdhe4y_FxzBVK2Gf2t8pizak5seWYQsyQAjtSVukgLaRfY1ltE45dHwCFM9cAmZ4OoWAjO86E5HHQQ4lE03F-0nPAS6wBOc8k_QZrc1JYshJ5BrS8Q5D0-_2TahRHJDzFa6jLFI2eMnopljmsDi-l5rvL6n3XEusuKa5s9MIg1tnbELOsp6j1nHOAbzXb6lXM4c_-QQampjDHwIGsLh5S-3kgA925aN4q4Ld-o72c0Wx2OGfqULaTYQbSnVZV-77qXxuLH7N3XSCMhVlXa2SxxD0wRJniFU8joGR3szkhxXn4oT_-JgmhWaFp0YEzoEjywBmJkO4AQ50_VTXy3cAK06iHO9cC_b2NvRHdaUnD_B2BU6wux4FaoruGXBnY8Q-op9GvI3BAiFj8XQQyotYzYDj27fObnJ3KNSuuQFRu8lGziXSRbqeWiOlQ7KnCUEbkv74GzIAHISAegHsZYEpEn6CIJQ1mZ4XOASDBNkDCDpLg5wit2tvMUG2AmXHGFLUxPRUWdJW9X8W1leYxGlZYr_RZo8vxSiygtX4PpjovVmFa11Bt8Gbe67o27FT_hmy4AvJG6eUAnuJdCdYQhIC3VnN4NB-hijbA0n4kdrsiCTquGBGTPusuC2wvv-kM50xYvGwbYA_H6icKQKiWCESvijzQzxV6BYVjvGiv-HQ8IAW9kyuPnGUsd0H2kolPF77M2vTBDO1CwU2cqzyic2IbxXHHA6Yr3z4ckgTuem0y0DyTtfiRgfuRf8fEeo0UDkhDxZjNhlpbZGRfekyzYN9HZBeoJOydUREtV6vdFWeGtWhA3ATDEIMpfJiFFz0n_wRGAQDQEKrMqRJs9fNSzsE4zbVg_M-8IGxXfmoGOfNJAmxKf2iJcpcsw-zF7ywjYkkAlyrFOzY9ltrk3H3Dtd7RdRExXL28xHJU4P3PM6yX5H5zaeeqmpMdIipiqb0F6E2nCLHuOewRceNFxiCyHQtF3fnGnAnnguCXxsGEdaYM37f22xq6UN7Fl6f3sJymIOQb3vlmso9NQSjwLy7kFHrMaPNLh-gqkF6G2TlMyeaAceM--EBe_tIfXi7A88jFivFTbBCKWdq4KEA691wvbX6kBc5-eI3LCpdcBehzGdGm4rkf1U-eNyj5HIpZVqNrnygglrpRbG-hLKipeZmj0VEernTzexot040510LuSZpkA0Sj49sWozLIUgXWVfeOjQVfi-rUMAgOKglIJNh9dSMfGFX0Faoz-y29J62qx0HrBbPvYy5-KKc-48Kr_Yt9K8nBOoC4Wn2XZfj.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC02LjEtdGVycmEtMjAyNjEwMjZ8b3BlbmFpIn0\",\"format\":\"openai-responses-v1\",\"id\":\"rs_02301412862ea9ba016afda900c91887d18bc8db56e21696f6\",\"summary\":[{\"text\":\"**Calculating intersections and multiples**\\n\\nI need to compute 33 multiples of 3, and also look at 14 and 7. Then, there's the intersection with 4 multiples, which are 21, 42, 63, and 84. I should clarify that it results in exactly one factor when adding 33 to 14, then subtracting 8 to get 39. I’ll make sure to use the appropriate tool to gather this data effectively!\",\"type\":\"summary_text\"}],\"type\":\"reasoning\"},\"type\":\"reasoning\"},{\"call_id\":\"call_cTETvSjeUEmkI7ODw6eFM4Tt\",\"id\":\"fc_tmp_km8a2jij6ji\",\"type\":\"function_call\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "101",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "65",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "44",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.000426",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/OpenAI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

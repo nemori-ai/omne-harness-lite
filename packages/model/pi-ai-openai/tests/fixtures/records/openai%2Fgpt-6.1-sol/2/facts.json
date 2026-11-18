@@ -1,0 +1,635 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "**Calculating multiples and intersections**\n\nI"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculate"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " check"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " them"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " against"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " certain"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " numbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " like"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " find"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " their"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " intersection"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Then"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "’ll"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " look"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " at"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " exclusive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " values"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 42"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 63"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 84"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " After"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " should"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " also"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " compute"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " plus"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " minus"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 8"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " gives"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " There"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "’s"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " something"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " about"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " number"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " being"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "’m"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " not"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " sure"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " what"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " “"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "call"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "”"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " indicates"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Let"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "’s"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " see"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " if"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " can"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " sort"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " this"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " out"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "!"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "city"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\":\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "**Calculating multiples and intersections**\n\nI need to calculate the multiples of 33, check them against certain numbers like 3, 14, and 7, and find their intersection. Then I’ll look at the exclusive values for 21, 42, 63, and 84. After that, I should also compute 33 plus 14, minus 8, which gives me 39. There’s something about the number being odd, and I’m not sure what “call Lima” indicates. Let’s see if I can sort this out!"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_junp7i39ErlbdWTyzjKeIhQy",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"item\":{\"encrypted_content\":\"gAAAAABq_akyY1Mo36D_fRdn8e1Pppy1szulEt7JoX4JwuKkR4jXQ6OEj9Oj_QVO0SqJwQkm9NETdtXEt3Es02vPRhgPeAkQQT-N20oL9fQBnpXifWDq9oP7jZhn5BeXrbW4ialBKQXQY5OJrBA_IcnKWEXUCIQpPvutad6hvTJWmeKCPyUad6LmFwz6mN7yAgXI-QFsgiEmOUpDjH3CGBumLfK8_1LAz9zVeWdXkM8qOvUZyhh_VugU4uViEieNbO6CMEJjlKE2aT6d3_gSD4XgQdPsyzTaQdPvPJfXIqNmAVOmUqKbh6q_S8ltOpgwZWvT8zUSORejG0ZBcopVd3odn1YVUhpmcJonjJPEtMn0w2G9rmJYOtYGJLvjX1pvlvoeCuoFxZlTq5plK7-2U1wdLLFqcahKxc6JkgKXqV62xuo7N-gOTaCkRNA8LOwm5wpTqsUj0_ziaXgRtm8Egk_K-7Vg09_fmh27toxOkAaMNsVOW-Ite-8HqfdXnLT3l4AkYu96AzCWdZ7-x_QjsGus7wg7-jeL_t3nyeQbH-gQC7MVD3f9v2IE9oZ93cxQ5tkyft8_24DWuWCupaFmskcsj3rWb3LujwyV53eYFDMeYKUR96VrMf5pdLUWCiPK6i8R5jqJawFL7yHr8A2wA0-ULytccLAIo-PjfEGYKjQNIwh-bGOSEHcSh0y6N2OOpL3Kfu0oSmu4GDCEII8qXuaR9HNNBUGXrqUCzspNb6T9TBnBff4MHDCXYoN03s8Nvp79mL4Nkn-nl1cO5WCTNR02lAR83FSGp-A0C7aTMLLwVCniJOD9rMhbz8efHb2s0x_uVhuLqumk4BMNcIYXhcJNGhnnP_qXmW1z1Xyc2zGnOLS_5FgdCA_266pgE2uDI99BAb1RrXMfu_ohLNSc_GoebbkPtYWna5zUqPkziHMn4uGEy1fQQMcJl4I9IBXIzuxS49N9TkXnsCkmkhaaMxTU2j6TjnLkCnsRJHwjP_H4Z8VaBzRhNlUusjy3rHhNS_MZOItYVUwHubzxBbWIQaqpRkrf2Up39TrFgm1yv-r0LMuvr1wELFP5E0eNjaTikk5J00Z1U-6EzidmPThX95koh_mXJmK7LpOT3hCCduuec5QGTOFHsZlg2ZXmtVe2bcBtwbfJzHQ2ULrMrdEarJ68yB3tobuF2fmzh1EgefgcJZPmULFMJ2u11XXyARzhZA_RIrmy7oFYUsL9EEMezoEKGIanGdk9f8K2CILfbXvt1a0BdwV2vv-FS2wFP7beFNeYSUvRwss__b4fgJP8iaXZAduhhwVGVvMl21ZXPhptLAhP5woIDJWODJZwApOmZi-W2nmTSnARn_s9CqvQBJlIdbihBstcGdaX_NW5YC0LELlB9mtj7AKm_Rr3mEPZudJEeXYnrKvacP7kD0sVLVKleLjPx4DSoLHYpAblX93tTfAvrkWxHn783I5Yed2YAC0193GGRIdDantmE31kr5ji1FDtecRH3dydXFMbF4vyM1LgfZ5RyIbVy_hU2u-WxWz_VGhrx2XSnEvwpK11r3lehfA0TeYpxwLq7NrUOCH0QeVLl8Wzv3bnKBvEbq0yiVe5HWp_mAg2gGHWm_FnoWvOp0nqAg0EHVADAQCs8Wkrt9KQLQ0-77MAvsVtXNaLv1lqHIO1dc-h8ZNvPfzab7q7tD3h9H_pV0XoT6p4xHiKwgju9BRia1erThcoUEaQS2UvfUDYHNmvJvwPedbbrZM60Pvn5ObtFLs0E0uWz_k_xLS5EGnfe2DT4iOhqFW-p8YpmReXW39IRUQs7IgaXjodRQrzUnDg-LOAdOeFCdjmqtmoqXMuOJzFSosqn5qotJoGt3Xuao4ERsqiJb--yM_gVjp5qQCC8UvCMKWfqE8JlbbBflKFCVbyAgUFNfI5YO5lzLGUyxLWt-1wN3AISdxkV9QkrixnzQnIp_yZLsuEC1excAxD_WEyQz13TyYIxVHrBHeIGDQj7A1-pGZmlOaF_8QcKkEwfMByODowg9bK71JwIFk1uHEX3eUs5O8JN4QAQT4wreStG2rUfCBmdAf3yF3IAEOWNxwoyqM54tVsBZrMp7HuPeb4YwB76i1lLCVlPOOzZXU5Dy_SB2YqDZxVlJEP3R5JJIefWTnaT5QTI_lM4YAyRAfT-iJeNCLQNuD-x2NkWRDyJW2C1i4Ja4-XWpZhK_Dqx9WzHay8RBvEWVxPpMqlTc1WvUpUp4Fr_j16EZtVlJweb8kAe8haR-2OvCYHVKfPadQRQ14pGNVNACVUi1rCrp8k_VimTK5tfTzFlhoLMcOuPOpd4GZFH2HwevOYRObg0bPwaQ60OaZHizwiXFePi0yAz2tfjTk5wMxA93Vwj5jgjtgoCN0LR39Rnwfw4OWCE1Fi-VgtpUyvrNV0j6bqZx7OekYbbDs2CBHYbvz_i3bX9msWzqthsLHZNh9H3KcicIVed3_nnfO25-Oix6_ATcLymOYRQaSxhHkk6wovlk46KBFurn6IEZAdeBj_MzsPi_KUCWPEA7j88kVLBJlk3dLgjQ9jFtQQrN4tOPbkP4I_ANJ2M4sgjDcHYQUxnrqfqzD55iOgtxwpHMi_-2DSF24ypkxnmjAwCemCqmTnD_mmtHJ9CnNz0lpL-p5bVpKsRyHs-a9nVVcXC4PlqS9NCWDrZho6ofWIPuGrEleWJKiogfiOGuIn_Bcd_-Z7GJ-Chq7sTon_9ejQMImTxzQlmunPIQdl90tTBtSdefJMkjEc0TjYKASNUALkZcemdXohn3d1CK-9xRmjw63uODPwJVqhojzvXFFfltk_ieZ8g_LT1qrqkHy8lHdD_dAeZOW9R8GCfEl5XFA8BqAkhuSlPHM1-i4I284tGWEO_LNNA3JwhISY1P_-pfRVjBYv2HrFv9ev9NLCX7hCfTmn61NanuKkTAOuSF8V30KLQpBne2ibb6uKcIfImZVzjBV6gjJ8OSUXMjZZ9keMKD9_-kfB1PJFUD1L4DaFbwB106QHDgiKnfjFXjNeGpZMWvtyw2Us_iwEukc0Nubi0siemPOFUa_qwJ0pIBttZaew4k8iJihT.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC02LjEtc29sLTIwMjYwOTI5fG9wZW5haSJ9\",\"format\":\"openai-responses-v1\",\"id\":\"rs_0e1c630946765026016afda93075bc87d1ad0c415d6224d2d1\",\"summary\":[{\"text\":\"**Calculating multiples and intersections**\\n\\nI need to calculate the multiples of 33, check them against certain numbers like 3, 14, and 7, and find their intersection. Then I’ll look at the exclusive values for 21, 42, 63, and 84. After that, I should also compute 33 plus 14, minus 8, which gives me 39. There’s something about the number being odd, and I’m not sure what “call Lima” indicates. Let’s see if I can sort this out!\",\"type\":\"summary_text\"}],\"type\":\"reasoning\"},\"type\":\"reasoning\"},{\"call_id\":\"call_junp7i39ErlbdWTyzjKeIhQy\",\"id\":\"fc_tmp_07zh8ihtez93\",\"type\":\"function_call\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "101",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "61",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "40",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.000812",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/OpenAI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

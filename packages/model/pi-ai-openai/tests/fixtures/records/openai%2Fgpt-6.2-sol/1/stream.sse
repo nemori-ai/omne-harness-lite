@@ -1,0 +1,28 @@
+: 
+
+data: {"type":"response.created","response":{"id":"gen-1795008784-DEJjiC20qmycDTx8cXwC","object":"response","created_at":1795008784,"model":"openai/gpt-6.2-sol","status":"in_progress","completed_at":null,"output":[],"error":null,"incomplete_details":null,"access_programs":null,"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"properties":{"city":{"type":"string"}},"required":["city"],"type":"object"},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1024,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"auto","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"high","summary":"auto"},"safety_identifier":null,"prompt_cache_key":"820d3ec8d63c931f350b2e8288dfb31295d504d10ee9a70ccc69ec33e2ee8431","prompt_cache_options":{"mode":"explicit","ttl":"30m"},"usage":null},"sequence_number":0}
+
+data: {"type":"response.in_progress","response":{"id":"gen-1795008784-DEJjiC20qmycDTx8cXwC","object":"response","created_at":1795008784,"model":"openai/gpt-6.2-sol","status":"in_progress","completed_at":null,"output":[],"error":null,"incomplete_details":null,"access_programs":null,"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"properties":{"city":{"type":"string"}},"required":["city"],"type":"object"},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1024,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"auto","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"high","summary":"auto"},"safety_identifier":null,"prompt_cache_key":"820d3ec8d63c931f350b2e8288dfb31295d504d10ee9a70ccc69ec33e2ee8431","prompt_cache_options":{"mode":"explicit","ttl":"30m"},"usage":null},"sequence_number":1}
+
+data: {"type":"response.output_item.added","output_index":0,"item":{"id":"fc_tmp_wspqtx953vl","type":"function_call","status":"in_progress","call_id":"call_dr8Pjz9DuT9xh9MgDd9pmLRu","name":"get_weather","arguments":""},"sequence_number":2}
+
+data: {"type":"response.function_call_arguments.delta","output_index":0,"item_id":"fc_tmp_wspqtx953vl","delta":"{\"","sequence_number":3}
+
+data: {"type":"response.function_call_arguments.delta","output_index":0,"item_id":"fc_tmp_wspqtx953vl","delta":"city","sequence_number":4}
+
+data: {"type":"response.function_call_arguments.delta","output_index":0,"item_id":"fc_tmp_wspqtx953vl","delta":"\":\"","sequence_number":5}
+
+data: {"type":"response.function_call_arguments.delta","output_index":0,"item_id":"fc_tmp_wspqtx953vl","delta":"L","sequence_number":6}
+
+data: {"type":"response.function_call_arguments.delta","output_index":0,"item_id":"fc_tmp_wspqtx953vl","delta":"ima","sequence_number":7}
+
+data: {"type":"response.function_call_arguments.delta","output_index":0,"item_id":"fc_tmp_wspqtx953vl","delta":"\"}","sequence_number":8}
+
+data: {"type":"response.function_call_arguments.done","output_index":0,"item_id":"fc_tmp_wspqtx953vl","name":"get_weather","arguments":"{\"city\":\"Lima\"}","sequence_number":9}
+
+data: {"type":"response.output_item.done","output_index":0,"item":{"id":"fc_tmp_wspqtx953vl","type":"function_call","status":"completed","call_id":"call_dr8Pjz9DuT9xh9MgDd9pmLRu","name":"get_weather","arguments":"{\"city\":\"Lima\"}"},"sequence_number":10}
+
+data: {"type":"response.completed","response":{"id":"gen-1795008784-DEJjiC20qmycDTx8cXwC","object":"response","created_at":1795008784,"model":"openai/gpt-6.2-sol","status":"completed","completed_at":1795008785,"output":[{"id":"fc_tmp_wspqtx953vl","type":"function_call","status":"completed","call_id":"call_dr8Pjz9DuT9xh9MgDd9pmLRu","name":"get_weather","arguments":"{\"city\":\"Lima\"}"}],"error":null,"incomplete_details":null,"access_programs":{"cyber":"standard"},"input_transformations":[],"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"properties":{"city":{"type":"string"}},"required":["city"],"type":"object"},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1024,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"default","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"high","summary":"detailed","context":"all_turns","mode":"standard"},"safety_identifier":null,"prompt_cache_key":"820d3ec8d63c931f350b2e8288dfb31295d504d10ee9a70ccc69ec33e2ee8431","prompt_cache_options":{"mode":"explicit","ttl":"30m"},"usage":{"input_tokens":111,"input_tokens_details":{"cached_tokens":0},"output_tokens":19,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":130,"cost":0.000412,"is_byok":false,"cost_details":{"upstream_inference_cost":0.000412,"upstream_inference_input_cost":0.000222,"upstream_inference_output_cost":0.00019}}},"sequence_number":11}
+
+data: [DONE]
+

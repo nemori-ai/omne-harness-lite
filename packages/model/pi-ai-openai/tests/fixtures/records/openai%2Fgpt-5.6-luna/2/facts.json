@@ -1,0 +1,605 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "**Calculating values and tools**\n\nI"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " compute"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " some"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " values"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " For"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " positives"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 100"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "’m"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " looking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " at"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 1"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 99"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " When"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " considering"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " have"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " it"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "’s"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Then"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " get"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Using"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " XOR"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculate"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " +"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 2"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " *"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " gives"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " it's"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " For"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " now"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "’ll"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " call"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " tool"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " in"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " one"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " at"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " a"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " time"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "city"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\":\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "**Calculating values and tools**\n\nI need to compute some values. For positives below 100, I’m looking at 1 to 99. When considering multiples of 3, I have 33, and for 7, it’s 14. Then, for both 3 and 7, I get 4. Using XOR, I calculate: 33 + 14 - 2 * 4, which gives me 39 and it's odd. For now, I’ll call the tool for weather in Lima one at a time."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_jmyy7ghQbk36IRZdhYNsK5KO",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"item\":{\"encrypted_content\":\"gAAAAABq_akKG5-V7VtRdiMn8cZodpV_QUuWkETll5-BWaym2Bpf8PzzUJ-KgcNaqeNGFHdT-6YDtfwcbwINmjs5rO9lKmZFL6bjgctb4QIGStGFobYJIn0yFWpqUQwwHhejZEGq929zsFBvIU0QENtXSZ7n4i7LEpzKyIfFjZ9CRcUVfYqD8TcQfu_aj0N4H_IYvBLAGiBPYGTVdg0vSRiTLgi3BoyoUhWU2fxUxqWSt1T55ttrj0eKrLPGhZgdZ12aIu_LJHsFt1NH1S_4MdMHHffN_O4TBmFtp446D1Yaz2QSHAt_hYXYyDsyhFkWuyPDfYGfyctRuDq7ZAKavXjLk55ZPuccQ9OAoe28aBQWDaav6pmOZpBhp6oi7BMpLiyerIGtIOU2DwXli8G_HvhIpOscG3wHlbZB2ecR8yS0UfILDa2OWyPRv7MzdKbdvw-L1NALmG5xpqYy3-xpdD0Y_AE9vQEdWzWAZrMVCcKLfrTGfkEYR3UvUoHAWZ5j06Cfra5g-CqGSjJr1Ktu8podjy0iHQsbcbt2aGPcIWx5OVghYEarksWT4b1bZ4qtxG7NlluB2jkwUUKyDKYQpbcbb11AYdWNkQsnJU2NRYm5eIwDcj6VHJOLes_JysO82kn2cqJApfuURzxWOuRAemWYCHV9v-HCeMNKwA5kvjkqkkAmvAi--EQe9O-a_NnC_5EfcSUn-mXaDeG9Zrr_FFjLZPNmp_GjFYIGMBhRX3mnMDFcskyyp7MnXkZLTOKbRDeDkHx_MNAKjOfAT-MKnvlnZwdNeW8xSMjiONjIpjS1nfWo0tYK2Ux669Dfjsupw4exzZRhZiDFc8il2eARZl5rMZ-rG6j5PTG_4ql4t9RVkX8P2O77nFXdT40YN0XZ4cbQ2l99IhZq1nyczJ84nwLwXZAv_UbawHWCk3k80PuRB9wvAfSi3PTycSf0kJx0UR0gt1Dax-5hC_s7yj7Ne5Z5U-DnOeSwjMmdm_USpoNQ-r2ozvc_Nl1444sYeHvAdbu2bkM2MizLPz1hUukpGs_BZLec6FW0oCBKT1hoHioGPQTGmAoqa_e8ZCWF4-3TngI11q9LTM7YV9yIa_hYLMjANm2eQk1attEuKLUvKANzaSq7zrPA6KG7YbhGZpIo1dGtZjwd-7ifu4w-yk7TOJmSVT1j0l6h-5ZiSkpz6ZDcxd3b4qGKRzqUyin61oJiD-MeJxlvESMGN4uBuNgDjVDSvxyzevzs2XK3flaCPExbgb2f9ci-EElPYIOJoiwoxy1oxLUUpcdQCyguLd3hoi4DyEsVVoiYQPw7smMRzLseBWh7u7f6wQnyWqjwZ7yJ5teqrtRnavjllha09ikl4PVc0D5nut4pTCkkpu_doTwa0ZxZMhIoviLNY25rHM60G5LL7GzBN7pe8BLSyP-fQnPnGNQWx8Vr1Y74fpBkP6lAcKBvHdrq0KHY2ZYuYUY65aHzDtUoyEPCxOpO8ULHjdrlDF-Ajs589YbjOwUoseCC38HRL4oRrh7516TWl4-HeJeQ_1aAfIEl5oNCa2oor9l9mF6J4cPXXCWu9M9_cpUfGnguObTBYYVE1Itt-umoo0acE0dgyhGBBR9qLNINJHR1O4EVyxq34qOg4tyoEqlI_k7YD5xdCSSDQNBJiV3OzSJMABwJ6RsuafyHydA2KFFtbdv5g4GBoADCbVTgwBfgoyJ3RsRGvaOTTTXEAQ1fSh_AtDvPIzbikLqNoRExUdqIb4-TNEgFgKFGh97u2qlfu_Wo_Nvn6Zfue5g1m9wVCNuMLYVZojq4oD0CHJgBz87Jd0iefawc_WGbXrB_oS4VztbS8w9tTwRZqWcK5f-eV3_IKMfdwvFX_TmKjNglflhVvgVFxMwoz-QT3ehbyPCESUiih6Ngx_nF9Ef2FFQe2Q2EZIfae0zhinBojfDR1DYm_0pZ82WrxfhlSY06G0i1NZRihSIEfFXx9gnm1bepCee6agBVfKXqeyfxZAnOEzQ0M_wUmSdtWQTaLrkMPU8KL5oQnH6kvZMUNWfXIK4elopLUbl2k2AcOtsckLRJWve2qPcwWFEBsuu1OpEFDye6z8uTUpLC7f8Y6tpBnll31v2sbExmT5aDdTbfWtGWV_zTyBrcuAz0sB9Nejnu_LOb1h0erush9u3o1IngmhXN2dS3AFpWq3bq0X506RX3Xz90mFskw-ztjdI1dgTyjwr8i-UgfPFhOXFLH3yL2d6Pdc0YkTTIzuJ5eu9GZv7ehGbxhS5u0t8rqzLQTVXIR-DYAzDHoUTNd2-1jmfFByaTI1IRiFsQkeYhEm0FicW8d0aNHZ4U8jPJTRQps8llqgblENlCxv33Fl4=.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC01LjYtbHVuYS0yMDI2MDcwOXxvcGVuYWkifQ\",\"format\":\"openai-responses-v1\",\"id\":\"rs_06b56de648b51e93016afda90878a087d19a0a8d77babb28c7\",\"summary\":[{\"text\":\"**Calculating values and tools**\\n\\nI need to compute some values. For positives below 100, I’m looking at 1 to 99. When considering multiples of 3, I have 33, and for 7, it’s 14. Then, for both 3 and 7, I get 4. Using XOR, I calculate: 33 + 14 - 2 * 4, which gives me 39 and it's odd. For now, I’ll call the tool for weather in Lima one at a time.\",\"type\":\"summary_text\"}],\"type\":\"reasoning\"},\"type\":\"reasoning\"},{\"call_id\":\"call_jmyy7ghQbk36IRZdhYNsK5KO\",\"id\":\"fc_tmp_dcfj77v800b\",\"type\":\"function_call\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "101",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "82",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "61",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.0001186",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/OpenAI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

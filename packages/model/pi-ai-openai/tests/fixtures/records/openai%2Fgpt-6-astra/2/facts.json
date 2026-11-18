@@ -1,0 +1,600 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "**Calculating Lima's weather**\n\nI"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " count"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " numbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 100"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " like"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " divisible"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " while"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " considering"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " their"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " intersection"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " with"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " numbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 42"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 63"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 84"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ")."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " The"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculation"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " leads"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " one"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " my"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " outputs"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " being"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " plus"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " minus"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 8"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " equals"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " an"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " number"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " related"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Now"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " call"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " tool"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " get"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " current"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " in"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " provide"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " a"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " brief"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " reasoning"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " along"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " with"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " results"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "city"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\":\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "**Calculating Lima's weather**\n\nI need to count the numbers below 100, like 33 divisible by 3 and 14 by 7, while considering their intersection with the numbers 4 (21, 42, 63, 84). The calculation leads to one of my outputs being 33 plus 14 minus 8, which equals 39, an odd number related to Lima. Now, I need to call the weather tool to get the current weather in Lima and provide a brief reasoning along with the results."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_isVMnzItaLv6i0HVVlvKH62j",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"item\":{\"encrypted_content\":\"gAAAAABq_aj0tRJT1Eni7dK97Ab5j8D0mGpJW3h_7b7WW5l8Kwqo8rbQm-fXD3cVj0N7JASWuMqnfqXwt64d_3oZ98VQZA-8ULVlR9l76LOzMfHj0W_cYBH3dgdUUY3OMxaeqviuY1plDoQX3O2eSYI5TwbZGAJTqkua_XbAZrRKajEJqqLeldtG2a8K5_AxR1LvgBbsBAB1cAe5v1Q5tKD8dr_jTqChVOe9sP8G7-wPyMN-43X3-pTGE82DA-JuhTXu85xxPU-1LXTdUgWzrnccxq1gsX4tO8cGf_OnW1JOyHPh7701jOf3GSVou8KuA6-S50g_8GKAT1xvpZ7wVihsehh9W2CFpSIpLvZK2uqDLYt2vdvJl4jVZvMe_JaJ-nADdZK4LjBn2-2jsTuUF59ml2SsSlA01xl8UDQL1k2ahydJdHMasKWXh8xUjWh4FkoOaRbYQIEVJUf3SDjBkRoXcHDjnFmLxnJsmeiZN4QdM4L965QKnmS3jBp2LjrkuXkzBV_1M3FSCW8WzrvFKcC_2OGbyTxtjc5cbFLzAOtbgQlBNIh-lQkorc9PSO-xBhBh6vHxaM7IFM7Zzrp9MKCQer7U3GLmUtsMiGa-ZfFkX4qsU5T1nheL8q5K10pqSUg4OH9fssr6UxQZZACEdODMByl33Egbb76LqDI9InO1RDmRTjR7iAxsnkX1KQiShM0XQV_EiVy0DafqscmCJEqM2J0hsN8MlQis-B5uG4FbwkEq_Z6gVQLwxCdcfpobgDtDyp3KK6kJ4XVEKYPtrJXyeP6U-gXJhfTNyO0WsQPpjJg4AVXNzilAeQvWj6lEo9fNfjwMFpdntYtCsa0ex8dnCME_Huaj8-9oylAsjVK1HES82SPnFyiXYkgICfnoiv57xPaGsDsbEeYjN-N-neahETi4Cms-JoSf6ur1tuOR5cs0Hp2UaXrRRcy_7Hs7uB4OXHWqjpaXrrp-eV_kQTODaov5PR_8J0twSPJhiZTLolDBPsebkZPYDISsoxyjahyXseQKAf5NPZlqBkKk3ES2hzF6EmLUfvl96WWHlTWmQDuEV3-Jaz_e42HNKeI4H-If98i3v-Dds0Paxu61iDDeECnqC5kf0kVh-a-DbTLI9MSWtr-lacaxAao3ES8SIXuoGLQdVcAlUYpgOS4DNu89Mbl1gq7BXMIMKeJTMewJPWgPpWPoHFhwLSSQhDFvWuTGzk-SelUIoCfP-pv4fIfBpaRHyjEG52Ebrjj4oTNnyieH8ntsHxeU8NO0QByiTsuBom5eG_4uqNXW8c_NsDfmWCIF8VBmT9DjF6EUxXu-pnl5LkfjS6Ep-lKslsmv966JJNWBRHdduFqjUfFtKV6gtIHU52jydRIqFyNX_9qmT5FxacxO9Eq1z5va2VjUq8wh7qpUyjfyJDwTyB58L0URc7wQGU14y5hJlDh1vxb7vnMiqRZvm13YJANBgzx2CP4-4CrcHXn4oSAdbyX3X6d1Kl1lABalZfeSj8llRmUnVNKPjQsbql31uKmm6lBQoPwGg7P12pdUaI3tug5p6P1KU7RA9lqptme7AMKXPjX3nSf3lqIUVd7X2kv5lroe0kOpAF6eb5jrP5StWk_C23S6lCF-qafmjhmIiAA-mNnTbjn1ssIXKZ22GQRvIiySJciHHd05FwM3pE50jmQj2r-ZWnc8c2K1zQnL_yaE7TlqzGbtriSJlgGrPRalVncZM7XvFRo9PuQZhOZ82yzR7iI01aWMF05NH4354iPkVxpb9Bl59hlSTZfSUNrVt1KAo4yyxMD0oceGuAzwI2ncVSTKmpyYHZEeb0wh-c7FkSdLo0h5rda1HyfigcLvkJWJl0N7NxQLr4FAx8webSZB9p13wEnEm1Q-zCL87k_Z1XCi4gCMahuxdWrRO9bhp4F095EMObRi1CLPIkVBBtysrsnTHs9y_EKUDE27Dkkf2TDNC5fKmScz-6UroZqocBXznVGTq68VoazPVBcoPJgr72-qSxB9E8MVUyctd_XhgwQVaFNH2C9cI9PGGxIygsqbIhClKn6Vj2AAU5HbZ29dmE6hj-Sp5_2AMaYCgkIUb0lUOEhFlUDmKlOsWqxUv36uw0y4LMVkA2j6th-xg-Be_b3yqRHqvAXfItofhauVUIp16HhuDMF3VQUlgF9mAyy7nCQMztO4gL6-OSr7mw1ckNvkAFK-PEHncVbWG_qg-eJ7vnxv7x9EEIJYENtHBy5YbeaUi305cmX_VveycjutbGQ4WIyorV5wyuOlmvnoCRbWHoYCxGACZjqTGoFrmqEzFiwg61WBNaVhlELzdVKHU-3lTCYnFBxJAdtSX9OkubqxaQttK08fTw0QdxMRaWay9256o9Cu10JfSYhLZ1i8cDmzYTYJDFjd1sVf1C7In2mXOmUmtxOWHJUtS8UIpbzt70o5G7gz0KW04p63O34hfWk0IVbSwe4BzQdnoLhwsNOz0lt37IIvEENHQTJkM7QysF6sguZoqn9b1iGKLLKx3pCkX87w3fQuKw3aC6it0mtJQsZKNvHZP2uInh0Tr2kitz0ld2EcKbiFItHZDnGJecZEDa7YFaPqqGs3-iaC889uu7b8J4rs4e8QyTh52cK_KC4CVnyKSBxzgZkxIAtSDQCQlMgxWMjq3gNiuTnePD_hgPMCXOCrOxMeICvfl4z7JPnAbkl3a8aXuJWQBVO7mnbtsNheU-Xnj7NLd87dO_43PT2EKCr4WdHfAyHY57ssojQm4ktlh2lkomXs6GZ-xsuue9s758OSup_f5Ur3gOy4vWRRfa_Tds_TZM1_yU-poLLCSt_Ha68VSp9_btve0BnTmFTAH-SxaFoXgZH7fQgyNyW6siddfdYOISNPvCUW4XhPFKrppOk2n9MGaY1zRe9jtJsnvPZxoiFVcYEwEAXcLPwm3qU__mAExHAqlWAGBUPwPCHWuESHZqmJHwYYAe9hgAI7wz4IXBoqQCPN1aZMy1DkvBuTtQDAe_udq43RBPvxScLAt02UWrmDzUekIJY9WVrThybqQnitdO4ZhD2_Jn5POWeF6czDlydQb1FoxSHkWYgAuyWAsWDvRBh36z7R3FKaXiLLVOD2adBwZhdadU8tl-r1j7_tAQyL-_Ps5uHr8tPN90F8zyG6kRVrtwR121xVU0ycwOvQethox1E9DPmCIHBDY9yG0m11TGc_OWNVY3EWWBHgsxxM3L4NjxlotpTCG7tqa6MIKPS068r8e6t-YiXKzmo1Pw_q7CCWlvrWC8fZudFFwu1KM3w73Gv2CoH_1AiH5A==.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC02LWFzdHJhLTIwMjYwOTAzfG9wZW5haSJ9\",\"format\":\"openai-responses-v1\",\"id\":\"rs_0ad97d41c809e2bb016afda8f1ded487d1b28528ac19edc22e\",\"summary\":[{\"text\":\"**Calculating Lima's weather**\\n\\nI need to count the numbers below 100, like 33 divisible by 3 and 14 by 7, while considering their intersection with the numbers 4 (21, 42, 63, 84). The calculation leads to one of my outputs being 33 plus 14 minus 8, which equals 39, an odd number related to Lima. Now, I need to call the weather tool to get the current weather in Lima and provide a brief reasoning along with the results.\",\"type\":\"summary_text\"}],\"type\":\"reasoning\"},\"type\":\"reasoning\"},{\"call_id\":\"call_isVMnzItaLv6i0HVVlvKH62j\",\"id\":\"fc_tmp_gznhm9e8lmp\",\"type\":\"function_call\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "111",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "76",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "55",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.00491",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/OpenAI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

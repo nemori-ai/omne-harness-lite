@@ -1,0 +1,580 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "**Calculating weather parameters**\n\nI'm"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " trying"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " count"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " certain"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " elements"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " like"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " total"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Then"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " there's"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " this"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " xor"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " thing"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " going"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " on"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " where"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " have"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculate"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " plus"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " minus"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 2"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " times"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " equals"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "—"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "an"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " number"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " interesting"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ly"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " enough"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " think"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I've"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " got"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " this"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " down"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " now"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " call"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Let's"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " see"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " what"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " conditions"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " looking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " like"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "!"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "city"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\":\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "**Calculating weather parameters**\n\nI'm trying to count certain elements: like 3:33 and 7:14, both of which total to 21:4. Then there's this xor thing going on, where I have to calculate 33 plus 14 minus 2 times 4, which equals 39—an odd number, interestingly enough. I think I've got this down, and now I need to call for the weather. Let's see what the conditions are looking like!"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_ZiUTm2tx0JRZoHoDarLUou1g",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"item\":{\"encrypted_content\":\"gAAAAABq_aj3LQd1puA086PecWij0Lk6egY9gAqlLcmcuDno_SNOMz9gI-NudhYxr4aCvBTGGMM_Dv1imdjgUPrd4gu6As3klAu76NI4Sq3XBSADAbnSQlmPi1vDAgihH4KZ9zOTmU3-YT9YnqXuOzWVh45nKgLG6VFX48xLlaZwjDWCeH83F6moa7rJVs657SXGMInVx7MbMTpj8SfBTD31kB_vGzZF46ZGvw71iszLRjVl9tlsjc6Ln7-TgtMfJn8VMo-VF_bj4zqe47f3N6prQZZeV5X7fBC8AXNWnihleb4SLRPJN6uGPIHU4xayXpwH_j-_MHugDgoV_CIbSyG55x2XOPTInJlHtM-859jHJ2JnNvgJ1BEXu7jpkaWWYs3AEn18KLiGm4cKMJbub-Fu0imzBwQYkiciCwlXg2NjFlCB_LOcDm9jU5Olx-1G3FO_SWe64G1v81iw6wW5WGFoo_wUFES2pU13QG3BoPqoLztxP4P8f0lMhkRZtzRmGiLQm5W36VFnHXeOJVet2L92Kylbl0weouDb-C-x7rQmwxLpkwfpA6nlUaPrQ5QfM_VRgtKOGEP7DHmZBzyQEfl-GpkThf413q-oYv7LLuvNiZ_HyGEiHt2tRtFvWQlusZiHwa4-35AVsQWpQYNAYKPatyrJzfVvEBBZ9QX0j_i80t8N1ZaA4slfeoWvHMhttZt50NgYAck3TbhBGqjAFIhH6tIb2ioapIdQ7ngjW9l-2QojB3S-tRFTJp8q4ZzpDq3mcX6r4abAym4nSF9ZpUg_IzS_TZeNRbmmaKMC3hAu8uPX5AChYXpHCkEe3MfL6mBErRHVEBlg6dIav5GKnDeMiAX3PPc2a-cM7lmoJwIf6AVurMAsX16e_FlbRg7FrA1EaWc5gPjkQ6kuy2PwBY9o-Bd2UEgL0favDD-mK080QMFzXxztA0yxo7ffbjkcrKWKWuzHrXvEgXLIFDCzgGt6irxs9gXxguXHgtzg12gaTUGj94Y4yxAEiMq0-gKGQ0xGUgMw6WJxnshMPqsOgySsQJvKPbpBlqHCztZvub5SiPfTs0mMCsVcBPUQBOVFKd9AXW3LJ_HVSMHmkf0WE8bC7_m-9B9KmmcO-Qe1bmsUU0xolTm1n_SrWzuECd8YlrfAhMdsKvRL8yoncENZmjaqM1Hnw4PaXHa2LImkta37XNIrFGQNpwdTasIum6nAkWi5ZWatGNfWOF8UXIp8_yCdvlWo_6vrhFsWNj9lgGsi9vDGrkxXiO0KLQv-IN0JkJJLFTcKaGuRJdkfx2lwyDa816Aypag4RxMRWxQD7ZiDPsxbHKOwE0pfUEHcSSeiyixyU0CL-DisesJML_heaklfeEarEk4osFTsG0Ak3hMNUcJeAj8A2EQMknAeGhqH2DgTLMjFC-NWfmtW9Rult9TiM-BlghWUqfTJv-zoJEBXk8HF4RkyGecpAL7xcKCIDh2OkTOb-_WY2fHpeqANNC7HmZ3XrUlzzYN9aWVEWD9s36xGsCDtSXfG7kt8iKYL_AcS5yVMjow6xLF4_NXs4Q3iXZdZH4RGAoXhihZ0Hq5Ryng2I_1Q0OzwvHp3vmkKhTIuoq8XeX3HXzlODPK2yxitno-2nhmTmWhb8l2GfOc897yMprmOfbXPTVKJaRhaOSHjRmRTihExbXEnNy25AoCCHlwBcA155_eX0g5AZE9v7W9k6abOa8VkNQWvet2SjhO0KPY09HwrE8gpt2XSv1T4t0UTGcae_AQsMY9rQK3ppmWvlrxvyR0qTjRGuKyHTxMxqTixjqXDH_iZ7XqJ35GHD856EBkYvCm5oVOVfSFw2ugWL4VMsbDfLlrdSfk4ojsm-ie66nVDhv5cZi5lycPOiyL0xyemVAZeH24EgyHWPOyOfc2LAQrDv4sLyAXFU2skGsrNnHq38floLfVLalWJda4HQlP-P8a8NuUQBFTb2dOBPudeuvwtUXvKhiSV4Fne_iPDVH2YpF9H-XrlxPgmLZpbgadjCvSOxmsmSLxpEpWg-wUVrSo3ud5ZFMDnV3W77Nr5WCG3jLmAAz1pTdTUq2h-w03zfQ_4CdKVRUjMf1Di0efhOzU5NJpOiA2fdziK17i9a_6QRjlBPlwnACQqtn4n_VV5kv69g_VPm6E5Fwu_TdfTkTprJZXAyno-IpwzhSuJDesSy6Q5TIfcPUpOcGShsxt60kqw470CKUH-R-lo0OsqMAn9pZakSUp5RqD8XjAiYHnvGop4WMAnI39IvyO8gxs3iHEYIcrFLsjEjSExaBzABSIsOqMBJYwjHeroGEVIe1uNzpwPsg7roiGQj4lE_fgg8d_nOl3ffBE2t3SkQboQrTJe4apsgSYNxEwUV8gHBiARLFyipUV8XOcKxgN1FqNJra0YeGQQPNnMsT7nwKKHx0VA67E-Njw52U5hkMr3pCE73rUDjXRPtmfvS4SnTcVo1KfE-DK-bdzNAEA9pSRyR2pEtgzHhNTUQo_grBFaIYeVq1wdKrV_r-jRAzek5xFqUlvx-DM2Qz866B-7UCApLggTMlm-WR8PfGGXFIn6Rh2PMrtQ-629JH3fgOpC9lsKKw49QYrvz7tPEafvMQXgX8tquMWuFIlAMo_U5UdDS-WDB32Sm3Xu1TJvJ02cqRyuYOMUV4X7S_x2_fui2tq7mXtUmGN-ToV1nzF6nq4J5Tn6YilM0lHABulJ9X3in7m9gvPTQT5eacI6edKr5MBFZB0j8s8px4HRaoy7jGdJti2a4X4pxANexxv7cQqwS03ofNP9gGsxmIM6wOldSHXVoPq4NH4nbAL-D89tEQtStMhId2VpJSRuWdglly5w1IJUqwM0uFYftYXg18RzVwfBcb1A0VrgxkxEj44uJmNwe87aS2Awnc93WemSB0P-LUut-YlFmolEGTcLVdBAIcTEBLAIg8XU1aIT8MRYv1sYbKB1wz0WsGsI5Dx1xWVHvn_gfjcGYDcpFVZcn_MyPhcHST6X_9UiDNEmgqWv-5ILZ0RQ.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC02LXNvbC0yMDI2MDkyMnxvcGVuYWkifQ\",\"format\":\"openai-responses-v1\",\"id\":\"rs_037780fb4996012e016afda8f53d7887d1b0308186b1711283\",\"summary\":[{\"text\":\"**Calculating weather parameters**\\n\\nI'm trying to count certain elements: like 3:33 and 7:14, both of which total to 21:4. Then there's this xor thing going on, where I have to calculate 33 plus 14 minus 2 times 4, which equals 39—an odd number, interestingly enough. I think I've got this down, and now I need to call for the weather. Let's see what the conditions are looking like!\",\"type\":\"summary_text\"}],\"type\":\"reasoning\"},\"type\":\"reasoning\"},{\"call_id\":\"call_ZiUTm2tx0JRZoHoDarLUou1g\",\"id\":\"fc_tmp_jc163km26q\",\"type\":\"function_call\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "101",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "60",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "39",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.000802",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/OpenAI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]
