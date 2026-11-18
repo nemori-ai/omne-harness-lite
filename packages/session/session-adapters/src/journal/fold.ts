@@ -284,7 +284,7 @@ function foldHandoffPrepared(draft: Draft, fact: FactOf<'handoff.prepared'>, pub
   if (handoff.prepared === null)
     draft.handoffs.set(handoffKey(fact.handoff), {
       ...handoff,
-      prepared: { request: fact.request, prepared: fact.prepared, pub },
+      prepared: { request: fact.request, prepared: fact.prepared, pub, step: fact.step },
     })
 }
 

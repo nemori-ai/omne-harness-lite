@@ -226,6 +226,8 @@ export type FactBody =
   | Readonly<{
       kind: 'handoff.prepared'
       handoff: HandoffReference
+      // The step of the position it hands back to: the step still reads it.
+      step: StepId
       request: Ref
       prepared: DurableEvidence
     }>

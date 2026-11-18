@@ -1,4 +1,4 @@
-import { acceptanceIn, compactionGeneration } from '@omne-harness/agent-contract'
+import { compactionGeneration } from '@omne-harness/agent-contract'
 import { pendingCalls } from './pending.ts'
 import { controlStageOf, controlTarget, type ToolControlRecord } from './journal-controls.ts'
 import { canonical, canonicalOfKept } from './canonical.ts'
@@ -195,12 +195,15 @@ import {
   copy,
   custodyTargetFailure,
   handoffRecord,
+  heldHandoff,
+  inputAcceptanceOf,
   invalid,
   preparedHandoff,
   retiredHandoff,
   sameEvidence,
   sameValue,
   undetermined,
+  validatedCustody,
 } from './journal-handoff-checks.ts'
 
 export type JointCommitKind = Exclude<CallerCommit['kind'], 'none'>
@@ -1655,7 +1658,7 @@ export function createJournal<P>(
     }
     switch (change.kind) {
       case 'prepare':
-        return preparedHandoff(execution, input, change.request)
+        return preparedHandoff(execution, input, change.request, state())
       case 'resolve':
         return resolvedHandoff(execution, input, change.outcome)
       case 'retire':
@@ -2916,6 +2919,7 @@ export function createJournal<P>(
           facts.push({
             kind: 'handoff.prepared',
             handoff: copy(handoff.request.reference),
+            step: handoff.request.position.step,
             request: refOf(handoff.request),
             prepared: evidence,
           })
@@ -3100,7 +3104,7 @@ export function createJournal<P>(
             )
           if (semanticKey('input', known) !== semanticKey('input', input.value))
             return answer(fail(conflict(input.operation)))
-          const stored = handoffRecord(execution, lineage.original.handoff)
+          const stored = heldHandoff(state(), execution, lineage.original.handoff)
           if (
             stored === undefined ||
             !sameValue(stored.request, lineage.original.outcome.request) ||
@@ -3490,46 +3494,8 @@ export function createJournal<P>(
       const request =
         input.original.kind === 'recorded' ? input.original.outcome.request : input.original.request
       const reference = request.reference
-      const validated = (execution: Execution): Outcome<CustodyAttempt, Failure> => {
-        const record = handoffRecord(execution, reference)
-        if (record === undefined || !sameValue(record.request, request))
-          return fail(invalid('original', 'the request is not on the authoritative record'))
-        if (record.resolution !== null && !sameValue(record.resolution, input.original))
-          return fail(conflict(input.operation))
-        const attempt: CustodyAttempt = {
-          handoff: copy(reference),
-          original: copy(input.original),
-          custody: input.custody === null ? null : copy(input.custody),
-        }
-        const chain = custodyOf(execution, reference)
-        const custody = input.custody
-        if (custody === null) {
-          if (chain !== null && chain.root !== input.operation)
-            return fail(invalid('operation', 'the H already has its custody root'))
-          return succeed(attempt)
-        }
-        if (chain === null || custody.custodyRoot !== chain.root)
-          return fail(invalid('operation', 'the custody root is not the root of this H'))
-        const rootAttempt = execution.custodyAttempts.get(chain.root)
-        if (rootAttempt === undefined || !sameValue(rootAttempt.original, input.original))
-          return fail(conflict(input.operation))
-        const last = chain.chain.at(-1)
-        if (last === undefined || last.operation !== custody.predecessor.operation)
-          return fail(invalid('operation', 'the predecessor is not the last attempt'))
-        if (last.state !== 'excluded')
-          return fail(invalid('operation', 'the predecessor is not permanently excluded'))
-        const excludedChain = chain.chain.map(item => item.operation)
-        if (
-          custody.priorExcluded.length !== excludedChain.length ||
-          custody.priorExcluded.some(
-            (item, index) =>
-              item.operation !== excludedChain[index] ||
-              item.predecessor !== (index === 0 ? null : excludedChain[index - 1]),
-          )
-        )
-          return fail(invalid('operation', 'the exclusion chain is not the chain of the root'))
-        return succeed(attempt)
-      }
+      const validated = (execution: Execution) =>
+        validatedCustody(execution, input, request, custodyOf(execution, reference))
       const prepare = (): Attempt<CommandReceipt> => {
         const found = owned(input, 'recordHandoff')
         if ('failure' in found) return answer(found)
@@ -3903,7 +3869,7 @@ export function createJournal<P>(
     async inputAcceptance(input) {
       const found = owned(input, 'inputAcceptance')
       if ('failure' in found) return found
-      return succeed(copy(acceptanceIn(found.ok.handoffs, input.input)))
+      return succeed(copy(inputAcceptanceOf(state(), found.ok, viewOf(found.ok.id), input.input)))
     },
 
     async readFinish(input) {

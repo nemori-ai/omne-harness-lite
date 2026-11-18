@@ -1,8 +1,11 @@
 import { SharedMap, forkOf } from './shared-map.ts'
 import { factKey } from './facts.ts'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
+import { inputOpen } from './inputs.ts'
 import {
   emptyExecutionView,
+  handoffKey,
+  type HandoffView,
   type AdmissionView,
   type BindingView,
   type ExecutionView,
@@ -181,7 +184,17 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
     open: (item: AdmissionView, view: ExecutionView) =>
       item.sequence >= (view.cursor.holds?.admissionsFrom ?? 0),
   },
-  { family: 'handoff', holder: table(at('handoffs')), open: always },
+  {
+    family: 'handoff',
+    holder: table(at('handoffs')),
+    open: (item: HandoffView, view: ExecutionView, key: string) =>
+      (item.resolved === null && item.retired === null) ||
+      (view.cursor.currentHandoff != null && key === handoffKey(view.cursor.currentHandoff)) ||
+      (view.cursor.holds?.handoffs.includes(key) ?? true) ||
+      (item.handoff.kind === 'input'
+        ? inputOpen(item.handoff.input, view)
+        : item.prepared?.step === view.cursor.step),
+  },
   { family: 'control', holder: table(at('controls')), open: always },
   {
     family: 'settlement',

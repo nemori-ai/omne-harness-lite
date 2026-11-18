@@ -1,16 +1,23 @@
 import { canonical } from './canonical.ts'
-import type {
-  AgentOperationId,
-  DurableEvidence,
-  Failure,
-  HandoffReference,
-  JournalCommit,
-  SettlementRequest,
+import {
+  acceptanceIn,
+  type AgentJournal,
+  type AgentOperationId,
+  type DurableEvidence,
+  type ExecutionHandoff,
+  type Failure,
+  type HandoffReference,
+  type InputId,
+  type JournalCommit,
+  type OriginalInputAcceptance,
+  type SettlementRequest,
 } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { revisionOf } from './journal-values.ts'
 import { candidateOf, routeOf } from './journal-finishing.ts'
 import type { HandoffRecord, MemoryExecution } from './journal.ts'
+import { closedHandoffRecord } from './journal-records.ts'
+import type { ExecutionView } from '../journal/index.ts'
 type Execution = MemoryExecution
 
 export type HandoffApply = (revision: number, evidence: DurableEvidence) => void
@@ -109,6 +116,7 @@ export function preparedHandoff<P>(
   execution: Execution,
   input: JournalCommit<P>,
   request: Extract<NonNullable<JournalCommit<P>['handoff']>, { kind: 'prepare' }>['request'],
+  table: Parameters<typeof closedHandoffRecord>[0],
 ): Outcome<HandoffApply, Failure> {
   const reference = request.reference
   if (reference.execution !== execution.id)
@@ -130,7 +138,7 @@ export function preparedHandoff<P>(
   if (occupied !== undefined)
     return fail(invalid('handoff', 'the source position has an undetermined handoff'))
   if (request.predecessorHandoff !== null) {
-    const predecessor = handoffRecord(execution, request.predecessorHandoff)
+    const predecessor = heldHandoff(table, execution, request.predecessorHandoff)
     if (predecessor === undefined || predecessor.retirement === null)
       return fail(invalid('handoff', 'the predecessor handoff is not retired'))
   }
@@ -183,4 +191,82 @@ export function retiredHandoff<P>(
       reason: copy(change.reason),
     }
   })
+}
+
+type CustodyInput<P> = Parameters<AgentJournal<P>['recordHandoff']>[0]
+type CustodyAttempt = MemoryExecution['custodyAttempts'] extends Map<unknown, infer V> ? V : never
+type CustodyChain = Exclude<ExecutionHandoff['custody'], null> | null
+
+// A recordHandoff attempt, checked against the record of its H and the custody chain it extends.
+export function validatedCustody<P>(
+  execution: Execution,
+  input: CustodyInput<P>,
+  request: HandoffRecord['request'],
+  chain: CustodyChain,
+): Outcome<CustodyAttempt, Failure> {
+  const reference = request.reference
+  const record = handoffRecord(execution, reference)
+  if (record === undefined || !sameValue(record.request, request))
+    return fail(invalid('original', 'the request is not on the authoritative record'))
+  if (record.resolution !== null && !sameValue(record.resolution, input.original))
+    return fail({ kind: 'conflict', operation: input.operation })
+  const attempt: CustodyAttempt = {
+    handoff: copy(reference),
+    original: copy(input.original),
+    custody: input.custody === null ? null : copy(input.custody),
+  }
+  const custody = input.custody
+  if (custody === null) {
+    if (chain !== null && chain.root !== input.operation)
+      return fail(invalid('operation', 'the H already has its custody root'))
+    return succeed(attempt)
+  }
+  if (chain === null || custody.custodyRoot !== chain.root)
+    return fail(invalid('operation', 'the custody root is not the root of this H'))
+  const rootAttempt = execution.custodyAttempts.get(chain.root)
+  if (rootAttempt === undefined || !sameValue(rootAttempt.original, input.original))
+    return fail({ kind: 'conflict', operation: input.operation })
+  const last = chain.chain.at(-1)
+  if (last === undefined || last.operation !== custody.predecessor.operation)
+    return fail(invalid('operation', 'the predecessor is not the last attempt'))
+  if (last.state !== 'excluded')
+    return fail(invalid('operation', 'the predecessor is not permanently excluded'))
+  const excludedChain = chain.chain.map(item => item.operation)
+  if (
+    custody.priorExcluded.length !== excludedChain.length ||
+    custody.priorExcluded.some(
+      (item, index) =>
+        item.operation !== excludedChain[index] ||
+        item.predecessor !== (index === 0 ? null : excludedChain[index - 1]),
+    )
+  )
+    return fail(invalid('operation', 'the exclusion chain is not the chain of the root'))
+  return succeed(attempt)
+}
+
+// A handoff of the execution: the open record, else the closed item read back by its reference.
+export function heldHandoff(
+  table: Parameters<typeof closedHandoffRecord>[0],
+  execution: Execution,
+  reference: HandoffReference,
+): HandoffRecord | undefined {
+  return handoffRecord(execution, reference) ?? closedHandoffRecord(table, execution, reference)
+}
+
+// The acceptance of one input by its identity: the handoff of its entry, open or closed.
+export function inputAcceptanceOf(
+  table: Parameters<typeof closedHandoffRecord>[0],
+  execution: Execution,
+  view: Pick<ExecutionView, 'inputs'>,
+  input: InputId,
+): OriginalInputAcceptance | null {
+  const entry = view.inputs.find(item => item.input === input)?.entry
+  if (entry === undefined) return null
+  const record = heldHandoff(table, execution, {
+    kind: 'input',
+    execution: execution.id,
+    entry,
+    input,
+  })
+  return acceptanceIn(record === undefined ? [] : [record], input)
 }

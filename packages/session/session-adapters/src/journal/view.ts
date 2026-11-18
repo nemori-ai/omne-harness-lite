@@ -133,7 +133,7 @@ export type AdmissionView = Readonly<{
 
 export type HandoffView = Readonly<{
   handoff: HandoffReference
-  prepared: Readonly<{ request: Ref; prepared: DurableEvidence; pub: number }> | null
+  prepared: Readonly<{ request: Ref; prepared: DurableEvidence; pub: number; step: StepId }> | null
   resolved:
     | (Readonly<{
         resolution: 'recorded' | 'excluded'

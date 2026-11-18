@@ -10,6 +10,7 @@ import type {
   DurableEvidence,
   ExecutionState,
   HandoffOutcome,
+  HandoffReference,
   HandoffResolution,
   PendingCall,
   ResultResponsibility,
@@ -17,8 +18,10 @@ import type {
 } from '@omne-harness/agent-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { canonical } from './canonical.ts'
+import { needClosed, type ClosedTable } from './closed-items.ts'
 import {
   checkpointOf,
+  handoffKey,
   receivedViews,
   type ProducerCall,
   type BlobStore,
@@ -30,7 +33,7 @@ import {
   type ResultView,
   type SessionJournalView,
 } from '../journal/index.ts'
-import { type HandoffRecord, type MemoryExecution, type OperationRecord } from './journal.ts'
+import type { HandoffRecord, MemoryExecution, OperationRecord } from './journal.ts'
 import type { AdmissionLedger, AdmissionProjection, AdmissionRecord } from './reply-admissions.ts'
 import { finishingOf } from './journal-finishing.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
@@ -236,6 +239,42 @@ export function handoffParts(item: HandoffView, blobs: BlobStore) {
   return { outcome, excluded, request }
 }
 
+export function handoffRecordOf(
+  item: HandoffView,
+  blobs: BlobStore,
+  ended: DurableEvidence | null,
+): HandoffRecord | undefined {
+  const { outcome, excluded, request } = handoffParts(item, blobs)
+  if (request === undefined) return undefined
+  return {
+    handoff: item.handoff,
+    request,
+    prepared: item.prepared?.prepared ?? null,
+    resolution: outcome !== null ? { kind: 'recorded', outcome } : excluded,
+    history: historyOf(item, ended),
+    retirement:
+      item.retired === null
+        ? null
+        : {
+            operation: item.retired.op,
+            revision: revisionOf(item.retired.revision),
+            reason: item.retired.reason,
+          },
+  }
+}
+
+// A handoff the core no longer holds open, read back by its reference.
+export function closedHandoffRecord(
+  table: ClosedTable & Readonly<{ blobs: BlobStore }>,
+  execution: Pick<MemoryExecution, 'id' | 'state'>,
+  reference: HandoffReference,
+): HandoffRecord | undefined {
+  const ref = { execution: execution.id, family: 'handoff', item: handoffKey(reference) }
+  const body = needClosed(table, ref) as HandoffView | null
+  const ended = execution.state.kind === 'ended' ? execution.state.disposition : null
+  return body === null ? undefined : handoffRecordOf(body, table.blobs, ended)
+}
+
 export function projectExecution(
   view: ExecutionView,
   context: ProjectionContext,
@@ -395,28 +434,9 @@ export function projectExecution(
   }
   const ledger: AdmissionLedger = { origin, retainedFrom: 1, rangesFrom: 0, projection }
   projected.admissionLedger = ledger
-  projected.handoffs = [...view.handoffs.values()].flatMap((item): HandoffRecord[] => {
-    const { outcome, excluded, request } = handoffParts(item, context.blobs)
-    if (request === undefined) return []
-    const resolution: HandoffRecord['resolution'] =
-      outcome !== null ? { kind: 'recorded', outcome } : excluded
-    return [
-      {
-        handoff: item.handoff,
-        request,
-        prepared: item.prepared?.prepared ?? null,
-        resolution,
-        history: historyOf(item, ended?.disposition ?? null),
-        retirement:
-          item.retired === null
-            ? null
-            : {
-                operation: item.retired.op,
-                revision: revisionOf(item.retired.revision),
-                reason: item.retired.reason,
-              },
-      },
-    ]
+  projected.handoffs = [...view.handoffs.values()].flatMap(item => {
+    const record = handoffRecordOf(item, context.blobs, ended?.disposition ?? null)
+    return record === undefined ? [] : [record]
   })
   projected.custodyAttempts = new Map(
     [...view.handoffs.values()].flatMap(item =>
