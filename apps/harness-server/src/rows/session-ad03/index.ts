@@ -58,7 +58,12 @@ const plugin: Plugin.Object = {
       principals: ctx[sessionModesPrincipalsKey],
       verifier: ctx[principalVerifierKey],
       defaultModes: defaultModesOf(ctx[definitionMappingsKey]),
-      recoverSession: input => bundle.recoverSession(input),
+      // Runtime Context must know both blocks of a session before a reader of its scope reads:
+      // a block it does not know reads as no value at all, not as a required one that is missing.
+      recoverSession: async input => {
+        if ((await directory.ensure(input.tenant)).kind !== 'ready') return { kind: 'unavailable' }
+        return bundle.recoverSession(input)
+      },
     })
     const bundle = createSessionContextHolder<unknown>({
       coordinator,
@@ -76,7 +81,7 @@ const plugin: Plugin.Object = {
       scopeIndexEntries: config.scopeIndexEntries,
       pageBytes: config.pageBytes,
     })
-    new SessionWorkingDirectory(ctx, {
+    const directory = new SessionWorkingDirectory(ctx, {
       defaultDirectory: config.defaultDirectory,
       targets: () => workspaceTargets(ctx),
       recover: input => bundle.recoverSession(input),

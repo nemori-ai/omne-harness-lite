@@ -608,9 +608,14 @@ it('gives providers of one files configuration one engine, and another configura
   const domain = createSourceDomain()
   const state = await realpath(await mkdtemp(join(tmpdir(), 'omne-host-engine-')))
   roots.push(state)
-  const engineOf = async (options: Record<string, unknown>, key: string) => {
+  const engineOf = async (
+    { filesRoot, ...options }: Readonly<{ filesRoot?: string; limits?: object }>,
+    key: string,
+  ) => {
     const provider = createSourceProvider({ domain, ...options })
-    const input = inputFor(provider, key)
+    const bare = inputFor(provider, key)
+    const input =
+      filesRoot === undefined ? bare : { ...bare, placement: { ...bare.placement, filesRoot } }
     await leaseOf(provider, input)
     return recordOf(domain, input).engine
   }
@@ -624,6 +629,18 @@ it('gives providers of one files configuration one engine, and another configura
   expect(await engineOf({ filesRoot: state, limits: { listPageLimit: 5 } }, 'rooted-3')).not.toBe(
     rooted,
   )
+  // One provider serves placements under different roots, each from the engine of its root.
+  const provider = createSourceProvider({ domain })
+  const under = async (filesRoot: string | undefined, key: string) => {
+    const bare = inputFor(provider, key)
+    const input =
+      filesRoot === undefined ? bare : { ...bare, placement: { ...bare.placement, filesRoot } }
+    await leaseOf(provider, input)
+    return recordOf(domain, input).engine
+  }
+  expect(await under(state, 'one-rooted')).toBe(rooted)
+  expect(await under(undefined, 'one-plain')).toBe(plain)
+  expect(await under(state, 'one-rooted-again')).toBe(rooted)
 })
 
 function countingIndex(pending: number, maintained: string[], name: string): RetainedProcessIndex {

@@ -85,7 +85,6 @@ function bindEnvironment<E>(
 }
 
 export function createAuthors(
-  workspace: string,
   executable: string,
   env: Readonly<Record<string, string>>,
   maximum: number,
@@ -100,7 +99,10 @@ export function createAuthors(
   const modules = {
     Files: bindEnvironment<FilesAuthorEnvironment>(
       filesToolModule,
-      environment => ({ files: environment.files }),
+      environment => ({
+        files: environment.files,
+        ...(environment.directory === undefined ? {} : { directory: environment.directory }),
+      }),
       executed('Files'),
     ),
     Shell: bindEnvironment<ShellAuthorEnvironment>(
@@ -109,6 +111,7 @@ export function createAuthors(
         command: environment.command,
         terminal: environment.terminal,
         facts: environment.facts,
+        ...(environment.directory === undefined ? {} : { directory: environment.directory }),
       }),
       executed('Shell'),
     ),
@@ -119,7 +122,6 @@ export function createAuthors(
       resultMaxBytes: maximum,
       executable,
       argsPrefix: ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command'],
-      cwd: workspace,
       env,
     }),
   }

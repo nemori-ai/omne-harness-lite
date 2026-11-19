@@ -18,7 +18,13 @@ function construction(cwd?: string) {
   } as const
 }
 
-function hostLike(root: string, initial: Record<string, string>, separator = '/') {
+/** A host whose files live under `root`; the call works in `directory`, the root unless given. */
+function hostLike(
+  root: string,
+  initial: Record<string, string>,
+  separator = '/',
+  directory: string | null = root,
+) {
   const fixture = filesFixture(initial)
   const seen: string[] = []
   const absolute = (path: string) =>
@@ -37,6 +43,7 @@ function hostLike(root: string, initial: Record<string, string>, separator = '/'
   }
   const files = fixture.environment.files
   const environment: FilesAuthorEnvironment = {
+    ...(directory === null ? {} : { directory }),
     files: {
       ...files,
       read: request => gate(request.path, () => files.read(request)),
@@ -66,9 +73,9 @@ function hostLike(root: string, initial: Record<string, string>, separator = '/'
   return { fixture, environment, seen }
 }
 
-it('lists "." as the workspace root itself', async () => {
+it('lists "." as the working directory itself', async () => {
   const host = hostLike('/work', { '/work/qa-note.txt': 'note' })
-  const author = value(createFilesAuthor(construction('/work')))
+  const author = value(createFilesAuthor(construction()))
   const text = await run(author, 'list', { path: '.' }, host.environment)
   expect(host.seen).toEqual(['/work'])
   expect(text).toMatch(/^done /u)
@@ -76,18 +83,18 @@ it('lists "." as the workspace root itself', async () => {
   expect(text).toContain('"qa-note.txt"	file')
 })
 
-it('reads a sub path under the workspace root', async () => {
+it('reads a sub path under the working directory', async () => {
   const host = hostLike('/work', { '/work/sub/file.txt': 'inside' })
-  const author = value(createFilesAuthor(construction('/work')))
+  const author = value(createFilesAuthor(construction()))
   const text = await run(author, 'read', { path: 'sub/file.txt' }, host.environment)
   expect(host.seen).toEqual(['/work/sub/file.txt'])
   expect(text).toMatch(/^done /u)
   expect(text.endsWith('\ninside')).toBe(true)
 })
 
-it('resolves Windows workspace roots with Windows separators', async () => {
+it('resolves a Windows working directory with Windows separators', async () => {
   const host = hostLike('C:\\work', { 'C:\\work\\sub\\file.txt': 'windows' }, '\\')
-  const author = value(createFilesAuthor(construction('C:\\work')))
+  const author = value(createFilesAuthor(construction()))
   const text = await run(author, 'read', { path: 'sub/file.txt' }, host.environment)
   expect(host.seen).toEqual(['C:\\work\\sub\\file.txt'])
   expect(text.endsWith('\nwindows')).toBe(true)
@@ -95,7 +102,7 @@ it('resolves Windows workspace roots with Windows separators', async () => {
 
 it('passes a path that leaves the workspace to the existing refusal', async () => {
   const host = hostLike('/work', { '/outside.txt': 'secret' })
-  const author = value(createFilesAuthor(construction('/work')))
+  const author = value(createFilesAuthor(construction()))
   const text = await run(author, 'read', { path: '../outside.txt' }, host.environment)
   expect(host.seen).toEqual(['/outside.txt'])
   expect(text).toBe('rejected request="host" reason=notAuthorized')
@@ -104,7 +111,7 @@ it('passes a path that leaves the workspace to the existing refusal', async () =
 
 it('keeps absolute paths unchanged', async () => {
   const host = hostLike('/work', { '/work/a.txt': 'a', '/etc/passwd': 'root' })
-  const author = value(createFilesAuthor(construction('/work')))
+  const author = value(createFilesAuthor(construction()))
   const inside = await run(author, 'read', { path: '/work/a.txt' }, host.environment)
   const outside = await run(author, 'read', { path: '/etc/passwd' }, host.environment)
   expect(host.seen).toEqual(['/work/a.txt', '/etc/passwd'])
@@ -113,8 +120,24 @@ it('keeps absolute paths unchanged', async () => {
   expect(outside).toBe('rejected request="host" reason=notAuthorized')
 })
 
-it('without a workspace root answers invalidInput and says an absolute path is needed', async () => {
-  const host = hostLike('/work', { '/work/qa-note.txt': 'note' })
+it('takes the working directory of each call from its environment: two calls of one author work in two places', async () => {
+  const author = value(createFilesAuthor(construction()))
+  const blog = hostLike('/blog', { '/blog/readme.md': 'blog' })
+  const shop = hostLike('/shop', { '/shop/readme.md': 'shop' })
+  expect(
+    (await run(author, 'read', { path: 'readme.md' }, blog.environment)).endsWith('\nblog'),
+  ).toBe(true)
+  expect(
+    (await run(author, 'read', { path: 'readme.md' }, shop.environment)).endsWith('\nshop'),
+  ).toBe(true)
+  expect([blog.seen, shop.seen]).toEqual([['/blog/readme.md'], ['/shop/readme.md']])
+})
+
+it.each([
+  ['no working directory', null],
+  ['a working directory that is not an absolute path', 'work'],
+])('with %s answers invalidInput and says an absolute path is needed', async (_name, directory) => {
+  const host = hostLike('/work', { '/work/qa-note.txt': 'note' }, '/', directory)
   const author = value(createFilesAuthor(construction()))
   const text = await run(author, 'read', { path: 'qa-note.txt' }, host.environment)
   expect(host.seen).toEqual(['qa-note.txt'])
@@ -126,7 +149,7 @@ it('without a workspace root answers invalidInput and says an absolute path is n
 
 it('resolves move targets and patch entries the same way', async () => {
   const host = hostLike('/work', { '/work/a.txt': 'old' })
-  const author = value(createFilesAuthor(construction('/work')))
+  const author = value(createFilesAuthor(construction()))
   await run(author, 'move', { path: 'a.txt', target: 'b.txt' }, host.environment)
   await run(
     author,
@@ -137,6 +160,8 @@ it('resolves move targets and patch entries the same way', async () => {
   expect(host.seen).toEqual(['/work/b.txt', '/work/a.txt', '/work/a.txt', '/work/a.txt'])
 })
 
-it('refuses a working directory that is not absolute', () => {
-  expect(createFilesAuthor(construction('work'))).toHaveProperty('failure')
+it('refuses a construction that names a directory: the directory belongs to the call', () => {
+  expect(createFilesAuthor(construction('/work'))).toEqual({
+    failure: { field: 'construction', reason: 'invalid-field:cwd' },
+  })
 })

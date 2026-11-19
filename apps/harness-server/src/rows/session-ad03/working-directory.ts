@@ -1,4 +1,5 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type { RuntimeContextOperations } from '@omne-harness/runtime-context-contract'
 import {
   createStepDirectory,
@@ -28,6 +29,8 @@ declare module '@deepseek-ai/cordis' {
  */
 export class SessionWorkingDirectory extends Service implements StepDirectory<unknown> {
   readonly refresh: StepDirectory<unknown>['refresh']
+  /** Makes the block known for the tenant; it is called before a session scope is restored. */
+  readonly ensure: (tenant: TenantId) => Promise<Readonly<{ kind: 'ready' | 'unavailable' }>>
 
   constructor(ctx: Context, sources: Sources) {
     super(ctx, sessionWorkingDirectoryKey)
@@ -44,5 +47,6 @@ export class SessionWorkingDirectory extends Service implements StepDirectory<un
       publish: publishers.publish,
     })
     this.refresh = input => step.refresh(input)
+    this.ensure = tenant => publishers.ensure(tenant)
   }
 }

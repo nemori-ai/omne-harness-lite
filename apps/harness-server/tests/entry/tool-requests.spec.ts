@@ -6,7 +6,9 @@ import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import type { ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { workspaceCodec } from '@omne-harness/legal-identity'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type { WorkingDirectory } from '@omne-harness/session-adapters'
 import type { SessionFaces, WorkSnapshot } from '@omne-harness/session-contract'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import type {
@@ -21,13 +23,20 @@ import {
   judgeToolDefinition,
   judgeToolInvokeRequest,
 } from '@omne-harness/tool-contract/provider'
-import { askToolModule, filesToolModule, shellToolModule } from '@omne-harness/tool-definitions'
+import {
+  askToolModule,
+  filesToolModule,
+  shellToolModule,
+  todoItemsToolModule,
+  toolsToolModule,
+} from '@omne-harness/tool-definitions'
 import { sessionWorkIssuerOf } from '../../src/entry/principals.ts'
 import { releaseOf } from '../../src/entry/tool-release.ts'
 import { governanceOf } from '../../src/entry/tool-release-manifest.ts'
 import {
   createReleaseToolRequests,
   releaseToolRequestsOf,
+  TOOL_REQUESTS_OWNER,
   type ReleaseToolRequests,
   type ToolRequestPorts,
 } from '../../src/entry/tool-requests.ts'
@@ -63,8 +72,13 @@ async function world() {
     Shell: okOf(shellToolModule.createAuthor(tree(TEST_CONSTRUCTION.Shell)), 'Shell').facts,
     Files: okOf(filesToolModule.createAuthor(tree(TEST_CONSTRUCTION.Files)), 'Files').facts,
     Ask: okOf(askToolModule.createAuthor(tree(TEST_CONSTRUCTION.Ask)), 'Ask').facts,
+    TodoItems: okOf(
+      todoItemsToolModule.createAuthor(tree(TEST_CONSTRUCTION.TodoItems)),
+      'TodoItems',
+    ).facts,
+    Tools: okOf(toolsToolModule.createAuthor(tree(TEST_CONSTRUCTION.Tools)), 'Tools').facts,
   }
-  for (const name of ['Shell', 'Files', 'Ask'] as const)
+  for (const name of ['Shell', 'Files', 'Ask', 'TodoItems', 'Tools'] as const)
     definitions.set(
       name,
       okOf(
@@ -109,11 +123,14 @@ async function world() {
     operatorSettings: () => ({}),
     interaction: async () => succeed({ humanInteraction: true, requestApproval: true }),
     inquiry: async () => succeed('ask-human' as const),
+    workingDirectory: async () => succeed({ state: 'default', directory: '/srv/default' }),
   }
   return { fixture, ports, principalA, principalB, snapshot, definitions }
 }
 
 const EXECUTE = '{"command":"execute","intent":"test call","params":{"script":"echo tool-b"}}'
+const LIST_TODOS = '{"command":"list","params":{}}'
+const SEARCH_TOOLS = '{"command":"search","params":{"query":"echo"}}'
 
 function actionInput(principal: unknown, tenant = TENANT_A, name = 'Shell', args = EXECUTE) {
   return {
@@ -137,6 +154,11 @@ function actionInput(principal: unknown, tenant = TENANT_A, name = 'Shell', args
       purpose: 'action',
     },
   } as unknown as Parameters<ReturnType<typeof createReleaseToolRequests>['describe']>[0]
+}
+
+function parsedWorkspace(text: string) {
+  const parsed = workspaceCodec.parse(text)
+  return parsed.ok ? succeed(parsed.value) : fail('not a workspace')
 }
 
 async function prepared(ports: ToolRequestPorts, principal: unknown, tenant = TENANT_A) {
@@ -325,12 +347,150 @@ describe('the trusted Tool request source', () => {
       requesterScope: SCOPE,
       scope: runToolScope(TENANT_A, actionInput(principalA).consumer),
       workspace: null,
+      directory: { path: '/srv/default', workspace: null },
       resources: [],
       mode: 'foreground',
       consumer: { owner: '@omne-harness/agent', work: 'exec-1', purpose: 'action' },
     })
     expect(request.availability.definition.adoption).toEqual(definitions.get('Shell')?.adoption)
     expect(request.environment).toEqual(definitions.get('Shell')?.declarations.environment)
+  })
+
+  it('pins the call to the working directory the coordinator reads for its session when the call is prepared', async () => {
+    const { ports, principalA } = await world()
+    const read: unknown[] = []
+    const blog = 'wsp_00000000000000000000000001'
+    const reading = (value: WorkingDirectory): ToolRequestPorts => ({
+      ...ports,
+      workingDirectory: async access => {
+        read.push(access)
+        return succeed(value)
+      },
+    })
+    const attached = okOf(
+      await prepared(
+        reading({
+          state: 'attached',
+          workspace: blog,
+          instance: 'wsi_blog',
+          directory: '/srv/blog',
+        }),
+        principalA,
+      ),
+      'attached',
+    ) as ToolInvokeRequest
+    expect(attached.directory).toEqual({
+      path: '/srv/blog',
+      workspace: { id: okOf(parsedWorkspace(blog), 'workspace'), instance: 'wsi_blog' },
+    })
+    expect(okOf(judgeToolInvokeRequest(attached), 'judge').directory).toEqual(attached.directory)
+    // It is read when the call is described, to answer a call that has none, and again to pin it.
+    const access = { principal: principalA, tenant: TENANT_A, session: expect.any(String) }
+    expect(read).toEqual([access, access])
+  })
+
+  it.each<[string, WorkingDirectory | null, string]>([
+    [
+      'the selected workspace cannot be used',
+      { state: 'unusable', workspace: 'wsp_x', instance: 'wsi_x', reason: 'not-permitted' },
+      'unavailable: the workspace selected for this session cannot be used now (reason: not-permitted). Nothing ran, and no other directory was used in its place. Tell the user. The call works again when the workspace can be used or when the session selects another one.',
+    ],
+    [
+      'the working directory has no value, as after a rebuild until the next step begins',
+      null,
+      'unavailable: this session has no working directory in force now, because the server restarted during this step. Nothing ran. Make this call again in your next step.',
+    ],
+  ])(
+    'answers the call, so the step goes on, and prepares nothing when %s',
+    async (_name, value, text) => {
+      const { ports, principalA } = await world()
+      const source = createReleaseToolRequests({
+        ...ports,
+        workingDirectory: async () => succeed(value),
+      })
+      const input = actionInput(principalA)
+      // Waiting here would wait for ever: the directory changes only when the next step begins.
+      expect(await source.describe(input)).toEqual({ ok: { kind: 'answered', text } })
+      const prepared = await source.prepare({
+        ...input,
+        definition: {} as never,
+        admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
+      })
+      expect(prepared).toEqual({
+        failure: {
+          kind: 'unavailable',
+          owner: TOOL_REQUESTS_OWNER,
+          diagnostic: 'the call is answered, not run',
+        },
+      })
+    },
+  )
+
+  it.each<[string, Outcome<WorkingDirectory | null, string>, string]>([
+    [
+      'the working directory cannot be read',
+      fail('eligibility: unavailable'),
+      'the working directory of the session is not readable: eligibility: unavailable',
+    ],
+    [
+      'the working directory names a workspace that is not one',
+      succeed({ state: 'attached', workspace: 'nope', instance: 'wsi_x', directory: '/srv/x' }),
+      'the working directory names a workspace that is not one',
+    ],
+  ])('is unavailable, to be asked again, when %s', async (_name, answer, diagnostic) => {
+    const { ports, principalA } = await world()
+    const failure = { kind: 'unavailable', owner: TOOL_REQUESTS_OWNER, diagnostic }
+    const reading = { ...ports, workingDirectory: async () => answer }
+    expect(await createReleaseToolRequests(reading).describe(actionInput(principalA))).toEqual({
+      failure,
+    })
+  })
+
+  it('pins the forwarding tool when the session has a directory, and never answers or fails it for the lack of one', async () => {
+    const { ports, principalA } = await world()
+    const directoryFor = async (answer: Outcome<WorkingDirectory | null, string>) => {
+      const source = createReleaseToolRequests({ ...ports, workingDirectory: async () => answer })
+      const input = actionInput(principalA, TENANT_A, 'Tools', SEARCH_TOOLS)
+      const described = okOf(await source.describe(input), 'describe')
+      if (described.kind !== 'tool') throw new Error(`describe answered: ${described.text}`)
+      const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+      const prepared = await source.prepare({
+        ...input,
+        definition: described.definition,
+        admission,
+      })
+      return (okOf(prepared, 'prepare') as ToolInvokeRequest).directory
+    }
+    expect(await directoryFor(succeed({ state: 'default', directory: '/srv/default' }))).toEqual({
+      path: '/srv/default',
+      workspace: null,
+    })
+    const unusable = { state: 'unusable', workspace: 'w', instance: 'i', reason: 'not-permitted' }
+    for (const none of [succeed(null), succeed(unusable as WorkingDirectory), fail('read: x')])
+      expect(await directoryFor(none)).toBeUndefined()
+  })
+
+  it('does not read the working directory for a tool that works in no environment', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests({
+      ...ports,
+      workingDirectory: async () => {
+        throw new Error('a tool without an environment has no directory')
+      },
+    })
+    const input = actionInput(principalA, TENANT_A, 'TodoItems', LIST_TODOS)
+    const described = okOf(await source.describe(input), 'describe')
+    if (described.kind !== 'tool') throw new Error('describe answered')
+    const request = okOf(
+      await source.prepare({
+        ...input,
+        definition: described.definition,
+        admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
+      }),
+      'prepare',
+    ) as ToolInvokeRequest
+    expect(request.environment).toBeNull()
+    expect('directory' in request).toBe(false)
   })
 
   it('reads the wait mode from run_in_background in the call: true is a launch in the background, anything else the foreground', async () => {
@@ -669,15 +829,40 @@ describe('the release composition releaseToolRequestsOf on a real Cordis root (N
     const callers: unknown[] = []
     await fixture.root.plugin(recordingSession(snapshot, callers))
     fixture.root.provide(toolCatalogKey, ports.catalog())
-    fixture.root.provide(executionScopeBindingKey, ports.scopeBinding())
+    const looked: string[] = []
+    const bindings: ScopeBindingSource = {
+      lookup: async scope => {
+        looked.push(scope.ref)
+        return okOf(succeed(ports.scopeBinding()), 'bindings')!.lookup(scope)
+      },
+    }
+    fixture.root.provide(executionScopeBindingKey, bindings)
     new ToolOperatorSettingsImpl(fixture.root, {})
     toolRuntimeHolder(fixture.root).verifier = ports.verifier
+    const source = releaseToolRequestsOf(fixture.root)
+    // This root has no service to read the working directory from: a call that needs one waits.
+    expect(await preparedBy(source, principalA)).toEqual({
+      failure: {
+        kind: 'unavailable',
+        owner: TOOL_REQUESTS_OWNER,
+        diagnostic:
+          'the working directory of the session is not readable: the Session or Runtime Context services are absent',
+      },
+    })
+    const input = actionInput(principalA, TENANT_A, 'TodoItems', LIST_TODOS)
+    const described = okOf(await source.describe(input), 'describe')
+    if (described.kind !== 'tool') throw new Error('describe answered')
     const request = okOf(
-      await preparedBy(releaseToolRequestsOf(fixture.root), principalA),
+      await source.prepare({
+        ...input,
+        definition: described.definition,
+        admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
+      }),
       'prepare',
     ) as ToolInvokeRequest
     expect(okOf(judgeToolInvokeRequest(request), 'judge')).toBeDefined()
     expect(request.requesterScope).toEqual(SCOPE)
+    expect(looked).toEqual([SCOPE.ref])
     expect(callers.length).toBeGreaterThan(0)
     expect(new Set(callers)).toEqual(new Set(['coordinator']))
   })

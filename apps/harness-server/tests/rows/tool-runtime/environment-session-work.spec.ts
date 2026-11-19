@@ -16,7 +16,7 @@ function environmentOver(verdict: VerifiedSessionWork) {
   } as unknown as ReleaseToolIdentity
   const holder = toolRuntimeHolder({ root: {} } as unknown as Context)
   const { input } = createReleaseEnvironment(holder, identity, {
-    filesRoot: '/unused',
+    workspaces: () => undefined,
     commitAttempts: 1,
     schemaProvider: () => null,
     warn,

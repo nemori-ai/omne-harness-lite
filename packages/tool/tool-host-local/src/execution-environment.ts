@@ -92,9 +92,14 @@ export function createLocalEnvironmentPlanResolver<P>(
         return fail({ kind: 'denied', action: 'environment-scope' })
       const required = await input.requirement(request)
       if ('failure' in required) return required
+      const pinned = request.request.directory
       const placement = await input.execution.resolvePlacement(
         { principal: request.principal, tenant: request.tenant },
-        { scope: binding.ok.scope, requirement: required.ok },
+        {
+          scope: binding.ok.scope,
+          requirement: required.ok,
+          ...(pinned === undefined ? {} : { filesRoot: pinned.path }),
+        },
       )
       if (placement.kind === 'rejected')
         return environmentFailure(`placement rejected: ${placement.reason}`)

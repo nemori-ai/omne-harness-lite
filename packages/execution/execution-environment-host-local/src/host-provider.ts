@@ -101,7 +101,6 @@ export type HostFilesProviderOptions = Readonly<{
   diagnose?: (diagnostic: HostFilesDiagnostic) => void
   command?: HostCommandOptions
   terminal?: HostTerminalOptions
-  filesRoot?: string
   stateDirectory?: string
   limits?: Partial<HostFilesLimits>
 }>
@@ -167,6 +166,38 @@ function temporaryFileRemains(
   }
 }
 
+type Joined = ReturnType<DomainInternals['joinEngine']>
+
+/** One engine for each files root a placement names; a root keeps the identity it was first seen with. */
+function enginesByRoot(
+  internals: DomainInternals,
+  options: Pick<HostFilesProviderOptions, 'stateDirectory' | 'limits'>,
+  diagnose: Parameters<DomainInternals['joinEngine']>[1],
+) {
+  const joined = new Map<string | undefined, Joined>()
+  const join = (root: string | undefined): Joined['engine'] => {
+    const known = joined.get(root) ?? internals.joinEngine({ ...options, root }, diagnose)
+    joined.set(root, known)
+    return known.engine
+  }
+  // The engine without a root is made now, so a bad state directory or bound fails the construction.
+  join(undefined)
+  return {
+    /** Undefined: the root is not an absolute path, so it names no directory to keep the files in. */
+    under(root: string | undefined): Joined['engine'] | undefined {
+      try {
+        return join(root)
+      } catch {
+        return undefined
+      }
+    },
+    leave(): void {
+      for (const membership of joined.values()) membership.leave()
+      joined.clear()
+    },
+  }
+}
+
 export function createHostFilesProvider(options: HostFilesProviderOptions): EnvironmentProvider {
   const domain = options.domain
   const internals: DomainInternals | undefined = domain ? domainInternals(domain) : undefined
@@ -184,9 +215,8 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       options.diagnose?.(Object.freeze(diagnostic))
     } catch {}
   }
-  const files = internals.joinEngine(
-    { root: options.filesRoot, stateDirectory: options.stateDirectory, limits: options.limits },
-    fact => report(temporaryFileRemains(name, generation, fact)),
+  const engines = enginesByRoot(internals, options, fact =>
+    report(temporaryFileRemains(name, generation, fact)),
   )
   internals.registerGeneration(generation)
   const facilities: readonly FacilityKey[] = Object.freeze(['files', 'command', 'terminal'])
@@ -224,9 +254,6 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       { key: 'provider', value: { kind: 'string', value: name } },
       { key: 'generation', value: { kind: 'string', value: generation } },
       { key: 'version', value: { kind: 'string', value: version } },
-      ...(options.filesRoot === undefined
-        ? []
-        : [{ key: 'filesRoot', value: { kind: 'string', value: 'configured' } } as const]),
     ],
   }
 
@@ -371,11 +398,13 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         ...(input.retention === undefined ? {} : { retentionScope: input.retention.scope }),
         placement: input.placement,
       }
+      const engine = engines.under(input.placement.filesRoot)
+      if (engine === undefined) return { kind: 'rejected', reason: 'invalidInput' }
       const admitted = internals.admit(
         original,
         fingerprintOf(original),
         generation,
-        files.engine,
+        engine,
         () =>
           execution.commands({
             ledger: input.ledger,
@@ -573,7 +602,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       const results = await Promise.all(own.map(record => internals.drain(record, drainBoundMs)))
       const retainedResources = await retainedDrain
       if (results.every(result => result.kind === 'settled') && retainedResources.length === 0) {
-        files.leave()
+        engines.leave()
         return { kind: 'drained' }
       }
       const resources = [

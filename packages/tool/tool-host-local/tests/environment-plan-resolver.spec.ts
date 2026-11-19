@@ -63,9 +63,14 @@ function resolver(
   }> = {},
 ) {
   let ledgers = 0
+  const asked: unknown[] = []
   const built = createLocalEnvironmentPlanResolver<Principal>({
     execution: {
-      resolvePlacement: async () => changes.placed ?? placement,
+      resolvePlacement: async (_access: unknown, wanted: { filesRoot?: string }) => {
+        asked.push(wanted)
+        const { filesRoot } = wanted
+        return changes.placed ?? (filesRoot === undefined ? placement : { ...placement, filesRoot })
+      },
     } as unknown as ExecutionEnvironment<Principal>,
     access: {
       qualify: async () => ({ kind: changes.qualified ?? 'allowed' }) as Qualified,
@@ -83,7 +88,14 @@ function resolver(
     },
     facts: async () => succeed(facts as never),
   })
-  return { resolve: () => built.resolve(prepare), ledgers: () => ledgers }
+  return {
+    resolve: (directory?: (typeof fixed)['directory']) =>
+      built.resolve(
+        directory === undefined ? prepare : { ...prepare, request: { ...fixed, directory } },
+      ),
+    ledgers: () => ledgers,
+    asked,
+  }
 }
 
 const unavailable = (diagnostic: string) =>
@@ -101,6 +113,18 @@ describe('the plan of a preparation', () => {
     })
     await r.resolve()
     expect(r.ledgers()).toBe(1)
+  })
+
+  it('asks for a placement whose files root is the directory pinned in the request, or for none', async () => {
+    const r = resolver()
+    const bare = { scope: fixed.requesterScope, requirement }
+    expect(await r.resolve()).toMatchObject({ ok: { acquire: { placement } } })
+    expect(r.asked).toEqual([bare])
+    const rooted = await r.resolve({ path: '/srv/blog', workspace: null })
+    expect(r.asked.at(-1)).toEqual({ ...bare, filesRoot: '/srv/blog' })
+    expect(rooted).toMatchObject({
+      ok: { acquire: { placement: { ...placement, filesRoot: '/srv/blog' } } },
+    })
   })
 
   it('denies a caller the Tool qualification denies, and is unavailable when it cannot tell', async () => {

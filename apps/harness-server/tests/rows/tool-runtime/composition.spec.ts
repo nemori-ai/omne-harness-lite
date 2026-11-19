@@ -217,8 +217,12 @@ function workspace() {
   return { base, storageRoot }
 }
 
+// The directory the calls of the running test are pinned to: the files root of its rows.
+let pinnedTo = ''
+
 function rowsOf(storageRoot: string) {
   const tools = toolRowsOperatorConfig({ storageRoot })
+  pinnedTo = tools.filesRoot
   return {
     tools,
     rows: [
@@ -325,6 +329,7 @@ function requestSource(ctx: Context) {
     operatorSettings: () => ({}),
     interaction: async () => fail('no meta command in this test'),
     inquiry: async () => fail('no meta command in this test'),
+    workingDirectory: async () => succeed({ state: 'default', directory: pinnedTo }),
   })
 }
 

@@ -5,7 +5,7 @@ import type { AgentHostLocalPluginInput } from '@omne-harness/agent-host-local/c
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { tenantEquals, workspaceCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeScopeRef,
@@ -18,9 +18,11 @@ import type {
   SessionId,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
+import type { WorkingDirectory } from '@omne-harness/session-adapters'
 import {
   sessionInquiryBinding,
   sessionInteractionBinding,
+  workingDirectoryCallBinding,
 } from '@omne-harness/session-adapters/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
@@ -31,6 +33,7 @@ import {
   selectCommandText,
   type ToolAvailability,
   type ToolCallLabel,
+  type ToolCallDirectory,
   type ToolCatalog,
   type ToolConsumerProfile,
   type ToolInvokeRequest,
@@ -39,7 +42,11 @@ import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
 import { RELEASE_REQUEST_CONTEXT, runToolScope } from '../rows/tool-runtime/scope.ts'
 import { verifySessionWork } from '../rows/tool-runtime/session-work.ts'
-import { publishedViewPortsOf, readPublishedView } from '../rows/session-ad03/published-view.ts'
+import {
+  publishedViewPortsOf,
+  readPublishedNeed,
+  readPublishedView,
+} from '../rows/session-ad03/published-view.ts'
 import {
   judgeMetaCommand,
   type SessionInquiryRead,
@@ -67,6 +74,9 @@ export type ToolRequestPorts = Readonly<{
   operatorSettings(tool: string): Readonly<Record<string, unknown>> | undefined
   interaction: SessionInteractionRead
   inquiry: SessionInquiryRead
+  workingDirectory(
+    access: SessionAccess<unknown>,
+  ): Promise<Outcome<WorkingDirectory | null, string>>
 }>
 
 const unavailable = (diagnostic: string) =>
@@ -162,10 +172,11 @@ async function availabilityOf(
   session: SessionId,
 ): Promise<
   Outcome<
-    | (Extract<ToolAvailability, { kind: 'available' }> & {
-        command: string | null
-        label: ToolCallLabel
-      })
+    | (Extract<ToolAvailability, { kind: 'available' }> &
+        Pinned & {
+          command: string | null
+          label: ToolCallLabel
+        })
     | ToolCallAnswer,
     Failure
   >
@@ -198,7 +209,17 @@ async function availabilityOf(
   if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
   const closed = await closedBySession(ports, input, session, selected.command)
   if ('failure' in closed) return closed
-  return succeed(closed.ok ?? { ...availability, ...selected })
+  if (closed.ok !== null) return succeed(closed.ok)
+  const access = { principal: input.principal, tenant: input.tenant, session }
+  const placed = await directoryOf(ports, access, availability.definition)
+  if ('failure' in placed) return placed
+  if (placed.ok.kind === 'answered') return succeed(placed.ok)
+  const { directory } = placed.ok
+  return succeed({
+    ...availability,
+    ...selected,
+    ...(directory === undefined ? {} : { directory }),
+  })
 }
 
 async function closedBySession(
@@ -276,6 +297,58 @@ async function currentScope(
   return 'failure' in scope ? scope : tenantScope(ports, tenant, scope.ok)
 }
 
+// A call that waits here would wait for ever: the directory changes only when a step begins.
+export const NO_DIRECTORY_IN_FORCE =
+  'unavailable: this session has no working directory in force now, because the server restarted during this step. Nothing ran. Make this call again in your next step.'
+export const unusableDirectory = (reason: string): string =>
+  `unavailable: the workspace selected for this session cannot be used now (reason: ${reason}). Nothing ran, and no other directory was used in its place. Tell the user. The call works again when the workspace can be used or when the session selects another one.`
+
+type Pinned = Readonly<{ directory?: ToolCallDirectory }>
+type Placed = Readonly<{ kind: 'pinned' }> & Pinned
+const pinnedTo = (directory: ToolCallDirectory): Placed => ({ kind: 'pinned', directory })
+
+export function pinnedDirectory(
+  value: WorkingDirectory | null,
+): Outcome<Placed | ToolCallAnswer, Failure> {
+  if (value === null) return succeed({ kind: 'answered', text: NO_DIRECTORY_IN_FORCE })
+  switch (value.state) {
+    case 'default':
+      return succeed(pinnedTo({ path: value.directory, workspace: null }))
+    case 'attached': {
+      const id = workspaceCodec.parse(value.workspace)
+      return id.ok
+        ? succeed(
+            pinnedTo({
+              path: value.directory,
+              workspace: { id: id.value, instance: value.instance },
+            }),
+          )
+        : unavailable('the working directory names a workspace that is not one')
+    }
+    case 'unusable':
+      return succeed({ kind: 'answered', text: unusableDirectory(value.reason) })
+  }
+}
+
+const FORWARDING_TOOL = 'Tools'
+
+async function directoryOf(
+  ports: ToolRequestPorts,
+  access: SessionAccess<unknown>,
+  definition: ToolAvailability['definition'],
+): Promise<Outcome<Placed | ToolCallAnswer, Failure>> {
+  const needed = definition.declarations.environment !== null
+  if (!needed && definition.name !== FORWARDING_TOOL) return succeed({ kind: 'pinned' })
+  const read = await ports.workingDirectory(access)
+  const placed: Outcome<Placed | ToolCallAnswer, Failure> =
+    'failure' in read
+      ? unavailable(`the working directory of the session is not readable: ${read.failure}`)
+      : pinnedDirectory(read.ok)
+  // The forwarding tool itself needs no directory: without one it carries none to its targets.
+  const usable = 'ok' in placed && placed.ok.kind === 'pinned'
+  return needed || usable ? placed : succeed({ kind: 'pinned' })
+}
+
 export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolRequests {
   const trusted = (): Outcome<Trusted, Failure> => {
     const release = ports.release()
@@ -306,7 +379,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     const found = await availabilityOf(ports, release.ok, input, session.ok)
     if ('failure' in found) return found
     if (found.ok.kind === 'answered') return unavailable('the call is answered, not run')
-    const { command, label, ...availability } = found.ok
+    const { command, label, directory, ...availability } = found.ok
     if (canonicalDigest(availability.definition.adoption) !== canonicalDigest(input.definition))
       return unavailable('the current definition differs from the described one')
     const entry = release.ok.manifest.entries.find(
@@ -334,6 +407,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
       settings: entry.settings,
       context: RELEASE_REQUEST_CONTEXT,
       workspace: null,
+      ...(directory === undefined ? {} : { directory }),
       environment: availability.definition.declarations.environment,
       requesterScope: scope.ok,
       resources: [],
@@ -373,6 +447,11 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
       if (ports === null) return fail('the Session or Runtime Context services are absent')
       const view = await readPublishedView(ports, access, sessionInquiryBinding)
       return 'failure' in view ? view : succeed(view.ok.inquiry.policy.onAsk)
+    },
+    workingDirectory: async access => {
+      const ports = publishedViewPortsOf(ctx)
+      if (ports === null) return fail('the Session or Runtime Context services are absent')
+      return readPublishedNeed(ports, access, workingDirectoryCallBinding)
     },
   })
 }

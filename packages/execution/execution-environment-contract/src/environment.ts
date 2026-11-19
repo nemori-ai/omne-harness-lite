@@ -182,6 +182,8 @@ export type OwnedRecovery = Readonly<{
 export type PlacementInput = Readonly<{
   scope: ScopeRef
   requirement: EnvironmentRequirement
+  /** Given by the integrator that resolves the placement; it becomes part of the placement. */
+  filesRoot?: string
 }>
 
 export type AcquireInput<P> = Readonly<{

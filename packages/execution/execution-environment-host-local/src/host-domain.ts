@@ -241,6 +241,7 @@ export function fingerprintOf(original: OriginalAcquisition): string {
     [...new Set(p.requirement.facilities)].sort(),
     [...new Set(p.requirement.isolation)].sort(),
     p.requirement.allowedBindings.map(binding),
+    p.filesRoot ?? null,
   ])
 }
 

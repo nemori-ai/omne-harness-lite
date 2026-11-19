@@ -37,6 +37,7 @@ describe('current file authorization', () => {
         binding: { kind: 'host_machine' },
         provider: { name: 'fixture', generation: '1', version: '1' },
         quotaDomain: 'fixture',
+        filesRoot: '/srv/blog',
         continuity: { kind: 'not_guaranteed' },
         requirement: {
           allowedBindings: [{ kind: 'host_machine' }],
@@ -65,6 +66,9 @@ describe('current file authorization', () => {
     })
     expect(value.facts.os).toBe('fixture')
     expect(value.facts.system).toBe('fixture')
+    // The default directory of the author is the files root of the placement of its lease.
+    expect(value.directory).toBe('/srv/blog')
+    expect(Object.isFrozen(value)).toBe(true)
     const request = {
       path: '/authorized/new',
       bytes: new Uint8Array([42]),
@@ -143,6 +147,8 @@ function fixture(
     naming: { name },
     facts: { system: 'fixture', release: '1', architecture: 'fixture', facilities: ['files'] },
   })
+  // A placement that names no files root gives the author no directory: absent, not empty.
+  expect('directory' in value).toBe(false)
   return { files, value, name, facilities }
 }
 

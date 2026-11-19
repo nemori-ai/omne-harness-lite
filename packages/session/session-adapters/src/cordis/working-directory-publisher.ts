@@ -116,6 +116,11 @@ export function createWorkingDirectoryPublishers<P>(input: WorkingDirectoryPubli
   }
 
   return Object.freeze({
+    /** Registers the tenant's producer: a block Runtime Context knows reads as missing, not unknown. */
+    async ensure(tenant: TenantId): Promise<Readonly<{ kind: 'ready' | 'unavailable' }>> {
+      const registered = closed ? undefined : await publisherOf(tenant)?.start()
+      return { kind: registered?.kind === 'registered' ? 'ready' : 'unavailable' }
+    },
     async publish(
       tenant: TenantId,
       scope: ScopeRef,

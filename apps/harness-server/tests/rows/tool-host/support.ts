@@ -73,7 +73,6 @@ export const TEST_CONSTRUCTION = Object.freeze({
     resultMaxBytes: 4096,
     executable: process.execPath,
     argsPrefix: [],
-    cwd: MEMBER,
     env: {},
   },
   Files: { resultMaxBytes: 4096 },

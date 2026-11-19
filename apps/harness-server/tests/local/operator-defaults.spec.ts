@@ -357,18 +357,17 @@ describe('localOperatorLayer over the bundled distribution', () => {
     }
   })
 
-  it('puts the workspace under both tools and the execution host', () => {
+  it('gives the workspace as the default directory of sessions, and to no tool or provider', () => {
+    expect(configOf(layer, 'session-ad03')).toMatchObject({ defaultDirectory: '/work' })
     expect(configOf(layer, 'tool-host')).toMatchObject({
-      construction: {
-        Shell: { executable: '/bin/bash', argsPrefix: ['-c'], cwd: '/work' },
-        Files: { cwd: '/work' },
-      },
+      construction: { Shell: { executable: '/bin/bash', argsPrefix: ['-c'] } },
     })
-    expect(configOf(layer, 'tool-records')).toMatchObject({ filesRoot: '/work' })
-    expect(configOf(layer, 'execution-host')).toEqual({
-      filesRoot: '/work',
-      stateDirectory: '/h/state/host-files',
-    })
+    const construction = (configOf(layer, 'tool-host') as { construction: Record<string, object> })
+      .construction
+    expect(Object.keys(construction['Shell']!)).not.toContain('cwd')
+    expect(construction['Files']).toEqual({ resultMaxBytes: 1_048_576 })
+    expect(configOf(layer, 'tool-records')).not.toHaveProperty('filesRoot')
+    expect(configOf(layer, 'execution-host')).toEqual({ stateDirectory: '/h/state/host-files' })
   })
 
   it('gives the telemetry row its seven budgets and leaves the implementation and the outlet to the release', () => {

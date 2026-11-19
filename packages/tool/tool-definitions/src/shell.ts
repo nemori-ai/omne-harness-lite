@@ -43,12 +43,6 @@ const constructionFields: readonly Field[] = [
     description: 'Arguments before the script, for example ["-c"].',
   },
   {
-    name: 'cwd',
-    kind: 'string',
-    required: true,
-    description: 'Explicit initial working directory.',
-  },
-  {
     name: 'env',
     kind: 'env',
     required: true,
@@ -154,14 +148,17 @@ export const shellToolModule: ToolImplementationModule<
   executor: describedAdoption({
     owner: '@omne-harness/tool-definitions',
     name: 'Shell',
-    revision: '3',
+    revision: '4',
     returns: 'Published raw value, model body and system offloading policy.',
     changes:
-      'One declaration with the command in the call, the shell and start directory in the description and help by command name.',
+      'A command and a new terminal start in the working directory of the call, taken from its environment; the construction names no directory.',
     commands: shellCommands,
   }),
   createAuthor: createShellAuthor,
 }
+
+const NO_DIRECTORY =
+  'rejected reason=unavailable this call has no working directory; pass cwd zero starts'
 
 async function executeShell(
   command: string,
@@ -174,16 +171,18 @@ async function executeShell(
   const terminal = args.terminal()
   switch (command) {
     case 'info':
-      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${JSON.stringify(config.text('cwd'))}\nprocess_containment=${environment.command.containment ?? 'undeclared'}\n${BACKGROUND_LINES}${await terminalLines(environment)}${await retainedProcessLines(environment)}`
+      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${JSON.stringify(environment.directory ?? null)}\nprocess_containment=${environment.command.containment ?? 'undeclared'}\n${BACKGROUND_LINES}${await terminalLines(environment)}${await retainedProcessLines(environment)}`
     case 'create_session': {
       if (environment.terminal.retention === undefined)
         return 'rejected reason=unavailable session retention unavailable zero starts'
       if (args.has('columns') !== args.has('rows'))
         return 'rejected reason=invalidInput columns and rows must be supplied together'
+      const cwd = args.optionalText('cwd') ?? environment.directory
+      if (cwd === undefined) return NO_DIRECTORY
       return confirmation(
         await environment.terminal.create({
           retain: 'scope',
-          cwd: args.optionalText('cwd') ?? config.text('cwd'),
+          cwd,
           env: { ...config.env('env'), ...args.env('env') },
           ...(args.has('columns')
             ? { geometry: { columns: args.number('columns', 0), rows: args.number('rows', 0) } }
@@ -250,12 +249,14 @@ async function executeScript(
   }
   const input = args.optionalText('stdin')
   const stdin = input === undefined ? {} : { stdin: new TextEncoder().encode(input) }
+  const cwd = args.optionalText('cwd') ?? environment.directory
+  if (terminal === undefined && cwd === undefined) return NO_DIRECTORY
   const started =
     terminal === undefined
       ? await environment.command.start({
           executable: config.text('executable'),
           args: [...config.strings('argsPrefix'), args.text('script')],
-          cwd: args.optionalText('cwd') ?? config.text('cwd'),
+          cwd: cwd as string,
           env: { ...config.env('env'), ...args.env('env') },
           outputMode: 'separate',
           ...stdin,

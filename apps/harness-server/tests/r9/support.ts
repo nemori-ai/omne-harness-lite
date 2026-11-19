@@ -277,7 +277,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
   return {
     filesRoot,
     construction: {
-      Shell: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...shell, cwd: filesRoot, env },
+      Shell: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...shell, env },
       Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
       Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
       TodoItems: { resultMaxBytes: 1_048_576 },
@@ -299,7 +299,6 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       fetch: { maxRedirects: 5, timeoutMs: 10_000, maxBodyBytes: 1_048_576 },
     },
     records: {
-      filesRoot,
       combinationVersion: COMBINATION_VERSION,
       configuration: {
         authorBufferBytes: 65536,
@@ -348,7 +347,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       observerQueueFrames: 16,
       observerResidenceMs: 5000,
     },
-    host: { filesRoot, stateDirectory },
+    host: { stateDirectory },
   }
 }
 
@@ -458,7 +457,7 @@ export function operatorLayer(options: {
         config: {
           scopeIndexEntries: 4096,
           pageBytes: 65536,
-          defaultDirectory: tools.host.filesRoot,
+          defaultDirectory: tools.filesRoot,
         },
       },
       {

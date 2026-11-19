@@ -333,9 +333,8 @@ export function shellEnvironment(
 
 export const LOCAL_TOOL_RESULT_BYTES = 1_048_576
 
-function toolRecords(workspace: string, combinationVersion: string) {
+function toolRecords(combinationVersion: string) {
   return {
-    filesRoot: workspace,
     combinationVersion,
     configuration: {
       authorBufferBytes: 65_536,
@@ -501,10 +500,9 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
             resultMaxBytes: LOCAL_TOOL_RESULT_BYTES,
             executable: settings.shell,
             argsPrefix: shellArguments(platform, settings.shell),
-            cwd: settings.workspace,
             env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
           },
-          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, cwd: settings.workspace },
+          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
           Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
           TodoItems: { resultMaxBytes: 1_048_576 },
           BkgToolCalls: { resultMaxBytes: 65_536 },
@@ -517,7 +515,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         },
       },
     ],
-    ['tool-records', toolRecords(settings.workspace, combinationVersion)],
+    ['tool-records', toolRecords(combinationVersion)],
     [
       'tool-body-sweep',
       {
@@ -556,7 +554,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       ? ([['notification', { policy: NOTIFICATION_POLICY }]] as const)
       : []),
     ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
-    ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
+    ['execution-host', { stateDirectory: locations.hostFilesDir }],
     ['request-context', {}],
     ['agent-context', {}],
     ['agent-host', AGENT_HOST],

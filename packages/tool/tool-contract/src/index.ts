@@ -58,6 +58,7 @@ export type {
   ToolCommandBackground,
   ToolCommandDeclaration,
   ToolDefinition,
+  ToolCallDirectory,
   ToolEnvironmentDeclaration,
   ToolImplementationShape,
   ToolInvocation,

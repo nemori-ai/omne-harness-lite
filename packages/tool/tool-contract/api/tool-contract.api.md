@@ -74,6 +74,7 @@
 - `ToolBodyWriterStatus` · `body-writer.d.ts`
 - `ToolCallAction` · `forwarding.d.ts`
 - `ToolCallContact` · `results.d.ts`
+- `ToolCallDirectory` · `definitions.d.ts`
 - `ToolCallId` · `identity.d.ts`
 - `ToolCallLabel` · `call-label.d.ts`
 - `ToolCatalog` · `authoring.d.ts`
@@ -1826,6 +1827,13 @@ export type ToolEnvironmentDeclaration = Readonly<{
     adoption: Adoption;
     value: JsonValue;
 }>;
+export type ToolCallDirectory = Readonly<{
+    path: string;
+    workspace: Readonly<{
+        id: WorkspaceId;
+        instance: string;
+    }> | null;
+}>;
 export type FixedToolRequest = Readonly<{
     availability: ToolAvailability;
     invocation: ToolInvocation;
@@ -1835,6 +1843,7 @@ export type FixedToolRequest = Readonly<{
     settings: Adoption;
     context: Adoption;
     workspace: WorkspaceId | null;
+    directory?: ToolCallDirectory;
     environment: ToolEnvironmentDeclaration | null;
     requesterScope: ScopeRef;
     resources: readonly Adoption[];
@@ -2336,7 +2345,7 @@ export type { CallOutput, ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyR
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolBodyId, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
 export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
-export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolBodyDeclaration, ToolCommandBackground, ToolCommandDeclaration, ToolDefinition, ToolEnvironmentDeclaration, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
+export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolBodyDeclaration, ToolCommandBackground, ToolCommandDeclaration, ToolDefinition, ToolCallDirectory, ToolEnvironmentDeclaration, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
 export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolRenderedResult, ToolOffloadedBody, ToolBodyRetention, ToolBodyRepresentation, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';

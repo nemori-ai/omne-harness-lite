@@ -174,7 +174,10 @@ export function createForwardTargetRequests(ports: ForwardRequestPorts) {
     })
     const { context, workspace, resources, scope, requesterScope, limits, mode, consumer } =
       parent.request
+    // The target works in the directory its parent was pinned to when the parent was accepted.
+    const { directory } = parent.request
     return succeed({
+      ...(directory === undefined ? {} : { directory }),
       availability,
       command: intent.command,
       arguments: { original: effective, effective, complete: true },

@@ -12,10 +12,11 @@ import {
   hostObjectToken,
   hostSegmentsBelowRoot,
 } from '@omne-harness/execution-environment-host-local'
-import { tenantCodec } from '@omne-harness/legal-identity'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { access, tenantCodec } from '@omne-harness/legal-identity'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
 import { canonicalDigest } from '@omne-harness/tool'
+import type { ToolCallDirectory, ToolFailure } from '@omne-harness/tool-contract'
 import { describedAdoption } from '@omne-harness/tool-contract/provider'
 import {
   createEnvironmentResourceLedger,
@@ -25,6 +26,7 @@ import {
 } from '@omne-harness/tool-host-local'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
 import { environmentNeedSchemaRef } from '@omne-harness/execution-environment-contract'
+import { instanceId, type WorkspaceInstances } from '@omne-harness/workspace-contract'
 import { readEnvironmentNeed } from '../tool-host/release-author.ts'
 import type { ReleaseToolIdentity } from './access.ts'
 import { callKeyOf, lateStore, type ToolRuntimeHolder } from './holder.ts'
@@ -39,7 +41,8 @@ export const RELEASE_ENVIRONMENT_ADOPTION = describedAdoption({
 })
 
 export type ReleaseEnvironmentOptions = Readonly<{
-  filesRoot: string
+  /** The workspace owner now, asked before every placement of a call pinned to an instance. */
+  workspaces(): Pick<WorkspaceInstances<unknown>, 'verify'> | undefined
   commitAttempts: number
   schemaProvider: () => SchemaProvider | null
   warn?(text: string): void
@@ -168,13 +171,75 @@ export type ReleaseEnvironment = Readonly<{
   origins: ReadonlyMap<OriginRef, string>
 }>
 
+/** The directory a call is pinned to, after its tenant's standing in the workspace is checked now. */
+export async function admittedDirectory(
+  workspaces: ReleaseEnvironmentOptions['workspaces'],
+  request: Pick<Preparation, 'principal' | 'tenant'> &
+    Readonly<{ request: Readonly<{ directory?: ToolCallDirectory }> }>,
+): Promise<Outcome<string, ToolFailure>> {
+  const pinned = request.request.directory
+  if (pinned === undefined)
+    return unavailable('working-directory', 'the request pins no working directory')
+  if (pinned.workspace === null) return succeed(pinned.path)
+  const instance = instanceId(pinned.workspace.instance)
+  const owner = workspaces()
+  if (owner === undefined || instance === null)
+    return unavailable('workspace', 'the workspace of the call cannot be asked about')
+  const verified = await owner.verify(access(request.principal, request.tenant), {
+    workspace: pinned.workspace.id,
+    instance,
+  })
+  switch (verified.kind) {
+    case 'attachable':
+      return verified.directory === pinned.path
+        ? succeed(pinned.path)
+        : fail({ kind: 'denied', action: 'workspace-instance' })
+    case 'not-permitted':
+      return fail({ kind: 'denied', action: 'workspace' })
+    case 'instance-unavailable':
+      return unavailable('workspace', `the instance of the call is unavailable: ${verified.reason}`)
+    case 'unavailable':
+      return unavailable('workspace', 'the workspace owner could not verify the call')
+  }
+}
+
+/** The files root of a call. Null: the tool works in no environment and is fenced into nothing. */
+function fenceOf(
+  workspaces: ReleaseEnvironmentOptions['workspaces'],
+  request: Preparation,
+): Promise<Outcome<string | null, ToolFailure>> {
+  return request.request.availability.definition.declarations.environment === null
+    ? Promise.resolve(succeed(null))
+    : admittedDirectory(workspaces, request)
+}
+
+/** The live origins of calls: the call each belongs to, and the directory it is fenced into. */
+function createFences() {
+  const origins = new Map<OriginRef, string>()
+  const roots = new Map<OriginRef, string>()
+  return {
+    origins,
+    rootOf: (origin: OriginRef): string | undefined => roots.get(origin),
+    admit(origin: OriginRef, call: string, root: string | null): void {
+      origins.set(origin, call)
+      if (root !== null) roots.set(origin, root)
+    },
+    settle(call: string): void {
+      for (const [origin, owner] of origins)
+        if (owner === call) {
+          origins.delete(origin)
+          roots.delete(origin)
+        }
+    },
+  }
+}
+
 export function createReleaseEnvironment(
   holder: ToolRuntimeHolder,
   identity: ReleaseToolIdentity,
   options: ReleaseEnvironmentOptions,
 ): ReleaseEnvironment {
-  const root = options.filesRoot
-  const origins = new Map<OriginRef, string>()
+  const fences = createFences()
   const state: EnvironmentStateStore = createEnvironmentStateStore({
     store: lateStore(holder),
     mode: 'production',
@@ -225,10 +290,10 @@ export function createReleaseEnvironment(
   }
 
   holder.settled.add(call => {
-    for (const [origin, owner] of origins) if (owner === call) origins.delete(origin)
+    fences.settle(call)
     for (const [key, entry] of ledgerViews) if (entry.call === call) ledgerViews.delete(key)
   })
-  holder.residents.set('origins', () => origins.size)
+  holder.residents.set('origins', () => fences.origins.size)
   holder.residents.set('ledgerViews', () => ledgerViews.size)
 
   const unverified = (where: string, diagnostic: string): void =>
@@ -242,7 +307,8 @@ export function createReleaseEnvironment(
           unverified('the facility guard', work.diagnostic)
           return 'unavailable'
         }
-        if (work.kind !== 'session' || !origins.has(request.origin)) return 'notAuthorized'
+        const root = fences.rootOf(request.origin)
+        if (work.kind !== 'session' || root === undefined) return 'notAuthorized'
         return (await confinedToRoot(root, facility, request)) ? 'authorized' : 'notAuthorized'
       } catch {
         return 'unavailable'
@@ -257,11 +323,8 @@ export function createReleaseEnvironment(
         unverified('the host object naming', work.diagnostic)
         return unavailable('principalVerifier', work.diagnostic)
       }
-      if (
-        work.kind !== 'session' ||
-        !origins.has(input.origin) ||
-        (await placeAgainstRoot(root, input.path, false)) === 'outside'
-      )
+      const root = work.kind === 'session' ? fences.rootOf(input.origin) : undefined
+      if (root === undefined || (await placeAgainstRoot(root, input.path, false)) === 'outside')
         return fail({ kind: 'denied', action: 'name-host-object' })
       return nearestToken(root, resolve(root, input.path), input.role)
     },
@@ -294,8 +357,10 @@ export function createReleaseEnvironment(
     async binding(request) {
       if (!tenantCodec.encode(request.tenant).ok)
         return fail({ kind: 'denied', action: 'environment-binding' })
+      const root = await fenceOf(options.workspaces, request)
+      if ('failure' in root) return root
       const origin = originRef(`tool:${request.call}:${request.preparation.operation}`)
-      origins.set(origin, callKeyOf(request.tenant, request.call))
+      fences.admit(origin, callKeyOf(request.tenant, request.call), root.ok)
       const view = await ledgers(request)
       const scope = request.request.requesterScope
       return succeed({
@@ -331,5 +396,5 @@ export function createReleaseEnvironment(
     },
     plan,
   }
-  return Object.freeze({ input, origins })
+  return Object.freeze({ input, origins: fences.origins })
 }

@@ -19,6 +19,7 @@ import {
   type LocalToolRuntimeInput,
 } from '@omne-harness/tool-host-local/cordis'
 import { admitMaintainer } from '../../entry/execution-authorities.ts'
+import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
 import { toolTargetPolicyOf } from '../authorization/tool-target-policy.ts'
@@ -113,7 +114,7 @@ function inputFor(
   const recoveryAccess = createRecoveryAccess()
   admitMaintainer(root, recoveryAccess)
   const environment = createReleaseEnvironment(holder, identity, {
-    filesRoot: config.filesRoot,
+    workspaces: () => root.get(workspaceInstancesKey, false),
     commitAttempts: config.configuration.ledgerCommitAttempts,
     schemaProvider: () => holder.schemaProvider,
     warn: text => root.logger('tool-runtime').warn(text),

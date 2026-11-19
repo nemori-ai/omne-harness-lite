@@ -127,6 +127,11 @@ export type ToolInvocation = Readonly<{
   source: DurableEvidence
 }>
 export type ToolEnvironmentDeclaration = Readonly<{ adoption: Adoption; value: JsonValue }>
+/** Where a call works by default, with the workspace instance it belongs to when there is one. */
+export type ToolCallDirectory = Readonly<{
+  path: string
+  workspace: Readonly<{ id: WorkspaceId; instance: string }> | null
+}>
 export type FixedToolRequest = Readonly<{
   availability: ToolAvailability
   invocation: ToolInvocation
@@ -137,6 +142,8 @@ export type FixedToolRequest = Readonly<{
   settings: Adoption
   context: Adoption
   workspace: WorkspaceId | null
+  /** Given by the request source when the call is accepted; it does not change afterwards. */
+  directory?: ToolCallDirectory
   environment: ToolEnvironmentDeclaration | null
   requesterScope: ScopeRef
   resources: readonly Adoption[]

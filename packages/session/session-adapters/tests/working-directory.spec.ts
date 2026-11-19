@@ -608,6 +608,46 @@ describe('one publisher for each tenant', () => {
   })
 })
 
+describe('a scope restored in a process that has published nothing yet', () => {
+  it('reads the block as missing only once the producer of the tenant is registered: ensure does that', async () => {
+    const w = await world()
+    const publishers = createWorkingDirectoryPublishers<string>({
+      principal: () => 'producer',
+      runtime: w.runtime,
+    })
+    try {
+      await w.restore(true)
+      // Runtime Context does not know the block yet: it cannot say that a required value is missing.
+      expect(await w.read()).toBe('refused')
+      expect(await publishers.ensure(access.tenant)).toEqual({ kind: 'ready' })
+      expect(await publishers.ensure(access.tenant)).toEqual({ kind: 'ready' })
+      expect(await w.read()).toBe('missing:source-unavailable')
+      const value = { state: 'default', directory: DEFAULT } as const
+      expect(await publishers.publish(access.tenant, w.scope, value)).toEqual({ kind: 'published' })
+      expect(await w.read()).toEqual(value)
+    } finally {
+      await publishers.close()
+      await w.runtime.close()
+    }
+  })
+
+  it('cannot make the block known for a tenant no principal is issued for, or once it is closed', async () => {
+    const w = await world()
+    const publishers = createWorkingDirectoryPublishers<string>({
+      principal: tenant => (tenant === access.tenant ? 'producer' : undefined),
+      runtime: w.runtime,
+    })
+    try {
+      const stranger = memoryOtherAccess('stranger').tenant
+      expect(await publishers.ensure(stranger)).toEqual({ kind: 'unavailable' })
+      await publishers.close()
+      expect(await publishers.ensure(access.tenant)).toEqual({ kind: 'unavailable' })
+    } finally {
+      await w.runtime.close()
+    }
+  })
+})
+
 describe('the declaration of the working directory block', () => {
   it('is a required supplied block the model, the coordinator and extensions read, with its previous value', () => {
     expect(workingDirectoryProducer).toEqual({
