@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { PortFetch } from '../port-fetch/index.ts'
+import { PortClosedError, type PortFetch } from '../port-fetch/index.ts'
 import { APP_ORIGIN, APP_SCHEME, toInternalUrl } from './app-url.ts'
 import type { CookieJar } from './cookie-jar.ts'
 import type { Logger } from './log.ts'
@@ -18,7 +18,7 @@ export interface AppProtocolSession {
     onBeforeSendHeaders(
       filter: { urls: string[] },
       listener: (
-        details: { id: number; requestHeaders: RequestHeaders },
+        details: { id: number; resourceType?: string; requestHeaders: RequestHeaders },
         next: (response: { requestHeaders: RequestHeaders }) => void,
       ) => void,
     ): void
@@ -39,14 +39,18 @@ const refuse = (status: number, body: string): Response =>
     headers: { 'content-type': 'text/plain', 'cache-control': 'no-store' },
   })
 
-type Pending = Map<string, AbortController>
+type Pending = Map<string, { controller: AbortController; mainDocument: boolean }>
 
 /** Stamps each app request with its network id, so the handler finds its cancellation. */
 function trackRequests(session: AppProtocolSession, prefix: string): Pending {
   const pending: Pending = new Map()
   session.webRequest.onBeforeSendHeaders({ urls: [`${APP_ORIGIN}/*`] }, (details, next) => {
     const key = prefix + details.id
-    if (!pending.has(key)) pending.set(key, new AbortController())
+    if (!pending.has(key))
+      pending.set(key, {
+        controller: new AbortController(),
+        mainDocument: details.resourceType === 'mainFrame',
+      })
     const requestHeaders: RequestHeaders = {}
     for (const [name, value] of Object.entries(details.requestHeaders))
       if (name.toLowerCase() !== REQUEST_STAMP) requestHeaders[name] = value
@@ -55,7 +59,7 @@ function trackRequests(session: AppProtocolSession, prefix: string): Pending {
   })
   session.webRequest.onErrorOccurred(({ id }) => {
     const key = prefix + id
-    pending.get(key)?.abort()
+    pending.get(key)?.controller.abort()
     pending.delete(key)
   })
   session.webRequest.onCompleted(({ id }) => void pending.delete(prefix + id))
@@ -111,19 +115,22 @@ export function serveAppProtocol(session: AppProtocolSession, options: AppProtoc
 
   session.protocol.handle(APP_SCHEME, async request => {
     const key = request.headers.get(REQUEST_STAMP) ?? ''
-    const controller = pending.get(key)
+    const entry = pending.get(key)
+    const controller = entry?.controller
     if (controller === undefined && key.startsWith(prefix)) return Response.error()
     const signal = controller?.signal ?? new AbortController().signal
     try {
       return await answer(request, signal, options)
     } catch (err) {
       if (signal.aborted) return Response.error()
+      // A failed load, so the window's recovery reloads it: a 503 would load as a page of text.
+      if (entry?.mainDocument === true && err instanceof PortClosedError) return Response.error()
       const { status, message } = failureStatus(err)
       const path = new URL(request.url).pathname
       options.log.error({ err, method: request.method, path, status }, 'app request failed')
       return refuse(status, message)
     } finally {
-      if (controller !== undefined && pending.get(key) === controller) pending.delete(key)
+      if (entry !== undefined && pending.get(key) === entry) pending.delete(key)
     }
   })
 }

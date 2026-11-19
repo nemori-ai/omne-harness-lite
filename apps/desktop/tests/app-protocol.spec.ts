@@ -42,12 +42,15 @@ function fakeElectron() {
     filter: () => filter,
     direct: (request: Request) => handler(request),
     /** Sends a request through the stamp, then to the handler. `cancelFirst` gives it up before dispatch. */
-    send(url: string, init: RequestInit = {}, cancelFirst = false) {
+    send(url: string, init: RequestInit = {}, cancelFirst = false, resourceType = 'xhr') {
       const id = nextId++
       let stamped: Record<string, string> = {}
-      stamp({ id, requestHeaders: Object.fromEntries(new Headers(init.headers)) }, out => {
-        stamped = out.requestHeaders
-      })
+      stamp(
+        { id, resourceType, requestHeaders: Object.fromEntries(new Headers(init.headers)) },
+        out => {
+          stamped = out.requestHeaders
+        },
+      )
       if (cancelFirst) failed({ id })
       return {
         stamped,
@@ -203,5 +206,18 @@ describe('应用协议：页面放弃请求与失败', () => {
     expect(JSON.stringify(closed.logged)).not.toContain('secret')
     const broken = serve(() => Promise.reject(new Error('boom')))
     expect((await broken.send(`${APP_ORIGIN}/bridge/call`, POST).answer).status).toBe(500)
+  })
+
+  it('页面自己的文档在 utility 进程不在时：算一次加载失败，交给窗口的恢复，不是一页 503 的文字', async () => {
+    const closed = serve(() => Promise.reject(new PortClosedError('gone')))
+    const document = await closed.send(`${APP_ORIGIN}/`, {}, false, 'mainFrame').answer
+    expect(document.type).toBe('error')
+    // Anything else of the page still gets the status, so the page reads it as "not known".
+    expect(
+      (await closed.send(`${APP_ORIGIN}/assets/app.js`, {}, false, 'script').answer).status,
+    ).toBe(503)
+    // A document that failed for another reason keeps its status.
+    const broken = serve(() => Promise.reject(new Error('boom')))
+    expect((await broken.send(`${APP_ORIGIN}/`, {}, false, 'mainFrame').answer).status).toBe(500)
   })
 })
