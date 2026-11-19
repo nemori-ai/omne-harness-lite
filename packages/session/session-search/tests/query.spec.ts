@@ -113,6 +113,15 @@ describe('the plan of a query: what the index is asked for', () => {
     expect(contentPlan(regex(branches.slice(1).join('|'), true)).kind).toBe('or')
   })
 
+  it('flattens an alternation inside an alternation, and keeps exactly the trigrams the limit allows', () => {
+    expect(contentPlan(regex('(foo|(bar|qux))baz', true))).toEqual(
+      all(one(gram('foo'), gram('bar'), gram('qux')), gram('baz')),
+    )
+    const plan = contentPlan(literals(['abcdefghijklmnopqr']))
+    if (plan.kind !== 'and') throw new Error(plan.kind)
+    expect(plan.of).toHaveLength(LIMITS.maxGramsPerLiteral)
+  })
+
   it('adds the filters as markers: the kinds asked for, and model-readable only when asked', () => {
     const content = literals(['abc'])
     expect(compiled(queryOf({ content })).plan).toEqual(

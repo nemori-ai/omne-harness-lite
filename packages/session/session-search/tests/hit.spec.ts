@@ -31,4 +31,20 @@ describe('the snippet of a hit', () => {
     const long = snippetOf(match('😀'.repeat(200), 0, 400))
     expect(Array.from(long.match)).toHaveLength(SNIPPET_MATCH)
   })
+  it('takes the whole of a side that is shorter than the context, pairs and all', () => {
+    const snippet = snippetOf(match('\ud83d\ude00ab\ud83d\ude00', 2, 3))
+    expect(snippet).toEqual({ before: '\ud83d\ude00', match: 'a', after: 'b\ud83d\ude00' })
+    expect(snippetOf(match('\uffffa\uffff', 1, 2))).toEqual({
+      before: '\uffff',
+      match: 'a',
+      after: '\uffff',
+    })
+    expect(snippetOf(match('\udc00a\udfff', 1, 2))).toEqual({
+      before: '\udc00',
+      match: 'a',
+      after: '\udfff',
+    })
+    expect(snippetOf(match('\udbffa', 1, 2)).before).toBe('\udbff')
+    expect(snippetOf(match('\ue000a', 1, 2)).before).toBe('\ue000')
+  })
 })

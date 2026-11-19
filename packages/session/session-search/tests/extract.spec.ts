@@ -66,6 +66,16 @@ describe('the searchable text of a log entry', () => {
     const entry = entryOf('message.user', [{ text: 'hello' }])
     for (const payload of [null, 'text', [], {}, { message: null }, { message: { blocks: 'x' } }])
       expect(documentsOf({ ...entry, payload } as never)).toEqual([])
+    for (const payload of [
+      [{ message: { blocks: [{ text: 'x' }] } }],
+      { message: [{ blocks: [{ text: 'x' }] }] },
+    ])
+      expect(documentsOf({ ...entry, payload } as never)).toEqual([])
+    const arrayBlock = {
+      message: { blocks: [[{ text: 'x' }], { text: 'kept', visibility: [true] }] },
+    }
+    expect(blocksOf({ ...entry, payload: arrayBlock } as never, 'any')).toEqual(['kept'])
+    expect(blocksOf({ ...entry, payload: arrayBlock } as never, 'only')).toEqual([])
     const odd = {
       message: { blocks: [null, 7, { text: 9 }, { text: '' }, { transcript: 'said' }] },
     }
@@ -100,6 +110,9 @@ describe('the searchable text of a log entry', () => {
     expect(document!.text).toBe('a\u0001kub\u0001c\u0001d')
     const markers = SEARCHABLE_KINDS.map(kindMarker)
     expect(new Set(markers).size).toBe(SEARCHABLE_KINDS.length)
+    expect(visibilityMarker('model')).toBe('\u0002m1')
+    expect(visibilityMarker('other')).toBe('\u0002m0')
+    expect(documentRow(document!)).toBe(`${document!.text}\u0001${markers[2]!}\u0003\u0002m1\u0003`)
     for (const marker of [...markers, visibilityMarker('model'), visibilityMarker('other')]) {
       expect(Array.from(marker)).toHaveLength(3)
       expect(document!.text).not.toContain(marker)
