@@ -1,6 +1,6 @@
 // One statistics query: checked before any read, the session resolved to a consumer scope, every
 // registered source read in full, then folded. A source that cannot answer leaves no total.
-import type { Access } from '@omne-harness/legal-identity'
+import { tenantCodec, type Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   checkUsageQuery,
@@ -118,6 +118,24 @@ async function readSource<P>(
   return succeed({ facts, undated })
 }
 
+/** Every registered source read in full within one budget of pages; the first failure stops it. */
+async function readAll<P>(
+  sources: readonly UsageSource<P>[],
+  request: SourceRequest<P> & Readonly<{ consumers: readonly UsageConsumer[] | null }>,
+  limits: UsageLimits,
+): Promise<Outcome<Read, UsageFailure>> {
+  const budget = { pages: limits.pages }
+  const facts: UsageFact[] = []
+  let undated = 0
+  for (const source of sources) {
+    const read = await readSource(source, request, budget, limits.page)
+    if ('failure' in read) return read
+    for (const fact of read.ok.facts) facts.push(fact)
+    undated += read.ok.undated
+  }
+  return succeed({ facts, undated })
+}
+
 function checkedLimits(limits: UsageLimits): UsageLimits {
   for (const [name, value] of Object.entries(limits))
     if (!Number.isSafeInteger(value) || value < 1)
@@ -134,23 +152,15 @@ export function createUsage<P>(deps: UsageDeps<P>): Usage<P> {
       const consumers = await consumerOf(deps, input)
       if ('failure' in consumers) return consumers
       const sources = deps.sources()
+      const { principal, tenant, range } = input
+      const read = await readAll(
+        sources,
+        { principal, tenant, range, consumers: consumers.ok },
+        limits,
+      )
+      if ('failure' in read) return read
       const names = sources.map(source => source.name).sort()
-      const request = {
-        principal: input.principal,
-        tenant: input.tenant,
-        range: input.range,
-        consumers: consumers.ok,
-      }
-      const budget = { pages: limits.pages }
-      const facts: UsageFact[] = []
-      let undated = 0
-      for (const source of sources) {
-        const read = await readSource(source, request, budget, limits.page)
-        if ('failure' in read) return read
-        for (const fact of read.ok.facts) facts.push(fact)
-        undated += read.ok.undated
-      }
-      return succeed(fold(facts, checked.ok, { sources: names, undated }))
+      return succeed(fold(read.ok.facts, checked.ok, { sources: names, undated: read.ok.undated }))
     },
 
     async records(input) {
@@ -161,7 +171,7 @@ export function createUsage<P>(deps: UsageDeps<P>): Usage<P> {
       if ('failure' in checked) return checked
       if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > limits.page)
         return fail({ kind: 'invalid', field: 'limit', reason: 'out-of-range' })
-      const fingerprint = JSON.stringify([input.tenant, input.scope, input.range])
+      const fingerprint = JSON.stringify([tenantText(input.tenant), input.scope, input.range])
       const at =
         input.after === null
           ? { source: 0, chunk: 0, cursor: null }
@@ -212,22 +222,18 @@ export function createUsage<P>(deps: UsageDeps<P>): Usage<P> {
         scope: { kind: 'session', session: input.session },
       })
       if ('failure' in consumers) return consumers
-      const request = {
-        principal: input.principal,
-        tenant: input.tenant,
-        range: null,
-        consumers: consumers.ok,
-      }
-      const budget = { pages: limits.pages }
-      const facts: UsageFact[] = []
-      for (const source of deps.sources()) {
-        const read = await readSource(source, request, budget, limits.page)
-        if ('failure' in read) return read
-        for (const fact of read.ok.facts) facts.push(fact)
-      }
-      return succeed(occupancyOf(facts))
+      const { principal, tenant } = input
+      const request = { principal, tenant, range: null, consumers: consumers.ok }
+      const read = await readAll(deps.sources(), request, limits)
+      return 'failure' in read ? read : succeed(occupancyOf(read.ok.facts))
     },
   }
+}
+
+function tenantText(tenant: Access<unknown>['tenant']): string {
+  const encoded = tenantCodec.encode(tenant)
+  if (!encoded.ok) throw new TypeError('usage: the tenant is not a minted TenantId')
+  return encoded.value
 }
 
 type Position = Readonly<{ source: number; chunk: number; cursor: string | null }>
