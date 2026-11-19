@@ -112,6 +112,10 @@ describe('the account a settlement writes (C14)', () => {
     const late = write([first], 'PT9.000S')
     expect(late.event).toBe(first.event)
     expect(late.value).toMatchObject({ revision: '2', receipt: 'late', duration: 'PT9.000S' })
+    expect(writes([first], 'PT9.000S')[1]).toEqual({
+      kind: 'usage',
+      fact: expect.objectContaining({ call: place.call, account: late.value }),
+    })
     const synthetic = { ...first, event: 'admission' }
     expect(write([synthetic], null)).toMatchObject({ event: 'admission', value: { revision: '2' } })
   })
