@@ -35,8 +35,8 @@ type Kind = 'bar' | 'line' | 'area'
 type Datum = Record<string, string | number | null>
 
 const INK = 'currentColor'
-const TICK = { fill: INK }
-const CURSOR = { fill: INK, className: 'omne-chart-cursor' }
+const CURSOR = { fill: INK, stroke: INK, className: 'omne-chart-cursor' }
+const ACTIVE_DOT = { stroke: 'none' }
 const MARGIN = { top: 8, right: 16, bottom: 0, left: 0 }
 const keyOf = (index: number): string => `s${index}`
 
@@ -96,9 +96,26 @@ function marks(kind: Kind, series: readonly ChartSeries[]): React.JSX.Element[] 
     }
     if (kind === 'bar') return <Bar {...shared} key={item.key} stackId="stack" fill={INK} />
     if (kind === 'line')
-      return <Line {...shared} key={item.key} type="monotone" dot={false} stroke={INK} />
+      return (
+        <Line
+          {...shared}
+          key={item.key}
+          type="monotone"
+          dot={false}
+          activeDot={ACTIVE_DOT}
+          stroke={INK}
+        />
+      )
     return (
-      <Area {...shared} key={item.key} type="monotone" stackId="stack" stroke={INK} fill={INK} />
+      <Area
+        {...shared}
+        key={item.key}
+        type="monotone"
+        stackId="stack"
+        activeDot={ACTIVE_DOT}
+        stroke={INK}
+        fill={INK}
+      />
     )
   })
 }
@@ -126,17 +143,10 @@ function SeriesChart({
           margin={MARGIN}
         >
           <CartesianGrid className="omne-chart-grid" vertical={false} stroke={INK} />
-          <XAxis
-            dataKey="x"
-            className="omne-chart-axis"
-            stroke={INK}
-            tick={TICK}
-            tickLine={false}
-          />
+          <XAxis dataKey="x" className="omne-chart-axis" stroke={INK} tickLine={false} />
           <YAxis
             className="omne-chart-axis"
             stroke={INK}
-            tick={TICK}
             tickFormatter={format}
             tickLine={false}
             width={56}

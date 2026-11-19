@@ -9,6 +9,10 @@ const say = line => process.stdout.write(`${line}\n`)
 const READ = theme => `(async () => {
   document.documentElement.dataset.theme = ${JSON.stringify(theme)}
   await document.fonts.ready
+  const first = document.querySelector('svg.recharts-surface')
+  first.focus()
+  first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
   const probe = document.querySelector('[data-probe="chart-1"]')
   const bars = [...document.querySelectorAll('.recharts-bar.omne-chart-color-1 .recharts-rectangle')]
@@ -18,6 +22,7 @@ const READ = theme => `(async () => {
   return {
     theme: ${JSON.stringify(theme)},
     surfaces: document.querySelectorAll('svg.recharts-surface').length,
+    tooltip: document.querySelector('.omne-chart-tooltip') !== null,
     figures: document.querySelectorAll('figure.omne-chart').length,
     token: getComputedStyle(probe).color,
     bar: bars.map(bar => getComputedStyle(bar).fill),

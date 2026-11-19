@@ -101,6 +101,15 @@ describe.each([
       .flatMap(node => ['fill', 'stroke'].map(name => node.getAttribute(name)))
       .filter((value): value is string => value !== null)
     expect(new Set(paint)).toEqual(new Set(['currentColor', 'none']))
+    expect(container.querySelector('.recharts-cartesian-grid-vertical')).toBeNull()
+    expect(container.querySelector('.recharts-cartesian-axis-tick-line')).toBeNull()
+    if (mark === 'recharts-bar') {
+      const widths = [...container.querySelectorAll('.recharts-rectangle')].map(bar =>
+        Number(bar.getAttribute('width')),
+      )
+      expect(widths.length).toBeGreaterThan(0)
+      expect(widths.every(width => width > 50)).toBe(true)
+    }
     expect(container.querySelectorAll('.omne-chart-color-1').length).toBeGreaterThan(0)
     expect(container.querySelectorAll('.omne-chart-color-2').length).toBeGreaterThan(0)
     expect(
@@ -131,6 +140,13 @@ describe.each([
     expect(tip()?.textContent).toContain(`输入：${UNKNOWN_TEXT}`)
     expect(tip()?.querySelector('[aria-label="未知"]')).not.toBeNull()
     expect(tip()?.querySelector('.omne-chart-swatch.omne-chart-color-2')).not.toBeNull()
+    expect(container.querySelector('.omne-chart-cursor')).not.toBeNull()
+    expect(colorsOf(container).filter(value => /#[0-9a-f]{3,8}\b|rgb\(/i.test(value))).toEqual([])
+    await act(async () => {
+      fireEvent.blur(svg)
+      await settle()
+    })
+    expect(tip()).toBeNull()
   })
 
   it('gives the same data as a table, with an unknown cell written as unknown', async () => {
@@ -255,6 +271,7 @@ describe('the reading meter', () => {
     expect(over.querySelectorAll('rect')[1]?.getAttribute('width')).toBe('100')
     expect(over.textContent).toContain('130%')
     expect(over.querySelector('.omne-meter-mark')).toBeNull()
+    expect(over.querySelector('.omne-meter-caption')).toBeNull()
     cleanup()
     const full = render(<ReadingMeter label="上下文" percent={100} />).container
     expect(full.querySelector('.omne-meter')?.getAttribute('data-state')).toBe('drawn')
@@ -292,6 +309,9 @@ describe('the sparkline and the stat block', () => {
     cleanup()
     const flat = render(<Sparkline label="平" values={[3, 3]} />).container
     expect(dOf(flat)).toEqual(['M0.00,20.00L100.00,20.00'])
+    cleanup()
+    const edges = render(<Sparkline label="两头未知" values={[null, 1, 2, null]} />).container
+    expect(dOf(edges)).toEqual(['M33.33,20.00L66.67,0.00'])
     cleanup()
     for (const [values, state] of [
       [[], 'empty'],

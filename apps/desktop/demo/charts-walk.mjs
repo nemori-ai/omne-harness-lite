@@ -14,7 +14,7 @@ const USAGE = `usage: node apps/desktop/demo/charts-walk.mjs [--shots <dir>]
 
 Builds a page of the chart controls with vite, serves it with the page policy of the desktop app and loads
 it in Electron. Prints the policy violations, the console errors and the chart colors in the light and the
-dark theme, saves a screenshot of each, and exits 1 when a chart is not drawn or the policy refused anything.
+dark theme with a data point reached by keyboard, saves a screenshot of each, and exits 1 when a chart is not drawn or the policy refused anything.
 Needs \`pnpm run build\` in packages/frontend/ui-kit and apps/desktop first: the page takes the built kit.`
 
 const args = process.argv.slice(2)
@@ -104,6 +104,7 @@ const [light, dark] = walk.readings ?? []
 const drawn = reading =>
   reading !== undefined &&
   reading.surfaces >= 3 &&
+  reading.tooltip === true &&
   reading.literal.length === 0 &&
   reading.styles === 0 &&
   reading.violations.length === 0 &&
