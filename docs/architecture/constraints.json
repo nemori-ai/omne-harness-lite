@@ -351,6 +351,30 @@
       "source": "packages/model/SPEC.md"
     },
     {
+      "id": "packages/model/model-protocol",
+      "paths": ["packages/model/model-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-access",
+      "paths": ["packages/model/model-access/src/**"],
+      "layer": "unknown",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-ui",
+      "paths": ["packages/model/model-ui/src/**"],
+      "layer": "unknown",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
       "id": "packages/tool/tool-contract",
       "paths": ["packages/tool/tool-contract/src/**"],
       "layer": "contract",

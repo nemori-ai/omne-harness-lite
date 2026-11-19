@@ -361,6 +361,7 @@ export const sessionProtocol = defineProtocol({
         object({
           createCallId: { rule: text },
           definition: { rule: text, optional: true },
+          model: { rule: text, optional: true },
           purpose: { rule: anyText },
         }),
       ),
@@ -664,6 +665,17 @@ export const sessionProtocol = defineProtocol({
         frozen: empty,
         'not-found': empty,
         conflict: empty,
+      },
+      countsAsAccess: true,
+    },
+    'read-model-selection': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: {
+        succeeded: ruleCodec(object({ model: { rule: text }, revision: { rule: anyText } })),
+        invalid: empty,
       },
       countsAsAccess: true,
     },

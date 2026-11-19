@@ -78,6 +78,7 @@
     "@omne-harness/kernel-basis": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/model": "workspace:*",
+    "@omne-harness/model-access": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/model-cordis-contract": "workspace:*",
     "@omne-harness/model-host-local": "workspace:*",

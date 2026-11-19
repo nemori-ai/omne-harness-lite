@@ -417,6 +417,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'human-intervention-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'session-diagnostics-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'calendar-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'model-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'schedule-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'notification-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },

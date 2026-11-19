@@ -1,3 +1,4 @@
+import { modelProtocol } from '@omne-harness/model-protocol'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import {
@@ -114,6 +115,7 @@ interface SessionContext {
 type Built = {
   readonly send: (link: Link) => Promise<CallResult | undefined>
   readonly echo: RequestEcho
+  readonly note?: () => string | null
 }
 
 interface SessionCommandBase<Parsed> {
@@ -186,6 +188,8 @@ async function runSession<Parsed>(
   const result = await built.send(link)
   if (result === undefined) return usageError(output, unrecognized(name))
   const code = report(name, result, built.echo, output)
+  const note = built.note?.() ?? null
+  if (note !== null) output.stderr(`omne ${name}: ${note}\n`)
   if (command.kind !== 'creating') return code
 
   const session =
@@ -205,17 +209,23 @@ async function runSession<Parsed>(
 const createSession: CreatingCommand<{
   definition: string
   purpose: string
+  model: string | undefined
   createCallId: string | undefined
 }> = {
   kind: 'creating',
   name: 'create-session',
-  accepted: ['--definition', '--purpose', '--create-call-id', serverOption],
+  accepted: ['--definition', '--purpose', '--model', '--create-call-id', serverOption],
   required: ['--definition'],
-  parse: values => ({
-    definition: values.get('--definition') ?? '',
-    purpose: values.get('--purpose') ?? '',
-    createCallId: values.get('--create-call-id'),
-  }),
+  parse: values => {
+    const model = values.get('--model')
+    if (model === '') return undefined
+    return {
+      definition: values.get('--definition') ?? '',
+      purpose: values.get('--purpose') ?? '',
+      model,
+      createCallId: values.get('--create-call-id'),
+    }
+  },
   build: (parsed, { loginTenant, newId }) => {
     const messageId = newId()
     const createCallId = parsed.createCallId ?? newId()
@@ -224,7 +234,12 @@ const createSession: CreatingCommand<{
         link.call(
           sessionProtocol,
           'create-session',
-          { createCallId, definition: parsed.definition, purpose: parsed.purpose },
+          {
+            createCallId,
+            definition: parsed.definition,
+            purpose: parsed.purpose,
+            ...(parsed.model === undefined ? {} : { model: parsed.model }),
+          },
           messageId,
         ),
       echo: { messageId, createCallId, tenant: encodeTenantText(loginTenant) },
@@ -247,6 +262,7 @@ function targeted(values: Option): Targeted | undefined {
 type InputCommand = ExistingCommand<
   Omit<Targeted, 'controlId'> & {
     text: string
+    model: string | undefined
     acceptId: string | undefined
     inputId: string | undefined
   }
@@ -256,15 +272,25 @@ type InputCommand = ExistingCommand<
 const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => ({
   kind: 'existing',
   name,
-  accepted: ['--session', '--text', '--tenant', '--accept-id', '--input-id', serverOption],
+  accepted: [
+    '--session',
+    '--text',
+    '--model',
+    '--tenant',
+    '--accept-id',
+    '--input-id',
+    serverOption,
+  ],
   required: ['--session', '--text'],
   parse: values => {
     const target = targeted(values)
-    if (target === undefined) return undefined
+    const model = values.get('--model')
+    if (target === undefined || model === '') return undefined
     return {
       session: target.session,
       tenant: target.tenant,
       text: values.get('--text') ?? '',
+      model,
       acceptId: values.get('--accept-id'),
       inputId: values.get('--input-id'),
     }
@@ -274,21 +300,27 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
     const messageId = newId()
     const acceptId = parsed.acceptId ?? newId()
     const inputId = parsed.inputId ?? newId()
+    const { session, model } = parsed
+    let unselected = false
     return {
-      send: async link =>
-        link.call(
+      // A model is selected first, under a control identity the accept identity gives.
+      send: async link => {
+        if (model !== undefined) {
+          const select = { tenant, session, controlId: `model:${acceptId}`, model }
+          const selected = await link.call(sessionProtocol, 'select-model', select, newId())
+          unselected = selected?.kind !== 'response' || selected.outcome !== 'succeeded'
+          if (unselected) return selected
+        }
+        const message = await userTextMessage(parsed.text, inputId)
+        return link.call(
           sessionProtocol,
           name,
-          {
-            tenant,
-            session: parsed.session,
-            acceptId,
-            inputId,
-            message: await userTextMessage(parsed.text, inputId),
-          },
+          { tenant, session, acceptId, inputId, message },
           messageId,
-        ),
+        )
+      },
       echo: { messageId, acceptId, inputId, tenant: encodeTenantText(tenant) },
+      note: () => (unselected ? 'the model was not selected; the input was not sent' : null),
     }
   },
 })
@@ -594,6 +626,47 @@ const selectModel: ExistingCommand<Targeted & { model: string }> = {
   },
 }
 
+const readModelSelection: ExistingCommand<Targeted> = {
+  kind: 'existing',
+  name: 'read-model-selection',
+  accepted: ['--session', '--tenant', serverOption],
+  required: ['--session'],
+  parse: targeted,
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { owner: tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'read-model-selection',
+          { tenant, session: parsed.session },
+          messageId,
+        ),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
+const listModels: TenantCommand<{ given: TenantId | undefined }> = {
+  kind: 'tenant',
+  name: 'list-models',
+  accepted: ['--tenant', serverOption],
+  required: [],
+  parse: values => {
+    const given = tenantOption(values)
+    return given === null ? undefined : { given }
+  },
+  tenant: parsed => parsed.given,
+  build: (_parsed, { tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link => link.call(modelProtocol, 'list-models', { tenant }, messageId),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
 export const productionCommands: readonly CommandSpec[] = [
   {
     name: 'register',
@@ -609,19 +682,19 @@ export const productionCommands: readonly CommandSpec[] = [
   },
   {
     name: 'create-session',
-    usage: '--definition <name>',
+    usage: '--definition <name> [--model <route>]',
     summary: 'Create a session.',
     run: (args, output, environment) => runSession(createSession, args, output, environment),
   },
   {
     name: 'send-input',
-    usage: '--session <id> --text <text>',
+    usage: '--session <id> --text <text> [--model <route>]',
     summary: 'Send a user message to a session.',
     run: (args, output, environment) => runSession(sendInput, args, output, environment),
   },
   {
     name: 'interrupt-input',
-    usage: '--session <id> --text <text>',
+    usage: '--session <id> --text <text> [--model <route>]',
     summary: 'Send an urgent user message: it releases what the run waits for, or is ordinary.',
     run: (args, output, environment) => runSession(interruptInput, args, output, environment),
   },
@@ -678,6 +751,18 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id> --model <route>',
     summary: 'Select the model of a session: the next model request uses it.',
     run: (args, output, environment) => runSession(selectModel, args, output, environment),
+  },
+  {
+    name: 'read-model-selection',
+    usage: '--session <id>',
+    summary: 'Read the model a session stands at now.',
+    run: (args, output, environment) => runSession(readModelSelection, args, output, environment),
+  },
+  {
+    name: 'list-models',
+    usage: '[--tenant <tenant>]',
+    summary: 'List the models of the tenant: which can be selected, and why one cannot.',
+    run: (args, output, environment) => runSession(listModels, args, output, environment),
   },
   {
     name: 'archive-session',

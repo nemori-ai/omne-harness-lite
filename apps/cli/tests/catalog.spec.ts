@@ -78,6 +78,8 @@ describe('command catalog', () => {
       'cancel-run',
       'stop-call',
       'select-model',
+      'read-model-selection',
+      'list-models',
       'archive-session',
       'unarchive-session',
       'read-permission-mode',

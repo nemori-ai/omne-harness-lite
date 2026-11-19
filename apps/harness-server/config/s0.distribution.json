@@ -384,6 +384,11 @@
       "id": "tool-access",
       "plugin": "stubPlugin",
       "config": {}
+    },
+    {
+      "id": "model-access",
+      "plugin": "stubPlugin",
+      "config": {}
     }
   ]
 }

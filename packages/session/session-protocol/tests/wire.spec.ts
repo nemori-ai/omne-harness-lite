@@ -27,6 +27,7 @@ type Name = Exclude<
   | 'background-call'
   | 'list-background-calls'
   | 'select-model'
+  | 'read-model-selection'
   | 'read-permission-mode'
   | 'change-permission-mode'
 >

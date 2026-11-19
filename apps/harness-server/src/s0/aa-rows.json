@@ -77,7 +77,8 @@
     "calendar-access",
     "schedule-access",
     "notification-access",
-    "tool-access"
+    "tool-access",
+    "model-access"
   ],
   "trusted": [
     {
@@ -444,6 +445,13 @@
     },
     {
       "row": "tool-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "model-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

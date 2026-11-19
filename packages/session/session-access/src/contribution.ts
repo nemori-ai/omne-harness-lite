@@ -6,7 +6,7 @@ import type {
   Principal,
 } from '@omne-harness/access-cordis-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { SessionCreation, SessionId } from '@omne-harness/session-contract'
+import type { SessionId } from '@omne-harness/session-contract'
 import type {
   SessionObservation,
   SessionObservationEnd,
@@ -14,23 +14,13 @@ import type {
 } from '@omne-harness/session-observation'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
 import type { HistorySearch } from '@omne-harness/session-search'
-import { createOperation, sessionIdentity, tenantTextOf } from './derivation.ts'
-import {
-  commitCall,
-  describedBy,
-  readCall,
-  refused,
-  UNAVAILABLE,
-  type Admitted,
-  type Answer,
-  type Body,
-  type Refusal,
-  type Target,
-} from './answers.ts'
+import { tenantTextOf } from './derivation.ts'
+import { describedBy, UNAVAILABLE, type Admitted, type Refusal, type Target } from './answers.ts'
 import { cancelRun } from './cancel-run.ts'
+import { createSession, queryCreateSession } from './create-session.ts'
 import { retryRun } from './retry-run.ts'
 import { backgroundCall, listBackgroundCalls } from './background-calls.ts'
-import { selectModel } from './select-model.ts'
+import { readModelSelection, selectModel } from './select-model.ts'
 import { stopCall } from './stop-call.ts'
 import { archiveSession, unarchiveSession } from './archive.ts'
 import type {
@@ -173,84 +163,12 @@ export function createSessionContribution(
   const sending = { target, factOf, faces: input.faces, requests: input.requests }
   const tenant = { principalFor, listing: input.listing, searching: input.searching, settings }
 
-  async function createSession(
-    principal: Principal,
-    body: Body<'create-session'>,
-  ): Promise<Answer<'create-session'>> {
-    const definitions = input.definitions()
-    if (definitions === undefined) return UNAVAILABLE
-    const name = body.definition ?? settings.defaultDefinition
-    if (name === undefined) return { outcome: 'invalid', body: {} }
-    const resolved = definitions(name)
-    if (resolved === undefined) return { outcome: 'invalid', body: {} }
-    const initialModelSelection = resolved.initialModelSelection
-    if (initialModelSelection === undefined) return UNAVAILABLE
-    const fact = factOf(principal)
-    if (fact === undefined) return UNAVAILABLE
-    const faces = input.faces()
-    if (faces === undefined) return UNAVAILABLE
-    const tenantText = tenantTextOf(fact.tenant)
-    const session = sessionIdentity(tenantText, body.createCallId) as SessionId
-    const creation: SessionCreation = {
-      definition: { name, candidate: resolved.candidate },
-      execution: resolved.execution,
-      requiredIdentities: resolved.requiredIdentities,
-      purpose: body.purpose,
-      workspace: null,
-      workspaceAttachment: null,
-      modes: { kind: 'tenant-default', source: resolved.tenantDefaults },
-      initial: null,
-      entryContract: resolved.entryContract,
-      initialModelSelection,
-    }
-    const result = await commitCall(() =>
-      faces.management.create({
-        principal,
-        tenant: fact.tenant,
-        session,
-        operation: createOperation(tenantText, body.createCallId),
-        creation,
-      }),
-    )
-    if (result === 'unknown') return { outcome: 'unknown' }
-    if ('failure' in result) return refused('create-session', result.failure)
-    return { outcome: 'succeeded', body: { session, recovered: result.ok.receipt.recovered } }
-  }
-
-  async function queryCreateSession(
-    login: LoginIdentity,
-    body: Body<'query-create-session'>,
-  ): Promise<Answer<'query-create-session'>> {
-    const admitted = await admit(
-      login,
-      body.tenant,
-      sessionIdentity(tenantTextOf(body.tenant), body.createCallId),
-    )
-    if ('outcome' in admitted) return admitted
-    const { access, tenantText, faces } = admitted
-    const result = await readCall(() =>
-      faces.work.queryOperation({
-        ...access,
-        operation: createOperation(tenantText, body.createCallId),
-      }),
-    )
-    if (result === 'basis-unavailable') return UNAVAILABLE
-    if ('failure' in result) return refused('query-create-session', result.failure)
-    switch (result.ok.kind) {
-      case 'committed':
-        return { outcome: 'succeeded', body: { session: access.session } }
-      case 'not-committed':
-        return { outcome: 'denied' }
-      case 'attempt-rejected':
-      case 'unknown':
-        return { outcome: 'unknown' }
-    }
-  }
+  const creating = { ...held, faces: input.faces, definitions: input.definitions, settings }
 
   return {
     operations: {
-      'create-session': (call, body) => createSession(call.principal, body),
-      'query-create-session': (call, body) => queryCreateSession(call.principal, body),
+      'create-session': (call, body) => createSession(creating, call.principal, body),
+      'query-create-session': (call, body) => queryCreateSession(held, call.principal, body),
       'send-input': (call, body) => sendInput(sending, call.principal, body),
       'interrupt-input': (call, body) => interruptInput(sending, call.principal, body),
       'query-send-input': (call, body) => querySendInput(sending, call.principal, body),
@@ -259,6 +177,7 @@ export function createSessionContribution(
       'cancel-run': (call, body) => cancelRun(held, call.principal, body),
       'stop-call': (call, body) => stopCall(held, call.principal, body),
       'select-model': (call, body) => selectModel(held, call.principal, body),
+      'read-model-selection': (call, body) => readModelSelection(held, call.principal, body),
       'retry-run': (call, body) => retryRun(held, call.principal, body),
       'background-call': (call, body) => backgroundCall(held, call.principal, body),
       'list-background-calls': (call, body) => listBackgroundCalls(held, call.principal, body),

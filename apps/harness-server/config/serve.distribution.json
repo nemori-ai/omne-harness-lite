@@ -700,6 +700,11 @@
       "id": "tool-access",
       "plugin": "toolAccessRow",
       "config": {}
+    },
+    {
+      "id": "model-access",
+      "plugin": "modelAccessRow",
+      "config": {}
     }
   ]
 }
