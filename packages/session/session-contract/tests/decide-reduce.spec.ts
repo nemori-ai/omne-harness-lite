@@ -466,6 +466,17 @@ describe('the workspace a session stands at', () => {
     const moved = commit(created, changeWorkspace(other(), elsewhere))
     expect(workspaceSelection(moved)).toEqual({ workspace: other(), attachment: elsewhere })
     expect(moved.revisions.workspace).toBe('1')
+    // A later change of another kind is not a change of the workspace.
+    const remodelled = commit(moved, {
+      kind: 'change',
+      input: {
+        ...base,
+        operation: operationId('change-model-after-workspace'),
+        declaration: { kind: 'model', name: 'other-model', basis: evidence('model') },
+      },
+    })
+    expect(remodelled.changes?.at(-1)?.kind).toBe('model')
+    expect(workspaceSelection(remodelled)).toEqual({ workspace: other(), attachment: elsewhere })
     const cleared = commit(moved, changeWorkspace(null, null))
     expect(workspaceSelection(cleared)).toBeNull()
     expect(cleared.revisions.workspace).toBe('2')
