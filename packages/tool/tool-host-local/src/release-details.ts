@@ -11,9 +11,10 @@ import type {
   ReleaseDetailAnswer,
   ReleaseDetailPolicy,
   ToolCommandReleaseDetail,
+  ToolReleaseDescriber,
   ToolReleaseDetails,
 } from '@omne-harness/tool-contract'
-import { readToolRegistration } from '@omne-harness/tool-contract/binding'
+import { readToolRegistration, type ToolOperationSlot } from '@omne-harness/tool-contract/binding'
 import {
   DEFAULT_RELEASE_DETAIL_POLICY,
   commandArguments,
@@ -72,46 +73,52 @@ async function schemaVerdict(
  * registration a start would run, parses the arguments as a start would, and calls the read-only
  * describe function of the command under a time limit.
  */
+type Asked<P> = Parameters<ToolReleaseDetails<P>['describe']>[0]
+type Describing = Readonly<{ describe: ToolReleaseDescriber<unknown>; arguments: unknown }>
+
+function slotOf<P, E, B extends ContentBlock>(
+  registry: LocalToolBindingRegistry<P, E, B> | undefined,
+  { principal, tenant, availability, command }: Asked<P>,
+): ToolOperationSlot | ReleaseDetailAnswer {
+  if (registry === undefined) return unavailable('no-registry')
+  const loaded = registry.peek({ principal, tenant }, availability)
+  if ('failure' in loaded) return unavailable('no-registration')
+  const registration = readToolRegistration(loaded.ok.implementation)
+  const slot =
+    registration?.kind === 'commands'
+      ? registration.operations.find(([name]) => name === command)?.[1]
+      : registration?.operation
+  return slot ?? { kind: 'none' }
+}
+
+// The arguments the command's own parser reads from the effective text, as a start would read them.
+function describing<P>(slot: ToolOperationSlot, asked: Asked<P>): Describing | ReleaseDetailAnswer {
+  if (slot.describeRelease === null) return { kind: 'none' }
+  const text = asked.effectiveArguments
+  const cut = commandArguments(asked.availability.definition, asked.command, {
+    original: text,
+    effective: text,
+    complete: true,
+  })
+  if ('failure' in cut) return unavailable('arguments')
+  const parsed = slot.author.parameters.parse(cut.ok)
+  return 'failure' in parsed
+    ? unavailable('arguments')
+    : { describe: slot.describeRelease, arguments: parsed.ok }
+}
+
+function declaredOf<P>({ availability: { definition }, command }: Asked<P>) {
+  return definition.kind === 'commands'
+    ? definition.commands.find(entry => entry.name === command)?.release?.detail
+    : undefined
+}
+
 export function createLocalReleaseDetails<P, E, B extends ContentBlock>(
   input: LocalReleaseDetailsInput<P, E, B>,
 ): ToolReleaseDetails<P> {
   const policy = input.policy ?? DEFAULT_RELEASE_DETAIL_POLICY
-  const answer: ToolReleaseDetails<P>['describe'] = async ({
-    principal,
-    tenant,
-    availability,
-    command,
-    effectiveArguments,
-  }) => {
-    const registry = input.registry()
-    if (registry === undefined) return unavailable('no-registry')
-    const loaded = registry.peek({ principal, tenant }, availability)
-    if ('failure' in loaded) return unavailable('no-registration')
-    const registration = readToolRegistration(loaded.ok.implementation)
-    const slot =
-      registration?.kind === 'commands'
-        ? registration.operations.find(([name]) => name === command)?.[1]
-        : registration?.operation
-    if (slot === undefined || slot.describeRelease === null) return { kind: 'none' }
-    const { definition } = availability
-    const cut = commandArguments(definition, command, {
-      original: effectiveArguments,
-      effective: effectiveArguments,
-      complete: true,
-    })
-    if ('failure' in cut) return unavailable('arguments')
-    const parsed = slot.author.parameters.parse(cut.ok)
-    if ('failure' in parsed) return unavailable('arguments')
-    const describe = slot.describeRelease
-    const described = await within(
-      () => describe({ principal, tenant, arguments: parsed.ok }),
-      policy.timeoutMs,
-    )
-    if (described === TIMED_OUT) return unavailable('timeout')
-    const declared =
-      definition.kind === 'commands'
-        ? definition.commands.find(entry => entry.name === command)?.release?.detail
-        : undefined
+  const checked = async (described: unknown, asked: Asked<P>): Promise<ReleaseDetailAnswer> => {
+    const declared = declaredOf(asked)
     const judged = judgeReleaseDescription(described, declared, policy)
     if ('failure' in judged) return unavailable(judged.failure)
     if (judged.ok.typed === undefined || declared === undefined)
@@ -124,6 +131,18 @@ export function createLocalReleaseDetails<P, E, B extends ContentBlock>(
     )
     if (verdict === 'valid') return { kind: 'detail', ...judged.ok }
     return unavailable(verdict === 'invalid' ? 'typed-schema' : `schema-${verdict}`)
+  }
+  const answer = async (asked: Asked<P>): Promise<ReleaseDetailAnswer> => {
+    const slot = slotOf(input.registry(), asked)
+    if ('kind' in slot) return slot
+    const call = describing(slot, asked)
+    if ('kind' in call) return call
+    const { principal, tenant } = asked
+    const described = await within(
+      () => call.describe({ principal, tenant, arguments: call.arguments }),
+      policy.timeoutMs,
+    )
+    return described === TIMED_OUT ? unavailable('timeout') : checked(described, asked)
   }
   return {
     async describe(request) {
