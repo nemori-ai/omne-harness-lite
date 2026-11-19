@@ -21,9 +21,14 @@ export type SqlPort = Readonly<{ execute(sql: string, params: readonly SqlValue[
 type Row = QueryRows['rows'][number]
 
 /** A result that reaches past the row limit fails instead of being cut. */
-function select(port: SqlPort, sql: string, params: readonly SqlValue[]): QueryRows['rows'] {
-  const found = port.execute(`${sql} LIMIT ${ROW_LIMIT + 1}`, params).rows
-  if (found.length > ROW_LIMIT) throw new Error('more rows than one statement may return')
+export function select(
+  port: SqlPort,
+  sql: string,
+  params: readonly SqlValue[],
+  limit = ROW_LIMIT,
+): QueryRows['rows'] {
+  const found = port.execute(`${sql} LIMIT ${limit + 1}`, params).rows
+  if (found.length > limit) throw new Error('more rows than one statement may return')
   return found
 }
 
@@ -32,9 +37,9 @@ function text(cell: unknown): string {
   return cell
 }
 
+/** The storage worker reads every integer as a bigint. */
 function count(cell: unknown): number {
-  if (typeof cell !== 'bigint' && typeof cell !== 'number')
-    throw new Error('a stored number cell is not a number')
+  if (typeof cell !== 'bigint') throw new Error('a stored integer cell is not an integer')
   return Number(cell)
 }
 
@@ -143,25 +148,21 @@ export function sqlTxn(port: SqlPort): WorkspaceTxn {
   }
 }
 
+const MEMBERSHIP =
+  'SELECT w.workspace, w.type, w.revision, r.role, r.super_admin FROM ws_relations r JOIN ws_workspaces w ON w.workspace = r.workspace WHERE r.tenant = ?'
+const membershipOf = (row: Row): Membership => ({
+  workspace: workspaceOf(row),
+  relation: relationOf(row[3], row[4]),
+})
+
 /** A workspace as one tenant sees it. Without a relation it reads the same as one that does not exist. */
 export function stateOf(port: SqlPort, tenant: string, workspace: string): WorkspaceState | null {
-  const txn = sqlTxn(port)
-  const relation = txn.relation(workspace, tenant)
-  const record = txn.workspace(workspace)
-  if (relation === null || record === null) return null
+  const found = one(select(port, `${MEMBERSHIP} AND r.workspace = ?`, [tenant, workspace]), membershipOf)
+  if (found === null) return null
   const active = `${INSTANCE} WHERE workspace = ? AND active = 1 ORDER BY rowid`
-  return {
-    workspace: record,
-    relation,
-    instances: select(port, active, [workspace]).map(instanceOf),
-  }
+  return { ...found, instances: select(port, active, [workspace]).map(instanceOf) }
 }
 
 export function membershipsOf(port: SqlPort, tenant: string): Membership[] {
-  const sql =
-    'SELECT w.workspace, w.type, w.revision, r.role, r.super_admin FROM ws_relations r JOIN ws_workspaces w ON w.workspace = r.workspace WHERE r.tenant = ? ORDER BY w.workspace'
-  return select(port, sql, [tenant]).map(row => ({
-    workspace: workspaceOf(row),
-    relation: relationOf(row[3], row[4]),
-  }))
+  return select(port, `${MEMBERSHIP} ORDER BY w.workspace`, [tenant]).map(membershipOf)
 }

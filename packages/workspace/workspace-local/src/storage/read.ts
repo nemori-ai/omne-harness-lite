@@ -14,9 +14,8 @@ const READS = {
 export type ReadName = keyof typeof READS
 
 function requestOf(input: JsonValue): { read: ReadName; args: string[] } | null {
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) return null
-  const { read, args } = input as { read?: JsonValue; args?: JsonValue }
-  if (typeof read !== 'string' || !Object.hasOwn(READS, read)) return null
+  const { read, args } = (input ?? {}) as { read?: JsonValue; args?: JsonValue }
+  if (!Object.hasOwn(READS, read as string)) return null
   if (!Array.isArray(args) || !args.every(arg => typeof arg === 'string')) return null
   return { read: read as ReadName, args: args as string[] }
 }
