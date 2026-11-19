@@ -1,4 +1,4 @@
-import { workspaceCodec } from '@omne-harness/legal-identity'
+import { workspaceCodec, type Access } from '@omne-harness/legal-identity'
 import {
   instanceId,
   operationId,
@@ -10,6 +10,8 @@ import {
   type OperationView,
   type Recognised,
   type RegisteredWorkspace,
+  type RelationInput,
+  type RelationOperation,
   type TypeName,
   type WorkspaceGovernance,
 } from '@omne-harness/workspace-contract'
@@ -18,9 +20,11 @@ import {
   answerOf,
   digestOf,
   isAddress,
+  knownTenant,
   NOT_PERMITTED,
   recognise,
   tenantText,
+  textOfTenant,
   unavailable,
   workspaceText,
 } from './gate.ts'
@@ -52,8 +56,52 @@ async function take(types: TypeLookup, address: string, named: TypeName | null):
   return refusal
 }
 
+type Ending = Omit<RelationInput, 'target'>
+
 export function createGovernance<P>(deps: WorkspaceDependencies<P>): WorkspaceGovernance<P> {
+  /** One change to one relation. Without a target it is the caller's own. */
+  async function relation(
+    access: Access<P>,
+    input: Ending & Partial<RelationInput>,
+    change: RelationOperation,
+  ): Promise<Answer<null>> {
+    const tenant = tenantText(access)
+    const workspace = workspaceText(input.workspace)
+    const target = input.target === undefined ? tenant : textOfTenant(input.target)
+    if (tenant === null || workspace === null || target === null) return NOT_PERMITTED
+    const operation = operationId(input.operation)
+    if (operation === null) return INVALID
+    const blocked = await admitted(deps.authority, access, `workspace.${change}`, workspace)
+    if (blocked !== null) return blocked
+    if (change === 'grant-participation' && input.target !== undefined) {
+      const unknown = await knownTenant(deps.authority, input.target)
+      if (unknown !== null) return unknown
+    }
+    const digest = digestOf({ workspace, change, target })
+    const command = { tenant, operation, digest, workspace, change, target }
+    return answerOf(await deps.store.govern(command), operation, () => null)
+  }
+
   return {
+    grantParticipation: (access, input) => relation(access, input, 'grant-participation'),
+    grantAdmin: (access, input) => relation(access, input, 'grant-admin'),
+    revokeAdmin: (access, input) => relation(access, input, 'revoke-admin'),
+    remove: (access, input) => relation(access, input, 'remove'),
+    leave: (access, { operation, workspace }) =>
+      relation(access, { operation, workspace }, 'leave'),
+
+    async destroy(access, input): Promise<Answer<null>> {
+      const tenant = tenantText(access)
+      const workspace = workspaceText(input.workspace)
+      if (tenant === null || workspace === null) return NOT_PERMITTED
+      const operation = operationId(input.operation)
+      if (operation === null) return INVALID
+      const blocked = await admitted(deps.authority, access, 'workspace.destroy', workspace)
+      if (blocked !== null) return blocked
+      const command = { tenant, operation, digest: digestOf({ workspace }), workspace }
+      return answerOf(await deps.store.destroy(command), operation, () => null)
+    },
+
     async register(access, input): Promise<Answer<RegisteredWorkspace>> {
       const tenant = tenantText(access)
       if (tenant === null) return NOT_PERMITTED

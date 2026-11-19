@@ -6,6 +6,11 @@ const WORKSPACE = 'wsp_00000000000000000000000001'
 const INSTANCE = 'wsi_00000000000000000000000001'
 const REGISTERED = { workspace: WORKSPACE, instance: INSTANCE, type: 'plain' }
 const register = { operation: 'op-1', address: '/a' }
+const ON_TARGET = ['grant-participation', 'grant-admin', 'revoke-admin', 'remove'] as const
+const ON_SELF = ['leave', 'destroy'] as const
+const CHANGES = [...ON_TARGET, ...ON_SELF]
+const ending = { operation: 'op-c', workspace: WORKSPACE }
+const onOther = { ...ending, target: OTHER }
 
 /** One body per operation that the protocol reads and the domain takes. */
 const SAMPLES: Record<Name, Record<string, unknown>> = {
@@ -13,7 +18,13 @@ const SAMPLES: Record<Name, Record<string, unknown>> = {
   'query-register': register,
   list: {},
   describe: { workspace: WORKSPACE },
-}
+  ...Object.fromEntries(
+    ON_TARGET.flatMap(name => [name, `query-${name}`]).map(name => [name, onOther]),
+  ),
+  ...Object.fromEntries(
+    ON_SELF.flatMap(name => [name, `query-${name}`]).map(name => [name, ending]),
+  ),
+} as unknown as Record<Name, Record<string, unknown>>
 
 describe('the first three steps', () => {
   it.each([
@@ -151,11 +162,16 @@ describe('registering', () => {
   it('a domain that throws is unknown for the commit and an unavailable basis for a read', async () => {
     const w = world()
     const down = () => Promise.reject(new Error('down'))
-    w.state.faces = {
-      governance: { register: down, operation: down },
-      catalog: { list: down, describe: down },
-    }
-    expect(await w.call('register', register)).toEqual({ outcome: 'unknown' })
+    const governance = Object.fromEntries(
+      Object.keys(w.real.governance).map(name => [name, down]),
+    ) as never
+    w.state.faces = { governance, catalog: { list: down, describe: down } }
+    for (const name of ['register', ...CHANGES] as const)
+      expect(await w.call(name, SAMPLES[name])).toEqual({ outcome: 'unknown' })
+    for (const name of CHANGES)
+      expect(await w.call(`query-${name}`, SAMPLES[name])).toEqual({
+        outcome: 'basis-unavailable',
+      })
     for (const name of ['query-register', 'list', 'describe'] as const)
       expect(await w.call(name, SAMPLES[name])).toEqual({ outcome: 'basis-unavailable' })
   })
@@ -211,5 +227,82 @@ describe('listing and describing', () => {
       outcome: 'succeeded',
       body: { workspaces: [] },
     })
+  })
+})
+
+describe('changing who takes part, leaving and destroying', () => {
+  const DONE = { outcome: 'succeeded', body: {} }
+  const SAME = { outcome: 'no-change', body: {} }
+  const NOT_COMMITTED = { outcome: 'not-committed', body: {} }
+  const named = (operation: string) => ({ operation, workspace: WORKSPACE })
+  const onTenant = (operation: string) => ({ ...named(operation), target: OTHER })
+
+  async function owned() {
+    const w = world()
+    w.things.put('/a', {})
+    await w.call('register', register)
+    return w
+  }
+
+  it('each change answers done, then nothing changed, and its query says it was committed', async () => {
+    const w = await owned()
+    const steps = [
+      ['grant-participation', onTenant('c1'), TENANT],
+      ['grant-admin', onTenant('c2'), TENANT],
+      ['revoke-admin', onTenant('c3'), TENANT],
+      ['leave', named('c4'), OTHER],
+      ['grant-participation', onTenant('c5'), TENANT],
+      ['remove', onTenant('c6'), TENANT],
+      ['destroy', named('c7'), TENANT],
+    ] as const
+    for (const [name, body, tenant] of steps) {
+      expect([name, await w.call(`query-${name}`, body, tenant)]).toEqual([name, NOT_COMMITTED])
+      expect([name, await w.call(name, body, tenant)]).toEqual([name, DONE])
+      expect([name, await w.call(name, body, tenant)]).toEqual([name, SAME])
+      expect([name, await w.call(`query-${name}`, body, tenant)]).toEqual([name, DONE])
+    }
+    expect(await w.call('list', {})).toEqual({ outcome: 'succeeded', body: { workspaces: [] } })
+    expect(await w.call('query-remove', onTenant('c7'))).toEqual(NOT_COMMITTED)
+  })
+
+  it('answers what the domain refused: not permitted is denied, not performed carries the reason', async () => {
+    const w = await owned()
+    expect(await w.call('grant-participation', onTenant('c1'), OTHER)).toEqual({
+      outcome: 'denied',
+    })
+    expect(await w.call('grant-admin', onTenant('c2'))).toEqual({
+      outcome: 'invalid',
+      body: { reason: 'not-a-participant' },
+    })
+    await w.call('grant-participation', onTenant('c3'))
+    expect(await w.call('remove', { ...onTenant('c3') })).toEqual({ outcome: 'conflict', body: {} })
+    expect(await w.call('destroy', named('c4'), OTHER)).toEqual({ outcome: 'denied' })
+  })
+
+  it('a text that is no workspace identity is denied before the domain; an unreadable store is an unavailable basis', async () => {
+    const w = await owned()
+    const asked = w.authority.asked().length
+    for (const name of ON_TARGET)
+      expect(await w.call(name, { ...onTenant('c1'), workspace: 'nowhere' })).toEqual({
+        outcome: 'denied',
+      })
+    for (const name of ON_SELF)
+      expect(await w.call(name, { ...named('c1'), workspace: 'nowhere' })).toEqual({
+        outcome: 'denied',
+      })
+    expect(w.authority.asked()).toHaveLength(asked)
+    w.store.fail('unreadable')
+    for (const name of CHANGES)
+      expect(await w.call(`query-${name}`, SAMPLES[name])).toEqual({
+        outcome: 'basis-unavailable',
+      })
+  })
+
+  it('a commit whose receipt was lost is unknown; the query then says it was committed', async () => {
+    const w = await owned()
+    w.store.fail('lost')
+    expect(await w.call('grant-participation', onTenant('c1'))).toEqual({ outcome: 'unknown' })
+    w.store.fail('none')
+    expect(await w.call('query-grant-participation', onTenant('c1'))).toEqual(DONE)
   })
 })

@@ -21,10 +21,22 @@ export type WorkspaceLocalConfiguration = Omit<WorkspaceLocalOptions<unknown>, '
 
 class LocalGovernance extends WorkspaceGovernanceService {
   readonly register: WorkspaceGovernance<unknown>['register']
+  readonly grantParticipation: WorkspaceGovernance<unknown>['grantParticipation']
+  readonly grantAdmin: WorkspaceGovernance<unknown>['grantAdmin']
+  readonly revokeAdmin: WorkspaceGovernance<unknown>['revokeAdmin']
+  readonly remove: WorkspaceGovernance<unknown>['remove']
+  readonly leave: WorkspaceGovernance<unknown>['leave']
+  readonly destroy: WorkspaceGovernance<unknown>['destroy']
   readonly operation: WorkspaceGovernance<unknown>['operation']
   constructor(ctx: Context, face: WorkspaceGovernance<unknown>) {
     super(ctx)
     this.register = face.register
+    this.grantParticipation = face.grantParticipation
+    this.grantAdmin = face.grantAdmin
+    this.revokeAdmin = face.revokeAdmin
+    this.remove = face.remove
+    this.leave = face.leave
+    this.destroy = face.destroy
     this.operation = face.operation
   }
 }

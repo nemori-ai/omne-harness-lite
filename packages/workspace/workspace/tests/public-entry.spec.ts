@@ -4,10 +4,12 @@ it('the public entry exports the service factories, the type registry and the sc
   const root = (await import('@omne-harness/workspace')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'associateInstance',
+    'changeRelation',
     'createCatalog',
     'createGovernance',
     'createInstances',
     'createManagementTypes',
+    'destroyWorkspace',
     'dissociateInstance',
     'once',
     'registerWorkspace',

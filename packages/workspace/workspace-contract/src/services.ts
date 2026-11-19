@@ -1,4 +1,4 @@
-import type { Access, WorkspaceId } from '@omne-harness/legal-identity'
+import type { Access, TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import type {
   Answer,
   InstanceId,
@@ -21,8 +21,21 @@ export interface WorkspaceGovernance<P> {
     input: Readonly<{ operation: OperationId; address: string; type?: TypeName }>,
   ): Promise<Answer<RegisteredWorkspace>>
 
+  grantParticipation(access: Access<P>, input: RelationInput): Promise<Answer<null>>
+  grantAdmin(access: Access<P>, input: RelationInput): Promise<Answer<null>>
+  revokeAdmin(access: Access<P>, input: RelationInput): Promise<Answer<null>>
+  remove(access: Access<P>, input: RelationInput): Promise<Answer<null>>
+  leave(access: Access<P>, input: Omit<RelationInput, 'target'>): Promise<Answer<null>>
+  destroy(access: Access<P>, input: Omit<RelationInput, 'target'>): Promise<Answer<null>>
+
   operation(access: Access<P>, operation: OperationId): Promise<OperationView>
 }
+
+export type RelationInput = Readonly<{
+  operation: OperationId
+  workspace: WorkspaceId
+  target: TenantId
+}>
 
 export interface WorkspaceInstances<P> {
   /** One more materialisation: only when the type admits it and someone asks. */

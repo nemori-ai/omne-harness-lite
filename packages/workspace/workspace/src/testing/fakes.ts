@@ -64,12 +64,14 @@ export type FakeAuthority = WorkspaceAuthority<string> &
   Readonly<{
     standingIs(rule: (access: Access<string>) => StandingAnswer): void
     admits(rule: Rule<AdmitAnswer>): void
+    tenantIs(rule: (tenant: TenantId) => StandingAnswer): void
     asked(): readonly Readonly<{ action: WorkspaceAction; target: string }>[]
   }>
 
 export function fakeAuthority(): FakeAuthority {
   let standing: (access: Access<string>) => StandingAnswer = () => 'member'
   let admit: Rule<AdmitAnswer> = () => 'allowed'
+  let known: (tenant: TenantId) => StandingAnswer = () => 'member'
   const asked: { action: WorkspaceAction; target: string }[] = []
   return {
     standingIs(rule) {
@@ -78,7 +80,15 @@ export function fakeAuthority(): FakeAuthority {
     admits(rule) {
       admit = rule
     },
+    tenantIs(rule) {
+      known = rule
+    },
     asked: () => asked,
+    async isTenant(target) {
+      const answer = known(target)
+      if (answer === 'throw') throw new Error('standing source is down')
+      return answer
+    },
     async standing(caller) {
       const answer = standing(caller)
       if (answer === 'throw') throw new Error('standing source is down')

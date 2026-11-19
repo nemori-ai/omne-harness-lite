@@ -14,7 +14,7 @@ import type {
   TypeName,
 } from '@omne-harness/workspace-contract'
 import type { QueryRows, SqlValue } from '@omne-harness/sql-contract/worker'
-import { ROW_LIMIT } from './schema.ts'
+import { ROW_LIMIT, SOURCES_TABLE } from './schema.ts'
 
 /** What both the participant and the read handler are given: one statement at a time, inside one transaction. */
 export type SqlPort = Readonly<{ execute(sql: string, params: readonly SqlValue[]): QueryRows }>
@@ -72,6 +72,9 @@ const one = <T>(rows: QueryRows['rows'], read: (row: Row) => T): T | null =>
 
 const WORKSPACE = 'SELECT workspace, type, revision FROM ws_workspaces WHERE workspace = ?'
 const RELATION = 'SELECT role, super_admin FROM ws_relations WHERE workspace = ? AND tenant = ?'
+const SOURCE = `SELECT count FROM ${SOURCES_TABLE}`
+const BUMP = `INSERT INTO ${SOURCES_TABLE} (workspace, tenant, count)`
+const COUNTED = 'ON CONFLICT(workspace, tenant) DO UPDATE SET count = count + 1'
 
 export function sqlTxn(port: SqlPort): WorkspaceTxn {
   const run = (sql: string, params: readonly SqlValue[]) => void port.execute(sql, params)
@@ -117,6 +120,19 @@ export function sqlTxn(port: SqlPort): WorkspaceTxn {
           relation.role === 'participant' && relation.superAdmin ? 1 : 0,
         ],
       ),
+    endRelation: (workspace, tenant) =>
+      run('DELETE FROM ws_relations WHERE workspace = ? AND tenant = ?', [workspace, tenant]),
+    endRelations: workspace => run('DELETE FROM ws_relations WHERE workspace = ?', [workspace]),
+    sourceRevision: (workspace, tenant) =>
+      one(select(port, `${SOURCE} WHERE workspace = ? AND tenant = ?`, [workspace, tenant]), row =>
+        count(row[0]),
+      ) ?? 0,
+    bumpSource: (workspace, tenant) =>
+      run(`${BUMP} VALUES (?, ?, 1) ${COUNTED}`, [workspace, tenant]),
+    bumpSources: workspace =>
+      run(`${BUMP} SELECT workspace, tenant, 1 FROM ws_relations WHERE workspace = ? ${COUNTED}`, [
+        workspace,
+      ]),
     instance: instance =>
       one(select(port, `${INSTANCE} WHERE instance = ?`, [instance]), instanceOf),
     occupant: (node, occupancy) =>
@@ -145,6 +161,8 @@ export function sqlTxn(port: SqlPort): WorkspaceTxn {
         state === 'active' ? 1 : 0,
         instance,
       ]),
+    dissociateInstances: workspace =>
+      run('UPDATE ws_instances SET active = 0 WHERE workspace = ? AND active = 1', [workspace]),
   }
 }
 

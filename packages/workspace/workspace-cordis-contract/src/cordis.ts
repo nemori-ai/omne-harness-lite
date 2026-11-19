@@ -18,6 +18,12 @@ export abstract class WorkspaceGovernanceService
   }
 
   abstract readonly register: WorkspaceGovernance<unknown>['register']
+  abstract readonly grantParticipation: WorkspaceGovernance<unknown>['grantParticipation']
+  abstract readonly grantAdmin: WorkspaceGovernance<unknown>['grantAdmin']
+  abstract readonly revokeAdmin: WorkspaceGovernance<unknown>['revokeAdmin']
+  abstract readonly remove: WorkspaceGovernance<unknown>['remove']
+  abstract readonly leave: WorkspaceGovernance<unknown>['leave']
+  abstract readonly destroy: WorkspaceGovernance<unknown>['destroy']
   abstract readonly operation: WorkspaceGovernance<unknown>['operation']
 }
 export const workspaceGovernanceKey = WorkspaceGovernanceService.provide

@@ -62,8 +62,11 @@ export function createSqlWorkspaceStore(options: WorkspaceSqlOptions): Workspace
     register: command => commit('register', command),
     associate: command => commit('associate', command),
     dissociate: command => commit('dissociate', command),
+    govern: command => commit('govern', command),
+    destroy: command => commit('destroy', command),
     state: (tenant, workspace) => read('state', tenant, workspace),
     memberships: tenant => read('memberships', tenant),
     operation: (tenant, operation) => read('operation', tenant, operation),
+    sourceRevision: (tenant, workspace) => read('source-revision', tenant, workspace),
   }
 }

@@ -1,5 +1,11 @@
 import type { Relation } from '@omne-harness/workspace-contract'
 import type {
+  DestroyCommand,
+  DestroyResult,
+  RelationCommand,
+  RelationResult,
+} from './transactions/governance.ts'
+import type {
   AssociateCommand,
   AssociateResult,
   DissociateCommand,
@@ -28,9 +34,12 @@ export interface WorkspaceStore {
   register(command: RegisterCommand): Promise<StoreAnswer<RegisterResult>>
   associate(command: AssociateCommand): Promise<StoreAnswer<AssociateResult>>
   dissociate(command: DissociateCommand): Promise<StoreAnswer<DissociateResult>>
+  govern(command: RelationCommand): Promise<StoreAnswer<RelationResult>>
+  destroy(command: DestroyCommand): Promise<StoreAnswer<DestroyResult>>
 
   /** Null without a relation, whether or not the workspace exists. */
   state(tenant: string, workspace: string): Promise<StoreRead<WorkspaceState | null>>
   memberships(tenant: string): Promise<StoreRead<readonly Membership[]>>
   operation(tenant: string, operation: string): Promise<StoreRead<OperationRecord | null>>
+  sourceRevision(tenant: string, workspace: string): Promise<StoreRead<number>>
 }

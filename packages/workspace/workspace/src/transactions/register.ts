@@ -25,6 +25,7 @@ export function registerWorkspace(txn: WorkspaceTxn, command: RegisterCommand): 
       return { kind: 'not-performed', reason: reason('occupied') }
     txn.insertWorkspace({ workspace, type, revision: 1 })
     txn.putRelation(workspace, tenant, { role: 'owner' })
+    txn.bumpSource(workspace, tenant)
     txn.insertInstance({ instance, workspace, node, occupancy, address, material, state: 'active' })
     return { kind: 'done', value: { workspace, instance, type }, changed: true }
   })

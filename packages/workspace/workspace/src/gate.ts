@@ -3,6 +3,7 @@ import {
   tenantCodec,
   workspaceCodec,
   type Access,
+  type TenantId,
   type WorkspaceId,
 } from '@omne-harness/legal-identity'
 import type {
@@ -31,8 +32,26 @@ export type Blocked = NotPermitted | Unavailable
 
 /** The tenant as the stored facts name it. A tenant that was not parsed is not a tenant. */
 export function tenantText<P>(access: Access<P>): string | null {
-  const encoded = tenantCodec.encode(access.tenant)
+  return textOfTenant(access.tenant)
+}
+
+export function textOfTenant(tenant: TenantId): string | null {
+  const encoded = tenantCodec.encode(tenant)
   return encoded.ok ? encoded.value : null
+}
+
+/** Null when the target is a tenant that could take part. */
+export async function knownTenant<P>(
+  authority: WorkspaceAuthority<P>,
+  target: TenantId,
+): Promise<Blocked | null> {
+  try {
+    const answer = await authority.isTenant(target)
+    if (answer === 'unavailable') return unavailable('target')
+    return answer === 'not-member' ? NOT_PERMITTED : null
+  } catch {
+    return unavailable('target')
+  }
 }
 
 export function workspaceText(workspace: WorkspaceId): string | null {

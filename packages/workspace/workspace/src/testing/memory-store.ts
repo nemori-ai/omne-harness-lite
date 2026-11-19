@@ -1,5 +1,6 @@
 import type { Relation } from '@omne-harness/workspace-contract'
 import type { Membership, StoreAnswer, StoreRead, WorkspaceStore } from '../store.ts'
+import { changeRelation, destroyWorkspace } from '../transactions/governance.ts'
 import { associateInstance, dissociateInstance } from '../transactions/instances.ts'
 import { registerWorkspace } from '../transactions/register.ts'
 import type { InstanceRecord, OperationRecord, WorkspaceRecord, WorkspaceTxn } from '../txn.ts'
@@ -10,6 +11,7 @@ export type WorkspaceFacts = {
   relations: Map<string, Relation>
   instances: Map<string, InstanceRecord>
   operations: Map<string, OperationRecord>
+  sources: Map<string, number>
 }
 
 export const emptyFacts = (): WorkspaceFacts => ({
@@ -17,11 +19,15 @@ export const emptyFacts = (): WorkspaceFacts => ({
   relations: new Map(),
   instances: new Map(),
   operations: new Map(),
+  sources: new Map(),
 })
 
 const pair = (left: string, right: string) => JSON.stringify([left, right])
 
 export function memoryTxn(facts: WorkspaceFacts): WorkspaceTxn {
+  const related = (workspace: string): string[] =>
+    [...facts.relations.keys()].filter(key => (JSON.parse(key) as string[])[0] === workspace)
+  const bump = (key: string) => void facts.sources.set(key, (facts.sources.get(key) ?? 0) + 1)
   return {
     operation: (tenant, operation) => facts.operations.get(pair(tenant, operation)) ?? null,
     insertOperation(record) {
@@ -38,6 +44,11 @@ export function memoryTxn(facts: WorkspaceFacts): WorkspaceTxn {
     putRelation(workspace, tenant, relation) {
       facts.relations.set(pair(workspace, tenant), relation)
     },
+    endRelation: (workspace, tenant) => void facts.relations.delete(pair(workspace, tenant)),
+    endRelations: workspace => related(workspace).forEach(key => facts.relations.delete(key)),
+    sourceRevision: (workspace, tenant) => facts.sources.get(pair(workspace, tenant)) ?? 0,
+    bumpSource: (workspace, tenant) => bump(pair(workspace, tenant)),
+    bumpSources: workspace => related(workspace).forEach(bump),
     instance: instance => facts.instances.get(instance) ?? null,
     occupant: (node, occupancy) =>
       [...facts.instances.values()].find(
@@ -49,6 +60,11 @@ export function memoryTxn(facts: WorkspaceFacts): WorkspaceTxn {
     },
     setInstanceState(instance, state) {
       facts.instances.set(instance, { ...facts.instances.get(instance)!, state })
+    },
+    dissociateInstances(workspace) {
+      for (const record of facts.instances.values())
+        if (record.workspace === workspace)
+          facts.instances.set(record.instance, { ...record, state: 'dissociated' })
     },
   }
 }
@@ -71,6 +87,7 @@ export function createMemoryStore(): MemoryStore {
     relations: new Map(facts.relations),
     instances: new Map(facts.instances),
     operations: new Map(facts.operations),
+    sources: new Map(facts.sources),
   })
 
   async function commit<C, R>(
@@ -110,6 +127,8 @@ export function createMemoryStore(): MemoryStore {
     register: command => commit(registerWorkspace, command),
     associate: command => commit(associateInstance, command),
     dissociate: command => commit(dissociateInstance, command),
+    govern: command => commit(changeRelation, command),
+    destroy: command => commit(destroyWorkspace, command),
     state: async (tenant, workspace) =>
       read(() => {
         const found = membership(tenant, workspace)
@@ -128,5 +147,7 @@ export function createMemoryStore(): MemoryStore {
       ),
     operation: async (tenant, operation) =>
       read(() => facts.operations.get(pair(tenant, operation)) ?? null),
+    sourceRevision: async (tenant, workspace) =>
+      read(() => facts.sources.get(pair(workspace, tenant)) ?? 0),
   }
 }

@@ -3,6 +3,7 @@ import type { StoreAnswer, StoreRead, WorkspaceStore } from '@omne-harness/works
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { SqlValue } from '@omne-harness/sql-contract/worker'
 import migration from '../../src/storage/migration.ts'
+import sources from '../../src/storage/migration-sources.ts'
 import participant from '../../src/storage/participant.ts'
 import reader from '../../src/storage/read.ts'
 
@@ -32,6 +33,7 @@ export type InProcessStore = WorkspaceStore & Readonly<{ db: DatabaseSync }>
 export function createInProcessStore(): InProcessStore {
   const db = new DatabaseSync(':memory:')
   migration.up(portOf(db))
+  sources.up(portOf(db))
 
   async function commit<T>(script: string, command: unknown): Promise<StoreAnswer<T>> {
     db.exec('BEGIN')
@@ -62,8 +64,11 @@ export function createInProcessStore(): InProcessStore {
     register: command => commit('register', command),
     associate: command => commit('associate', command),
     dissociate: command => commit('dissociate', command),
+    govern: command => commit('govern', command),
+    destroy: command => commit('destroy', command),
     state: (tenant, workspace) => read('state', tenant, workspace),
     memberships: tenant => read('memberships', tenant),
     operation: (tenant, operation) => read('operation', tenant, operation),
+    sourceRevision: (tenant, workspace) => read('source-revision', tenant, workspace),
   }
 }

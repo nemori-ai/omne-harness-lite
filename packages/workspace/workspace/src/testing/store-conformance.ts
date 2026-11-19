@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import type { InstanceId, Json, TypeName } from '@omne-harness/workspace-contract'
 import type { WorkspaceStore } from '../store.ts'
+import type { RelationCommand } from '../transactions/governance.ts'
 import type { AssociateCommand } from '../transactions/instances.ts'
 import type { RegisterCommand } from '../transactions/register.ts'
 
@@ -59,6 +60,31 @@ const read = <T>(answer: { kind: string; value?: T }): T => {
   assert.equal(answer.kind, 'read', JSON.stringify(answer))
   return answer.value as T
 }
+
+const DONE = { kind: 'done', value: null, changed: true }
+const SAME = { kind: 'done', value: null, changed: false }
+const DENIED = { kind: 'not-permitted' }
+
+/** A change to a relation of wsp_1 by alice, on bob unless said otherwise. */
+const change = (
+  operation: string,
+  kind: RelationCommand['change'],
+  over: Partial<RelationCommand> = {},
+): RelationCommand => ({
+  tenant: 'alice',
+  digest: `d-${operation}`,
+  workspace: 'wsp_1',
+  target: 'bob',
+  ...over,
+  operation,
+  change: kind,
+})
+const destroy = (operation: string, tenant = 'alice', workspace = 'wsp_1') => ({
+  tenant,
+  operation,
+  digest: `d-${operation}`,
+  workspace,
+})
 
 /** What every implementation of the repository does the same way. */
 export const storeConformanceCases: readonly StoreConformanceCase[] = [
@@ -221,6 +247,140 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         },
       )
       assert.equal(read(await store.state('alice', 'wsp_1'))?.workspace.revision, 2)
+    },
+  },
+  {
+    name: 'granting participation relates the target, counts for it alone, and is done once',
+    async run(make) {
+      const store = await make()
+      committed(await store.register(register()))
+      assert.equal(read(await store.sourceRevision('alice', 'wsp_1')), 1)
+      assert.equal(read(await store.sourceRevision('bob', 'wsp_1')), 0)
+      const grant = change('g1', 'grant-participation')
+      assert.deepEqual(committed(await store.govern(grant)), DONE)
+      assert.deepEqual(read(await store.state('bob', 'wsp_1'))?.relation, {
+        role: 'participant',
+        superAdmin: false,
+      })
+      assert.equal(read(await store.state('bob', 'wsp_1'))?.workspace.revision, 2)
+      assert.equal(read(await store.sourceRevision('bob', 'wsp_1')), 1)
+      assert.equal(read(await store.sourceRevision('alice', 'wsp_1')), 1)
+      assert.equal(read(await store.sourceRevision('carol', 'wsp_1')), 0)
+      assert.deepEqual(committed(await store.govern(grant)), SAME)
+      assert.deepEqual(committed(await store.govern(change('g2', 'grant-participation'))), SAME)
+      assert.equal(read(await store.sourceRevision('bob', 'wsp_1')), 1)
+      assert.equal(read(await store.state('bob', 'wsp_1'))?.workspace.revision, 2)
+      assert.equal(read(await store.operation('alice', 'g1'))?.kind, 'grant-participation')
+      assert.deepEqual(committed(await store.govern({ ...grant, change: 'remove' })), {
+        kind: 'conflict',
+      })
+    },
+  },
+  {
+    name: 'a relation changes as the policy decides: super-admin given and taken, a participant removed, one that leaves',
+    async run(make) {
+      const store = await make()
+      committed(await store.register(register()))
+      committed(await store.govern(change('g1', 'grant-participation')))
+      committed(await store.govern(change('g2', 'grant-participation', { target: 'carol' })))
+      assert.deepEqual(committed(await store.govern(change('a1', 'grant-admin'))), DONE)
+      assert.deepEqual(read(await store.state('bob', 'wsp_1'))?.relation, {
+        role: 'participant',
+        superAdmin: true,
+      })
+      const byBob = { tenant: 'bob', target: 'carol' }
+      assert.deepEqual(committed(await store.govern(change('b1', 'grant-admin', byBob))), DENIED)
+      assert.deepEqual(committed(await store.govern(change('b2', 'remove', byBob))), DONE)
+      assert.equal(read(await store.state('carol', 'wsp_1')), null)
+      assert.deepEqual(read(await store.memberships('carol')), [])
+      assert.equal(read(await store.sourceRevision('carol', 'wsp_1')), 2)
+      assert.deepEqual(committed(await store.govern(change('a2', 'revoke-admin'))), DONE)
+      assert.deepEqual(read(await store.state('bob', 'wsp_1'))?.relation, {
+        role: 'participant',
+        superAdmin: false,
+      })
+      const leaving = change('b3', 'leave', { tenant: 'bob', target: 'alice' })
+      assert.deepEqual(committed(await store.govern(leaving)), DONE)
+      assert.equal(read(await store.state('bob', 'wsp_1')), null)
+      assert.deepEqual(read(await store.state('alice', 'wsp_1'))?.relation, { role: 'owner' })
+      assert.equal(read(await store.sourceRevision('bob', 'wsp_1')), 4)
+      assert.equal(read(await store.sourceRevision('alice', 'wsp_1')), 1)
+    },
+  },
+  {
+    name: 'what the policy refuses changes nothing, and a workspace that is not there is refused the same way',
+    async run(make) {
+      const store = await make()
+      committed(await store.register(register()))
+      const stranger = { tenant: 'mallory', target: 'mallory' }
+      for (const answer of [
+        await store.govern(change('m1', 'grant-participation', stranger)),
+        await store.govern(change('m2', 'grant-participation', { workspace: 'wsp_none' })),
+        await store.govern(change('m3', 'remove', { target: 'alice' })),
+        await store.govern(change('m4', 'leave')),
+        await store.destroy(destroy('m5', 'mallory')),
+        await store.destroy(destroy('m6', 'alice', 'wsp_none')),
+      ])
+        assert.deepEqual(committed(answer), DENIED)
+      assert.deepEqual(committed(await store.govern(change('m7', 'grant-admin'))), {
+        kind: 'not-performed',
+        reason: 'not-a-participant',
+      })
+      assert.equal(read(await store.state('mallory', 'wsp_1')), null)
+      assert.equal(read(await store.state('alice', 'wsp_1'))?.workspace.revision, 1)
+      assert.equal(read(await store.operation('alice', 'm7')), null)
+      assert.equal(read(await store.sourceRevision('bob', 'wsp_1')), 0)
+    },
+  },
+  {
+    name: 'destroying ends every relation and every association in one commit, counts for each tenant, and is done once',
+    async run(make) {
+      const store = await make()
+      committed(await store.register(register()))
+      committed(await store.register(second()))
+      committed(await store.govern(change('g1', 'grant-participation')))
+      committed(await store.associate(associate({ revision: 2 })))
+      assert.deepEqual(committed(await store.destroy(destroy('x1'))), DONE)
+      assert.equal(read(await store.state('alice', 'wsp_1')), null)
+      assert.equal(read(await store.state('bob', 'wsp_1')), null)
+      assert.deepEqual(
+        read(await store.memberships('alice')).map(found => found.workspace.workspace),
+        ['wsp_2'],
+      )
+      assert.equal(read(await store.sourceRevision('alice', 'wsp_1')), 2)
+      assert.equal(read(await store.sourceRevision('bob', 'wsp_1')), 2)
+      assert.equal(read(await store.sourceRevision('alice', 'wsp_2')), 1)
+      assert.equal(read(await store.state('alice', 'wsp_2'))?.instances.length, 1)
+      assert.deepEqual(committed(await store.destroy(destroy('x1'))), SAME)
+      assert.deepEqual(committed(await store.destroy(destroy('x2'))), DENIED)
+      const first = register({
+        operation: 'r9',
+        digest: 'd-r9',
+        workspace: 'wsp_9',
+        instance: instance('9'),
+      })
+      assert.equal(committed(await store.register(first)).kind, 'done')
+      const freed = second({
+        operation: 'r8',
+        digest: 'd-r8',
+        workspace: 'wsp_8',
+        instance: instance('8'),
+        occupancy: '/c',
+        address: '/c',
+      })
+      assert.equal(committed(await store.register(freed)).kind, 'done')
+    },
+  },
+  {
+    name: 'a super-admin destroys; a participant does not',
+    async run(make) {
+      const store = await make()
+      committed(await store.register(register()))
+      committed(await store.govern(change('g1', 'grant-participation')))
+      assert.deepEqual(committed(await store.destroy(destroy('x1', 'bob'))), DENIED)
+      committed(await store.govern(change('a1', 'grant-admin')))
+      assert.deepEqual(committed(await store.destroy(destroy('x2', 'bob'))), DONE)
+      assert.equal(read(await store.state('alice', 'wsp_1')), null)
     },
   },
 ]

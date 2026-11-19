@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commandUnrecognized, notLoggedIn } from './support/expected.ts'
 import {
   defaultAnswer,
+  otherTenantText,
   startFakeService,
   tenantText,
   type Answer,
@@ -175,6 +176,87 @@ describe('omne workspace list and show', () => {
   })
 })
 
+describe('omne workspace: who takes part, leaving and destroying', () => {
+  const OTHER = otherTenantText
+  const none: Answer = { outcome: 'succeeded', body: {} }
+  const changes = [
+    ['grant', 'grant-participation'],
+    ['grant-admin', 'grant-admin'],
+    ['revoke-admin', 'revoke-admin'],
+    ['remove', 'remove'],
+  ] as const
+
+  it.each(changes)(
+    '%s sends %s with the workspace, the target and a new operation name',
+    async (action, operation) => {
+      const service = await serve({ [operation]: none })
+      const result = await cli(['workspace', action, WORKSPACE, OTHER])
+      expect([result.code, result.stderr]).toEqual([0, ''])
+      const [call] = sent(service, operation)
+      expect(call?.body).toEqual({
+        tenant: tenantText,
+        operation: call?.body['operation'],
+        workspace: WORKSPACE,
+        target: OTHER,
+      })
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        outcome: 'succeeded',
+        request: { tenant: tenantText, operation: call?.body['operation'] },
+      })
+    },
+  )
+
+  it('leave names the workspace alone', async () => {
+    const service = await serve({ leave: none })
+    expect((await cli(['workspace', 'leave', WORKSPACE])).code).toBe(0)
+    expect(sent(service, 'leave')[0]?.body).toEqual({
+      tenant: tenantText,
+      operation: expect.any(String),
+      workspace: WORKSPACE,
+    })
+  })
+
+  it('destroy says what it does and sends nothing until --yes is given', async () => {
+    const service = await serve({ destroy: none })
+    const asked = await cli(['workspace', 'destroy', WORKSPACE])
+    expect(asked.code).toBe(2)
+    expect(asked.stderr).toBe(
+      'omne workspace destroy: this ends the registration and every relation of the workspace; its directories are not deleted. To do it, run it again with --yes\n',
+    )
+    expect(sent(service, 'destroy')).toEqual([])
+    expect((await cli(['workspace', 'destroy', WORKSPACE, '--yes'])).code).toBe(0)
+    expect(sent(service, 'destroy')[0]?.body).toMatchObject({ workspace: WORKSPACE })
+  })
+
+  it('resumed, a change asks its own query first and commits only what was not committed', async () => {
+    const service = await serve({ 'query-remove': none, remove: none })
+    await cli(['workspace', 'remove', WORKSPACE, OTHER, '--resume', 'op-9'])
+    expect(sent(service, 'query-remove').map(seen => seen.body)).toEqual([
+      { tenant: tenantText, operation: 'op-9', workspace: WORKSPACE, target: OTHER },
+    ])
+    expect(sent(service, 'remove')).toEqual([])
+    const open = await serve({
+      'query-leave': { outcome: 'not-committed', body: {} },
+      leave: none,
+    })
+    await cli(['workspace', 'leave', WORKSPACE, '--resume', 'op-9'])
+    expect(sent(open, 'leave').map(seen => seen.body['operation'])).toEqual(['op-9'])
+  })
+
+  it('a refusal carries its reason and exits 3; an uncertain result names the operation', async () => {
+    await serve({ 'grant-admin': { outcome: 'invalid', body: { reason: 'not-a-participant' } } })
+    const refused = await cli(['workspace', 'grant-admin', WORKSPACE, OTHER])
+    expect(refused.code).toBe(3)
+    expect(JSON.parse(refused.stdout).body).toEqual({ reason: 'not-a-participant' })
+    const service = await serve({ leave: { outcome: 'unknown', body: {} } })
+    const lost = await cli(['workspace', 'leave', WORKSPACE])
+    expect(lost.code).toBe(5)
+    expect(lost.stderr).toContain(
+      `run it again with --resume ${String(sent(service, 'leave')[0]?.body['operation'])}`,
+    )
+  })
+})
+
 describe('what omne workspace refuses before it sends anything', () => {
   it.each([
     [['register']],
@@ -184,8 +266,15 @@ describe('what omne workspace refuses before it sends anything', () => {
     [['list', 'extra']],
     [['show']],
     [['show', WORKSPACE, '--type', 'git']],
-    [['destroy', WORKSPACE]],
+    [['associate', WORKSPACE, '/a']],
     [['constructor']],
+    [['grant', WORKSPACE]],
+    [['grant', WORKSPACE, 'nobody']],
+    [['remove', WORKSPACE, '--resume', 'op-1']],
+    [['leave']],
+    [['leave', WORKSPACE, '--yes']],
+    [['destroy']],
+    [['destroy', '--yes']],
   ])('%j is a usage error', async args => {
     const service = await serve()
     const result = await cli(['workspace', ...args])
@@ -204,7 +293,7 @@ describe('what omne workspace refuses before it sends anything', () => {
 
   it('names the subcommand that was not recognized', async () => {
     await serve()
-    expect((await cli(['workspace', 'destroy'])).stderr).toBe(commandUnrecognized('workspace'))
+    expect((await cli(['workspace', 'associate'])).stderr).toBe(commandUnrecognized('workspace'))
     expect((await cli(['workspace', 'register', '--type', 'git'])).stderr).toBe(
       commandUnrecognized('workspace register'),
     )

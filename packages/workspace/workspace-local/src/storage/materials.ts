@@ -5,7 +5,15 @@ import type {
   ParticipantDescriptor,
   ReadHandlerDescriptor,
 } from '@omne-harness/sql-contract'
-import { HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, ROW_LIMIT, TABLES } from './schema.ts'
+import {
+  ALL_TABLES,
+  HANDLER,
+  MIGRATION,
+  PARTICIPANT,
+  PROTOCOL,
+  ROW_LIMIT,
+  SOURCES_MIGRATION,
+} from './schema.ts'
 
 export type WorkspaceSqlMaterials = Readonly<{
   participants: readonly ParticipantDescriptor[]
@@ -24,6 +32,7 @@ function file(name: string) {
 export function workspaceSqlMaterials(): WorkspaceSqlMaterials {
   const participant = file('participant')
   const migration = file('migration')
+  const sources = file('migration-sources')
   const reader = file('read')
   return {
     participants: [
@@ -32,7 +41,7 @@ export function workspaceSqlMaterials(): WorkspaceSqlMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: TABLES,
+        ownedTables: ALL_TABLES,
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -42,6 +51,12 @@ export function workspaceSqlMaterials(): WorkspaceSqlMaterials {
     ],
     migrations: [
       { ...MIGRATION, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
+      {
+        ...SOURCES_MIGRATION,
+        moduleUrl: sources.moduleUrl,
+        checksum: sources.digest,
+        requires: [MIGRATION],
+      },
     ],
     readHandlers: [
       {
@@ -50,8 +65,8 @@ export function workspaceSqlMaterials(): WorkspaceSqlMaterials {
         moduleUrl: reader.moduleUrl,
         codeDigest: reader.digest,
         ordering: 'snapshot',
-        readTables: TABLES,
-        requiresMigrations: [MIGRATION],
+        readTables: ALL_TABLES,
+        requiresMigrations: [MIGRATION, SOURCES_MIGRATION],
         maxRowsRead: 4 * ROW_LIMIT,
         maxOutputBytes: 8 * 1024 * 1024,
       },

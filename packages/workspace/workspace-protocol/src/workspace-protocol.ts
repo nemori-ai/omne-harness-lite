@@ -54,6 +54,22 @@ const commit = {
   countsAsAccess: true,
 } as const
 
+const changeFields = { ...ofTenant, operation: { rule: text }, workspace: { rule: text } } as const
+const changes = <const F extends Fields>(fields: F) => ({
+  change: {
+    ...commit,
+    body: ruleCodec(object(fields)),
+    outcomes: { succeeded: none, 'no-change': none, invalid: refused, conflict: none },
+  },
+  query: {
+    ...read,
+    body: ruleCodec(object(fields)),
+    outcomes: { succeeded: none, 'not-committed': none },
+  },
+})
+const onTarget = changes({ ...changeFields, target: { rule: tenant } })
+const onSelf = changes(changeFields)
+
 /** A commit names itself with `operation`: after `unknown`, the query with the same body says what was done. */
 export const workspaceProtocol = defineProtocol({
   name: 'workspace',
@@ -86,6 +102,18 @@ export const workspaceProtocol = defineProtocol({
       body: ruleCodec(object({ ...ofTenant, workspace: { rule: text } })),
       outcomes: { succeeded: ruleCodec(view), 'not-found': none },
     },
+    'grant-participation': onTarget.change,
+    'query-grant-participation': onTarget.query,
+    'grant-admin': onTarget.change,
+    'query-grant-admin': onTarget.query,
+    'revoke-admin': onTarget.change,
+    'query-revoke-admin': onTarget.query,
+    remove: onTarget.change,
+    'query-remove': onTarget.query,
+    leave: onSelf.change,
+    'query-leave': onSelf.query,
+    destroy: onSelf.change,
+    'query-destroy': onSelf.query,
   },
   observations: {},
 })

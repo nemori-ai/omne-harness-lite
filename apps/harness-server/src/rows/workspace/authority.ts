@@ -37,6 +37,7 @@ export function createWorkspaceAuthority(ports: IdentityPorts): WorkspaceAuthori
       const reading = await standing.read({ tenant: access.tenant })
       return reading.kind
     },
+    isTenant: async tenant => (await standing.read({ tenant })).kind,
     async admit(access, action, target) {
       const decision = await admission.check({
         access: access as Access<Principal>,

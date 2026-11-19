@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import { workspaceAccessRow } from '../../../src/rows/workspace-access/index.ts'
 import { rowManifests } from '../../../src/s0/stubs.ts'
-import { runOmne } from '../../r9/support.ts'
+import { runOmne, savedTenant } from '../../r9/support.ts'
 import {
   onReleaseTreeRuns,
   toolCallsThenText,
@@ -57,7 +57,8 @@ async function stranger(tree: ReleaseTree) {
         })
       ).status,
     ).toBe(0)
-  return (args: readonly string[]) => runOmne({ args, home, server, cwd: base })
+  const run = (args: readonly string[]) => runOmne({ args, home, server, cwd: base })
+  return Object.assign(run, { tenant: savedTenant(home) })
 }
 
 describe('workspace and workspace-access rows', () => {
@@ -154,6 +155,83 @@ describe('workspace and workspace-access rows', () => {
         },
       ])
       expect(exitCodes).toEqual([0, 0])
+      expect(digestOf(root)).toBe(before)
+    },
+  )
+
+  it(
+    'let another tenant take part, end that, and destroy: the directory stays and can be registered again',
+    { tags: ['slow'], timeout: 360_000 },
+    async () => {
+      const root = join(realpathSync(mkdtempSync(join(tmpdir(), 'workspace-governed-'))), 'shop')
+      mkdirSync(root, { recursive: true })
+      writeFileSync(join(root, 'README.md'), '# shop\n')
+      const before = digestOf(root)
+
+      const exitCodes = await onReleaseTreeRuns({ script: toolCallsThenText(() => []) }, [
+        async tree => {
+          const made = replyOf((await tree.cli(['workspace', 'register', root])).stdout)
+          const workspace = String(made.body['workspace'])
+          const frank = await stranger(tree)
+          const standing = async (run: typeof frank | typeof tree.cli) =>
+            (
+              replyOf((await run(['workspace', 'list'])).stdout).body['workspaces'] as {
+                standing: string
+              }[]
+            ).map(found => found.standing)
+
+          const granted = await tree.cli(['workspace', 'grant', workspace, frank.tenant])
+          expect([granted.status, replyOf(granted.stdout).outcome]).toEqual([0, 'succeeded'])
+          expect(await standing(frank)).toEqual(['participant'])
+          const again = await tree.cli(['workspace', 'grant', workspace, frank.tenant])
+          expect(replyOf(again.stdout).outcome).toBe('no-change')
+          const resumed = await tree.cli([
+            'workspace',
+            'grant',
+            workspace,
+            frank.tenant,
+            '--resume',
+            replyOf(granted.stdout).request['operation']!,
+          ])
+          expect(replyOf(resumed.stdout).outcome).toBe('succeeded')
+
+          const reaching = await frank(['workspace', 'grant-admin', workspace, frank.tenant])
+          expect([reaching.status, replyOf(reaching.stdout).outcome]).toEqual([3, 'denied'])
+          await tree.cli(['workspace', 'grant-admin', workspace, frank.tenant])
+          expect(await standing(frank)).toEqual(['admin'])
+          await tree.cli(['workspace', 'revoke-admin', workspace, frank.tenant])
+          expect(await standing(frank)).toEqual(['participant'])
+
+          const removed = await tree.cli(['workspace', 'remove', workspace, frank.tenant])
+          expect(replyOf(removed.stdout).outcome).toBe('succeeded')
+          expect(await standing(frank)).toEqual([])
+          const hidden = await frank(['workspace', 'show', workspace])
+          expect(replyOf(hidden.stdout).outcome).toBe('not-found')
+
+          await tree.cli(['workspace', 'grant', workspace, frank.tenant])
+          expect(replyOf((await frank(['workspace', 'leave', workspace])).stdout).outcome).toBe(
+            'succeeded',
+          )
+          expect(await standing(frank)).toEqual([])
+          await tree.cli(['workspace', 'grant', workspace, frank.tenant])
+
+          const asked = await tree.cli(['workspace', 'destroy', workspace])
+          expect(asked.status).toBe(2)
+          expect(await standing(tree.cli)).toEqual(['owner'])
+          const byFrank = await frank(['workspace', 'destroy', workspace, '--yes'])
+          expect(replyOf(byFrank.stdout).outcome).toBe('denied')
+          const destroyed = await tree.cli(['workspace', 'destroy', workspace, '--yes'])
+          expect([destroyed.status, replyOf(destroyed.stdout).outcome]).toEqual([0, 'succeeded'])
+          expect(await standing(tree.cli)).toEqual([])
+          expect(await standing(frank)).toEqual([])
+          expect(digestOf(root)).toBe(before)
+
+          const reborn = replyOf((await frank(['workspace', 'register', root])).stdout)
+          expect(reborn.outcome).toBe('succeeded')
+          expect(reborn.body['workspace']).not.toBe(workspace)
+        },
+      ])
+      expect(exitCodes).toEqual([0])
       expect(digestOf(root)).toBe(before)
     },
   )
