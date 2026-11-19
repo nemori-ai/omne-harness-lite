@@ -142,6 +142,42 @@ describe('what an activating call would do, for the release card', () => {
     expect(rows(instructed)['改成']).toBe('指令：改成每周一')
   })
 
+  it.each([
+    ['promote', '让草稿生效', true],
+    ['resume', '恢复', true],
+    ['stop', '结束', false],
+  ] as const)(
+    'names %s as %s, with next times only when it keeps running',
+    async (command, verb, runs) => {
+      const { signal } = reading(services([]))
+      const described = rows(await describing(command, { schedule: ID, revision: 3 }, signal))
+      expect(described['动作']).toBe(verb)
+      expect(described['接下来三次']).toEqual(runs ? ['2026-11-30 17:00'] : '这一动作之后不再执行')
+    },
+  )
+
+  it('keeps what the schedule read gave when only the preview fails, and the reverse', async () => {
+    const previewFails = services([])
+    ;(previewFails.queries as any).preview = async () => ({ kind: 'error', error: { code: 'x' } })
+    const named = rows(
+      await describing('resume', { schedule: ID, revision: 3 }, reading(previewFails).signal),
+    )
+    expect(named).toMatchObject({ 日程: '交月报', 规则: '每月最后一个工作日，17:00' })
+    expect(named['接下来三次']).toBe('取不到')
+    const readFails = services([])
+    const asked: unknown[] = []
+    ;(readFails.queries as any).get = async (_context: unknown, query: unknown) => {
+      asked.push(query)
+      return { kind: 'error', error: { code: 'x' } }
+    }
+    const unnamed = rows(
+      await describing('resume', { schedule: ID, revision: 3 }, reading(readFails).signal),
+    )
+    expect(unnamed).toMatchObject({ 日程: '未命名', 规则: '取不到' })
+    expect(unnamed['接下来三次']).toEqual(['2026-11-30 17:00'])
+    expect(asked).toEqual([{ scheduleId: ID }])
+  })
+
   it('says what it could not read instead of failing the detail', async () => {
     const service = services([])
     ;(service.queries as any).preview = async () => ({ kind: 'error', error: { code: 'x' } })

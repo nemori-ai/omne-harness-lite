@@ -57,6 +57,7 @@ describe('what a subscribe would set, shown on its release card', () => {
   })
 
   it.each([
+    [{ kind: 'all' }, { kind: 'standing' }, '全部', '一直有效'],
     [{ kind: 'subject', equals: 'repo/a' }, { kind: 'once' }, '对象是「repo/a」', '只收下一条'],
     [
       { kind: 'subject-prefix', prefix: 'repo/' },

@@ -738,7 +738,7 @@ async function walk(browser, origin, proofs, elsewhere) {
   )
   phase = 'ask'
   await step(
-    '一轮里并行的两次 Ask：对话页出现三张卡，两张问询一张请示，题号、等待提示与导航上的张数',
+    '一轮里并行的两次 Ask：对话页出现三张问询卡，题号、等待提示与导航上的张数',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'ask me')
     await press('button[type=submit]', '发送')
