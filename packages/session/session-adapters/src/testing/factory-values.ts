@@ -32,9 +32,3 @@ export function cancelBatchRow(root: CommonRoot, terminal: RunTerminal): History
       return row
   throw new Error('session double defect: a Run terminal without its SE26 row')
 }
-
-export function fieldOf(value: unknown, key: string): unknown {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? Object.entries(value).find(([name]) => name === key)?.[1]
-    : undefined
-}
