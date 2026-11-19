@@ -469,6 +469,12 @@ importers:
       '@omne-harness/mcp-ui':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-ui
+      '@omne-harness/model-protocol':
+        specifier: workspace:*
+        version: link:../../packages/model/model-protocol
+      '@omne-harness/model-ui':
+        specifier: workspace:*
+        version: link:../../packages/model/model-ui
       '@omne-harness/notification-protocol':
         specifier: workspace:*
         version: link:../../packages/notification/notification-protocol
@@ -3598,13 +3604,31 @@ importers:
 
   packages/model/model-ui:
     dependencies:
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
+      '@omne-harness/model-protocol':
+        specifier: workspace:*
+        version: link:../model-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
+    devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
-    devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

@@ -1,2 +1,7 @@
-// PACKAGE_TEMPLATE_DRAFT: Pure public functions/types for this mechanism.
-export {}
+export {
+  createModelChoices,
+  noteOf,
+  type ModelChoice,
+  type ModelChoiceListing,
+  type ModelChoices,
+} from './choices.ts'

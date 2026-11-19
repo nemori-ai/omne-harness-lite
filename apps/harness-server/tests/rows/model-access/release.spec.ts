@@ -88,7 +88,8 @@ describe('the release tree and the list of models (C20, C21, C22)', () => {
           throw new Error('the release lists fewer than two selectable models')
         const run = async (...argv: string[]) => {
           const ran = await tree.cli(argv)
-          return { status: ran.status, ...(JSON.parse(ran.stdout || '{}') as Record<string, any>) }
+          const said = JSON.parse(ran.stdout || '{}') as Record<string, any>
+          return { ...said, status: ran.status } as Record<string, any>
         }
         const created = await run('create-session', '--definition', 'coding', '--model', second)
         expect(created).toMatchObject({ status: 0, outcome: 'succeeded' })
@@ -106,7 +107,7 @@ describe('the release tree and the list of models (C20, C21, C22)', () => {
         })
         const refused = await run('create-session', '--definition', 'coding', '--model', 'no/such')
         expect(refused).toMatchObject({ outcome: 'invalid' })
-        expect(refused.status).not.toBe(0)
+        expect(refused['status']).not.toBe(0)
         // Without a model the session stands at what the deployment maps its definition to.
         const plain = await run('create-session', '--definition', 'coding')
         const mapped = await run('read-model-selection', '--session', String(plain['body'].session))
