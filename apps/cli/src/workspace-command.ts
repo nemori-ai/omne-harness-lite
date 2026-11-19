@@ -53,6 +53,55 @@ function parse(args: readonly string[]): Parsed | string {
     : unrecognized(`workspace ${action}`)
 }
 
+type Ready = Readonly<{
+  name: string
+  words: readonly string[]
+  values: Option
+  login: Extract<ReturnType<typeof loadLogin>, { kind: 'login' }>
+  messageId: string
+  output: CliOutput
+  newId: () => string
+}>
+
+/** A read answers once; what it answered is the report. `workspace` given, it is a describe. */
+async function read(ready: Ready, workspace?: string): Promise<ExitCode> {
+  const { name, login, messageId, output } = ready
+  const { tenant, link } = login
+  const result =
+    workspace === undefined
+      ? await link.call(workspaceProtocol, 'list', { tenant }, messageId)
+      : await link.call(workspaceProtocol, 'describe', { tenant, workspace }, messageId)
+  if (result === undefined) return usageError(output, unrecognized(name))
+  return report(name, result, { messageId, tenant: encodeTenantText(tenant) }, output)
+}
+
+/** Resumed, the query comes first: only an operation that was not committed is committed now. */
+async function register(ready: Ready): Promise<ExitCode> {
+  const { name, words, values, login, messageId, output } = ready
+  const { tenant, link } = login
+  const resumed = values.get('--resume')
+  const operation = resumed ?? ready.newId()
+  const type = values.get('--type')
+  const body = {
+    tenant,
+    operation,
+    address: addressOf(words[0] ?? ''),
+    ...(type === undefined ? {} : { type }),
+  }
+  const request = { messageId, tenant: encodeTenantText(tenant), operation }
+  if (resumed !== undefined) {
+    const known = await link.call(workspaceProtocol, 'query-register', body, messageId)
+    if (known === undefined) return usageError(output, unrecognized(name))
+    const open = known.kind === 'response' && known.outcome === 'not-committed'
+    if (!open) return report(name, known, request, output)
+  }
+  const result = await link.call(workspaceProtocol, 'register', body, messageId)
+  if (result === undefined) return usageError(output, unrecognized(name))
+  if (exitCodeOf(result) === 5)
+    output.stderr(`omne ${name}: to learn the result, run it again with --resume ${operation}\n`)
+  return report(name, result, request, output)
+}
+
 async function runWorkspace(
   args: readonly string[],
   output: CliOutput,
@@ -61,49 +110,20 @@ async function runWorkspace(
   const parsed = parse(args)
   if (typeof parsed === 'string') return usageError(output, parsed)
   const { action, words, values } = parsed
-  const name = `workspace ${action}`
-  const loaded = loadLogin(values, output, environment)
-  if (loaded.kind === 'exit') return loaded.code
-  const { tenant, link } = loaded
-  const messageId = environment.services.newId()
-  const echo = { messageId, tenant: encodeTenantText(tenant) }
-
-  if (action === 'list') {
-    const result = await link.call(workspaceProtocol, 'list', { tenant }, messageId)
-    return result === undefined
-      ? usageError(output, unrecognized(name))
-      : report(name, result, echo, output)
+  const login = loadLogin(values, output, environment)
+  if (login.kind === 'exit') return login.code
+  const { newId } = environment.services
+  const ready = {
+    name: `workspace ${action}`,
+    words,
+    values,
+    login,
+    messageId: newId(),
+    output,
+    newId,
   }
-  if (action === 'show') {
-    const body = { tenant, workspace: words[0] ?? '' }
-    const result = await link.call(workspaceProtocol, 'describe', body, messageId)
-    return result === undefined
-      ? usageError(output, unrecognized(name))
-      : report(name, result, echo, output)
-  }
-
-  const resumed = values.get('--resume')
-  const operation = resumed ?? environment.services.newId()
-  const type = values.get('--type')
-  const body = {
-    tenant,
-    operation,
-    address: addressOf(words[0] ?? ''),
-    ...(type === undefined ? {} : { type }),
-  }
-  const request = { ...echo, operation }
-  if (resumed !== undefined) {
-    const known = await link.call(workspaceProtocol, 'query-register', body, messageId)
-    if (known === undefined) return usageError(output, unrecognized(name))
-    const done = known.kind === 'response' && known.outcome === 'succeeded'
-    const open = known.kind === 'response' && known.outcome === 'not-committed'
-    if (done || !open) return report(name, known, request, output)
-  }
-  const result = await link.call(workspaceProtocol, 'register', body, messageId)
-  if (result === undefined) return usageError(output, unrecognized(name))
-  if (exitCodeOf(result) === 5)
-    output.stderr(`omne ${name}: to learn the result, run it again with --resume ${operation}\n`)
-  return report(name, result, request, output)
+  if (action === 'register') return register(ready)
+  return action === 'list' ? read(ready) : read(ready, words[0] ?? '')
 }
 
 export const workspaceCommand: CommandSpec = {
