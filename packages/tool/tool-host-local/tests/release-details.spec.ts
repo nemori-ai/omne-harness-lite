@@ -3,14 +3,14 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { close, createSchemaProvider } from '@omne-harness/schema-provider'
-import type { ToolAvailability } from '@omne-harness/tool-contract'
+import type { ToolAvailability, ToolReleaseDescriber } from '@omne-harness/tool-contract'
 import {
   DEFAULT_RELEASE_DETAIL_POLICY,
   defineCommandTool,
   defineFunctionTool,
   defineToolOperation,
   type ToolImplementationModule,
-  type ToolReleaseDescriber,
+  type ToolOperationParameters,
 } from '@omne-harness/tool-contract/provider'
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { createLocalReleaseDetails } from '@omne-harness/tool-host-local'
@@ -45,7 +45,13 @@ function operation(describeRelease?: ToolReleaseDescriber<Args>) {
   const definition = request().availability
   if (definition.kind !== 'available' || definition.definition.kind !== 'function')
     throw new Error('function fixture')
-  const made = defineToolOperation<Args, unknown, ContentBlock>({
+  const made = defineToolOperation<
+    Args,
+    unknown,
+    unknown,
+    ContentBlock,
+    Extract<ToolOperationParameters, { kind: 'declared' }>
+  >({
     parameters: { kind: 'declared', value: definition.definition.parameters },
     returns: ordinaryReturnFixture(adoption('codec')),
     author: {
