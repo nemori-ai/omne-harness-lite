@@ -9,6 +9,7 @@ const sessionSubject: PointCodec<SessionSubject> = {
 
 export const SESSION_DOCK = 'session.dock'
 export const SESSION_SIDE = 'session.side'
+export const SESSION_STATUS = 'session.status'
 
 export const sessionDock: Point<SessionSubject> = definePoint({
   name: SESSION_DOCK,
@@ -17,6 +18,11 @@ export const sessionDock: Point<SessionSubject> = definePoint({
 
 export const sessionSide: Point<SessionSubject> = definePoint({
   name: SESSION_SIDE,
+  subject: sessionSubject,
+})
+
+export const sessionStatus: Point<SessionSubject> = definePoint({
+  name: SESSION_STATUS,
   subject: sessionSubject,
 })
 

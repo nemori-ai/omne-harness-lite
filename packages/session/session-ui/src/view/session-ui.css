@@ -201,6 +201,19 @@
 .omne-session-dock:empty {
   display: none;
 }
+.omne-session-status {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 2px 4px 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.omne-session-status:empty {
+  display: none;
+}
 .omne-session-work {
   flex: none;
   display: grid;
