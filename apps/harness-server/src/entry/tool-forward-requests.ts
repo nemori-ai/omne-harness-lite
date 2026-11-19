@@ -6,6 +6,7 @@ import {
   type FixedToolRequest,
   type Reply,
   type ToolCatalog,
+  type ToolAvailability,
   type ToolConsumerProfile,
   type ToolForwardIntent,
   type ToolInvokeRequest,
@@ -57,17 +58,34 @@ export function isReleaseToolRequest(
   )
 }
 
-/** The target a `Tools` execute call names, resolved for this tenant; the same answer forwarding uses. */
-export async function resolveForwardTarget(
-  ports: ForwardRequestPorts,
-  access: Pick<ToolForwardParent<unknown>, 'principal' | 'tenant'>,
-  intent: ToolForwardIntent,
-) {
-  const release = ports.release()
-  if (release.kind !== 'trusted') return unavailable('The release snapshot is unavailable.')
+type TargetDefinition = Extract<ToolAvailability, { kind: 'available' }>['definition']
+
+function targetEntry(release: Trusted, intent: ToolForwardIntent) {
   if (intent.name === 'Tools') return invalid('name', 'recursive-tools-execute')
   const entry = release.manifest.entries.find(item => item.asset.name === intent.name)
   if (entry === undefined) return invalid('name', 'unknown-target')
+  return succeed(entry)
+}
+
+function isReleaseAdoption(
+  availability: ToolAvailability,
+  entry: Trusted['manifest']['entries'][number],
+): availability is Extract<ToolAvailability, { kind: 'available' }> {
+  return (
+    availability.kind === 'available' &&
+    availability.layer.kind === 'official' &&
+    canonicalDigest(availability.definition.adoption) === canonicalDigest(entry.asset.adoption) &&
+    canonicalDigest(availability.executor) === canonicalDigest(entry.module.executor)
+  )
+}
+
+async function inspectTarget(
+  ports: ForwardRequestPorts,
+  access: Pick<ToolForwardParent<unknown>, 'principal' | 'tenant'>,
+  intent: ToolForwardIntent,
+  release: Trusted,
+  entry: Trusted['manifest']['entries'][number],
+) {
   const catalog = ports.catalog()
   if (catalog === undefined) return unavailable('The target catalog is unavailable.')
   const inspected = await catalog.inspect({
@@ -79,20 +97,22 @@ export async function resolveForwardTarget(
   })
   if ('failure' in inspected) return inspected
   const availability = inspected.ok
-  if (
-    availability.kind !== 'available' ||
-    availability.layer.kind !== 'official' ||
-    canonicalDigest(availability.definition.adoption) !== canonicalDigest(entry.asset.adoption) ||
-    canonicalDigest(availability.executor) !== canonicalDigest(entry.module.executor)
-  )
+  if (!isReleaseAdoption(availability, entry))
     return unavailable('The exact target release adoption is unavailable.')
   const nonresident = await targetResidency(ports.view(), access, availability, 'nonresident')
   if ('failure' in nonresident) return nonresident
-  const definition = availability.definition
-  if (definition.kind === 'function') {
-    if (intent.command !== null) return invalid('command', 'function-command-must-be-null')
-    return succeed({ entry, availability, effective: writeJsonText(intent.arguments) })
-  }
+  return succeed(availability)
+}
+
+function functionCall(intent: ToolForwardIntent) {
+  if (intent.command !== null) return invalid('command', 'function-command-must-be-null')
+  return succeed(writeJsonText(intent.arguments))
+}
+
+function commandCall(
+  definition: Exclude<TargetDefinition, { kind: 'function' }>,
+  intent: ToolForwardIntent,
+) {
   if (intent.command === null || !definition.commands.some(item => item.name === intent.command))
     return invalid('command', 'unknown-target-command')
   if (intent.arguments.kind !== 'object')
@@ -102,14 +122,37 @@ export async function resolveForwardTarget(
     intent.arguments.entries.some(item => item.key === 'command' || item.key === 'intent')
   )
     return invalid('arguments', 'reserved-command-field')
-  const effective = writeJsonText(
-    encodeCommandCall(definition.encoding, {
-      command: intent.command,
-      intent: null,
-      params: intent.arguments,
-    }),
+  return succeed(
+    writeJsonText(
+      encodeCommandCall(definition.encoding, {
+        command: intent.command,
+        intent: null,
+        params: intent.arguments,
+      }),
+    ),
   )
-  return succeed({ entry, availability, effective })
+}
+
+function effectiveCall(definition: TargetDefinition, intent: ToolForwardIntent) {
+  if (definition.kind === 'function') return functionCall(intent)
+  return commandCall(definition, intent)
+}
+
+/** The target a `Tools` execute call names, resolved for this tenant; the same answer forwarding uses. */
+export async function resolveForwardTarget(
+  ports: ForwardRequestPorts,
+  access: Pick<ToolForwardParent<unknown>, 'principal' | 'tenant'>,
+  intent: ToolForwardIntent,
+) {
+  const release = ports.release()
+  if (release.kind !== 'trusted') return unavailable('The release snapshot is unavailable.')
+  const entry = targetEntry(release, intent)
+  if ('failure' in entry) return entry
+  const availability = await inspectTarget(ports, access, intent, release, entry.ok)
+  if ('failure' in availability) return availability
+  const effective = effectiveCall(availability.ok.definition, intent)
+  if ('failure' in effective) return effective
+  return succeed({ entry: entry.ok, availability: availability.ok, effective: effective.ok })
 }
 
 export function createForwardTargetRequests(ports: ForwardRequestPorts) {

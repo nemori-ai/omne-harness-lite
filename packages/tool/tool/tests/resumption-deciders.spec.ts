@@ -8,6 +8,7 @@ import {
   refuseDecision,
   refuseResume,
 } from '../src/ledger-resumption.ts'
+import { resumePlanningBody } from '../src/ledger-state.ts'
 import type { QueueEntryRecord } from '../src/ledger-store.ts'
 import { taskKey } from '../src/ledger-store.ts'
 import {
@@ -506,6 +507,48 @@ describe('decidePrepareResume: the unique successor of a checkpoint', () => {
       failure: { kind: 'unavailable', dependency: 'tool-queue' },
     })
     expect(JSON.stringify(outcome)).toContain('2 ahead')
+  })
+})
+
+describe('resumePlanningBody: where a resume segment can be planned again', () => {
+  async function started() {
+    const { snapshot, record, command } = await readyToResume()
+    const { value } = committed(decidePrepareResume(snapshot, command, mintOf(snapshot)))
+    return { suspended: record, starting: value.state, start: value.start }
+  }
+
+  it('keeps a suspended call suspended on its checkpoint and its wait', async () => {
+    const { suspended } = await started()
+    if (suspended.state.phase !== 'suspended') throw new Error('not suspended')
+    expect(resumePlanningBody(suspended.state, suspended.start)).toMatchObject({
+      phase: 'suspended',
+      checkpoint: suspended.state.checkpoint,
+      relation: 'foreground',
+      wait: suspended.state.wait,
+    })
+  })
+
+  it('keeps a call starting its resume segment starting, in the foreground and on no wait', async () => {
+    const { starting, start } = await started()
+    expect(start.kind).toBe('resume')
+    expect(resumePlanningBody(starting, start)).toMatchObject({
+      phase: 'starting',
+      relation: 'foreground',
+      wait: { kind: 'none' },
+      execution: starting.execution,
+      queue: starting.queue,
+    })
+  })
+
+  it('has no body for a call starting its first segment, or starting with no start record', async () => {
+    const { starting, start } = await started()
+    expect(resumePlanningBody(starting, { ...start, kind: 'start' } as never)).toBeNull()
+    expect(resumePlanningBody(starting, null)).toBeNull()
+  })
+
+  it('has no body for a call that is running', async () => {
+    const { starting, start } = await started()
+    expect(resumePlanningBody({ ...starting, phase: 'running' } as never, start)).toBeNull()
   })
 })
 

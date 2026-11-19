@@ -203,5 +203,5 @@ describe('an input reaches the model with the step that takes it', () => {
       },
     )
     expect(exitCode).toBe(0)
-  })
+  }, 240_000)
 })

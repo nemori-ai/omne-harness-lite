@@ -91,7 +91,9 @@ export function createSettingsGuard(readAdmission: AdmissionReader, readCards?: 
       if (answer.kind === 'denied') return { kind: 'denied' }
       if (answer.kind !== 'allowed') return { kind: 'unavailable' }
       const standing = cardStandingOf(input.principal)
-      return standing === null ? { kind: 'allowed' } : answered(standing, request, readCards?.())
+      return standing === null
+        ? { kind: 'allowed' }
+        : await answered(standing, request, readCards?.())
     } catch {
       return { kind: 'unavailable' }
     }

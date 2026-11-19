@@ -145,25 +145,23 @@ function parsedArguments(call: CallParts) {
 export function forwardIntentOf(request: FixedToolRequest): ToolForwardIntent | null {
   return forwardIntentOfCall(partsOf(request))
 }
+type IntentValue = ToolForwardIntent['arguments']
+
+const intentCommandOf = (value: IntentValue | undefined): string | null | undefined => {
+  if (value?.kind === 'string') return value.value
+  return value?.kind === 'null' ? null : undefined
+}
+
 /** The target a `Tools` execute call names, read from the call's own definition, command and arguments. */
 export function forwardIntentOfCall(call: CallParts): ToolForwardIntent | null {
   const args = parsedArguments(call)
   if (args?.kind !== 'object') return null
   const get = (key: string) => args.entries.find(entry => entry.key === key)?.value
-  const name = get('name'),
-    command = get('command'),
-    argumentsValue = get('arguments')
-  if (
-    name?.kind !== 'string' ||
-    argumentsValue === undefined ||
-    (command?.kind !== 'string' && command?.kind !== 'null')
-  )
-    return null
-  return {
-    name: name.value,
-    command: command.kind === 'null' ? null : command.value,
-    arguments: normalizeJson(argumentsValue),
-  }
+  const name = get('name')
+  const command = intentCommandOf(get('command'))
+  const argumentsValue = get('arguments')
+  if (name?.kind !== 'string' || argumentsValue === undefined || command === undefined) return null
+  return { name: name.value, command, arguments: normalizeJson(argumentsValue) }
 }
 function matchesTarget(
   parent: FixedToolRequest,
