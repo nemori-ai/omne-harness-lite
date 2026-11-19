@@ -222,6 +222,12 @@ describe('a release card on the human channel', () => {
     expect(none.stderr).not.toContain('详情')
   })
 
+  it('names a call of a function tool by the tool alone', async () => {
+    const card = { ...release(), target: { tool: 'read_file', command: null, preview: '' } }
+    const result = await reading(card)()
+    expect(result.stderr.split('\n')[0]).toBe('放行卡：read_file')
+  })
+
   it('prints every release card of a listed page, and nothing for a card of another kind', async () => {
     const question = {
       cardId: 'q2',

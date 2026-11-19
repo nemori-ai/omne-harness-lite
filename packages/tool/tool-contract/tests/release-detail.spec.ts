@@ -67,6 +67,29 @@ describe('what a description may hold, judged against its declaration and the bu
     expect(judgeReleaseDescription(value, undefined, POLICY)).toEqual({ failure: reason })
   })
 
+  it.each([
+    ['null', null],
+    ['a row that is no object', { rows: ['x'] }],
+    ['a row that is null', { rows: [null] }],
+    ['a label that is no text', { rows: [{ label: 5, value: 'v' }] }],
+    ['one bad row among good ones', { rows: [...ONE, { label: 'l', value: '' }] }],
+    ['one bad item among good ones', { rows: [{ label: 'l', value: ['i', ''] }] }],
+  ])('gives nothing for %s', (_name, value) => {
+    expect(judgeReleaseDescription(value, undefined, POLICY)).toHaveProperty('failure')
+  })
+
+  it('keeps every part exactly at its budget', () => {
+    const rows = Array.from({ length: POLICY.maxRows }, () => ({
+      label: 'l'.repeat(POLICY.maxLabel),
+      value: Array.from({ length: POLICY.maxItems }, () => 'i'.repeat(POLICY.maxItem)),
+    }))
+    const text = [{ label: 'l', value: 'v'.repeat(POLICY.maxText) }]
+    expect(judgeReleaseDescription({ rows }, undefined, POLICY)).toHaveProperty('ok')
+    expect(judgeReleaseDescription({ rows: text }, undefined, POLICY)).toHaveProperty('ok')
+    const typed = tree({ text: 'x'.repeat(POLICY.maxTypedBytes - 11) })
+    expect(judgeReleaseDescription({ rows: ONE, typed }, DETAIL, POLICY)).toHaveProperty('ok')
+  })
+
   it('gives nothing for a declared kind without a value, a value that is no JSON, and one too large', () => {
     expect(judgeReleaseDescription({ rows: ONE }, DETAIL, POLICY)).toEqual({
       failure: 'typed-undeclared',

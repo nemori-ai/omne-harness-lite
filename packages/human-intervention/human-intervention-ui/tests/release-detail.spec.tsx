@@ -141,6 +141,21 @@ describe('the detail part of a release card, by what the server holds and what t
     expect(looksAt(card)).toMatchObject({ rows: false, drawn: true })
   })
 
+  it('draws the rows of a typed detail where no shell hosts the views of kinds', async () => {
+    const fake = createFakeClient()
+    render(<DecisionsPage hub={new CardsHub({ client: fake.client })} tenant={TENANT} />)
+    const call = await fake.next('list-cards')
+    call.answer(page([withDetail(DETAILS.typed)]))
+    await act(async () => {
+      for (let round = 0; round < 5; round += 1) await Promise.resolve()
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    expect(looksAt(within(screen.getByRole('article')))).toMatchObject({
+      rows: true,
+      drawn: false,
+    })
+  })
+
   it('lists the items of a row that holds a list', async () => {
     const card = await shown(DETAILS.rows, 'none')
     expect(card.getAllByRole('listitem').map(item => item.textContent)).toEqual(['a', 'b'])

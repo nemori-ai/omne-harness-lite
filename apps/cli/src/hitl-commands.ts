@@ -54,11 +54,11 @@ type ReleaseQuestion = Readonly<{
   detail?: Readonly<{ state: 'given'; rows: readonly Row[] }> | Readonly<{ state: 'unavailable' }>
 }>
 
-const questionOf = (card: unknown): unknown =>
-  (card as { card?: { question?: unknown } } | undefined)?.card?.question
+const questionOf = (item: unknown): unknown =>
+  (item as Readonly<{ card: Readonly<{ question: unknown }> }>).card.question
 
 function isRelease(question: unknown): question is ReleaseQuestion {
-  return (question as { kind?: unknown } | undefined)?.kind === 'release'
+  return (question as Readonly<{ kind: string }>).kind === 'release'
 }
 
 function releaseLines(question: ReleaseQuestion): string {
@@ -153,7 +153,7 @@ const listCards: HitlCommand = {
       echo: { messageId, tenant: encodeTenantText(tenant) },
     }
   },
-  cards: body => (body as { items?: readonly unknown[] } | undefined)?.items ?? [],
+  cards: body => (body as Readonly<{ items: readonly unknown[] }>).items,
 }
 
 const readCard: HitlCommand = {
@@ -170,7 +170,7 @@ const readCard: HitlCommand = {
       ),
     echo: { messageId, tenant: encodeTenantText(tenant) },
   }),
-  cards: body => [(body as { item?: unknown } | undefined)?.item],
+  cards: body => [(body as Readonly<{ item: unknown }>).item],
 }
 
 function replyOf(values: Option): Reply | undefined {

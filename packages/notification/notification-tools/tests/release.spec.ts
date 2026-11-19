@@ -60,6 +60,17 @@ describe('what a send would post, shown on its release card', () => {
     })
   })
 
+  it('shows no body row for a blank body, and a body of exactly one row as written', async () => {
+    expect((await described({ id: 'p-5', title: 'T', body: '   ' })).map(row => row.label)).toEqual(
+      ['收件人', '标题'],
+    )
+    const whole = '字'.repeat(500)
+    expect((await described({ id: 'p-6', title: 'T', body: whole })).at(-1)).toEqual({
+      label: '正文',
+      value: whole,
+    })
+  })
+
   it('shows the opening of a long body within the budget of one row', async () => {
     const rows = await described({ id: 'p-4', title: 'T', body: '字'.repeat(900) })
     const body = rows.find(row => row.label === '正文')?.value

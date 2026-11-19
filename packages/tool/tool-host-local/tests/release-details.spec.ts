@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { createSchemaProvider } from '@omne-harness/schema-provider'
+import { close, createSchemaProvider } from '@omne-harness/schema-provider'
 import type { ToolAvailability } from '@omne-harness/tool-contract'
 import {
   DEFAULT_RELEASE_DETAIL_POLICY,
   defineCommandTool,
+  defineFunctionTool,
   defineToolOperation,
   type ToolImplementationModule,
   type ToolReleaseDescriber,
@@ -110,13 +111,38 @@ function probeModule(
   }
 }
 
+function probeFunctionModule(
+  describeRelease: ToolReleaseDescriber<Args>,
+): ToolImplementationModule<unknown, ContentBlock> {
+  return {
+    executor: { ...adoption('executor'), owner: 'conformance' },
+    createAuthor() {
+      const declarations = request().availability
+      if (declarations.kind !== 'available') throw new Error('available fixture')
+      return defineFunctionTool({
+        operation: operation(describeRelease),
+        implementation: {
+          description: 'A test function tool that describes what it would do',
+          backgroundAllowed: false,
+          declarations: declarations.definition.declarations,
+        },
+      })
+    },
+  }
+}
+
+type Built = Readonly<{ function?: true; closed?: true; noPolicy?: true }>
+
 async function detailsOf(
   describeRelease: ToolReleaseDescriber<Args>,
   policy = DEFAULT_RELEASE_DETAIL_POLICY,
   registered: 'loaded' | 'none' | 'absent' = 'loaded',
   maxSnapshots = 8,
+  built: Built = {},
 ) {
-  const loaded = unbox(await loadAuthor(probeModule(describeRelease)))
+  const module =
+    built.function === true ? probeFunctionModule(describeRelease) : probeModule(describeRelease)
+  const loaded = unbox(await loadAuthor(module))
   const { registry } = fiberedRegistry(scriptedVerifier([authorAuthority]))
   if (registered === 'loaded')
     unbox(registry.register({ ...authorAccess, authority: authorAuthority, loaded }))
@@ -126,23 +152,25 @@ async function detailsOf(
     executor: loaded.executor,
     layer: loaded.key.layer,
   }
+  const provider = createSchemaProvider({
+    maxSnapshots,
+    maxConstructDepth: 32,
+    maxConstructNodes: 4096,
+    maxAttempts: 1,
+    failureBackoffMs: 0,
+  })
+  if (built.closed === true) close(provider)
   const details = createLocalReleaseDetails({
     registry: () => (registered === 'absent' ? undefined : registry),
-    provider: createSchemaProvider({
-      maxSnapshots,
-      maxConstructDepth: 32,
-      maxConstructNodes: 4096,
-      maxAttempts: 1,
-      failureBackoffMs: 0,
-    }),
-    policy,
+    provider,
+    ...(built.noPolicy === true ? {} : { policy }),
   })
-  const describe = (command: string, params: unknown) =>
+  const describe = (command: string | null, params: unknown, sent = command) =>
     details.describe({
       ...authorAccess,
       availability,
       command,
-      effectiveArguments: JSON.stringify({ command, params }),
+      effectiveArguments: JSON.stringify(sent === null ? params : { command: sent, params }),
     })
   return { describe, pins: () => unbox(registry.pins(loaded.key)) }
 }
@@ -224,6 +252,44 @@ describe('Tool asks the implementer what one call would do, and only reads', () 
       kinds.push(answer.kind === 'detail' ? answer.typed?.kind : answer)
     }
     expect(kinds).toEqual([TEST_KIND, OTHER_KIND, TEST_KIND, OTHER_KIND, TEST_KIND])
+  })
+
+  it('gives the rows of a function tool, which declares no typed kind', async () => {
+    const rowsOnly: ToolReleaseDescriber<Args> = async ({ arguments: args }) => ({
+      rows: [{ label: '标题', value: args.title }],
+    })
+    const { describe } = await detailsOf(rowsOnly, DEFAULT_RELEASE_DETAIL_POLICY, 'loaded', 8, {
+      function: true,
+    })
+    expect(await describe(null, { title: 'T' })).toEqual({
+      kind: 'detail',
+      rows: [{ label: '标题', value: 'T' }],
+    })
+  })
+
+  it('cannot give a detail when the arguments name another command than the one asked', async () => {
+    const { describe } = await detailsOf(describing)
+    expect(await describe('send', { title: 'T' }, 'post')).toEqual({
+      kind: 'unavailable',
+      reason: 'arguments',
+    })
+  })
+
+  it('checks with the default policy when none is given', async () => {
+    const { describe } = await detailsOf(describing, DEFAULT_RELEASE_DETAIL_POLICY, 'loaded', 8, {
+      noPolicy: true,
+    })
+    expect(await describe('send', { title: 'T' })).toMatchObject({ kind: 'detail' })
+  })
+
+  it('cannot give a detail when the schema check is not there to run', async () => {
+    const { describe } = await detailsOf(describing, DEFAULT_RELEASE_DETAIL_POLICY, 'loaded', 8, {
+      closed: true,
+    })
+    expect(await describe('send', { title: 'T' })).toEqual({
+      kind: 'unavailable',
+      reason: 'schema-refused',
+    })
   })
 
   it('cannot give a detail when the function does not answer in time', async () => {
