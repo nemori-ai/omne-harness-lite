@@ -45,9 +45,9 @@ import { createToolAssetCategory } from '../../../src/rows/governance/tool-asset
 import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
 import { GOVERNANCE_PROJECTION_READ } from '../../../src/rows/governance/storage-materials.ts'
 import { calendarEnvironmentSettings } from '@omne-harness/calendar-local'
-import { scheduleAgentAuthoringSettings } from '@omne-harness/schedule-local'
+import { sessionIntakeSettings } from '@omne-harness/session-adapters/cordis'
 
-const SHIPPED_INDEPENDENT_SETTINGS = [calendarEnvironmentSettings, scheduleAgentAuthoringSettings]
+const SHIPPED_INDEPENDENT_SETTINGS = [calendarEnvironmentSettings, sessionIntakeSettings]
 import {
   combinationManifest,
   manifestDigest,
@@ -806,7 +806,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(viewed.sort()).toEqual(
     [
       ['independent', 'calendar', 'environment'],
-      ['independent', 'schedule', 'agent-authoring'],
+      ['independent', 'session', 'intake'],
       ...[
         'Ask',
         'BkgToolCalls',
@@ -1129,7 +1129,7 @@ it('a group that cannot be opened leaves the tenant, the other group and the ass
     targets: [],
     selectionRef: null,
   }
-  const earlier = prepare(undefined, () => [altered, scheduleAgentAuthoringSettings])
+  const earlier = prepare(undefined, () => [altered, sessionIntakeSettings])
   const first = await earlier.open()
   if (first.kind !== 'created') throw new Error(JSON.stringify(first))
   expect(await earlier.readSettings(request)).toHaveProperty('views')
@@ -1381,11 +1381,7 @@ it('opens a group of independent settings declared only in this test, and keeps 
       .sort()
   }
   const opened = await groups()
-  expect(opened).toEqual([
-    'calendar/environment',
-    'schedule/agent-authoring',
-    'test.gadget/environment',
-  ])
+  expect(opened).toEqual(['calendar/environment', 'session/intake', 'test.gadget/environment'])
   const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
   cleanup.push(async () => {
     await host.close(monotonicClock.now() + 3000)

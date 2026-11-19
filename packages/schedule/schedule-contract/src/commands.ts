@@ -2,7 +2,6 @@ import { z } from 'zod'
 import {
   ScheduleOperationKeySchema,
   ScheduleRevisionSchema,
-  ScheduleRefSchema,
   ScheduleIdSchema,
   ScheduleLabelSchema,
   ScheduleInstructionSchema,
@@ -13,7 +12,6 @@ import { ScheduleReminderContentSchema } from './work.ts'
 export const ScheduleCommandMetaSchema = z.strictObject({
   operationKey: ScheduleOperationKeySchema,
   expectedRevision: ScheduleRevisionSchema.nullable(),
-  consentRef: ScheduleRefSchema.nullable(),
 })
 export type ScheduleCommandMeta = z.infer<typeof ScheduleCommandMetaSchema>
 export const ScheduleCreateRequestSchema = z.strictObject({

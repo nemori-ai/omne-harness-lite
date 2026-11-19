@@ -130,7 +130,7 @@ export function createCommand(key: string = randomUUID(), ctx = context) {
     input: {
       definition,
       initial: { kind: 'active' },
-      meta: { operationKey: key, expectedRevision: null, consentRef: null },
+      meta: { operationKey: key, expectedRevision: null },
     },
   } as const
   const id = ScheduleIdSchema.parse(randomUUID())

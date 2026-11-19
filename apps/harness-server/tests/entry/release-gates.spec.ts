@@ -34,7 +34,7 @@ const EXPECTED: Readonly<
   Calendar: [['invoke', 'auto', ['help', 'day', 'count', 'shift', 'next', 'nth']]],
   Schedules: [
     ['read', 'auto', ['help', 'preview', 'list', 'show', 'history', 'recover']],
-    ['draft', 'auto', ['revise', 'discard']],
+    ['draft', 'auto', ['draft', 'revise', 'discard']],
     ['activate', 'auto', ['create', 'update', 'replace', 'promote', 'pause', 'resume', 'stop']],
   ],
   Notifications: [

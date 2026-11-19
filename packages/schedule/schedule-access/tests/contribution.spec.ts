@@ -233,7 +233,7 @@ describe('writes', () => {
       {
         action: 'update',
         patch: { kind: 'label', label: '新名字' },
-        meta: { expectedRevision: 2, consentRef: null },
+        meta: { expectedRevision: 2 },
       },
       { action: 'resume', reason: '回来' },
     ])

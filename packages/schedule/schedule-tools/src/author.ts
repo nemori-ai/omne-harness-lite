@@ -1,32 +1,18 @@
-import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import type { JsonValue } from '@omne-harness/json-text'
-import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import type { CommandTable, ToolGate } from '@omne-harness/tool-contract'
 import {
   commandGuide,
   defineCommandTool,
   defineToolOperation,
   describedAdoption,
-  type AuthorSegment,
-  type CheckpointedToolExecutor,
-  type ToolSegmentContext,
+  type ToolExecutionContext,
   type ToolImplementationModule,
   type ToolMessageContentBlock,
   type ToolOperation,
   type ToolOperationParameters,
-  type ToolPrimitiveFailure,
 } from '@omne-harness/tool-contract/provider'
 import { read, submit, writeRequestOf, type ReadArguments, type WriteArguments } from './calls.ts'
-import {
-  CONSENT_STATE_MAX_BYTES,
-  consentCard,
-  consentStateCodec,
-  consentStateIdentity,
-  ownerAnswerOf,
-  readConsentState,
-  requestTree,
-  type ConsentState,
-} from './consent.ts'
 import { schedulesOf, type BoundSchedules, type ScheduleFaces } from './port.ts'
 import {
   schedulesAdoption,
@@ -38,7 +24,7 @@ import {
   type SchedulesArguments,
   type SchedulesCommandName,
 } from './protocol.ts'
-import { upcomingOf, writeLine } from './text.ts'
+import { writeLine } from './text.ts'
 
 const SCHEDULES_GATES: readonly ToolGate[] = [
   { id: 'read', title: '查看', default: 'auto' },
@@ -52,6 +38,7 @@ const SCHEDULES_GATE_OF: Readonly<Record<SchedulesCommandName, string>> = {
   show: 'read',
   history: 'read',
   recover: 'read',
+  draft: 'draft',
   revise: 'draft',
   discard: 'draft',
   create: 'activate',
@@ -69,10 +56,10 @@ const utf8 = (text: string) => encoder.encode(text)
 
 const guide = [
   'A definition has label, recurrence, limits and purpose. It always follows the user time zone and calendar; you cannot pick a calendar. Preview a definition before you create it.',
+  'create makes a schedule that takes effect now. draft saves one that does not run until promote; use it when the owner should look first.',
   'Every change to a saved schedule takes the revision you last read with show or list; a stale revision answers conflict and changes nothing.',
-  'The owner decides how agent changes take effect. When the owner asks to confirm, an inquiry card waits for the owner and the call returns after the answer: confirmed, kept as draft, declined, replied in words, or skipped. If the owner may be away, create a draft instead.',
   'A write that answers unknown may or may not have happened: call recover with its operation; do not send it again.',
-  'Failures are one line, <kind> reason=<why> code=<code>: not_found, conflict, limited, invalid, coverage_insufficient, not_configured, unavailable, card_stale, owner_declined, owner_skipped, owner_replied.',
+  'Failures are one line, <kind> reason=<why> code=<code>: not_found, conflict, limited, invalid, coverage_insufficient, not_configured, unavailable.',
 ].join('\n\n')
 
 const returns = {
@@ -125,6 +112,7 @@ const menu: CommandTable = {
 
 const WRITES = new Set([
   'create',
+  'draft',
   'update',
   'revise',
   'replace',
@@ -136,14 +124,10 @@ const WRITES = new Set([
 ])
 const isWrite = (args: SchedulesArguments): args is WriteArguments => WRITES.has(args.command)
 
-type CardSubject = Exclude<ReturnType<typeof writeRequestOf>, { invalid: string }>
-
-const done = (value: string): Outcome<AuthorSegment<Uint8Array, string>, ToolPrimitiveFailure> =>
-  succeed({ kind: 'completed', value })
 const UNATTACHED = 'unavailable reason=the schedule services are not attached to this call'
 
 async function reach(
-  execution: ToolSegmentContext,
+  execution: ToolExecutionContext,
 ): Promise<Readonly<{ bound: BoundSchedules; faces: ScheduleFaces }> | string> {
   const bound = schedulesOf(execution)
   if (bound === undefined) return UNATTACHED
@@ -155,145 +139,22 @@ async function reach(
   return { bound, faces }
 }
 
-/** The name and next few times of what the card is about, best effort: a failure leaves them out. */
-async function aboutOf(faces: ScheduleFaces, request: CardSubject, bound: BoundSchedules) {
-  const { queries, context } = faces
-  try {
-    const label =
-      'create' in request
-        ? request.create.definition.label
-        : await queries
-            .get(context, { scheduleId: request.execute.scheduleId })
-            .then(found => (found.kind === 'ok' ? found.value.definition.label : null))
-    const source =
-      'create' in request
-        ? { kind: 'inline' as const, definition: request.create.definition }
-        : { kind: 'schedule' as const, scheduleId: request.execute.scheduleId }
-    const answer = await queries.preview(context, { source, after: bound.now(), count: 3 })
-    const times =
-      answer.kind === 'ok'
-        ? answer.value.candidates.map(item => {
-            const next = upcomingOf(item)
-            return `${next.local}（${next.calendar ?? '不依赖日历'} ${next.version ?? ''}）`.trim()
-          })
-        : []
-    return { label: label ?? '未命名', times }
-  } catch {
-    return { label: '未命名', times: [] as string[] }
-  }
-}
-
-async function initial(args: SchedulesArguments, execution: ToolSegmentContext) {
+/** One call is one read or one write: whatever the domain answers is the result. */
+async function execute(args: SchedulesArguments, execution: ToolExecutionContext) {
   if (args.command === 'help')
-    return done(
-      `done Schedules help${args.params.name === undefined ? '' : ` ${args.params.name}`}\n${commandGuide(menu, args.params.name)}`,
-    )
+    return `done Schedules help${args.params.name === undefined ? '' : ` ${args.params.name}`}\n${commandGuide(menu, args.params.name)}`
   const reached = await reach(execution)
-  if (typeof reached === 'string') return done(reached)
+  if (typeof reached === 'string') return reached
   const { bound, faces } = reached
-  if (!isWrite(args)) return done(await read(faces, args as ReadArguments, bound.now()))
-  const request = writeRequestOf(args, {
-    operationKey: bound.operationKey('initial'),
-    consentRef: null,
-  })
-  if ('invalid' in request) return done(request.invalid)
-  const result = await submit(faces, request)
-  if (result.kind !== 'rejected' || result.error.code !== 'consent_required')
-    return done(writeLine(args.command, result))
-  const digest = result.error.details['consentDigest']
-  if (typeof digest !== 'string') return done(writeLine(args.command, result))
-  const about = await aboutOf(faces, request, bound)
-  const card = consentCard({
-    args,
-    digest,
-    label: about.label,
-    upcoming: about.times,
-    session: faces.context.originatingSessionRef,
-  })
-  const state: ConsentState = { args, digest, cardId: card.cardId }
-  const bytes = utf8(JSON.stringify(state))
-  if (bytes.byteLength > CONSENT_STATE_MAX_BYTES)
-    return fail({ kind: 'too-large' as const, reason: 'consent-state-too-large' })
-  return succeed({
-    kind: 'suspended' as const,
-    state: bytes,
-    closedResult:
-      'owner_skipped reason=the card was closed before the owner answered; nothing was changed',
-    wait: {
-      kind: 'ask' as const,
-      key: 'consent',
-      contract: hitlDecisionWait,
-      request: requestTree(card),
-    },
-  })
+  if (!isWrite(args)) return read(faces, args as ReadArguments, bound.now())
+  const request = writeRequestOf(args, { operationKey: bound.operationKey('initial') })
+  if ('invalid' in request) return request.invalid
+  return writeLine(args.command, await submit(faces, request))
 }
 
-/** What each answer that writes nothing tells the agent. */
-const UNWRITTEN = {
-  declined: () => 'owner_declined reason=the owner declined; nothing was changed',
-  skipped: () => 'owner_skipped reason=the owner did not answer; nothing was changed',
-  replied: (text: string) =>
-    `owner_replied reason=the owner answered in words; nothing was changed text=${JSON.stringify(text)}`,
-} as const
-
-/** The write an answer asks for: the original with the answer as consent, or the create as a draft. */
-function writeOf(
-  state: ConsentState,
-  answer: Readonly<{ kind: 'confirm' | 'draft' }>,
-  bound: BoundSchedules,
-) {
-  const draft = answer.kind === 'draft' && state.args.command === 'create'
-  const write: WriteArguments = draft
-    ? {
-        command: 'create',
-        params: { ...state.args.params, state: 'draft', reason: 'owner 在卡上选了先存草稿' },
-      }
-    : state.args
-  return {
-    write,
-    request: writeRequestOf(write, {
-      operationKey: bound.operationKey(draft ? 'draft' : 'confirmed'),
-      consentRef: draft ? null : bound.consentRef(state.cardId),
-    }),
-  }
-}
-
-const isStale = (result: Awaited<ReturnType<typeof submit>>) =>
-  result.kind === 'rejected' &&
-  (result.error.code === 'revision_conflict' || result.error.code === 'consent_required')
-
-async function resume(
-  state: ConsentState,
-  decision: Parameters<typeof ownerAnswerOf>[1],
-  execution: ToolSegmentContext,
-) {
-  const answer = ownerAnswerOf(state, decision)
-  if (answer.kind === 'declined' || answer.kind === 'skipped') return done(UNWRITTEN[answer.kind]())
-  if (answer.kind === 'replied') return done(UNWRITTEN.replied(answer.text))
-  const reached = await reach(execution)
-  if (typeof reached === 'string') return done(reached)
-  const { write, request } = writeOf(state, answer, reached.bound)
-  if ('invalid' in request) return done(request.invalid)
-  const result = await submit(reached.faces, request)
-  if (isStale(result) && result.kind === 'rejected')
-    return done(
-      `card_stale reason=the schedule or the content changed while the card was open; nothing was changed code=${result.error.code}`,
-    )
-  return done(writeLine(write.command, result))
-}
-
-export const schedulesExecutor: CheckpointedToolExecutor<SchedulesArguments, string, null> = {
-  checkpoint: {
-    schema: consentStateIdentity,
-    codec: consentStateCodec,
-    maxBytes: CONSENT_STATE_MAX_BYTES,
-  },
-  initial: (args, _environment, context) => initial(args, context),
-  async resume({ checkpoint, response }, _environment, context) {
-    const state = readConsentState(checkpoint)
-    if ('failure' in state) return fail({ kind: 'invalid' as const, reason: state.failure })
-    return resume(state.ok, response, context)
-  },
+export const schedulesExecutor = {
+  execute: (args: SchedulesArguments, _environment: null, context: ToolExecutionContext) =>
+    execute(args, context),
 }
 
 function resultMaxBytesOf(construction: JsonValue): number | undefined {
@@ -334,7 +195,7 @@ export function createSchedulesAuthor(
       author: {
         kind: 'ordinary',
         parameters: schedulesParameterCodec(name),
-        waits: [hitlDecisionWait],
+        waits: [],
         executor: schedulesExecutor,
         codec: {
           adoption: schedulesAdoption,
@@ -395,9 +256,8 @@ export const schedulesToolModule: ToolImplementationModule<null, ToolMessageCont
   executor: describedAdoption({
     owner: '@omne-harness/schedule-tools',
     name: 'Schedules',
-    revision: '2',
-    changes:
-      'Commands over an attached schedules port; consent through one inquiry card checkpoint.',
+    revision: '3',
+    changes: 'Commands over an attached schedules port; one call is one read or one write.',
   }),
   createAuthor: createSchedulesAuthor,
 }

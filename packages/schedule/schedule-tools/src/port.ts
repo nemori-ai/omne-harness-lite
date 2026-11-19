@@ -27,12 +27,11 @@ export type ScheduleUnreachable = Readonly<{
   reason: 'unavailable' | 'forbidden'
 }>
 
-/** The schedule services bound to one call. Keys and consent references derive from the call, not the model. */
+/** The schedule services bound to one call. Keys derive from the call, not the model. */
 export type BoundSchedules = Readonly<{
   faces(): Promise<ScheduleFaces | ScheduleUnreachable>
   /** The operation key of one write of this call; the same step of the same call is the same write. */
   operationKey(step: string): string
-  consentRef(cardId: string): string
   now(): ScheduleInstant
 }>
 
@@ -57,18 +56,12 @@ export function bindSchedules(source: ScheduleCallSource): BoundSchedules {
       return { commands, queries, context }
     },
     operationKey: step => `tool:${digestOf([source.tenant, source.call, step])}`,
-    consentRef: cardId => scheduleConsentRef(source.call, cardId),
     now: () => source.now(),
   }
 }
 
 const digestOf = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 48)
-
-/** The reference a consent from a card of this call carries: bound to the call, readable by the host. */
-export function scheduleConsentRef(call: string, cardId: string): string {
-  return `tool-call/${digestOf(call)}/${cardId}`
-}
 
 /** Keyed by the call's abort signal: a checkpoint segment gets a narrowed context that keeps it. */
 const attachments = new WeakMap<AbortSignal, BoundSchedules>()

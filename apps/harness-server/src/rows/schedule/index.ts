@@ -21,7 +21,6 @@ import {
   createScheduleLocalApplication,
   type ScheduleLocalApplication,
 } from '@omne-harness/schedule-local'
-import { scheduleAgentAuthoringSettingsPlugin } from '@omne-harness/schedule-local/cordis'
 import {
   combinationManifest,
   manifestDigest,
@@ -277,7 +276,6 @@ export const scheduleRow = defineRow({
   },
   lifecycle: { kind: 'body', phase: 'composition' },
   async body(ctx) {
-    ctx.plugin(scheduleAgentAuthoringSettingsPlugin)
     const host = createTenantHost(ctx)
     new Commands(ctx, host)
     new Queries(ctx, host)

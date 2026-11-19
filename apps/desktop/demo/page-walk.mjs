@@ -601,14 +601,14 @@ async function walk(browser, origin, proofs, elsewhere) {
       const section = document.querySelector('section[data-page=settings]')
       if (!section || section.hidden) return undefined
       const groups = [...section.querySelectorAll('section.assets-group')].map(group => group.getAttribute('aria-label'))
-      return groups.includes('日历与时区') && groups.includes('agent 管理日程') ? section : undefined
+      return groups.includes('日历与时区') && !groups.includes('agent 管理日程') ? section : undefined
     })
     const groups = [...page.querySelectorAll('section.assets-group')].map(group => group.getAttribute('aria-label'))
     const row = [...page.querySelectorAll('li.assets-setting')].find(item =>
       item.querySelector('.assets-setting-title').textContent === '时区')
     if (!row) throw new Error('no timezone on the settings page')
     const picks = [...page.querySelectorAll('li.assets-setting')].filter(item => item.querySelector('[role=radio]')).length
-    if (picks < 2) throw new Error('the two enum settings show no choices: ' + picks)
+    if (picks < 1) throw new Error('the enum setting shows no choices: ' + picks)
     fill(row.querySelector('.assets-setting-value input'), 'Europe/Paris')
     const set = await wait('an enabled set', () => [...row.querySelectorAll('button')].find(button => button.textContent.trim() === '设置' && !button.disabled))
     set.click()

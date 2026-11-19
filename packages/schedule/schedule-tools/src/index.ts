@@ -1,7 +1,6 @@
 export { createSchedulesAuthor, schedulesExecutor, schedulesToolModule } from './author.ts'
-export { attachSchedules, bindSchedules, scheduleConsentRef, schedulesOf } from './port.ts'
+export { attachSchedules, bindSchedules, schedulesOf } from './port.ts'
 export type { BoundSchedules, ScheduleCallSource, ScheduleFaces } from './port.ts'
-export { cardIdOf } from './consent.ts'
 export {
   schedulesAdoption,
   schedulesCommandNames,
