@@ -47,11 +47,7 @@ it('operation suite accepts real operations and rejects each targeted broken imp
           assemble: invalid,
           resume: async () => good,
         }
-        if (
-          item.name === 'new-inputs-must-be-saved' ||
-          item.name === 'incremental-material-required'
-        )
-          bad.assemble = async () => good
+        if (item.name === 'new-inputs-must-be-saved') bad.assemble = async () => good
         if (item.name === 'same-input-is-deterministic')
           bad.assemble = async () => ({
             kind: 'invalid',

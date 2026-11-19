@@ -74,6 +74,20 @@ describe('a reasoning_state part arrives whole', () => {
     })
   })
 
+  it('keeps the prefix a finish names in the replay mark of the message', () => {
+    const message = completed(
+      run([
+        ...thinking('0'),
+        openState('1'),
+        closeState('1'),
+        { ...finish, replay: { ...replay, prefix: 'h:1.s:2.t:3.p:4' } },
+      ]),
+    )
+    expect(message).toMatchObject({
+      replay: { scope: 'provider-x', format: 'v1', at: [1], prefix: 'h:1.s:2.t:3.p:4' },
+    })
+  })
+
   it('reads a finish with replay undefined as a finish without replay, as judgeMessage does', () => {
     const message = completed(run([...thinking('0'), { ...finish, replay: undefined }]))
     expect('replay' in message).toBe(false)

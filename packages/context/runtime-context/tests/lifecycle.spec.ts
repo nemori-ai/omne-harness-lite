@@ -174,14 +174,14 @@ describe('closing with reads and callbacks in flight', () => {
     const hanging = deferred<never>()
     let calls = 0
     await producer(h, tenantA, 'test.request', {
-      declaration: { ...supplied('test.request'), volatility: 'per-request' },
+      declaration: { ...supplied('test.request'), volatility: 'per-read', consumers: ['tool'] },
       supply: () => {
         calls++
         return hanging.promise
       },
     })
     await register(h, a, tenantA, 'test.request')
-    const r = await reader(h, await issue(h, a, tenantA, ['test.request']))
+    const r = await reader(h, await issue(h, a, tenantA, ['test.request'], 'tool'))
     const reading = r.snapshot()
     while (calls === 0) await new Promise(resolve => setTimeout(resolve, 1))
     const started = Date.now()
@@ -225,14 +225,18 @@ describe('withdrawing a producer handle', () => {
     const hanging = deferred<never>()
     let calls = 0
     const handle = await producer(h, tenantA, 'test.request', {
-      declaration: { ...supplied('test.request', { required: true }), volatility: 'per-request' },
+      declaration: {
+        ...supplied('test.request', { required: true }),
+        volatility: 'per-read',
+        consumers: ['tool'],
+      },
       supply: () => {
         calls++
         return hanging.promise
       },
     })
     await register(h, a, tenantA, 'test.request')
-    const r = await reader(h, await issue(h, a, tenantA, ['test.request']))
+    const r = await reader(h, await issue(h, a, tenantA, ['test.request'], 'tool'))
     const reading = r.snapshot()
     while (calls === 0) await new Promise(resolve => setTimeout(resolve, 1))
     const started = Date.now()
@@ -241,7 +245,7 @@ describe('withdrawing a producer handle', () => {
     const next = await r.snapshot()
     expect(next.kind).toBe('success')
     if (next.kind !== 'success') return
-    expect(next.value.perRequest).toEqual([
+    expect(next.value.perRead).toEqual([
       { key: 'test.request', kind: 'missing', cause: 'producer-withdrawn' },
     ])
     expect(calls).toBe(1)

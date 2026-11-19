@@ -8,7 +8,7 @@ import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { ANTHROPIC_RECORDS } from '@omne-harness/pi-ai-anthropic'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
-import { assembleLocalHost, decoded, PLACEHOLDER, ROUTE_PATH } from './support/local-host.ts'
+import { assembleLocalHost, decoded, PLACEHOLDER, isGatewayPath } from './support/local-host.ts'
 import { readRecordFixture, type FamilyName } from './support/records.ts'
 
 type Case = Readonly<{
@@ -23,9 +23,10 @@ const CASES: readonly Case[] = [
   {
     family: 'pi-ai-openai',
     name: 'openai/gpt-6-sol',
-    payable: '0.000123456789123456789',
-    reasoning: false,
-    format: 'openai-responses-v1',
+    // The cost the recorded Responses stream of this record reports.
+    payable: '0.000852',
+    reasoning: true,
+    format: 'openai-responses-items-v1',
   },
   {
     family: 'pi-ai-openai',
@@ -37,9 +38,9 @@ const CASES: readonly Case[] = [
   {
     family: 'pi-ai-anthropic',
     name: 'anthropic/claude-sonnet-5',
-    payable: '0.000858',
+    payable: '0.002752',
     reasoning: true,
-    format: 'anthropic-claude-v1',
+    format: 'anthropic-messages-v1',
   },
 ]
 
@@ -64,7 +65,7 @@ beforeAll(async () => {
   server = await startHttpsServer(certificate, (res, request) => {
     const model: unknown = Reflect.get(Object(JSON.parse(request.body)), 'model')
     const stream = typeof model === 'string' ? streams.get(model) : undefined
-    if (request.path !== ROUTE_PATH || stream === undefined) {
+    if (!isGatewayPath(request.path) || stream === undefined) {
       res.writeHead(404).end()
       return
     }

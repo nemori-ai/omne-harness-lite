@@ -1,11 +1,6 @@
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { PromptSection, PromptVariable, PromptContributionSet } from './values.js'
-export type ContributionRejection =
-  | 'no-scope'
-  | 'duplicate-name'
-  | 'per-request-variable'
-  | 'unknown-variable'
-  | 'closed'
+export type ContributionRejection = 'no-scope' | 'duplicate-name' | 'unknown-variable' | 'closed'
 export type ContributionResult =
   | Readonly<{
       kind: 'registered'

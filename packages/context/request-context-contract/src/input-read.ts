@@ -176,9 +176,7 @@ export async function readInputs<P>(
   options: InputReadOptions = {},
 ): Promise<StableInputs<P> | Failure> {
   const g = sources.groups
-  const simple = async <K extends Exclude<GroupName, 'identity' | 'history' | 'context'>>(
-    name: K,
-  ) =>
+  const simple = async <K extends Exclude<GroupName, 'identity' | 'history'>>(name: K) =>
     stableGroup(name, [() => g[name].readCount(call)], () =>
       sourceValue(g[name].readSource(call) as Promise<SourceRead<InputGroups<P>[K]>>, name),
     )
@@ -189,31 +187,25 @@ export async function readInputs<P>(
     rows: [],
     historyRead: { mode: 'full', added: [], cached },
   }
-  const history = await stableGroup('history', [() => g.history.readCount(call)], async before => {
-    const read0 = await sourceValue(g.history.readSource(call), 'history')
-    if (read0.kind !== 'got') return read0
-    return readHistoryValue(call, sources, options, {
-      value: read0.value,
-      token: before[0],
-      carried: control.value.previous?.carried,
-      attempt,
-    })
-  })
-  const { rows, historyRead } = attempt
-  if (history.kind !== 'stable') return history
   const adoptedRead = { access: call.access, target }
-  const context = await stableGroup(
-    'context',
-    [() => g.context.readCount(call), () => sources.adopted.readCount(adoptedRead)],
-    async (): Promise<Got<InputGroups<P>['context']> | Failure> => {
-      const value = await sourceValue(g.context.readSource(call), 'context')
-      if (value.kind !== 'got') return value
+  const history = await stableGroup(
+    'history',
+    [() => g.history.readCount(call), () => sources.adopted.readCount(adoptedRead)],
+    async before => {
+      const read0 = await sourceValue(g.history.readSource(call), 'history')
+      if (read0.kind !== 'got') return read0
       const adopted = await sourceValue(sources.adopted.readSource(adoptedRead), 'adopted')
       if (adopted.kind !== 'got') return adopted
-      return got({ ...value.value, adopted: adopted.value })
+      return readHistoryValue(call, sources, options, {
+        value: { ...read0.value, adopted: adopted.value },
+        token: combinedToken(before),
+        carried: control.value.previous?.carried,
+        attempt,
+      })
     },
   )
-  if (context.kind !== 'stable') return context
+  const { rows, historyRead } = attempt
+  if (history.kind !== 'stable') return history
   const prompt = await simple('prompt')
   if (prompt.kind !== 'stable') return prompt
   const model = await simple('model')
@@ -226,7 +218,6 @@ export async function readInputs<P>(
     historyRead,
     tokens: {
       history: history.token,
-      context: context.token,
       prompt: prompt.token,
       model: model.token,
       tools: tools.token,
@@ -242,9 +233,8 @@ export async function readInputs<P>(
       },
       history: history.value.evidence,
       inputs: history.value.inputs,
-      contextRead: context.value.contextRead,
-      adopted: context.value.adopted,
-      transition: context.value.transition,
+      adopted: history.value.adopted,
+      transition: history.value.transition,
       promptContributions: prompt.value.promptContributions,
       assembleContext: prompt.value.assembleContext,
       selection: model.value,

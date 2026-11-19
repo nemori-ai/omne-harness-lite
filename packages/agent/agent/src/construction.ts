@@ -32,7 +32,6 @@ import type {
   ExtensionImplementations,
   JournalCapabilities,
   MessageHandoff,
-  ModelContextReader,
   ModelSelection,
   RegisteredReads,
   Reply,
@@ -83,7 +82,6 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   compactionInputs: CompactionInputReader<P>
   received: AgentReceivedCommits<P, B>
   selection: ModelSelection<P>
-  modelContext: ModelContextReader<P>
   extensions: ExtensionImplementations<P>
   cards: DecisionCards<P>
   admission: ActionAdmission<P>

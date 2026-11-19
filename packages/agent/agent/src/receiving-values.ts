@@ -119,13 +119,37 @@ function termination(value: unknown): value is Termination {
         : value.kind === 'interrupted' && 'ok' in decodeModelOperationId(value.control))
   )
 }
+function optionalText(value: unknown): string | undefined | null {
+  return value === undefined ? undefined : typeof value === 'string' ? value : null
+}
+function settledReplay(value: unknown): Settlement['replay'] | null {
+  if (!object(value) || typeof value.scope !== 'string' || typeof value.format !== 'string')
+    return null
+  const prefix = optionalText(value.prefix)
+  const call = optionalText(value.call)
+  if (prefix === null || call === null) return null
+  return {
+    scope: value.scope,
+    format: value.format,
+    ...(prefix === undefined ? {} : { prefix }),
+    ...(call === undefined ? {} : { call }),
+  }
+}
 export function settlement(value: unknown): Settlement | null {
   if (!object(value) || !termination(value.termination)) return null
   const version = decodeResultVersion(value.version),
     cursor = decodeOutputCursor(value.cursor),
     source = judgeEvidence(value.source)
+  const replay = value.replay === undefined ? undefined : settledReplay(value.replay)
+  if (replay === null) return null
   return 'ok' in version && 'ok' in cursor && 'ok' in source
-    ? { version: version.ok, cursor: cursor.ok, source: source.ok, termination: value.termination }
+    ? {
+        version: version.ok,
+        cursor: cursor.ok,
+        source: source.ok,
+        termination: value.termination,
+        ...(replay === undefined ? {} : { replay }),
+      }
     : null
 }
 

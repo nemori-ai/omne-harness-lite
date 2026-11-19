@@ -17,13 +17,15 @@ import { ANTHROPIC_RECORDS } from '@omne-harness/pi-ai-anthropic'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { startTunnelProxy } from './support/connect-proxy.ts'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
-import { PLACEHOLDER, ROUTE_PATH } from './support/local-host.ts'
+import { PLACEHOLDER, isGatewayPath } from './support/local-host.ts'
 import { recordRound, type RecordInput } from './support/recorder.ts'
+import { recordingDirectory } from './support/replay.ts'
 import {
   continuedRequest,
   firstRoundRequest,
   RECORD_CASES,
   RECORDING_FILES,
+  readRecording,
   replayRound,
   REPLY_ID,
   type RecordCaseName,
@@ -54,7 +56,7 @@ let vault: string
 beforeAll(async () => {
   root = realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-recorder-')))
   server = await startHttpsServer(certificate, (res, request) => {
-    if (request.path !== ROUTE_PATH) {
+    if (!isGatewayPath(request.path)) {
       res.writeHead(404).end()
       return
     }
@@ -220,7 +222,7 @@ describe('the recorder writes nothing', () => {
 describe('a continued round', () => {
   it.each([
     ['openai-reasoning-continued', 'reasoning_details'],
-    ['anthropic-reasoning-continued', 'reasoning_details'],
+    ['anthropic-reasoning-continued', '"signature"'],
   ] as const)(
     '%s: carries the first round’s replayed reply and the next question, and is recorded the same way',
     async (name, carried) => {
@@ -228,8 +230,8 @@ describe('a continued round', () => {
       if (item.round.kind !== 'continued') throw new Error('not a continued case')
       const firstName = item.round.first
       const first = RECORD_CASES[firstName]
-      const body = recordedStream(first.family, first.model)
-      answer = { status: 200, body }
+      // The first round answers with the real recording of its case, which asked no tools.
+      answer = { status: 200, body: readRecording(recordingDirectory(firstName)).stream }
       const firstRequest = firstRoundRequest(first)
       expect(await recordRound(inputOf(firstName))).toMatchObject({ kind: 'written' })
 

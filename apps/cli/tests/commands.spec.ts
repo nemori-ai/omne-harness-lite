@@ -253,15 +253,28 @@ describe('login', () => {
 })
 
 describe('session commands', () => {
-  const commands: readonly (readonly [string, readonly string[]])[] = [
-    ['create-session', ['--definition', 'default']],
-    ['send-input', ['--session', sessionId, '--text', 'hello']],
-    ['interrupt-input', ['--session', sessionId, '--text', 'hello']],
-    ['cancel-run', ['--session', sessionId, '--run', 'run-7']],
-    ['stop-call', ['--session', sessionId, '--producer-kind', 'model', '--call', 'call-3']],
+  type Row = Readonly<{
+    name: string
+    args: readonly string[]
+    invalidBody: Record<string, unknown>
+  }>
+  const row = (name: string, args: readonly string[], invalidBody = {}): Row => ({
+    name,
+    args,
+    invalidBody,
+  })
+  const commands: readonly Row[] = [
+    row('create-session', ['--definition', 'default']),
+    row('send-input', ['--session', sessionId, '--text', 'hello']),
+    row('interrupt-input', ['--session', sessionId, '--text', 'hello']),
+    row('cancel-run', ['--session', sessionId, '--run', 'run-7']),
+    row('stop-call', ['--session', sessionId, '--producer-kind', 'model', '--call', 'call-3']),
+    row('select-model', ['--session', sessionId, '--model', 'anthropic/claude-sonnet-5'], {
+      reason: 'unknown-name',
+    }),
   ]
 
-  describe.each(commands)('%s', (name, args) => {
+  describe.each(commands)('$name', ({ name, args, invalidBody }) => {
     it('exits 1 and creates no directory when nobody has logged in', async () => {
       const service = await serve()
       const result = await cli([name, ...args, '--server', service.origin])
@@ -337,15 +350,17 @@ describe('session commands', () => {
       ['invalid', 3],
       ['basis-unavailable', 4],
     ])('exits %s -> %i from the outcome and not from the status code', async (outcome, code) => {
+      // An outcome answers the body its operation declares; most declare an empty one.
+      const body = outcome === 'invalid' ? invalidBody : {}
       const service = await serve(seen =>
         seen.operation === 'issue-login'
           ? { outcome: 'succeeded', body: loginBody(seen) }
-          : { outcome, body: {} },
+          : { outcome, body },
       )
       await loginOwningSession(service)
       const result = await cli([name, ...args])
       expect(result.code).toBe(code)
-      expect(parsed(result.stdout)).toMatchObject({ result: 'response', outcome, body: {} })
+      expect(parsed(result.stdout)).toMatchObject({ result: 'response', outcome, body })
       expect(result.stderr).toBe('')
     })
 
@@ -717,6 +732,41 @@ describe('session commands', () => {
       outcome: 'unsupported',
       request: { controlId: 'ctl' },
     })
+  })
+
+  it('select-model sends the route under a control identity, and a retry reuses the one given', async () => {
+    const service = await serve(seen =>
+      seen.operation === 'issue-login'
+        ? { outcome: 'succeeded', body: loginBody(seen) }
+        : { outcome: 'unknown', body: {} },
+    )
+    await loginOwningSession(service)
+    const route = 'openai/gpt-6.1-sol'
+    const first = await cli(['select-model', '--session', sessionId, '--model', route])
+    const sent = service.seen.at(-1)
+    expect(sent?.operation).toBe('select-model')
+    expect(sent?.body).toMatchObject({ session: sessionId, model: route })
+    const sentBody = sent?.body as Record<string, unknown> | undefined
+    const controlId = sentBody?.['controlId']
+    expect(typeof controlId).toBe('string')
+    expect(parsed(first.stdout)).toMatchObject({ outcome: 'unknown', request: { controlId } })
+    await cli([
+      'select-model',
+      '--session',
+      sessionId,
+      '--model',
+      route,
+      '--control-id',
+      String(controlId),
+    ])
+    expect(service.seen.at(-1)?.body).toMatchObject({ controlId, model: route })
+  })
+
+  it('refuses select-model without a route', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    const result = await cli(['select-model', '--session', sessionId, '--model', ''])
+    expect(result).toMatchObject({ code: 2, stderr: commandUnrecognized('select-model') })
   })
 
   it('refuses a producer kind that is neither model nor tool', async () => {

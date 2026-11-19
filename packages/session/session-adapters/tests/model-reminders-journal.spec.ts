@@ -1,0 +1,181 @@
+import { describe, expect, it } from 'vitest'
+import type { SystemReminderMessage } from '@omne-harness/message'
+import type { SqlStorage } from '@omne-harness/sql-contract'
+import type { ModelReminders } from '@omne-harness/session-adapters/cordis'
+import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
+import { evidence, ok, operation } from './fixtures/common-journal.ts'
+import { assistantMessage } from '@omne-harness/session-contract/testing'
+import { sqlScene, takeInputs, type SqlScene } from './fixtures/sql-scene.ts'
+
+function told(text: string): SystemReminderMessage {
+  return {
+    id: `msg_${text.replace(/\W/g, '').padEnd(22, 'x')}` as SystemReminderMessage['id'],
+    role: 'system_reminder',
+    blocks: [
+      {
+        kind: 'text',
+        id: `blk_${text.replace(/\W/g, '')}` as never,
+        visibility: { toHuman: true, toModel: true },
+        text,
+      },
+    ],
+  }
+}
+
+// A holder that has one reminder to tell until it is told; it records what the journal did.
+function scripted(answer: 'tell' | 'fail' = 'tell') {
+  const calls: string[] = []
+  const inputs: unknown[] = []
+  let pending: SystemReminderMessage | null = told('runtime context: the current values')
+  const reminders: ModelReminders<string> = {
+    prepare: async input => {
+      calls.push(`prepare@${input.at}`)
+      inputs.push(input)
+      if (answer === 'fail')
+        return { failure: { kind: 'unavailable', diagnostic: 'scripted read failure' } }
+      const messages = pending === null ? [] : [pending]
+      return {
+        ok: {
+          messages,
+          viewRevision: '1',
+          advance: () => {
+            calls.push('advance')
+            pending = null
+          },
+        },
+      }
+    },
+    forget: () => calls.push('forget'),
+  }
+  return { reminders, calls, inputs }
+}
+
+function journalOf(
+  s: SqlScene,
+  reminders: ModelReminders<string>,
+  storage: SqlStorage = s.storage,
+) {
+  return createSessionLogJournal<string>({
+    storage,
+    tenantDomainLookup: { lookup: () => Promise.resolve({ kind: 'ready', domain: s.domain }) },
+    sessionAccessCheck: {
+      check: request =>
+        Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) }),
+    },
+    combination: s.combination,
+    reminders,
+  }).forSession(s.access).journal
+}
+
+async function modelView(s: SqlScene) {
+  const page = ok(
+    await s.port.history.readModelView({
+      ...s.access,
+      basis: null,
+      after: null,
+      pageBytes: 100_000,
+    }),
+  )
+  if (page.kind !== 'page') throw new Error('a page of the model view is expected')
+  return page.rows.map(row => row.message.role)
+}
+
+describe('the journal tells the model before a step takes its inputs (C4, C7)', () => {
+  it('commits the reminder first: it is the first message the model sees, before the delivered input', async () => {
+    const s = await sqlScene('reminders-first')
+    try {
+      ok(await s.view.journal.open(s.openInput))
+      const { reminders, calls, inputs } = scripted()
+      await takeInputs(s, journalOf(s, reminders))
+      expect(await modelView(s)).toEqual(['system_reminder', 'user'])
+      const work = ok(await s.port.readWork(s.sessionAccess))
+      const scope = work.contextScopes?.at(-1)?.scope
+      expect(inputs[0]).toMatchObject({ principal: s.access.principal, tenant: s.access.tenant })
+      expect((inputs[0] as { scope: { ref: string } }).scope.ref).toBe(scope)
+      expect(Number((inputs[1] as { at: string }).at)).toBeGreaterThan(
+        Number((inputs[0] as { at: string }).at),
+      )
+      expect(calls.filter(call => call === 'advance')).toHaveLength(2)
+      expect(calls[0]).toMatch(/^prepare@/)
+    } finally {
+      await s.close()
+    }
+  })
+
+  it('a write that begins no step tells the model nothing', async () => {
+    const s = await sqlScene('reminders-only-steps')
+    try {
+      ok(await s.view.journal.open(s.openInput))
+      const { reminders, calls } = scripted()
+      const journal = journalOf(s, reminders)
+      await takeInputs(s, journal)
+      const prepared = calls.filter(call => call.startsWith('prepare')).length
+      const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
+      const message = assistantMessage('reply')
+      ok(
+        await journal.commit({
+          ...s.access,
+          execution: s.execution,
+          operation: operation('reply'),
+          authority: loaded.executionAttachment!,
+          expected: loaded.revision,
+          checkpoint: loaded.checkpoint,
+          state: { kind: 'advancing' },
+          events: [{ kind: 'message', message, source: evidence('reply-admission') }],
+          effects: [],
+          caller: {
+            kind: 'message',
+            message,
+            source: evidence('reply-source'),
+            admission: evidence('reply-admission'),
+          },
+          replyAdmission: null,
+          handoff: null,
+          finish: null,
+        }),
+      )
+      expect(calls.filter(call => call.startsWith('prepare'))).toHaveLength(prepared)
+      expect(await modelView(s)).toEqual(['system_reminder', 'user', 'assistant'])
+    } finally {
+      await s.close()
+    }
+  })
+
+  it('a read that fails fails the step: no reminder, no delivered input', async () => {
+    const s = await sqlScene('reminders-fail')
+    try {
+      ok(await s.view.journal.open(s.openInput))
+      const { reminders, calls } = scripted('fail')
+      await expect(takeInputs(s, journalOf(s, reminders))).rejects.toThrow(/scripted read failure/)
+      expect(await modelView(s)).toEqual([])
+      expect(calls).not.toContain('advance')
+    } finally {
+      await s.close()
+    }
+  })
+
+  it('a reminder commit with an unknown answer fails the step and tells nothing as told', async () => {
+    const s = await sqlScene('reminders-unknown')
+    try {
+      ok(await s.view.journal.open(s.openInput))
+      const { reminders, calls } = scripted()
+      const lost: SqlStorage = {
+        ...s.storage,
+        commit: async (request, options) => {
+          const result = await s.storage.commit(request, options)
+          return JSON.stringify(request.commands).includes('context-reminder')
+            ? { kind: 'unknown', identity: request.identity, diagnostic: 'lost reply' }
+            : result
+        },
+      } as SqlStorage
+      await expect(takeInputs(s, journalOf(s, reminders, lost))).rejects.toThrow(/lost reply/)
+      expect(calls).not.toContain('advance')
+      await takeInputs(s, journalOf(s, reminders))
+      expect(
+        (await modelView(s)).filter(role => role === 'system_reminder').length,
+      ).toBeGreaterThan(0)
+    } finally {
+      await s.close()
+    }
+  })
+})

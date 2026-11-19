@@ -960,7 +960,7 @@ describe('review regressions preserve the original wait responsibility', () => {
     ).toBe('ended')
   })
 
-  it.each(['conditions', 'selection', 'context', 'prepare'] as const)(
+  it.each(['conditions', 'selection', 'prepare'] as const)(
     'rereads a recovered I1 %s dependency before sleeping and admits one producer',
     async target => {
       let reads = 0
@@ -984,12 +984,6 @@ describe('review regressions preserve the original wait responsibility', () => {
             target === 'selection' && failedRead()
               ? Promise.resolve(fail(unavailable))
               : d.selection.select(input),
-        },
-        modelContext: {
-          read: input =>
-            target === 'context' && failedRead()
-              ? Promise.resolve(fail(unavailable))
-              : d.modelContext.read(input),
         },
         requests: {
           ...d.requests,

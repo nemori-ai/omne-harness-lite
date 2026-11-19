@@ -66,7 +66,7 @@ export function block(
       carriesPrevious: false,
       recovery: 'reread',
       ...overrides,
-      volatility: 'per-request',
+      volatility: 'per-read',
     },
     supply: async ({ tenant }) => {
       const value = supplied.get(supplyOf(key, tenant))
@@ -171,7 +171,7 @@ async function snapshotOf(reader: ContextReader): Promise<View | string> {
     values[item.key] = item.state.kind === 'value' ? item.state.value : item.state.kind
   const missing: Record<string, string> = {}
   for (const item of snapshot.value.missing) missing[item.key] = item.cause
-  for (const item of snapshot.value.perRequest) {
+  for (const item of snapshot.value.perRead) {
     if (item.kind === 'value') values[item.key] = item.value
     else if (item.kind === 'none') values[item.key] = 'none'
     else missing[item.key] = item.kind === 'missing' ? item.cause : `unknown:${item.cause}`

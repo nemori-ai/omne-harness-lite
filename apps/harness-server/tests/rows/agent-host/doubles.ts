@@ -2,14 +2,12 @@ import type { Context } from '@deepseek-ai/cordis'
 import { createTestAgentDependencies, type TestAgentControls } from '@omne-harness/agent/testing'
 import type { Access } from '@omne-harness/agent-contract'
 import {
-  createMemoryAgentAccountOutlet,
   createTestCancellationPolicy,
   testCancellationPolicyInstallation,
 } from '@omne-harness/agent-contract/testing'
 import {
   ActionAdmissionService,
   AgentAccessCheckService,
-  AgentAccountOutletService,
   AgentAdoptionsService,
   AgentClockService,
   AgentJournalEntriesService,
@@ -22,7 +20,6 @@ import {
   DecisionCardsService,
   ExtensionImplementationsService,
   MessageHandoffService,
-  ModelContextReaderService,
   ModelReceptionTargetsService,
   ModelSelectionService,
   RegisteredReadsService,
@@ -86,9 +83,7 @@ export const INJECTS = [
   'agentCompaction',
   'agentCompactionInputs',
   'agentModelSelection',
-  'agentModelContext',
   'agentMessageHandoff',
-  'agentAccountOutlet',
   'modelRuntime',
   'agentClock',
   'agentHostPrincipal',
@@ -110,9 +105,7 @@ const definitions: Readonly<Record<ServiceInject, unknown>> = {
   agentCompaction: ContextCompactionService,
   agentCompactionInputs: CompactionInputStoreService,
   agentModelSelection: ModelSelectionService,
-  agentModelContext: ModelContextReaderService,
   agentMessageHandoff: MessageHandoffService,
-  agentAccountOutlet: AgentAccountOutletService,
   modelRuntime: ModelRuntimeService,
   agentClock: AgentClockService,
 }
@@ -177,9 +170,7 @@ export function hostDoubles(omit: Inject | null): HostDoubles {
     agentCompaction: dependencies.compaction,
     agentCompactionInputs: dependencies.compactionInputs,
     agentModelSelection: controls.selection.port,
-    agentModelContext: controls.modelContext.port,
     agentMessageHandoff: controls.handoff.port,
-    agentAccountOutlet: createMemoryAgentAccountOutlet<string>(),
     modelRuntime: dependencies.models,
     agentClock: controls.clock.port,
   }

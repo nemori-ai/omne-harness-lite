@@ -123,11 +123,13 @@ function refusalOf(guard: GuardCommand, command: SessionCommand, tenant: string)
   return null
 }
 
-// What a person declares adopts nothing from the deployment; its qualification is checked at the commit.
+// What a person declares adopts nothing from the deployment; its qualification is checked at the
+// commit, and a model's target by Model before it.
 const PERSON_DECLARATIONS: ReadonlySet<string> = new Set([
   'authorization-expression',
   'permission-assignment',
   'permission-mode',
+  'model',
 ])
 
 export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceBridgeService<P> {
@@ -189,6 +191,7 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
     return succeed(materials)
   }
 
+  // A permission write is checked in its own transaction; a model's legality was judged with Model.
   private sourcesFor(command: SessionCommand): Source<P>[] {
     if (command.kind === 'change' && PERSON_DECLARATIONS.has(command.input.declaration.kind))
       return []

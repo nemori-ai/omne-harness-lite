@@ -55,7 +55,6 @@ export function startReception(
       },
       access: driver.admitting(ctx.agentAccessCheck),
       targets: ctx.agentModelReceptionTargets,
-      outlet: ctx.agentAccountOutlet,
       models,
       capacity: () => capacity,
     },
@@ -64,8 +63,6 @@ export function startReception(
   if ('failure' in built) throw new Error('agent-host: the received commits port is unsupported')
   receiver = built.ok
   const removal = ctx.modelRuntime.registerResultReceiver(AGENT_CONSUMER_OWNER, receiver)
-  for (const item of state.outbound.values())
-    if (item.kind === 'pending') driver.known(item.access, item.target.execution)
   for (const reception of state.receptions.values())
     if (reception.commit.kind === 'unknown')
       driver.known(reception.access, reception.target.execution)

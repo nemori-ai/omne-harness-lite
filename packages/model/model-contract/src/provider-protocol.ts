@@ -50,6 +50,7 @@ import type {
   Snapshot,
 } from './call-surface.ts'
 import type { CallAccount } from '@omne-harness/call-account'
+import type { ReplayOmission } from './profile.ts'
 
 export type TransportFailure = Extract<
   ModelFailure,
@@ -85,10 +86,13 @@ export type ProviderDiagnostic =
       scope: string
       format: string
       omittedParts: number
+      reason: ReplayOmission
     }>
   | Readonly<{ kind: 'reasoning-disabled'; reason: 'foreign-prefix' }>
   | Readonly<{ kind: 'reasoning-state-dropped'; reason: 'payload-too-long'; length: number }>
   | Readonly<{ kind: 'usage-inconsistent'; field: string }>
+  /** The upstream changed the request before it ran: what it did, where, and why; never content. */
+  | Readonly<{ kind: 'upstream-transformed'; type: string; path: string; reason: string }>
 export type TransportTermination =
   | Exclude<Termination, { kind: 'interrupted' }>
   | Readonly<{ kind: 'interrupted'; stop: 'confirmed' }>
@@ -115,6 +119,10 @@ export type MaterializationReceipt = Readonly<{
   representation: Adoption
   payloadDigest: string
   replayFormat?: string
+  /** The prefix the request was encoded on; present with a replay format. */
+  replayPrefix?: string
+  /** The request carried reasoning state back; present, with a replay format, only when it did. */
+  replayCarried?: true
 }>
 export interface MaterializedTransport {
   readonly receipt: MaterializationReceipt
@@ -159,6 +167,8 @@ export type DispatchPlan = Readonly<{
 export type RetryDecision =
   | Readonly<{ kind: 'stop'; fault: ModelFault }>
   | Readonly<{ kind: 'retry'; supplier: Supplier; notBefore: string; basis: Adoption }>
+  /** At once, to the supplier that refused the reasoning state, without any reasoning state. */
+  | Readonly<{ kind: 'resend-without-replay'; supplier: Supplier }>
 export type RetryPosition = Readonly<{
   operation: ModelOperationId
   dispatch: DispatchId

@@ -35,6 +35,8 @@ const TURN = [
   'session.created, session.adoption, session.tool-resident-admitted, session.context-registration-changed, session.initialization-item',
   'message.user, intake.routed',
   'run.started, run.attempt-started',
+  // Before the first step the model is told the runtime context, in a commit of its own.
+  'message.system_reminder',
   // The first step takes the input: the Session delivers it to the model view in that commit.
   'message.delivered',
   'run.batch-taken, history.annotated',

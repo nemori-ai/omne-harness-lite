@@ -231,19 +231,30 @@ describe('independent execution through the public entry', () => {
     },
   )
 
-  it('rejects a receipt whose replay format changes between two reads, and starts on a stable one', async () => {
-    let reads = 0
-    const unstable = controlled({
-      receipt: () => ({ ...receipt, replayFormat: `format-${(reads += 1)}` }),
-    })
-    expect(await collect(executeModel(request, unstable.transport, signal()))).toMatchObject([
-      { kind: 'not-started', reason: 'rejected', failure: { kind: 'invalid', field: 'receipt' } },
-    ])
-    expect(unstable.calls).not.toContain('start')
-    const stable = controlled({ receipt: () => ({ ...receipt, replayFormat: 'format-1' }) })
-    await collect(executeModel(request, stable.transport, signal()))
-    expect(stable.calls).toContain('start')
-  })
+  it.each([
+    ['replay format', (read: number) => ({ replayFormat: `format-${read}` })],
+    ['replay prefix', (read: number) => ({ replayFormat: 'format-1', replayPrefix: `h:${read}` })],
+    [
+      'carried mark',
+      (read: number) => ({
+        replayFormat: 'format-1',
+        ...(read % 2 === 1 ? { replayCarried: true as const } : {}),
+      }),
+    ],
+  ] as const)(
+    'rejects a receipt whose %s changes between two reads, and starts on a stable one',
+    async (_, marks) => {
+      let reads = 0
+      const unstable = controlled({ receipt: () => ({ ...receipt, ...marks((reads += 1)) }) })
+      expect(await collect(executeModel(request, unstable.transport, signal()))).toMatchObject([
+        { kind: 'not-started', reason: 'rejected', failure: { kind: 'invalid', field: 'receipt' } },
+      ])
+      expect(unstable.calls).not.toContain('start')
+      const stable = controlled({ receipt: () => ({ ...receipt, ...marks(1) }) })
+      await collect(executeModel(request, stable.transport, signal()))
+      expect(stable.calls).toContain('start')
+    },
+  )
 
   it('fixes receipt expectations before asynchronous preparation', async () => {
     const fixed = structuredClone(request)

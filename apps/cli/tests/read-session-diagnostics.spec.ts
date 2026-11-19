@@ -272,6 +272,30 @@ describe('read-session-diagnostics', () => {
   })
 
   describe('text output', () => {
+    it('says on the dispatch line whether its request carried reasoning back', async () => {
+      const carried = run({
+        modelCalls: [
+          modelCall({
+            dispatches: [
+              dispatch({ reasoning: 'carried' }),
+              dispatch({ dispatch: 'd-2', reasoning: 'not-carried' }),
+            ],
+          }),
+        ],
+      })
+      const service = await serve(diagnosticsService([page([carried], null)]))
+      await loginOwningSession(service)
+      const result = await cli([name, '--session', sessionId])
+      expect(result.code).toBe(0)
+      const lines = result.stdout.split('\n')
+      expect(lines).toContain(
+        '      d-1 openai-compatible: not-sent, first content none-proven, pending, reasoning carried',
+      )
+      expect(lines).toContain(
+        '      d-2 openai-compatible: not-sent, first content none-proven, pending, reasoning not-carried',
+      )
+    })
+
     it('shows the reason of each failed run, the dispatches with timing and account, and the gaps', async () => {
       const service = await serve(diagnosticsService([page([refused, noReply], null, gaps)]))
       await loginOwningSession(service)

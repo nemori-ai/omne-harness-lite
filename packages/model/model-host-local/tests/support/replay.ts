@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { expect } from 'vitest'
 import type { FixedModelRequest } from '@omne-harness/model-contract'
 import { createCertificate, startHttpsServer, type ReceivedRequest } from './https-server.ts'
-import { assembleLocalHost, decoded, ROUTE_PATH } from './local-host.ts'
+import { assembleLocalHost, decoded, isGatewayPath } from './local-host.ts'
 import {
   continuedRequest,
   firstRoundRequest,
@@ -61,7 +61,7 @@ export async function openReplay(
     const certificate = createCertificate()
     closers.push(() => certificate.dispose())
     const server = await startHttpsServer(certificate, (res, request) => {
-      if (request.path !== ROUTE_PATH) {
+      if (!isGatewayPath(request.path)) {
         res.writeHead(404).end()
         return
       }

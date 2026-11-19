@@ -18,6 +18,8 @@ import type { SessionAccess } from '@omne-harness/session-contract'
 import { createSessionContribution } from '../../src/contribution.ts'
 import type {
   DefinitionResolver,
+  ModelTargetCheck,
+  ModelTargets,
   PermissionModeReading,
   PrincipalFacts,
   RequestJournal,
@@ -119,7 +121,25 @@ export type ObservationScript =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable' }>
 
-type Port = 'faces' | 'observation' | 'definitions' | 'listing' | 'causes' | 'permissionModes'
+type Port =
+  | 'faces'
+  | 'observation'
+  | 'definitions'
+  | 'listing'
+  | 'causes'
+  | 'permissionModes'
+  | 'modelTargets'
+
+export type TargetScript = ModelTargetCheck | 'throw'
+export type TargetCall = Parameters<ModelTargets['check']>[0]
+
+/** The basis a selectable target answers with in these tests. */
+export const TARGET_BASIS = {
+  owner: 'model-profiles',
+  record: 'anthropic/claude-sonnet-5',
+  revision: '1',
+  digest: 'a'.repeat(64),
+}
 
 export type World = Readonly<{
   session: SessionDouble
@@ -142,6 +162,10 @@ export type World = Readonly<{
   causes: Readonly<{
     calls(): readonly CauseCall[]
     answer(script: CauseScript): void
+  }>
+  targets: Readonly<{
+    calls(): readonly TargetCall[]
+    answer(script: TargetScript): void
   }>
   modes: Readonly<{
     calls(): readonly SessionAccess<Principal>[]
@@ -177,6 +201,8 @@ export function createWorld(
   let listed: ListingScript = { ok: { items: [], next: null, completeness: 'complete' } }
   const causeCalls: CauseCall[] = []
   let caused: CauseScript = { kind: 'none' }
+  const targetCalls: TargetCall[] = []
+  let targeted: TargetScript = { kind: 'selectable', credential: 'available', basis: TARGET_BASIS }
 
   const issue = (login: FixtureLogin, target: TenantId = login.tenant): Principal => {
     const key = memberKey(target)
@@ -262,6 +288,14 @@ export function createWorld(
     },
   }
 
+  const modelTargets: ModelTargets = {
+    async check(call) {
+      targetCalls.push(call)
+      if (targeted === 'throw') throw new Error('model profiles fault')
+      return targeted
+    },
+  }
+
   const modeCalls: SessionAccess<Principal>[] = []
   let moded: ModeScript = { kind: 'read', mode: 'bypass-permissions', revision: '0' }
   const permissionModes: SessionPermissionModes = {
@@ -299,6 +333,7 @@ export function createWorld(
       definitions: () => (removed.has('definitions') ? undefined : resolver),
       listing: () => (removed.has('listing') ? undefined : listing),
       causes: () => (removed.has('causes') ? undefined : causes),
+      modelTargets: () => (removed.has('modelTargets') ? undefined : modelTargets),
       permissionModes: () => (removed.has('permissionModes') ? undefined : permissionModes),
       principals,
       facts,
@@ -350,6 +385,12 @@ export function createWorld(
       calls: () => [...causeCalls],
       answer: next => {
         caused = next
+      },
+    },
+    targets: {
+      calls: () => [...targetCalls],
+      answer: next => {
+        targeted = next
       },
     },
     modes: {

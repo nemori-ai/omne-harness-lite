@@ -159,7 +159,6 @@ describe('C1 unavailable: a required dependency is absent', () => {
     'conditions',
     'requests',
     'selection',
-    'modelContext',
     'handoff',
     'clock',
   ] as const

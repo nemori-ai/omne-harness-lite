@@ -1,0 +1,230 @@
+: 
+
+data: {"type":"response.created","response":{"id":"gen-1795028612-HhqPAKkFhwxoQWUbQhTv","object":"response","created_at":1795028612,"model":"openai/gpt-6-sol","status":"in_progress","completed_at":null,"output":[],"error":null,"incomplete_details":null,"access_programs":null,"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"properties":{"city":{"type":"string"}},"required":["city"],"type":"object"},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1024,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"auto","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"high","summary":"auto"},"safety_identifier":null,"prompt_cache_key":"820d3ec8d63c931f350b2e8288dfb31295d504d10ee9a70ccc69ec33e2ee8431","prompt_cache_options":null,"usage":null},"sequence_number":0}
+
+data: {"type":"response.in_progress","response":{"id":"gen-1795028612-HhqPAKkFhwxoQWUbQhTv","object":"response","created_at":1795028612,"model":"openai/gpt-6-sol","status":"in_progress","completed_at":null,"output":[],"error":null,"incomplete_details":null,"access_programs":null,"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"properties":{"city":{"type":"string"}},"required":["city"],"type":"object"},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1024,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"auto","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"high","summary":"auto"},"safety_identifier":null,"prompt_cache_key":"820d3ec8d63c931f350b2e8288dfb31295d504d10ee9a70ccc69ec33e2ee8431","prompt_cache_options":null,"usage":null},"sequence_number":1}
+
+data: {"type":"response.output_item.added","output_index":0,"item":{"id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","type":"reasoning","status":"in_progress","summary":[]},"sequence_number":2}
+
+data: {"type":"response.reasoning_summary_part.added","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"part":{"type":"summary_text","text":""},"sequence_number":3}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":"**Calculating divisibility**\n\nI","sequence_number":4}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" need","sequence_number":5}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" to","sequence_number":6}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" calculate","sequence_number":7}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" how","sequence_number":8}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" many","sequence_number":9}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" numbers","sequence_number":10}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" from","sequence_number":11}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 1","sequence_number":12}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" to","sequence_number":13}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 99","sequence_number":14}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" are","sequence_number":15}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" divisible","sequence_number":16}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" by","sequence_number":17}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 3","sequence_number":18}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":",","sequence_number":19}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 7","sequence_number":20}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":",","sequence_number":21}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" and","sequence_number":22}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" both","sequence_number":23}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":".","sequence_number":24}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" So","sequence_number":25}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":",","sequence_number":26}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" I","sequence_number":27}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" can","sequence_number":28}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" count","sequence_number":29}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":":","sequence_number":30}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" for","sequence_number":31}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 3","sequence_number":32}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":",","sequence_number":33}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" there","sequence_number":34}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" are","sequence_number":35}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 33","sequence_number":36}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" numbers","sequence_number":37}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":";","sequence_number":38}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" for","sequence_number":39}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 7","sequence_number":40}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":",","sequence_number":41}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" there","sequence_number":42}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" are","sequence_number":43}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 14","sequence_number":44}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":";","sequence_number":45}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" and","sequence_number":46}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" for","sequence_number":47}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" both","sequence_number":48}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" (","sequence_number":49}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":"21","sequence_number":50}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":"),","sequence_number":51}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" there","sequence_number":52}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" are","sequence_number":53}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 4","sequence_number":54}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":".","sequence_number":55}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" Since","sequence_number":56}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" I'm","sequence_number":57}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" looking","sequence_number":58}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" for","sequence_number":59}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" exclus","sequence_number":60}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":"ivity","sequence_number":61}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":",","sequence_number":62}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" I","sequence_number":63}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" can","sequence_number":64}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" apply","sequence_number":65}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" the","sequence_number":66}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" formula","sequence_number":67}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 33","sequence_number":68}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" +","sequence_number":69}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 14","sequence_number":70}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" -","sequence_number":71}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 2","sequence_number":72}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" *","sequence_number":73}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 4","sequence_number":74}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":".","sequence_number":75}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" That","sequence_number":76}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" results","sequence_number":77}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" in","sequence_number":78}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" 39","sequence_number":79}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":",","sequence_number":80}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" and","sequence_number":81}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" I'm","sequence_number":82}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" curious","sequence_number":83}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" if","sequence_number":84}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" this","sequence_number":85}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" total","sequence_number":86}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" is","sequence_number":87}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" odd","sequence_number":88}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":".","sequence_number":89}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" I","sequence_number":90}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":"’ll","sequence_number":91}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" go","sequence_number":92}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" ahead","sequence_number":93}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" and","sequence_number":94}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" call","sequence_number":95}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" the","sequence_number":96}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" tool","sequence_number":97}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":" now","sequence_number":98}
+
+data: {"type":"response.reasoning_summary_text.delta","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"delta":"!","sequence_number":99}
+
+data: {"type":"response.reasoning_summary_text.done","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"text":"**Calculating divisibility**\n\nI need to calculate how many numbers from 1 to 99 are divisible by 3, 7, and both. So, I can count: for 3, there are 33 numbers; for 7, there are 14; and for both (21), there are 4. Since I'm looking for exclusivity, I can apply the formula 33 + 14 - 2 * 4. That results in 39, and I'm curious if this total is odd. I’ll go ahead and call the tool now!","sequence_number":100}
+
+data: {"type":"response.reasoning_summary_part.done","output_index":0,"item_id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","summary_index":0,"part":{"type":"summary_text","text":"**Calculating divisibility**\n\nI need to calculate how many numbers from 1 to 99 are divisible by 3, 7, and both. So, I can count: for 3, there are 33 numbers; for 7, there are 14; and for both (21), there are 4. Since I'm looking for exclusivity, I can apply the formula 33 + 14 - 2 * 4. That results in 39, and I'm curious if this total is odd. I’ll go ahead and call the tool now!"},"sequence_number":101}
+
+data: {"type":"response.output_item.done","output_index":0,"item":{"id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","type":"reasoning","status":"completed","summary":[{"type":"summary_text","text":"**Calculating divisibility**\n\nI need to calculate how many numbers from 1 to 99 are divisible by 3, 7, and both. So, I can count: for 3, there are 33 numbers; for 7, there are 14; and for both (21), there are 4. Since I'm looking for exclusivity, I can apply the formula 33 + 14 - 2 * 4. That results in 39, and I'm curious if this total is odd. I’ll go ahead and call the tool now!"}],"encrypted_content":"gAAAAABq_faG1Ybit4G16R_cMFRPYs8hbIVgKQ3It2URppDWbKpn05mmmwiT48FnkpYwdFYtmHosPRxPfyY_Sg7qbhvk_c4zmq7T92LSycN1tq9z7xaBRQ58ATiuG97mzkL1cIGF1wrxVZhsBI-Z9ZuudaQzXYp4d6mw1WytaW708CIcbquJ0ucHZTKonMVPiDhUkGziWjjrO1om99l3C8foBPupvcozYga7Ksoh9uwarGF4p8qT7NraIzkzQmXSRWSJQ4tJ0E25PLa_OQXcTkuAL6UlgN78NePvoYC-Y84js5ZnCENuN-uDbfb57hXtKdQSO_l_UwU09Q9ZvhE3xuwwQaSyxxyatlPRQUifgMFZynOqIVBNgZQ95HpNAbPSCMbMNGCILgQCkvuPYTYAA5A9y5tBXbGnNTYhKCYPuZl3Ra8x031AnXq3vomJ6q3BMPAv1DZSlZ8kEOv5zCrDQmBRV0KzpjQe-pzpel6IorHtKTDxlfAhQ8HiLFBPvH9NipEeF-lsaR39WubNvtrstdDiAi0w9KPTnaXs20cpXIp3mRc1bb9lYeNCcEnimh2qiZqV30fVmcbpGemnIchLyDnyonYM_M7VJ33IWNsHYhcrnp_udr2vTPBrEmhlsDOV-eSlsWwfwh4E1YmUOoJlyAPei7PBcsDkd0XI2rfLiT-KlaMKcrloU3Dyfd8T1uSkE8KfC-5QXARpUTLirqWbb2f6oAV0hhCm5YINk0AgI8cs9_9hQb9c1XUY31qf0_OBhbHaGHnQ9jc26b-COWul6VMaH5vFmxMmd0i4EHpsb2pswbKd4BHTDoRRESd-Bj4I3rBXoNNJuk8sexk5MHnpd03qFykTxMnOu8GBNoIuKk3qnK-MdITgc9i3zgj6YWz59sdE2JwJctSdQCZ3RKgmmKeXyqCVY5DLgyeI_lCx8o73oRUxpqdXJlbMrG7jrBcTI4QSWctPys1iTr7hkEgV-if1c7Ickj9RZAAu1O2lRQ-SFNCfKX8NKmbb4S8U22PBRIfUIDa5rT-aN-iPOOi2olbApdC8HqXCIL7CSeJpxJ7MTl3vfBAT4fmAL-M6vWc5GeqCANZDI1aW6uvY-Elr9GFbWs40nu_vHNhiD_PKFooULvw2S5H89cbBtIVX2ts3ygQ3oISXXnfmA8t3acq9G3QFSs_S_2i7Kl1TAwORUaclvAV00dA_-gYHZXWoDFd4KwPknfGHlZcgbP10f8nUNdNcd2vK2iAnMHB9WKW7PZd2W-kkzPQPa1lcwBAFCpfTxgUyp-rtrCKn73J8PaaI8jT1cGQwiukA_RI8V3sl4VK4Yi1qBBjVAHqc8AXz7gW2s8ZsLmonmMoVpiw5x_L_vQKlQrgZOfDsi5bF9B37BhdtF7UStbUoDhOpauy168bj5KZm6KnieRZkT6NlRlA8WJYu9-M5hsNIO_3A3TKqUERp97z9bdRtDmS0tDEFaie2zVycnn1mFsjmBCfdhkXI_-vDFNiuBGrVbTIbKX1HRwDkhG6eMQWHqLcUGbRMMYVBEjDTbWxsoNoS_AcW2UTGN1hEj1lIXUpzrl790cVCmJ7PnrB-237-FcbGrAvwVzQh9rIi2Rl7pZN7FoWJg1ieoqawTMBuekGKceRcm_O-HBoXAyzKYQ4qEZKA9MyVswWhLqf-HJI2SRJsIwOo5hMxxu0u198SDKZaDF7_S3YDUBbyFwl5yZY2tOXLvnNpufdMV-c5uYgnj4-2iXXnn8QMavhYeNvC3WB1ISrlmzFQlBHOtbIQ_3sRDdtVz6WDw_SpA588ni9Bx10YPSBNZhjJe-OfmplSmMiSY6iaPHtcu2YWok9qlgAH_rnyBHALefxnoB1HEg2RB7tWVL0BoErKvLt-2ifMKj1OhTo7AVeEr5WaiK5fdwVfs2ttdp_Ej0Ygur8nWBO9XCgI-0lsZj9JFe06-ZdNm9yQXnNUPTQXJef23Sb7awrECuIRk05OwObsIf_4-01f4Kmg_80I-HlMkt0regZbh4ZV8_ewwrhfF80lcVNSp85UgUiXHmp3_sX4-xRlZiQu2Fj1Ep9TXkttD3-AEJG7-AAzaaDrQZW9BGiynduL4D-6bjEaJ0K5-vrQVd1ooQ27gYP77IxLaoPfi0kRFo1DGUowMuiIx9ahOFVpEWfHREkMrmPYPZwNykOWEE8HBSHSUms6dvYQFx8m1o47BgWQHjPmMMeQvwU11Xid2It-TcorwzyOrqgfS0v9a3N-gFN3isyVexcy-SIzKIyL4B7vKR3ac42IkfrwclC4smZ4gZ506RH5AGGuBTLhk83F0TODFWGUPq0StqP1IVXK02VJGHfe3MByUFTjeUt-gWMo0dUHpqucBrDZQ-P2g8lGB2YpRiDp6OEXxvPA9jh7EIEtytypdWBiyGsGxIEHsJ5rmdZ8Od3iXzQd3YK0yAmuWbQEyxG2ICvDTxX9cgt5U7G0tM6Dt92tZMVOc2HqgY2C1SML-gmXyFFtqohJK_C7iYWF5Tv1z4S6lKKBx1hDwFJ4Nwcj-kX823Unyv0W1iaWbJWcvJC2PbnjnTKNXBhjruzuz8TffglVHnoy_f8ytMzE_xJDQz1Nx1wB2aSgvTWtDNV8Jqmb1-HkY44pEkhaEYyQmbkVyuWoMwXFDUQwKK8rwW_z4M1N0KcVpUUS8Gr5xcNRyBN2DIlzM35259gHBh765kcjZIgn9d_6dI0M6NTFczvbfzoedPg0AmwrcOKXW67Y7VZo7GKB3h43s9aWaoc8cm1FpSveX625m_LVcDvIgf11sTvVT6oQTBMDNJyoZLDj4S6dOZ8vcCYJD5CRBDwfGQoFsBk523mNquPf6FwhI_Rp7TmW3TFWroLFzV9YWAfVe7qgBgamiorVtHWwOF3vjma9ObZMscRhHUQANlsI5Dva_xjM1sNI9ZRLAXlAXOVrw1Q0dMf-U1m1y0_87MjoWsyba_aeFUSHghHBn19V7ZXKAIF2FWq72O3NXwx6Xv3R0GEbZpBWRL8Moj7dUrq-HrWk5ZU6ANVnrFdh9NBeo2HX7RPPnvQ9ImktXHnPuHaRL4Pc5FH7BucM8gTURwBTBegx.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC02LXNvbC0yMDI2MDkyMnxvcGVuYWkifQ","format":"openai-responses-v1"},"sequence_number":102}
+
+data: {"type":"response.output_item.added","output_index":1,"item":{"id":"fc_tmp_4yfb7eusgoe","type":"function_call","status":"in_progress","call_id":"call_RRYnNz9mryljJFpPXO1FdMjK","name":"get_weather","arguments":""},"sequence_number":103}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_4yfb7eusgoe","delta":"{\"","sequence_number":104}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_4yfb7eusgoe","delta":"city","sequence_number":105}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_4yfb7eusgoe","delta":"\":\"","sequence_number":106}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_4yfb7eusgoe","delta":"L","sequence_number":107}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_4yfb7eusgoe","delta":"ima","sequence_number":108}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_4yfb7eusgoe","delta":"\"}","sequence_number":109}
+
+data: {"type":"response.function_call_arguments.done","output_index":1,"item_id":"fc_tmp_4yfb7eusgoe","name":"get_weather","arguments":"{\"city\":\"Lima\"}","sequence_number":110}
+
+data: {"type":"response.output_item.done","output_index":1,"item":{"id":"fc_tmp_4yfb7eusgoe","type":"function_call","status":"completed","call_id":"call_RRYnNz9mryljJFpPXO1FdMjK","name":"get_weather","arguments":"{\"city\":\"Lima\"}"},"sequence_number":111}
+
+data: {"type":"response.completed","response":{"id":"gen-1795028612-HhqPAKkFhwxoQWUbQhTv","object":"response","created_at":1795028612,"model":"openai/gpt-6-sol","status":"completed","completed_at":1795028614,"output":[{"id":"rs_0fe36d8e28868026016afdf68506e887d18ce1c521bd939368","type":"reasoning","status":"completed","summary":[{"type":"summary_text","text":"**Calculating divisibility**\n\nI need to calculate how many numbers from 1 to 99 are divisible by 3, 7, and both. So, I can count: for 3, there are 33 numbers; for 7, there are 14; and for both (21), there are 4. Since I'm looking for exclusivity, I can apply the formula 33 + 14 - 2 * 4. That results in 39, and I'm curious if this total is odd. I’ll go ahead and call the tool now!"}],"encrypted_content":"gAAAAABq_faG1Ybit4G16R_cMFRPYs8hbIVgKQ3It2URppDWbKpn05mmmwiT48FnkpYwdFYtmHosPRxPfyY_Sg7qbhvk_c4zmq7T92LSycN1tq9z7xaBRQ58ATiuG97mzkL1cIGF1wrxVZhsBI-Z9ZuudaQzXYp4d6mw1WytaW708CIcbquJ0ucHZTKonMVPiDhUkGziWjjrO1om99l3C8foBPupvcozYga7Ksoh9uwarGF4p8qT7NraIzkzQmXSRWSJQ4tJ0E25PLa_OQXcTkuAL6UlgN78NePvoYC-Y84js5ZnCENuN-uDbfb57hXtKdQSO_l_UwU09Q9ZvhE3xuwwQaSyxxyatlPRQUifgMFZynOqIVBNgZQ95HpNAbPSCMbMNGCILgQCkvuPYTYAA5A9y5tBXbGnNTYhKCYPuZl3Ra8x031AnXq3vomJ6q3BMPAv1DZSlZ8kEOv5zCrDQmBRV0KzpjQe-pzpel6IorHtKTDxlfAhQ8HiLFBPvH9NipEeF-lsaR39WubNvtrstdDiAi0w9KPTnaXs20cpXIp3mRc1bb9lYeNCcEnimh2qiZqV30fVmcbpGemnIchLyDnyonYM_M7VJ33IWNsHYhcrnp_udr2vTPBrEmhlsDOV-eSlsWwfwh4E1YmUOoJlyAPei7PBcsDkd0XI2rfLiT-KlaMKcrloU3Dyfd8T1uSkE8KfC-5QXARpUTLirqWbb2f6oAV0hhCm5YINk0AgI8cs9_9hQb9c1XUY31qf0_OBhbHaGHnQ9jc26b-COWul6VMaH5vFmxMmd0i4EHpsb2pswbKd4BHTDoRRESd-Bj4I3rBXoNNJuk8sexk5MHnpd03qFykTxMnOu8GBNoIuKk3qnK-MdITgc9i3zgj6YWz59sdE2JwJctSdQCZ3RKgmmKeXyqCVY5DLgyeI_lCx8o73oRUxpqdXJlbMrG7jrBcTI4QSWctPys1iTr7hkEgV-if1c7Ickj9RZAAu1O2lRQ-SFNCfKX8NKmbb4S8U22PBRIfUIDa5rT-aN-iPOOi2olbApdC8HqXCIL7CSeJpxJ7MTl3vfBAT4fmAL-M6vWc5GeqCANZDI1aW6uvY-Elr9GFbWs40nu_vHNhiD_PKFooULvw2S5H89cbBtIVX2ts3ygQ3oISXXnfmA8t3acq9G3QFSs_S_2i7Kl1TAwORUaclvAV00dA_-gYHZXWoDFd4KwPknfGHlZcgbP10f8nUNdNcd2vK2iAnMHB9WKW7PZd2W-kkzPQPa1lcwBAFCpfTxgUyp-rtrCKn73J8PaaI8jT1cGQwiukA_RI8V3sl4VK4Yi1qBBjVAHqc8AXz7gW2s8ZsLmonmMoVpiw5x_L_vQKlQrgZOfDsi5bF9B37BhdtF7UStbUoDhOpauy168bj5KZm6KnieRZkT6NlRlA8WJYu9-M5hsNIO_3A3TKqUERp97z9bdRtDmS0tDEFaie2zVycnn1mFsjmBCfdhkXI_-vDFNiuBGrVbTIbKX1HRwDkhG6eMQWHqLcUGbRMMYVBEjDTbWxsoNoS_AcW2UTGN1hEj1lIXUpzrl790cVCmJ7PnrB-237-FcbGrAvwVzQh9rIi2Rl7pZN7FoWJg1ieoqawTMBuekGKceRcm_O-HBoXAyzKYQ4qEZKA9MyVswWhLqf-HJI2SRJsIwOo5hMxxu0u198SDKZaDF7_S3YDUBbyFwl5yZY2tOXLvnNpufdMV-c5uYgnj4-2iXXnn8QMavhYeNvC3WB1ISrlmzFQlBHOtbIQ_3sRDdtVz6WDw_SpA588ni9Bx10YPSBNZhjJe-OfmplSmMiSY6iaPHtcu2YWok9qlgAH_rnyBHALefxnoB1HEg2RB7tWVL0BoErKvLt-2ifMKj1OhTo7AVeEr5WaiK5fdwVfs2ttdp_Ej0Ygur8nWBO9XCgI-0lsZj9JFe06-ZdNm9yQXnNUPTQXJef23Sb7awrECuIRk05OwObsIf_4-01f4Kmg_80I-HlMkt0regZbh4ZV8_ewwrhfF80lcVNSp85UgUiXHmp3_sX4-xRlZiQu2Fj1Ep9TXkttD3-AEJG7-AAzaaDrQZW9BGiynduL4D-6bjEaJ0K5-vrQVd1ooQ27gYP77IxLaoPfi0kRFo1DGUowMuiIx9ahOFVpEWfHREkMrmPYPZwNykOWEE8HBSHSUms6dvYQFx8m1o47BgWQHjPmMMeQvwU11Xid2It-TcorwzyOrqgfS0v9a3N-gFN3isyVexcy-SIzKIyL4B7vKR3ac42IkfrwclC4smZ4gZ506RH5AGGuBTLhk83F0TODFWGUPq0StqP1IVXK02VJGHfe3MByUFTjeUt-gWMo0dUHpqucBrDZQ-P2g8lGB2YpRiDp6OEXxvPA9jh7EIEtytypdWBiyGsGxIEHsJ5rmdZ8Od3iXzQd3YK0yAmuWbQEyxG2ICvDTxX9cgt5U7G0tM6Dt92tZMVOc2HqgY2C1SML-gmXyFFtqohJK_C7iYWF5Tv1z4S6lKKBx1hDwFJ4Nwcj-kX823Unyv0W1iaWbJWcvJC2PbnjnTKNXBhjruzuz8TffglVHnoy_f8ytMzE_xJDQz1Nx1wB2aSgvTWtDNV8Jqmb1-HkY44pEkhaEYyQmbkVyuWoMwXFDUQwKK8rwW_z4M1N0KcVpUUS8Gr5xcNRyBN2DIlzM35259gHBh765kcjZIgn9d_6dI0M6NTFczvbfzoedPg0AmwrcOKXW67Y7VZo7GKB3h43s9aWaoc8cm1FpSveX625m_LVcDvIgf11sTvVT6oQTBMDNJyoZLDj4S6dOZ8vcCYJD5CRBDwfGQoFsBk523mNquPf6FwhI_Rp7TmW3TFWroLFzV9YWAfVe7qgBgamiorVtHWwOF3vjma9ObZMscRhHUQANlsI5Dva_xjM1sNI9ZRLAXlAXOVrw1Q0dMf-U1m1y0_87MjoWsyba_aeFUSHghHBn19V7ZXKAIF2FWq72O3NXwx6Xv3R0GEbZpBWRL8Moj7dUrq-HrWk5ZU6ANVnrFdh9NBeo2HX7RPPnvQ9ImktXHnPuHaRL4Pc5FH7BucM8gTURwBTBegx.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC02LXNvbC0yMDI2MDkyMnxvcGVuYWkifQ","format":"openai-responses-v1"},{"id":"fc_tmp_4yfb7eusgoe","type":"function_call","status":"completed","call_id":"call_RRYnNz9mryljJFpPXO1FdMjK","name":"get_weather","arguments":"{\"city\":\"Lima\"}"}],"error":null,"incomplete_details":null,"access_programs":{"cyber":"standard"},"input_transformations":[],"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"properties":{"city":{"type":"string"}},"required":["city"],"type":"object"},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1024,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"default","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"high","summary":"detailed","context":"all_turns","mode":"standard"},"safety_identifier":null,"prompt_cache_key":"820d3ec8d63c931f350b2e8288dfb31295d504d10ee9a70ccc69ec33e2ee8431","prompt_cache_options":null,"usage":{"input_tokens":101,"input_tokens_details":{"cached_tokens":0},"output_tokens":65,"output_tokens_details":{"reasoning_tokens":44},"total_tokens":166,"cost":0.000852,"is_byok":false,"cost_details":{"upstream_inference_cost":0.000852,"upstream_inference_input_cost":0.000202,"upstream_inference_output_cost":0.00065}}},"sequence_number":112}
+
+data: [DONE]
+

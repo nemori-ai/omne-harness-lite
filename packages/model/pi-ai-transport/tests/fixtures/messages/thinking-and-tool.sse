@@ -1,0 +1,57 @@
+event: message_start
+data: {"type":"message_start","message":{"id":"msg_011Ch9ZbBx5rSpUzotCv2fj2","type":"message","role":"assistant","container":null,"content":[],"model":"anthropic/claude-haiku-5.5","stop_reason":null,"stop_details":null,"stop_sequence":null,"usage":{"input_tokens":414,"output_tokens":7,"output_tokens_details":null,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"inference_geo":"global","server_tool_use":null,"service_tier":"standard","speed":"standard"},"provider":"Anthropic"}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"CAQS8gUKEAgTGAI4AUIIdGhpbmtpbmcSDA4UpYuWfdJMUmOCNRoMZ+eVtBJ+AdLf1RIHIjB5pDZJvfrRYQ+FS3TrFri9108ZWDsgfjt10vBmJ9puGgDUsIbco09p6HcbcM2NL74qjwV734pfIikrzP8drdlH/Ha5cDhtZ8eZh+2NgOUN7m9eG6zdr4t8+gS/Aec2dy9M9EHHmu8LI1MqNLGq1I6cen4yFHP1qXfUXj9165hteDSd+weE0IyvYMl/VGQKgBMdl2J4ENsZZVXMkZL9x32Q+y1QrtHxO2dHP0k63BarD3zgpqiMEmhDpUo7hdkp9HUhgHYVITw928It1modPoEMaI+yANUj1rkjr/Bl5ekJjFq1BSmTkb62yBUgwT0sOrPFwCuzRme207BUxpdAVH+nT9V2keiTqX6R3rqkNqErsHfF8dqHbxkUHh8GzJLe2UDnPm90Xxpxeb69Mceo03NNk/0FjMPf84n1dox4s4B5H6mOptI+qqFA0cc7EDIo70gM0/5kZO27q0ZEAKMqqVH/oK3IuSjqU3KaMm8sA8R+KXWWDV7UYpPknj2FQnBoejwjU8rAzQ64flKei1i61jq3aROr6D29XzR+9uG1XB7Z6eW4Vx3G3moIOiyFZopQBsGKqx9UQ7h68nwPtYSfzJoewF6coSFN4hLX77acXKCqY2dVTIpOrT/DDTOwBm+v3ST+xAsm2P5ZYwAgsjeFOyCdyPYwZ9z17k5M8djtk8olWeyxomzfH2IjIEFDD2QuudLhG2DyPLqzkqMReuwtRp55l0ejwqnBQTeVS80mTInY6TXnrI+77Xbx7Hw1XsbjjOrTtc1W4+q9Zun+ovgz6mNQa9qjHZUlD4Nxd8zNnvQvjNi2Ch0muRHctvDz32T2IoE+aCqw3e+qWf6c3mu1lv37lH/AYmPi3cAnQHWS88s5f2MQRnldFn1oSQxKHKN5tezScFr4Pb2g82IeApWYrxXykQaut5+aQMJ1H6NqKiQN252tGAE=.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1oYWlrdS01LjUtMjAyNjEwMDd8YW50aHJvcGljIn0"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"text","text":"","citations":[]}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"Oslo is"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" further north than Lima, at"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" about 60"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"°N comp"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"ared with"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" Lima's "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"12°S."}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: content_block_start
+data: {"type":"content_block_start","index":2,"content_block":{"type":"tool_use","id":"toolu_01YLRXVQJN2rdussMEPDzkJ6","caller":{"type":"direct"},"name":"get_weather","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":"{\"city\": \"Oslo"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":"\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":2}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"container":null,"stop_details":null,"stop_reason":"tool_use","stop_sequence":null},"usage":{"input_tokens":414,"output_tokens":128,"output_tokens_details":{"thinking_tokens":46},"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"server_tool_use":null,"service_tier":"standard","speed":"standard","cost":0.0001054,"is_byok":false,"cost_details":{"upstream_inference_cost":0.0001054,"upstream_inference_prompt_cost":0.0000414,"upstream_inference_completions_cost":0.000064}},"context_management":null}
+
+event: message_stop
+data: {"type":"message_stop"}
+

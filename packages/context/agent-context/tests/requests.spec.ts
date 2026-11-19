@@ -30,13 +30,13 @@ import {
   position,
   tenantOf,
   userMessage,
+  HEAD,
   type World,
   type WorldOptions,
 } from './fixtures/context-world.ts'
 
-async function prepared(w: World, overrides: Parameters<World['prepareInput']>[1] = {}) {
-  const context = await w.read()
-  return w.requests.prepare(w.prepareInput(context, overrides))
+async function prepared(w: World, overrides: Parameters<World['prepareInput']>[0] = {}) {
+  return w.requests.prepare(w.prepareInput(overrides))
 }
 function okOf<T>(result: { ok: T } | { failure: unknown }): T {
   if (!('ok' in result)) throw new Error(`expected a success, got ${JSON.stringify(result)}`)
@@ -114,7 +114,7 @@ describe('prepare', () => {
       }
     }
 
-    it('keeps the facts of this moment: coverage, window of the fixing profile, forecast, candidate and target', async () => {
+    it('keeps the facts of this moment: coverage, candidate, target and the prefix it was built on', async () => {
       const w = await createWorld({ meter: twoChecks })
       const result = okOf(
         await prepared(w, { beforeModelCall: w.passed, selection: widerSelection(w, '4000') }),
@@ -125,11 +125,11 @@ describe('prepare', () => {
       const record = decoded.ok
       expect(digest(record.coverage)).toBe(result.coverage.digest)
       expect(record.coverage).toEqual(w.candidates.at(-1)?.coverage)
-      expect(record.windowTokens).toBe('4000')
-      expect(record.forecast).toEqual({ kind: 'estimate', usedTokens: '90' })
       expect(record.candidate).toBe('action-1')
       expect(record.target).toEqual(w.f.target)
-      expect(record.continuation).toBeNull()
+      const prefix = w.candidates.at(-1)?.continuation
+      expect(prefix?.messagePrefix.length).toBeGreaterThan(0)
+      expect(record.continuation).toEqual(prefix)
     })
 
     it('keeps the coverage of the candidate, not a coverage that a later read gives', async () => {
@@ -145,14 +145,6 @@ describe('prepare', () => {
       if (!('ok' in record)) throw new Error('state refused')
       expect(digest(record.ok.coverage)).toBe(first.coverage.digest)
       expect(digest(record.ok.coverage)).not.toBe(later.coverage.digest)
-    })
-
-    it('has no forecast when the report has no input-tokens check', async () => {
-      const w = await createWorld({ meter: () => ({ ok: { ...fixtureBudget(), checks: [] } }) })
-      const result = okOf(await prepared(w, { beforeModelCall: w.passed }))
-      if (result.kind !== 'ready') throw new Error(`expected ready, got ${result.kind}`)
-      const record = decodeFixedRequestRecord(result.state)
-      expect('ok' in record && record.ok.forecast).toBeNull()
     })
 
     it('stores only the original request references for needs-compaction preparations', async () => {
@@ -450,11 +442,10 @@ describe('the staging table', () => {
   it('runs two calls of one candidate at different positions together, each on its own input', async () => {
     const gate = gated()
     const w = await createWorld({ operations: gate.wrap })
-    const context = await w.read()
     const answers = [
-      w.requests.prepare(w.prepareInput(context, { inputs: batch('batch-1') })),
+      w.requests.prepare(w.prepareInput({ inputs: batch('batch-1') })),
       w.requests.prepare(
-        w.prepareInput(context, {
+        w.prepareInput({
           position: { ...position, work: 'execution-2' },
           inputs: batch('batch-2'),
         }),
@@ -477,10 +468,9 @@ describe('the staging table', () => {
   ] as const)('runs two calls at one position with different %s together', async (_, other) => {
     const gate = gated()
     const w = await createWorld({ operations: gate.wrap })
-    const context = await w.read()
     const answers = [
-      w.requests.prepare(w.prepareInput(context)),
-      w.requests.prepare(w.prepareInput(context, other)),
+      w.requests.prepare(w.prepareInput()),
+      w.requests.prepare(w.prepareInput(other)),
     ]
     await heldFor(gate, 2)
     gate.open()
@@ -493,7 +483,7 @@ describe('the staging table', () => {
     const staging = createStaging<string>()
     const groupsOf = (name: string): StagedGroups<string> => {
       const read = { kind: 'unavailable' as const, diagnostic: name }
-      return { history: read, context: read, prompt: read, model: read, tools: read, control: read }
+      return { history: read, prompt: read, model: read, tools: read, control: read }
     }
     const call = (tenant: TenantId): AssemblyCall<string> => ({
       access: { principal: 'ada', tenant },
@@ -519,15 +509,14 @@ describe('the staging table', () => {
   it('answers call-input-busy to a second arrival of the same call in flight, and clears after', async () => {
     const gate = gated()
     const w = await createWorld({ operations: gate.wrap })
-    const context = await w.read()
-    const first = w.requests.prepare(w.prepareInput(context))
+    const first = w.requests.prepare(w.prepareInput())
     await new Promise(resolve => setTimeout(resolve, 0))
-    expect(await w.requests.prepare(w.prepareInput(context))).toEqual({
+    expect(await w.requests.prepare(w.prepareInput())).toEqual({
       failure: { kind: 'unavailable', owner: 'agent-context', diagnostic: 'call-input-busy' },
     })
     gate.open()
     expect(kindOf(await first)).toBe('assembled')
-    expect(kindOf(await w.requests.prepare(w.prepareInput(context)))).toBe('assembled')
+    expect(kindOf(await w.requests.prepare(w.prepareInput()))).toBe('assembled')
   })
 
   it('leaves no group value behind: a read after the call answers call-input-absent', async () => {
@@ -581,8 +570,7 @@ describe('registration of the source set', () => {
 
   it('close withdraws every registration, settles, and refuses later calls', async () => {
     const w = await createWorld()
-    const context = await w.read()
-    okOf(await w.requests.prepare(w.prepareInput(context)))
+    okOf(await w.requests.prepare(w.prepareInput()))
     expect(await w.requests.close()).toEqual({ kind: 'settled' })
     const other = { ...owner, name: 'next' }
     const next = await w.registry.register({
@@ -592,7 +580,7 @@ describe('registration of the source set', () => {
       sources: w.f.sources,
     })
     expect(next.kind).toBe('registered')
-    expect(await w.requests.prepare(w.prepareInput(context))).toEqual({
+    expect(await w.requests.prepare(w.prepareInput())).toEqual({
       failure: { kind: 'unavailable', owner: 'agent-context', diagnostic: 'agent-context-closed' },
     })
   })
@@ -601,11 +589,8 @@ describe('registration of the source set', () => {
 describe('failures', () => {
   it('maps a refused history resolution as it is and asks Request Context nothing', async () => {
     const w = await createWorld()
-    const context = await w.read()
     const before = w.counts.assemble
-    const result = await w.requests.prepare(
-      w.prepareInput(context, { history: evidence('another-head') }),
-    )
+    const result = await w.requests.prepare(w.prepareInput({ history: evidence('another-head') }))
     expect(result).toEqual({
       failure: { kind: 'invalid', field: 'evidence', reason: 'unknown-epoch' },
     })
@@ -633,25 +618,22 @@ describe('failures', () => {
 
   it('denies a target of another tenant that the holder resolves, and asks nothing further', async () => {
     const w = await createWorld()
-    const context = await w.read()
     const seen = { ...w.counts }
     w.resolveTo(tenantOf('2'))
-    expect(await w.requests.prepare(w.prepareInput(context))).toEqual({
+    expect(await w.requests.prepare(w.prepareInput())).toEqual({
       failure: { kind: 'denied', action: 'prepare' },
     })
     expect(w.counts.resolveHistory).toBe(seen.resolveHistory + 1)
     expect({ ...w.counts, resolveHistory: 0 }).toEqual({ ...seen, resolveHistory: 0 })
   })
 
-  it('denies a read of another tenant before anything is resolved', async () => {
+  it('denies another tenant at the history holder, before any assembly', async () => {
     const w = await createWorld()
-    const context = await w.read()
-    const before = w.counts.resolveHistory
     const stranger = { principal: 'bob', tenant: tenantOf('2') }
-    expect(await w.requests.prepare(w.prepareInput(context, stranger))).toEqual({
-      failure: { kind: 'denied', action: 'prepare' },
+    expect(await w.requests.prepare(w.prepareInput(stranger))).toEqual({
+      failure: { kind: 'denied', action: 'resolve-history' },
     })
-    expect(w.counts.resolveHistory).toBe(before)
+    expect(w.candidates).toHaveLength(0)
   })
 })
 
@@ -761,6 +743,39 @@ describe('compaction assessment and resume', () => {
     })
   })
 
+  it('cites the call a retained reply names in its replay mark when it measures the request after the summary', async () => {
+    const base = historyRow(1)
+    const judged = judgeMessage({
+      role: 'assistant',
+      id: base.message.id,
+      blocks: [
+        { kind: 'text', id: 't1', visibility: { toModel: true, toHuman: true }, text: 'answer' },
+        {
+          kind: 'reasoning_state',
+          id: 's1',
+          visibility: { toModel: true, toHuman: false },
+          payload: 'p',
+          pairs: [],
+        },
+      ],
+      replay: { scope: 'A', format: 'f1', at: [1], call: 'mcall_marked' },
+    })
+    if (!('ok' in judged) || judged.ok.role !== 'assistant') throw new Error('fixture reply')
+    const reply = judged.ok
+    const { w, frozen, assessment } = await planned({
+      rows: [historyRow(0, 'goal'), { ...base, message: reply }],
+    })
+    const kept = frozen.history.entries.find(entry => entry.message.id === reply.id)
+    if (kept === undefined) throw new Error('the reply was not frozen')
+    await w.requests.assessCompaction({
+      ...assessment,
+      message: { ...assessment.message, retained: [kept.ref] },
+    })
+    expect(w.f.preparation.calls().at(-1)?.lineage?.sources).toEqual([
+      { message: reply.id, call: 'mcall_marked' },
+    ])
+  })
+
   it('returns cannot-fit when retained history plus summary remains too large', async () => {
     const { w, frozen, assessment } = await planned()
     const result = await w.requests.assessCompaction({
@@ -770,40 +785,22 @@ describe('compaction assessment and resume', () => {
     expect(result).toMatchObject({ ok: { kind: 'cannot-fit' } })
   })
 
-  it('resume answers changed for another commit without recomputing the request', async () => {
-    const { w, original } = await planned()
-    const context = await w.read({ transition: evidence('commit-a') })
-    expect(
-      await w.requests.resume({
-        ...w.access,
-        advance: authority(),
-        original,
-        transition: evidence('commit-b'),
-        selection: w.selection,
-        context,
-      }),
-    ).toEqual({ failure: { kind: 'changed' } })
-    expect(w.counts.resume).toBe(0)
-  })
-
   it('resumes after the adapter is rebuilt and never freezes another task for the original request', async () => {
     const tools = async () => ({ kind: 'value' as const, value: [] })
     const { w, original } = await planned({ tools })
     await w.requests.close()
-    w.materials.close()
     const fresh = await createWorld({
       meter: meterBy(500),
       tools,
       compactionInputs: w.compactionInputs,
     })
-    const context = await fresh.read({ transition: evidence('committed') })
     const result = await fresh.requests.resume({
       ...fresh.access,
       advance: authority(),
       original,
       transition: evidence('committed'),
+      history: HEAD,
       selection: fresh.selection,
-      context,
     })
     expect(result).toMatchObject({ ok: { kind: 'cannot-fit', reason: 'after-compaction' } })
     expect(fresh.counts.resume).toBe(1)
@@ -817,7 +814,6 @@ describe('compaction assessment and resume', () => {
         : { kind: 'value', value: [] }
     const { w, original, assessment } = await planned({ tools })
     await w.requests.close()
-    w.materials.close()
     const row = historyRow(0, 'unused')
     const fresh = await createWorld({
       meter: meterBy(500),
@@ -833,15 +829,14 @@ describe('compaction assessment and resume', () => {
         },
       ],
     })
-    const context = await fresh.read({ transition: evidence('committed') })
     const result = okOf(
       await fresh.requests.resume({
         ...fresh.access,
         advance: authority(),
         original,
         transition: evidence('committed'),
+        history: HEAD,
         selection: fresh.selection,
-        context,
       }),
     )
     expect(result.kind).toBe('assembled')
@@ -854,14 +849,13 @@ describe('compaction assessment and resume', () => {
 
   it('rejects a substituted original request memento before resume', async () => {
     const { w, original } = await planned()
-    const context = await w.read({ transition: evidence('committed') })
     const result = await w.requests.resume({
       ...w.access,
       advance: authority(),
       original: { ...original, state: { kind: 'string', value: '{}' } },
       transition: evidence('committed'),
+      history: HEAD,
       selection: w.selection,
-      context,
     })
     expect(result).toMatchObject({ failure: { kind: 'invalid', field: 'original' } })
   })
@@ -879,8 +873,7 @@ describe('the derivation of a long conversation grows with the new rows', () => 
     w.growTo(last)
     w.observation.reset()
     const calls = w.f.preparation.calls().length
-    const context = await w.read()
-    const result = await w.requests.prepare(w.prepareInput(context, { action: actionOf(index) }))
+    const result = await w.requests.prepare(w.prepareInput({ action: actionOf(index) }))
     const kind = kindOf(result)
     if (kind !== 'assembled') throw new Error(`round ${index}: ${JSON.stringify(result)}`)
     const whole = w.f.preparation.calls()[calls]

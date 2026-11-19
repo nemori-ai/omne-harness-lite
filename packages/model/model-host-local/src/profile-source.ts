@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import type {
+  Adoption,
   DurableEvidence,
   ModelProfile,
   ModelProfileDefinition,
@@ -47,21 +48,26 @@ function digestOf(value: unknown): string {
   return createHash('sha256').update(canonicalJson(value), 'utf8').digest('hex')
 }
 
+/** The adoption of an official profile: its supplier's owner and revision, named by route. */
+export function officialProfileAdoption(definition: ModelProfileDefinition): Adoption {
+  const { adoption, model } = definition.suppliers[0]
+  return Object.freeze({
+    owner: adoption.owner,
+    name: model,
+    revision: adoption.revision,
+    digest: digestOf(definition),
+  })
+}
+
 function profileOf(definition: ModelProfileDefinition, updatedAt: string): ModelProfile {
   const supplier = definition.suppliers[0]
   const route = supplier.model
-  const { adoption } = supplier
-  const revision = decodeRevision(adoption.revision)
+  const revision = decodeRevision(supplier.adoption.revision)
   if ('failure' in revision)
     throw new RangeError(`the supplier adoption revision of ${route} is not a revision`)
   return Object.freeze({
     identity: Object.freeze({ scope: FACTORY, route }),
-    adoption: Object.freeze({
-      owner: adoption.owner,
-      name: route,
-      revision: adoption.revision,
-      digest: digestOf(definition),
-    }),
+    adoption: officialProfileAdoption(definition),
     revision: revision.ok,
     updatedAt,
     availability: 'active',

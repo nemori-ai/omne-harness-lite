@@ -25,6 +25,7 @@ type Name = Exclude<
   | 'read-input-fate'
   | 'background-call'
   | 'list-background-calls'
+  | 'select-model'
   | 'read-permission-mode'
   | 'change-permission-mode'
 >

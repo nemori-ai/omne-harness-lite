@@ -29,9 +29,9 @@ export function scope(ref: string, parent?: ScopeRef): ScopeRef {
 }
 export function declaration(
   overrides: Partial<SuppliedBlockDescriptor<'suite.value', unknown>> & {
-    volatility: 'per-request'
+    volatility: 'per-read'
   },
-): SuppliedBlockDescriptor<'suite.value', unknown> & { volatility: 'per-request' }
+): SuppliedBlockDescriptor<'suite.value', unknown> & { volatility: 'per-read' }
 export function declaration(
   overrides?: Partial<SuppliedBlockDescriptor<'suite.value', unknown>> & { volatility?: 'stable' },
 ): SuppliedBlockDescriptor<'suite.value', unknown> & { volatility: 'stable' }

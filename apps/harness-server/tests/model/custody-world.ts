@@ -81,7 +81,11 @@ import {
 import { sessionTransactionsKey } from '@omne-harness/session-cordis-contract/cordis'
 import { agentCustodyOf, createModelEvidence } from '../../src/model/evidence.ts'
 import { defineRow } from '../../src/row.ts'
-import { agentJournalCombination, agentJournalRow } from '../../src/rows/agent-journal/index.ts'
+import {
+  agentJournalCombination,
+  createAgentJournalRow,
+} from '../../src/rows/agent-journal/index.ts'
+import { releaseCancellation } from '../../src/entry/cancellation-installation.ts'
 import { sessionStorageRow } from '../../src/rows/session-storage/index.ts'
 import { storageRow } from '../../src/rows/storage/index.ts'
 import { declared, loadTree, makeBase, type LoadedTree } from '../rows/session-fixtures/tree.ts'
@@ -266,7 +270,10 @@ async function journalTree(base: ReturnType<typeof makeBase>) {
         directoryFile: base.directoryFile,
         domainRule: 'organization-account/1',
       }),
-      declared(agentJournalRow, { combinationVersion: combination.combinationVersion }),
+      // This world has no Runtime Context: the journal here does not tell the model.
+      declared(createAgentJournalRow({ cancellation: releaseCancellation }), {
+        combinationVersion: combination.combinationVersion,
+      }),
       declared(probe),
     ],
   })
@@ -621,7 +628,6 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
           check: async () => ({ kind: 'allowed', evidence: evidence('agent-access') }),
         },
         targets: t.service<ModelReceptionTargets<unknown>>(agentModelReceptionTargetsKey),
-        outlet: { deliver: async () => ({ kind: 'received' }) },
         models: root.get(modelRuntimeKey)!.calls,
         capacity: () => ({ records: 10, bytes: 1_000_000, attachments: 10, inFlight: 4 }),
       },

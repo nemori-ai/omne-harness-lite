@@ -62,7 +62,6 @@
     "request-context",
     "agent-context",
     "context-compaction",
-    "agent-account-outlet",
     "runtime-context",
     "runtime-context-tenant-scope",
     "session-intake-budget",

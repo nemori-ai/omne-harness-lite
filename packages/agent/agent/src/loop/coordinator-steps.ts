@@ -15,7 +15,6 @@ import type {
   HandoffChange,
   HandoffOutcome,
   InputBatch,
-  ModelContextRead,
   ModelReplyAdmission,
   Preparation,
   RuntimeConditions,
@@ -87,7 +86,6 @@ export type Iteration = {
   position: ConsumerRef
   conditions: RuntimeConditions | null
   selected: SelectedModel | null
-  context: ModelContextRead | null
   preparation: Preparation | null
   ready: ReadyPreparation | null
   pending: ModelPendingCall | null

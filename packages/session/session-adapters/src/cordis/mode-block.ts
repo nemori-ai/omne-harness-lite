@@ -63,7 +63,20 @@ export const sessionInteractionBinding = Object.freeze({
   },
 } satisfies NeedBinding<'session.modes', SessionInteractionView>)
 
+// The model reads the whole publication: the holder writes it into the history as a reminder.
+export const sessionModesModelBinding = Object.freeze({
+  key: 'session.modes',
+  need: Object.freeze({
+    name: 'session.modes-for-model',
+    shape: sessionModesPublicationSchema,
+    consumer: 'model',
+    purpose: 'The model is told the permission, environment and collaboration modes of the session',
+    necessity: 'required',
+  }),
+} satisfies NeedBinding<'session.modes', SessionModesPublication>)
+
 export const sessionModesBindings = Object.freeze([
   sessionInquiryBinding,
   sessionInteractionBinding,
+  sessionModesModelBinding,
 ])

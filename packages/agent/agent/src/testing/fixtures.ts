@@ -20,7 +20,6 @@ import type {
   HandoffResolution,
   InputOrigin,
   MessageHandoff,
-  ModelContextReader,
   ModelSelection,
   RegisteredReads,
   RequestPreparation,
@@ -221,7 +220,7 @@ export function readyPreparation<P>(input: PrepareInput<P>): ReadyPreparation {
     },
     budget: testEvidence(`budget/${input.action}`),
     recipient: input.selection.recipient,
-    coverage: input.context.coverage,
+    coverage: testEvidence(`coverage/${input.position.work}`),
   }
 }
 
@@ -262,26 +261,6 @@ export function createScriptedModelSelection<P>(): ScriptedModelSelection<P> {
     unavailable('agentModelSelection'),
   )
   return { port: { select: select.call }, select: select.script }
-}
-
-export type ScriptedModelContext<P> = Readonly<{
-  port: ModelContextReader<P>
-  read: ScriptOf<ModelContextReader<P>['read']>
-}>
-
-export function createScriptedModelContext<P>(): ScriptedModelContext<P> {
-  const read = scriptedMethod<
-    In<ModelContextReader<P>['read']>,
-    Out<ModelContextReader<P>['read']>
-  >(input =>
-    succeed({
-      recipient: input.recipient,
-      content: 'full',
-      source: testEvidence(`context/${input.position.work}`),
-      coverage: testEvidence(`coverage/${input.position.work}`),
-    }),
-  )
-  return { port: { read: read.call }, read: read.script }
 }
 
 type Resolution = Extract<Out<AgentAdoptions<unknown>['resolve']>, { ok: unknown }>['ok']

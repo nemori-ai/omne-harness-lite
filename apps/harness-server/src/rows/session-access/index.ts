@@ -37,6 +37,7 @@ import { LOCAL_HISTORY_KINDS } from '../../local/operator-defaults.ts'
 import { defineRow } from '../../row.ts'
 import { accessIdentityOfCall, memberActingOfCall } from '../server-entry/identity.ts'
 import { runFailureCauses } from './causes.ts'
+import { modelTargets } from './model-targets.ts'
 import { sessionPermissionModes } from './permission-modes.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -160,6 +161,7 @@ const plugin = createSessionAccessPlugin({
   definitions: definitionsOf,
   listing: sessionListingOf,
   causes: runFailureCauses,
+  modelTargets,
   permissionModes: sessionPermissionModes,
   prepareCreation,
 })

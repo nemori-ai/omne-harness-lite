@@ -47,7 +47,6 @@ import {
   requestHandler,
   type SqlModelCommandsOptions,
 } from '@omne-harness/model-storage-sql'
-import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import {
   ModelProfilesLocalPlugin,
   createMemoryResultPushLedger,
@@ -57,7 +56,7 @@ import {
   type ResultPushLimits,
 } from '../../src/cordis.ts'
 import { vaultCredentialPlugin } from './credentials.ts'
-import { FAMILIES, PLACEHOLDER, ROUTE_PATH, TRANSPORT_LIMITS, decoded } from './local-host.ts'
+import { FAMILIES, PLACEHOLDER, TRANSPORT_LIMITS, decoded, gatewayEndpoints } from './local-host.ts'
 import { factorySupplier } from './profiles.ts'
 import type { RequestDisclosure } from '@omne-harness/model-host-local'
 
@@ -640,8 +639,7 @@ export async function assembleLine(input: LineInput) {
     },
     routes: {
       openrouter: {
-        url: new URL(ROUTE_PATH, input.gateway.url).href,
-        endMarker: GATEWAY_END_MARKER,
+        endpoints: gatewayEndpoints(input.gateway.url),
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },

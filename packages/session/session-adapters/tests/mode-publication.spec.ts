@@ -11,6 +11,7 @@ import {
   sessionInquiryBinding,
   sessionInteractionBinding,
   sessionModesBindings,
+  sessionModesModelBinding,
   sessionModesDescriptor,
 } from '../src/cordis.ts'
 import { ok } from './fixtures/common-journal.ts'
@@ -281,7 +282,13 @@ it('translates the default co-work into an open interaction, selected with its b
   const selected = sessionInteractionBinding.translate(result.value)
   expect(selected).toEqual({ interaction: result.value.interaction, basis: result.value.basis })
   expect(sessionInteractionBinding.need.consumer).toBe('coordinator')
-  expect(sessionModesBindings).toEqual([sessionInquiryBinding, sessionInteractionBinding])
+  expect(sessionModesBindings).toEqual([
+    sessionInquiryBinding,
+    sessionInteractionBinding,
+    sessionModesModelBinding,
+  ])
+  expect(sessionModesModelBinding.need.consumer).toBe('model')
+  expect('translate' in sessionModesModelBinding).toBe(false)
 })
 
 it('uses explicit creation without defaults and detaches caller-owned source objects', async () => {

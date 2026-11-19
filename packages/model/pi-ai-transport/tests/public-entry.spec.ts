@@ -1,12 +1,14 @@
 import { expect, it } from 'vitest'
 
-it('the root entry exports the family table, the network resources factory and the transport factory as its only runtime values', async () => {
+it('the root entry exports the family table, the network resources factory, the transport factory, the engine endpoint guard and the record fact names as its only runtime values', async () => {
   const root: object = await import('@omne-harness/pi-ai-transport')
   expect(Object.keys(root).toSorted()).toEqual([
+    'RECORD_FACTS',
     'composeFamilies',
     'createNetworkResources',
     'createPiTransport',
     'defineFamily',
+    'isEngineEndpoint',
     'recordAdoption',
     'recordProvider',
     'replayFormatsOf',
@@ -36,9 +38,10 @@ it('the subpath entry testing exports the fixture check and the adoption fingerp
     'GATEWAY_END_MARKER',
     'appendAdoptionFingerprints',
     'checkAdoptionFingerprints',
-    'checkChatCompletionsFixtures',
+    'checkRecordFixtures',
     'fixtureDirectory',
     'renderFingerprints',
+    'replayStream',
   ])
 })
 

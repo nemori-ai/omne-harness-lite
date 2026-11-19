@@ -1,0 +1,604 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "**Calculating multiples**\n\nI"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculate"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 100"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " would"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " total"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Then"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " it"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "’s"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " But"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " notice"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " share"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " a"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " common"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiple"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " counts"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " as"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " So"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " want"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ensure"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " these"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " exclusive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " leads"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculation"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ":"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " plus"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " minus"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 2"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " times"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " That"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " gives"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " a"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " total"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Looks"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " like"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "’m"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ready"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " move"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " forward"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " with"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "!"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "city"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\":\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "**Calculating multiples**\n\nI need to calculate the multiples of 3 below 100, which would total 33. Then, for multiples of 7, it’s 14. But I notice that both share a common multiple of 21, which counts as 4. So, I want to ensure these are exclusive multiples, which leads me to the calculation: 33 plus 14 minus 2 times 4. That gives me a total of 39. Looks like I’m ready to move forward with that!"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_IZ1czZXFNskIDkS8hsPgBOFL",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"item\":{\"encrypted_content\":\"gAAAAABq_faUieWJ4_xUSOFLUt2sthZ_W4VSNHu5QP3_Z2WMEQihQeJby7WPBL6d_KWWUPRQQpPEWersrjO0-FUQIMznS3GQseKHdRCvcJozDoBcxy6SEKdjjsrwBloazr3pMRwYP2vlw7Y0BjerRQNdOnIB5GXg_k1nb8CxcVwXEQzueyKmPxEv5mVUxDxt3lPO_jBKxDiB_RVQ-TCFYzV0-NSccwaq5J5qu1QimzzgH4wJaRejZr4reEMQeqwKG5yuer2s7XnS1v64Opo8yJaT39DcKHoXgUG1w7RstvVy6gZRzUBbM1JkPiD-60Zf2E-c76jaIOV61Ji2B3_hB6liX88f1T9exVa1QmuF6H97IFvqKfi9HlcbIKwXnSuTvoUT8I9-2h4r6TFbdVLnZjOgeRdgsfYUp9BSOy3_nBMe9kYUSF1QgX7YyiHmVuiaP36JWRgxg4GgdGWR8LsR9tChfCEVGScInpLvBqGVVpP3HFzaQfvzrRjyWDHGumhoj6OX_SsS0M-pBJwJMAOtME5rBtAtj9AHFuhNQhk95oWOxLCit_MqJxbHk-kkDRdBGTr0xeQE5mYi8AOxqgZqbj4EtVS32Oayx3EGIBXNpWvx5NaYRkTZebEE03Ousq-cdxNlc_aDBMi6lw0W-6fddcBFvcAL8dDPMYK76Aeyzvc_lytYDQ4kjpZWs_4AZjXNIpzHVHHRZu3o-lzee-qyBMmv4Sk9Bvqc7dKCae9vGJeaK6LU7w4cRSEdllN-MK3dwrzn4RLBxS71C8OvmOSS_On0rLqt120CB5vrIJ_fiJ4jBc8g7XK8WUPiRNXutpnhuK1G9K5nKIjJ3PwlPPXgoMHMerk3pzZGcOvEDyKlx73_etrXRM-xaAre_A4mkct-cJe_QO9eLNy14KfQBzylpk4ce1oo0_HXrbLpDI56N6zh0L58mRFrjcqRaC1NIoTr0aCsF-EGW09dsjzH9NEK5S0pibSH5H7fzD9ndqN7e6Vj1ldmHE4ZrtjHL1B6NkkI-hj9_0M7Tz7ZjlmmOCPjQ1TV3eJVPtwbT5tvJ8gOcj2yrBj-Ca-DfRBZn5vTCyqmIXSKRM0FVBlIx2P_9skbUBnqk1SlhHl2Is6hgU4RdsPuwo9T2K9H7d3qruirQ5Fj2UBobdiJHMJmut5Swm6JScMwqCSKsRkT00Vc3taTBSRw9UA0fJe69WDw33-DJUvbmYRiIRnWj-Qz9EtMfbDaYWVfuMC-NIX0DmpiS2HVMLc2GPWo46_JDMyv0K-j40AwGJJPhxvmZP_oo2eoDOeGcUmm-iaA8DrDpy1L1eNeRY-izwLvoJ_XXtVvSv5YgGWsRKoOiaho6o_cxRuCv0ihXfIL02nyolfaJvfUWQ4KlyVVIDL-E_zk37aWChNm2TElYd6isbDFja9IX51v5z4p9GeStCMs_ucpQogOxwRthT7XYQUZRgevtO6pKcm1XjGHQkm8ki09fk5vZQLTzXV3JnFc3aSXCzObzJr0ytPvtpmFFVlFw-vkVxancWt7LcnN3ngug-0RN8NPF0z9hIE2GYUHV5eFd3YmbzOEqrgW2hsswai532xiJJKP2MjWmA9J5tjXQm4-Q8G1tatC8AcdEhzPjPIKBfla6zxmyJYUd5xb2aXicPkYKTMfRXH0HECooVzyKbBwXMJRv2DDiPNs_VEi2TZXOtxrt6MdaEOsG_72FUybQXavPtQJGWDEY4gNB0_qhXjXQif3-sPsiy-FkKqorMVCf_Hza2glGp2AnC5iAE8WwZ3PWPS0T7Pw_iyUSoWTZ_l8AEp6jrpzdEQCgVaYlZnKJyela8uh1ZenmAEcZX3mgsjY9PqGD2gjtX_qkpeCfCj4igNhVwSUZ-6tIfWe5YPAn7WYn343wf9OLS34r7m4e-zA6kitSnYFnOWPu0WspAr_q1D862LSPqR1PsmbJqzDbNh0hV3ZNGyD3Iu9kk319pARVhurqHQxFfdQOXPviHj0LvF_HnFTxx0jjpJuJoNB8WPqZ3w93r1to5HOiDIogScYF7o-Vd-cZzeYJyjsr79jpQvkvhYHnn-lz6Medx3s_51GoHJS3MH1ElkZ1KNE238568YKOK72OwR3R-XfO_T5uOT9yz_WfY8l0ijDsDSbuhNqNlBAsZ3lSzWrh97evFKGqewpTKWVKKEq2OJf7O1i7eMH.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC01LjYtdGVycmEtMjAyNjA3MDl8b3BlbmFpIn0\",\"format\":\"openai-responses-v1\",\"id\":\"rs_0b60f3e2462f331e016afdf691e52c87d199303ee80dab0099\",\"summary\":[{\"text\":\"**Calculating multiples**\\n\\nI need to calculate the multiples of 3 below 100, which would total 33. Then, for multiples of 7, it’s 14. But I notice that both share a common multiple of 21, which counts as 4. So, I want to ensure these are exclusive multiples, which leads me to the calculation: 33 plus 14 minus 2 times 4. That gives me a total of 39. Looks like I’m ready to move forward with that!\",\"type\":\"summary_text\"}],\"type\":\"reasoning\"},\"type\":\"reasoning\"},{\"call_id\":\"call_IZ1czZXFNskIDkS8hsPgBOFL\",\"id\":\"fc_tmp_42cijshkjvw\",\"type\":\"function_call\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "64",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "43",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.00097",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/OpenAI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

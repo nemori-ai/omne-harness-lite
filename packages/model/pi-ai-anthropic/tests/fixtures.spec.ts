@@ -1,62 +1,36 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { composeFamilies, defineFamily } from '@omne-harness/pi-ai-transport'
-import { checkChatCompletionsFixtures } from '@omne-harness/pi-ai-transport/testing'
-import { ANTHROPIC_OWNER } from '@omne-harness/pi-ai-anthropic'
-import {
-  CASES_DIRECTORY,
-  FIXTURES_ROOT,
-  RECORDS_DIRECTORY,
-  renderedCases,
-} from './support/fixture-files.ts'
-import { FAMILY, recordNamed } from './support/anthropic.ts'
+import { RECORD_FACTS } from '@omne-harness/pi-ai-transport'
+import { checkRecordFixtures } from '@omne-harness/pi-ai-transport/testing'
+import { ANTHROPIC_RECORDS } from '@omne-harness/pi-ai-anthropic'
+import { FIXTURES_ROOT, RECORDS_DIRECTORY } from './support/fixture-files.ts'
+import { FAMILY } from './support/anthropic.ts'
 
-const root = fileURLToPath(FIXTURES_ROOT)
-const rendered = renderedCases()
+const REPOSITORY = fileURLToPath(new URL('../../../../', import.meta.url))
 
-function oneRecordFamily(name: string) {
-  const contributions = composeFamilies([FAMILY])
-  return defineFamily({
-    owner: ANTHROPIC_OWNER,
-    records: [recordNamed(name)],
-    acquire: (_record, supplier, signal) => contributions.acquire(supplier, signal),
-  })
-}
-
-describe('the fixture files are the case table', () => {
-  it.each(rendered.map(item => [item.directory, item] as const))('%s', (_directory, item) => {
-    for (const [name, text] of Object.entries(item.files))
-      expect(readFileSync(join(root, item.directory, name), 'utf8'), name).toBe(text)
-  })
-
-  it('every record has exactly one record fixture', () => {
-    const records = rendered
-      .filter(item => item.case.slot === 'record')
-      .map(item => item.case.record)
-    expect(new Set(records).size).toBe(records.length)
-  })
-})
-
-describe('checkChatCompletionsFixtures', () => {
-  it('the record fixtures of every record match the engine', async () => {
-    const report = await checkChatCompletionsFixtures(FAMILY, join(root, RECORDS_DIRECTORY))
-    expect(report.problems).toEqual([])
-  })
-
-  it.each(
-    rendered.filter(item => item.case.slot === 'case').map(item => [item.case.id, item] as const),
-  )('case %s matches the engine', async (_id, item) => {
-    const report = await checkChatCompletionsFixtures(
-      oneRecordFamily(item.case.record),
-      join(root, item.root),
+describe('the record fixtures', () => {
+  it('each current record has one fixture, captured from the gateway, that the engine reproduces', async () => {
+    const report = await checkRecordFixtures(
+      FAMILY,
+      join(fileURLToPath(FIXTURES_ROOT), RECORDS_DIRECTORY),
     )
     expect(report.problems).toEqual([])
   })
+})
 
-  it('no case directory is left without a case', () => {
-    const ids = rendered.filter(item => item.case.slot === 'case').map(item => item.case.id)
-    expect(readdirSync(join(root, CASES_DIRECTORY)).toSorted()).toEqual(ids.toSorted())
-  })
+describe('the sources of the adaptation facts', () => {
+  it.each(ANTHROPIC_RECORDS.map(record => [record.name, record] as const))(
+    '%s cites an existing file for every fact',
+    (_name, record) => {
+      for (const fact of RECORD_FACTS) {
+        const source = record.provenance[fact]
+        expect(source.measuredAt, fact).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+        expect(existsSync(join(REPOSITORY, source.evidence)), `${fact}: ${source.evidence}`).toBe(
+          true,
+        )
+      }
+    },
+  )
 })

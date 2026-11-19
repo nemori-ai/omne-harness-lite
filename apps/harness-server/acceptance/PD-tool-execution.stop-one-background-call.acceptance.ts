@@ -13,6 +13,7 @@ import {
   omne,
   record,
   release,
+  producedReminder,
   textOf,
   until,
   untilQuiet,
@@ -119,7 +120,7 @@ it(
             () => history(tree, session),
             value => count(value, 'run.terminal') >= 2,
           )
-          const reminders = entries.filter(entry => entry.kind === 'message.system_reminder')
+          const reminders = entries.filter(producedReminder)
           observed['reminders'] = reminders.map(textOf)
           observed['starts'] = count(entries, 'run.started')
           assert.equal(reminders.length, 3, 'the stop, the stopped outcome and the other outcome')

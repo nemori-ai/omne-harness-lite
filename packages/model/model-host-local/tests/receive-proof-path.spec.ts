@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
-import { assembleLocalHost, decoded, ROUTE_PATH } from './support/local-host.ts'
+import { assembleLocalHost, decoded, isGatewayPath } from './support/local-host.ts'
 import { readRecordFixture } from './support/records.ts'
 
 const CASE_TIMEOUT_MS = 30_000
@@ -24,7 +24,7 @@ let directory: string
 beforeAll(async () => {
   directory = realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-receive-')))
   server = await startHttpsServer(certificate, (res, request) => {
-    if (request.path !== ROUTE_PATH) {
+    if (!isGatewayPath(request.path)) {
       res.writeHead(404).end()
       return
     }

@@ -12,18 +12,10 @@ export type { ConversionIndex, RepresentationResult } from './representation.js'
 export { chooseRepresentations } from './representation.js'
 export type { ProjectedMessage, ProjectedHistory, HumanProjection } from './projection.js'
 export { project, projectForHuman, projectMessageForModel } from './projection.js'
-export type { CompactionSettingsValue, WindowUsageValue } from './blocks.js'
-export {
-  windowRatio,
-  compactionSettingsSchema,
-  windowUsageSchema,
-  compactionSettingsBlock,
-  windowUsageBlock,
-} from './blocks.js'
+export type { CompactionSettingsValue } from './blocks.js'
+export { compactionSettingsSchema, compactionSettingsBlock } from './blocks.js'
 export type { SystemPromptResult } from './prompt.js'
 export { assembleSystemPrompt } from './prompt.js'
-export type { Placement, PlacementInput } from './placement.js'
-export { SNAPSHOT_ANCHOR_RULE, placeContext } from './placement.js'
 export type {
   Access,
   Adoption,
@@ -38,8 +30,6 @@ export type {
   SourceGeneration,
   GroupToken,
   CommitOrder,
-  AccountingGeneration,
-  RecoveryGrantRef,
   PrincipalKey,
   HistorySequence,
   ContextTarget,
@@ -57,8 +47,6 @@ export {
   decodeSourceGeneration,
   decodeGroupToken,
   decodeCommitOrder,
-  decodeAccountingGeneration,
-  decodeRecoveryGrantRef,
   decodePrincipalKey,
   decodeHistorySequence,
   compareHistorySequence,
@@ -67,12 +55,7 @@ export type { AssemblyPolicies, AssemblyOperations } from './ports.js'
 export type { PreparedInputKey } from './values.js'
 export type { AssemblyOperationsInput } from './operations.js'
 export { createAssemblyOperations } from './operations.js'
-export type {
-  AssemblyReuse,
-  CachedAssemblyMaterial,
-  ContentControl,
-  SnapshotIdentity,
-} from './reuse.js'
+export type { AssemblyReuse, CachedAssemblyMaterial, ContentControl } from './reuse.js'
 export type {
   SourceRead,
   SourceGroupValue,
@@ -92,21 +75,6 @@ export type {
   ContextRegistryOptions,
 } from './sources.js'
 export type { HistoryResolution, HistoryEvidenceResolver } from './history-resolution.js'
-export type {
-  AccountingOrigin,
-  ReceivedAccountFact,
-  ContextAccountingInput,
-  AccountReceipt,
-  ContextAccountingInbox,
-  SystemRecoveryAccess,
-  AccountReplay,
-  RecoveryResult,
-  ContextRecovery,
-  AccountingSourceAuthority,
-  RecoveryAuthority,
-  AccountingLimits,
-  AccountingOptions,
-} from './accounting.js'
 export type {
   HistoryRow,
   HistoryPage,
@@ -139,12 +107,10 @@ export type {
   TenantModelCall,
   SourcedMessage,
   ContinuationBasis,
+  ContinuationPrefix,
   AdoptedRequestFact,
   HistoryEvidence,
   NewInputBatch,
-  BlockMaterial,
-  SnapshotMaterial,
-  ContextReadGroup,
   AssemblyContext,
   PromptContributionBase,
   PromptSection,
@@ -159,14 +125,10 @@ export type {
   TransitionEvidence,
   Layer,
   PrefixBreakReason,
-  LayerAnchor,
-  SnapshotAnchor,
   Coverage,
   BudgetBreach,
   FitVerdict,
   RepresentationChoice,
-  SnapshotReminder,
-  TailFacts,
   RequestLayers,
   RequestCandidate,
   AssemblyFailure,
@@ -178,6 +140,6 @@ export type {
 } from './values.js'
 export { LAYER_ORDER, PREFIX_BREAK_REASONS, callIdentity } from './values.js'
 export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js'
-export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf } from './fixed-request.js'
+export { encodeFixedRequestRecord, decodeFixedRequestRecord } from './fixed-request.js'
 
 export { measureCandidate } from './measurement.js'

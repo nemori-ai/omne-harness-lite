@@ -221,64 +221,6 @@ it('pagination retains the identical evidence and never concatenates old epoch p
   expect(seen).toHaveLength(2)
   expect(seen[0]).toBe(seen[1])
 })
-it('snapshot reminder is byte-identical and anchored across incremental reads', async () => {
-  const f = fixture()
-  const material = {
-    scope,
-    eligibility: { eligibility: 'e' },
-    revision: 1,
-    blocks: [
-      {
-        key: 'context.test' as const,
-        revision: 1,
-        value: { z: 1, a: 2 },
-        previous: null,
-        volatility: 'stable' as const,
-      },
-    ],
-  }
-  const first = await assemble(
-    { ...f.input, contextRead: { ...f.input.contextRead, snapshot: material } },
-    f.ports,
-    f.policies,
-  )
-  if (first.kind !== 'candidate-before-extension') throw new Error(first.kind)
-  const second = await assemble(
-    {
-      ...f.input,
-      adopted: adoptedOf(first.candidate),
-      contextRead: {
-        ...f.input.contextRead,
-        snapshot: material,
-        read: {
-          kind: 'success',
-          registration: { issued: 0, current: 0 },
-          value: {
-            scope,
-            from: 1,
-            to: 2,
-            cursor: { cursor: 'c' },
-            entries: [],
-            missing: [],
-            perRequest: [],
-          },
-        },
-      },
-    },
-    f.ports,
-    f.policies,
-  )
-  if (second.kind !== 'candidate-before-extension') throw new Error(second.kind)
-  expect(second.candidate.layers.snapshotReminder.message).toEqual(
-    first.candidate.layers.snapshotReminder.message,
-  )
-  expect(second.candidate.layers.snapshotReminder.anchor).toEqual(
-    first.candidate.layers.snapshotReminder.anchor,
-  )
-  expect(second.candidate.layers.snapshotReminder.message?.blocks[0]).toMatchObject({
-    text: '[{"key":"context.test","revision":1,"value":{"a":2,"z":1}}]',
-  })
-})
 it('new prompt and existing-layer extension immediately record prefix break reasons', async () => {
   const f = fixture()
   const initial = await assemble(f.input, f.ports, f.policies)
@@ -369,36 +311,6 @@ it('history chained digest changes all later prefixes when an earlier row change
   expect(a.page.rows[1]?.prefixDigest).not.toBe(b.page.rows[1]?.prefixDigest)
 })
 
-it('runtime refusal distinguishes unauthorized from missing registration, closed, an ended scope and an unfinished replay', async () => {
-  const f = fixture()
-  for (const reason of [
-    'unauthorized',
-    'no-registration',
-    'closed',
-    'scope-ended',
-    'replay-incomplete',
-  ] as const) {
-    const result = await assemble(
-      { ...f.input, contextRead: { ...f.input.contextRead, read: { kind: 'refused', reason } } },
-      f.ports,
-      f.policies,
-    )
-    if (reason === 'unauthorized') expect(result).toMatchObject({ kind: 'denied' })
-    else
-      expect(result).toEqual({ kind: 'unavailable', owner: 'runtime-context', diagnostic: reason })
-  }
-})
-it('an unknown runtime read stays unknown with its cause, including the binding and replay causes', async () => {
-  const f = fixture()
-  for (const cause of ['scope-binding-unknown', 'replay-unknown', 'source-unknown'] as const) {
-    const result = await assemble(
-      { ...f.input, contextRead: { ...f.input.contextRead, read: { kind: 'unknown', cause } } },
-      f.ports,
-      f.policies,
-    )
-    expect(result).toEqual({ kind: 'unknown', source: 'read', diagnostic: cause })
-  }
-})
 it('headroom and fractional token margins are conservative and exact', async () => {
   const f = fixture()
   const b = f.budget('1.1')
