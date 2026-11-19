@@ -192,17 +192,6 @@ class Cell {
   }
 }
 
-export function measure(facts: readonly UsageFact[]): UsageMeasures {
-  const placed = facts.map(fact => ({
-    fact,
-    at: fact.at === null ? Infinity : Date.parse(fact.at),
-  }))
-  const retries = retriesOf(placed)
-  const cell = new Cell()
-  for (const fact of facts) cell.add(parse(fact, retries.has(fact)))
-  return cell.measures()
-}
-
 function dimensionOf(fact: UsageFact, dimension: UsageDimension): string | null {
   if (dimension === 'source') return fact.source
   if (dimension === 'purpose') return fact.consumer.purpose

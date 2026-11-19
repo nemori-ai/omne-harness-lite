@@ -232,6 +232,21 @@ describe('a usage query over the registered sources (C22)', () => {
     expect(model.asked.map(item => item.consumer?.owner)).toEqual(['agent', 'compactor'])
   })
 
+  it('makes no empty batch when the works fill the last one exactly', async () => {
+    const model = source('model', [fact('model', 'm1', hour(1), 'exec-1')], {
+      limits: { page: 10, works: 2 },
+    })
+    const works = ['exec-1', 'exec-2', 'exec-3', 'exec-4']
+    const scope = scopeOf({ ok: { kind: 'found', consumers: [{ owner: 'agent', works }] } })
+    await usageOver([model.self], scope.scope).query(
+      query({ scope: { kind: 'session', session: 's-1' } }),
+    )
+    expect(model.asked.map(item => item.consumer?.works)).toEqual([
+      ['exec-1', 'exec-2'],
+      ['exec-3', 'exec-4'],
+    ])
+  })
+
   it('answers too-large when a query needs more pages than the limit, and reads exactly the limit otherwise', async () => {
     const facts = [1, 2, 3, 4].map(h => fact('model', `m${h}`, hour(h)))
     const model = source('model', facts, { limits: { page: 1, works: 10 } })

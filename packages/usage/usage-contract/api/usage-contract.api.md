@@ -40,7 +40,6 @@
 - `checkUsageQuery` · `check.d.ts`
 - `edgesOf` · `check.d.ts`
 - `fold` · `fold.d.ts`
-- `measure` · `fold.d.ts`
 
 ## 声明文件 `check.d.ts`
 
@@ -81,8 +80,7 @@ export declare const numberOf: (value: Decimal) => number;
 
 ```ts
 import { type CheckedUsageQuery } from './check.ts';
-import { type UsageFact, type UsageMeasures, type UsageResult } from './values.ts';
-export declare function measure(facts: readonly UsageFact[]): UsageMeasures;
+import { type UsageFact, type UsageResult } from './values.ts';
 export declare function fold(facts: readonly UsageFact[], query: CheckedUsageQuery, read: Readonly<{
     sources: readonly string[];
     undated: number;
@@ -96,7 +94,7 @@ export { TOKEN_KINDS, USAGE_BUCKETS, USAGE_DIMENSIONS, type TokenKind, type Usag
 export type { Usage, UsageDependency, UsageFailure, UsagePortFailure, UsageReply, UsageSessionScope, UsageSource, UsageSourcePage, } from './ports.ts';
 export { checkUsageQuery, edgesOf, type CheckedUsageQuery, type UsageEdge } from './check.ts';
 export { addLexemes } from './decimal.ts';
-export { fold, measure } from './fold.ts';
+export { fold } from './fold.ts';
 ```
 
 ## 声明文件 `ports.d.ts`

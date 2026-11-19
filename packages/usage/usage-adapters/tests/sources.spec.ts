@@ -87,9 +87,9 @@ describe('a model dispatch as a usage fact', () => {
 
   it('marks usage and cost unknown for a sent dispatch with no account, and absent for one never sent', () => {
     const sent = modelUsageFact(dispatch({ account: null, outcome: { kind: 'pending' } }))
-    expect(sent.usage.map(item => [item.name, item.state])).toEqual([
-      ['input', 'unknown'],
-      ['output', 'unknown'],
+    expect(sent.usage).toEqual([
+      { name: 'input', state: 'unknown', unit: 'token' },
+      { name: 'output', state: 'unknown', unit: 'token' },
     ])
     expect(sent.cost).toEqual({ state: 'unknown' })
     expect(sent.outcome).toBe('pending')
@@ -112,6 +112,8 @@ describe('a model dispatch as a usage fact', () => {
     })
     expect(modelUsageFact(dispatch({ account: estimate })).cost).toEqual({ state: 'unknown' })
     expect(modelUsageFact(dispatch({ contextWindow: null })).window).toBeNull()
+    const unjudged = account({ revision: 'two' })
+    expect(modelUsageFact(dispatch({ account: unjudged })).cost).toEqual({ state: 'unknown' })
   })
 
   it('leaves a duration unknown when one instant is missing or they are out of order', () => {
@@ -127,6 +129,7 @@ describe('a model dispatch as a usage fact', () => {
       generation: null,
     })
     expect(msBetween('2026-11-19T00:00:00.000Z', 'later')).toBeNull()
+    expect(msBetween('2026-11-19T00:00:00.000Z', '2026-11-19T00:00:00.000Z')).toBe(0)
   })
 })
 
@@ -164,10 +167,18 @@ describe('a tool call as a usage fact', () => {
   })
 
   it('reads an account duration of SI seconds and nothing else', () => {
-    expect([msOfDuration('PT0S'), msOfDuration('PT1.5S'), msOfDuration('PT2.025S')]).toEqual([
-      0, 1500, 2025,
+    expect(['PT0S', 'PT1.5S', 'PT2.025S', 'PT10S'].map(text => msOfDuration(text))).toEqual([
+      0, 1500, 2025, 10000,
     ])
-    for (const other of ['PT1M', 'P1D', 'PT1.2345S', '2.5', { state: 'unknown' as const }])
+    for (const other of [
+      'PT1M',
+      'P1D',
+      'PT1.2345S',
+      '2.5',
+      'xPT1S',
+      'PT1Sx',
+      { state: 'unknown' as const },
+    ])
       expect(msOfDuration(other), JSON.stringify(other)).toBeNull()
   })
 })
@@ -199,15 +210,20 @@ describe('the two sources over the producer reads', () => {
       ok: { undated: 2, next: 'n', entries: [{ unit: 'md-1' }] },
     })
     expect(asked).toEqual([{ ...request, order: 'ascending' }])
+    const toolAsked: unknown[] = []
     const tool = toolUsageSource(
       () =>
         ({
-          list: () => Promise.resolve({ ok: { entries: [execution()], undated: 0, next: null } }),
+          list: (input: unknown) => (
+            toolAsked.push(input),
+            Promise.resolve({ ok: { entries: [execution()], undated: 0, next: null } })
+          ),
         }) as never,
       { page: 500, works: 64 },
     )
     expect([tool.name, tool.limits]).toEqual(['tool', { page: 500, works: 64 }])
     expect(await tool.list(request)).toMatchObject({ ok: { entries: [{ unit: 'tc-1' }] } })
+    expect(toolAsked).toEqual([{ ...request, order: 'ascending' }])
   })
 
   it('answers denied as the read does, and unavailable when it fails otherwise, throws or is not here', async () => {

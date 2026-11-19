@@ -106,6 +106,19 @@ describe('a session as usage consumer scopes (C20)', () => {
           entry('run.started', { execution: '' }),
           compacted('not a task'),
           entry('message.compaction', { message: {} }),
+          ...(['owner', 'record', 'digest'] as const).map(missing =>
+            entry('message.compaction', {
+              message: {
+                derivation: Object.fromEntries(
+                  Object.entries({
+                    owner: 'compactor',
+                    record: 'compaction/k2',
+                    digest: 'd',
+                  }).filter(([key]) => key !== missing),
+                ),
+              },
+            }),
+          ),
         ],
         null,
       ),
@@ -116,6 +129,15 @@ describe('a session as usage consumer scopes (C20)', () => {
     expect(await resolve(history([page([], null)]).face)).toEqual({
       ok: { kind: 'found', consumers: [] },
     })
+  })
+
+  it('stops reading when the history says it is exhausted, or gives no next page', async () => {
+    const done = history([{ ok: { entries: [started('exec-1')], next: 'more', exhausted: true } }])
+    expect(await resolve(done.face)).toMatchObject({ ok: { consumers: [{ works: ['exec-1'] }] } })
+    expect(done.asked).toHaveLength(1)
+    const ended = history([{ ok: { entries: [started('exec-2')], next: null, exhausted: false } }])
+    expect(await resolve(ended.face)).toMatchObject({ ok: { consumers: [{ works: ['exec-2'] }] } })
+    expect(ended.asked).toHaveLength(1)
   })
 
   it('answers absent for a session that does not exist or is not this tenant’s, and unavailable otherwise', async () => {

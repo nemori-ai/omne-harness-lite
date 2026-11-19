@@ -255,6 +255,35 @@ describe('folding, on cases written out', () => {
     expect(result.coverage).toMatchObject({ sources: ['model'], undated: 4, earliest: at(2) })
   })
 
+  it('takes the earliest unit of a call as the call, the bucket and group it falls in, and the lower unit on a tie', () => {
+    const call = { kind: 'model_call' as const, id: 'c-1' }
+    const labels = (model: string) => ({ ...base.labels, model })
+    const result = fold(
+      [
+        fact({ at: at(30), subject: call, unit: 'u-1', labels: labels('m-b') }),
+        fact({ at: at(1), subject: call, unit: 'u-3', labels: labels('m-a') }),
+      ],
+      checked('UTC', 'day', ['model']),
+      { sources: [], undated: 0 },
+    )
+    expect(result.buckets.slice(0, 2).map(b => [b.total.calls, b.total.retried])).toEqual([
+      [1, 0],
+      [0, 1],
+    ])
+    const tie = fold(
+      [
+        fact({ at: at(2), subject: call, unit: 'u-2', labels: labels('m-b') }),
+        fact({ at: at(2), subject: call, unit: 'u-1', labels: labels('m-a') }),
+      ],
+      checked('UTC', 'none', ['model']),
+      { sources: [], undated: 0 },
+    )
+    expect(tie.groups.map(cell => [cell.key, cell.measures.calls, cell.measures.retried])).toEqual([
+      [['m-a'], 1, 0],
+      [['m-b'], 0, 1],
+    ])
+  })
+
   it('puts a fact at the start of a bucket into that bucket', () => {
     const result = fold([fact({ at: at(24) }), fact({ at: at(48) })], checked('UTC', 'day', []), {
       sources: [],

@@ -32,4 +32,4 @@ export type {
 } from './ports.ts'
 export { checkUsageQuery, edgesOf, type CheckedUsageQuery, type UsageEdge } from './check.ts'
 export { addLexemes } from './decimal.ts'
-export { fold, measure } from './fold.ts'
+export { fold } from './fold.ts'
