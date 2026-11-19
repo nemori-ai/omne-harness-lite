@@ -47,10 +47,8 @@ function check(entry: CalendarReleaseEntry, policy: CalendarSupplyPolicy, at: st
   return { calendarId: entry.calendarId, verdict, horizon, remainingCoverageDays, reasons }
 }
 
-/**
- * Judges whether a release may ship on a date. One check per calendar that the release carries or a
- * policy declares; what cannot be judged blocks. The release takes the worst check.
- */
+// Whether a release may ship on a date: one check per calendar carried or declared; what cannot
+// be judged blocks; the release takes the worst check.
 export function inspectCalendarRelease(
   entries: readonly CalendarReleaseEntry[],
   policies: readonly CalendarSupplyPolicy[],
