@@ -13,8 +13,8 @@ import {
 } from '@omne-harness/request-context-contract/testing'
 import { row, text, evidence } from './fixtures.js'
 
-type Group = 'history' | 'context' | 'prompt' | 'model' | 'tools' | 'control'
-const groups: readonly Group[] = ['history', 'context', 'prompt', 'model', 'tools', 'control']
+type Group = 'history' | 'prompt' | 'model' | 'tools' | 'control'
+const groups: readonly Group[] = ['history', 'prompt', 'model', 'tools', 'control']
 
 function candidate(result: AssemblyResult) {
   if (result.kind !== 'candidate-before-extension' && result.kind !== 'candidate-fixable')
@@ -133,17 +133,17 @@ describe('retries are bounded', () => {
   })
 })
 
-describe('the context group token covers the adopted count', () => {
+describe('the history group token covers the adopted count', () => {
   it('the token is present and moves when only the adopted fact moves', async () => {
     const f = createAssemblyFixture()
     const adopted = createMemoryAdoptedSource<string>()
     ;(f.sources as { adopted: AdoptedRequestSource<string> }).adopted = adopted
     const first = candidate(await f.operations().assemble(f.call))
-    const before = first.preparation.key.tokens.context
+    const before = first.preparation.key.tokens.history
     expect(typeof before).toBe('string')
     adopted.set(null)
     const second = candidate(await f.operations().assemble(f.call))
-    expect(second.preparation.key.tokens.context).not.toBe(before)
+    expect(second.preparation.key.tokens.history).not.toBe(before)
     expect(second.preparation.key.tokens.prompt).toBe(first.preparation.key.tokens.prompt)
   })
 })

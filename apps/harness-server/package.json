@@ -36,7 +36,8 @@
     "check:aa-rows": "node scripts/aa-rows.mjs check --aa ../../docs/architecture/runtime/application-assembly.md --rows src/s0/aa-rows.json",
     "check:tool-release": "node scripts/tool-release.mjs check",
     "matrix": "node tests/matrix/run.ts",
-    "crash-matrix": "node tests/matrix/crash-run.ts"
+    "crash-matrix": "node tests/matrix/crash-run.ts",
+    "live-matrix": "node tests/live-matrix/run.ts"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
@@ -89,6 +90,7 @@
     "@omne-harness/notification-tools": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/permissions": "workspace:*",
+    "@omne-harness/pi-ai-anthropic": "workspace:*",
     "@omne-harness/pi-ai-openai": "workspace:*",
     "@omne-harness/pi-ai-transport": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",

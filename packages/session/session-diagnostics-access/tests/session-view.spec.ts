@@ -372,7 +372,11 @@ const modelAccount = (): CallAccount => ({
   revision: '1',
 })
 
-const dispatchRecord = (dispatch: string, account: CallAccount | null): DispatchRecord =>
+const dispatchRecord = (
+  dispatch: string,
+  account: CallAccount | null,
+  replay: 'carried' | 'not-carried' | 'not-materialized' = 'not-materialized',
+): DispatchRecord =>
   ({
     dispatch,
     supplier: { owner: 'fixture', id: 's' },
@@ -381,7 +385,20 @@ const dispatchRecord = (dispatch: string, account: CallAccount | null): Dispatch
     firstContent: 'observed',
     terminal: null,
     account,
-    materialization: null,
+    materialization:
+      replay === 'not-materialized'
+        ? null
+        : {
+            receipt: {
+              supplier: adoption,
+              representation: adoption,
+              payloadDigest: 'a'.repeat(64),
+              replayFormat: 'fixture-format',
+              replayPrefix: 'h:1',
+              ...(replay === 'carried' ? { replayCarried: true } : {}),
+            },
+            source: evidence('materialized'),
+          },
   }) as never
 
 const attemptsPage = (dispatches: readonly string[]): Outcome<ModelDiagnosticsPage, never> =>
@@ -545,6 +562,7 @@ describe('the Run skeleton and the call branches', () => {
               duration: { kind: 'known', value: '900' },
               receipt: 'received',
             },
+            reasoning: 'unknown',
           },
         ],
         coverage: 'complete-through-snapshot',
@@ -1534,6 +1552,40 @@ describe('the account of each dispatch', () => {
     ])
     expect(page.gaps).toEqual([])
     expect(model.calls.dispatched).toEqual(['c1'])
+  })
+
+  it('says whether each attempt carried reasoning back, from the receipt of its materialization', async () => {
+    const model = modelDouble(
+      twoAttempts,
+      { c1: attemptsPage(['d1', 'd2', 'd3', 'd4']) },
+      {
+        c1: succeed([
+          dispatchRecord('d1', null, 'carried'),
+          dispatchRecord('d2', null, 'not-carried'),
+          dispatchRecord('d3', null),
+        ]),
+      },
+    )
+    const page = await project({
+      entries: [started('e1', 'r1'), bound('e2', 'model', 'm1')],
+      ports: { ...model },
+    })
+    const dispatches = page.runs[0]!.modelCalls[0]!.dispatches
+    expect(dispatches.map(dispatch => [dispatch.dispatch, dispatch.reasoning])).toEqual([
+      ['d1', 'carried'],
+      ['d2', 'not-carried'],
+      ['d3', 'unknown'],
+      ['d4', 'unknown'],
+    ])
+  })
+
+  it('says unknown of the reasoning of every attempt when the dispatch read fails', async () => {
+    const model = modelDouble(twoAttempts, { c1: attemptsPage(['d1']) }, { c1: 'throw' })
+    const page = await project({
+      entries: [started('e1', 'r1'), bound('e2', 'model', 'm1')],
+      ports: { ...model },
+    })
+    expect(page.runs[0]!.modelCalls[0]!.dispatches[0]!.reasoning).toBe('unknown')
   })
 
   it.each([

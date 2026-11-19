@@ -243,7 +243,11 @@ export const modelHostAuthority: EntryObjectModule = {
   implementation: 'real',
   install(scope, env) {
     const composition = env.once(COMPOSITION, createModelRunComposition)
-    registerModelRowPorts(scope, { records: composition.records, host: composition.host })
+    registerModelRowPorts(scope, {
+      records: composition.records,
+      host: composition.host,
+      readers: composition.readers,
+    })
     const issue = modelWorkIssuerOf(env)
     if (issue === undefined)
       scope

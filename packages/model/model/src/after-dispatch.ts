@@ -33,7 +33,10 @@ export function afterDispatch(
 function decidedDispatch(recovery: RetryRecord, now: string): AfterDispatch | null {
   const { retry } = recovery
   const decision = recovery.retrySource ?? null
-  if (retry?.kind !== 'retry' || decision === null) return null
+  if (retry === null || retry.kind === 'stop' || decision === null) return null
+  // The resend after a refusal of reasoning state goes out at once.
+  if (retry.kind === 'resend-without-replay')
+    return { kind: 'redispatch', supplier: retry.supplier, decision }
   return Date.parse(now) < Date.parse(retry.notBefore)
     ? { kind: 'wait', until: retry.notBefore }
     : { kind: 'redispatch', supplier: retry.supplier, decision }

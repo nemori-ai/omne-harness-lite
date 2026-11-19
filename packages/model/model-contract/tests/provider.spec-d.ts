@@ -152,7 +152,12 @@ it('a materialization receipt names the supplier, the representation and the pay
     budget,
   }
   expectTypeOf<keyof MaterializationReceipt>().toEqualTypeOf<
-    'supplier' | 'representation' | 'payloadDigest' | 'replayFormat'
+    | 'supplier'
+    | 'representation'
+    | 'payloadDigest'
+    | 'replayFormat'
+    | 'replayPrefix'
+    | 'replayCarried'
   >()
   void [noDigest, withBudget]
 })
@@ -294,14 +299,40 @@ it('a provider reports an account without the call and without the receipt', () 
 
 it('ProviderDiagnostic is the closed set of four diagnostics without a payload', () => {
   const diagnostics: ProviderDiagnostic[] = [
-    { kind: 'replay-omitted', message: message.id, scope: 's', format: 'f', omittedParts: 1 },
+    {
+      kind: 'replay-omitted',
+      message: message.id,
+      scope: 's',
+      format: 'f',
+      omittedParts: 1,
+      reason: 'scope',
+    },
     { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
     { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: 9 },
     { kind: 'usage-inconsistent', field: 'completion_tokens' },
+    {
+      kind: 'upstream-transformed',
+      type: 'thinking_dropped',
+      path: 'messages.1.content.0',
+      reason: 'prefix_binding_mismatch',
+    },
   ]
   expectTypeOf<ProviderDiagnostic['kind']>().toEqualTypeOf<
-    'replay-omitted' | 'reasoning-disabled' | 'reasoning-state-dropped' | 'usage-inconsistent'
+    | 'replay-omitted'
+    | 'reasoning-disabled'
+    | 'reasoning-state-dropped'
+    | 'usage-inconsistent'
+    | 'upstream-transformed'
   >()
+  const transformed: ProviderDiagnostic = {
+    kind: 'upstream-transformed',
+    type: 'thinking_dropped',
+    path: 'messages.1.content.0',
+    reason: 'prefix_binding_mismatch',
+    // @ts-expect-error an upstream transformation says what, where and why, never the content
+    content: 'x',
+  }
+  void transformed
   const payload: ProviderDiagnostic = {
     kind: 'reasoning-state-dropped',
     reason: 'payload-too-long',

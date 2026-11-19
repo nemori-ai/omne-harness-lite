@@ -80,8 +80,7 @@ describe('the configuration of the stall timeout', () => {
       families: createTestFamily().families,
       routes: {
         [SUPPLIER.provider]: {
-          url: 'https://127.0.0.1:9/',
-          endMarker: END_MARKER,
+          endpoints: { 'chat-completions': { url: 'https://127.0.0.1:9/', endMarker: END_MARKER } },
           accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
           auth: { kind: 'bearer' as const, item: 'apiKey' },
         },

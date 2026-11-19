@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-it('root exports only the eight pure operations', async () => {
+it('root exports only the ten pure operations', async () => {
   expect(Object.keys(await import('@omne-harness/runtime-context-contract')).sort()).toEqual(
     [
       'declarationDigest',
@@ -10,6 +10,8 @@ it('root exports only the eight pure operations', async () => {
       'judgeRegistration',
       'reduceStep',
       'diffForReminder',
+      'renderSnapshotReminder',
+      'renderChangeReminder',
     ].sort(),
   )
 })

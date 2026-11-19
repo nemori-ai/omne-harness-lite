@@ -14,7 +14,7 @@ it('preserves the adopted constructive type boundaries', () => {
   expectTypeOf<'current' extends keyof ChangeMaterial ? true : false>().toEqualTypeOf<false>()
   expectTypeOf<Extract<RegistrationChange, { kind: 'add' }>['creating']>().toEqualTypeOf<boolean>()
   expectTypeOf<
-    Extract<ProducerRegistration, { declaration: { volatility: 'per-request' } }>['supply']
+    Extract<ProducerRegistration, { declaration: { volatility: 'per-read' } }>['supply']
   >().not.toBeUndefined()
   expectTypeOf<Extract<RegistrationChange, { kind: 'update' }>>().not.toHaveProperty('required')
 })

@@ -3,13 +3,13 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type { SuppliedBlockDescriptor } from './descriptor.js'
 import type { NeedBinding } from './need.js'
 import type { SupplyCallback } from './producer.js'
-import type { PerRequestEntry } from './reader.js'
+import type { PerReadEntry } from './reader.js'
 import type { EligibilityId } from './registration.js'
 import type { ConsumerClass, ContextBlockKey, ScopeRef } from './shared.js'
 
 /** A block of a static scope: asked for at each read, never stored, with no step (CX-46). */
 export type StaticBlock<P = unknown> = Readonly<{
-  declaration: SuppliedBlockDescriptor<ContextBlockKey, unknown> & { volatility: 'per-request' }
+  declaration: SuppliedBlockDescriptor<ContextBlockKey, unknown> & { volatility: 'per-read' }
   supply: SupplyCallback<unknown, P>
 }>
 
@@ -35,7 +35,7 @@ export type StaticReaderGrant = Readonly<{
 }>
 
 export type StaticRead = Readonly<{
-  entries: readonly PerRequestEntry[]
+  entries: readonly PerReadEntry[]
   missing: StaticReaderGrant['missing']
 }>
 

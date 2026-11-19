@@ -65,7 +65,6 @@ export function createStaging<P>(): Staging<P> {
     sources(generation) {
       return {
         history: source('history', generation),
-        context: source('context', generation),
         prompt: source('prompt', generation),
         model: source('model', generation),
         tools: source('tools', generation),

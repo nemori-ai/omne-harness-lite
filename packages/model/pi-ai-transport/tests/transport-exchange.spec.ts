@@ -154,6 +154,7 @@ describe('a start that sends', () => {
         scope: 'test-provider/other-model',
         format: 'test-v1',
         omittedParts: 2,
+        reason: 'scope',
       },
       { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
     ]

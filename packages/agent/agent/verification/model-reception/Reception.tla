@@ -1,16 +1,14 @@
 ---------------------------- MODULE Reception ----------------------------
 EXTENDS Naturals, FiniteSets, TLC
 
-CONSTANTS Tenants, Deliveries, Capacity, SplitPublish, PrecommitSend,
-          ClearBlockedOnRebuild
+CONSTANTS Tenants, Deliveries, Capacity, SplitPublish
 Keys == Tenants \X Deliveries
 NoIdentity == <<>>
 Identity(k) == <<k[1], "execution", k[2]>>
 Fresh == [commit |-> "absent", material |-> FALSE, entry |-> FALSE,
           operation |-> NoIdentity, original |-> NoIdentity,
           receipt |-> NoIdentity, saved |-> NoIdentity,
-          known |-> "none", outlet |-> "none", handoff |-> NoIdentity,
-          publications |-> 0, wasExcluded |-> FALSE, wasBlocked |-> FALSE]
+          known |-> "none", publications |-> 0, wasExcluded |-> FALSE]
 VARIABLES records, attached, receiverGeneration,
           identityOK, isolationOK, detachOK, validationOK
 vars == <<records, attached, receiverGeneration,
@@ -36,8 +34,6 @@ Local(k, authorized, returned, access, authority) ==
   /\ identityOK' = (identityOK /\
        (records[k].original # NoIdentity =>
          records'[k].operation = records[k].original) /\
-       (records[k].handoff # NoIdentity =>
-         records'[k].handoff = records[k].handoff) /\
        (returned = "saved" =>
          records'[k].saved = records[k].receipt))
   /\ validationOK' = (validationOK /\
@@ -102,29 +98,6 @@ Query(k, actor, access, readable) ==
           ELSE records' = records
     /\ Local(k, allowed, "none", access, "none")
 
-Enqueue(k) ==
- /\ records[k].commit = "committed" /\ records[k].known = "committed"
- /\ records[k].outlet = "none"
- /\ records' = [records EXCEPT ![k] =
-      [@ EXCEPT !.outlet = "pending", !.handoff = Identity(k)]]
- /\ Local(k, TRUE, "none", "none", "none")
-
-Send(k) ==
- /\ ((records[k].outlet = "pending" /\ records[k].commit = "committed")
-       \/ (PrecommitSend /\ records[k].commit = "pending"))
- /\ records' = [records EXCEPT ![k] =
-      [@ EXCEPT !.outlet = "inflight", !.handoff = Identity(k)]]
- /\ Local(k, TRUE, "none", "none", "none")
-
-OutletReply(k, reply) ==
- /\ records[k].outlet = "inflight"
- /\ records' = [records EXCEPT ![k] =
-      [@ EXCEPT !.outlet = CASE reply \in {"unknown", "unavailable"} -> "pending"
-                                [] reply = "received" -> "received"
-                                [] OTHER -> "blocked",
-                !.wasBlocked = @ \/ reply \in {"denied", "conflict", "invalid"}]]
- /\ Local(k, TRUE, "none", "none", "none")
-
 Detach(t) ==
  /\ attached[t]
  /\ attached' = [attached EXCEPT ![t] = FALSE]
@@ -141,9 +114,7 @@ Attach(t) ==
 
 Rebuild ==
  /\ receiverGeneration' = 1 - receiverGeneration
- /\ records' = [k \in Keys |->
-       IF ClearBlockedOnRebuild /\ records[k].outlet = "blocked"
-       THEN [records[k] EXCEPT !.outlet = "pending"] ELSE records[k]]
+ /\ records' = records
  /\ UNCHANGED <<attached, identityOK, isolationOK, detachOK, validationOK>>
 
 \* Enumerate response classes, omitting combinations that have the same
@@ -162,10 +133,7 @@ Next == (\E k \in Keys :
           \/ Query(k, k[1], "allowed", FALSE)
           \/ Query(k, k[1], "denied", TRUE)
           \/ Query(k, k[1], "unavailable", TRUE)
-          \/ (\E actor \in Tenants \ {k[1]} : Query(k, actor, "allowed", TRUE))
-          \/ Enqueue(k) \/ Send(k)
-          \/ (\E reply \in {"received", "unknown", "unavailable", "denied", "conflict", "invalid"} :
-                 OutletReply(k, reply)))
+          \/ (\E actor \in Tenants \ {k[1]} : Query(k, actor, "allowed", TRUE)))
         \/ (\E t \in Tenants : Detach(t) \/ Attach(t)) \/ Rebuild
 Spec == Init /\ [][Next]_vars
 
@@ -174,15 +142,12 @@ TypeOK ==
  /\ \A k \in Keys :
       /\ records[k].commit \in {"absent", "pending", "committed", "excluded"}
       /\ records[k].known \in {"none", "unknown", "committed", "excluded"}
-      /\ records[k].outlet \in {"none", "pending", "inflight", "received", "blocked"}
       /\ records[k].publications \in 0..2
 AtomicVisibility == \A k \in Keys :
  /\ records[k].material = records[k].entry
  /\ (records[k].entry => records[k].commit = "committed" /\
         records[k].receipt = Identity(k) /\ records[k].publications = 1)
  /\ (records[k].commit = "committed" => records[k].entry)
-NoPrecommitOutlet == \A k \in Keys :
- records[k].outlet # "none" => records[k].commit = "committed" /\ records[k].entry
 ExcludedNeverRevives == \A k \in Keys : records[k].wasExcluded =>
  records[k].commit = "excluded" /\ ~records[k].material /\ ~records[k].entry
 IdentityStable == identityOK /\ \A k \in Keys :
@@ -192,7 +157,6 @@ IdentityStable == identityOK /\ \A k \in Keys :
 TenantIsolation == isolationOK /\ \A k \in Keys :
  /\ (records[k].operation # NoIdentity => records[k].operation[1] = k[1])
  /\ (records[k].receipt # NoIdentity => records[k].receipt[1] = k[1])
-BlockedSurvivesRebuild == \A k \in Keys : records[k].wasBlocked => records[k].outlet = "blocked"
 DetachPreservesSaved == detachOK
 FreshValidationBeforeSaved == validationOK
 CapacityBound == \A t \in Tenants : Held(t) <= Capacity

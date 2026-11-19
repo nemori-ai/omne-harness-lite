@@ -620,18 +620,6 @@
       "config": {}
     },
     {
-      "id": "agent-account-outlet",
-      "plugin": "agentAccountOutletRow",
-      "config": {
-        "sender": {
-          "owner": "@omne-harness/agent-context",
-          "name": "account-outlet",
-          "revision": "1",
-          "digest": "agent-context:account-outlet/1"
-        }
-      }
-    },
-    {
       "id": "runtime-context",
       "plugin": "runtimeContextRow",
       "config": {}

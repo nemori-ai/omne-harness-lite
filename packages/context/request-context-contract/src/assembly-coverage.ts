@@ -1,9 +1,8 @@
 import type * as M from '@omne-harness/model-contract'
 import type { StablePreparation } from './preparation.js'
-import type { LayeredRequest } from './assembly-layers.js'
 import type { RepresentationResult } from './representation.js'
 import type { AssemblyInput, Coverage, PrefixBreakReason } from './values.js'
-import { canonical, digest } from './internal.js'
+import { digest } from './internal.js'
 export function prefix(
   coverage: Omit<Coverage, 'prefixBreak'>,
   previous: Coverage | null,
@@ -11,59 +10,27 @@ export function prefix(
 ): PrefixBreakReason {
   if (input.transition !== null) return 'compaction'
   if (input.alterations.some(a => a.touches === 'existing-layers')) return 'extension-altered'
-  if (
-    previous === null ||
-    canonical(previous.snapshot.anchor) !== canonical(coverage.snapshot.anchor)
-  )
-    return 'new-full-read'
+  if (previous === null) return 'unchanged'
   if (previous.model.recipient !== coverage.model.recipient) return 'model-changed'
   if (previous.prompt.digest !== coverage.prompt.digest) return 'system-prompt-changed'
   if (previous.tools.digest !== coverage.tools.digest) return 'tool-set-changed'
   return 'unchanged'
 }
 
-function historyAnchors(
-  prepared: StablePreparation,
-  anchor: Coverage['snapshot']['anchor'],
-): Coverage['history']['anchors'] {
-  const last = prepared.rows.at(-1)
-  if (last === undefined) return []
-  const head: Coverage['history']['anchors'] =
-    anchor.position.kind === 'entry'
-      ? [
-          {
-            layer: 'history-head',
-            seq: anchor.position.seq,
-            prefixDigest: anchor.prefixDigest ?? '',
-          },
-        ]
-      : []
-  return [...head, { layer: 'history-body', seq: last.seq, prefixDigest: last.prefixDigest }]
-}
-
 export function assemblyCoverage(
   input: AssemblyInput<unknown>,
   prepared: StablePreparation,
-  dynamic: LayeredRequest,
   represented: Extract<RepresentationResult, { kind: 'chosen' }>,
   whole: M.RequestBudget,
 ): Coverage {
-  const snapshot = dynamic.layers.snapshotReminder
   const base: Omit<Coverage, 'prefixBreak'> = {
     history: {
       epoch: input.history.epoch,
       upper: input.history.upper,
-      anchors: historyAnchors(prepared, snapshot.anchor),
+      prefixDigest: prepared.rows.at(-1)?.prefixDigest ?? null,
     },
     compactions: { record: prepared.view.compaction?.entry ?? null, derivation: null },
     inputs: { batch: input.inputs.batch, saved: input.inputs.saved },
-    snapshot: {
-      scope: snapshot.scope,
-      eligibility: snapshot.eligibility,
-      revision: snapshot.revision,
-      anchor: snapshot.anchor,
-      content: dynamic.anchorSource === 'adopted' ? 'incremental' : 'full',
-    },
     prompt: {
       sections: prepared.prompt.sections,
       digest: prepared.prompt.digest,

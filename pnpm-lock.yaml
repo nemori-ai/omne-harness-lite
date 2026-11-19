@@ -701,6 +701,9 @@ importers:
       '@omne-harness/permissions':
         specifier: workspace:*
         version: link:../../packages/assets/permissions
+      '@omne-harness/pi-ai-anthropic':
+        specifier: workspace:*
+        version: link:../../packages/model/pi-ai-anthropic
       '@omne-harness/pi-ai-openai':
         specifier: workspace:*
         version: link:../../packages/model/pi-ai-openai
@@ -3453,6 +3456,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      '@omne-harness/pi-ai-anthropic':
+        specifier: workspace:*
+        version: link:../pi-ai-anthropic
       '@omne-harness/pi-ai-openai':
         specifier: workspace:*
         version: link:../pi-ai-openai
@@ -3475,9 +3481,6 @@ importers:
       '@omne-harness/model-storage-sql':
         specifier: workspace:*
         version: link:../model-storage-sql
-      '@omne-harness/pi-ai-anthropic':
-        specifier: workspace:*
-        version: link:../pi-ai-anthropic
       '@omne-harness/settings-local':
         specifier: workspace:*
         version: link:../../assets/settings-local

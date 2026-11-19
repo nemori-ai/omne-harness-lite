@@ -34,6 +34,7 @@ type FaceMethod =
   | 'cancelRun'
   | 'stopCall'
   | 'retryRun'
+  | 'change'
   | 'history.begin'
   | 'history.next'
   | 'readWaiting'

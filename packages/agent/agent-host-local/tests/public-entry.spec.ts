@@ -63,13 +63,13 @@ it('assembles the real host receiver, saves through the common provider and retr
   expect(unsupported).toEqual({ failure: { kind: 'unsupported' } })
   const assembled = createLocalModelReceiver(fixture.dependencies, state)
   if ('failure' in assembled) throw new Error('supported provider refused')
-  fixture.outlet({ kind: 'unknown' })
+  fixture.journal.failNext('received', { kind: 'commit-unknown', outcome: 'applied' })
   const saved = await assembled.ok.push({
     access: fixture.access,
     delivery: fixture.delivery,
     signal: new AbortController().signal,
   })
-  expect(saved).toHaveProperty('ok')
+  expect(saved).toEqual({ failure: { kind: 'outcome-unknown' } })
   await Promise.all(state.tasks)
   const loaded = await fixture.dependencies.provider.entries.read({
     ...fixture.access,
@@ -87,8 +87,7 @@ it('assembles the real host receiver, saves through the common provider and retr
       source: entry.material,
     }),
   ).toHaveProperty('ok.kind', 'facts')
-  expect(assembled.ok.inspect()).toMatchObject({ pending: 1, blocked: 0 })
-  fixture.outlet({ kind: 'received' })
+  expect(assembled.ok.inspect()).toMatchObject({ pending: 1 })
   const replay = createLocalModelReceiver(fixture.dependencies, state)
   if ('failure' in replay) throw new Error('reassembly refused')
   expect(
@@ -97,16 +96,13 @@ it('assembles the real host receiver, saves through the common provider and retr
       execution: fixture.execution,
       signal: new AbortController().signal,
     }),
-  ).toEqual({ ok: { pending: 0, blocked: 0, diagnostics: [] } })
-  expect(fixture.sent).toHaveLength(2)
-  expect(fixture.sent[1]).toEqual(fixture.sent[0])
+  ).toEqual({ ok: { pending: 0, diagnostics: [] } })
   expect(
     await replay.ok.push({
       access: fixture.access,
       delivery: fixture.delivery,
       signal: new AbortController().signal,
     }),
-  ).toEqual(saved)
+  ).toHaveProperty('ok')
   await Promise.all(state.tasks)
-  expect(fixture.sent).toHaveLength(2)
 })

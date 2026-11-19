@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { anthropicTokenizerResources } from '@omne-harness/pi-ai-anthropic'
 import { openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { createTiktokenExecutor } from '@omne-harness/tokenizer-tiktoken'
 import {
@@ -24,7 +25,7 @@ class SharedTokenizers extends ModelTokenizersService {
 async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   const limits = modelTokenizersConfig.parse(raw)
   const initializing = createTiktokenExecutor({
-    resources: [openAiTokenizerResources()],
+    resources: [openAiTokenizerResources(), anthropicTokenizerResources()],
     limits,
   })
   ctx.effect(() => async () => {

@@ -25,7 +25,7 @@ import {
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { SessionAccessCheck, SessionId } from '@omne-harness/session-contract'
+import type { SessionId } from '@omne-harness/session-contract'
 import type {
   SessionAdoptedRequestRead,
   SessionAdoptedRequests,
@@ -39,9 +39,7 @@ import {
   SESSION_READ_PROTOCOL,
   decodeSessionExecution,
 } from '@omne-harness/session-storage-sql/participants'
-import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import type { JournalCombination } from '../journal-commit.ts'
 import {
   createSessionLogJournal,
   materialSessionOf,
@@ -50,22 +48,22 @@ import {
 } from './agent-journal.ts'
 import { announcePublished } from './published-queue.ts'
 import { createSqlCompactionInputs } from './compaction-inputs-sql.ts'
+import { createModelReminders } from './model-reminders.ts'
+import type { DescriptorCatalog } from '@omne-harness/runtime-context-contract'
+import {
+  runtimeContextKey,
+  runtimeContextReaderEligibilityKey,
+} from '@omne-harness/runtime-context-cordis-contract/cordis'
 
 const OWNER = 'session-log-journal'
 const LOGGER = 'session-adapters/agent-journal'
 const ROUTE_CACHE_ENTRIES = 4096
 
-export type ExecutionRoutedJournalOptions<P> = Readonly<{
-  storage: SqlStorage
-  tenantDomainLookup: TenantDomainLookup
-  sessionAccessCheck: SessionAccessCheck<P>
-  combination: JournalCombination
-  routeCacheEntries?: number
-  cancellation?: SessionLogJournalOptions<P>['cancellation']
-  published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
-  fault?: SessionLogJournalOptions<P>['fault']
-  report?: SessionLogJournalOptions<P>['report']
-}>
+export type ExecutionRoutedJournalOptions<P> = SessionLogJournalOptions<P> &
+  Readonly<{
+    routeCacheEntries?: number
+    published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
+  }>
 
 type Journal<P> = AgentJournal<P>
 type RoutedJournal<P> = Journal<P> & Required<Pick<Journal<P>, 'readFinish'>>
@@ -123,15 +121,7 @@ async function indexedSession<P>(
 }
 
 export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalOptions<P>) {
-  const journals = createSessionLogJournal<P>({
-    storage: options.storage,
-    tenantDomainLookup: options.tenantDomainLookup,
-    sessionAccessCheck: options.sessionAccessCheck,
-    combination: options.combination,
-    ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
-    ...(options.fault === undefined ? {} : { fault: options.fault }),
-    ...(options.report === undefined ? {} : { report: options.report }),
-  })
+  const journals = createSessionLogJournal<P>(options)
   const limit = options.routeCacheEntries ?? ROUTE_CACHE_ENTRIES
   const routes = new Map<string, Route<P>>()
   let closed = false
@@ -547,8 +537,21 @@ class SessionLogAdoptedRequests extends SessionAdoptedRequestsService<unknown> {
   }
 }
 
+const JOURNAL_INJECT: Readonly<Record<string, unknown>> = {
+  [storageKey]: null,
+  [tenantDomainLookupKey]: null,
+  [sessionAccessCheckKey]: null,
+}
+
+// Telling the model reads Runtime Context as the model, with the eligibility the scope holder hands over.
+const REMINDING_INJECT: Readonly<Record<string, unknown>> = {
+  ...JOURNAL_INJECT,
+  [runtimeContextKey]: { consumer: 'model' },
+  [runtimeContextReaderEligibilityKey]: null,
+}
+
 export class SessionLogAgentJournalProvider extends AgentJournalService<unknown> {
-  static readonly inject = [storageKey, tenantDomainLookupKey, sessionAccessCheckKey]
+  static readonly inject: Readonly<Record<string, unknown>> = JOURNAL_INJECT
   static readonly Config = configSchema
 
   readonly capabilities: AgentJournal<unknown>['capabilities']
@@ -580,6 +583,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     config: AgentJournalProviderConfig,
     cancellation?: SessionLogJournalOptions<unknown>['cancellation'],
     report?: SessionLogJournalOptions<unknown>['report'],
+    descriptors?: DescriptorCatalog,
   ) {
     super(ctx)
     const logger = ctx.logger(LOGGER)
@@ -594,6 +598,17 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
         announcePublished(ctx, line => logger.warn(line), { tenant, session, execution }),
       fault: diagnostic => logger.error(diagnostic),
       report: report ?? logged,
+      ...(descriptors === undefined
+        ? {}
+        : {
+            reminders: createModelReminders<unknown>({
+              eligibility: {
+                current: request => ctx[runtimeContextReaderEligibilityKey].current(request),
+              },
+              runtimeContext: { bind: eligibility => ctx[runtimeContextKey].bind(eligibility) },
+              descriptors,
+            }),
+          }),
       storage: ctx.storage,
       tenantDomainLookup: ctx.tenantDomainLookup,
       sessionAccessCheck: ctx.sessionAccessCheck,
@@ -645,15 +660,18 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
 export type SessionAgentJournalPluginInput = Readonly<{
   cancellation?: SessionLogJournalOptions<unknown>['cancellation']
   report?: SessionLogJournalOptions<unknown>['report']
+  /** The blocks the model may be told; given, each step first tells the model the runtime context. */
+  reminders?: Readonly<{ descriptors: DescriptorCatalog }>
 }>
 
 export function createSessionAgentJournalPlugin(
   input: SessionAgentJournalPluginInput = {},
 ): typeof SessionLogAgentJournalProvider {
-  const { cancellation, report } = input
+  const { cancellation, report, reminders } = input
   return class SessionLogAgentJournalPlugin extends SessionLogAgentJournalProvider {
+    static override readonly inject = reminders === undefined ? JOURNAL_INJECT : REMINDING_INJECT
     constructor(ctx: Context, config: AgentJournalProviderConfig) {
-      super(ctx, config, cancellation, report)
+      super(ctx, config, cancellation, report, reminders?.descriptors)
     }
   }
 }

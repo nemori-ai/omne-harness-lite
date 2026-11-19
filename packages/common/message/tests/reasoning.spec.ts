@@ -11,6 +11,7 @@ import {
   type CompactionContext,
   type Message,
   type RecordEntryRef,
+  REPLAY_PREFIX_MAX_LENGTH,
 } from '@omne-harness/message'
 
 const id = 'msg_abcdefghijklmnopqrstuv'
@@ -223,7 +224,7 @@ describe('the replay key of judgeMessage', () => {
     const symbolic = { ...replay, [Symbol('note')]: 1 }
     const inherited = Object.create({ scope: 'sc' }) as Record<string, unknown>
     Object.assign(inherited, { format: 'f1', at: [1] })
-    for (const bad of [new Described(), withAccessor, hidden, symbolic, inherited]) {
+    for (const bad of [new Described(), withAccessor, hidden, symbolic, inherited, 'x']) {
       expect(judgeMessage(assistant({ replay: bad }))).toEqual({ rejected: 'replay' })
     }
     expect(accessor.calls()).toBe(0)
@@ -307,5 +308,41 @@ describe('what a retained message keeps', () => {
   it('does not let the summary carry reasoning state', () => {
     const withState = { ...summary, blocks: [...summary.blocks, { ...state }] }
     expect(judgeMessage(withState)).toEqual({ rejected: 'misplaced-part', blockIndex: 1 })
+  })
+})
+
+describe('the prefix of a replay mark', () => {
+  const prefixed = (prefix: unknown) => assistant({ replay: { ...replay, prefix } })
+
+  it('keeps the prefix the reasoning state was produced on, and reads a mark without one', () => {
+    const judged = judgeMessage(prefixed('p:1.s:2.t:3.v:4'))
+    if (!('ok' in judged) || judged.ok.role !== 'assistant') throw new Error('expected a message')
+    expect(judged.ok.replay).toEqual({ ...replay, prefix: 'p:1.s:2.t:3.v:4' })
+    const old = judgeMessage(assistant({ replay: { ...replay } }))
+    if (!('ok' in old) || old.ok.role !== 'assistant') throw new Error('expected a message')
+    expect(old.ok.replay).toEqual(replay)
+    expect(old.ok.replay && 'prefix' in old.ok.replay).toBe(false)
+  })
+
+  it('refuses an empty, an oversized or a non-text prefix', () => {
+    for (const prefix of ['', 'x'.repeat(REPLAY_PREFIX_MAX_LENGTH + 1), 7, null])
+      expect(judgeMessage(prefixed(prefix))).toEqual({ rejected: 'replay' })
+    expect('ok' in judgeMessage(prefixed('x'.repeat(REPLAY_PREFIX_MAX_LENGTH)))).toBe(true)
+  })
+})
+
+describe('the call of a replay mark', () => {
+  it('keeps the model call that produced the message, alone or with a prefix', () => {
+    for (const extra of [{ call: 'mcall_1' }, { call: 'mcall_1', prefix: 'h:1.s:2.t:3.p:4' }]) {
+      const judged = judgeMessage(assistant({ replay: { ...replay, ...extra } }))
+      if (!('ok' in judged) || judged.ok.role !== 'assistant') throw new Error('expected a message')
+      expect(judged.ok.replay).toEqual({ ...replay, ...extra })
+    }
+    expect(judgeMessage(assistant({ replay: { ...replay, call: '' } }))).toEqual({
+      rejected: 'replay',
+    })
+    expect(judgeMessage(assistant({ replay: { ...replay, other: 'x' } }))).toEqual({
+      rejected: 'replay',
+    })
   })
 })

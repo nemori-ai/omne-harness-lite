@@ -552,15 +552,15 @@ describe('encode: replay', () => {
     )
   }
   const follow = message('u2', 'user', [textBlock('b2', 'next')])
-  function omission(id: unknown, scope: string): unknown {
-    return { kind: 'replay-omitted', message: id, scope, format: FORMAT, omittedParts: 1 }
+  function omission(id: unknown, scope: string, reason = 'scope'): unknown {
+    return { kind: 'replay-omitted', message: id, scope, format: FORMAT, omittedParts: 1, reason }
   }
 
   it('writes the carried parts of a continuable message through the reasoning hook', () => {
     const probe = engineProbe()
-    const messages = messagesOf(
-      encode(testRecord(), { messages: [assistant(SCOPE), follow] }, probe),
-    )
+    const encoded = encode(testRecord(), { messages: [assistant(SCOPE), follow] }, probe)
+    const messages = messagesOf(encoded)
+    expect('ok' in encoded && encoded.ok.replayCarried).toBe(true)
     expect(probe.replays).toEqual([
       {
         parts: [{ payload: 'sealed-1', format: FORMAT }],
@@ -578,11 +578,22 @@ describe('encode: replay', () => {
     ])
   })
 
+  it('carries no reasoning state for a continuable reply of thinking alone', () => {
+    const thinkingOnly = message(
+      'a1',
+      'assistant',
+      [thinkingBlock('k1', 'pondering'), textBlock('b1', 'answer')],
+      { replay: { scope: SCOPE, format: FORMAT, at: [] } },
+    )
+    const encoded = encode(testRecord(), { messages: [thinkingOnly, follow] }, engineProbe())
+    expect('ok' in encoded && encoded.ok.replayCarried).toBe(false)
+  })
+
   it('leaves out the parts and the thinking of a message from another scope', () => {
     const probe = engineProbe()
-    const messages = messagesOf(
-      encode(testRecord(), { messages: [assistant('gateway/other'), follow] }, probe),
-    )
+    const encoded = encode(testRecord(), { messages: [assistant('gateway/other'), follow] }, probe)
+    const messages = messagesOf(encoded)
+    expect('ok' in encoded && encoded.ok.replayCarried).toBe(false)
     expect(probe.replays).toEqual([])
     expect(messages).toEqual([
       { role: 'assistant', content: 'answer' },
@@ -618,7 +629,7 @@ describe('encode: replay', () => {
     ])
   })
 
-  it('leaves out every part when the judged request turns replay off, and reports the omission', () => {
+  it('leaves out every part when the judged request turns replay off, and says nothing: the request chose it (T1 rule 1)', () => {
     const request = fixedRequest(testRecord(), {
       messages: [assistant(SCOPE), follow],
       replay: 'off',
@@ -628,9 +639,7 @@ describe('encode: replay', () => {
       { role: 'assistant', content: 'answer' },
       { role: 'user', content: 'next' },
     ])
-    expect('ok' in outcome && outcome.ok.diagnostics).toEqual([
-      omission(request.messages[0]?.id, SCOPE),
-    ])
+    expect('ok' in outcome && outcome.ok.diagnostics).toEqual([])
   })
 
   it('projects with the declaration of the request, not the official declaration of the record', () => {
@@ -671,7 +680,9 @@ describe('encode: replay', () => {
       { role: 'assistant', content: 'answer' },
       { role: 'user', content: 'next' },
     ])
-    expect('ok' in outcome && outcome.ok.diagnostics).toEqual([omission(resent[0], SCOPE)])
+    expect('ok' in outcome && outcome.ok.diagnostics).toEqual([
+      omission(resent[0], SCOPE, 'resent'),
+    ])
   })
 
   it('gives foreign thinking to the reasoning hook when the declaration says adapter', () => {

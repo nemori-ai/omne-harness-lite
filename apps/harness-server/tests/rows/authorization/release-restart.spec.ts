@@ -115,11 +115,10 @@ it(
   },
 )
 
-// Whether the Tool goes on to start a call it took before the restart is the Tool's recovery, with
-// or without a release. What the release owes here: it is still held, nobody is asked again, and the
-// call starts at most once.
+// The environment the Tool prepared is gone with the process, so the Tool ends the call as never
+// started and the Run goes on. The release is still held and nobody is asked again.
 it(
-  'a restart after the Tool took the call and before it started keeps the release, and the call starts at most once',
+  'a restart after the Tool took the call and before it started ends the call never started, and the Run goes on',
   { timeout: 180_000 },
   async () => {
     let session = ''
@@ -154,16 +153,19 @@ it(
         expect(startAcceptances(tree.storageRoot)).toHaveLength(0)
       },
       async tree => {
-        await pollUntil(
-          'the Tool to take the call up again after the restart',
-          async () => hostRecords(tree.storageRoot).map(record => record['kind']),
-          kinds => kinds.includes('permit'),
+        const { entries } = await pollUntil(
+          'the Run of the taken call to end after the restart',
+          async () => ({ entries: await historyOf(tree, session), tool: toolSide(tree) }),
+          value => value.entries.some(entry => entry.kind === 'run.terminal'),
         )
-        const entries = await historyOf(tree, session)
+        expect(toolResults(entries).join('\n')).not.toContain('taken-done')
+        expect(toolLedger(tree.storageRoot).filter(row => row.tool === 'Shell')).toMatchObject([
+          { phase: 'settled', terminal: 'unavailable', execution: 'not-started' },
+        ])
         expect(entries.filter(entry => entry.kind === ONCE)).toHaveLength(1)
         expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toEqual([])
         expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(1)
-        expect(startAcceptances(tree.storageRoot).length).toBeLessThanOrEqual(1)
+        expect(startAcceptances(tree.storageRoot)).toHaveLength(0)
       },
     ])
   },

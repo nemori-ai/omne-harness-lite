@@ -14,14 +14,15 @@ export type BodyTap = Readonly<{
   close(): void
 }>
 
-export function tapResponseBodies(target: URL): BodyTap {
+export function tapResponseBodies(targets: readonly URL[]): BodyTap {
   const responses: TappedResponse[] = []
   const listener = (message: unknown): void => {
     const request: unknown = Reflect.get(Object(message), 'request')
     const response: unknown = Reflect.get(Object(message), 'response')
     if (!(request instanceof ClientRequest) || !(response instanceof IncomingMessage)) return
-    if (request.method !== 'POST' || request.path !== target.pathname) return
-    if (request.getHeader('host') !== target.host) return
+    if (request.method !== 'POST') return
+    const target = targets.find(item => item.pathname === request.path)
+    if (target === undefined || request.getHeader('host') !== target.host) return
     responses.push(wrap(response))
   }
   subscribe(RESPONSE_HEAD, listener)

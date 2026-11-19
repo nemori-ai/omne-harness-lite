@@ -42,7 +42,7 @@ export function sampleCompactionInput(): CompactionInput {
       barriers: [],
       protected: [],
     },
-    frame: { system: [], tools: [], snapshotReminder: null, tailFacts: null },
+    frame: { system: [], tools: [] },
     target: {
       profile: {
         kind: 'resolved',

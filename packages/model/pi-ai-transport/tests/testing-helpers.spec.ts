@@ -8,7 +8,7 @@ import { defineFamily, type PiFamily } from '../src/index.ts'
 import {
   appendAdoptionFingerprints,
   checkAdoptionFingerprints,
-  checkChatCompletionsFixtures,
+  checkRecordFixtures,
   fixtureDirectory,
   renderFingerprints,
 } from '../src/testing/index.ts'
@@ -98,18 +98,18 @@ async function writeAll(): Promise<void> {
   for (const record of RECORDS) await writeFixture(record)
 }
 
-describe('checkChatCompletionsFixtures', () => {
+describe('checkRecordFixtures', () => {
   it('passes when every record has matching fixtures; a / in a name stays in one directory', async () => {
     await writeAll()
     expect(fixtureDirectory(RECORDS[1] ?? testRecord())).toBe(join('lab%2Fmodel-b', '1'))
-    expect(await checkChatCompletionsFixtures(family(), root)).toEqual({ problems: [] })
+    expect(await checkRecordFixtures(family(), root)).toEqual({ problems: [] })
   })
 
   it('reports a record without its directory or one of its files', async () => {
     await writeAll()
     rmSync(join(root, fixtureDirectory(testRecord()), 'facts.json'))
     rmSync(join(root, 'lab%2Fmodel-b'), { recursive: true })
-    const { problems } = await checkChatCompletionsFixtures(family(), root)
+    const { problems } = await checkRecordFixtures(family(), root)
     expect(problems).toEqual([
       'model-a/1: missing facts.json',
       'lab/model-b/1: missing request.json',
@@ -122,7 +122,7 @@ describe('checkChatCompletionsFixtures', () => {
     await writeAll()
     mkdirSync(join(root, 'model-a', '2'))
     mkdirSync(join(root, 'gone', '1'), { recursive: true })
-    const { problems } = await checkChatCompletionsFixtures(family(), root)
+    const { problems } = await checkRecordFixtures(family(), root)
     expect(problems).toEqual([
       'extra directory gone: no record has this name',
       `extra directory ${join('model-a', '2')}: no record has this revision`,
@@ -137,7 +137,7 @@ describe('checkChatCompletionsFixtures', () => {
     if (typeof request !== 'object' || request === null) throw new Error('request.json')
     writeFileSync(requestFile, JSON.stringify({ ...request, body: { model: 'other' } }))
     writeFileSync(join(directory, 'facts.json'), '[]')
-    const { problems } = await checkChatCompletionsFixtures(family(), root)
+    const { problems } = await checkRecordFixtures(family(), root)
     expect(problems).toHaveLength(2)
     expect(problems[0]).toMatch(/^model-a\/1: the encoded body differs from request.json body/)
     expect(problems[1]).toMatch(/^model-a\/1: the facts of stream.sse differ from facts.json/)
@@ -147,7 +147,7 @@ describe('checkChatCompletionsFixtures', () => {
     const directory = await writeFixture(testRecord())
     await writeFixture(RECORDS[1] ?? testRecord())
     writeFileSync(join(directory, 'request.json'), '{"request":{},"body":{}}')
-    const { problems } = await checkChatCompletionsFixtures(family(), root)
+    const { problems } = await checkRecordFixtures(family(), root)
     expect(problems).toEqual([
       expect.stringMatching(/^model-a\/1: request.json: the contract refuses/),
     ])

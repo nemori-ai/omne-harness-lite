@@ -48,18 +48,11 @@ function canonical(value: unknown): string {
 }
 const sha = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex')
 
-type Block = Snapshot['contextRead']['perRequest'][number]
-type Materials = Readonly<{ texts: readonly string[]; tail: readonly Block[] }>
+type Materials = Readonly<{ texts: readonly string[] }>
 
-function perRequest(key: string, value: unknown): Block {
-  return { key, revision: 1, value, previous: null, volatility: 'per-request' } as Block
-}
 function materials(g: Gen): Materials {
   const texts = Array.from({ length: g.int(1, 5) }, (_, i) => `t${i}-${g.int(0, 9)}`)
-  const tail: Block[] = []
-  if (g.bool()) tail.push(perRequest('context.window-usage', { kind: 'not-fixed' }))
-  if (g.bool()) tail.push(perRequest('test.clock', { at: String(g.int(0, 99)) }))
-  return { texts, tail }
+  return { texts }
 }
 
 function caseOf(
@@ -68,17 +61,15 @@ function caseOf(
     amount: string | ((input: unknown) => string)
     digestOf?: (input: unknown) => string
   }>,
-  options: Readonly<{ reverseTail?: boolean; profile?: Snapshot['selection']['profile'] }> = {},
+  options: Readonly<{ profile?: Snapshot['selection']['profile'] }> = {},
 ) {
   const f = fixture()
   const rows = m.texts.map((t, i) => rowWith(i, message(t, String(i).padStart(22, 'a'))))
   const last = rows.length - 1
-  const tail = options.reverseTail ? [...m.tail].reverse() : [...m.tail]
   const seen: M.AssembledModelInput[] = []
   const input: Snapshot = {
     ...f.input,
     history: { target, epoch, upper: upper(last) },
-    contextRead: { ...f.input.contextRead, perRequest: tail },
     selection:
       options.profile === undefined
         ? f.input.selection
@@ -135,11 +126,11 @@ const contentDigest = (measured: unknown) =>
   sha((measured as { representation: unknown }).representation)
 
 describe('FR: the content of a request is a function of its stably read materials', () => {
-  it('equal materials give equal content under different meters and block order', async () => {
+  it('equal materials give equal content under different meters', async () => {
     for (let seed = 1; seed <= CASES; seed++) {
       const m = materials(generator(seed))
       const a = caseOf(m, { amount: '1' })
-      const b = caseOf(m, { amount: '7' }, { reverseTail: true })
+      const b = caseOf(m, { amount: '7' })
       const first = candidateOf(await assemble(a.input, a.ports, a.policies))
       const second = candidateOf(await assemble(b.input, b.ports, b.policies))
       expect(canonical(second.assembled), `seed ${seed}`).toBe(canonical(first.assembled))
@@ -147,12 +138,11 @@ describe('FR: the content of a request is a function of its stably read material
     }
   })
 
-  it('the recorded input digest changes with every change of content, layer ⑥ included', async () => {
+  it('the recorded input digest changes with every change of content', async () => {
     for (let seed = 1; seed <= CASES; seed++) {
       const g = generator(seed)
       const m = materials(g)
       const changed: Materials = g.pick([
-        { ...m, tail: [...m.tail, perRequest('test.extra', { seed })] },
         { ...m, texts: [...m.texts.slice(0, -1), `${m.texts.at(-1) ?? ''}x`] },
         { ...m, texts: [...m.texts, 'appended'] },
       ])
@@ -167,31 +157,6 @@ describe('FR: the content of a request is a function of its stably read material
         base.coverage.budget.inputDigest,
       )
     }
-  })
-
-  it('a fixing that moves context.window-usage changes the content and its digest', async () => {
-    const before = {
-      texts: ['a', 'b'],
-      tail: [perRequest('context.window-usage', { kind: 'not-fixed' })],
-    }
-    const after = {
-      texts: ['a', 'b'],
-      tail: [
-        perRequest('context.window-usage', {
-          kind: 'estimate',
-          candidate: 'candidate:1',
-          usedTokens: '1',
-          windowTokens: '1000',
-          ratio: '0.001',
-        }),
-      ],
-    }
-    const run = async (value: Materials) => {
-      const c = caseOf(value, { amount: '1', digestOf: contentDigest })
-      return candidateOf(await assemble(c.input, c.ports, c.policies))
-    }
-    const [x, replayed] = [await run(before), await run(after)]
-    expect(replayed.coverage.budget.inputDigest).not.toBe(x.coverage.budget.inputDigest)
   })
 })
 
@@ -322,11 +287,7 @@ describe('RA: every Model input takes the representation the profile fixes', () 
           .representation.tokenInput.value
         return (JSON.parse(tokens) as unknown[]).length >= 2 ? '900' : '1'
       }
-      const over = caseOf(
-        { texts: ['only'], tail: [perRequest('test.clock', { seed })] },
-        { amount: whole },
-        { profile },
-      )
+      const over = caseOf({ texts: ['first', `second ${seed}`] }, { amount: whole }, { profile })
       expect((await assemble(over.input, over.ports, over.policies)).kind).toBe('needs-compaction')
       const seen = [...fits.seen, ...over.seen]
       expect(seen.length).toBeGreaterThanOrEqual(2)

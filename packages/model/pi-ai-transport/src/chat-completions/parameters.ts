@@ -41,7 +41,7 @@ function compareDecimal(left: string, right: string): number {
 }
 
 export type ParameterContext = Readonly<{
-  record: ChatCompletionsRecord
+  record: Pick<ChatCompletionsRecord, 'parameters' | 'extensions'>
   adapter: Adoption
   outputLimit: string | null
 }>

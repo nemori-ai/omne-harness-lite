@@ -11,6 +11,7 @@ import {
   LIMIT_MS,
   record,
   release,
+  producedReminder,
   textOf,
   until,
   untilQuiet,
@@ -47,10 +48,7 @@ it(
           const placeholder = first.find(entry => entry.kind === 'message.tool')
           observed['placeholder'] = textOf(placeholder)
           assert.match(textOf(placeholder), /started in the background/u)
-          assert.ok(
-            !kinds(first).includes('message.system_reminder'),
-            'no outcome before the command ends',
-          )
+          assert.ok(!first.some(producedReminder), 'no outcome before the command ends')
           const [reference] = await backgroundCalls(tree, session)
           assert.ok(reference !== undefined, 'the session lists the call in the background')
 
@@ -59,12 +57,12 @@ it(
             'the reminder and a follow-up turn that took it',
             () => history(tree, session),
             entries => {
-              const at = entries.findIndex(entry => entry.kind === 'message.system_reminder')
+              const at = entries.findIndex(producedReminder)
               return at >= 0 && entries.slice(at).some(entry => entry.kind === 'run.terminal')
             },
           )
           observed['kinds'] = kinds(after)
-          const reminder = after.find(entry => entry.kind === 'message.system_reminder')
+          const reminder = after.find(producedReminder)
           observed['reminder'] = textOf(reminder)
           assert.match(textOf(reminder), /go-s4-done/u, 'the reminder carries the command output')
           assert.ok(textOf(reminder).includes(callOf(reference)), 'the reminder names the call')

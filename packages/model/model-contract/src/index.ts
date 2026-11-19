@@ -105,6 +105,7 @@ export {
   decodeRevision,
 } from './identity-values.ts'
 export { deriveGuardControlOperation } from './guard-control.ts'
+export { replaySourceCall } from './replay-values.ts'
 
 export type {
   ModelInvocationParts,

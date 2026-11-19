@@ -161,6 +161,8 @@ const attempt = object({
     }),
   },
   account: { rule: withUnknown(accountView) },
+  /** Whether the request of this attempt carried reasoning state back; unknown before it was materialized. */
+  reasoning: { rule: literal('carried', 'not-carried', 'unknown'), optional: true },
 })
 
 const modelCall = object({

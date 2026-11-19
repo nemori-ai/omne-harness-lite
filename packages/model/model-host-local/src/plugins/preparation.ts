@@ -25,6 +25,7 @@ import type {
 import {
   judgeFixedModelRequest,
   judgeReplayDeclaration,
+  type ModelCommands,
   type ModelRequestPreparation,
 } from '@omne-harness/model-contract/provider'
 import {
@@ -127,6 +128,8 @@ function requestOf(
 export type ModelPreparationPluginOptions = Readonly<{
   bindings: PreparationBindingSource
   supplierOf: SupplierPort<unknown>
+  /** How the assembly reads the facts of earlier calls, for one that qualifies every reader. */
+  readFacts?: (commands: ModelCommands<unknown>) => Pick<ModelCommands<unknown>, 'dispatches'>
 }>
 
 export type ModelRequestPreparationPluginClass = {
@@ -192,7 +195,7 @@ function createPluginClass(
     constructor(ctx: Context, settings: ModelPreparationSettings) {
       super(ctx)
       const resources = createModelPreparationResources<unknown>({
-        commands: ctx.modelCommands,
+        commands: options.readFacts?.(ctx.modelCommands) ?? ctx.modelCommands,
         bindings: options.bindings,
         supplierOf: options.supplierOf,
         maxCitedCalls: settings.maxCitedCalls,

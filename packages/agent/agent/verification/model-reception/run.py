@@ -17,8 +17,7 @@ if not os.environ.get('OMNE_TEST_SLOT_HELD'):
 jar = Path(os.environ.get('TLA2TOOLS_JAR', str(Path.home() / '.local/share/omne-tools/tlaplus/tla2tools-1.7.4.jar')))
 java = os.environ.get('JAVA_BIN', 'java')
 budget = int(os.environ.get('FORMAL_BUDGET_SECONDS', '180'))
-expected = {'valid': None, 'capacity-one': None, 'bad-split': 'AtomicVisibility',
-            'bad-precommit': 'NoPrecommitOutlet', 'bad-rebuild': 'BlockedSurvivesRebuild'}
+expected = {'valid': None, 'capacity-one': None, 'bad-split': 'AtomicVisibility'}
 cases = sys.argv[1:] or list(expected)
 if any(case not in expected for case in cases):
     sys.exit('Unknown configuration')

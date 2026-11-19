@@ -32,7 +32,6 @@ import {
   type PiTransport,
   type PiTransportConfig,
 } from '@omne-harness/pi-ai-transport'
-import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createModelSendStagePlugin } from '../src/cordis.ts'
 import { vaultCredentialPlugin } from './support/credentials.ts'
@@ -48,8 +47,9 @@ import {
   decoded,
   FAMILIES,
   PLACEHOLDER,
-  ROUTE_PATH,
   TRANSPORT_LIMITS,
+  isGatewayPath,
+  gatewayEndpoints,
 } from './support/local-host.ts'
 import { factorySupplier } from './support/profiles.ts'
 import { firstRoundRequest, RECORD_CASE_NAMES, RECORD_CASES } from './support/recording-cases.ts'
@@ -287,8 +287,12 @@ function observing() {
 
 const ROUTES = {
   openrouter: {
-    url: 'https://gateway.invalid/api/v1/chat/completions',
-    endMarker: '[DONE]',
+    endpoints: {
+      'chat-completions': {
+        url: 'https://gateway.invalid/api/v1/chat/completions',
+        endMarker: '[DONE]',
+      },
+    },
     accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
     auth: { kind: 'bearer' as const, item: 'apiKey' },
   },
@@ -907,7 +911,7 @@ describe('a connect failure that the send retries, through the plugin', () => {
         const certificate = createCertificate()
         closers.push(() => certificate.dispose())
         const server = await startHttpsServer(certificate, (res, received) => {
-          if (received.path !== ROUTE_PATH) {
+          if (!isGatewayPath(received.path)) {
             res.writeHead(404).end()
             return
           }
@@ -938,8 +942,7 @@ describe('a connect failure that the send retries, through the plugin', () => {
             },
             routes: {
               openrouter: {
-                url: new URL(ROUTE_PATH, front.url).href,
-                endMarker: GATEWAY_END_MARKER,
+                endpoints: gatewayEndpoints(front.url),
                 accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
                 auth: { kind: 'bearer', item: 'apiKey' },
               },
@@ -1000,7 +1003,7 @@ async function replayThroughPlugin(
     const certificate = createCertificate()
     closers.push(() => certificate.dispose())
     const server = await startHttpsServer(certificate, (res, received) => {
-      if (received.path !== ROUTE_PATH) {
+      if (!isGatewayPath(received.path)) {
         res.writeHead(404).end()
         return
       }
@@ -1021,8 +1024,7 @@ async function replayThroughPlugin(
         },
         routes: {
           openrouter: {
-            url: new URL(ROUTE_PATH, server.url).href,
-            endMarker: GATEWAY_END_MARKER,
+            endpoints: gatewayEndpoints(server.url),
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },

@@ -18,7 +18,6 @@ it('exports the agent-host plugin with its static inject list', async () => {
     'agentCompaction',
     'agentCompactionInputs',
     'agentModelSelection',
-    'agentModelContext',
     'agentMessageHandoff',
     'agentClock',
     'modelRuntime',
@@ -26,7 +25,6 @@ it('exports the agent-host plugin with its static inject list', async () => {
     'agentMaterials',
     'agentReceivedCommits',
     'agentModelReceptionTargets',
-    'agentAccountOutlet',
     'agentHostPrincipal',
   ])
 })

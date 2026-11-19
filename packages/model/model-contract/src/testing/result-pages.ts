@@ -76,8 +76,11 @@ function validateSealedPart(part: Extract<ResultPart, { kind: 'sealed' }>): void
   const judged = judgePart(part.block)
   if (
     'rejected' in judged ||
-    (part.block.kind === 'tool_call' && part.trims.length > 0) ||
-    !['text', 'thinking', 'voice', 'image', 'file', 'tool_call'].includes(part.block.kind)
+    ((part.block.kind === 'tool_call' || part.block.kind === 'reasoning_state') &&
+      part.trims.length > 0) ||
+    !['text', 'thinking', 'voice', 'image', 'file', 'tool_call', 'reasoning_state'].includes(
+      part.block.kind,
+    )
   )
     throw new ScriptedModelError('invalid-script', 'invalid sealed result')
 }

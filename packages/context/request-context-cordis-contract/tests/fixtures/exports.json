@@ -93,25 +93,7 @@
               "pending": false
             },
             {
-              "name": "WindowUsageValue",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
               "name": "SystemPromptResult",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "Placement",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "PlacementInput",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
               "pending": false
@@ -315,24 +297,6 @@
               "pending": false
             },
             {
-              "name": "BlockMaterial",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "SnapshotMaterial",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "ContextReadGroup",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
               "name": "AssemblyContext",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
@@ -417,18 +381,6 @@
               "pending": false
             },
             {
-              "name": "LayerAnchor",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "SnapshotAnchor",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
               "name": "Coverage",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
@@ -448,18 +400,6 @@
             },
             {
               "name": "RepresentationChoice",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "SnapshotReminder",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "TailFacts",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
               "pending": false
@@ -725,16 +665,6 @@
               "pending": false
             },
             {
-              "name": "ContextAccountingInboxService",
-              "kind": "class",
-              "pending": false
-            },
-            {
-              "name": "contextAccountingInboxKey",
-              "kind": "value",
-              "pending": false
-            },
-            {
               "name": "ContextHolderSourcesService",
               "kind": "class",
               "pending": false
@@ -827,20 +757,13 @@
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Context",
-      "members": [
-        "requestContext",
-        "requestContextTrust",
-        "contextAccountingInbox",
-        "contextHolderSources"
-      ],
+      "members": ["requestContext", "requestContextTrust", "contextHolderSources"],
       "pending": false
     },
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Events",
-      "members": [
-        "request-context-cordis-contract/changed"
-      ],
+      "members": ["request-context-cordis-contract/changed"],
       "pending": false
     }
   ]

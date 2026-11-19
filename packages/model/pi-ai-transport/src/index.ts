@@ -19,11 +19,20 @@ export {
 export type {
   PiCredentialSlot,
   PiRoute,
+  PiRouteEndpoint,
+  EngineEndpoint,
   PiRouteAuth,
   PiTransportConfig,
   PiTransportLimits,
   RouteAccounting,
 } from './config.ts'
+export { isEngineEndpoint } from './config.ts'
+export {
+  RECORD_FACTS,
+  type FactSource,
+  type RecordFact,
+  type RecordProvenance,
+} from './provenance.ts'
 export { createPiTransport, type PiTransport } from './transport.ts'
 export type { ConnectRetryDiagnostic, DiagnosticObserver } from './diagnostics.ts'
 export {

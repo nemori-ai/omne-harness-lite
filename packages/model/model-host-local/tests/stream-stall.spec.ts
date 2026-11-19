@@ -11,8 +11,8 @@ import {
   assembleLocalHost,
   decoded,
   PLACEHOLDER,
-  ROUTE_PATH,
   TRANSPORT_LIMITS,
+  isGatewayPath,
 } from './support/local-host.ts'
 import { readRecordFixture } from './support/records.ts'
 
@@ -53,7 +53,7 @@ let directory: string
 beforeAll(async () => {
   directory = realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-stall-')))
   server = await startHttpsServer(certificate, (res, request) => {
-    if (request.path !== ROUTE_PATH) {
+    if (!isGatewayPath(request.path)) {
       res.writeHead(404).end()
       return
     }

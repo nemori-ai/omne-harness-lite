@@ -1,0 +1,256 @@
+{
+  "request": {
+    "profile": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "profile",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-sonnet-5",
+          "revision": "3",
+          "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+        },
+        "provider": "openrouter",
+        "model": "anthropic/claude-sonnet-5",
+        "credential": {
+          "layer": "official"
+        }
+      }
+    ],
+    "fallback": false,
+    "retryPolicy": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "retry",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "1024"
+      },
+      {
+        "kind": "reasoning-effort",
+        "value": "high"
+      }
+    ],
+    "system": [
+      {
+        "kind": "text",
+        "id": "s1",
+        "visibility": {
+          "toHuman": true,
+          "toModel": true
+        },
+        "text": "Answer briefly. Call tools one at a time."
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_u100000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "Work out how many positive integers below 100 are divisible by 3 or by 7 but not by both. If the count is even, get the weather of Oslo, otherwise of Lima. Use the tool."
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Read the current weather of one city.",
+        "argumentsSchema": {
+          "kind": "object",
+          "entries": [
+            {
+              "key": "type",
+              "value": {
+                "kind": "string",
+                "value": "object"
+              }
+            },
+            {
+              "key": "properties",
+              "value": {
+                "kind": "object",
+                "entries": [
+                  {
+                    "key": "city",
+                    "value": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "required",
+              "value": {
+                "kind": "array",
+                "items": [
+                  {
+                    "kind": "string",
+                    "value": "city"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "toolChoice": "auto",
+    "declarations": [
+      {
+        "produces": "openrouter/anthropic/claude-sonnet-5",
+        "accepts": [
+          "openrouter/anthropic/claude-sonnet-5"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-sonnet-5#representation",
+      "revision": "3",
+      "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+    },
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-sonnet-5",
+          "revision": "3",
+          "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "1024"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "1024"
+          },
+          "source": {
+            "owner": "pi-ai-anthropic-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      },
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-sonnet-5",
+          "revision": "3",
+          "digest": "967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"
+        },
+        "applied": {
+          "kind": "reasoning-effort",
+          "value": "high"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "reasoning-effort",
+            "value": "high"
+          },
+          "source": {
+            "owner": "pi-ai-anthropic-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "source": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "source",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "body": {
+    "max_tokens": 1024,
+    "messages": [
+      {
+        "content": [
+          {
+            "cache_control": {
+              "ttl": "1h",
+              "type": "ephemeral"
+            },
+            "text": "Work out how many positive integers below 100 are divisible by 3 or by 7 but not by both. If the count is even, get the weather of Oslo, otherwise of Lima. Use the tool.",
+            "type": "text"
+          }
+        ],
+        "role": "user"
+      }
+    ],
+    "model": "anthropic/claude-sonnet-5",
+    "output_config": {
+      "effort": "high"
+    },
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "anthropic"
+      ]
+    },
+    "stream": true,
+    "system": [
+      {
+        "text": "Answer briefly. Call tools one at a time.",
+        "type": "text"
+      }
+    ],
+    "thinking": {
+      "display": "summarized",
+      "type": "adaptive"
+    },
+    "tool_choice": {
+      "type": "auto"
+    },
+    "tools": [
+      {
+        "description": "Read the current weather of one city.",
+        "input_schema": {
+          "properties": {
+            "city": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "city"
+          ],
+          "type": "object"
+        },
+        "name": "get_weather"
+      }
+    ]
+  }
+}

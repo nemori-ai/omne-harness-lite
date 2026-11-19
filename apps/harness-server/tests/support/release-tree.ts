@@ -54,6 +54,7 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   if (
     modes.permission === undefined &&
     modes.collaboration === undefined &&
+    modes.model === undefined &&
     nonresident.length === 0
   )
     return distribution
@@ -65,6 +66,10 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   if (modes.permission !== undefined)
     coding.modes.permission = modes.permission as typeof coding.modes.permission
   if (modes.collaboration !== undefined) coding.modes.collaboration = modes.collaboration
+  if (modes.model !== undefined) {
+    if (coding.initialModelSelection === undefined) throw new Error('No coding model selection')
+    coding.initialModelSelection.name = modes.model
+  }
   const references = coding.definition['references'] as {
     capability: { name: string }
     resident: boolean
@@ -78,6 +83,8 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
 type ReleaseModes = Readonly<{
   permission?: string
   collaboration?: 'co-work' | 'auto-drive'
+  /** The model a coding session starts on, in place of the distribution's. */
+  model?: string
   /** Release tools the coding Agent reaches only through Tools in this tree. */
   nonresident?: readonly string[]
 }>
@@ -610,6 +617,7 @@ export type ReleaseTreeOptions = Readonly<{
   script: GatewayScript
   permission?: string
   collaboration?: 'co-work' | 'auto-drive'
+  model?: string
   nonresident?: readonly string[]
   audience?: (registrar: string) => HitlAudience
   queueCapacity?: number

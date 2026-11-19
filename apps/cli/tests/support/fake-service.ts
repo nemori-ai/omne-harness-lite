@@ -98,6 +98,11 @@ export function defaultAnswer(seen: Seen): Answer {
         outcome: 'succeeded',
         body: { kind: 'requested', controlId: body['controlId'], producer: body['producer'] },
       }
+    case 'select-model':
+      return {
+        outcome: 'succeeded',
+        body: { controlId: body['controlId'], model: body['model'], credential: 'available' },
+      }
     default:
       return governanceAnswer(seen.operation, body) ?? { outcome: 'denied', body: {} }
   }

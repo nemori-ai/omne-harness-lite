@@ -1,13 +1,13 @@
-import type * as M from '@omne-harness/model-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
-import { measuredAmount } from './internal.js'
 import { decodeCandidateRef, type CandidateRef, type ContextTarget } from './refs.js'
-import { isCoverage } from './coverage-validation.js'
-import { record } from './schema-primitives.js'
-import type { ContinuationBasis, Coverage } from './values.js'
+import { parseMessageId } from '@omne-harness/message'
+import { isCoverage, isHistoryUpper } from './coverage-validation.js'
+import { decodeEpochId } from './refs.js'
+import { adoption, isEvidence, record } from './schema-primitives.js'
+import type { ContinuationPrefix, Coverage, HistoryEvidence, HistoryUpper } from './values.js'
 
 const SCHEMA = 'request-context/fixed-request/1'
 
@@ -16,23 +16,11 @@ export type FixedRequestRecord = Readonly<{
   target: ContextTarget
   candidate: CandidateRef
   coverage: Coverage
-  windowTokens: string
-  forecast: Readonly<{ kind: 'estimate'; usedTokens: string }> | null
-  continuation: ContinuationBasis | null
+  continuation: ContinuationPrefix | null
 }>
 export type FixedRequestRecordRejection = Readonly<{ field: string; reason: 'unsupported-format' }>
 
-const POSITIVE = /^[1-9][0-9]*$/u
-const INTEGER = /^(0|[1-9][0-9]*)$/u
-const KEYS = [
-  'schema',
-  'target',
-  'candidate',
-  'coverage',
-  'windowTokens',
-  'forecast',
-  'continuation',
-] as const
+const KEYS = ['schema', 'target', 'candidate', 'coverage', 'continuation'] as const
 
 function exactKeys(v: Record<string, unknown>, keys: readonly string[]): boolean {
   const own = Object.keys(v)
@@ -42,19 +30,6 @@ const bad = (field: string): Outcome<never, FixedRequestRecordRejection> => ({
   failure: { field, reason: 'unsupported-format' },
 })
 
-function decodeForecast(value: unknown): FixedRequestRecord['forecast'] | undefined {
-  if (value === null) return null
-  if (
-    record(value) &&
-    exactKeys(value, ['kind', 'usedTokens']) &&
-    value.kind === 'estimate' &&
-    typeof value.usedTokens === 'string' &&
-    INTEGER.test(value.usedTokens)
-  )
-    return { kind: 'estimate', usedTokens: value.usedTokens }
-  return undefined
-}
-
 function decodeTarget(value: unknown): ContextTarget | undefined {
   if (!record(value) || !exactKeys(value, ['tenant', 'scope']) || typeof value.tenant !== 'string')
     return undefined
@@ -63,10 +38,38 @@ function decodeTarget(value: unknown): ContextTarget | undefined {
   return tenant.ok && 'ok' in scope ? { tenant: tenant.value, scope: scope.ok } : undefined
 }
 
-export function forecastOf(report: M.RequestBudget): FixedRequestRecord['forecast'] {
-  const amounts = report.checks.filter(c => c.metric === 'input-tokens').map(measuredAmount)
-  if (amounts.length === 0) return null
-  return { kind: 'estimate', usedTokens: amounts.reduce((a, b) => (a > b ? a : b)).toString() }
+const EVIDENCE_KEYS = ['system', 'tools', 'parameters', 'replay', 'visibility'] as const
+const PREFIX_KEYS = ['history', 'messagePrefix', 'projection', ...EVIDENCE_KEYS] as const
+
+// The history evidence is stored without its target: it is the target of the record.
+function continuationJson(value: ContinuationPrefix | null): unknown {
+  if (value === null) return null
+  const { target: _target, ...history } = value.history
+  return { ...value, history }
+}
+
+function decodeHistory(value: unknown, target: ContextTarget): HistoryEvidence | undefined {
+  if (!record(value) || !exactKeys(value, ['epoch', 'upper'])) return undefined
+  const epoch = decodeEpochId(value.epoch)
+  if ('failure' in epoch || !isHistoryUpper(value.upper)) return undefined
+  return { target, epoch: epoch.ok, upper: value.upper as HistoryUpper }
+}
+
+function isMessagePrefix(value: unknown): boolean {
+  return Array.isArray(value) && value.every(id => typeof id === 'string' && parseMessageId(id).ok)
+}
+
+function decodeContinuation(
+  value: unknown,
+  target: ContextTarget,
+): ContinuationPrefix | null | undefined {
+  if (value === null) return null
+  if (!record(value) || !exactKeys(value, PREFIX_KEYS)) return undefined
+  const history = decodeHistory(value.history, target)
+  if (history === undefined || !isMessagePrefix(value.messagePrefix)) return undefined
+  if (!adoption(value.projection) || !EVIDENCE_KEYS.every(key => isEvidence(value[key])))
+    return undefined
+  return structuredClone({ ...(value as unknown as ContinuationPrefix), history })
 }
 
 export function encodeFixedRequestRecord(value: FixedRequestRecord): JsonValue {
@@ -78,9 +81,7 @@ export function encodeFixedRequestRecord(value: FixedRequestRecord): JsonValue {
       target: { tenant: tenant.value, scope: value.target.scope },
       candidate: value.candidate,
       coverage: value.coverage,
-      windowTokens: value.windowTokens,
-      forecast: value.forecast,
-      continuation: value.continuation,
+      continuation: continuationJson(value.continuation),
     }),
   ) as JsonValue
 }
@@ -95,20 +96,15 @@ export function decodeFixedRequestRecord(
   const candidate = decodeCandidateRef(value.candidate)
   if ('failure' in candidate) return bad('candidate')
   if (!isCoverage(value.coverage)) return bad('coverage')
-  if (typeof value.windowTokens !== 'string' || !POSITIVE.test(value.windowTokens))
-    return bad('windowTokens')
-  const forecast = decodeForecast(value.forecast)
-  if (forecast === undefined) return bad('forecast')
-  if (value.continuation !== null) return bad('continuation')
+  const continuation = decodeContinuation(value.continuation, target)
+  if (continuation === undefined) return bad('continuation')
   return {
     ok: {
       schema: SCHEMA,
       target,
       candidate: candidate.ok,
       coverage: structuredClone(value.coverage),
-      windowTokens: value.windowTokens,
-      forecast,
-      continuation: null,
+      continuation,
     },
   }
 }

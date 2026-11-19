@@ -30,6 +30,7 @@ function policy(overrides: Partial<Parameters<typeof createDefaultRetryPolicy>[0
   return createDefaultRetryPolicy<Principal>({
     adoption: request.retryPolicy,
     policy: { maxAttempts: 3, maxElapsedMs: 60_000, delaysMs: [1000, 5000], jitter: 0 },
+    replayResend: { max: 1 },
     clock: createManualModelClock(NOW, 4).clock,
     random: () => 0,
     ...overrides,
@@ -188,5 +189,85 @@ describe('the evidence of a decision of the default policy', () => {
         request: { ...request, retryPolicy: { ...request.retryPolicy, name: 'another/retry' } },
       }),
     ).toEqual(refused)
+  })
+})
+
+// T2: the policy at a failure before content, by whether the dispatch carried reasoning state and
+// whether the supplier refused it for that state.
+describe('the default retry policy after a refusal of reasoning state', () => {
+  const refused: ModelFault = {
+    cause: 'replay-rejected',
+    replayCarried: true,
+    diagnostic: 'replay-signature',
+    upstreamStatus: '400',
+  }
+  const failed = (supplier = first, withoutReplay?: 'resend' | 'later') =>
+    ({
+      dispatch: position.dispatch,
+      supplier,
+      ...(withoutReplay === undefined ? {} : { withoutReplay }),
+    }) as unknown as DispatchRecord
+  const earlier = (withoutReplay?: 'resend' | 'later') =>
+    ({
+      dispatch: 'mdisp_earlier',
+      supplier: first,
+      ...(withoutReplay === undefined ? {} : { withoutReplay }),
+    }) as unknown as DispatchRecord
+  const resending = (max: number) => policy({ replayResend: { max } })
+
+  it('row 1: carried and refused for it, within the bound: sends again to that supplier at once', async () => {
+    const decided = await decisionOf(
+      resending(1),
+      ask({ failure: refused, dispatches: [failed(second)] }),
+    )
+    expect(decided.decision).toEqual({ kind: 'resend-without-replay', supplier: second })
+    const later = await decisionOf(
+      resending(1),
+      ask({ failure: refused, dispatches: [earlier(), failed(third)] }),
+    )
+    expect(later.decision).toEqual({ kind: 'resend-without-replay', supplier: third })
+  })
+
+  it('row 2: carried and refused for it, with the bound spent: stops with the refusal', async () => {
+    const spent = await decisionOf(
+      resending(1),
+      ask({ failure: refused, dispatches: [earlier(), earlier('resend'), failed(first, 'later')] }),
+    )
+    expect(spent.decision).toEqual({ kind: 'stop', fault: refused })
+    const none = await decisionOf(resending(0), ask({ failure: refused, dispatches: [failed()] }))
+    expect(none.decision).toEqual({ kind: 'stop', fault: refused })
+  })
+
+  it('rows 3 and 5: any other failure follows the ordinary rules, carried or not', async () => {
+    for (const failure of [{ ...fault503, replayCarried: true } as const, fault503]) {
+      const decided = await decisionOf(resending(1), ask({ failure, dispatches: [failed()] }))
+      expect(decided.decision).toMatchObject({ kind: 'retry', supplier: first })
+    }
+  })
+
+  it('row 4: a refusal of state that was not carried reaches the policy as an invalid request, and stops', async () => {
+    const invalid: ModelFault = {
+      cause: 'input-rejected',
+      diagnostic: 'replay-not-carried',
+      upstreamStatus: '400',
+    }
+    const decided = await decisionOf(
+      resending(1),
+      ask({ failure: invalid, dispatches: [failed()] }),
+    )
+    expect(decided.decision).toEqual({ kind: 'stop', fault: invalid })
+  })
+
+  it('does not count the resend against the ordinary retries', async () => {
+    const decided = await decisionOf(
+      resending(1),
+      ask({ dispatches: [earlier(), failed(first, 'resend')] }),
+    )
+    expect(decided.decision).toMatchObject({ kind: 'retry', supplier: first })
+    const spent = await decisionOf(
+      resending(1),
+      ask({ dispatches: [earlier(), earlier('resend'), failed(first, 'later')] }),
+    )
+    expect(spent.decision).toEqual({ kind: 'stop', fault: fault503 })
   })
 })

@@ -12,7 +12,7 @@ import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
 import { ANTHROPIC_RECORDS } from '@omne-harness/pi-ai-anthropic'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { createCertificate, startHttpsServer } from './https-server.ts'
-import { assembleLocalHost, decoded, ROUTE_PATH } from './local-host.ts'
+import { assembleLocalHost, decoded, isGatewayPath } from './local-host.ts'
 import { readRecordFixture, type FamilyName } from './records.ts'
 
 export const RECORDING_FILES = { stream: 'stream.sse', note: 'recording.json' } as const
@@ -269,7 +269,7 @@ export async function replayRound(
   const certificate = createCertificate()
   try {
     const server = await startHttpsServer(certificate, (res, request) => {
-      if (request.path !== ROUTE_PATH) {
+      if (!isGatewayPath(request.path)) {
         res.writeHead(404).end()
         return
       }
