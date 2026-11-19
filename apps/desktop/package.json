@@ -59,6 +59,7 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@omne-harness/utc-instant": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/react": "catalog:",

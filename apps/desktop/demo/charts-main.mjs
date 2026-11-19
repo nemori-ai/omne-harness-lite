@@ -30,6 +30,7 @@ const READ = theme => `(async () => {
     literal: colors.filter(value => /#[0-9a-f]{3,8}|rgb\\(|hsl\\(/i.test(value)),
     styles: document.querySelectorAll('style').length,
     violations: window.chartWalk.violations,
+    missing: (window.chartWalkExpects ?? []).filter(selector => document.querySelector(selector) === null),
   }
 })()`
 
@@ -57,7 +58,10 @@ app.whenReady().then(async () => {
     for (const theme of ['light', 'dark']) {
       const reading = await window.webContents.executeJavaScript(READ(theme))
       const image = await window.webContents.capturePage()
-      writeFileSync(join(out, `charts-${theme}.png`), image.toPNG())
+      writeFileSync(
+        join(out, `${process.env['OMNE_CHARTS_PAGE'] ?? 'charts'}-${theme}.png`),
+        image.toPNG(),
+      )
       readings.push(reading)
     }
     say(`CHARTWALK ${JSON.stringify({ ok: true, readings, messages })}`)

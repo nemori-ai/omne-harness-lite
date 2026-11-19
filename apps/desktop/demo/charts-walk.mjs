@@ -10,9 +10,9 @@ import react from '@vitejs/plugin-react'
 import { build } from 'vite'
 import { CONTENT_SECURITY_POLICY } from '../dist/shared/page-policy.js'
 
-const USAGE = `usage: node apps/desktop/demo/charts-walk.mjs [--shots <dir>]
+const USAGE = `usage: node apps/desktop/demo/charts-walk.mjs [--page charts|usage] [--shots <dir>]
 
-Builds a page of the chart controls with vite, serves it with the page policy of the desktop app and loads
+Builds a page with vite (charts: the chart controls; usage: the usage page with the example module chosen), serves it with the page policy of the desktop app and loads
 it in Electron. Prints the policy violations, the console errors and the chart colors in the light and the
 dark theme with a data point reached by keyboard, saves a screenshot of each, and exits 1 when a chart is not drawn or the policy refused anything.
 Needs \`pnpm run build\` in packages/frontend/ui-kit and apps/desktop first: the page takes the built kit.`
@@ -26,7 +26,13 @@ const shotsAt = args.indexOf('--shots')
 const shots = resolve(shotsAt < 0 ? mkdtempSync(join(tmpdir(), 'charts-walk-')) : args[shotsAt + 1])
 mkdirSync(shots, { recursive: true })
 
-const root = fileURLToPath(new URL('./charts/', import.meta.url))
+const pageAt = args.indexOf('--page')
+const page = pageAt < 0 ? 'charts' : args[pageAt + 1]
+if (page !== 'charts' && page !== 'usage') {
+  process.stderr.write(`${USAGE}\n`)
+  process.exit(2)
+}
+const root = fileURLToPath(new URL(`./${page}/`, import.meta.url))
 const built = mkdtempSync(join(tmpdir(), 'charts-page-'))
 const userData = mkdtempSync(join(tmpdir(), 'charts-electron-'))
 const TYPES = {
@@ -76,7 +82,7 @@ const main = fileURLToPath(new URL('./charts-main.mjs', import.meta.url))
 const { ELECTRON_RUN_AS_NODE: _runAsNode, ...env } = process.env
 const output = await new Promise((done, failed) => {
   const child = spawn(electron, [main, `--user-data-dir=${userData}`], {
-    env: { ...env, OMNE_CHARTS_URL: url, OMNE_CHARTS_OUT: shots },
+    env: { ...env, OMNE_CHARTS_URL: url, OMNE_CHARTS_OUT: shots, OMNE_CHARTS_PAGE: page },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   let text = ''
@@ -108,6 +114,7 @@ const drawn = reading =>
   reading.literal.length === 0 &&
   reading.styles === 0 &&
   reading.violations.length === 0 &&
+  reading.missing.length === 0 &&
   reading.bar.length > 0 &&
   reading.bar.every(fill => fill === reading.token) &&
   reading.line === reading.token
