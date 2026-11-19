@@ -7,6 +7,7 @@ import {
   DIAGNOSTICS_HANDLER,
   DISPATCH_FACT,
   DISPATCH_FACTS_HANDLER,
+  DISPATCH_FACTS_PAGE_MAX,
   FACT_MIGRATION,
   MIGRATION,
   MODEL_PARTICIPANT,
@@ -61,6 +62,8 @@ describe('the materials of the Model records', () => {
         handler.handler === DISPATCH_FACTS_HANDLER ? [record, facts] : [record],
       )
       expect(handler.maxOutputBytes).toBeLessThanOrEqual(4 * 1024 * 1024)
+      if (handler.handler === DISPATCH_FACTS_HANDLER)
+        expect(handler.maxRowsRead).toBe(DISPATCH_FACTS_PAGE_MAX + 2)
       for (const table of handler.readTables)
         expect([...MODEL_TABLES, DISPATCH_FACT.name]).toContain(table)
     }

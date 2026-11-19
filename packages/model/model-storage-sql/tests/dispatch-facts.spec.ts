@@ -11,7 +11,7 @@ import {
   type TransportFact,
   type WriteContext,
 } from '@omne-harness/model-contract/provider'
-import { createSqlModelDispatchFacts } from '@omne-harness/model-storage-sql'
+import { createSqlModelDispatchFacts, dispatchFactsHandler } from '@omne-harness/model-storage-sql'
 import { packText } from '@omne-harness/sql-contract/worker'
 import {
   callId,
@@ -61,7 +61,7 @@ const reply = (text: string): TransportFact[] => [
   { kind: 'ended', termination: COMPLETED },
 ]
 
-function scene() {
+function scene(window: typeof WINDOW | null = WINDOW) {
   let now: string | null = T0
   const built = sqlCommands([A, B], {
     clock: {
@@ -74,7 +74,7 @@ function scene() {
   const request = unbox(
     judgeFixedModelRequest({
       ...REQUEST,
-      contextWindow: WINDOW,
+      ...(window === null ? {} : { contextWindow: window }),
       system: [
         {
           kind: 'text',
@@ -267,7 +267,6 @@ describe('the dispatch facts of the Model records (C17)', () => {
     await s.dispatched('middle', { at: '2026-11-19T09:30:00.250Z', work: 'run-1/execution/step-2' })
     await s.dispatched('late', { at: '2026-11-19T11:00:00.000Z', work: 'run-2/execution' })
     await s.dispatched('other', { at: '2026-11-19T09:00:00.000Z', work: 'run-10/execution' })
-    const calls = (page: { entries: readonly { call: string }[] }) => page.entries.map(e => e.call)
     expect(
       calls(
         unbox(
@@ -324,12 +323,113 @@ describe('the dispatch facts of the Model records (C17)', () => {
   })
 })
 
+type Scene = ReturnType<typeof scene>
+type FaceOptions = Parameters<typeof createSqlModelDispatchFacts>[0]
+
+/** Lists tenant A through a face whose collaborators the test may replace. */
+function listOn(
+  s: Scene,
+  replaced: Partial<FaceOptions> = {},
+  fields: Partial<ModelDispatchFactsQuery> = {},
+) {
+  return createSqlModelDispatchFacts({
+    storage: s.built.sqlite.storage,
+    domains: lookup([textOf(A), textOf(B)], s.built.domain),
+    authority: s.built.core.options.authority,
+    ...replaced,
+  }).list({
+    principal: s.principalOf(A),
+    tenant: A,
+    range: null,
+    consumer: null,
+    order: 'ascending',
+    after: null,
+    limit: 10,
+    ...fields,
+  })
+}
+
+const answering = (s: Scene, output: unknown): Partial<FaceOptions> => ({
+  storage: {
+    ...s.built.sqlite.storage,
+    read: request =>
+      Promise.resolve(
+        (output instanceof Error
+          ? { kind: 'unavailable', requestKey: request.requestKey, reason: output.message }
+          : output === 'cancelled'
+            ? { kind: 'cancelled', requestKey: request.requestKey }
+            : { kind: 'read', requestKey: request.requestKey, output }) as never,
+      ),
+  },
+})
+
+const calls = (page: { entries: readonly { call: string }[] }) => page.entries.map(e => e.call)
+
+const unavailable = (diagnostic: string) => ({
+  kind: 'unavailable',
+  dependency: expect.any(String),
+  diagnostic,
+})
+
+describe('what the read face accepts at its bounds, and how it pages', () => {
+  it('accepts a one-moment range, the largest page and the most works', async () => {
+    const s = scene()
+    const { call } = await s.dispatched('edge')
+    expect(calls(unbox(await s.query(A, { range: { from: T0, to: T0 } })))).toEqual([call])
+    expect(calls(unbox(await s.query(A, { limit: 200 })))).toEqual([call])
+    const works = ['edge-run', ...Array.from({ length: 99 }, (_, at) => `w${at}`)]
+    expect(calls(unbox(await s.query(A, { consumer: { owner: 'consumer', works } })))).toEqual([
+      call,
+    ])
+  })
+
+  it('pages in ascending order, and has no next page when the last page is exactly full', async () => {
+    const s = scene()
+    await s.dispatched('first', { at: '2026-11-19T08:00:00.000Z' })
+    await s.dispatched('second', { at: '2026-11-19T08:01:00.000Z' })
+    await s.dispatched('third', { at: '2026-11-19T08:02:00.000Z' })
+    const first = unbox(await s.query(A, { limit: 2 }))
+    expect(calls(first)).toEqual([callId('first'), callId('second')])
+    expect(first.next).toMatch(/^mdfc_/u)
+    const second = unbox(await s.query(A, { limit: 2, after: first.next }))
+    expect(calls(second)).toEqual([callId('third')])
+    expect(second.next).toBeNull()
+    expect(unbox(await s.query(A, { limit: 3 })).next).toBeNull()
+  })
+
+  it('reads each work given with the works under it, and none that only sorts near it', async () => {
+    const s = scene()
+    await s.dispatched('one', { work: 'run-1/execution' })
+    await s.dispatched('near', { work: 'run-1.x/execution' })
+    await s.dispatched('two', { work: 'run-2/execution/step-1' })
+    await s.dispatched('three', { work: 'run-3/execution' })
+    const page = unbox(
+      await s.query(A, { consumer: { owner: 'consumer', works: ['run-1', 'run-2'] } }),
+    )
+    expect(calls(page)).toEqual([callId('one'), callId('two')])
+  })
+
+  it('says no window for a request that carried none', async () => {
+    const s = scene(null)
+    await s.dispatched('bare')
+    const [fact] = unbox(await s.query(A)).entries
+    expect(fact?.contextWindow).toBeNull()
+    expect(fact?.profile).toEqual(REQUEST.profile)
+  })
+})
+
 describe('what the read face refuses, and what it answers when it cannot read', () => {
   it.each([
     ['an order it does not know', { order: 'sideways' }, 'order', 'value'],
     ['a limit over the page bound', { limit: 201 }, 'limit', 'out-of-range'],
     ['a limit that is not an integer', { limit: 1.5 }, 'limit', 'out-of-range'],
     ['a range end that is not an instant', { range: { from: T0, to: 'soon' } }, 'range', 'instant'],
+    [
+      'a range start that is not an instant',
+      { range: { from: 'soon', to: T0 } },
+      'range',
+      'instant',
+    ],
     ['an empty owner', { consumer: { owner: '', works: ['w'] } }, 'consumer', 'shape'],
     ['an empty work', { consumer: { owner: 'consumer', works: ['w', ''] } }, 'consumer', 'shape'],
     [
@@ -355,6 +455,7 @@ describe('what the read face refuses, and what it answers when it cannot read', 
       flipped,
       next.slice(0, 20),
       `x${next}`,
+      `zzzz_${next.slice(5)}`,
       `${next.slice(0, 5)}e30${next.slice(8)}`,
     ])
       expect(await s.query(A, { limit: 1, after })).toEqual({
@@ -362,67 +463,105 @@ describe('what the read face refuses, and what it answers when it cannot read', 
       })
   })
 
-  it('answers a tenant whose domain is not registered with an empty page', async () => {
+  it('asks the authority for the account of the tenant, and passes on what it cannot decide', async () => {
     const s = scene()
-    await s.dispatched('kept')
-    const unregistered = createSqlModelDispatchFacts({
-      storage: s.built.sqlite.storage,
-      domains: lookup([], s.built.domain),
-      authority: s.built.core.options.authority,
-    })
-    const page = await unregistered.list({
-      principal: s.principalOf(A),
-      tenant: A,
-      range: null,
-      consumer: null,
-      order: 'ascending',
-      after: null,
-      limit: 10,
-    })
-    expect(page).toEqual({ ok: { entries: [], undated: 0, next: null } })
+    const asked: unknown[] = []
+    const { authorize } = s.built.core.options.authority
+    expect(
+      await listOn(s, {
+        authority: {
+          authorize: (input: Parameters<typeof authorize>[0]) => {
+            asked.push(input)
+            return authorize(input)
+          },
+        },
+      }),
+    ).toEqual({ ok: { entries: [], undated: 0, next: null } })
+    expect(asked).toEqual([
+      expect.objectContaining({ action: 'read-account', resource: { kind: 'tenant' } }),
+    ])
+    const down = { kind: 'unavailable', diagnostic: 'identity down' }
+    expect(
+      await listOn(s, { authority: { authorize: () => ({ failure: down }) as never } }),
+    ).toEqual({ failure: down })
   })
 
-  it('answers unavailable for a read the storage does not do, and for a damaged stored row', async () => {
+  it('answers an unregistered tenant domain with an empty page, and a lookup that fails as unavailable', async () => {
     const s = scene()
-    await s.dispatched('damaged')
-    const refusing = createSqlModelDispatchFacts({
-      storage: {
-        ...s.built.sqlite.storage,
-        read: request =>
-          Promise.resolve({
-            kind: 'unavailable',
-            requestKey: request.requestKey,
-            reason: 'down',
-          } as never),
-      },
-      domains: lookup([textOf(A)], s.built.domain),
-      authority: s.built.core.options.authority,
+    await s.dispatched('kept')
+    expect(await listOn(s, { domains: lookup([], s.built.domain) })).toEqual({
+      ok: { entries: [], undated: 0, next: null },
     })
-    expect(
-      await refusing.list({
-        principal: s.principalOf(A),
-        tenant: A,
-        range: null,
-        consumer: null,
-        order: 'ascending',
-        after: null,
-        limit: 10,
-      }),
-    ).toMatchObject({
-      failure: { kind: 'unavailable', diagnostic: 'read model.dispatch-facts: down' },
-    })
-    for (const [column, value] of [
-      ['profile', null],
-      ['fact', packText(JSON.stringify({ call: 'mcall_other', dispatch: 'mdisp_damaged' }))],
-      ['fact', packText('not json')],
-      ['context_window', packText('not json')],
-    ] as const) {
-      const fresh = scene()
-      await fresh.dispatched('damaged')
-      fresh.built.sqlite.seed(fresh.built.domain, `UPDATE md_dispatch_fact SET ${column} = ?`, [
-        value,
-      ])
-      expect(await fresh.query(A), column).toMatchObject({ failure: { kind: 'unavailable' } })
+    const failing = {
+      lookup: () => Promise.resolve({ kind: 'unavailable', diagnostic: 'registry down' } as const),
     }
+    expect(await listOn(s, { domains: failing })).toEqual({
+      failure: unavailable('tenant domain: registry down'),
+    })
+  })
+
+  it.each([
+    [new Error('down'), 'read model.dispatch-facts: down'],
+    ['cancelled', 'read model.dispatch-facts: cancelled'],
+    [null, 'stored dispatch fact read'],
+    [{ undated: 0, rows: 'x' }, 'stored dispatch fact read'],
+    [{ undated: 'x', rows: [] }, 'stored dispatch fact undated'],
+    [{ undated: 1.5, rows: [] }, 'stored dispatch fact undated'],
+    [{ undated: 0, rows: [1] }, 'stored dispatch fact row'],
+  ])('answers unavailable for a read that gives %j', async (output, diagnostic) => {
+    const s = scene()
+    expect(await listOn(s, answering(s, output))).toEqual({ failure: unavailable(diagnostic) })
+  })
+
+  it('answers unavailable for a stored row whose position is not a moment and a row', async () => {
+    const s = scene()
+    const row = {
+      rid: 1,
+      call: 'c',
+      dispatch: 'd',
+      prepared: T0,
+      profile: '{}',
+      context_window: null,
+      fact: JSON.stringify({ call: 'c', dispatch: 'd' }),
+    }
+    const page = (raw: object) => ({ undated: 0, rows: [raw] })
+    expect(unbox(await listOn(s, answering(s, page(row)))).entries).toHaveLength(1)
+    for (const damaged of [
+      { ...row, prepared: 5 },
+      { ...row, rid: 'x' },
+    ])
+      expect(await listOn(s, answering(s, page(damaged)))).toEqual({
+        failure: unavailable(`stored dispatch fact position of ${textOf(A)}`),
+      })
+  })
+
+  it.each([
+    ['profile', null, 'profile'],
+    ['profile', packText('1'), 'profile'],
+    ['fact', packText(JSON.stringify({ call: 'mcall_other', dispatch: 'mdisp_damaged' })), 'fact'],
+    ['fact', 'same call, another dispatch', 'fact'],
+    ['fact', packText('not json'), 'fact'],
+    ['context_window', packText('not json'), 'context_window'],
+  ] as const)(
+    'answers unavailable for a stored %s that is damaged',
+    async (column, value, field) => {
+      const s = scene()
+      const { call } = await s.dispatched('damaged')
+      const stored =
+        value === 'same call, another dispatch'
+          ? packText(JSON.stringify({ call, dispatch: 'mdisp_other' }))
+          : value
+      s.built.sqlite.seed(s.built.domain, `UPDATE md_dispatch_fact SET ${column} = ?`, [stored])
+      expect(await s.query(A)).toEqual({
+        failure: unavailable(`stored dispatch fact ${field}`),
+      })
+    },
+  )
+
+  it('fails a worker read whose input is not a query', () => {
+    expect(dispatchFactsHandler.read(null, {} as never)).toEqual({
+      kind: 'failed',
+      diagnostic: 'invalid input',
+    })
   })
 })

@@ -1,6 +1,6 @@
 // The dispatch facts: the rows the participant writes with each changed dispatch record, the read
 // handler that pages them, and the read face `ModelDispatchFacts` over that handler.
-import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type {
   Adoption,
@@ -22,8 +22,7 @@ import type { ReadHandlerModule, ReadPort } from '@omne-harness/sql-contract/wor
 import { countInput, isObject, rows, textInput } from './diagnostics.ts'
 import type { Row } from './documents.ts'
 import { DISPATCH_FACT } from './fact-schema.ts'
-import { domainOf, unavailable } from './reads.ts'
-import { PROTOCOL } from './schema.ts'
+import { domainOf, handler, readHandler, unavailable } from './reads.ts'
 
 export const DISPATCH_FACTS_HANDLER = 'model.dispatch-facts'
 export const DISPATCH_FACTS_PAGE_MAX = 200
@@ -37,8 +36,7 @@ const MAC_LENGTH = 43
 
 /** A moment in the one text form the table orders by; null when it is not a moment. */
 function orderedInstant(instant: string | null): string | null {
-  if (instant === null) return null
-  const at = Date.parse(instant)
+  const at = Date.parse(instant ?? '')
   return Number.isNaN(at) ? null : new Date(at).toISOString()
 }
 
@@ -52,10 +50,9 @@ export function dispatchFactRows(
 ): Row[] {
   if (call === undefined) return []
   return changed.map(row => {
-    const seq = row['seq']
-    const dispatch = typeof seq === 'number' ? call.dispatches[seq] : undefined
-    if (typeof seq !== 'number' || dispatch === undefined)
-      throw new Error('a changed dispatch row has no dispatch')
+    const seq = Number(row['seq'])
+    const dispatch = call.dispatches[seq]
+    if (dispatch === undefined) throw new Error('a changed dispatch row has no dispatch')
     const { profile, contextWindow, ...fact } = dispatchFactOf(call, dispatch)
     return {
       tenant,
@@ -119,17 +116,10 @@ function readDispatchFactRows(input: JsonValue, port: ReadPort): JsonValue {
   return { undated: undated ?? 0, rows: found }
 }
 
-export const dispatchFactsHandler: ReadHandlerModule = {
-  handler: DISPATCH_FACTS_HANDLER,
-  protocol: PROTOCOL,
-  read(input, port) {
-    try {
-      return { kind: 'read', output: readDispatchFactRows(input, port) }
-    } catch (error) {
-      return { kind: 'failed', diagnostic: error instanceof Error ? error.message : 'read failed' }
-    }
-  },
-}
+export const dispatchFactsHandler: ReadHandlerModule = handler(
+  DISPATCH_FACTS_HANDLER,
+  readDispatchFactRows,
+)
 
 export type SqlModelDispatchFactsOptions<P> = Readonly<{
   storage: SqlStorage
@@ -168,12 +158,10 @@ function consumerValid(consumer: ModelDispatchFactsQuery['consumer']): boolean {
   if (consumer === null) return true
   const { owner, works } = consumer
   return (
-    typeof owner === 'string' &&
     owner !== '' &&
-    Array.isArray(works) &&
     works.length > 0 &&
     works.length <= DISPATCH_FACTS_WORKS_MAX &&
-    works.every(work => typeof work === 'string' && work !== '')
+    works.every(work => work !== '')
   )
 }
 
@@ -190,31 +178,24 @@ function signCursor(key: Uint8Array, admitted: Admitted, position: Position): st
   return `${CURSOR_PREFIX}${payload}${macOf(key, admitted.tenant, admitted.fingerprint, payload)}`
 }
 
+/** A cursor this face signed: the MAC binds the position to the tenant and the query. */
 function openCursor(
   key: Uint8Array,
   tenant: string,
   fingerprint: string,
   cursor: string,
 ): Outcome<Position, ModelFailure> {
-  const body = typeof cursor === 'string' ? cursor.slice(CURSOR_PREFIX.length) : ''
-  if (!cursor.startsWith(CURSOR_PREFIX) || body.length <= MAC_LENGTH)
-    return fail(invalid('after', 'cursor'))
+  const body = cursor.startsWith(CURSOR_PREFIX) ? cursor.slice(CURSOR_PREFIX.length) : ''
   const payload = body.slice(0, -MAC_LENGTH)
   const given = Buffer.from(body.slice(-MAC_LENGTH))
   const expected = Buffer.from(macOf(key, tenant, fingerprint, payload))
   if (given.length !== expected.length || !timingSafeEqual(given, expected))
     return fail(invalid('after', 'cursor'))
-  try {
-    const value: unknown = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
-    if (
-      Array.isArray(value) &&
-      typeof value[0] === 'string' &&
-      typeof value[1] === 'number' &&
-      Number.isSafeInteger(value[1])
-    )
-      return succeed({ prepared: value[0], row: value[1] })
-  } catch {}
-  return fail(invalid('after', 'cursor'))
+  const [prepared, row] = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as [
+    string,
+    number,
+  ]
+  return succeed({ prepared, row })
 }
 
 function queryFailure(input: ModelDispatchFactsQuery): ModelFailure | null {
@@ -312,7 +293,7 @@ function pageOf(
   }
 }
 
-function readInputOf<P>(scope: Admitted, input: ListInput<P>): JsonValue {
+function readInputOf<P>(scope: Admitted, input: ListInput<P>): Readonly<Record<string, JsonValue>> {
   return {
     tenant: scope.tenant,
     owner: input.consumer?.owner ?? null,
@@ -337,21 +318,15 @@ async function list<P>(
   const domain = await domainOf(options.domains, scope.tenant)
   if ('failure' in domain) return domain
   if (domain.ok.kind === 'unregistered') return succeed({ entries: [], undated: 0, next: null })
-  const result = await options.storage.read({
-    domain: domain.ok.domain,
-    handler: DISPATCH_FACTS_HANDLER,
-    protocol: PROTOCOL,
-    requestKey: randomUUID(),
-    input: readInputOf(scope, input),
-  })
-  if (result.kind !== 'read')
-    return fail(
-      unavailable(
-        `read ${DISPATCH_FACTS_HANDLER}: ${result.kind === 'cancelled' ? 'cancelled' : result.reason}`,
-      ),
-    )
+  const output = await readHandler(
+    options.storage,
+    domain.ok.domain,
+    DISPATCH_FACTS_HANDLER,
+    readInputOf(scope, input),
+  )
+  if ('failure' in output) return output
   try {
-    return succeed(pageOf(key, scope, result.output, input.limit))
+    return succeed(pageOf(key, scope, output.ok, input.limit))
   } catch (error) {
     if (error instanceof StoredError)
       return fail(unavailable(`stored dispatch fact ${error.message}`))
