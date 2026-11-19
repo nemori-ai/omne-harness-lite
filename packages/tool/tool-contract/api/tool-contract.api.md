@@ -3856,6 +3856,7 @@ export type ToolReleaseDescriber<A> = (input: Readonly<{
     principal: unknown;
     tenant: TenantId;
     arguments: A;
+    signal: AbortSignal;
 }>) => Promise<ReleaseDescription>;
 export type ReleaseDetail = Readonly<{
     rows: readonly [

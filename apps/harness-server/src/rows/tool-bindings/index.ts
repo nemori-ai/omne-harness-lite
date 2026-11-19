@@ -31,7 +31,7 @@ import { bindReleaseTodoItems } from './todo-items.ts'
 import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
 import { bindReleaseCalendar } from './calendar.ts'
-import { bindReleaseSchedules } from './schedules.ts'
+import { attachReleaseScheduleReads, bindReleaseSchedules } from './schedules.ts'
 import { bindReleaseNotifications } from './notifications.ts'
 import { bindReleaseSessions } from './sessions.ts'
 
@@ -164,6 +164,7 @@ const bindingsPlugin: Plugin.Object = {
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),
       capability: releaseCapability(ctx, { tools, web: config.web ?? null }),
+      releaseDetails: { attach: input => attachReleaseScheduleReads(ctx, input) },
     })
     new Bindings(ctx)
   },

@@ -110,6 +110,7 @@ export function services(writes: readonly (ScheduleCommandResult<ScheduleView> |
             basis: { calendarId: 'cn-legal-holidays', calendarVersionId: 'v1' },
           },
         ],
+        basis: { timezone: 'Asia/Shanghai' },
         complete: true,
       },
     }),

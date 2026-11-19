@@ -1,6 +1,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { CommandTable, ToolGate } from '@omne-harness/tool-contract'
+import type { CommandTable, ToolCommandRelease, ToolGate } from '@omne-harness/tool-contract'
 import {
   commandGuide,
   defineCommandTool,
@@ -14,6 +14,12 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { read, submit, writeRequestOf, type ReadArguments, type WriteArguments } from './calls.ts'
 import { schedulesOf, type BoundSchedules, type ScheduleFaces } from './port.ts'
+import {
+  ACTIVATION_KIND,
+  activationCommands,
+  activationSchema,
+  describeActivation,
+} from './describe.ts'
 import {
   schedulesAdoption,
   schedulesCommandNames,
@@ -179,10 +185,11 @@ export function createSchedulesAuthor(
     {
       summary: string
       operation: ToolOperation<null, ToolMessageContentBlock>
-      release: Readonly<{ gate: string }>
+      release: ToolCommandRelease
     }
   > = {}
   for (const name of schedulesCommandNames) {
+    const activates = (activationCommands as readonly string[]).includes(name)
     const operation = defineToolOperation<
       SchedulesArguments,
       string,
@@ -192,6 +199,7 @@ export function createSchedulesAuthor(
     >({
       parameters: { kind: 'declared', value: schedulesContract(name) },
       returns,
+      ...(activates ? { describeRelease: describeActivation as never } : {}),
       author: {
         kind: 'ordinary',
         parameters: schedulesParameterCodec(name),
@@ -225,7 +233,12 @@ export function createSchedulesAuthor(
     operations[name] = {
       summary: schedulesSummaries[name],
       operation: operation.ok,
-      release: { gate: SCHEDULES_GATE_OF[name] },
+      release: activates
+        ? {
+            gate: SCHEDULES_GATE_OF[name],
+            detail: { kind: ACTIVATION_KIND, schema: activationSchema },
+          }
+        : { gate: SCHEDULES_GATE_OF[name] },
     }
   }
   const author = defineCommandTool({

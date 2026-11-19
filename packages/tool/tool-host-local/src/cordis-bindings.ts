@@ -14,7 +14,7 @@ import { createLocalToolBindingRegistry } from './bindings.ts'
 import { createLocalToolCatalog, type LocalToolCatalogInput } from './catalog.ts'
 import { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
 import { captureToolCaller, checkEmptyToolConfig } from './cordis-host.ts'
-import { createLocalReleaseDetails } from './release-details.ts'
+import { createLocalReleaseDetails, type ReleaseDetailAttach } from './release-details.ts'
 
 const RELEASE_DETAIL_SCHEMA_BUDGET: SchemaBudget = Object.freeze({
   maxSnapshots: 16,
@@ -29,7 +29,13 @@ export type LocalToolBindingsPluginInput<P, E, B extends ContentBlock> = Omit<
   'registry' | 'catalog'
 > &
   Pick<LocalToolCatalogInput<P>, 'availability' | 'view' | 'search'> &
-  Readonly<{ releaseDetails?: Readonly<{ policy?: ReleaseDetailPolicy; schemas?: SchemaBudget }> }>
+  Readonly<{
+    releaseDetails?: Readonly<{
+      policy?: ReleaseDetailPolicy
+      schemas?: SchemaBudget
+      attach?: ReleaseDetailAttach<P>
+    }>
+  }>
 
 export type LocalToolBindingsPlugin<P, E, B extends ContentBlock> = {
   new (ctx: Context, config?: Readonly<Record<string, never>>): ToolBindingsService<P, B, E>
@@ -114,6 +120,9 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
         ...(input.releaseDetails?.policy === undefined
           ? {}
           : { policy: input.releaseDetails.policy }),
+        ...(input.releaseDetails?.attach === undefined
+          ? {}
+          : { attach: input.releaseDetails.attach }),
       })
       class ReleaseDetails extends ToolReleaseDetailsService<P> {
         readonly describe: ToolReleaseDetailsService<P>['describe'] = request =>

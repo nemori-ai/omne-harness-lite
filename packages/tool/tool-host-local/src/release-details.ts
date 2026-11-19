@@ -1,5 +1,6 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
+import type { TenantId } from '@omne-harness/legal-identity'
 import {
   defineSchema,
   jsonSchemaDefinition,
@@ -22,10 +23,16 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import type { LocalToolBindingRegistry } from './bindings.ts'
 
+/** Attaches what a tool reads while it describes, under the description's signal; returns the detach. */
+export type ReleaseDetailAttach<P> = (
+  input: Readonly<{ principal: P; tenant: TenantId; name: string; signal: AbortSignal }>,
+) => () => void
+
 export type LocalReleaseDetailsInput<P, E, B extends ContentBlock> = Readonly<{
   registry: () => LocalToolBindingRegistry<P, E, B> | undefined
   provider: SchemaProvider
   policy?: ReleaseDetailPolicy
+  attach?: ReleaseDetailAttach<P>
 }>
 
 const unavailable = (reason: string): ReleaseDetailAnswer => ({ kind: 'unavailable', reason })
@@ -133,11 +140,24 @@ export function createLocalReleaseDetails<P, E, B extends ContentBlock>(
     const call = describing(slot, asked)
     if ('kind' in call) return call
     const { principal, tenant } = asked
-    const described = await within(
-      () => call.describe({ principal, tenant, arguments: call.arguments }),
-      policy.timeoutMs,
-    )
-    return described === TIMED_OUT ? unavailable('timeout') : checked(described, asked)
+    const controller = new AbortController()
+    const { signal } = controller
+    const detach = input.attach?.({
+      principal,
+      tenant,
+      name: asked.availability.definition.name,
+      signal,
+    })
+    try {
+      const described = await within(
+        () => call.describe({ principal, tenant, arguments: call.arguments, signal }),
+        policy.timeoutMs,
+      )
+      return described === TIMED_OUT ? unavailable('timeout') : checked(described, asked)
+    } finally {
+      controller.abort()
+      detach?.()
+    }
   }
   return {
     async describe(request) {

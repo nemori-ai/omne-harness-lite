@@ -13,7 +13,7 @@ import {
   type ToolOperationParameters,
 } from '@omne-harness/tool-contract/provider'
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
-import { createLocalReleaseDetails } from '@omne-harness/tool-host-local'
+import { createLocalReleaseDetails, type ReleaseDetailAttach } from '@omne-harness/tool-host-local'
 import { authorAccess, authorAuthority, loadAuthor, unbox } from './author-values.ts'
 import { fiberedRegistry, scriptedVerifier } from './binding-values.ts'
 import { adoption, request } from './coordinator-values.ts'
@@ -137,7 +137,12 @@ function probeFunctionModule(
   }
 }
 
-type Built = Readonly<{ function?: true; closed?: true; noPolicy?: true }>
+type Built = Readonly<{
+  function?: true
+  closed?: true
+  noPolicy?: true
+  attach?: ReleaseDetailAttach<unknown>
+}>
 
 async function detailsOf(
   describeRelease: ToolReleaseDescriber<Args>,
@@ -170,6 +175,7 @@ async function detailsOf(
     registry: () => (registered === 'absent' ? undefined : registry),
     provider,
     ...(built.noPolicy === true ? {} : { policy }),
+    ...(built.attach === undefined ? {} : { attach: built.attach }),
   })
   const describe = (command: string | null, params: unknown, sent = command) =>
     details.describe({
@@ -211,6 +217,7 @@ describe('Tool asks the implementer what one call would do, and only reads', () 
       principal: authorAccess.principal,
       tenant: authorAccess.tenant,
       arguments: { title: 'T' },
+      signal: expect.any(AbortSignal),
     })
     expect(pins()).toBe('0')
   })
@@ -307,6 +314,40 @@ describe('Tool asks the implementer what one call would do, and only reads', () 
       kind: 'unavailable',
       reason: 'timeout',
     })
+  })
+
+  it('attaches what the tool reads under the description signal, and detaches after it, in time or not', async () => {
+    const events: string[] = []
+    let attached: AbortSignal | undefined
+    const attach: ReleaseDetailAttach<unknown> = ({ name, signal }) => {
+      attached = signal
+      events.push(`attach ${name} ${String(signal.aborted)}`)
+      return () => events.push(`detach ${String(signal.aborted)}`)
+    }
+    const reading = async (input: { signal: AbortSignal }) => {
+      events.push(`describe ${String(input.signal === attached)}`)
+      return describing(input as never)
+    }
+    const { describe } = await detailsOf(reading, DEFAULT_RELEASE_DETAIL_POLICY, 'loaded', 8, {
+      attach,
+    })
+    expect(await describe('send', { title: 'T' })).toMatchObject({ kind: 'detail' })
+    const name = request().availability
+    expect(events).toEqual([
+      `attach ${name.kind === 'available' ? name.definition.name : ''} false`,
+      'describe true',
+      'detach true',
+    ])
+    events.length = 0
+    const { describe: late } = await detailsOf(
+      () => new Promise(() => {}),
+      { ...DEFAULT_RELEASE_DETAIL_POLICY, timeoutMs: 20 },
+      'loaded',
+      8,
+      { attach },
+    )
+    expect(await late('send', { title: 'T' })).toEqual({ kind: 'unavailable', reason: 'timeout' })
+    expect(events).toEqual([expect.stringMatching(/^attach /), 'detach true'])
   })
 
   it('cannot give a detail when the host has no registry or no registration to read', async () => {

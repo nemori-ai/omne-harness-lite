@@ -116,6 +116,25 @@ describe('the Schedules tool on the release tree', () => {
           kind: 'release',
           target: { tool: 'Schedules', command: 'create' },
           gateTitle: '让安排生效',
+          detail: {
+            state: 'given',
+            rows: expect.arrayContaining([
+              { label: '动作', value: '新建并生效' },
+              { label: '日程', value: 'once' },
+              { label: '规则', value: '每月最后一个工作日，17:00' },
+            ]),
+            typed: { kind: 'schedule.activation@1' },
+          },
+        })
+        const { detail } = card.question as unknown as {
+          detail: { rows: { label: string; value: unknown }[]; typed: { value: string } }
+        }
+        const times = detail.rows.find(row => row.label === '接下来三次')?.value
+        expect(Array.isArray(times) && times.length === 3).toBe(true)
+        expect(JSON.parse(detail.typed.value)).toMatchObject({
+          action: 'create',
+          name: 'once',
+          next: { kind: 'times', times },
         })
         await answerCard(tree, card, ['--option', 'allow-once'], 'reply-once')
         await settled(tree, once, 'once')

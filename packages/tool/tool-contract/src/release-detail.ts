@@ -9,8 +9,10 @@ export type ReleaseRow = Readonly<{ label: string; value: string | readonly stri
 /** What the implementer's function gives back for one call. */
 export type ReleaseDescription = Readonly<{ rows: readonly ReleaseRow[]; typed?: JsonValue }>
 
+/** `signal` belongs to this one description: what the host attached to it for reading is gone once
+ * it aborts, at the end of the description or at its time limit. */
 export type ToolReleaseDescriber<A> = (
-  input: Readonly<{ principal: unknown; tenant: TenantId; arguments: A }>,
+  input: Readonly<{ principal: unknown; tenant: TenantId; arguments: A; signal: AbortSignal }>,
 ) => Promise<ReleaseDescription>
 
 export type ReleaseDetail = Readonly<{
