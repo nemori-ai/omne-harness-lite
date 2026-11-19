@@ -35,7 +35,12 @@ describe('the tenant-level scope on the release tree (J10)', () => {
     async () => {
       const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
         const r = readers(tree)
-        expect(await r.standing()).toEqual({ kind: 'ok', items: [] })
+        // The calendar is a source as well; Notification's own block holds nothing here.
+        const read = await r.standing()
+        expect(read.kind).toBe('ok')
+        const own =
+          read.kind === 'ok' ? read.items.filter(item => item.source !== 'calendar.supply') : null
+        expect(own).toEqual([])
         expect(await r.everything()).toMatchObject({
           ok: {
             entries: expect.arrayContaining([

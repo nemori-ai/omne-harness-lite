@@ -158,7 +158,8 @@ async function compactionRun(
     {
       permission: 'bypass-permissions',
       collaboration: 'co-work',
-      compactionTriggerPercent: '1',
+      // The budget holds the fixed part (system prompt, twelve resident tools) and the protected tail.
+      compactionTriggerPercent: '2',
       compactionProvider: {
         binding: {
           authority: 'release/rules',

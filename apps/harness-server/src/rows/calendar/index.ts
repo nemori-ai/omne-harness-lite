@@ -6,9 +6,7 @@ import {
   shippedCalendarSupplyPolicies,
 } from '@omne-harness/calendar'
 import {
-  calendarCallContextSchema,
   calendarIdSchema,
-  instantSchema,
   timezoneSchema,
   type CalendarCalculator,
   type CalendarQueries,
@@ -18,21 +16,21 @@ import {
   CalendarQueryService,
   calendarCalculatorKey,
   calendarQueryKey,
+  calendarSupplyKey,
 } from '@omne-harness/calendar-cordis-contract/cordis'
 import {
-  calendarEnvironmentItems,
-  calendarEnvironmentSettings,
-  createCalendarSettingsEnvironment,
   createCalendarSqlPersistence,
   createCalendarSqlSupplyStorage,
   createShippedCalendarSeedRegistry,
   shippedCalendarSeedRelease,
 } from '@omne-harness/calendar-local'
-import { calendarEnvironmentSettingsPlugin } from '@omne-harness/calendar-local/cordis'
+import {
+  CalendarLocalSupplyProvider,
+  calendarEnvironmentSettingsPlugin,
+} from '@omne-harness/calendar-local/cordis'
 import type { TenantStandingSource } from '@omne-harness/identity'
 import { tenantStandingKey } from '@omne-harness/identity/cordis'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import type { SettingsReadPort } from '@omne-harness/settings'
 import { combinationManifest, manifestDigest, type SqlStorage } from '@omne-harness/sql-contract'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { epochMillisOf, readSystemInstant } from '../../entry/session-clock.ts'
@@ -43,17 +41,17 @@ import {
 } from '../governance/independent-settings-service.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { CALENDAR_DOMAIN, CALENDAR_PARTICIPANTS, calendarAuthority } from './authority.ts'
-
-const OWNER = 'harness-server.calendar'
-/** The system writes the shipped seed; no person and no agent writes calendar facts here. */
-const SEED_CONTEXT = calendarCallContextSchema.parse({
-  principalRef: OWNER,
-  owner: { kind: 'system', systemScopeRef: OWNER },
-  actor: { kind: 'system', actorRef: OWNER },
-  authContextRef: `${OWNER}.seed`,
-  requestId: `${OWNER}.seed/${shippedCalendarSeedRelease.releaseRef}`,
-  originatingSessionRef: null,
-})
+import { calendarContext } from './context.ts'
+import {
+  CALENDAR_OWNER,
+  SEED_CONTEXT,
+  calendarRowConfig,
+  calendarSourceAdapters,
+  calendarSupplyAuthority,
+  healthProjection,
+  provideCalendarSupply,
+  supplyClock,
+} from './supply.ts'
 
 function now(): number {
   const instant = readSystemInstant()
@@ -66,12 +64,14 @@ class Queries extends CalendarQueryService {
   readonly get: CalendarQueries['get']
   readonly effective: CalendarQueries['effective']
   readonly resolve: CalendarQueries['resolve']
+  readonly health: CalendarQueries['health']
   constructor(ctx: Context, queries: CalendarQueries) {
     super(ctx)
     this.list = (context, input) => queries.list(context, input)
     this.get = (context, input) => queries.get(context, input)
     this.effective = context => queries.effective(context)
     this.resolve = (context, input) => queries.resolve(context, input)
+    this.health = context => queries.health(context)
   }
 }
 
@@ -102,25 +102,6 @@ async function registered(storage: SqlStorage) {
 }
 
 /** A tenant's calendar environment is its own preference target; the reader reads as the tenant. */
-export function environmentOf(independent: TenantIndependentSettingsService) {
-  const settings: SettingsReadPort<string> = {
-    read: async (tenantRef, request) =>
-      (await independent.read(tenantRef, request)) ?? { kind: 'rejected', reason: 'unavailable' },
-  }
-  return createCalendarSettingsEnvironment<string>({
-    settings,
-    async resolve(context) {
-      if (context.owner.kind !== 'tenant') return null
-      return {
-        principal: context.owner.tenantId,
-        owner: context.owner,
-        ...independent.bindingOf(context.owner.tenantId, calendarEnvironmentSettings),
-        timezoneItemId: calendarEnvironmentItems.timezone,
-        calendarItemId: calendarEnvironmentItems.calendar,
-      }
-    },
-  })
-}
 
 /** Reading a calendar takes being a member of the tenant that owns the call. */
 function authorityOf(standing: TenantStandingSource) {
@@ -149,12 +130,13 @@ export const calendarRow = defineRow({
   row: 'calendar',
   implementation: 'real',
   manifest: {
-    provides: [calendarQueryKey, calendarCalculatorKey],
+    provides: [calendarQueryKey, calendarCalculatorKey, calendarSupplyKey],
     injects: [storageKey, tenantStandingKey, tenantIndependentSettingsKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },
-  async body(ctx) {
+  async body(ctx, config) {
+    const rowConfig = calendarRowConfig.parse(config ?? {})
     ctx.plugin(calendarEnvironmentSettingsPlugin)
     const storage = ctx.get(storageKey) as SqlStorage
     const combination = await registered(storage)
@@ -168,52 +150,64 @@ export const calendarRow = defineRow({
         storage,
         combination,
         authority: calendarAuthority('supply'),
-        systemScopeRef: OWNER,
+        systemScopeRef: CALENDAR_OWNER,
         seedPackRegistry: createShippedCalendarSeedRegistry(),
       }),
     }
     const supply = createCalendarSupplyApplication({
       ...stores,
-      sourceAdapters: [],
-      independenceRegistry: [],
-      authority: {
-        async check({ context, action }) {
-          return action === 'importSeed' && context.owner.kind === 'system'
-            ? { kind: 'allowed', authorityGuardRefs: [`${OWNER}.seed`] }
-            : { kind: 'denied', reason: 'the release supplies calendars only from its seed' }
-        },
-      },
-      clock: { now: () => instantSchema.parse(new Date(now()).toISOString()) },
+      ...calendarSourceAdapters(rowConfig),
+      authority: calendarSupplyAuthority,
+      clock: supplyClock(now),
     })
+    // The seed lands before any service is offered; the runner then follows the sources.
     const { releaseDate: _releaseDate, ...release } = shippedCalendarSeedRelease
     const imported = await supply.importSeed(SEED_CONTEXT, {
       ...release,
-      operationKey: `${OWNER}.seed/${release.releaseRef}`,
+      operationKey: `${CALENDAR_OWNER}.seed/${release.releaseRef}`,
     })
     if (imported.kind !== 'ok')
       ctx
         .logger('calendar')
         .warn(`calendar seed import answered ${imported.error.code}: ${imported.error.message}`)
-    const queries = createCalendarQueries({
-      repository: stores.repository,
-      environment: environmentOf(
-        ctx.get(tenantIndependentSettingsKey) as TenantIndependentSettingsService,
-      ),
-      authority: authorityOf(ctx.get(tenantStandingKey) as TenantStandingSource),
-      clock: { now },
-      catalog: shippedCalendarSupplyPolicies.map(({ calendarId, timezone, semanticBoundary }) => ({
+    const supplyKey = provideCalendarSupply(ctx, supply, rowConfig)
+    const projection = healthProjection(supply)
+    const catalog = shippedCalendarSupplyPolicies.map(
+      ({ calendarId, timezone, semanticBoundary }) => ({
         calendarId: calendarIdSchema.parse(calendarId),
         timezone: timezoneSchema.parse(timezone),
         semanticBoundary,
-      })),
+      }),
+    )
+    const queries = createCalendarQueries({
+      repository: stores.repository,
+      environment: calendarContext(
+        ctx,
+        ctx.get(tenantIndependentSettingsKey) as TenantIndependentSettingsService,
+        projection,
+        catalog.map(entry => entry.calendarId),
+      ),
+      authority: authorityOf(ctx.get(tenantStandingKey) as TenantStandingSource),
+      clock: { now },
+      catalog,
+      healthProjection: projection,
     })
     new Queries(ctx, queries)
     new Calculator(ctx, createCalendarCalculator(queries))
     return {
       async stop() {
-        supply.stop()
+        const report = await (ctx.get(supplyKey) as CalendarLocalSupplyProvider).close()
+        if (report.inFlight === 'retained')
+          return { kind: 'incomplete', detail: 'calendar supply work retained past the drain time' }
+        if (report.cleanup.kind === 'failed')
+          return {
+            kind: 'failed',
+            detail: `calendar supply cleanup failed: ${report.cleanup.message}`,
+          }
         return { kind: 'settled' }
       },
     }
   },
 })
+
+export { environmentOf } from './settings-environment.ts'

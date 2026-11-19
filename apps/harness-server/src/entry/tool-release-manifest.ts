@@ -22,12 +22,14 @@ export const TOOL_DEFINITIONS_PACKAGE = '@omne-harness/tool-definitions' as cons
 export const CALENDAR_TOOLS_PACKAGE = '@omne-harness/calendar-tools' as const
 export const SCHEDULE_TOOLS_PACKAGE = '@omne-harness/schedule-tools' as const
 export const NOTIFICATION_TOOLS_PACKAGE = '@omne-harness/notification-tools' as const
+export const SESSION_TOOLS_PACKAGE = '@omne-harness/session-tools' as const
 /** The packages a release tool may come from; each is checked by the digest of its own artifacts. */
 export const RELEASE_PACKAGES = Object.freeze([
   TOOL_DEFINITIONS_PACKAGE,
   CALENDAR_TOOLS_PACKAGE,
   SCHEDULE_TOOLS_PACKAGE,
   NOTIFICATION_TOOLS_PACKAGE,
+  SESSION_TOOLS_PACKAGE,
 ] as const)
 export type ReleasePackage = (typeof RELEASE_PACKAGES)[number]
 
@@ -100,6 +102,13 @@ export const RELEASE_TOOLS = Object.freeze([
     package: SCHEDULE_TOOLS_PACKAGE,
     capabilities: Object.freeze(['schedule.read', 'schedule.write']),
     export: 'schedulesToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Sessions',
+    package: SESSION_TOOLS_PACKAGE,
+    capabilities: Object.freeze(['session.read', 'session.search']),
+    export: 'sessionsToolModule',
     construction: Object.freeze(['resultMaxBytes']),
   }),
   Object.freeze({

@@ -26,7 +26,13 @@ export type Branch =
   | Readonly<{ kind: 'fact'; kinds: readonly ReceivedFactKind[] }>
   | Readonly<{ kind: 'declaration'; kinds: readonly DeclarationKind[] }>
 
-export type MemberCell = Readonly<{ verdict: 'member'; source: Citation; when?: Branch }>
+/** `reach: 'tenant'`: a work principal may target any session of its tenant, not only its own. */
+export type MemberCell = Readonly<{
+  verdict: 'member'
+  source: Citation
+  when?: Branch
+  reach?: 'tenant'
+}>
 export type MatrixCell = Readonly<{
   verdict: 'matrix'
   purpose: SystemPurpose
@@ -89,13 +95,20 @@ const matrix = (purpose: SystemPurpose, source: string, when?: Branch): MatrixCe
       : { verdict: 'matrix', purpose, source: cite(source), when: freezeBranch(when) },
   )
 
+const tenantRead = (source: string): MemberCell =>
+  Object.freeze({ verdict: 'member', source: cite(source), reach: 'tenant' })
+
 const deny = (basis: string): DenyCell => Object.freeze({ verdict: 'deny', basis })
 
 function freezeBranch(branch: Branch): Branch {
   return Object.freeze({ ...branch, kinds: Object.freeze([...branch.kinds]) }) as Branch
 }
 
-export const cell = Object.freeze({ member, matrix, deny })
+export const cell = Object.freeze({ member, tenantRead, matrix, deny })
+
+export function readsAcrossTenant(cell: PolicyCell): boolean {
+  return cell.verdict === 'member' && cell.reach === 'tenant'
+}
 
 export function row(login: PolicyCell, work: PolicyCell, system: PolicyCell): PolicyRow {
   return Object.freeze({ login, work, system })
