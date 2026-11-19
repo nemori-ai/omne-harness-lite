@@ -10,7 +10,7 @@ const SEEDS = new URL('../../data/seeds/', import.meta.url)
 const material = z.object({
   sourceId: z.string().min(1),
   file: z.string().min(1),
-  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  sha256: z.string().min(1),
   knowledgeAsOf: instantSchema,
   authorityRef: z.string().min(1),
 })

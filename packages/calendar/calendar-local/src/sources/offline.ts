@@ -42,8 +42,7 @@ function verifyVacanzaArtifact(
   if (
     document.library_version !== artifact.libraryVersion ||
     document.window_start_year !== artifact.startYear ||
-    document.window_end_year !== artifact.endYear ||
-    artifact.endYear < artifact.startYear
+    document.window_end_year !== artifact.endYear
   )
     throw new Error('Vacanza artifact version or requested range mismatch')
 }

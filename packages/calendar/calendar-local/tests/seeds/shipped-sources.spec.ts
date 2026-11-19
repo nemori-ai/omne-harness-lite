@@ -42,6 +42,14 @@ describe('the supply inputs shipped with the release', () => {
     expect(await adapter?.acquire({ acquiredAt })).toMatchObject({ kind: 'unavailable' })
   })
 
+  it('stops reading a shipped artifact when the caller aborts', async () => {
+    const vacanza = shippedCalendarSupplyInputs().sourceOptions.vacanzaArtifact
+    if (!vacanza) throw new Error('no vacanza artifact')
+    const controller = new AbortController()
+    controller.abort()
+    await expect(vacanza.read(controller.signal)).rejects.toThrow()
+  })
+
   it('refuses an artifact whose bytes no longer match the shipped digest', async () => {
     const inputs = shippedCalendarSupplyInputs()
     const vacanza = inputs.sourceOptions.vacanzaArtifact
