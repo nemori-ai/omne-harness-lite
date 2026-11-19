@@ -17,14 +17,18 @@ import type { SessionCursorSigning } from '@omne-harness/session-cordis-contract
 import {
   SessionDelegatedTransactionsService,
   SessionPrincipalBindingsService,
+  SessionHistoryLogService,
   SessionScopeOwnersService,
+  SessionSearchCursorsService,
   SessionTransactionPortService,
   sessionAccessCheckKey,
   sessionClockKey,
   sessionCursorSigningKey,
   sessionDelegatedTransactionsKey,
   sessionPrincipalBindingsKey,
+  sessionHistoryLogKey,
   sessionScopeOwnersKey,
+  sessionSearchCursorsKey,
   sessionTransactionsKey,
   sessionDerivedInputsKey,
   sessionInputSourcesKey,
@@ -34,7 +38,9 @@ import { createIntakeBudgetReader } from '@omne-harness/session-adapters/cordis'
 import { createSessionCommitNotifier } from '@omne-harness/session-cordis/cordis'
 import {
   createSessionPrincipalBindings,
+  createSearchCursorSeal,
   createSessionScopeOwners,
+  createSessionSearchLog,
   createSessionStorage,
   registerSessionNotifier,
   type SessionStorageOptions,
@@ -363,6 +369,22 @@ class TenantDomainRegistrationImpl extends TenantDomainRegistrationService {
   }
 }
 
+class HistoryLogImpl extends SessionHistoryLogService {
+  readonly log: SessionHistoryLogService['log']
+  constructor(ctx: Context, log: SessionHistoryLogService['log']) {
+    super(ctx)
+    this.log = log
+  }
+}
+
+class SearchCursorsImpl extends SessionSearchCursorsService {
+  readonly seal: SessionSearchCursorsService['seal']
+  constructor(ctx: Context, seal: SessionSearchCursorsService['seal']) {
+    super(ctx)
+    this.seal = seal
+  }
+}
+
 class ScopeOwnersImpl extends SessionScopeOwnersService {
   readonly lookup: SessionScopeOwnersService['lookup']
   constructor(ctx: Context, source: SessionScopeOwnersService['lookup']) {
@@ -477,6 +499,9 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   new PrincipalBindingsImpl(ctx, bindings)
   const scopeOwners = createSessionScopeOwners({ storage, domains: directory.access })
   new ScopeOwnersImpl(ctx, input => scopeOwners.lookup(input))
+  // The history search reads the logs through the read handlers, and seals its cursors as the others are.
+  new HistoryLogImpl(ctx, createSessionSearchLog({ storage, domains: directory.access }))
+  new SearchCursorsImpl(ctx, createSearchCursorSeal({ signing: lateBoundCursorSigning(ctx) }))
   return {
     stop: deadline => {
       active = false
@@ -500,6 +525,8 @@ export const sessionStorageRow = defineRow({
       tenantDomainRegistrationKey,
       sessionPrincipalBindingsKey,
       sessionScopeOwnersKey,
+      sessionHistoryLogKey,
+      sessionSearchCursorsKey,
     ],
     injects: [storageKey, sessionAccessCheckKey],
     sameProviderGroup: null,

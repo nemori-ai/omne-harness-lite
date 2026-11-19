@@ -23,9 +23,11 @@ type Name = Exclude<
   | 'read-pending'
   | 'read-waiting-calls'
   | 'read-input-fate'
+  | 'search-history'
   | 'background-call'
   | 'list-background-calls'
   | 'select-model'
+  | 'read-model-selection'
   | 'read-permission-mode'
   | 'change-permission-mode'
 >

@@ -373,6 +373,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
     port,
     pair,
     storage,
+    domains,
     control,
     events,
     accessCheck,

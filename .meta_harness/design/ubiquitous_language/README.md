@@ -57,7 +57,7 @@
 | [取用与可用性](terms/reach-and-availability.md) | 一样能力此刻**够不够得着、做不做得了** | 常驻 · 当下可用性 · 替换件 · 依赖声明 |
 | [执行与收场](terms/execution-and-outcome.md) | 一件事**怎么跑、跑偏了谁接手、怎么了结** | 工具执行 · 等待态 · 发帧 · 卸载 · 六种收场 · 主路径 · 非常态 · 上交 |
 | [落地与隔离](terms/grounding-and-isolation.md) | 动作**实际落到哪里** | 执行环境 · 沙箱 · 宿主机 · 设施 |
-| [交互与派发](terms/interaction-and-dispatch.md) | agent 跟人、跟别的 agent**怎么来往** | 派发三模式 · 通信两规则 · 问询与请示 · 决策卡片 |
+| [交互与派发](terms/interaction-and-dispatch.md) | agent 跟人、跟别的 agent**怎么来往** | 派发三模式 · 通信两规则 · 问询 · 决策卡片与放行详情 |
 | [记录与上下文](terms/record-and-context.md) | **留下了什么**，怎么**组装**给读的人或模型 | 发生的事 · 记录条目 · 条目效力 · 会话日志 · 消息七种 · 块标注 |
 
 **一个词条只属于一卷。**跨卷使用是常态，跨卷**定义**不是——

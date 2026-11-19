@@ -24,6 +24,7 @@
       "contracts": [
         "packages/model/model-contract",
         "packages/model/model-cordis-contract",
+        "packages/model/model-protocol",
         "packages/common/message",
         "packages/common/content-block",
         "packages/common/modality",
