@@ -351,12 +351,14 @@ describe('the grant a release names', () => {
       inquiry: { ...w.inquiry.inquiry, policy: { onAsk: 'skip-ask' } },
     } as const
     const ports = { ...w.ports, inquiry: async () => skipping }
-    expect(await createCurrentToolPermission(ports).check(w.input)).toMatchObject({
+    const skipped = await createCurrentToolPermission(ports).check(w.input)
+    expect(skipped).toMatchObject({
       release: {
         by: 'skip-ask',
         grant: { via: 'skip-ask', holder: 'session-1', source: w.inquiry.inquiry.source },
       },
     })
+    expect(skipped.kind === 'allow' && skipped.condition).toEqual(w.condition)
   })
 
   it('guards the acceptance on the once or session authorization it rests on, and on nothing else', async () => {
