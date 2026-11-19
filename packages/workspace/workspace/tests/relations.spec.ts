@@ -134,6 +134,25 @@ describe('what stands before a change to a relation', () => {
     expect(await w.standing(ALICE)).toBe('owner')
   })
 
+  it('an identity its codec did not mint is not permitted, and nobody is asked about it', async () => {
+    const w = await owned()
+    const { governance: g, workspace } = w
+    const forged = { principal: 'p', tenant: { ...ALICE.tenant } }
+    const asked = w.authority.asked().length
+    const named = { operation: op('f1'), workspace }
+    for (const answer of [
+      await g.grantParticipation(forged, { ...named, target: bob }),
+      await g.grantParticipation(ALICE, { ...named, workspace: { ...workspace }, target: bob }),
+      await g.remove(ALICE, { ...named, target: { ...bob } }),
+      await g.leave(forged, named),
+      await g.destroy(forged, named),
+      await g.destroy(ALICE, { ...named, workspace: { ...workspace } }),
+    ])
+      expect(answer).toEqual(DENIED)
+    expect(w.authority.asked()).toHaveLength(asked)
+    expect(await w.standing(ALICE)).toBe('owner')
+  })
+
   it('a name that is no operation name is not performed; a workspace nobody registered is not permitted', async () => {
     const { governance: g, workspace } = await owned()
     const bad = { operation: 'a b' as never, workspace, target: bob }
