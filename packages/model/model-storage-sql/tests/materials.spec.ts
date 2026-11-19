@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest'
 import {
   CALL_HANDLER,
   DIAGNOSTICS_HANDLER,
+  DISPATCH_FACT,
+  DISPATCH_FACTS_HANDLER,
+  FACT_MIGRATION,
   MIGRATION,
   MODEL_PARTICIPANT,
   MODEL_TABLES,
@@ -31,28 +34,35 @@ async function defaultOf<T>(url: string): Promise<T> {
 }
 
 describe('the materials of the Model records', () => {
-  it('describe one participant `model` that owns the four `md_` tables, and its migration', () => {
+  it('describe one participant `model` that owns the `md_` tables, the record migration and the facts migration after it', () => {
     expect(materials.participants.map(item => item.participant)).toEqual([MODEL_PARTICIPANT])
-    expect(materials.participants[0]?.ownedTables).toEqual(MODEL_TABLES)
-    for (const table of MODEL_TABLES) expect(table).toMatch(/^md_/u)
-    expect(materials.migrations.map(item => [item.owner, item.id])).toEqual([
-      [MIGRATION.owner, MIGRATION.id],
+    expect(materials.participants[0]?.ownedTables).toEqual([...MODEL_TABLES, DISPATCH_FACT.name])
+    for (const table of materials.participants[0]?.ownedTables ?? []) expect(table).toMatch(/^md_/u)
+    expect(materials.migrations.map(item => [item.owner, item.id, item.requires])).toEqual([
+      [MIGRATION.owner, MIGRATION.id, []],
+      [FACT_MIGRATION.owner, FACT_MIGRATION.id, [{ owner: MIGRATION.owner, id: MIGRATION.id }]],
     ])
   })
 
-  it('describe the four read handlers, each in its own module file, reading only `md_` tables', () => {
+  it('describe the five read handlers, each in its own module file, reading only `md_` tables', () => {
     expect(materials.readHandlers.map(item => item.handler)).toEqual([
       CALL_HANDLER,
       'model.request',
       PENDING_HANDLER,
       DIAGNOSTICS_HANDLER,
+      DISPATCH_FACTS_HANDLER,
     ])
-    expect(new Set(materials.readHandlers.map(item => item.moduleUrl)).size).toBe(4)
+    expect(new Set(materials.readHandlers.map(item => item.moduleUrl)).size).toBe(5)
+    const record = { owner: MIGRATION.owner, id: MIGRATION.id }
+    const facts = { owner: FACT_MIGRATION.owner, id: FACT_MIGRATION.id }
     for (const handler of materials.readHandlers) {
       expect(handler.protocol).toBe(PROTOCOL)
-      expect(handler.requiresMigrations).toEqual([{ owner: MIGRATION.owner, id: MIGRATION.id }])
+      expect(handler.requiresMigrations).toEqual(
+        handler.handler === DISPATCH_FACTS_HANDLER ? [record, facts] : [record],
+      )
       expect(handler.maxOutputBytes).toBeLessThanOrEqual(4 * 1024 * 1024)
-      for (const table of handler.readTables) expect(MODEL_TABLES).toContain(table)
+      for (const table of handler.readTables)
+        expect([...MODEL_TABLES, DISPATCH_FACT.name]).toContain(table)
     }
   })
 
@@ -62,7 +72,7 @@ describe('the materials of the Model records', () => {
       ...materials.migrations.map(item => [item.moduleUrl, item.checksum] as const),
       ...materials.readHandlers.map(item => [item.moduleUrl, item.codeDigest] as const),
     ]
-    expect(new Set(modules.map(([url]) => url)).size).toBe(6)
+    expect(new Set(modules.map(([url]) => url)).size).toBe(8)
     for (const [url, digest] of modules) {
       expect(url.startsWith('file:')).toBe(true)
       expect(sha256(url)).toBe(digest)
@@ -80,8 +90,10 @@ describe('loading by the default export of each module file', () => {
       participant.participant,
       participant.protocol,
     ])
-    const loadedMigration = await defaultOf<MigrationModule>(migration.moduleUrl)
-    expect([loadedMigration.owner, loadedMigration.id]).toEqual([migration.owner, migration.id])
+    for (const each of materials.migrations) {
+      const loadedMigration = await defaultOf<MigrationModule>(each.moduleUrl)
+      expect([loadedMigration.owner, loadedMigration.id]).toEqual([each.owner, each.id])
+    }
     for (const handler of materials.readHandlers) {
       const loaded = await defaultOf<ReadHandlerModule>(handler.moduleUrl)
       expect([loaded.handler, loaded.protocol]).toEqual([handler.handler, handler.protocol])

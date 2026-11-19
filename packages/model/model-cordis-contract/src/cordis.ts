@@ -4,6 +4,7 @@ import type {
   ConsumerRef,
   ModelCallId,
   ModelDiagnostics,
+  ModelDispatchFacts,
   ModelPreparationResources,
   ModelResultReceiver,
   ModelRuntime,
@@ -358,9 +359,25 @@ export abstract class ModelDiagnosticsService<P> extends Service implements Mode
 }
 export const modelDiagnosticsKey = ModelDiagnosticsService.provide
 
+/** @owner packages/model/model-cordis-contract */
+export abstract class ModelDispatchFactsService<P>
+  extends Service
+  implements ModelDispatchFacts<P>
+{
+  static readonly provide = 'modelDispatchFacts'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelDispatchFactsService.provide)
+  }
+
+  abstract readonly list: ModelDispatchFacts<P>['list']
+}
+export const modelDispatchFactsKey = ModelDispatchFactsService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     modelDiagnostics: ModelDiagnosticsService<unknown>
+    modelDispatchFacts: ModelDispatchFactsService<unknown>
     modelRuntime: ModelRuntimeService<unknown>
     modelCommands: ModelCommandsService<unknown>
     modelSendBoundary: ModelSendBoundaryService<unknown>

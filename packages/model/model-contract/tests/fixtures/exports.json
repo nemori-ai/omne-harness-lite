@@ -142,6 +142,11 @@
               "pending": false
             },
             {
+              "name": "ContextWindow",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "FixedModelRequest",
               "kind": "type",
               "pending": false
@@ -539,6 +544,26 @@
             },
             {
               "name": "DispatchRecord",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFact",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFactsQuery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFactsPage",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFacts",
               "kind": "type",
               "pending": false
             },

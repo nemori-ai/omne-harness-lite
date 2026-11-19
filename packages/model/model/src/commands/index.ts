@@ -40,6 +40,8 @@ export type {
   ConfirmationStage,
 } from './types.ts'
 export { hasRecoveryWork } from './judge.ts'
+export { dispatchFactOf, dispatchOutcome } from './dispatch-fact.ts'
+export type { DispatchFactDraft } from './dispatch-fact.ts'
 export type { ModelCommandCore } from './state.ts'
 export type { CommandWrite, ModelCommandStorage, PendingPage, RunScope } from './storage.ts'
 export { MODEL_WRITE_METHODS } from './types.ts'

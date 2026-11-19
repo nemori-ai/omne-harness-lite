@@ -22,6 +22,7 @@
 - `ConnectRetryReason` · `call-surface.d.ts`
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ContextLimits` · `profile.d.ts`
+- `ContextWindow` · `root.d.ts`
 - `ControlState` · `result.d.ts`
 - `ConversionResult` · `conversion.d.ts`
 - `ConvertedContent` · `conversion.d.ts`
@@ -64,6 +65,10 @@
 - `ModelDiagnostics` · `diagnostics.d.ts`
 - `ModelDiagnosticsPage` · `diagnostics.d.ts`
 - `ModelDirectory` · `call-surface.d.ts`
+- `ModelDispatchFact` · `dispatch-facts.d.ts`
+- `ModelDispatchFacts` · `dispatch-facts.d.ts`
+- `ModelDispatchFactsPage` · `dispatch-facts.d.ts`
+- `ModelDispatchFactsQuery` · `dispatch-facts.d.ts`
 - `ModelDuration` · `diagnostics.d.ts`
 - `ModelFailure` · `result.d.ts`
 - `ModelFault` · `result.d.ts`
@@ -1215,6 +1220,60 @@ export interface ModelDiagnostics<P> {
 }
 ```
 
+## 声明文件 `dispatch-facts.d.ts`
+
+```ts
+import type { Access, Adoption, ConsumerRef, ContextWindow, DispatchId, ModelCallId, Supplier } from './root.ts';
+import type { CallAccount } from '@omne-harness/call-account';
+import type { ModelFault, Reply } from './result.ts';
+import type { DispatchInstants } from './call-surface.ts';
+export type ModelDispatchFact = Readonly<{
+    call: ModelCallId;
+    dispatch: DispatchId;
+    consumer: ConsumerRef;
+    profile: Adoption;
+    supplier: Supplier;
+    contextWindow: ContextWindow | null;
+    instants: DispatchInstants;
+    send: 'not-sent' | 'sent' | 'unknown';
+    outcome: Readonly<{
+        kind: 'pending';
+    }> | Readonly<{
+        kind: 'completed';
+        reason: 'stop' | 'limit' | 'tool-suggestions';
+    }> | Readonly<{
+        kind: 'interrupted';
+    }> | Readonly<{
+        kind: 'failed';
+        cause: ModelFault['cause'];
+        upstreamStatus: string | null;
+    }>;
+    connectRetries: number;
+    account: CallAccount | null;
+}>;
+export type ModelDispatchFactsQuery = Readonly<{
+    range: Readonly<{
+        from: string;
+        to: string;
+    }> | null;
+    consumer: Readonly<{
+        owner: string;
+        works: readonly string[];
+    }> | null;
+    order: 'ascending' | 'descending';
+    after: string | null;
+    limit: number;
+}>;
+export type ModelDispatchFactsPage = Readonly<{
+    entries: readonly ModelDispatchFact[];
+    undated: number;
+    next: string | null;
+}>;
+export interface ModelDispatchFacts<P> {
+    list(input: Access<P> & ModelDispatchFactsQuery): Reply<ModelDispatchFactsPage>;
+}
+```
+
 ## 声明文件 `driver.d.ts`
 
 ```ts
@@ -1291,7 +1350,7 @@ export declare function compareOutputCursors(left: OutputCursor, right: OutputCu
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { Access, Admit, Adoption, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
+export type { Access, Admit, Adoption, CallAccess, ConsumerRef, ContextWindow, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
 export type * from './result.ts';
 export { faultIsTransient } from './result.ts';
 export type * from './result-delivery-values.ts';
@@ -1304,6 +1363,7 @@ export { diffModelStream, applyModelStreamDelta } from './model-stream-values.ts
 export { encodeModelOutputV1, decodeModelOutputV1, projectModelOutputV1, } from './model-output-v1.ts';
 export type { ModelOutputV1, ModelOutputV1Snapshot, ModelOutputV1Delta, ModelOutputV1Failure, } from './model-output-v1.ts';
 export type * from './call-surface.ts';
+export type * from './dispatch-facts.ts';
 export type { MaterializationReceipt, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
 export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
 export type { ConversionResult, ConvertedContent } from './conversion.ts';
@@ -2857,8 +2917,13 @@ export type Supplier = Readonly<{
     model: string;
     credential: CredentialLayer;
 }>;
+export type ContextWindow = Readonly<{
+    tokens: string;
+    compactionTriggerPercent: string;
+}>;
 export type FixedModelRequest = Readonly<{
     profile: Adoption;
+    contextWindow?: ContextWindow;
     suppliers: readonly [
         Supplier,
         ...Supplier[]

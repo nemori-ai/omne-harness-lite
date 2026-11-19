@@ -20,7 +20,7 @@ import {
   type ModelFailure,
   type Termination,
 } from '@omne-harness/model-contract'
-import type { ModelCommandsAuthority } from '@omne-harness/model/commands'
+import { dispatchOutcome, type ModelCommandsAuthority } from '@omne-harness/model/commands'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   DomainRef,
@@ -59,24 +59,28 @@ function jsonCell(cell: SqlCell | undefined): Cell {
   return value
 }
 
-function rows(port: ReadPort, sql: string, params: readonly (string | bigint)[]) {
+export function rows(port: ReadPort, sql: string, params: readonly (string | bigint)[]) {
   const result = port.execute(sql, params)
   return result.rows.map(cells =>
     Object.fromEntries(result.columns.map((name, at) => [name, jsonCell(cells[at])])),
   )
 }
 
-function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
+export function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function textInput(input: Readonly<Record<string, unknown>>, key: string): string {
+export function textInput(input: Readonly<Record<string, unknown>>, key: string): string {
   const value = input[key]
   if (typeof value !== 'string' || value === '') throw new Error(`invalid input ${key}`)
   return value
 }
 
-function countInput(input: Readonly<Record<string, unknown>>, key: string, max: number): number {
+export function countInput(
+  input: Readonly<Record<string, unknown>>,
+  key: string,
+  max: number,
+): number {
   const value = input[key]
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > max)
     throw new Error(`invalid input ${key}`)
@@ -436,26 +440,6 @@ const SEND_OF: Readonly<Record<DispatchRecord['send'], ModelAttemptDiagnostic['s
   'not-sent': 'not-sent',
 }
 
-function outcomeOf(terminal: Termination | null): ModelAttemptDiagnostic['outcome'] {
-  if (terminal === null) return { kind: 'pending' }
-  switch (terminal.kind) {
-    case 'completed':
-      return { kind: 'completed', reason: terminal.reason }
-    case 'interrupted':
-      return { kind: 'interrupted' }
-    case 'failed':
-      return {
-        kind: 'failed',
-        cause: terminal.fault.cause,
-        upstreamStatus: terminal.fault.upstreamStatus,
-      }
-    default: {
-      const exhaustive: never = terminal
-      return exhaustive
-    }
-  }
-}
-
 function attemptDiagnostic(
   scope: CursorScope,
   revision: number,
@@ -469,7 +453,7 @@ function attemptDiagnostic(
     adapter: attempt.adapter,
     send: SEND_OF[attempt.send],
     firstContent: attempt.firstContent,
-    outcome: outcomeOf(attempt.terminal),
+    outcome: dispatchOutcome(attempt.terminal),
     instants: attempt.instants,
     timing: {
       materialize: durationBetween(attempt.instants.prepared, attempt.instants.sent),

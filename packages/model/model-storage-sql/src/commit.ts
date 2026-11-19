@@ -65,6 +65,9 @@ import {
   type PendingPage,
 } from './reads.ts'
 import { requestChunks } from './request-body.ts'
+import { DISPATCH_FACT_KEPT_COLUMNS, dispatchFactRows } from './dispatch-facts.ts'
+import { DISPATCH_FACT } from './fact-schema.ts'
+import { columnNames, cellValue, insert, upsertRows } from './rows.ts'
 import { MODEL_PARTICIPANT, PROTOCOL, TABLES, type Table } from './schema.ts'
 
 export const BODY_READ_RESERVE_BYTES = 64 * 1024
@@ -400,6 +403,7 @@ function factsOf(
   const { expected } = staged
   const before = read.record?.document.dispatches ?? []
   const plan = planParts(read.record?.parts ?? [], before, call?.dispatches ?? [])
+  const dispatches = changedDispatches(tenant, callId, before, call?.dispatches ?? [])
   return {
     intent: 'write',
     tenant,
@@ -409,7 +413,8 @@ function factsOf(
       call === undefined
         ? null
         : must(encodeCallRow(tenant, nextVersion(expected), call, hasRecoveryWork(call))),
-    dispatches: changedDispatches(tenant, callId, before, call?.dispatches ?? []),
+    dispatches,
+    dispatchFacts: dispatchFactRows(tenant, call, dispatches),
     removeParts: plan.remove.map(part => ({
       seq: part.seq,
       block: part.position,
@@ -862,23 +867,6 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
 
 class FactError extends Error {}
 
-const columnNames = (table: Table): readonly string[] => table.columns.map(item => item.name)
-
-function cellValue(table: Table, row: Row, name: string): SqlValue {
-  const cell = row[name] ?? null
-  const kind = table.columns.find(item => item.name === name)?.kind
-  if (kind === 'int' && typeof cell === 'number') return BigInt(cell)
-  return kind === 'json' && typeof cell === 'string' ? packText(cell) : cell
-}
-
-function insert(port: ParticipantPort, table: Table, row: Row, onConflict: string): bigint {
-  const names = columnNames(table)
-  return port.execute(
-    `INSERT INTO ${table.name} (${names.join(', ')}) VALUES (${names.map(() => '?').join(', ')}) ${onConflict}`,
-    names.map(name => cellValue(table, row, name)),
-  ).changes
-}
-
 function checkedRow(table: Table, raw: unknown, tenant: string, call: string): Row {
   const row = parseRow(table, raw)
   if ('failure' in row) throw new FactError(`${table.name} row`)
@@ -960,6 +948,7 @@ function writeFacts(facts: Readonly<Record<string, JsonValue>>) {
     row,
     binding,
     dispatches: rowList(facts['dispatches'], TABLES.dispatch, tenant, call),
+    dispatchFacts: rowList(facts['dispatchFacts'], DISPATCH_FACT, tenant, call),
     removeParts: partKeys(facts['removeParts']),
     parts: rowList(facts['parts'], TABLES.part, tenant, call),
     share: shareOf(facts['share']),
@@ -996,13 +985,8 @@ function writeCall(port: ParticipantPort, facts: WriteFacts): string | null {
 
 function writeChildren(port: ParticipantPort, facts: WriteFacts): void {
   const { tenant, call } = facts
-  const kept = columnNames(TABLES.dispatch).filter(
-    name => !['tenant', 'call', 'seq'].includes(name),
-  )
-  const upsert = `ON CONFLICT (tenant, call, seq) DO UPDATE SET ${kept
-    .map(name => `${name} = excluded.${name}`)
-    .join(', ')}`
-  for (const item of facts.dispatches) insert(port, TABLES.dispatch, item, upsert)
+  upsertRows(port, TABLES.dispatch, facts.dispatches)
+  upsertRows(port, DISPATCH_FACT, facts.dispatchFacts, DISPATCH_FACT_KEPT_COLUMNS)
   for (const key of facts.removeParts)
     port.execute(
       'DELETE FROM md_part WHERE tenant = ? AND call = ? AND seq = ? AND block = ? AND part = ?',

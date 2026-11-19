@@ -3,10 +3,10 @@ import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/iden
 import { principalVerifierKey, tenantStandingKey } from '@omne-harness/identity/cordis'
 import type { CredentialPort, ModelClock } from '@omne-harness/model-contract/provider'
 import {
-  ModelDiagnosticsService,
   modelClockKey,
   modelCommandsKey,
   modelDiagnosticsKey,
+  modelDispatchFactsKey,
   modelSendBoundaryKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import {
@@ -18,7 +18,6 @@ import type {
   ModelReceiveEvidenceReader,
 } from '@omne-harness/model-host-local'
 import { createSqlModelRecordsPlugin } from '@omne-harness/model-storage-sql/cordis'
-import { createSqlModelDiagnostics } from '@omne-harness/model-storage-sql'
 import {
   createModelInitialRun,
   type ModelCommandsEvidence,
@@ -29,7 +28,7 @@ import { modelTokenizersKey, type ModelTokenizers } from '@omne-harness/tokenize
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { currentForReader } from '../../entry/runtime-context-trust.ts'
-import { qualifyingDiagnostics } from './diagnostics.ts'
+import { mountReads } from './diagnostics.ts'
 import { toolResultDisclosureOf } from '../../model/tool-result-disclosure.ts'
 import { agentCustodyOf, createModelEvidence } from '../../model/evidence.ts'
 import { compactionEvidenceOf } from '../../model/compaction-evidence.ts'
@@ -217,22 +216,13 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
   })
   new Records(ctx, config.member)
   const current = currentForReader(new WeakMap(), ctx)
-  class Diagnostics extends ModelDiagnosticsService<unknown> {
-    readonly list
-    constructor() {
-      super(ctx)
-      this.list = qualifyingDiagnostics(
-        createSqlModelDiagnostics({
-          storage: given.storage,
-          domains: given.tenantDomainLookup,
-          authority: qualification.authority,
-          ...config.diagnostics,
-        }),
-        access => qualification.qualifyRead(access, current),
-      ).list
-    }
-  }
-  new Diagnostics()
+  mountReads(ctx, {
+    storage: given.storage,
+    domains: given.tenantDomainLookup,
+    authority: qualification.authority,
+    qualify: access => qualification.qualifyRead(access, current),
+    diagnostics: config.diagnostics,
+  })
 }
 
 const recordsPlugin: Plugin.Object = {
@@ -248,7 +238,7 @@ export const modelRecordsRow = defineRow({
   row: 'model-records',
   implementation: 'real',
   manifest: {
-    provides: [modelCommandsKey, modelSendBoundaryKey, modelDiagnosticsKey],
+    provides: [modelCommandsKey, modelSendBoundaryKey, modelDiagnosticsKey, modelDispatchFactsKey],
     injects: [...INJECT],
     sameProviderGroup: 'model-records',
   },

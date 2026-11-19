@@ -94,6 +94,10 @@ const user = (id: string, text = 'hello') => ({
 function requestWith(messages: readonly unknown[]): FixedModelRequest {
   const judged = judgeFixedModelRequest({
     profile: ADOPTION,
+    contextWindow: {
+      tokens: PROFILE.definition.context.window.provided,
+      compactionTriggerPercent: PROFILE.definition.context.compactionTriggerPercent,
+    },
     suppliers: [SUPPLIER],
     fallback: false,
     retryPolicy: ADOPTION,
