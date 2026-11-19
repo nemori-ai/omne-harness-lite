@@ -13,6 +13,9 @@ export type GateProps = Readonly<Record<never, never>>
 
 export type ScopedProps = Readonly<{ scope: string | undefined }>
 
+/** A page may be brought up on one object of its own, as a toast's action names it. */
+export type PageProps = Readonly<{ scope: string | undefined; subject?: string }>
+
 export type AttachedProps = Readonly<{ scope: string | undefined; subject: string }>
 
 export type GateItem = Readonly<{
@@ -26,7 +29,7 @@ export type PageItem = Readonly<{
   order: number
   icon?: string
   badge?: (props: ScopedProps) => ReactNode
-  render: (props: ScopedProps) => ReactNode
+  render: (props: PageProps) => ReactNode
 }>
 
 export type SidebarItem = Readonly<{

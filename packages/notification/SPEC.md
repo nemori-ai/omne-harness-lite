@@ -222,7 +222,7 @@ Notification 包组回答一个问题：一件已经发生的事，怎样可靠�
 | INV-NO19 | 一个去处两个强单元之间不小于最小间隔；间隔内的强通知排队，不丢 | 吵闹的来源让 agent 不停地醒 | 模型的 `StrongPaced`。「最终被投」没有模型守 |
 | INV-NO20 | 核心域的成员不依赖本组；去掉本组，核心与人工介入原有的流程不变 | 通知故障带坏对话 | 依赖方向 `DIR-CORE-NOTIFICATION`：Session、Agent、Model、Tool 四组里登记了的成员导入本组任何成员都变红。Runtime Context 与 Request Context 的成员没有登记成角色，这条规则盖不到；发行应用里去掉通知两行的发行树用例：照常启动，会话照常对话 |
 | INV-NO21 | 本组的定义成员里不出现任何具体来源、事件类型、渠道、块键的名字，也不依赖会话 | 每加一个来源都要改通知 | 依赖方向 `DIR-NOTIFICATION-OUTWARD` 与 `DIR-NOTIFICATION-PURE`；契约与定义两个成员各有一条用例，只许导入白名单里的包 |
-| INV-NO22 | 来源或渠道撤下后：新的不接；已入箱的可查可处置；订阅保留；在途的投递有确定的结局 | 卸一个插件，历史读不出 | 只有文字 |
+| INV-NO22 | 来源或渠道撤下后：新的不接；已入箱的可查可处置；订阅保留；在途的投递有确定的结局 | 卸一个插件，历史读不出 | 渠道的一半：`notification` 的 `destinations` 用例「the channel registry」一组与 `notification-local` 的 `cordis` 用例「withdraws a contributed channel with its contributor」。来源的一半：`notification-local` 的 `cordis` 用例第一条 |
 | INV-NO23 | 目录是按当下登记现算的视图 | 新装的来源看不到 | 只有文字 |
 | INV-NO24 | 本组自己的来源、渠道与持续事项走和别人相同的登记与契约 | 内置的能做别人做不到的事 | 只有文字 |
 | INV-NO25 | 发出事件的收件人收不到它；因果深度超过上限的事件被拒收 | agent 自己或互相叫醒，停不下 | 只有文字 |

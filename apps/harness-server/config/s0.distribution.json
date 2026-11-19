@@ -26,6 +26,11 @@
       "config": {}
     },
     {
+      "id": "session-input-sources",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "asset-categories",
       "plugin": "stubPlugin",
       "config": {}
@@ -307,6 +312,16 @@
     },
     {
       "id": "runtime-context",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "runtime-context-tenant-scope",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-intake-budget",
       "plugin": "stubPlugin",
       "config": {}
     },

@@ -101,6 +101,11 @@
       "config": {}
     },
     {
+      "id": "session-input-sources",
+      "plugin": "sessionInputSourcesRow",
+      "config": {}
+    },
+    {
       "id": "asset-categories",
       "plugin": "assetCategoriesRow",
       "config": {}
@@ -206,7 +211,7 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/14"
+        "combinationVersion": "session-composite/15"
       }
     },
     {
@@ -218,7 +223,7 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/14"
+        "combinationVersion": "session-composite/15"
       }
     },
     {
@@ -629,6 +634,16 @@
     {
       "id": "runtime-context",
       "plugin": "runtimeContextRow",
+      "config": {}
+    },
+    {
+      "id": "runtime-context-tenant-scope",
+      "plugin": "runtimeContextTenantScopeRow",
+      "config": {}
+    },
+    {
+      "id": "session-intake-budget",
+      "plugin": "sessionIntakeBudgetRow",
       "config": {}
     },
     {

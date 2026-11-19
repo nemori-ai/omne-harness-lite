@@ -12,6 +12,7 @@ import {
   operationId,
   ordinaryInput,
   sessionId,
+  testingIntakeGuards,
 } from '@omne-harness/session-contract/testing'
 import type { SessionCommand } from '@omne-harness/session-contract'
 import {
@@ -90,7 +91,7 @@ describe('the joint commit on the real write Worker', () => {
       ...app.combination,
       commands: sessionCommitCommands([
         executionRecordFacts(jointWrite()),
-        sessionCommandFacts(accept('joint'), login),
+        sessionCommandFacts(accept('joint'), [...login, ...testingIntakeGuards(accept('joint'))]),
       ]),
     })
     expect(result.kind).toBe('committed')

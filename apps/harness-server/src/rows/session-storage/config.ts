@@ -24,6 +24,8 @@ export const sessionStorageRowConfigSchema = z.strictObject({
         .default(DEFAULT_SESSION_INTAKE_LIMITS.maxInputBytes),
     })
     .prefault({}),
+  /** True: the pending limit is the tenant's setting, read through the tenant-level scope. */
+  tenantBudget: z.boolean().default(false),
 })
 
 export type SessionStorageRowConfig = z.infer<typeof sessionStorageRowConfigSchema>

@@ -36,6 +36,8 @@ import {
   memoryOtherAccess,
   operationId,
   ordinaryInput,
+  testingDerivedInputs,
+  testingInputSources,
 } from '@omne-harness/session-contract/testing'
 import {
   SessionAccessCheckService,
@@ -188,9 +190,15 @@ export async function openCp2(root: string) {
     },
     accessCheck: {
       check: request =>
-        Promise.resolve({ kind: 'allowed', evidence: evidence(`session/${request.operation}`) }),
+        Promise.resolve({
+          kind: 'allowed',
+          evidence: evidence(`session/${request.operation}`),
+          subject: { kind: 'member' },
+        }),
     },
     cursorSigning: createFixedSessionCursorSigning(),
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
     combination,
   })
 

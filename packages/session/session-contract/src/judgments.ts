@@ -1,5 +1,6 @@
 import type { SessionPermissionChangeBasis } from './permission-values.ts'
 import { wakingInputs, type SessionIntakeLimits } from './intake.ts'
+import type { IntakeTerms } from './input-sources.ts'
 import { originalAttempt } from './history-validation.ts'
 import { waitKey } from './call-state.ts'
 import { backgroundCalls } from './call-control.ts'
@@ -159,7 +160,8 @@ export type DecideReads = Readonly<{
   initializationReceipts?: readonly CommitReceipt[]
   calls?: readonly SessionCallLookup[]
   runs?: readonly SessionRunLookup[]
-  firstInput?: Readonly<{ input: InputId; origin: DurableEvidence }>
+  /** The intake terms Session prepared for this commit, read from its guards. */
+  intake?: IntakeTerms
 }>
 
 export const OFF_PATH_DIAGNOSTIC =

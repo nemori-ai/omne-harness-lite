@@ -1,3 +1,11 @@
+import type {
+  BudgetTerms,
+  InputSources,
+  IntakeBasis,
+  IntakeSubject,
+  SessionDerivedInputs,
+  SessionIntakeBudget,
+} from '@omne-harness/session-contract'
 import { sessionIntakeLimits, type SessionIntakeLimits } from '@omne-harness/session-contract'
 import { randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -24,6 +32,12 @@ import { PROTOCOL } from './worker/schema.ts'
 
 export type SessionStorageOptions<P> = Readonly<{
   intakeLimits?: SessionIntakeLimits
+  /** The registered input sources, read at each commit. Absent: every intake is unavailable. */
+  sources?: InputSources
+  /** The admissions of the inputs Session derives from its own log. */
+  derived?: SessionDerivedInputs
+  /** The budget of a tenant, read when an input already waits. Absent: `intakeLimits` applies. */
+  budget?: SessionIntakeBudget
   storage: SqlStorage
   domains: TenantDomainAccess
   accessCheck: SessionAccessCheck<P>
@@ -162,4 +176,14 @@ export async function readHandler(
   return failure(
     unavailable(`read ${handler}: ${result.kind === 'cancelled' ? 'cancelled' : result.reason}`),
   )
+}
+
+/** What this provider admits an input on: the subject of the access and the registries of now. */
+export function intakeBasisOf<P>(
+  context: Context<P>,
+  subject: IntakeSubject | undefined,
+  budget?: BudgetTerms,
+): IntakeBasis {
+  const { sources, derived } = context.options
+  return { subject, sources: sources ?? null, derived: derived ?? null, budget }
 }

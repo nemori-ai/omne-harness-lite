@@ -25,6 +25,9 @@ import {
   initializationFixtureGuard,
   initializationFixtureFacts,
   adoptedInitializationFixture,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { openSourceServiceWorld } from '../../../../../packages/assets/settings-local/tests/source-service-world.ts'
 import { settingsPreparationWorld } from './settings-preparation-world.ts'
@@ -220,8 +223,10 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
         resolve: async () => ({ kind: 'ready', entry }),
         snapshot: async () => ({ kind: 'ready', value: { revision: '1', entries: [entry] } }),
       },
-      accessCheck,
+      accessCheck: withMemberSubject(accessCheck),
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       protectedBasis: basisSource,
     })
     const sessionAccess = {

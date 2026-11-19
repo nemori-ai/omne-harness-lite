@@ -6,12 +6,14 @@ import { Fragment } from 'react'
 import { ArchiveStore } from './model/archive.ts'
 import { BackgroundCallsStore } from './model/background-calls.ts'
 import { PermissionModeStore } from './model/permission-mode.ts'
+import { SessionWorkStore } from './model/session-work.ts'
 import { SessionWorkspaces } from './model/session-workspaces.ts'
 import { sessionCallDetail, sessionDock, sessionSide } from './points.ts'
 import { ArchiveAction, ArchivedSessions } from './view/archive.tsx'
 import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
 import { ConversationPage } from './view/conversation-page.tsx'
 import { PermissionModeAction } from './view/permission-mode.tsx'
+import { SessionWork } from './view/session-work.tsx'
 import { SessionListPanel } from './view/session-list-panel.tsx'
 import { SidePanel } from './view/side-panel.tsx'
 
@@ -33,6 +35,7 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
     const background = new BackgroundCallsStore(client)
     const archive = new ArchiveStore(client)
     const modes = new PermissionModeStore(client)
+    const held = new SessionWorkStore(client)
     sessionDock.contribute(shell, {
       id: 'background-calls',
       order: 10,
@@ -69,6 +72,11 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
         <ConversationPage
           workspaces={workspaces}
           scope={scope}
+          work={(session, revision) =>
+            scope === undefined ? null : (
+              <SessionWork store={held} tenant={scope} session={session} revision={revision} />
+            )
+          }
           heading={session =>
             scope === undefined ? null : (
               <>

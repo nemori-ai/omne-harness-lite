@@ -47,3 +47,15 @@ export function createPolicySessionAccessCheck<P>(
     controls: Object.freeze({ asked: () => [...asked] }),
   })
 }
+
+/** A check whose allowed answers name a member where the wrapped check named no subject kind. */
+export function withMemberSubject<P>(check: SessionAccessCheck<P>): SessionAccessCheck<P> {
+  return {
+    check: async request => {
+      const answer = await check.check(request)
+      return answer.kind !== 'allowed' || answer.subject !== undefined
+        ? answer
+        : { ...answer, subject: { kind: 'member' } }
+    },
+  }
+}

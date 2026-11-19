@@ -1,4 +1,5 @@
 export { createSessionContribution, type SessionContributionInput } from './contribution.ts'
+export { MEMBER_INPUT_SOURCE } from './member-source.ts'
 export { openRequestJournal } from './request-journal.ts'
 export type { QueuedRequest } from './request-queue.ts'
 export type {

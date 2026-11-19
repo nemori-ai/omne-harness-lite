@@ -25,6 +25,7 @@ import type { CommandHandler } from './command.ts'
 import type { Current, SessionDependencies } from './dependencies.ts'
 import { guarded, OWNERS, unavailable } from './failures.ts'
 import { createHistoryPages } from './history-pages.ts'
+import { readInputFateOf, readPendingOf, readWaitingCallsOf } from './intake-reads.ts'
 import { readSnapshot } from './qualify.ts'
 import type { Reads } from './reads.ts'
 
@@ -138,6 +139,11 @@ function snapshotReads<P>(
   return {
     readWork: (value: SessionAccess<P>) => readSnapshotOf(reads, caller, 'readWork', value),
     readWaiting: (value: SessionAccess<P>) => readWaitingOf(reads, caller, value),
+    readPending: (value: Parameters<SessionWork<P>['readPending']>[0]) =>
+      readPendingOf(reads, caller, value),
+    readWaitingCalls: (value: SessionAccess<P>) => readWaitingCallsOf(reads, caller, value),
+    readInputFate: (value: Parameters<SessionWork<P>['readInputFate']>[0]) =>
+      readInputFateOf(reads, caller, value),
     readBackgroundCalls: (value: SessionAccess<P>) =>
       readBackgroundCallsOf(reads, caller, value, states),
     resolveBackgroundCall: (value: SessionAccess<P> & Readonly<{ id: string }>) =>

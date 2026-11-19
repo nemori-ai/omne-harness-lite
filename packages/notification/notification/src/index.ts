@@ -1,5 +1,6 @@
 export * from './ports.ts'
 export * from './registries.ts'
+export * from './standing-need.ts'
 export * from './store.ts'
 export * from './txn.ts'
 export * from './transactions/accept.ts'

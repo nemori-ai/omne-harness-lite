@@ -14,6 +14,9 @@ Commands
   omne interrupt-input --session <id> --text <text>                                                                  Send an urgent user message: it releases what the run waits for, or is ordinary.
   omne read-history --session <id>                                                                                   Read the whole history of a session.
   omne read-session-diagnostics --session <id>                                                                       Read the diagnostics of the runs of a session.
+  omne read-pending --session <id> [--after <position>] [--limit <n>]                                                List the inputs a session accepted that no run took yet, the oldest first.
+  omne read-waiting-calls --session <id>                                                                             List the calls of a session that wait for a person to answer a card.
+  omne read-input-fate --session <id> --input-id <id>                                                                Read where one input is now: pending, taken, answered, settled or refused.
   omne cancel-run --session <id> --run <id>                                                                          Cancel a run.
   omne stop-call --session <id> --producer-kind <kind> --call <id>                                                   Stop a model or tool call.
   omne archive-session --session <id>                                                                                Archive a session: its run ends and its background calls are withdrawn.

@@ -27,7 +27,6 @@ import {
   type OperationRecord,
   type ProducerRef,
   type ResidentTool,
-  type RoutedInput,
   type RunId,
   type SessionCallLookup,
   type SessionRunLookup,
@@ -599,27 +598,6 @@ function commandStart(
 const isStart = (value: CommandStart | ParticipantReply): value is CommandStart =>
   !('kind' in value)
 
-function firstInputOf(
-  port: ParticipantPort,
-  tenant: string,
-  session: string,
-  previous: WorkSnapshot,
-): Pick<Reads, 'firstInput'> {
-  const [first] = runStartInputs(previous)
-  if (first === undefined) return {}
-  const row = oneRow(
-    port,
-    'SELECT value FROM sl_input WHERE tenant = ? AND session = ? AND input = ? LIMIT 1',
-    [tenant, session, first],
-  )
-  if (row === undefined) return {}
-  const stored = decodeValue(JSON.parse(text(row['value'])) as JsonValue) as Extract<
-    RoutedInput,
-    { kind: 'ordinary' }
-  >
-  return { firstInput: { input: stored.input, origin: stored.origin } }
-}
-
 function commandReads(
   port: ParticipantPort,
   command: SessionCommand,
@@ -650,9 +628,6 @@ function commandReads(
       : {}),
     ...(command.kind === 'stopCall' && previous !== null
       ? { calls: [callLookup(previous, command.input.producer)] }
-      : {}),
-    ...(command.kind === 'startRun' && previous !== null
-      ? firstInputOf(port, tenant, session, previous)
       : {}),
     ...(command.kind === 'completeInitialization'
       ? {

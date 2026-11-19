@@ -21,6 +21,7 @@ import { noRandomSourceInline } from './no-random-source-inline.ts'
 import { createNoTestingImport, noTestingImport } from './no-testing-import.ts'
 import { collectTestingEntries } from '../testing-entries.ts'
 import { noWallClock } from './no-wall-clock.ts'
+import { sessionCoreNoSourceNames } from './session-core-no-source-names.ts'
 import { ogS42DynamicResolve } from './og-s42-dynamic-resolve.ts'
 import { opsEventWhitelist } from './ops-event-whitelist.ts'
 import { opsImportWhitelist } from './ops-import-whitelist.ts'
@@ -81,6 +82,7 @@ export {
   scCv1,
   scOe1,
   scOe2,
+  sessionCoreNoSourceNames,
   singleTableEntry,
   terminalOutcomeClosed,
 }
@@ -113,6 +115,7 @@ export const RULES: readonly Rule[] = [
   bodyProjectionInputs,
   parameterJudgeCacheOwner,
   singleToolArgumentParser,
+  sessionCoreNoSourceNames,
 ]
 
 export function rulesForRoot(root: string): readonly Rule[] {

@@ -1,4 +1,4 @@
 export const INITIALIZATION_RELEASE_DIGEST =
-  'sha256:8b66ed9c084fb47e8738aa7d12f2ed9bba9fde86b729881b01a0ebc437ab6d99'
+  'sha256:c694884c7750e5fee62fdbddf66cb08fcbdff06cd190a02ed9cdb4a4035bb8c0'
 export const SESSION_RELEASE_DIGEST =
-  'sha256:8b66ed9c084fb47e8738aa7d12f2ed9bba9fde86b729881b01a0ebc437ab6d99'
+  'sha256:c694884c7750e5fee62fdbddf66cb08fcbdff06cd190a02ed9cdb4a4035bb8c0'

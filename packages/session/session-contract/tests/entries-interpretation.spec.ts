@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from 'vitest'
-import { expectedRevision } from '@omne-harness/session-contract'
+import { expectedRevision, type SessionCommand } from '@omne-harness/session-contract'
 import type {
   CommitReceipt,
   Decision,
@@ -23,6 +23,7 @@ import {
   ordinaryInput,
   sessionId,
   succeeded,
+  testingIntakeGuards,
 } from '@omne-harness/session-contract/testing'
 import { decodeEntry, encodeEntry } from '../src/entries.ts'
 import { digestSessionEntries, projectSessionEntries } from '../src/entries-interpretation.ts'
@@ -689,22 +690,17 @@ describe('reduce: the progress chain in WorkSnapshot.entriesProgress', () => {
 
   it('a later batch without a progress row keeps the saved progress', () => {
     const { one } = twoBatches()
+    const later: SessionCommand = {
+      kind: 'accept',
+      input: {
+        tenant: one.tenant,
+        session: one.session,
+        operation: operationId('accept-later'),
+        value: ordinaryInput('later'),
+      },
+    }
     const accepted = batchOf(
-      decide(
-        one,
-        {
-          kind: 'accept',
-          input: {
-            tenant: one.tenant,
-            session: one.session,
-            operation: operationId('accept-later'),
-            value: ordinaryInput('later'),
-          },
-        },
-        [],
-        null,
-        { compaction: null },
-      ),
+      decide(one, later, testingIntakeGuards(later), null, { compaction: null }),
       next(one),
     )
     expect(reduced(reduce(one, accepted)).entriesProgress).toEqual(one.entriesProgress)

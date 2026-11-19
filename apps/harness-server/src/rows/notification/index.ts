@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { ConsentModes, StandingItems } from '@omne-harness/notification'
+import type { ConsentModes } from '@omne-harness/notification'
 import { instantSchema, type Instant } from '@omne-harness/notification-contract'
 import {
   notificationCatalogKey,
@@ -9,6 +9,7 @@ import {
   notificationInboxKey,
   notificationSendingKey,
   notificationSourcesKey,
+  notificationStandingKey,
   notificationSubscriptionsKey,
 } from '@omne-harness/notification-cordis-contract/cordis'
 import { notificationPolicySchema } from '@omne-harness/notification-local'
@@ -25,7 +26,12 @@ import {
   tenantDomainLookupKey,
   tenantDomainsKey,
 } from '@omne-harness/sql-contract/cordis'
+import {
+  runtimeContextTenantBlocksKey,
+  runtimeContextTenantScopeKey,
+} from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { readSystemInstant } from '../../entry/session-clock.ts'
+import { tenantScopePrincipalsKey } from '../../entry/tenant-scope-principals.ts'
 import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
 import { defineRow } from '../../row.ts'
 import {
@@ -36,16 +42,12 @@ import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { createNotificationAuthority } from './authority.ts'
 import { createTenantBindings, NOTIFICATION_PARTICIPANTS, type Combination } from './binding.ts'
 import { OWNER_POSTS } from './owner-source.ts'
+import { createStandingItemsReader, standingContribution } from './standing.ts'
 
 export const notificationConfig = z.strictObject({ policy: notificationPolicySchema })
 
 /** The owner confirms each subscription an agent asks for. A setting that lets them stand comes with the agent's half. */
 export const CONFIRM_EACH: ConsentModes = { mode: async () => ({ kind: 'per-request' }) }
-
-/** No source publishes standing items into this tree yet: the read succeeds and finds none. */
-export const NO_STANDING_SOURCES: StandingItems = {
-  read: async () => ({ kind: 'ok', items: [] }),
-}
 
 function now(): Instant {
   const instant = readSystemInstant()
@@ -78,6 +80,7 @@ export const notificationRow = defineRow({
       notificationSourcesKey,
       notificationChannelsKey,
       notificationChangesKey,
+      notificationStandingKey,
     ],
     injects: [
       storageKey,
@@ -110,17 +113,21 @@ export const notificationRow = defineRow({
       ports: {
         authority: createNotificationAuthority(),
         consent: CONFIRM_EACH,
-        standing: NO_STANDING_SOURCES,
+        standing: createStandingItemsReader<unknown>({
+          scope: () => ctx.get(runtimeContextTenantScopeKey),
+          principal: async tenant => ctx.get(tenantScopePrincipalsKey)?.forTenant(tenant) ?? null,
+        }),
       },
       clock: { now },
       report: error => logger.warn('notification work failed: %s', String(error)),
     })
     await provider.await()
     ctx.inject([notificationSourcesKey], child => {
-      child.effect(
-        () => child.notificationSources.register(OWNER_POSTS),
-        'notification.owner-posts',
-      )
+      child.notificationSources.register(OWNER_POSTS)
+    })
+    ctx.inject([runtimeContextTenantBlocksKey, notificationStandingKey], child => {
+      const blocked = child[notificationStandingKey].blocked
+      child[runtimeContextTenantBlocksKey].register(standingContribution(blocked))
     })
     return {
       async stop() {

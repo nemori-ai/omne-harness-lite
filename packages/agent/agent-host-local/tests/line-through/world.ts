@@ -143,6 +143,9 @@ import {
   memoryOtherAccess,
   sessionId,
   type SessionAccessScript,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { createSessionCommitNotifier, SessionProvider } from '@omne-harness/session-cordis/cordis'
 import {
@@ -558,7 +561,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   }
 
-  const sessionChecks = createPolicySessionAccessCheck<string>(sessionPolicy)
+  // This world admits inputs as a member of the tenant: every allowed answer names that subject.
+  const sessionChecks = withMemberSubject(createPolicySessionAccessCheck<string>(sessionPolicy))
   const pairOver = (over: SqlStorage) =>
     createSessionStoragePair<string>({
       storage: over,
@@ -582,6 +586,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
       },
       accessCheck: sessionChecks,
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       combination,
     })
   const pair = pairOver(storage)

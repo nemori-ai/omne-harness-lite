@@ -265,6 +265,7 @@ describe('system principals against the release action matrix (验收 2)', () =>
       'sessionPrincipals.coordinator',
       'sessionPrincipals.maintainer',
       'sessionWorkPrincipals',
+      'tenantScopePrincipals',
       'toolDecisions',
     ])
     const verifier = verifierOf(fixture.env)
