@@ -247,6 +247,22 @@ describe('one message, one hit (SH-6)', () => {
   })
 })
 
+describe('a message under a compaction (SH-6)', () => {
+  it('is still found once a later summary stands for it; the summary is found only when asked for', async () => {
+    const w = world()
+    w.log.commit(S1, [said('needle said early')], 1000)
+    w.log.commit(S1, [said('needle answered', 'message.assistant')], 1100)
+    w.log.commit(S1, [said('needle in the summary', 'message.compaction')], 1200)
+    await w.followAll(w.index.ready())
+    expect(keysOf([await w.page(NEEDLE)])).toEqual(['session-1#2', 'session-1#1'])
+    const withSummaries = queryOf({
+      content: literals(['needle']),
+      kinds: ['message.user', 'message.compaction'],
+    })
+    expect(keysOf([await w.page(withSummaries)])).toEqual(['session-1#3', 'session-1#1'])
+  })
+})
+
 describe('the order and the time of the hits', () => {
   it('lists newest first, tail and index alike; an entry with no time of its own counts at the one before', async () => {
     const w = world()

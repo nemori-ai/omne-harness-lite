@@ -18,6 +18,8 @@ it('reads sessions, commits and single entries through the read handlers of the 
   expect(await app.accept(TENANT_A, 'session-1', 'two', 'the second words')).toHaveProperty('ok')
   const log = createSessionSearchLog({ storage: app.storage, domains: app.domains })
 
+  const before = await log.stamp(TENANT_A)
+  expect(before).toEqual({ ok: { sessions: 1, total: '3', archived: 0 } })
   expect(await log.sessions(TENANT_A)).toEqual({
     ok: [{ session: 'session-1', tail: '3', archived: false }],
   })
@@ -68,4 +70,10 @@ it('reads sessions, commits and single entries through the read handlers of the 
   const point = { session: 'session-1' as SessionId, position: second!.position }
   expect(await log.judgeAt({ tenant: TENANT_A, points: [point], spec })).toEqual({ ok: [second] })
   expect(await log.judgeAt({ tenant: TENANT_B, points: [point], spec })).toEqual({ ok: [null] })
+
+  // SE-34: every read a search makes leaves the sessions it read where they stood.
+  expect(await log.stamp(TENANT_A)).toEqual(before)
+  expect(await log.sessions(TENANT_A)).toEqual({
+    ok: [{ session: 'session-1', tail: '3', archived: false }],
+  })
 }, 60_000)
