@@ -293,6 +293,8 @@ describe('a usage query refused before anything is read', () => {
       { page: 1, pages: 1.5, buckets: 1 },
       { page: 1, pages: 1, buckets: -1 },
     ])
-      expect(() => usageOver([], undefined, limits), JSON.stringify(limits)).toThrow(RangeError)
+      expect(() => usageOver([], undefined, limits), JSON.stringify(limits)).toThrow(
+        /^usage limit (page|pages|buckets) must be a positive integer$/,
+      )
   })
 })

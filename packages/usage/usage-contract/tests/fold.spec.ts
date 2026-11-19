@@ -281,3 +281,119 @@ describe('folding, on cases written out', () => {
     expect(result.total.rates.failure).toEqual({ kind: 'known', value: 0.5 })
   })
 })
+
+describe('the measures that the random facts do not pin down', () => {
+  const at = (hour: number) => new Date(FROM + hour * 3_600_000).toISOString()
+  const base = randomFact(picker(11), 0, FROM, TO)
+  const fact = (changes: Partial<UsageFact>): UsageFact => ({
+    ...base,
+    usage: [],
+    cost: null,
+    retried: false,
+    outcome: 'completed',
+    cause: null,
+    durations: { toResponse: null, toFirstContent: null, total: null, generation: null },
+    ...changes,
+  })
+  const ms = (changes: Partial<UsageFact['durations']>) => ({
+    toResponse: null,
+    toFirstContent: null,
+    total: null,
+    generation: null,
+    ...changes,
+  })
+  const once = (facts: readonly UsageFact[], groupBy: readonly UsageDimension[] = []) =>
+    fold(facts, checked('UTC', 'none', groupBy), { sources: [], undated: 0 })
+
+  it('takes the median and the ninetieth percentile from the units, and sums the whole times', () => {
+    const facts = [100, 30, 70, 10, 90, 50, 20, 80, 40, 60].map((value, index) =>
+      fact({ at: at(index), durations: ms({ toFirstContent: value, total: value * 2 }) }),
+    )
+    const { duration } = once([...facts, fact({ at: at(11) })]).total
+    expect(duration.toFirstContent).toEqual({ count: 10, p50: 50, p90: 90 })
+    expect(duration.whole).toEqual({ count: 10, p50: 100, p90: 180 })
+    expect(duration.total).toEqual({ known: '1100', unknown: 1, provisional: 0 })
+    expect(once([]).total.duration.toFirstContent).toEqual({ count: 0, p50: null, p90: null })
+    expect(
+      once([fact({ at: at(1), durations: ms({ toFirstContent: 7 }) })]).total.duration
+        .toFirstContent,
+    ).toEqual({ count: 1, p50: 7, p90: 7 })
+  })
+
+  it('takes the reasoning share and the output speed from the sums of the units that have both', () => {
+    const token = (name: string, lexeme: string | null) =>
+      lexeme === null
+        ? { name, state: 'unknown' as const, unit: 'token' }
+        : { name, state: 'known' as const, lexeme, unit: 'token' }
+    const result = once([
+      fact({
+        at: at(1),
+        usage: [token('output', '100'), token('reasoning', '20')],
+        durations: ms({ generation: 2000 }),
+      }),
+      fact({ at: at(2), usage: [token('output', '50')], durations: ms({ generation: 1000 }) }),
+      fact({
+        at: at(3),
+        usage: [token('output', null), token('reasoning', '5')],
+        durations: ms({ generation: 500 }),
+      }),
+      fact({ at: at(4), usage: [token('output', '10')] }),
+      fact({ at: at(5), usage: [token('input', '10')] }),
+    ])
+    expect(result.total.rates.reasoningShare).toEqual({ kind: 'known', value: 0.2 })
+    expect(result.total.rates.outputPerSecond).toEqual({ kind: 'known', value: 50 })
+    expect(result.coverage.excluded).toEqual({ cacheHit: 1, reasoningShare: 3, outputPerSecond: 2 })
+  })
+
+  it('keys each group by the dimensions in their order, nothing first, and sorts the groups', () => {
+    const facts = [
+      fact({
+        at: at(1),
+        source: 'tool',
+        labels: { ...base.labels, model: null, tool: 'Shell', provider: 'p' },
+      }),
+      fact({
+        at: at(2),
+        source: 'model',
+        labels: { ...base.labels, model: 'm-b', tool: null, provider: null },
+      }),
+      fact({
+        at: at(3),
+        source: 'model',
+        labels: { ...base.labels, model: 'm-a', tool: null, provider: null },
+      }),
+      fact({
+        at: at(4),
+        source: 'model',
+        labels: { ...base.labels, model: 'm-a', tool: null, provider: null },
+      }),
+    ]
+    expect(
+      once(facts, ['model', 'tool']).groups.map(cell => [cell.key, cell.measures.units]),
+    ).toEqual([
+      [[null, 'Shell'], 1],
+      [['m-a', null], 2],
+      [['m-b', null], 1],
+    ])
+    expect(once(facts, ['source', 'provider']).groups.map(cell => cell.key)).toEqual([
+      ['model', null],
+      ['tool', 'p'],
+    ])
+    const purposes = [
+      fact({ at: at(1), consumer: { ...base.consumer, purpose: 'compaction' } }),
+      fact({ at: at(2), consumer: { ...base.consumer, purpose: 'main' } }),
+    ]
+    expect(once(purposes, ['purpose']).groups.map(cell => cell.key)).toEqual([
+      ['compaction'],
+      ['main'],
+    ])
+  })
+
+  it('counts a fact at the start of the range and none before it', () => {
+    const result = once([
+      fact({ at: new Date(FROM).toISOString() }),
+      fact({ at: new Date(FROM - 1).toISOString() }),
+    ])
+    expect(result.total.units).toBe(1)
+  })
+})

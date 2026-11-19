@@ -21,6 +21,8 @@ const checked = (changes: Partial<UsageQuery>, buckets = 1000) => {
 describe('a usage query checked before any read', () => {
   it('takes an IANA zone by its canonical name and refuses offsets and unknown names', () => {
     expect(checked({ zone: 'asia/shanghai' }).zone).toBe('Asia/Shanghai')
+    expect(checked({ zone: 'America/Port-au-Prince' }).zone).toBe('America/Port-au-Prince')
+    expect(checked({ zone: 'Etc/GMT-8' }).zone).toBe('Etc/GMT-8')
     for (const zone of ['+08:00', '-05:00', 'Mars/Olympus', ''])
       expect(checkUsageQuery(query({ zone }), { buckets: 10 }), zone).toEqual({
         failure: { kind: 'invalid', field: 'zone', reason: 'iana-name' },
@@ -40,10 +42,12 @@ describe('a usage query checked before any read', () => {
     expect(refused({ range: { from: at, to: at } })).toMatchObject({
       failure: { field: 'range', reason: 'order' },
     })
-    expect(refused({ bucket: 'minute' as never })).toMatchObject({ failure: { field: 'bucket' } })
+    expect(refused({ bucket: 'minute' as never })).toEqual({
+      failure: { kind: 'invalid', field: 'bucket', reason: 'value' },
+    })
     for (const groupBy of [['model', 'tool', 'source'], ['model', 'model'], ['colour']] as never[])
-      expect(refused({ groupBy }), JSON.stringify(groupBy)).toMatchObject({
-        failure: { field: 'groupBy' },
+      expect(refused({ groupBy }), JSON.stringify(groupBy)).toEqual({
+        failure: { kind: 'invalid', field: 'groupBy', reason: 'dimensions' },
       })
     expect(refused({ groupBy: ['model', 'tool'] })).toMatchObject({ ok: {} })
   })
@@ -52,9 +56,14 @@ describe('a usage query checked before any read', () => {
     expect(checkUsageQuery(query({ scope: { kind: 'organization' } }), { buckets: 10 })).toEqual({
       failure: { kind: 'unsupported', field: 'scope' },
     })
-    expect(
-      checkUsageQuery(query({ scope: { kind: 'session', session: '' } }), { buckets: 10 }),
-    ).toMatchObject({ failure: { kind: 'invalid', field: 'scope' } })
+    for (const scope of [
+      { kind: 'session', session: '' },
+      { kind: 'session', session: 5 },
+      { kind: 'galaxy' },
+    ] as never[])
+      expect(checkUsageQuery(query({ scope }), { buckets: 10 }), JSON.stringify(scope)).toEqual({
+        failure: { kind: 'invalid', field: 'scope', reason: 'shape' },
+      })
     expect(
       checkUsageQuery(query({ scope: { kind: 'session', session: 's-1' } }), { buckets: 10 }),
     ).toMatchObject({ ok: {} })
