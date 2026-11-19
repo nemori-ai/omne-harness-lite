@@ -61,17 +61,45 @@ const fits = (value: unknown, max: number): value is string =>
   value.trim() !== '' &&
   codePoints(value) <= max
 
+function shownOf(shown: unknown, policy: ReleaseDetailPolicy): ReleaseRow['value'] | undefined {
+  if (typeof shown === 'string') return fits(shown, policy.maxText) ? shown : undefined
+  if (!Array.isArray(shown) || shown.length === 0 || shown.length > policy.maxItems)
+    return undefined
+  return shown.every(entry => fits(entry, policy.maxItem))
+    ? Object.freeze([...shown] as string[])
+    : undefined
+}
+
 function rowOf(value: unknown, policy: ReleaseDetailPolicy): ReleaseRow | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const { label, value: shown, ...rest } = value as Record<string, unknown>
   if (Object.keys(rest).length > 0 || !fits(label, policy.maxLabel)) return undefined
-  if (typeof shown === 'string')
-    return fits(shown, policy.maxText) ? { label, value: shown } : undefined
-  if (!Array.isArray(shown) || shown.length === 0 || shown.length > policy.maxItems)
-    return undefined
-  return shown.every(entry => fits(entry, policy.maxItem))
-    ? { label, value: Object.freeze([...shown] as string[]) }
-    : undefined
+  const read = shownOf(shown, policy)
+  return read === undefined ? undefined : { label, value: read }
+}
+
+function rowsOf(
+  rows: unknown,
+  policy: ReleaseDetailPolicy,
+): Outcome<ReleaseDetail['rows'], string> {
+  if (!Array.isArray(rows) || rows.length === 0 || rows.length > policy.maxRows) return fail('rows')
+  const read = rows.map(row => rowOf(row, policy))
+  return read.some(row => row === undefined)
+    ? fail('row')
+    : succeed(Object.freeze(read) as ReleaseDetail['rows'])
+}
+
+function typedOf(
+  typed: unknown,
+  declared: ToolCommandReleaseDetail,
+  policy: ReleaseDetailPolicy,
+): Outcome<NonNullable<ReleaseDetail['typed']>, string> {
+  const tree = judgeJsonValue(typed)
+  if (!('ok' in tree)) return fail('typed-not-json')
+  const text = writeJsonText(tree.ok)
+  return new TextEncoder().encode(text).byteLength > policy.maxTypedBytes
+    ? fail('typed-too-large')
+    : succeed({ kind: declared.kind, value: text })
 }
 
 /** Checks a description against the declaration of its command and the budget, shape and size only. */
@@ -83,16 +111,10 @@ export function judgeReleaseDescription(
   if (typeof value !== 'object' || value === null) return fail('not-an-object')
   const { rows, typed, ...rest } = value as Record<string, unknown>
   if (Object.keys(rest).length > 0) return fail('unknown-field')
-  if (!Array.isArray(rows) || rows.length === 0 || rows.length > policy.maxRows) return fail('rows')
-  const read = rows.map(row => rowOf(row, policy))
-  if (read.some(row => row === undefined)) return fail('row')
-  const kept = Object.freeze(read) as ReleaseDetail['rows']
+  const kept = rowsOf(rows, policy)
+  if ('failure' in kept) return kept
   if ((typed === undefined) !== (declared === undefined)) return fail('typed-undeclared')
-  if (typed === undefined || declared === undefined) return succeed({ rows: kept })
-  const tree = judgeJsonValue(typed)
-  if (!('ok' in tree)) return fail('typed-not-json')
-  const text = writeJsonText(tree.ok)
-  if (new TextEncoder().encode(text).byteLength > policy.maxTypedBytes)
-    return fail('typed-too-large')
-  return succeed({ rows: kept, typed: { kind: declared.kind, value: text } })
+  if (typed === undefined || declared === undefined) return succeed({ rows: kept.ok })
+  const read = typedOf(typed, declared, policy)
+  return 'failure' in read ? read : succeed({ rows: kept.ok, typed: read.ok })
 }

@@ -11,10 +11,7 @@ function stable(value: unknown): string {
   return JSON.stringify(value) ?? 'undefined'
 }
 
-/**
- * Runs an implementer's describe function several times on one input. It conforms when every run
- * gives the same description and the domain state the caller reads is the same before and after.
- */
+/** Conforms when every run on one input gives the same description and leaves the domain state as it was. */
 export async function checkReleaseDescription<A>(
   describe: ToolReleaseDescriber<A>,
   input: Parameters<ToolReleaseDescriber<A>>[0],

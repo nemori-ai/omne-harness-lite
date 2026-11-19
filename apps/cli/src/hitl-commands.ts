@@ -105,11 +105,16 @@ async function runHitl(
   const result = await built.send(loaded.link)
   if (result === undefined) return usageError(output, unrecognized(name))
   const code = report(name, result, built.echo, output)
+  printReleaseCards(command, result, output)
+  return code
+}
+
+// The human channel also gets every release card the answer holds; the machine result stays as it was.
+function printReleaseCards(command: HitlCommand, result: CallResult, output: CliOutput): void {
   if (command.cards === undefined || result.kind !== 'response' || result.outcome !== 'succeeded')
-    return code
+    return
   for (const question of command.cards(result.body).map(questionOf))
     if (isRelease(question)) output.stderr(releaseLines(question))
-  return code
 }
 
 function cardOf(values: Option, tenant: TenantId) {

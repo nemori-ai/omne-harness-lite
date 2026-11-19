@@ -68,11 +68,6 @@ async function schemaVerdict(
   return (await validate(provider, reference, read)).kind
 }
 
-/**
- * Asks the implementer what one call would do, before it starts. It writes nothing: it finds the
- * registration a start would run, parses the arguments as a start would, and calls the read-only
- * describe function of the command under a time limit.
- */
 type Asked<P> = Parameters<ToolReleaseDetails<P>['describe']>[0]
 type Describing = Readonly<{ describe: ToolReleaseDescriber<unknown>; arguments: unknown }>
 

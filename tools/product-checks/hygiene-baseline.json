@@ -648,7 +648,7 @@
       },
       "packages/tool/tool-host-local/src/bindings.ts": {
         "count": 1,
-        "longest": 184
+        "longest": 178
       },
       "packages/tool/tool-host-local/src/catalog.ts": {
         "count": 1,

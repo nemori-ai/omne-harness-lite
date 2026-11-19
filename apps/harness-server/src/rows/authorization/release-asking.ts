@@ -51,7 +51,6 @@ function jsonOf(value: unknown): JsonValue {
 
 const UNAVAILABLE: ReleaseCardDetail = { state: 'unavailable' }
 
-// A detail the card cannot hold is one the tool could not give: the person is asked all the same.
 export function cardDetailOf(answer: ReleaseDetailAnswer): ReleaseCardDetail | undefined {
   if (answer.kind === 'none') return undefined
   if (answer.kind === 'unavailable') return UNAVAILABLE
