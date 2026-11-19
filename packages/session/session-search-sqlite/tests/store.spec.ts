@@ -9,6 +9,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { GramPlan, IndexDocument } from '@omne-harness/session-search'
 import { createStore, type Store, type StoreCandidateRequest } from '../src/store.ts'
@@ -673,5 +674,169 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
       '15',
       '5',
     ])
+  })
+})
+
+describe('the number of a row in the file: its day, then a serial', () => {
+  const DAY = 86_400_000
+  const T = Date.UTC(2026, 0, 10)
+  const fileIn = (root: string, generation: number): DatabaseSync =>
+    new DatabaseSync(join(directoryIn(root), `g${String(generation)}.db`))
+
+  // Three sessions written one after the other; their times interleave over three days. One row
+  // has no time, one is from before the days are counted.
+  function spread(): Readonly<{ store: Store; generation: number; root: string }> {
+    const root = rootOf()
+    const store = storeOf(root)
+    const generation = ready(store)
+    const write = (session: string, times: readonly number[]) =>
+      expect(
+        store.append({
+          tenant: TENANT,
+          generation,
+          session,
+          through: String(times.length),
+          at: times.at(-1)!,
+          documents: times.map((at, index) => item(index + 1, `needle ${session}`, at)),
+        }),
+      ).toBeNull()
+    write('s1', [T + 1000, T + DAY + 1000, T + DAY + 3000, T + 2 * DAY + 1000])
+    write('s2', [T + 2000, T + DAY + 2000, T + DAY + 3000, T + 2 * DAY + 500])
+    write('s3', [0, Date.UTC(2019, 5, 1)])
+    return { store, generation, root }
+  }
+  const NEWEST_FIRST = [
+    's1:4',
+    's2:4',
+    's2:3',
+    's1:3',
+    's2:2',
+    's1:2',
+    's2:1',
+    's1:1',
+    's3:2',
+    's3:1',
+  ]
+
+  it('gives rows newest first by the time they count at, whatever order they were written in', () => {
+    const { store, generation } = spread()
+    expect(positions(store, ask(generation, gram('nee')))).toEqual(NEWEST_FIRST)
+    expect(positions(store, ask(generation, ANY))).toEqual(NEWEST_FIRST)
+    const docs = found(store, ask(generation, gram('nee'))).rows.map(row => BigInt(row.doc))
+    expect(docs.map(doc => Number(doc >> 20n))).toEqual([
+      T + 2 * DAY + 1000,
+      T + 2 * DAY + 500,
+      T + DAY + 3000,
+      T + DAY + 3000,
+      T + DAY + 2000,
+      T + DAY + 1000,
+      T + 2000,
+      T + 1000,
+      Date.UTC(2019, 5, 1),
+      0,
+    ])
+    expect(new Set(docs).size).toBe(docs.length)
+  })
+
+  it('goes on after any row, a row at a time, and gives each row once', () => {
+    const { store, generation } = spread()
+    for (const plan of [gram('nee'), ANY]) {
+      const walked: string[] = []
+      let before: string | null = null
+      for (let turn = 0; turn < 2 * NEWEST_FIRST.length; turn += 1) {
+        const rows: readonly Readonly<{ doc: string; session: string; position: string }>[] = found(
+          store,
+          ask(generation, plan, { limit: 1, before }),
+        ).rows
+        if (rows.length === 0) break
+        walked.push(`${rows[0]!.session}:${rows[0]!.position}`)
+        before = rows[0]!.doc
+      }
+      expect(walked).toEqual(NEWEST_FIRST)
+    }
+  })
+
+  it('keeps a window exact inside a day, across days, and for rows with no time', () => {
+    const { store, generation } = spread()
+    const within = (from: number | null, to: number | null, before: string | null = null) =>
+      positions(store, ask(generation, gram('nee'), { window: { from, to }, before }))
+    expect(within(T + DAY + 2000, T + DAY + 3000)).toEqual(['s2:3', 's1:3', 's2:2'])
+    expect(within(T + 1001, T + DAY + 1000)).toEqual(['s1:2', 's2:1'])
+    expect(within(null, 0)).toEqual(['s3:1'])
+    expect(within(1, Date.UTC(2020, 0, 1))).toEqual(['s3:2'])
+    expect(within(T + 2 * DAY + 501, null)).toEqual(['s1:4'])
+    const tied = found(store, ask(generation, gram('nee'))).rows[2]!
+    expect(within(T + DAY + 2000, null, tied.doc)).toEqual(['s1:3', 's2:2'])
+  })
+
+  it('keeps the row numbers of the file small: a day counted from 2020 and a serial within it', () => {
+    const { root, generation } = spread()
+    const file = fileIn(root, generation)
+    const ids = file
+      .prepare('SELECT id FROM doc ORDER BY id')
+      .all()
+      .map(row => Number(row['id']))
+    file.close()
+    // The index stores row numbers whole at the head of each list: a large number costs bytes there.
+    expect(Math.max(...ids)).toBeLessThan(2 ** 35)
+    expect(ids.slice(0, 2)).toEqual([0, 1])
+    expect(new Set(ids.map(id => Math.floor(id / 2 ** 20))).size).toBe(4)
+  })
+
+  it('answers unavailable, and moves no cover, when a day has no number left', () => {
+    const { store, generation, root } = spread()
+    const file = fileIn(root, generation)
+    const last = Number(file.prepare('SELECT max(id) AS id FROM doc').get()!['id'])
+    const full = Math.floor(last / 2 ** 20) * 2 ** 20 + 2 ** 20 - 1
+    file.prepare('INSERT INTO doc (id, session, position, at) VALUES (?, 1, 99, ?)').run(full, T)
+    file.close()
+    const more = (at: number) =>
+      store.append({
+        tenant: TENANT,
+        generation,
+        session: 's1',
+        through: '5',
+        at,
+        documents: [item(5, 'needle late', at)],
+      })
+    const covers = store.covers(TENANT, generation)
+    expect(more(T + 2 * DAY + 2000)).toBe('unavailable')
+    expect(store.covers(TENANT, generation)).toEqual(covers)
+    expect(positions(store, ask(generation, gram('nee')))).toEqual(NEWEST_FIRST)
+    expect(more(T + 3 * DAY)).toBeNull()
+    expect(positions(store, ask(generation, gram('nee')))[0]).toBe('s1:5')
+  })
+})
+
+describe('a generation is put in order before it is adopted', () => {
+  it('is one merged index with no free pages: smaller than what the build left', () => {
+    const root = rootOf()
+    const store = storeOf(root)
+    expect(store.beginRebuild(TENANT, 1)).toEqual({ generation: 1 })
+    // Each batch has words of its own, so each leaves a part of the index that shares little.
+    const words = (n: number): string =>
+      Array.from({ length: 150 }, (_, k) => (n * 7919 + k * 104_729).toString(36)).join(' ')
+    for (let n = 1; n <= 120; n += 1)
+      store.append({
+        tenant: TENANT,
+        generation: 1,
+        session: `s${String(n % 7)}`,
+        through: String(n),
+        at: 1000 + n,
+        documents: [item(n, `needle ${words(n)}`)],
+      })
+    const pages = (): Readonly<{ all: number; free: number }> => {
+      const file = new DatabaseSync(join(directoryIn(root), 'g1.db'))
+      const all = Number(file.prepare('PRAGMA page_count').get()!['page_count'])
+      const free = Number(file.prepare('PRAGMA freelist_count').get()!['freelist_count'])
+      file.close()
+      return { all, free }
+    }
+    const before = pages()
+    expect(store.adopt(TENANT, 1)).toBeNull()
+    const after = pages()
+    expect(after.free).toBe(0)
+    expect(after.all).toBeLessThan(before.all - before.free)
+    expect(positions(store, ask(1, gram('nee'), { limit: 200 }))).toHaveLength(120)
   })
 })

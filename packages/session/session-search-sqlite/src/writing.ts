@@ -13,7 +13,8 @@ import {
 } from './files.ts'
 import type { Handle } from './handles.ts'
 import { sessionMarker } from './match.ts'
-import { SERIALS, type ReadContext, type StoreFailure } from './reading.ts'
+import { LAYOUT, SERIALS, dayOf } from './numbers.ts'
+import type { ReadContext, StoreFailure } from './reading.ts'
 
 export type StoreAppendRequest = Readonly<{
   tenant: string
@@ -35,7 +36,7 @@ const SCHEMA = [
   `CREATE VIRTUAL TABLE grams USING fts5(row, tokenize = 'trigram case_sensitive 1', detail = none, content = '', columnsize = 0)`,
   `CREATE VIRTUAL TABLE vocab USING fts5vocab(grams, 'row')`,
   `CREATE TABLE session (ordinal INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, covered INTEGER NOT NULL, last_at INTEGER NOT NULL) STRICT`,
-  `CREATE TABLE doc (id INTEGER PRIMARY KEY, session INTEGER NOT NULL, position INTEGER NOT NULL) STRICT`,
+  `CREATE TABLE doc (id INTEGER PRIMARY KEY, session INTEGER NOT NULL, position INTEGER NOT NULL, at INTEGER NOT NULL) STRICT`,
   `CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT`,
   // Merging is done in small steps by `compact`, not inside whichever append trips over it.
   `INSERT INTO grams(grams, rank) VALUES ('automerge', 0)`,
@@ -55,20 +56,24 @@ function writeBatch(
   const ordinal = Number(row['ordinal'])
   const covered = row['covered'] as bigint
   const marker = sessionMarker(ordinal)
-  const serials = new Map<bigint, bigint>()
+  const next = new Map<bigint, bigint>()
   const top = prepare('SELECT max(id) AS top FROM doc WHERE id >= ? AND id < ?')
-  const addDoc = prepare('INSERT INTO doc (id, session, position) VALUES (?, ?, ?)')
+  const addDoc = prepare('INSERT INTO doc (id, session, position, at) VALUES (?, ?, ?, ?)')
   const addRow = prepare('INSERT INTO grams (rowid, row) VALUES (?, ?)')
+  // The next serial of a day: one past the largest in the file, then counted on within the batch.
+  const serialIn = (base: bigint): bigint => {
+    const taken = top.get(base, base + SERIALS)?.['top'] as bigint | null | undefined
+    return taken === null || taken === undefined ? 0n : taken - base + 1n
+  }
   for (const item of request.documents) {
     // At or behind the cover: this commit was written before. Writing it again would double it.
     if (BigInt(item.revision) <= covered) continue
-    const position = BigInt(item.position)
-    const base = BigInt(item.at) * SERIALS
-    const taken = serials.get(base) ?? (top.get(base, base + SERIALS)?.['top'] as bigint | null)
-    const id = taken === null || taken === undefined ? base : taken + 1n
-    serials.set(base, id)
-    addDoc.run(id, ordinal, position)
-    addRow.run(id, documentRow(item.document, [marker]))
+    const base = dayOf(item.at) * SERIALS
+    const serial = next.get(base) ?? serialIn(base)
+    if (serial >= SERIALS) throw new RangeError('a day has no row number left')
+    next.set(base, serial + 1n)
+    addDoc.run(base + serial, ordinal, BigInt(item.position), BigInt(item.at))
+    addRow.run(base + serial, documentRow(item.document, [marker]))
   }
   faults.afterRows?.()
   const through = BigInt(request.through)
@@ -134,8 +139,8 @@ export function beginRebuild(
     db.exec('BEGIN')
     for (const sql of SCHEMA) db.exec(sql)
     context.handles
-      .prepared(file, `INSERT INTO meta (key, value) VALUES ('extraction', ?)`)
-      .run(String(context.extraction))
+      .prepared(file, `INSERT INTO meta (key, value) VALUES ('extraction', ?), ('layout', ?)`)
+      .run(String(context.extraction), String(LAYOUT))
     db.exec('COMMIT')
     writeJson(buildingFile(directory), { generation, total, boot: context.boot })
     return { generation }
@@ -153,7 +158,9 @@ export function adopt(
   if (buildingOf(directory, context.boot)?.generation !== generation) return 'generation-gone'
   try {
     const built = fileOf(directory, generation)
-    context.handles.handleOf(built, true).db.exec('PRAGMA wal_checkpoint(TRUNCATE)')
+    // One merged index and no free pages: what a build leaves behind is larger and slower to read.
+    const { db } = context.handles.handleOf(built, true)
+    db.exec(`INSERT INTO grams(grams) VALUES ('optimize'); VACUUM; PRAGMA wal_checkpoint(TRUNCATE)`)
     context.handles.release(built)
     syncFile(built)
     const earlier = pointerOf(directory)?.generation

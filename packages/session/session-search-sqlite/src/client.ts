@@ -21,6 +21,8 @@ export type SqliteHistoryIndexOptions = Readonly<{
   /** How long a read or a write may take before its thread counts as hung and is replaced. */
   readDeadlineMs?: number
   writeDeadlineMs?: number
+  /** Adopting a generation merges and packs its whole file first, so it may take much longer. */
+  adoptDeadlineMs?: number
 }>
 
 export type SqliteHistoryIndex = HistoryIndex & Readonly<{ close(): Promise<void> }>
@@ -29,7 +31,7 @@ type Waiting = Readonly<{ resolve(value: unknown): void; reject(cause: Error): v
 
 // One thread and its calls in flight. A thread that dies, or does not answer in time, fails them;
 // the next call starts another.
-function lane(options: StoreOptions, deadlineMs: number) {
+function lane(options: StoreOptions, deadlineOf: (method: keyof Store) => number) {
   let worker: Worker | null = null
   let serial = 0
   const waiting = new Map<number, Waiting>()
@@ -69,7 +71,7 @@ function lane(options: StoreOptions, deadlineMs: number) {
           const hung = worker
           failAll(new Error('the index thread did not answer in time'))
           void hung?.terminate()
-        }, deadlineMs)
+        }, deadlineOf(method))
         timer.unref()
         const settled = <T>(settle: (value: T) => void) => {
           return (value: T) => {
@@ -124,8 +126,10 @@ export function createSqliteHistoryIndex(options: SqliteHistoryIndexOptions): Sq
     extraction: EXTRACTION_VERSION,
     vocabularyLimit: options.vocabularyLimit ?? 512,
   }
-  const reads = lane({ ...shared, readOnly: true }, options.readDeadlineMs ?? 10_000)
-  const writes = lane({ ...shared, readOnly: false }, options.writeDeadlineMs ?? 60_000)
+  const reads = lane({ ...shared, readOnly: true }, () => options.readDeadlineMs ?? 10_000)
+  const writes = lane({ ...shared, readOnly: false }, method =>
+    method === 'adopt' ? (options.adoptDeadlineMs ?? 900_000) : (options.writeDeadlineMs ?? 60_000),
+  )
   const textOf = (tenant: TenantId): string | null => {
     const text = tenantCodec.encode(tenant)
     return text.ok ? text.value : null
