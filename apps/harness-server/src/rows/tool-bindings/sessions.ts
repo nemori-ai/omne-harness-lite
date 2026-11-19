@@ -75,6 +75,27 @@ const isoOf = (millis: number | null) =>
     ? null
     : new Date(millis).toISOString()
 
+type Listing = (after: string | null) => ReturnType<SessionDirectory<unknown>['list']>
+
+/** One list walked for one session: found, not in it, or walked as far as allowed. */
+async function findIn(
+  list: Listing,
+  session: string,
+): Promise<
+  Readonly<{ found: SessionListItem }> | Readonly<{ failure: SessionsFailure }> | 'absent'
+> {
+  let after: string | null = null
+  for (let pages = 0; pages < SHOW_PAGES; pages++) {
+    const page = await list(after)
+    if ('failure' in page) return { failure: failureOf(page.failure) }
+    const found = page.ok.items.find(item => item.session === session)
+    if (found !== undefined) return { found }
+    if (page.ok.next === null) return 'absent'
+    after = page.ok.next
+  }
+  return { failure: { kind: 'limited' } }
+}
+
 /** The reads of one call: the call's principal and tenant, never anything the model named. */
 export function createBoundSessions(parent: Parent, ports: SessionsBindingPorts): BoundSessions {
   const { principal, tenant } = parent
@@ -103,35 +124,23 @@ export function createBoundSessions(parent: Parent, ports: SessionsBindingPorts)
       const directory = ports.directory()
       if (directory === undefined) return absent('the session directory')
       if (!(await admitted())) return { failure: { kind: 'denied' } }
-      for (const archived of [false, true]) {
-        let after: string | null = null
-        for (let pages = 0; pages < SHOW_PAGES; pages++) {
-          const asked: Readonly<{
-            principal: unknown
-            tenant: typeof tenant
-            after: string | null
-            limit: number
-          }> = {
+      const lists: readonly Listing[] = [
+        after => directory.list({ ...access, after, limit: SHOW_PAGE }),
+        after =>
+          directory.listArchived({
             ...access,
             after,
             limit: SHOW_PAGE,
-          }
-          const page: Awaited<ReturnType<SessionDirectory<unknown>['list']>> = archived
-            ? await directory.listArchived({
-                ...asked,
-                from: null,
-                to: null,
-                by: null,
-                titleContains: null,
-              })
-            : await directory.list(asked)
-          if ('failure' in page) return { failure: failureOf(page.failure) }
-          const found = page.ok.items.find(item => item.session === session)
-          if (found !== undefined) return { ok: summaryOf(found) }
-          if (page.ok.next === null) break
-          after = page.ok.next
-          if (pages === SHOW_PAGES - 1) return { failure: { kind: 'limited' } }
-        }
+            from: null,
+            to: null,
+            by: null,
+            titleContains: null,
+          }),
+      ]
+      for (const list of lists) {
+        const walked = await findIn(list, session)
+        if (walked === 'absent') continue
+        return 'found' in walked ? { ok: summaryOf(walked.found) } : walked
       }
       return { failure: { kind: 'not-found' } }
     },

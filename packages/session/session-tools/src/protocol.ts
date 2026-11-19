@@ -72,14 +72,14 @@ const PARSERS = {
     .strictObject({
       text: z.union([z.string().min(1), z.array(z.string().min(1)).min(1).max(8)]).optional(),
       regex: z.string().min(1).optional(),
-      case_sensitive: z.boolean().optional(),
+      case_sensitive: z.boolean().default(false),
       sessions: z.array(session).min(1).max(64).optional(),
-      archived: z.enum(['unarchived', 'archived', 'all']).optional(),
+      archived: z.enum(['unarchived', 'archived', 'all']).default('all'),
       from: instant,
       to: instant,
-      kinds: z.array(z.enum(SEARCHABLE_KINDS)).min(1).max(6).optional(),
+      kinds: z.array(z.enum(SEARCHABLE_KINDS)).min(1).max(6).default([]),
       cursor,
-      limit,
+      limit: z.int().min(1).max(50).default(PAGE),
     })
     .refine(params => (params.text === undefined) !== (params.regex === undefined), {
       message: 'give exactly one of text and regex',
@@ -87,6 +87,14 @@ const PARSERS = {
 } as const
 
 type Params<N extends SessionsCommandName> = z.infer<(typeof PARSERS)[N]>
+
+function contentOf(params: Params<'search'>): SessionsSearchInput['content'] {
+  const caseSensitive = params.case_sensitive
+  if (params.text === undefined)
+    return { kind: 'regex', pattern: params.regex ?? '', caseSensitive }
+  const all = typeof params.text === 'string' ? [params.text] : params.text
+  return { kind: 'literals', all, caseSensitive }
+}
 const BUILD: { readonly [N in SessionsCommandName]: (params: Params<N>) => SessionsArguments } = {
   help: params =>
     params.name === undefined ? { kind: 'help' } : { kind: 'help', name: params.name },
@@ -106,29 +114,19 @@ const BUILD: { readonly [N in SessionsCommandName]: (params: Params<N>) => Sessi
     cursor: params.cursor ?? null,
     backward: params.backward ?? false,
   }),
-  search: params => {
-    const caseSensitive = params.case_sensitive ?? false
-    return {
-      kind: 'search',
-      input: {
-        content:
-          params.text === undefined
-            ? { kind: 'regex', pattern: params.regex ?? '', caseSensitive }
-            : {
-                kind: 'literals',
-                all: typeof params.text === 'string' ? [params.text] : params.text,
-                caseSensitive,
-              },
-        sessions: params.sessions ?? null,
-        archived: params.archived ?? 'all',
-        from: params.from ?? null,
-        to: params.to ?? null,
-        kinds: params.kinds ?? [],
-        cursor: params.cursor ?? null,
-        limit: params.limit ?? PAGE,
-      },
-    }
-  },
+  search: params => ({
+    kind: 'search',
+    input: {
+      content: contentOf(params),
+      sessions: params.sessions ?? null,
+      archived: params.archived,
+      from: params.from ?? null,
+      to: params.to ?? null,
+      kinds: params.kinds,
+      cursor: params.cursor ?? null,
+      limit: params.limit,
+    },
+  }),
 }
 
 const SESSION = 'A session id, as list, show or a search hit gives it.'

@@ -34,8 +34,30 @@ async function inspectShippedCalendarRelease(at: string): Promise<CalendarReleas
   return inspectCalendarRelease(entries, shippedCalendarSupplyPolicies, at)
 }
 
-function refused(lines: string[], why: string): CalendarReleaseDecision {
-  return { exitCode: 2, lines: [...lines, `calendar-release: declaration file ${why}`] }
+type Accepted = Readonly<{ calendars: ReadonlySet<string>; lines: readonly string[] }>
+
+const lineOf = (check: CalendarReleaseVerdict['checks'][number]) =>
+  `calendar-release: ${check.calendarId} ${check.verdict} horizon=${check.horizon} remaining=${check.remainingCoverageDays ?? 'unknown'}${check.reasons.length ? ` (${check.reasons.join('; ')})` : ''}`
+
+/** The calendars a declaration file accepts, or why the file is not lawful. */
+function acceptedOf(release: CalendarReleaseVerdict, declarations: unknown): Accepted | string {
+  const read = declarationsSchema.safeParse(declarations ?? { accepted: [] })
+  if (!read.success) return 'is not { accepted: [{ calendar, reason }] }'
+  const calendars = new Set<string>()
+  const lines: string[] = []
+  for (const { calendar, reason } of read.data.accepted) {
+    const check = release.checks.find(item => item.calendarId === calendar)
+    if (calendars.has(calendar)) return `names ${calendar} twice`
+    if (!check) return `names ${calendar}, which the release does not carry`
+    if (check.verdict === 'blocked') return `accepts ${calendar}, which blocks`
+    lines.push(
+      check.verdict === 'pass'
+        ? `calendar-release: ${calendar} is declared but does not warn`
+        : `calendar-release: ${calendar} warning accepted: ${reason}`,
+    )
+    calendars.add(calendar)
+  }
+  return { calendars, lines }
 }
 
 /** A release ships when nothing blocks and every warning is accepted by name; no one accepts a block. */
@@ -43,34 +65,22 @@ export function judgeCalendarRelease(
   release: CalendarReleaseVerdict,
   declarations: unknown,
 ): CalendarReleaseDecision {
-  const lines = release.checks.map(
-    check =>
-      `calendar-release: ${check.calendarId} ${check.verdict} horizon=${check.horizon} remaining=${check.remainingCoverageDays ?? 'unknown'}${check.reasons.length ? ` (${check.reasons.join('; ')})` : ''}`,
-  )
-  const read = declarationsSchema.safeParse(declarations ?? { accepted: [] })
-  if (!read.success) return refused(lines, 'is not { accepted: [{ calendar, reason }] }')
-  const accepted = new Map<string, string>()
-  for (const { calendar, reason } of read.data.accepted) {
-    if (accepted.has(calendar)) return refused(lines, `names ${calendar} twice`)
-    const check = release.checks.find(item => item.calendarId === calendar)
-    if (!check) return refused(lines, `names ${calendar}, which the release does not carry`)
-    if (check.verdict === 'blocked') return refused(lines, `accepts ${calendar}, which blocks`)
-    if (check.verdict === 'pass')
-      lines.push(`calendar-release: ${calendar} is declared but does not warn`)
-    else lines.push(`calendar-release: ${calendar} warning accepted: ${reason}`)
-    accepted.set(calendar, reason)
-  }
+  const lines = release.checks.map(lineOf)
+  const accepted = acceptedOf(release, declarations)
+  if (typeof accepted === 'string')
+    return { exitCode: 2, lines: [...lines, `calendar-release: declaration file ${accepted}`] }
+  const told = [...lines, ...accepted.lines]
   if (release.verdict === 'blocked')
-    return { exitCode: 1, lines: [...lines, 'calendar-release: blocked'] }
+    return { exitCode: 1, lines: [...told, 'calendar-release: blocked'] }
   const undeclared = release.checks
-    .filter(check => check.verdict === 'warning' && !accepted.has(check.calendarId))
+    .filter(check => check.verdict === 'warning' && !accepted.calendars.has(check.calendarId))
     .map(check => check.calendarId)
-  if (undeclared.length)
-    return {
-      exitCode: 1,
-      lines: [...lines, `calendar-release: undeclared warning: ${undeclared.join(', ')}`],
-    }
-  return { exitCode: 0, lines }
+  return undeclared.length
+    ? {
+        exitCode: 1,
+        lines: [...told, `calendar-release: undeclared warning: ${undeclared.join(', ')}`],
+      }
+    : { exitCode: 0, lines: told }
 }
 
 /** What `check:calendar-release` prints and exits with for the release this build ships. */

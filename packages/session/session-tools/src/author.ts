@@ -12,7 +12,12 @@ import {
   type ToolOperation,
   type ToolOperationParameters,
 } from '@omne-harness/tool-contract/provider'
-import { sessionsOf, type SessionsFailure, type SessionSummary } from './port.ts'
+import {
+  sessionsOf,
+  type BoundSessions,
+  type SessionsFailure,
+  type SessionSummary,
+} from './port.ts'
 import {
   sessionsAdoption,
   sessionsCommands,
@@ -104,6 +109,60 @@ const summaryOf = (item: SessionSummary) => ({
 })
 const nextOf = (next: string | null) => next ?? 'none'
 
+type Read<K extends SessionsArguments['kind']> = (
+  args: Extract<SessionsArguments, { kind: K }>,
+  sessions: BoundSessions,
+  maximum: number,
+) => Promise<string>
+
+/** One reader per command; each says its failure in one line and its page in a head line and JSON. */
+const READS: { readonly [K in Exclude<SessionsArguments['kind'], 'help'>]: Read<K> } = {
+  async list(args, sessions) {
+    const page = await sessions.list(args.input)
+    if ('failure' in page) return failureText(page.failure)
+    const { items, complete, next } = page.ok
+    return `done Sessions list sessions=${String(items.length)} complete=${String(complete)} next=${nextOf(next)}\n${JSON.stringify(items.map(summaryOf))}`
+  },
+  async show(args, sessions) {
+    const shown = await sessions.show(args.session)
+    if ('failure' in shown) return failureText(shown.failure, args.session)
+    return `done Sessions show session=${args.session}\n${JSON.stringify(summaryOf(shown.ok))}`
+  },
+  async read(args, sessions, maximum) {
+    const direction = args.backward ? 'backward' : 'forward'
+    const pageBytes = Math.floor(maximum / 4)
+    const read = await sessions.read({
+      session: args.session,
+      cursor: args.cursor,
+      direction,
+      pageBytes,
+    })
+    if ('failure' in read) return failureText(read.failure, args.session)
+    const { entries, exhausted, next } = read.ok
+    const material = entries.map(({ position, kind, payload }) => ({
+      session: args.session,
+      position,
+      kind,
+      material: payload,
+    }))
+    return `done Sessions read session=${args.session} entries=${String(entries.length)} exhausted=${String(exhausted)} next=${nextOf(next)}\n${JSON.stringify(material)}`
+  },
+  async search(args, sessions) {
+    const found = await sessions.search(args.input)
+    if ('failure' in found) return failureText(found.failure)
+    const { hits, complete, incomplete, next } = found.ok
+    const why = incomplete === null ? '' : ` incomplete=${incomplete}`
+    const rows = hits.map(({ session, position, kind, at, snippet }) => ({
+      session,
+      position,
+      kind,
+      at,
+      snippet,
+    }))
+    return `done Sessions search hits=${String(hits.length)} complete=${String(complete)}${why} next=${nextOf(next)}\n${JSON.stringify(rows)}`
+  },
+}
+
 async function execute(
   args: SessionsArguments,
   execution: ToolExecutionContext,
@@ -113,50 +172,8 @@ async function execute(
     return `done Sessions help${args.name === undefined ? '' : ` ${args.name}`}\n${commandGuide(menu, args.name)}`
   const sessions = sessionsOf(execution)
   if (sessions === undefined) return 'unavailable reason=the sessions are not attached to this call'
-  switch (args.kind) {
-    case 'list': {
-      const page = await sessions.list(args.input)
-      if ('failure' in page) return failureText(page.failure)
-      const { items, complete, next } = page.ok
-      return `done Sessions list sessions=${String(items.length)} complete=${String(complete)} next=${nextOf(next)}\n${JSON.stringify(items.map(summaryOf))}`
-    }
-    case 'show': {
-      const shown = await sessions.show(args.session)
-      if ('failure' in shown) return failureText(shown.failure, args.session)
-      return `done Sessions show session=${args.session}\n${JSON.stringify(summaryOf(shown.ok))}`
-    }
-    case 'read': {
-      const read = await sessions.read({
-        session: args.session,
-        cursor: args.cursor,
-        direction: args.backward ? 'backward' : 'forward',
-        pageBytes: Math.floor(maximum / 4),
-      })
-      if ('failure' in read) return failureText(read.failure, args.session)
-      const { entries, exhausted, next } = read.ok
-      const material = entries.map(entry => ({
-        session: args.session,
-        position: entry.position,
-        kind: entry.kind,
-        material: entry.payload,
-      }))
-      return `done Sessions read session=${args.session} entries=${String(entries.length)} exhausted=${String(exhausted)} next=${nextOf(next)}\n${JSON.stringify(material)}`
-    }
-    case 'search': {
-      const found = await sessions.search(args.input)
-      if ('failure' in found) return failureText(found.failure)
-      const { hits, complete, incomplete, next } = found.ok
-      const why = incomplete === null ? '' : ` incomplete=${incomplete}`
-      const rows = hits.map(hit => ({
-        session: hit.session,
-        position: hit.position,
-        kind: hit.kind,
-        at: hit.at,
-        snippet: hit.snippet,
-      }))
-      return `done Sessions search hits=${String(hits.length)} complete=${String(complete)}${why} next=${nextOf(next)}\n${JSON.stringify(rows)}`
-    }
-  }
+  const read = READS[args.kind] as Read<typeof args.kind>
+  return read(args as never, sessions, maximum)
 }
 
 const utf8 = (text: string) => new TextEncoder().encode(text)
