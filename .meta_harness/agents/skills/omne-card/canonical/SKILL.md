@@ -164,6 +164,7 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 - 提升 PR 的「所含的卡」列出自上一次提升以来合入 mainline 的全部卡，行格式见 `gate/README.md`「提升 PR 的说明」。提升携带轨道的完整前缀，不手选卡或 cherry-pick。mainline 攒够完整的一小批就提升，不长时间累积漂移。
 - mainline 提升 main 的 PR 开出后，跑一次整仓健康读数：在 PR head 的干净检出上先 `pnpm run acceptance`（严格模式要同一提交的验收账本），再 `pnpm run loop:status --strict --base origin/main --out <目录>`，把 `<目录>/status.md` 的硬线、带位与超预算成员几段贴成提升 PR 的一条评论。它只报告不挡：退出 1 也照贴，写明哪条硬线或哪个传感器没数据，由负责人决定处置。
 - stable 派发另加 `-f checkpoint=<名称>`。
+- 开 stable 的 PR 之前，在 PR head 的干净检出上跑 `pnpm --filter @omne-harness/harness-server run check:calendar-release`。它退出非零就不开：发行带的日历种子有严重或未知的覆盖风险，或有没声明接受的警告。规则见发行应用规格「日历与日程」。
 - 提升不自动接受或关闭卡。
 
 ### npm 发行

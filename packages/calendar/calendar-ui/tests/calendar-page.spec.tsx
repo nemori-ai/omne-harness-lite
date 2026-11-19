@@ -52,7 +52,7 @@ async function answer(call: Call, value: unknown): Promise<void> {
 async function opened(tenant = TENANT_A) {
   const fake = createFakeClient<Client>(OPERATIONS)
   const view = render(<CalendarPage client={fake.client} tenant={tenant} />)
-  expect(screen.getAllByRole('status', { name: '读取中' })).toHaveLength(2)
+  expect(screen.getAllByRole('status', { name: '读取中' })).toHaveLength(3)
   return { fake, view }
 }
 
@@ -132,7 +132,7 @@ it.each([
   [{ outcome: 'invalid', body: { reason: 'input' } }, '日期要写成「年-月-日」，而且这一天要存在。'],
   [
     { outcome: 'unsupported', body: { reason: 'coverage' } },
-    '这一天在当前日历的覆盖范围之外，不猜。',
+    '这一天不在所选日历与版本的覆盖范围里（版本不存在也是这样），不猜。',
   ],
   [{ outcome: 'invalid', body: { reason: 'timezone' } }, '当前时区不合法。'],
   [{ outcome: 'unsupported', body: { reason: 'environment' } }, '当前设置选的日历不在供应里。'],
@@ -187,4 +187,77 @@ it('P6b the late answer of the old tenant, arriving after the answer for the new
   await answer(late, { outcome: 'succeeded', body: { ...ENVIRONMENT, timezone: 'Europe/Paris' } })
   expect(screen.getByLabelText('当前环境').textContent).toContain('Asia/Shanghai')
   expect(screen.queryByText('Europe/Paris')).toBeNull()
+})
+
+it('P6 shows the supply health of every calendar in words, warnings and failures marked', async () => {
+  const { fake } = await opened()
+  await answer(await fake.next('read-supply-health'), {
+    outcome: 'succeeded',
+    body: {
+      calendars: [
+        {
+          calendar: 'jp-legal-holidays',
+          queryAvailability: 'available',
+          supply: 'failed',
+          horizon: 'warning',
+          coverageStart: '1955-01-01',
+          coverageEnd: '2027-12-31',
+          knowledgeAsOf: null,
+          remainingCoverageDays: 298,
+          consecutiveFailures: 2,
+          lastSuccess: null,
+          pendingRuns: 0,
+          sources: [
+            {
+              source: 'cao-syukujitsu-csv',
+              observation: 'failed',
+              reason: 'fetch failed',
+              consecutiveFailures: 2,
+            },
+            {
+              source: 'vacanza-holidays-library',
+              observation: 'unchanged',
+              reason: null,
+              consecutiveFailures: 0,
+            },
+          ],
+          reasons: ['Some source observations are unknown'],
+        },
+      ],
+    },
+  })
+  const health = screen.getByLabelText('各日历的供应健康').textContent
+  expect(health).toContain('来源 cao-syukujitsu-csv 失败：fetch failed')
+  expect(health).not.toContain('vacanza-holidays-library')
+  expect(health).toContain('Some source observations are unknown')
+  expect(health).toContain('日本法定节假日')
+  expect(health).toContain('供应失败，连续失败 2 次')
+  expect(health).toContain('覆盖快用完了')
+  expect(health).toContain('覆盖到 2027-12-31，还剩 298 天')
+})
+
+it('P6b a health that cannot be read says so, not as an empty table', async () => {
+  const { fake } = await opened()
+  await answer(await fake.next('read-supply-health'), { outcome: 'basis-unavailable' })
+  expect(screen.queryByLabelText('各日历的供应健康')).toBeNull()
+  expect(document.querySelector('#calendar-health')?.textContent).toContain('服务端暂时取不到依据')
+})
+
+it('P7 looks a day up on a named calendar and version; the version waits for a calendar', async () => {
+  const { fake } = await opened()
+  await answer(await fake.next('list-calendars'), { outcome: 'succeeded', body: CALENDARS })
+  const version = screen.getByLabelText('版本') as HTMLInputElement
+  expect(version.disabled).toBe(true)
+  fireEvent.click(screen.getByLabelText('按哪份日历'))
+  fireEvent.click(await screen.findByRole('option', { name: '日本法定节假日' }))
+  expect(version.disabled).toBe(false)
+  fireEvent.change(version, { target: { value: 'v-0' } })
+  fireEvent.change(screen.getByLabelText('日期'), { target: { value: '2026-11-03' } })
+  fireEvent.click(screen.getByRole('button', { name: '查' }))
+  const asked = await fake.next('answer')
+  expect(asked.body).toMatchObject({
+    question: { kind: 'day', date: '2026-11-03' },
+    calendar: 'jp-legal-holidays',
+    version: 'v-0',
+  })
 })

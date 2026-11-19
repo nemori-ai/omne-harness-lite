@@ -1,4 +1,3 @@
-import { Temporal } from '@js-temporal/polyfill'
 import type { CalendarSeedEntry, CalendarSnapshot } from '@omne-harness/calendar-contract'
 import type { CalendarSupplyDependencies, CalendarStoredMaterial } from './ports.ts'
 import type { CalendarCandidate, CalendarDisposition } from '../persistence.ts'
@@ -7,7 +6,8 @@ import type {
   CalendarSupplyPolicy,
   CalendarSupplyCandidate,
 } from '../supply/types.ts'
-import { synthesizeCalendarCandidate, classifyCalendarSupplyHorizon } from '../supply/index.ts'
+import { synthesizeCalendarCandidate } from '../supply/index.ts'
+import { inspectCalendarRelease } from '../supply/release.ts'
 import { invariantFindings } from '../supply/invariants.ts'
 import { categoryAt, dates, addDays, inCoverage, finding } from '../supply/common.ts'
 import { supplyDigest, snapshotContent } from './encoding.ts'
@@ -21,13 +21,21 @@ function releaseFindings(
   releaseDate: string,
 ): SupplyFinding[] {
   const { snapshot } = entry
-  const year = releaseDate.slice(0, 4)
+  const [check] = inspectCalendarRelease(
+    [
+      {
+        calendarId: snapshot.calendarId,
+        coverageStart: snapshot.coverageStart,
+        coverageEnd: snapshot.coverageEnd,
+        authorityCoverageEnd: entry.authorityCoverageEnd,
+      },
+    ],
+    [policy],
+    releaseDate,
+  ).checks
   const findings: SupplyFinding[] = []
-  if (
-    snapshot.coverageStart > `${year}-01-01` ||
-    snapshot.coverageEnd < `${year}-12-31` ||
-    snapshot.coverageEnd < entry.authorityCoverageEnd
-  )
+  if (!check) return findings
+  if (check.reasons.some(reason => reason.startsWith('Coverage must')))
     findings.push(
       finding(
         'seed.releaseCoverage',
@@ -35,15 +43,15 @@ function releaseFindings(
         'Seed must cover the full release year and known authority horizon',
       ),
     )
-  const remaining = Temporal.PlainDate.from(snapshot.coverageEnd).since(
-    Temporal.PlainDate.from(releaseDate),
-  ).days
-  const horizon = classifyCalendarSupplyHorizon({ policy, remainingCoverageDays: remaining })
-  if (horizon === 'critical' || horizon === 'unknown')
+  if (check.horizon === 'critical' || check.horizon === 'unknown')
     findings.push(
-      finding('seed.releaseHealth', horizon === 'unknown' ? 'unknown' : 'failed', horizon),
+      finding(
+        'seed.releaseHealth',
+        check.horizon === 'unknown' ? 'unknown' : 'failed',
+        check.horizon,
+      ),
     )
-  if (horizon === 'warning')
+  if (check.horizon === 'warning')
     findings.push(
       finding(
         'seed.releaseHealth',

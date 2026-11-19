@@ -10,6 +10,11 @@ import {
   PageColumn,
   PageHeader,
   Section,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   StatusPill,
   Table,
   TableBody,
@@ -19,6 +24,7 @@ import {
 import { useState, type JSX } from 'react'
 import { READING, readOnce, useReading, type Reading } from '../model/reading.ts'
 import { Drawn } from './drawn.tsx'
+import { SupplyHealthTable, type SupplyHealth } from './supply-health.tsx'
 
 type Client = ClientOf<CalendarProtocol>
 type Operations = CalendarProtocol['operations']
@@ -71,7 +77,12 @@ function CalendarFacts({
   const [calendars, rereadCalendars] = useReading<Calendars>(tenantText, signal =>
     client['list-calendars']({ tenant }, { signal }),
   )
+  const [health, rereadHealth] = useReading<SupplyHealth>(tenantText, signal =>
+    client['read-supply-health']({ tenant }, { signal }),
+  )
   const effective = environment.kind === 'read' ? environment.value.calendar : undefined
+  const shipped =
+    calendars.kind === 'read' ? calendars.value.calendars.map(item => item.calendar) : []
   return (
     <>
       <Section id="calendar-environment" title="生效的日历">
@@ -94,8 +105,13 @@ function CalendarFacts({
           {value => <CalendarTable calendars={value.calendars} effective={effective} />}
         </Drawn>
       </Section>
+      <Section id="calendar-health" title="供应健康">
+        <Drawn reading={health} reread={rereadHealth} refused={() => '读不出供应健康。'}>
+          {value => <SupplyHealthTable health={value} titleOf={titleOf} />}
+        </Drawn>
+      </Section>
       <Section id="calendar-lookup" title="查一天">
-        <DayLookup client={client} tenant={tenant} key={tenantText} />
+        <DayLookup client={client} tenant={tenant} calendars={shipped} key={tenantText} />
       </Section>
     </>
   )
@@ -133,16 +149,27 @@ function CalendarTable({
   )
 }
 
+const EFFECTIVE = '::effective'
+
 function DayLookup({
   client,
   tenant,
-}: Readonly<{ client: Client; tenant: TenantId }>): JSX.Element {
+  calendars,
+}: Readonly<{ client: Client; tenant: TenantId; calendars: readonly string[] }>): JSX.Element {
   const [date, setDate] = useState('')
+  const [calendar, setCalendar] = useState(EFFECTIVE)
+  const [version, setVersion] = useState('')
   const [answer, setAnswer] = useState<Reading<DayAnswer> | undefined>(undefined)
+  const named =
+    calendar === EFFECTIVE
+      ? {}
+      : { calendar, ...(version.trim() === '' ? {} : { version: version.trim() }) }
   const ask = async () => {
     setAnswer(READING)
     setAnswer(
-      await readOnce<DayAnswer>(() => client.answer({ tenant, question: { kind: 'day', date } })),
+      await readOnce<DayAnswer>(() =>
+        client.answer({ tenant, question: { kind: 'day', date }, ...named }),
+      ),
     )
   }
   return (
@@ -159,6 +186,26 @@ function DayLookup({
           placeholder="年-月-日，例如 2026-10-10"
           value={date}
           onChange={event => setDate(event.target.value)}
+        />
+        <Select value={calendar} onValueChange={setCalendar}>
+          <SelectTrigger aria-label="按哪份日历" size="sm">
+            <SelectValue>{calendar === EFFECTIVE ? '生效的日历' : titleOf(calendar)}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={EFFECTIVE}>生效的日历</SelectItem>
+            {calendars.map(item => (
+              <SelectItem key={item} value={item}>
+                {titleOf(item)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          aria-label="版本"
+          placeholder="版本，不填用当前版本"
+          value={version}
+          disabled={calendar === EFFECTIVE}
+          onChange={event => setVersion(event.target.value)}
         />
         <Button type="submit" disabled={date.trim() === '' || answer?.kind === 'reading'}>
           查
@@ -177,7 +224,8 @@ function dayRefusal(outcome: string, body: unknown): string {
   const reason = (body as { reason?: string } | undefined)?.reason
   if (outcome === 'invalid')
     return reason === 'timezone' ? '当前时区不合法。' : '日期要写成「年-月-日」，而且这一天要存在。'
-  if (reason === 'coverage') return '这一天在当前日历的覆盖范围之外，不猜。'
+  if (reason === 'coverage')
+    return '这一天不在所选日历与版本的覆盖范围里（版本不存在也是这样），不猜。'
   if (reason === 'environment') return '当前设置选的日历不在供应里。'
   return '当前日历答不了这个问题。'
 }

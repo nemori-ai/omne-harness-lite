@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { CalendarHealth } from './supply.ts'
 import {
   calendarIdSchema,
   calendarVersionIdSchema,
@@ -230,6 +231,8 @@ export interface CalendarQueries {
     ctx: CalendarCallContext,
     input: CalendarResolve,
   ): Promise<z.infer<typeof calendarResolveResultSchema>>
+  /** The supply health of every catalogued calendar, in catalog order; never a partial list. */
+  health(ctx: CalendarCallContext): Promise<CalendarQueryResult<readonly CalendarHealth[]>>
 }
 
 export type CalendarQuestion = z.infer<typeof calendarQuerySchema>
