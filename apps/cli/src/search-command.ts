@@ -198,18 +198,23 @@ const OPTIONS = {
   switches: ['--case-sensitive', '--any-visibility', '--all', '--json'],
 }
 
+const answeredOf = (stopped: Reading['stopped']): string | null => {
+  if (stopped === null) return 'succeeded'
+  return stopped.kind === 'response' ? stopped.outcome : null
+}
+
 // What goes to standard output: the hits as lines, or the whole answer as one JSON line.
 function shownOf(reading: Reading, json: boolean, request: unknown): string {
   const { hits, last, stopped } = reading
   if (!json) return hits.map(renderHit).join('')
+  const through = stopped === null && last?.complete === true
   const body = {
     hits,
     next: last?.next ?? null,
-    complete: stopped === null && last?.complete === true,
+    complete: through,
     incomplete: last?.incomplete ?? null,
   }
-  const answered =
-    stopped === null ? 'succeeded' : stopped.kind === 'response' ? stopped.outcome : null
+  const answered = answeredOf(stopped)
   const said =
     answered === null
       ? { result: stopped?.kind, body, request }

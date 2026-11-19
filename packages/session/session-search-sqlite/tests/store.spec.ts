@@ -920,3 +920,34 @@ describe('a generation is put in order before it is adopted', () => {
     expect(positions(store, ask(1, gram('nee'), { limit: 200 }))).toHaveLength(120)
   })
 })
+
+describe('merging the parts of an index in small steps', () => {
+  it('leaves fewer parts and the same answers; where there is nothing to merge it does nothing', () => {
+    const root = rootOf()
+    const store = storeOf(root)
+    expect(() => store.compact(TENANT, 16)).not.toThrow()
+    const generation = ready(store)
+    for (let n = 1; n <= 40; n += 1)
+      store.append({
+        tenant: TENANT,
+        generation,
+        session: 's',
+        through: String(n),
+        at: 1000 + n,
+        documents: [item(n, `needle number ${String(n)}`)],
+      })
+    // Every batch left a part of its own: the index of the parts has a row or more for each.
+    const parts = (): number => {
+      const file = new DatabaseSync(join(directoryIn(root), `g${String(generation)}.db`))
+      const rows = Number(file.prepare('SELECT count(*) AS n FROM grams_idx').get()!['n'])
+      file.close()
+      return rows
+    }
+    const request = ask(generation, gram('nee'), { limit: 200 })
+    const before = { parts: parts(), found: positions(store, request) }
+    expect(before.found).toHaveLength(40)
+    for (let step = 0; step < 4; step += 1) store.compact(TENANT, 1000)
+    expect(parts()).toBeLessThan(before.parts)
+    expect(positions(store, request)).toEqual(before.found)
+  })
+})

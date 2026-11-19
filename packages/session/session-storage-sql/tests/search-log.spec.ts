@@ -134,6 +134,28 @@ describe('the sessions of a tenant, as the history search reads them', () => {
     ])
   })
 
+  it('lists more sessions than one read gives, each once, and its stamp counts the same sessions', async () => {
+    const { a, log } = await started()
+    // One read gives 20,000 sessions: these make it take a second one.
+    a.provider.seed(
+      DOMAIN,
+      `INSERT INTO sl_journal (tenant, session, tail, commit_seq, epoch)
+       WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 20001)
+       SELECT ?, printf('bulk-%06d', i), 2, 2, 'epoch:0' FROM n`,
+      [textOf(TENANT_A)],
+    )
+    const listed = await log.sessions(TENANT_A)
+    if ('failure' in listed) throw new Error(listed.failure)
+    const names = listed.ok.map(item => item.session)
+    expect(names).toHaveLength(20_002)
+    expect(new Set(names).size).toBe(20_002)
+    expect(names.slice(0, 2)).toEqual(['bulk-000001', 'bulk-000002'])
+    expect(names.slice(-2)).toEqual(['bulk-020001', 'session-1'])
+    expect(await log.stamp(TENANT_A)).toEqual({
+      ok: { sessions: 20_002, total: String(20_001 * 2 + 3), archived: 0 },
+    })
+  })
+
   it('stamps the heads of a tenant: the same while nothing moved, another after a commit, a new session or an archive', async () => {
     const { a, log } = await started()
     const stampOf = async () => {
@@ -389,6 +411,33 @@ describe('the commits of a session after a revision', () => {
     expect(await log.judgeAt({ tenant: TENANT_A, points: [point], spec: broken })).toEqual({
       failure: 'unavailable',
     })
+  })
+
+  it('answers unavailable for a range or a point that is not well formed, and reads nothing by it', async () => {
+    const { log } = await seeded()
+    const range = { tenant: TENANT_A, session: SEEDED, after: rev('0'), maxBytes: 1_000_000 }
+    const malformed = [
+      { ...range, session: '' as SessionId },
+      { ...range, session: 7 as unknown as SessionId },
+      { ...range, maxBytes: 0 },
+      { ...range, maxBytes: 1.5 },
+    ]
+    for (const bad of malformed) {
+      expect(await log.extract(bad), JSON.stringify(bad)).toEqual({ failure: 'unavailable' })
+      expect(await log.judge({ ...bad, spec: WORD })).toEqual({ failure: 'unavailable' })
+    }
+    const points = [
+      [{ session: '' as SessionId, position: '2' as EntryId }],
+      [{ session: SEEDED, position: 'two' as EntryId }],
+      [null as unknown as { session: SessionId; position: EntryId }],
+    ]
+    for (const bad of points)
+      expect(
+        await log.judgeAt({ tenant: TENANT_A, points: bad, spec: WORD }),
+        JSON.stringify(bad),
+      ).toEqual({ failure: 'unavailable' })
+    // The log itself is as it was: a well-formed read still answers.
+    expect(await log.extract(range)).toMatchObject({ ok: { exhausted: true } })
   })
 
   it('says a commit of more messages than a page reads is unavailable, and does not cut it', async () => {
