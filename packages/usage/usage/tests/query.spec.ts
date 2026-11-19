@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import {
+  accountCodec,
+  organizationCodec,
+  tenant as composeTenant,
+} from '@omne-harness/legal-identity'
 import type {
   UsageConsumer,
   UsageFact,
@@ -9,7 +14,15 @@ import type {
 } from '@omne-harness/usage-contract'
 import { createUsage, createUsageSources, type UsageLimits } from '@omne-harness/usage'
 
-const tenant = { organization: { text: 'org' }, account: { text: 'acc' } } as never
+const SUFFIX = 'abcdefghjkmnpqrstvwxyz2345'
+const parsed = <T>(read: { ok: true; value: T } | { ok: false }): T => {
+  if (!read.ok) throw new Error('fixture identity did not parse')
+  return read.value
+}
+const tenant = composeTenant(
+  parsed(organizationCodec.parse(`org_${SUFFIX}`)),
+  parsed(accountCodec.parse(`acc_${SUFFIX}`)),
+)
 const principal = { subject: 'someone' }
 const FROM = '2026-11-19T00:00:00.000Z'
 const TO = '2026-11-20T00:00:00.000Z'
@@ -381,7 +394,7 @@ describe('the records of a scope, page by page (C24)', () => {
     expect(after).toBeNull()
   })
 
-  it('refuses a page size past the limit, a cursor of another query, and answers a failing source by its name', async () => {
+  it('refuses a page size past the limit, a cursor of another query or tenant, and answers a failing source by its name', async () => {
     const model = source('model', [
       fact('model', 'm1', hour(1)),
       fact('model', 'm2', hour(2)),
@@ -398,6 +411,13 @@ describe('the records of a scope, page by page (C24)', () => {
     if (!('ok' in first) || first.ok.next === null) throw new Error('a first page with more')
     const other = await records(usage, { after: first.ok.next, range: { from: FROM, to: hour(5) } })
     expect(other).toEqual({ failure: { kind: 'invalid', field: 'after', reason: 'cursor' } })
+    const stranger = composeTenant(
+      parsed(organizationCodec.parse(`org_z${SUFFIX.slice(1)}`)),
+      parsed(accountCodec.parse(`acc_z${SUFFIX.slice(1)}`)),
+    )
+    expect(await records(usage, { after: first.ok.next, tenant: stranger })).toEqual({
+      failure: { kind: 'invalid', field: 'after', reason: 'cursor' },
+    })
     for (const forged of [
       'nope',
       'ur1.bm90',
