@@ -156,6 +156,7 @@ test('the operations are exactly the twenty-one of session/v1', () => {
     | 'read-pending'
     | 'read-waiting-calls'
     | 'read-input-fate'
+    | 'search-history'
     | 'list-sessions'
     | 'list-archived-sessions'
     | 'archive-session'

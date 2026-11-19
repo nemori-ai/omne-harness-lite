@@ -221,6 +221,73 @@ const waitingCalls = object({
     },
   },
 })
+const SEARCHABLE_KINDS = [
+  'message.user',
+  'message.assistant',
+  'message.tool',
+  'message.system_reminder',
+  'message.tool_internal',
+  'message.compaction',
+] as const
+const searchHistory = object({
+  tenant: { rule: tenant },
+  sessions: { rule: nullable({ kind: 'array', item: session, max: 64 }), optional: true },
+  archived: { rule: literal('unarchived', 'archived', 'all'), optional: true },
+  from: { rule: nullable(instant), optional: true },
+  to: { rule: nullable(instant), optional: true },
+  kinds: { rule: { kind: 'array', item: literal(...SEARCHABLE_KINDS), max: 6 }, optional: true },
+  modelReadable: { rule: literal('only', 'any'), optional: true },
+  content: {
+    rule: {
+      kind: 'one-of',
+      rules: [
+        object({
+          kind: { rule: literal('literals') },
+          all: { rule: { kind: 'array', item: anyText, nonempty: true, max: 8 } },
+          caseSensitive: { rule: boolean },
+        }),
+        object({
+          kind: { rule: literal('regex') },
+          pattern: { rule: anyText },
+          caseSensitive: { rule: boolean },
+        }),
+      ],
+    },
+  },
+  cursor: { rule: nullable(text) },
+  limit: { rule: { kind: 'positive-integer' }, optional: true },
+})
+const searchHit = object({
+  session: { rule: session },
+  position: { rule: text },
+  kind: { rule: literal(...SEARCHABLE_KINDS) },
+  at: { rule: nullable(instant) },
+  snippet: {
+    rule: object({ before: { rule: anyText }, match: { rule: anyText }, after: { rule: anyText } }),
+  },
+})
+const searchPage = object({
+  hits: { rule: { kind: 'array', item: searchHit } },
+  next: { rule: nullable(text) },
+  complete: { rule: boolean },
+  incomplete: {
+    rule: nullable(
+      object({
+        reason: { rule: literal('budget', 'tail-budget', 'rebuilding') },
+        behind: { rule: { kind: 'count' } },
+        progress: {
+          rule: nullable(
+            object({ indexed: { rule: { kind: 'count' } }, total: { rule: { kind: 'count' } } }),
+          ),
+        },
+      }),
+    ),
+  },
+})
+const searchInvalid = object({
+  field: { rule: literal('query', 'cursor', 'limit') },
+  reason: { rule: text },
+})
 const inputFate = object({
   fate: {
     rule: {
@@ -406,6 +473,18 @@ export const sessionProtocol = defineProtocol({
       limit: 'small',
       body: ruleCodec(object({ ...target, inputId: { rule: text } })),
       outcomes: { succeeded: ruleCodec(inputFate), invalid: empty },
+      countsAsAccess: true,
+    },
+    'search-history': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(searchHistory),
+      outcomes: {
+        succeeded: ruleCodec(searchPage),
+        invalid: ruleCodec(searchInvalid),
+        limited: empty,
+      },
       countsAsAccess: true,
     },
     'list-sessions': {

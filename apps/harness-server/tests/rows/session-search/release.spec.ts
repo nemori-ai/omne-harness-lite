@@ -14,6 +14,28 @@ import {
 const ROWS = ['session-history-index', 'session-search']
 const WORD = 'zebrafinch'
 
+type Searched = Readonly<{
+  status: number | null
+  outcome: string | undefined
+  hits: readonly Readonly<{ session: string; position: string; kind: string }>[]
+  complete: boolean | undefined
+}>
+
+// Through the command line: the new address, the access plugin and the member's own principal.
+async function search(tree: ReleaseTree, ...argv: string[]): Promise<Searched> {
+  const ran = await tree.cli(['search', ...argv, '--json'])
+  const printed = JSON.parse(ran.stdout || '{}') as {
+    outcome?: string
+    body?: { hits?: Searched['hits']; complete?: boolean }
+  }
+  return {
+    status: ran.status,
+    outcome: printed.outcome,
+    hits: printed.body?.hits ?? [],
+    complete: printed.body?.complete,
+  }
+}
+
 const ended = (tree: ReleaseTree, session: string) =>
   pollUntil(
     'the Run to end',
@@ -37,6 +59,10 @@ describe('the release tree and the history search (C10, C11, C15)', () => {
         expect(ids).toEqual(expect.arrayContaining(ROWS))
         expect(tree.scope.get('sessionSearch')).toBeDefined()
         const session = await tree.startSession(`tell me about the ${WORD}`)
+        // At once: the follower may not have seen the commit yet, the tail scan has.
+        const first = await search(tree, '--text', WORD)
+        expect(first).toMatchObject({ status: 0, outcome: 'succeeded', complete: true })
+        expect(first.hits.map(hit => [hit.session, hit.kind])).toEqual([[session, 'message.user']])
         await ended(tree, session)
         const { tenant } = tree.registrar()
         const { index } = tree.scope.sessionHistoryIndex
@@ -62,13 +88,34 @@ describe('the release tree and the history search (C10, C11, C15)', () => {
           limit: 10,
         })
         expect(found).toMatchObject({ ok: { rows: [{ session }] } })
+        // Searching changes no session: every log stands where it stood.
+        const before = await tails(tree)
+        const again = await search(tree, '--text', WORD.toUpperCase())
+        expect(again.hits).toEqual(first.hits)
+        // The position of a hit is the entry of the message, as the history read names it.
+        const entries = (await historyOf(tree, session)) as unknown as readonly Readonly<{
+          entryId: string
+          kind: string
+        }>[]
+        const position = again.hits[0]!.position
+        expect(entries.find(entry => entry.entryId === position)?.kind).toBe('message.user')
+        const replies = await search(tree, '--regex', '\\w+', '--kinds', 'assistant')
+        expect(replies.hits.length).toBeGreaterThan(0)
+        expect(replies.hits.every(hit => hit.kind === 'message.assistant')).toBe(true)
+        expect(await search(tree, '--text', 'no such word anywhere')).toMatchObject({
+          status: 0,
+          hits: [],
+          complete: true,
+        })
+        expect(await search(tree, '--regex', '(')).toMatchObject({ status: 3, outcome: 'invalid' })
+        expect(await tails(tree)).toEqual(before)
       })
       expect(exitCode).toBe(0)
     },
   )
 
   it(
-    'takes inputs and ends Runs while the follower of the logs hangs',
+    'takes inputs and ends Runs while the follower of the logs hangs, and a search still finds them',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
       const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
@@ -80,13 +127,16 @@ describe('the release tree and the history search (C10, C11, C15)', () => {
         expect(JSON.stringify(entries.find(entry => entry.kind === 'run.terminal'))).toContain(
           '"outcome":"completed"',
         )
+        const found = await search(tree, '--text', WORD)
+        expect(found.hits.map(hit => hit.session)).toEqual([session])
+        expect(found.complete).toBe(true)
       })
       expect(exitCode).toBe(0)
     },
   )
 
   it(
-    'takes inputs and ends Runs when the index cannot be written at all',
+    'takes inputs and ends Runs when the index cannot be written at all; a search scans the logs',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
       const options = {
@@ -103,6 +153,9 @@ describe('the release tree and the history search (C10, C11, C15)', () => {
         expect(JSON.stringify(entries.find(entry => entry.kind === 'run.terminal'))).toContain(
           '"outcome":"completed"',
         )
+        const found = await search(tree, '--text', WORD)
+        expect(found.hits.map(hit => hit.session)).toEqual([session])
+        expect(found.complete).toBe(true)
       })
       expect(exitCode).toBe(0)
     },
@@ -122,6 +175,11 @@ describe('the release tree and the history search (C10, C11, C15)', () => {
         expect(JSON.stringify(entries.find(entry => entry.kind === 'run.terminal'))).toContain(
           '"outcome":"completed"',
         )
+        // No search service: the operation says its basis is unavailable, not "no hits".
+        expect(await search(tree, '--text', 'hello')).toMatchObject({
+          status: 4,
+          outcome: 'basis-unavailable',
+        })
       })
       expect(exitCode).toBe(0)
     },

@@ -13,6 +13,7 @@ import type {
   SessionObservationFrame,
 } from '@omne-harness/session-observation'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
+import type { HistorySearch } from '@omne-harness/session-search'
 import { createOperation, sessionIdentity, tenantTextOf } from './derivation.ts'
 import {
   commitCall,
@@ -30,7 +31,7 @@ import { cancelRun } from './cancel-run.ts'
 import { retryRun } from './retry-run.ts'
 import { backgroundCall, listBackgroundCalls } from './background-calls.ts'
 import { stopCall } from './stop-call.ts'
-import { archiveSession, listArchivedSessions, listSessions, unarchiveSession } from './archive.ts'
+import { archiveSession, unarchiveSession } from './archive.ts'
 import type {
   DefinitionResolver,
   PrincipalFacts,
@@ -44,6 +45,7 @@ import type {
 import { changePermissionMode, readPermissionMode } from './permission-mode.ts'
 import { sessionReadOperations } from './intake-reads.ts'
 import type { RequestDrain } from './request-drain.ts'
+import { tenantReadOperations } from './tenant-reads.ts'
 import { interruptInput, querySendInput, sendInput } from './send-input.ts'
 
 export type SessionContributionInput = Readonly<{
@@ -51,6 +53,7 @@ export type SessionContributionInput = Readonly<{
   observation: () => SessionObservation<Principal> | undefined
   definitions: () => DefinitionResolver | undefined
   listing: () => SessionListing | undefined
+  searching: () => HistorySearch<Principal> | undefined
   causes: () => RunFailureCauses | undefined
   permissionModes: () => SessionPermissionModes | undefined
   principals: TargetTenantPrincipals
@@ -181,7 +184,7 @@ export function createSessionContribution(
   const factOf = (principal: Principal) => describedBy(facts, principal)
   const held = { admit, factOf, causes: input.causes, modes: input.permissionModes }
   const sending = { target, factOf, faces: input.faces, requests: input.requests }
-  const listing = { principalFor, listing: input.listing, settings }
+  const tenant = { principalFor, listing: input.listing, searching: input.searching, settings }
 
   async function createSession(
     principal: Principal,
@@ -296,8 +299,7 @@ export function createSessionContribution(
       'retry-run': (call, body) => retryRun(held, call.principal, body),
       'background-call': (call, body) => backgroundCall(held, call.principal, body),
       'list-background-calls': (call, body) => listBackgroundCalls(held, call.principal, body),
-      'list-sessions': (call, body) => listSessions(listing, call.principal, body),
-      'list-archived-sessions': (call, body) => listArchivedSessions(listing, call.principal, body),
+      ...tenantReadOperations(tenant),
       'archive-session': (call, body) => archiveSession(held, call.principal, body),
       'unarchive-session': (call, body) => unarchiveSession(held, call.principal, body),
       'read-permission-mode': (call, body) => readPermissionMode(held, call.principal, body),

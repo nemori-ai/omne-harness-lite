@@ -4275,6 +4275,12 @@ importers:
       '@omne-harness/session-protocol':
         specifier: workspace:*
         version: link:../session-protocol
+      '@omne-harness/session-search':
+        specifier: workspace:*
+        version: link:../session-search
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
     devDependencies:
       '@omne-harness/identity':
         specifier: workspace:*

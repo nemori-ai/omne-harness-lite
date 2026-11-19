@@ -1,3 +1,4 @@
+import type { HistorySearch } from '@omne-harness/session-search'
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import { inProcessPrincipalAuthority, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import {
@@ -119,7 +120,17 @@ export type ObservationScript =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable' }>
 
-type Port = 'faces' | 'observation' | 'definitions' | 'listing' | 'causes' | 'permissionModes'
+type Port =
+  | 'faces'
+  | 'observation'
+  | 'definitions'
+  | 'listing'
+  | 'searching'
+  | 'causes'
+  | 'permissionModes'
+
+type SearchCall = Parameters<HistorySearch<Principal>['search']>[0]
+type SearchScript = Awaited<ReturnType<HistorySearch<Principal>['search']>> | 'throw'
 
 export type World = Readonly<{
   session: SessionDouble
@@ -138,6 +149,10 @@ export type World = Readonly<{
   listing: Readonly<{
     calls(): readonly ListingCall[]
     answer(script: ListingScript): void
+  }>
+  searching: Readonly<{
+    calls(): readonly SearchCall[]
+    answer(script: SearchScript): void
   }>
   causes: Readonly<{
     calls(): readonly CauseCall[]
@@ -254,6 +269,16 @@ export function createWorld(
   }
   const listing: SessionListing = { list: read, listArchived: read }
 
+  const searchCalls: SearchCall[] = []
+  let searched: SearchScript = { ok: { hits: [], next: null, complete: true, incomplete: null } }
+  const searching: HistorySearch<Principal> = {
+    async search(call) {
+      searchCalls.push(call)
+      if (searched === 'throw') throw new Error('search fault')
+      return searched
+    },
+  }
+
   const causes: RunFailureCauses = {
     async read(call) {
       causeCalls.push(call)
@@ -298,6 +323,7 @@ export function createWorld(
       observation: () => (removed.has('observation') ? undefined : observation),
       definitions: () => (removed.has('definitions') ? undefined : resolver),
       listing: () => (removed.has('listing') ? undefined : listing),
+      searching: () => (removed.has('searching') ? undefined : searching),
       causes: () => (removed.has('causes') ? undefined : causes),
       permissionModes: () => (removed.has('permissionModes') ? undefined : permissionModes),
       principals,
@@ -344,6 +370,12 @@ export function createWorld(
       calls: () => [...listingCalls],
       answer: next => {
         listed = next
+      },
+    },
+    searching: {
+      calls: () => [...searchCalls],
+      answer: next => {
+        searched = next
       },
     },
     causes: {

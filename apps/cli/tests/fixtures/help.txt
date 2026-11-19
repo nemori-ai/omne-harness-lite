@@ -13,6 +13,7 @@ Commands
   omne send-input --session <id> --text <text>                                                                       Send a user message to a session.
   omne interrupt-input --session <id> --text <text>                                                                  Send an urgent user message: it releases what the run waits for, or is ordinary.
   omne read-history --session <id>                                                                                   Read the whole history of a session.
+  omne search (--text <literal> | --words <words> | --regex <pattern>)                                               Search the history of all sessions of the tenant.
   omne read-session-diagnostics --session <id>                                                                       Read the diagnostics of the runs of a session.
   omne read-pending --session <id> [--after <position>] [--limit <n>]                                                List the inputs a session accepted that no run took yet, the oldest first.
   omne read-waiting-calls --session <id>                                                                             List the calls of a session that wait for a person to answer a card.

@@ -1,5 +1,5 @@
 import { identityProtocol } from '@omne-harness/identity-protocol'
-import { encodeTenantText, ruleCodec, type TenantId } from '@omne-harness/public-contract'
+import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import {
   sessionProtocol,
   userTextMessage,
@@ -21,12 +21,14 @@ import {
   unrecognized,
   usageError,
   withoutProof,
+  instantOption,
   type Option,
 } from './command-support.ts'
 import { runReadSessionDiagnostics } from './diagnostics-command.ts'
 import { governanceCommands } from './governance-commands.ts'
 import { hitlCommands } from './hitl-commands.ts'
 import { runReadHistory } from './history-command.ts'
+import { runSearch } from './search-command.ts'
 import { writeLoginState } from './login-state.ts'
 import { openLink, type CallResult, type Link } from './link.ts'
 import { readOptions } from './options.ts'
@@ -481,24 +483,6 @@ type By = NonNullable<ArchivedFilters['by']>
 const BY = ['person', 'auto', 'parent'] as const
 const LIMIT = /^[1-9][0-9]*$/
 
-type Instant = NonNullable<ArchivedFilters['from']>
-const instantRule = ruleCodec({ kind: 'instant' })
-const LEAF_LIMITS = {
-  maxBytes: 1024,
-  maxDepth: 1,
-  maxItems: 1,
-  maxMembers: 1,
-  maxStringLength: 1024,
-  maxNumberLength: 1,
-}
-
-function instantOption(values: Option, option: string): Instant | null | undefined {
-  const given = values.get(option)
-  if (given === undefined) return null
-  const read = instantRule.read({ kind: 'string', value: given }, LEAF_LIMITS)
-  return read.ok ? (read.value as Instant) : undefined
-}
-
 function archivedFilters(
   values: Option,
 ): (ArchivedFilters & { given: TenantId | undefined }) | undefined {
@@ -617,6 +601,12 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id>',
     summary: 'Read the whole history of a session.',
     run: runReadHistory,
+  },
+  {
+    name: 'search',
+    usage: '(--text <literal> | --words <words> | --regex <pattern>)',
+    summary: 'Search the history of all sessions of the tenant.',
+    run: runSearch,
   },
   {
     name: 'read-session-diagnostics',

@@ -70,6 +70,7 @@ describe('command catalog', () => {
       'send-input',
       'interrupt-input',
       'read-history',
+      'search',
       'read-session-diagnostics',
       'read-pending',
       'read-waiting-calls',
