@@ -43,12 +43,9 @@ import {
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import { createScheduleAuthorizers } from './authorizer.ts'
-import { readConsentMode } from './consent-setting.ts'
 import { SCHEDULE_PARTICIPANTS, scheduleGuards } from './guard.ts'
 import { tenantDomainOf } from './tenant-domain.ts'
-import { readConsentAnswer } from './consent-answer.ts'
-import { liveCallKey, liveCalls } from '../tool-bindings/live-calls.ts'
-import { toolHitlHolder } from '../tool-hitl/holder.ts'
+import { callConsent } from '../tool-bindings/call-consent.ts'
 
 const OWNER = 'harness-server.schedule'
 
@@ -108,14 +105,7 @@ function createTenantHost(ctx: Context): Host {
     })
     if (registered.kind !== 'registered') return undefined
     const calendar = ctx.get(calendarQueryKey) as CalendarQueries
-    const authorizers = createScheduleAuthorizers({
-      mode: tenant => readConsentMode(independent(), tenant),
-      answer: readConsentAnswer({
-        live: (tenantRef, call) => liveCalls(ctx).get(liveCallKey(tenantRef, call)),
-        decidedCards: () => toolHitlHolder(ctx).decidedCards,
-      }),
-      now,
-    })
+    const authorizers = createScheduleAuthorizers({ consent: callConsent(ctx), now })
     return createScheduleLocalApplication({
       sql: {
         storage,

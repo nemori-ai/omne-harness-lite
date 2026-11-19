@@ -8,9 +8,8 @@ import type {
 /** Why a schedule is in effect: the consent it adopted, else the owner's own act; a draft has none. */
 export function basisOf(view: ScheduleView): string {
   const adoption = view.consentAdoption
-  if (adoption?.adoptionKind === 'blanket')
-    return `blanket generation=${String(adoption.generation)}`
-  if (adoption?.adoptionKind === 'granular') return `granular decision=${adoption.grantRef}`
+  if (adoption?.adoptionKind === 'blanket') return `blanket scope=${adoption.scope}`
+  if (adoption?.adoptionKind === 'granular') return 'granular'
   return view.control === 'draft' ? 'none' : 'owner'
 }
 

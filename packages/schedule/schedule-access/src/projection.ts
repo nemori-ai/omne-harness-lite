@@ -69,9 +69,8 @@ export function cardOf(view: ScheduleView) {
 function basisOf(view: ScheduleView) {
   const adoption = view.consentAdoption
   if (adoption?.adoptionKind === 'blanket')
-    return { kind: 'blanket' as const, generation: adoption.generation }
-  if (adoption?.adoptionKind === 'granular')
-    return { kind: 'granular' as const, decision: adoption.grantRef }
+    return { kind: 'blanket' as const, scope: adoption.scope }
+  if (adoption?.adoptionKind === 'granular') return { kind: 'granular' as const }
   return view.control === 'draft' ? { kind: 'none' as const } : { kind: 'owner' as const }
 }
 
