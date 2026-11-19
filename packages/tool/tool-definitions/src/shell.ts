@@ -160,6 +160,31 @@ export const shellToolModule: ToolImplementationModule<
 const NO_DIRECTORY =
   'rejected reason=unavailable this call has no working directory; pass cwd zero starts'
 
+/** Where a command or a new terminal starts: the directory the call names, else that of the call. */
+const startDirectory = (args: Arguments, environment: ShellAuthorEnvironment): string | undefined =>
+  args.optionalText('cwd') ?? environment.directory
+const shownDirectory = (environment: ShellAuthorEnvironment): string =>
+  JSON.stringify(environment.directory ?? null)
+
+/** A one-shot command. Null: nothing names a directory to start it in, so it does not start. */
+function startOnce(
+  args: Arguments,
+  environment: ShellAuthorEnvironment,
+  config: Arguments,
+  stdin: Readonly<{ stdin?: Uint8Array }>,
+) {
+  const cwd = startDirectory(args, environment)
+  if (cwd === undefined) return null
+  return environment.command.start({
+    executable: config.text('executable'),
+    args: [...config.strings('argsPrefix'), args.text('script')],
+    cwd,
+    env: { ...config.env('env'), ...args.env('env') },
+    outputMode: 'separate',
+    ...stdin,
+  })
+}
+
 async function executeShell(
   command: string,
   args: Arguments,
@@ -171,13 +196,13 @@ async function executeShell(
   const terminal = args.terminal()
   switch (command) {
     case 'info':
-      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${JSON.stringify(environment.directory ?? null)}\nprocess_containment=${environment.command.containment ?? 'undeclared'}\n${BACKGROUND_LINES}${await terminalLines(environment)}${await retainedProcessLines(environment)}`
+      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${shownDirectory(environment)}\nprocess_containment=${environment.command.containment ?? 'undeclared'}\n${BACKGROUND_LINES}${await terminalLines(environment)}${await retainedProcessLines(environment)}`
     case 'create_session': {
       if (environment.terminal.retention === undefined)
         return 'rejected reason=unavailable session retention unavailable zero starts'
       if (args.has('columns') !== args.has('rows'))
         return 'rejected reason=invalidInput columns and rows must be supplied together'
-      const cwd = args.optionalText('cwd') ?? environment.directory
+      const cwd = startDirectory(args, environment)
       if (cwd === undefined) return NO_DIRECTORY
       return confirmation(
         await environment.terminal.create({
@@ -249,18 +274,9 @@ async function executeScript(
   }
   const input = args.optionalText('stdin')
   const stdin = input === undefined ? {} : { stdin: new TextEncoder().encode(input) }
-  const cwd = args.optionalText('cwd') ?? environment.directory
-  if (terminal === undefined && cwd === undefined) return NO_DIRECTORY
   const started =
     terminal === undefined
-      ? await environment.command.start({
-          executable: config.text('executable'),
-          args: [...config.strings('argsPrefix'), args.text('script')],
-          cwd: cwd as string,
-          env: { ...config.env('env'), ...args.env('env') },
-          outputMode: 'separate',
-          ...stdin,
-        })
+      ? await startOnce(args, environment, config, stdin)
       : await environment.terminal.execute({
           terminal,
           script: args.text('script'),
@@ -268,6 +284,7 @@ async function executeScript(
           ...(args.has('env') ? { env: args.env('env') } : {}),
           ...stdin,
         })
+  if (started === null) return NO_DIRECTORY
   if (started.kind !== 'done') return confirmation(started, () => '')
   const stage = new OutputStage({
     writer: execution.body,

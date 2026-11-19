@@ -163,6 +163,18 @@ export function forwardIntentOfCall(call: CallParts): ToolForwardIntent | null {
   if (name?.kind !== 'string' || argumentsValue === undefined || command === undefined) return null
   return { name: name.value, command, arguments: normalizeJson(argumentsValue) }
 }
+const INHERITED = [
+  'scope',
+  'requesterScope',
+  'context',
+  'workspace',
+  'resources',
+  'limits',
+  'mode',
+] as const
+/** A target works where its parent was pinned: the directory is inherited, absent or not. */
+const pinOf = (request: Pick<ToolInvokeRequest, 'directory'>) => request.directory ?? null
+
 function matchesTarget(
   parent: FixedToolRequest,
   intent: ToolForwardIntent,
@@ -185,11 +197,9 @@ function matchesTarget(
   )
     return false
   if (target.batchDecision !== null) return false
-  // A target works where its parent was pinned: the directory is inherited, absent or not.
-  if (!same(parent.directory ?? null, target.directory ?? null)) return false
   return (
-    ['scope', 'requesterScope', 'context', 'workspace', 'resources', 'limits', 'mode'] as const
-  ).every(key => same(parent[key], target[key]))
+    INHERITED.every(key => same(parent[key], target[key])) && same(pinOf(parent), pinOf(target))
+  )
 }
 
 export function createInvocationForwarding<P>(

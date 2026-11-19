@@ -76,6 +76,17 @@ export type LocalEnvironmentPlanInput<P> = Readonly<{
   facts(placement: Placement): Reply<EnvironmentFacts>
 }>
 
+/** What is asked of the placement: its files root is the directory pinned in the request, if any. */
+function wantedPlacement(
+  scope: ScopeRef,
+  requirement: EnvironmentRequirement,
+  pinned: Readonly<{ path: string }> | undefined,
+) {
+  return pinned === undefined
+    ? { scope, requirement }
+    : { scope, requirement, filesRoot: pinned.path }
+}
+
 export function createLocalEnvironmentPlanResolver<P>(
   input: LocalEnvironmentPlanInput<P>,
 ): EnvironmentPlanResolver<P> {
@@ -92,14 +103,9 @@ export function createLocalEnvironmentPlanResolver<P>(
         return fail({ kind: 'denied', action: 'environment-scope' })
       const required = await input.requirement(request)
       if ('failure' in required) return required
-      const pinned = request.request.directory
       const placement = await input.execution.resolvePlacement(
         { principal: request.principal, tenant: request.tenant },
-        {
-          scope: binding.ok.scope,
-          requirement: required.ok,
-          ...(pinned === undefined ? {} : { filesRoot: pinned.path }),
-        },
+        wantedPlacement(binding.ok.scope, required.ok, request.request.directory),
       )
       if (placement.kind === 'rejected')
         return environmentFailure(`placement rejected: ${placement.reason}`)

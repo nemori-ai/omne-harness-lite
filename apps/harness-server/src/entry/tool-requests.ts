@@ -213,13 +213,11 @@ async function availabilityOf(
   const access = { principal: input.principal, tenant: input.tenant, session }
   const placed = await directoryOf(ports, access, availability.definition)
   if ('failure' in placed) return placed
-  if (placed.ok.kind === 'answered') return succeed(placed.ok)
-  const { directory } = placed.ok
-  return succeed({
-    ...availability,
-    ...selected,
-    ...(directory === undefined ? {} : { directory }),
-  })
+  return succeed(
+    placed.ok.kind === 'answered'
+      ? placed.ok
+      : { ...availability, ...selected, ...pinned(placed.ok.directory) },
+  )
 }
 
 async function closedBySession(
@@ -304,6 +302,8 @@ export const unusableDirectory = (reason: string): string =>
   `unavailable: the workspace selected for this session cannot be used now (reason: ${reason}). Nothing ran, and no other directory was used in its place. Tell the user. The call works again when the workspace can be used or when the session selects another one.`
 
 type Pinned = Readonly<{ directory?: ToolCallDirectory }>
+const pinned = (directory: ToolCallDirectory | undefined): Pinned =>
+  directory === undefined ? {} : { directory }
 type Placed = Readonly<{ kind: 'pinned' }> & Pinned
 const pinnedTo = (directory: ToolCallDirectory): Placed => ({ kind: 'pinned', directory })
 
@@ -407,7 +407,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
       settings: entry.settings,
       context: RELEASE_REQUEST_CONTEXT,
       workspace: null,
-      ...(directory === undefined ? {} : { directory }),
+      ...pinned(directory),
       environment: availability.definition.declarations.environment,
       requesterScope: scope.ok,
       resources: [],
