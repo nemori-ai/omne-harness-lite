@@ -33,7 +33,10 @@ import type {
 import { toolEnforcementKey } from '../../entry/tool-permission-release.ts'
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import type { AuthorizationConsumer, OnceAuthorization } from '@omne-harness/session-contract'
-import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
+import {
+  sessionAuthorizationGuardFacts,
+  type SessionAuthorizations,
+} from '@omne-harness/session-storage-sql/participants'
 import { onceAuthorizationFor, sessionGrantFor } from './authorization-facts.ts'
 import { capturedInquirySchema } from '../governance/permission-inquiry.ts'
 import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
@@ -289,12 +292,35 @@ function sessionFactsOf(
   }
 }
 
-function releaseDecision(
-  decided: ReleaseDecision,
-  { evidence, condition, once, gate }: Found,
-): ToolPermissionDecision {
+// A release on a once or a session authorization holds only while that authorization does.
+function guardedCondition(
+  decided: Extract<ReleaseDecision, { kind: 'release' }>,
+  { condition, holders, gateRef, once }: Found,
+): StartCondition | null {
+  if (condition === null || (decided.by !== 'once' && decided.by !== 'session')) return condition
+  const grant =
+    decided.by === 'once' && once
+      ? { kind: 'once' as const, consumer: once.consumer, source: once.source }
+      : decided.grant.via === 'session-grant'
+        ? {
+            kind: 'session' as const,
+            capabilityId: gateRef.capability,
+            enforcementKey: gateRef.key,
+            source: decided.grant.source,
+          }
+        : null
+  const commands = condition['commands']
+  if (grant === null || !Array.isArray(commands))
+    throw new Error('A release on a session authorization cannot be guarded at its acceptance.')
+  const guard = sessionAuthorizationGuardFacts({ ...holders, grant })
+  return { ...condition, commands: [...commands, guard] }
+}
+
+function releaseDecision(decided: ReleaseDecision, found: Found): ToolPermissionDecision {
+  const { evidence, once, gate } = found
   switch (decided.kind) {
     case 'release': {
+      const condition = guardedCondition(decided, found)
       const release: PermissionRelease =
         decided.by === 'carrier'
           ? { by: 'carrier', grant: null }

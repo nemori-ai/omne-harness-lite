@@ -1,5 +1,8 @@
 import { UNMAPPED_PERMISSION_SNAPSHOT } from './unmapped-permission-snapshot.ts'
-import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
+import {
+  SESSION_AUTHORIZATION_GUARD,
+  SESSION_LOG_PARTICIPANTS,
+} from '@omne-harness/session-storage-sql/participants'
 import {
   SETTINGS_CHECKPOINT_PARTICIPANTS,
   SETTINGS_COMMIT_PARTICIPANTS,
@@ -61,6 +64,7 @@ const startCondition = (read: readonly string[]) => [
   'governance.metadata-plan',
   PERMISSION_BASIS.participant,
   PERMISSION_BASIS_GUARD.participant,
+  SESSION_AUTHORIZATION_GUARD,
   'tool',
 ]
 const permissionWrite = (mode: 'clear' | 'unmapped' | 'mapped') => [

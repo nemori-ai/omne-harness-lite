@@ -104,6 +104,29 @@ export const SessionPermissionGuardSchema = z.strictObject({
   }),
 })
 
+export const SESSION_AUTHORIZATION_GUARD = 'session-authorization-guard'
+/** The one authorization a start was released on: its row must still hold with the same source. */
+export const SessionAuthorizationGuardSchema = z.strictObject({
+  request: z.strictObject({
+    tenant: text,
+    session: text,
+    grant: z.discriminatedUnion('kind', [
+      z.strictObject({ kind: z.literal('once'), consumer, source: evidence }),
+      z.strictObject({
+        kind: z.literal('session'),
+        capabilityId: text,
+        enforcementKey: text,
+        source: evidence,
+      }),
+    ]),
+  }),
+})
+export type SessionAuthorizationGuard = z.infer<typeof SessionAuthorizationGuardSchema>['request']
+
+export function sessionAuthorizationGuardFacts(request: SessionAuthorizationGuard): FactCommandV2 {
+  return { participant: SESSION_AUTHORIZATION_GUARD, facts: { request } }
+}
+
 export function sessionPermissionGuardFacts(current: SessionPermissionCurrent): FactCommandV2 {
   const { tenant, session, capabilityId, enforcementKey, revision, source } = current
   return {

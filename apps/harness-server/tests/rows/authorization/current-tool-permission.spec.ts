@@ -214,7 +214,7 @@ it('releases the action a once authorization names and gives it for the start to
   w.authorize(onceFor(w))
   expect(await check.check(w.input)).toMatchObject({
     kind: 'allow',
-    condition: w.condition,
+    condition: { combinationVersion: w.condition.combinationVersion },
     authorization: { consumer, source: decisionEvidence('card-answer', '1', {}) },
   })
 })
@@ -248,7 +248,10 @@ it('releases an action of a gate released for the session while the basis of tha
   })
   w.authorize(forSession({}))
   const released = await check.check(w.input)
-  expect(released).toMatchObject({ kind: 'allow', condition: w.condition })
+  expect(released).toMatchObject({
+    kind: 'allow',
+    condition: { combinationVersion: w.condition.combinationVersion },
+  })
   expect(released).not.toHaveProperty('authorization')
   w.authorize(forSession({ basis: 'the basis before the setting changed' }))
   expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
@@ -354,6 +357,59 @@ describe('the grant a release names', () => {
         grant: { via: 'skip-ask', holder: 'session-1', source: w.inquiry.inquiry.source },
       },
     })
+  })
+
+  it('guards the acceptance on the once or session authorization it rests on, and on nothing else', async () => {
+    const w = world()
+    const check = createCurrentToolPermission(w.ports)
+    const guards = (decision: Awaited<ReturnType<typeof check.check>>) =>
+      decision.kind === 'allow'
+        ? ((decision.condition?.['commands'] as unknown[]) ?? []).filter(
+            command =>
+              (command as { participant: string }).participant === 'session-authorization-guard',
+          )
+        : []
+    expect(guards(await check.check(w.input))).toEqual([])
+    w.current.evaluation.sources.tenant.rule.pick = 'ask'
+    w.authorize(onceFor(w))
+    const tenant = w.request.scope.tenantId
+    expect(guards(await check.check(w.input))).toEqual([
+      {
+        participant: 'session-authorization-guard',
+        facts: {
+          request: {
+            tenant,
+            session: 'session-1',
+            grant: { kind: 'once', consumer, source: decisionEvidence('card-answer', '1', {}) },
+          },
+        },
+      },
+    ])
+    const given = decisionEvidence('card-answer', '2', {})
+    const { capabilityId, enforcementKey } = w.request
+    w.authorize({
+      revision: '2',
+      once: null,
+      session: {
+        capabilityId,
+        enforcementKey,
+        basis: digestOf(w.current.evaluation),
+        source: given,
+      },
+    })
+    expect(guards(await check.check(w.input))).toEqual([
+      {
+        participant: 'session-authorization-guard',
+        facts: {
+          request: {
+            tenant,
+            session: 'session-1',
+            grant: { kind: 'session', capabilityId, enforcementKey, source: given },
+          },
+        },
+      },
+    ])
+    expect(w.condition.commands).toEqual([])
   })
 
   it('names no grant for a carrier', async () => {

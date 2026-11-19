@@ -4,7 +4,11 @@ import {
   PERMISSION_CURRENT_MIGRATION,
   PERMISSION_CURRENT_TABLES,
 } from './worker/permission-current-schema.ts'
-import { SESSION_PERMISSION_CURRENT_FACT, SESSION_PERMISSION_GUARD } from './permission-current.ts'
+import {
+  SESSION_AUTHORIZATION_GUARD,
+  SESSION_PERMISSION_CURRENT_FACT,
+  SESSION_PERMISSION_GUARD,
+} from './permission-current.ts'
 import {
   SESSION_ORDINARY_BASIS,
   SESSION_COMMIT_BASIS,
@@ -418,6 +422,7 @@ export function sessionStorageMaterials(
 ): SessionStorageMaterials {
   const readOutputLimitBytes = requireReadOutputLimit(options)
   const permissionGuard = module('permission-current-guard')
+  const authorizationGuard = module('authorization-guard')
   const runLiveGuard = module('run-live-guard')
   const participant = module('participant')
   const ordinaryBasis = module('ordinary-basis')
@@ -445,6 +450,18 @@ export function sessionStorageMaterials(
         readTables: PERMISSION_CURRENT_TABLES,
         requiresFacts: [],
         providesFacts: [SESSION_PERMISSION_CURRENT_FACT],
+        allowedFunctions: [],
+        grouping: 'singleton',
+      },
+      {
+        participant: SESSION_AUTHORIZATION_GUARD,
+        protocol: '1',
+        moduleUrl: authorizationGuard.moduleUrl,
+        codeDigest: authorizationGuard.digest,
+        ownedTables: [],
+        readTables: AUTHORIZATION_CONTEXT_TABLES,
+        requiresFacts: [],
+        providesFacts: [],
         allowedFunctions: [],
         grouping: 'singleton',
       },

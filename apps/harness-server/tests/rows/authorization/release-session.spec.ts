@@ -48,6 +48,12 @@ it(
       expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toEqual([])
       expect(second.filter(entry => entry.kind === ONCE)).toHaveLength(1)
       expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toEqual([])
+      // Both starts rest on the one session grant, named by its own source and guarded at acceptance.
+      const releases = startAcceptances(tree.storageRoot).map(row => row['release'])
+      expect(releases).toEqual([
+        { by: 'session', grant: expect.stringContaining('"via":"session-grant"') },
+        { by: 'session', grant: expect.stringContaining('"via":"session-grant"') },
+      ])
 
       const other = await tree.startSession('start: echo other')
       await pendingCard(tree, other, 'the other session')
