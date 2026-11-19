@@ -22,7 +22,7 @@ export type CalendarSupplyRisk = Readonly<{
 
 declare module '@omne-harness/runtime-context-contract' {
   interface ContextBlocks {
-    'calendar.supply-risk': readonly CalendarSupplyRisk[]
+    'calendar.supply-risk': readonly StandingItem[]
   }
 }
 
@@ -31,20 +31,6 @@ const KINDS: readonly CalendarRiskKind[] = [
   'coverage-critical',
   'supply-failing',
 ]
-
-function risksOrNull(value: unknown): readonly CalendarSupplyRisk[] | null {
-  if (!Array.isArray(value)) return null
-  const ok = value.every(
-    item =>
-      typeof item === 'object' &&
-      item !== null &&
-      typeof item.calendarId === 'string' &&
-      KINDS.includes(item.kind) &&
-      typeof item.since === 'string' &&
-      typeof item.detail === 'string',
-  )
-  return ok ? (value as readonly CalendarSupplyRisk[]) : null
-}
 
 /** The risks open now: a warning or critical horizon, and a failing supply. Unknown is not a risk. */
 export function supplyRisksOf(health: readonly CalendarHealth[]): readonly CalendarSupplyRisk[] {
@@ -72,27 +58,17 @@ export function supplyRisksOf(health: readonly CalendarHealth[]): readonly Calen
 export const calendarSupplyRiskDescriptor = Object.freeze({
   key: CALENDAR_SUPPLY_RISK_KEY,
   kind: 'supplied',
-  schema: {
-    '~standard': {
-      version: 1,
-      vendor: 'calendar-adapters',
-      validate: (value: unknown) => {
-        const risks = risksOrNull(value)
-        return risks === null
-          ? { issues: [{ message: 'Expected the open calendar supply risks' }] }
-          : { value: risks }
-      },
-    },
-  },
+  // The same schema as Notification's need: a block bound without translation must have the need's shape.
+  schema: standingItemsSchema,
   consumers: ['coordinator'],
   required: true,
   disclosure: 'plain',
   carriesPrevious: false,
   volatility: 'per-read',
   recovery: 'reread',
-} satisfies SuppliedBlockDescriptor<typeof CALENDAR_SUPPLY_RISK_KEY, readonly CalendarSupplyRisk[]>)
+} satisfies SuppliedBlockDescriptor<typeof CALENDAR_SUPPLY_RISK_KEY, readonly StandingItem[]>)
 
-/** Health is system-wide, so every tenant reads the same risks. Null from `read`: health is not known now. */
+// Health is system-wide, so every tenant reads the same risks; null from `read`: not known now.
 export function calendarSupplyRiskBlock(
   read: () => Promise<readonly CalendarHealth[] | null>,
 ): StaticBlock {
@@ -102,7 +78,7 @@ export function calendarSupplyRiskBlock(
       const health = await read()
       return health === null
         ? ({ kind: 'unknown' } as const)
-        : ({ kind: 'value', value: supplyRisksOf(health) } as const)
+        : ({ kind: 'value', value: standingItemsOfRisks(supplyRisksOf(health)) } as const)
     },
   })
 }
@@ -143,7 +119,6 @@ export const calendarSupplySource: SourceDeclaration = Object.freeze({
   types: KINDS.map(riskType),
 })
 
-/** Translates the risk block into the standing items Notification reads. */
 export function standingItemsOfRisks(
   risks: readonly CalendarSupplyRisk[],
 ): readonly StandingItem[] {

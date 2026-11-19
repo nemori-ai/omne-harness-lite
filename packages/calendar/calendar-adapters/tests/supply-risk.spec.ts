@@ -53,12 +53,17 @@ describe('supply risks of the calendar health (the totalisation table of design-
 describe('the supply risk block', () => {
   it('reads unknown, not empty, when health cannot be read', async () => {
     const block = calendarSupplyRiskBlock(async () => null)
-    expect(await block.supply({ tenant: {} as never })).toEqual({ kind: 'unknown' })
+    expect(await block.supply({ tenant: {} } as never)).toEqual({ kind: 'unknown' })
   })
-  it('reads the risks as its value', async () => {
+  it('reads the risks as its value, in the shape of the standing items Notification reads', async () => {
     const block = calendarSupplyRiskBlock(async () => [health({ horizon: 'warning' })])
-    const read = await block.supply({ tenant: {} as never })
-    expect(read).toMatchObject({ kind: 'value', value: [{ kind: 'coverage-warning' }] })
+    const read = await block.supply({ tenant: {} } as never)
+    expect(read).toMatchObject({
+      kind: 'value',
+      value: [
+        { id: 'calendar.supply/jp-legal-holidays/coverage-warning', type: 'coverage-warning' },
+      ],
+    })
   })
 })
 
@@ -66,7 +71,12 @@ describe('the translation into standing items', () => {
   it('keeps one identity per calendar and cause, so a repeated read reminds once', () => {
     const first = standingItemsOfRisks(supplyRisksOf([health({ horizon: 'warning' })]))
     const later = standingItemsOfRisks(
-      supplyRisksOf([health({ horizon: 'warning', observedAt: '2027-03-09T00:00:00.000Z' })]),
+      supplyRisksOf([
+        health({
+          horizon: 'warning',
+          observedAt: '2027-03-09T00:00:00.000Z' as CalendarHealth['observedAt'],
+        }),
+      ]),
     )
     expect(first.map(item => item.id)).toEqual([
       'calendar.supply/jp-legal-holidays/coverage-warning',

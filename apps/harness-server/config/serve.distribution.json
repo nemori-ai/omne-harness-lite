@@ -151,6 +151,11 @@
       "config": {}
     },
     {
+      "id": "calendar-notification",
+      "plugin": "calendarNotificationRow",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
       "config": {

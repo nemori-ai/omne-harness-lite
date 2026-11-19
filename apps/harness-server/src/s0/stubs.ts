@@ -45,6 +45,11 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['runtimeContextTenantBlocks', 'runtimeContextTenantScope'],
     injects: ['runtimeContext'],
   },
+  'calendar-notification': {
+    provides: [],
+    injects: ['notificationSources', 'runtimeContextTenantBlocks'],
+    phase: 'composition',
+  },
   'session-intake-budget': {
     provides: [],
     injects: ['runtimeContextTenantBlocks', 'tenantIndependentSettings'],

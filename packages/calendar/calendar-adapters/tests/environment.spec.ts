@@ -85,13 +85,13 @@ describe('the calendar environment read through the tenant-level scope', () => {
 
 describe('the calendar environment block', () => {
   it('reads unavailable when the assembly cannot read the settings now', async () => {
-    expect(await calendarEnvironmentBlock(async () => null).supply({ tenant })).toEqual({
+    expect(await calendarEnvironmentBlock(async () => null).supply({ tenant } as never)).toEqual({
       kind: 'unavailable',
     })
   })
   it('reads the value the assembly gives', async () => {
     const value = { kind: 'missing' } as const
-    expect(await calendarEnvironmentBlock(async () => value).supply({ tenant })).toEqual({
+    expect(await calendarEnvironmentBlock(async () => value).supply({ tenant } as never)).toEqual({
       kind: 'value',
       value,
     })

@@ -14,7 +14,7 @@
 | `calendar-protocol`        | 公开协议 `calendar/v1` 的协议契约：目录、生效环境与一次日期计算。纯数据                                               |
 | `calendar-access`          | `calendar/v1` 的接入插件：核对登录与租户、取主体、调日历的服务、映射结果                                              |
 | `calendar-ui`              | 界面模块：桌面侧栏的「日历」页                                                                                        |
-| `calendar-adapters`        | 邻域的端口由谁来适配：Runtime Context 的两个租户级块（生效环境、供应风险）的声明与读者；给通知的贡献（登记来源 `calendar.supply`，把供应风险块翻译成通知要的「一组持续事项」）。日历里只有它认识邻域的契约；通知的贡献是单独的插件，不装它日历照常 |
+| `calendar-adapters`        | 邻域的端口由谁来适配：Runtime Context 的两个租户级块（生效环境、供应风险）的声明与读者；给通知的贡献（来源 `calendar.supply` 的声明；供应风险块直接以通知的事项形状发布）。日历里只有它认识邻域的契约；通知的贡献是单独的插件，不装它日历照常 |
 
 依赖只朝契约：`calendar-local` → {`calendar`、`calendar-cordis-contract`、`calendar-contract`、`sql-contract`}；`calendar-tools` → {`calendar-contract`、Tool 的公开作者协议}，不依赖 `calendar` 与 `calendar-local`；`calendar` → `calendar-contract`；`calendar-access` → {`calendar-protocol`、`calendar-cordis-contract`、`calendar-contract`、接入的贡献类型}；`calendar-ui` → {`calendar-protocol`、客户端装配、SDK 的客户端核心、公开契约、`frontend` 这一组}，不依赖日历的任何别的成员。查询应用先核资格，再解析日历与版本，在一份不可变快照里完成计算并带回实际依据。供应应用把来源材料解析、校验之后，经存储的具名参加者把新版本与当前发布事实在一次提交里写入；提交之后的反应经 outbox 交出。查询与供应可以在不同实例里运行，但消费同一份公开契约，不共用进程或数据库作为前提。
 
@@ -117,7 +117,7 @@
 ### 供应风险与提醒
 
 - 本组把此刻开着的供应风险发布成租户级块 `calendar.supply-risk`。每份日历至多三项：覆盖到警告线、覆盖到严重线、供应失败。身份是 `calendar.supply/<日历>/<种类>`，同一成因同一身份；警告升到严重是新的一项。分级未知不算开着的风险。任一日历的健康读不到时，整块答未知，不答空。
-- 块的值归本组；谁被提醒、多急归通知的订阅。`calendar-adapters` 的通知贡献登记来源 `calendar.supply`（三种事件类型都是持续事项，绑定这个块），并把块翻译成通知的事项形状。本组的其余成员不认识通知。
+- 块的值归本组；谁被提醒、多急归通知的订阅。块直接以通知的事项形状发布，模式就是通知那个需要的形状：租户级持有者只把不经翻译的绑定交给读者。来源 `calendar.supply` 的声明（三种事件类型都是持续事项，绑定这个块）在 `calendar-adapters`，由发行装配登记。本组的其余成员不认识通知。
 
 ### 与日程的接缝
 
