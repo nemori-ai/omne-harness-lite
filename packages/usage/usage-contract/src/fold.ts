@@ -1,43 +1,52 @@
 // Folding: every fact in the range lands in exactly one bucket and one group; sums keep the known,
 // the unknown and the provisional apart; ratios come from the sums; percentiles from the units.
-import type { Amount, UsageItem } from '@omne-harness/call-account'
+import type { Amount } from '@omne-harness/call-account'
 import { instantText, type CheckedUsageQuery, type UsageEdge } from './check.ts'
-import { addLexemes } from './decimal.ts'
+import { decimalOf, lexemeOf, numberOf, plus, ZERO, type Decimal } from './decimal.ts'
 import {
   TOKEN_KINDS,
   type TokenKind,
   type UsageCell,
-  type UsageCoverage,
   type UsageDimension,
   type UsageDistribution,
   type UsageFact,
   type UsageMeasures,
   type UsageRatio,
   type UsageResult,
-  type UsageSum,
 } from './values.ts'
 
-type Sum = { known: string; unknown: number; provisional: number }
-type Share = { part: string; whole: string }
-type Tally = Readonly<{
-  measures: UsageMeasures
-  costUnknown: number
-  excluded: UsageCoverage['excluded']
+type Sum = { known: Decimal; unknown: number; provisional: number }
+type Value = Readonly<{ state: Amount['state']; value: Decimal | null }>
+/** A fact with its amounts read once, so that every cell it lands in adds the same numbers. */
+type Parsed = Readonly<{
+  fact: UsageFact
+  tokens: Readonly<Partial<Record<TokenKind, Value>>>
+  cost: (Value & Readonly<{ unit: string }>) | null
 }>
 
-const zero = (): Sum => ({ known: '0', unknown: 0, provisional: 0 })
-const itemOf = (fact: UsageFact, name: TokenKind): UsageItem | undefined =>
-  fact.usage.find(item => item.name === name)
+const zero = (): Sum => ({ known: ZERO, unknown: 0, provisional: 0 })
+const valueOf = (amount: Amount): Value => ({
+  state: amount.state,
+  value: amount.state === 'unknown' ? null : decimalOf(amount.lexeme),
+})
 
-function add(sum: Sum, amount: Amount): void {
-  if (amount.state === 'known') sum.known = addLexemes(sum.known, amount.lexeme)
-  else if (amount.state === 'provisional') sum.provisional += 1
-  else sum.unknown += 1
+function parse(fact: UsageFact): Parsed {
+  const tokens: Partial<Record<TokenKind, Value>> = {}
+  for (const kind of TOKEN_KINDS) {
+    const item = fact.usage.find(entry => entry.name === kind)
+    if (item !== undefined) tokens[kind] = valueOf(item)
+  }
+  return {
+    fact,
+    tokens,
+    cost: fact.cost === null ? null : { ...valueOf(fact.cost), unit: fact.cost.unit },
+  }
 }
 
-function addMs(sum: Sum, ms: number | null): void {
-  if (ms === null) sum.unknown += 1
-  else sum.known = addLexemes(sum.known, String(ms))
+function add(sum: Sum, amount: Value): void {
+  if (amount.state === 'known' && amount.value !== null) sum.known = plus(sum.known, amount.value)
+  else if (amount.state === 'provisional') sum.provisional += 1
+  else sum.unknown += 1
 }
 
 const ratio = (part: number, whole: number): UsageRatio =>
@@ -53,101 +62,120 @@ function distribution(values: number[]): UsageDistribution {
   return { count: sorted.length, p50: percentile(sorted, 0.5), p90: percentile(sorted, 0.9) }
 }
 
-function known(items: readonly (UsageItem | undefined)[]): readonly string[] | null {
-  const lexemes = items.map(item => (item?.state === 'known' ? item.lexeme : null))
-  return lexemes.every(item => item !== null) ? (lexemes as string[]) : null
-}
+const sumText = (sum: Sum) => ({ ...sum, known: lexemeOf(sum.known) })
+const knownOf = (value: Value | undefined): Decimal | null =>
+  value?.state === 'known' ? value.value : null
 
-function tally(facts: readonly UsageFact[]): Tally {
-  let calls = 0
-  let retried = 0
-  let interrupted = 0
-  let costUnknown = 0
-  const failed = new Map<string | null, number>()
-  const tokens = Object.fromEntries(TOKEN_KINDS.map(kind => [kind, zero()])) as Record<
+class Cell {
+  private calls = 0
+  private retried = 0
+  private interrupted = 0
+  costUnknown = 0
+  private readonly failed = new Map<string | null, number>()
+  private readonly tokens = Object.fromEntries(TOKEN_KINDS.map(kind => [kind, zero()])) as Record<
     TokenKind,
     Sum
   >
-  const costs = new Map<string, Sum>()
-  const total = zero()
-  const firsts: number[] = []
-  const wholes: number[] = []
-  const cache: Share = { part: '0', whole: '0' }
-  const reasoning: Share = { part: '0', whole: '0' }
-  const speed = { output: '0', ms: 0 }
-  const excluded = { cacheHit: 0, reasoningShare: 0, outputPerSecond: 0 }
-  for (const fact of facts) {
-    if (fact.retried) retried += 1
-    else calls += 1
-    if (fact.outcome === 'interrupted') interrupted += 1
-    if (fact.outcome === 'failed') failed.set(fact.cause, (failed.get(fact.cause) ?? 0) + 1)
+  private readonly costs = new Map<string, Sum>()
+  private readonly total = zero()
+  private readonly firsts: number[] = []
+  private readonly wholes: number[] = []
+  private cache = { part: ZERO, whole: ZERO }
+  private reasoning = { part: ZERO, whole: ZERO }
+  private speed = { output: ZERO, ms: 0 }
+  readonly excluded = { cacheHit: 0, reasoningShare: 0, outputPerSecond: 0 }
+
+  add({ fact, tokens, cost }: Parsed): void {
+    if (fact.retried) this.retried += 1
+    else this.calls += 1
+    if (fact.outcome === 'interrupted') this.interrupted += 1
+    if (fact.outcome === 'failed')
+      this.failed.set(fact.cause, (this.failed.get(fact.cause) ?? 0) + 1)
     for (const kind of TOKEN_KINDS) {
-      const item = itemOf(fact, kind)
-      if (item !== undefined) add(tokens[kind], item)
+      const value = tokens[kind]
+      if (value !== undefined) add(this.tokens[kind], value)
     }
-    if (fact.cost !== null) {
-      const sum = costs.get(fact.cost.unit) ?? zero()
-      add(sum, fact.cost)
-      costs.set(fact.cost.unit, sum)
-      if (fact.cost.state === 'unknown') costUnknown += 1
+    if (cost !== null) {
+      const sum = this.costs.get(cost.unit) ?? zero()
+      add(sum, cost)
+      this.costs.set(cost.unit, sum)
+      if (cost.state === 'unknown') this.costUnknown += 1
     }
-    addMs(total, fact.durations.total)
-    if (fact.durations.toFirstContent !== null) firsts.push(fact.durations.toFirstContent)
-    if (fact.durations.total !== null) wholes.push(fact.durations.total)
-    const input = [itemOf(fact, 'input'), itemOf(fact, 'cache-read'), itemOf(fact, 'cache-write')]
-    if (input.some(item => item !== undefined)) {
-      const values = known(input)
-      if (values === null) excluded.cacheHit += 1
-      else {
-        cache.part = addLexemes(cache.part, values[1] ?? '0')
-        cache.whole = values.reduce(addLexemes, cache.whole)
-      }
+    const { total, toFirstContent, generation } = fact.durations
+    if (total === null) this.total.unknown += 1
+    else {
+      this.total.known = plus(this.total.known, { digits: BigInt(total), places: 0 })
+      this.wholes.push(total)
     }
-    const output = itemOf(fact, 'output')
-    if (output !== undefined) {
-      const share = known([itemOf(fact, 'reasoning'), output])
-      if (share === null) excluded.reasoningShare += 1
-      else {
-        reasoning.part = addLexemes(reasoning.part, share[0] ?? '0')
-        reasoning.whole = addLexemes(reasoning.whole, share[1] ?? '0')
+    if (toFirstContent !== null) this.firsts.push(toFirstContent)
+    this.addRates(tokens, generation)
+  }
+
+  private addRates(tokens: Parsed['tokens'], generation: number | null): void {
+    const input = [tokens.input, tokens['cache-read'], tokens['cache-write']]
+    if (input.some(value => value !== undefined)) {
+      const values = input.map(knownOf)
+      if (values.some(value => value === null)) this.excluded.cacheHit += 1
+      else
+        this.cache = {
+          part: plus(this.cache.part, values[1] ?? ZERO),
+          whole: values.reduce<Decimal>((sum, value) => plus(sum, value ?? ZERO), this.cache.whole),
+        }
+    }
+    const output = tokens.output
+    if (output === undefined) return
+    const reasoning = knownOf(tokens.reasoning)
+    const produced = knownOf(output)
+    if (reasoning === null || produced === null) this.excluded.reasoningShare += 1
+    else
+      this.reasoning = {
+        part: plus(this.reasoning.part, reasoning),
+        whole: plus(this.reasoning.whole, produced),
       }
-      const generation = fact.durations.generation
-      if (output.state !== 'known' || generation === null) excluded.outputPerSecond += 1
-      else {
-        speed.output = addLexemes(speed.output, output.lexeme)
-        speed.ms += generation
-      }
+    if (produced === null || generation === null) this.excluded.outputPerSecond += 1
+    else this.speed = { output: plus(this.speed.output, produced), ms: this.speed.ms + generation }
+  }
+
+  measures(): UsageMeasures {
+    const units = this.calls + this.retried
+    const failures = [...this.failed.values()].reduce((sum, count) => sum + count, 0)
+    return {
+      calls: this.calls,
+      units,
+      retried: this.retried,
+      interrupted: this.interrupted,
+      failed: [...this.failed]
+        .map(([cause, count]) => ({ cause, count }))
+        .sort((a, b) => compareKeys([a.cause], [b.cause])),
+      tokens: Object.fromEntries(
+        TOKEN_KINDS.map(kind => [kind, sumText(this.tokens[kind])]),
+      ) as UsageMeasures['tokens'],
+      cost: [...this.costs]
+        .map(([unit, sum]) => ({ ...sumText(sum), unit }))
+        .sort((a, b) => (a.unit < b.unit ? -1 : 1)),
+      duration: {
+        total: sumText(this.total),
+        toFirstContent: distribution(this.firsts),
+        whole: distribution(this.wholes),
+      },
+      rates: {
+        cacheHit: ratio(numberOf(this.cache.part), numberOf(this.cache.whole)),
+        reasoningShare: ratio(numberOf(this.reasoning.part), numberOf(this.reasoning.whole)),
+        retry: ratio(this.retried, units),
+        failure: ratio(failures, units),
+        outputPerSecond: ratio(numberOf(this.speed.output), this.speed.ms / 1000),
+      },
     }
   }
-  const units = calls + retried
-  const failures = [...failed.values()].reduce((sum, count) => sum + count, 0)
-  const measures: UsageMeasures = {
-    calls,
-    units,
-    retried,
-    interrupted,
-    failed: [...failed]
-      .map(([cause, count]) => ({ cause, count }))
-      .sort((a, b) => compareKeys([a.cause], [b.cause])),
-    tokens: tokens as Record<TokenKind, UsageSum>,
-    cost: [...costs]
-      .map(([unit, sum]) => ({ ...sum, unit }))
-      .sort((a, b) => (a.unit < b.unit ? -1 : 1)),
-    duration: { total, toFirstContent: distribution(firsts), whole: distribution(wholes) },
-    rates: {
-      cacheHit: ratio(Number(cache.part), Number(cache.whole)),
-      reasoningShare: ratio(Number(reasoning.part), Number(reasoning.whole)),
-      retry: ratio(retried, units),
-      failure: ratio(failures, units),
-      outputPerSecond: ratio(Number(speed.output), speed.ms / 1000),
-    },
-  }
-  return { measures, costUnknown, excluded }
 }
 
-export const measure = (facts: readonly UsageFact[]): UsageMeasures => tally(facts).measures
+export function measure(facts: readonly UsageFact[]): UsageMeasures {
+  const cell = new Cell()
+  for (const fact of facts) cell.add(parse(fact))
+  return cell.measures()
+}
 
-function valueOf(fact: UsageFact, dimension: UsageDimension): string | null {
+function dimensionOf(fact: UsageFact, dimension: UsageDimension): string | null {
   if (dimension === 'source') return fact.source
   if (dimension === 'purpose') return fact.consumer.purpose
   return fact.labels[dimension]
@@ -164,20 +192,18 @@ function compareKeys(a: readonly (string | null)[], b: readonly (string | null)[
   return 0
 }
 
-function cells(facts: readonly UsageFact[], groupBy: readonly UsageDimension[]): UsageCell[] {
-  if (groupBy.length === 0) return []
-  const groups = new Map<string, { key: (string | null)[]; facts: UsageFact[] }>()
-  for (const fact of facts) {
-    const key = groupBy.map(dimension => valueOf(fact, dimension))
-    const name = JSON.stringify(key)
-    const group = groups.get(name) ?? { key, facts: [] }
-    group.facts.push(fact)
-    groups.set(name, group)
-  }
-  return [...groups.values()]
-    .sort((a, b) => compareKeys(a.key, b.key))
-    .map(group => ({ key: group.key, measures: measure(group.facts) }))
+type Groups = Map<string, { key: (string | null)[]; cell: Cell }>
+
+function into(groups: Groups, key: (string | null)[], name: string, parsed: Parsed): void {
+  const group = groups.get(name) ?? { key, cell: new Cell() }
+  group.cell.add(parsed)
+  groups.set(name, group)
 }
+
+const cellsOf = (groups: Groups): UsageCell[] =>
+  [...groups.values()]
+    .sort((a, b) => compareKeys(a.key, b.key))
+    .map(group => ({ key: group.key, measures: group.cell.measures() }))
 
 function bucketOf(edges: readonly UsageEdge[], at: number): number {
   let low = 0
@@ -196,35 +222,42 @@ export function fold(
   query: CheckedUsageQuery,
   read: Readonly<{ sources: readonly string[]; undated: number }>,
 ): UsageResult {
-  const { edges } = query
+  const { edges, groupBy } = query
   const from = edges[0]?.start ?? 0
   const to = edges.at(-1)?.end ?? 0
-  const placed = facts.flatMap(fact => {
+  const whole = new Cell()
+  const groups: Groups = new Map()
+  const buckets = edges.map(() => ({ total: new Cell(), groups: new Map() as Groups }))
+  let earliest = Infinity
+  for (const fact of facts) {
     const at = fact.at === null ? NaN : Date.parse(fact.at)
-    return at >= from && at < to ? [{ fact, at }] : []
-  })
-  const inRange = placed.map(item => item.fact)
-  const byBucket = edges.map((): UsageFact[] => [])
-  for (const item of placed) byBucket[bucketOf(edges, item.at)]?.push(item.fact)
-  const whole = tally(inRange)
-  const earliest = placed.reduce((low, item) => Math.min(low, item.at), Infinity)
+    if (!(at >= from && at < to)) continue
+    const parsed = parse(fact)
+    const bucket = buckets[bucketOf(edges, at)]
+    whole.add(parsed)
+    bucket?.total.add(parsed)
+    if (groupBy.length > 0) {
+      const key = groupBy.map(dimension => dimensionOf(fact, dimension))
+      const name = JSON.stringify(key)
+      into(groups, key, name, parsed)
+      if (bucket !== undefined) into(bucket.groups, key, name, parsed)
+    }
+    earliest = Math.min(earliest, at)
+  }
   return {
-    total: whole.measures,
-    groups: cells(inRange, query.groupBy),
-    buckets: edges.map((edge, index) => {
-      const own = byBucket[index] ?? []
-      return {
-        start: instantText(edge.start),
-        end: instantText(edge.end),
-        total: measure(own),
-        groups: cells(own, query.groupBy),
-      }
-    }),
+    total: whole.measures(),
+    groups: cellsOf(groups),
+    buckets: buckets.map((bucket, index) => ({
+      start: instantText(edges[index]?.start ?? from),
+      end: instantText(edges[index]?.end ?? to),
+      total: bucket.total.measures(),
+      groups: cellsOf(bucket.groups),
+    })),
     coverage: {
       sources: [...read.sources],
       undated: read.undated,
       costUnknown: whole.costUnknown,
-      excluded: whole.excluded,
+      excluded: { ...whole.excluded },
       earliest: earliest === Infinity ? null : instantText(earliest),
     },
   }

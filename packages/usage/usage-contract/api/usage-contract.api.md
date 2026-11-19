@@ -64,7 +64,16 @@ export declare const instantText: (at: number) => UsageInstant;
 ## 声明文件 `decimal.d.ts`
 
 ```ts
-export declare function addLexemes(left: string, right: string): string;
+export type Decimal = Readonly<{
+    digits: bigint;
+    places: number;
+}>;
+export declare const ZERO: Decimal;
+export declare function decimalOf(lexeme: string): Decimal;
+export declare function plus(a: Decimal, b: Decimal): Decimal;
+export declare function lexemeOf(value: Decimal): string;
+export declare const addLexemes: (left: string, right: string) => string;
+export declare const numberOf: (value: Decimal) => number;
 ```
 
 ## 声明文件 `fold.d.ts`
@@ -72,7 +81,7 @@ export declare function addLexemes(left: string, right: string): string;
 ```ts
 import { type CheckedUsageQuery } from './check.ts';
 import { type UsageFact, type UsageMeasures, type UsageResult } from './values.ts';
-export declare const measure: (facts: readonly UsageFact[]) => UsageMeasures;
+export declare function measure(facts: readonly UsageFact[]): UsageMeasures;
 export declare function fold(facts: readonly UsageFact[], query: CheckedUsageQuery, read: Readonly<{
     sources: readonly string[];
     undated: number;
