@@ -105,6 +105,10 @@ function requestOf(
   if (!('ok' in declarations)) return declarations
   const judged = judgeFixedModelRequest({
     profile: profile.adoption,
+    contextWindow: {
+      tokens: profile.definition.context.window.provided,
+      compactionTriggerPercent: profile.definition.context.compactionTriggerPercent,
+    },
     suppliers: lease.bindings.map(binding => binding.supplier),
     fallback: profile.definition.fallback,
     retryPolicy: profile.definition.retryPolicy,

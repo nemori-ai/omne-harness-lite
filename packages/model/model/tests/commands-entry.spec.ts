@@ -12,6 +12,8 @@ it('the commands subpath exports the shared core and its method set, and the roo
       'createModelInitialRun',
       'createModelObservationStorage',
       'describeModelMaterialization',
+      'dispatchFactOf',
+      'dispatchOutcome',
       'drivable',
       'hasRecoveryWork',
       'modelCommands',

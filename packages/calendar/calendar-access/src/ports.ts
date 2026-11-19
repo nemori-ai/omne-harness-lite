@@ -17,6 +17,6 @@ export interface CalendarPrincipals {
 
 /** Taken at each call; absent while the calendar row is not there. */
 export type CalendarFaces = Readonly<{
-  queries: Pick<CalendarQueries, 'list' | 'effective'>
+  queries: Pick<CalendarQueries, 'list' | 'effective' | 'resolve' | 'health'>
   calculator: CalendarCalculator
 }>

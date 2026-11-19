@@ -168,7 +168,7 @@ function readRequestChunk(input: JsonValue, port: ReadPort): JsonValue {
   }
 }
 
-function handler(
+export function handler(
   name: string,
   read: (input: JsonValue, port: ReadPort) => JsonValue,
 ): ReadHandlerModule {
@@ -209,7 +209,7 @@ export async function domainOf(
   return succeed({ kind: 'ready', domain: found.domain })
 }
 
-async function readHandler(
+export async function readHandler(
   storage: SqlStorage,
   domain: DomainRef,
   name: string,

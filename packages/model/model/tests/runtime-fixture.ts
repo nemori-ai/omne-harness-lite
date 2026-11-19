@@ -20,6 +20,10 @@ import {
 } from '@omne-harness/model-contract/provider'
 import { fixture, instance, op, proof } from './memory-fixture.ts'
 
+type Refusal =
+  | NonNullable<Parameters<typeof createScriptedTransport>[0]['rejection']>['failure']
+  | null
+
 export const configuration: ModelConfiguration = {
   outputBatchBytes: 1024,
   outputBatchDelayMs: 0,
@@ -27,7 +31,6 @@ export const configuration: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -87,6 +90,8 @@ export function runtimeFixture(
     closes: number
     suppliers: string[]
     releaseFails: boolean
+    /** A refusal every prepare of this call answers; none by default. */
+    refusal: Refusal
     beforeRelease(): Promise<void>
     finish(): void
     fail(): void
@@ -112,6 +117,7 @@ export function runtimeFixture(
         closes: 0,
         suppliers: [],
         releaseFails: false,
+        refusal: null,
         beforeRelease: async () => {},
         finish() {
           done = true
@@ -189,7 +195,7 @@ export function runtimeFixture(
         },
         facts: [],
         ending: { kind: 'terminated', termination: { kind: 'completed', reason: 'stop' } },
-        rejection: null,
+        rejection: stream.refusal && { at: 'prepare', failure: stream.refusal },
       })
       return {
         ok: {
@@ -268,6 +274,25 @@ export function runtimeFixture(
     liveness === undefined ? dependencies : { ...dependencies, liveness },
     { ...configuration, ...config },
   )
+  /** Drives the call from a new process: a new runtime and a new sender over the same store. */
+  function restart(call: ModelCallId, next: ModelInstanceId) {
+    const sender = assembly.controls.send.createSender({ resources, commands: recorded })
+    const successor = createModelRuntime(
+      { ...dependencies, send: sender },
+      { ...configuration, ...config },
+    )
+    return successor.driver.drive(
+      {
+        principal: f.principal,
+        tenant: f.tenant,
+        call,
+        operation: op(`restart-${next}`),
+        instance: next,
+        continuity: proof(call),
+      },
+      new AbortController().signal,
+    )
+  }
   return {
     ...f,
     ...assembly,
@@ -302,20 +327,13 @@ export function runtimeFixture(
       await eventually(() => preserveInputs.length >= before + facts.length || results.has(call))
       for (let i = 0; i < 100; i++) await Promise.resolve()
     },
+    /** Hands the call to a new process and returns once that process published its instance. */
     async replace(call: ModelCallId, next: ModelInstanceId) {
-      const successor = createModelRuntime(dependencies, { ...configuration, ...config })
-      return successor.driver.drive(
-        {
-          principal: f.principal,
-          tenant: f.tenant,
-          call,
-          operation: op(`replacement-${call}`),
-          instance: next,
-          continuity: proof(call),
-        },
-        new AbortController().signal,
-      )
+      drives.push(restart(call, next))
+      await eventually(() => publications.get(call)?.execution.instance === next)
+      return { ok: undefined }
     },
+    restart,
     async dispose() {
       disposing = true
       for (const stream of channels.values()) {

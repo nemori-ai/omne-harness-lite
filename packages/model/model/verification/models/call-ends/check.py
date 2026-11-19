@@ -12,7 +12,9 @@ MODULE = 'CallEnds'
 JAR_SHA256 = '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88'
 CASES = [('positive', None), ('drive-ends-on-refusal', 'liveness'), ('terminal-refusable', 'liveness'), ('no-rewake', 'liveness'),
          ('policy-fail-stuck', 'liveness'), ('control-blocks-settle', 'liveness'), ('resend-no-wake', 'liveness'),
-         ('resend-keeps-state', 'safety:ResendCarriesNone'), ('resend-reachable', 'safety:NeverResends')]
+         ('resend-keeps-state', 'safety:ResendCarriesNone'), ('resend-reachable', 'safety:NeverResends'),
+         ('scan-skips-unsettled', 'liveness'), ('resend-after-lost', 'safety:NoDispatchAfterLost'),
+         ('lost-reachable', 'safety:NeverLost')]
 parser = argparse.ArgumentParser()
 parser.add_argument('--case')
 parser.add_argument('--jar', default=os.environ.get('TLA2TOOLS_JAR'))

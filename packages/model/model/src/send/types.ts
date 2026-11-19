@@ -5,8 +5,10 @@ import type {
   ModelFailure,
   ModelFault,
   ProviderName,
+  Supplier,
 } from '@omne-harness/model-contract'
 import type {
+  CostLookupAnswer,
   CredentialPort,
   MaterializedTransport,
   ModelCommands,
@@ -44,6 +46,11 @@ export interface SendResource {
 }
 export interface SendResources<P> {
   acquire(input: SendDemand<P>): Promise<Outcome<SendResource, ModelFailure>>
+  /** Asks the route of a supplier what one earlier request cost; the secrets go into a header only. */
+  lookupCost?(
+    input: Readonly<{ supplier: Supplier; request: string; secrets: ReadonlyMap<string, string> }>,
+    signal: AbortSignal,
+  ): Promise<CostLookupAnswer>
 }
 export type ModelSendBoundaryOptions<P> = Readonly<{
   commands: ModelCommands<P>

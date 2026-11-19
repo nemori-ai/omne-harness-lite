@@ -2,30 +2,19 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { ShellLogin } from '@omne-harness/shell-contract'
 import { colorSchemeQuery, createThemeController } from '@omne-harness/ui-kit'
-import type { HostBridge, OmneHost } from '../shared/host-bridge.ts'
-import { missingAtHost } from '../shared/wire.ts'
+import type { ForwardingBridge } from '../shared/channel.ts'
+import { missingAtForwarding } from '../shared/wire.ts'
 import { assembly } from './assembly.tsx'
-import { connectPageBridge, httpHostChannel, ipcHostChannel } from './bridge.ts'
+import { connectPageBridge, httpChannel } from './bridge.ts'
 import { watchConnectivity } from './connectivity.ts'
 import { shellPlugin } from './shell/service.ts'
 import { Shell } from './shell/shell.tsx'
-import { createShellState } from './shell/state.ts'
+import { LOGIN_EXPIRED_TEXT, createShellState } from './shell/state.ts'
 import { storedThemePreference } from './shell/theme.ts'
 import { startClientTree } from './tree.ts'
 import './styles.css'
 
-declare global {
-  interface Window {
-    omneHost?: OmneHost
-  }
-}
-
-const hostChannel = () =>
-  window.omneHost === undefined
-    ? httpHostChannel(window.location.origin)
-    : ipcHostChannel(window.omneHost)
-
-const shellLogin = (bridge: HostBridge): ShellLogin => ({
+const shellLogin = (bridge: ForwardingBridge): ShellLogin => ({
   state: bridge.loginState.state,
   subscribe: bridge.loginState.subscribe,
   login: bridge.login,
@@ -35,9 +24,11 @@ const shellLogin = (bridge: HostBridge): ShellLogin => ({
 async function main(): Promise<void> {
   const element = document.getElementById('root')
   if (element === null) return
-  const bridge = await connectPageBridge(hostChannel())
+  const bridge = await connectPageBridge(httpChannel(window.location.origin))
   const watched = watchConnectivity(bridge.transport)
-  const state = createShellState(shellLogin(bridge))
+  const state = createShellState(shellLogin(bridge), {
+    notices: show => bridge.onExpired(() => show(LOGIN_EXPIRED_TEXT)),
+  })
   const tree = await startClientTree({
     transport: watched.transport,
     login: bridge.loginState,
@@ -50,7 +41,7 @@ async function main(): Promise<void> {
     system: colorSchemeQuery(),
   })
   const initial = theme.start()
-  const missing = missingAtHost(assembly.protocols, bridge.hostProtocols()).map(
+  const missing = missingAtForwarding(assembly.protocols, bridge.forwardingProtocols()).map(
     key => `${key.name}/v${key.major}`,
   )
   createRoot(element).render(
@@ -60,7 +51,7 @@ async function main(): Promise<void> {
         state={state}
         connectivity={watched}
         theme={{ initial, select: choice => theme.select(choice) }}
-        missingAtHost={missing}
+        missingAtForwarding={missing}
       />
     </StrictMode>,
   )

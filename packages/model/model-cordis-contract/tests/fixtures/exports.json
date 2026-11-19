@@ -91,7 +91,9 @@
             { "name": "ModelConvertersService", "kind": "class", "pending": false },
             { "name": "modelConvertersKey", "kind": "value", "pending": false },
             { "name": "ModelDiagnosticsService", "kind": "class", "pending": false },
-            { "name": "modelDiagnosticsKey", "kind": "value", "pending": false }
+            { "name": "modelDiagnosticsKey", "kind": "value", "pending": false },
+            { "name": "ModelDispatchFactsService", "kind": "class", "pending": false },
+            { "name": "modelDispatchFactsKey", "kind": "value", "pending": false }
           ]
         },
         {
@@ -159,6 +161,7 @@
       "interface": "Context",
       "members": [
         "modelDiagnostics",
+        "modelDispatchFacts",
         "modelRuntime",
         "modelCommands",
         "modelSendBoundary",

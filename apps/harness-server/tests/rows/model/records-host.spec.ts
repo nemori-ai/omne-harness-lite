@@ -1,4 +1,5 @@
 import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
+import { tenantDomainScannerPrincipal } from '../../../src/entry/tenant-domain-scanner.ts'
 import { LOCAL_TOKENIZERS } from '../../../src/local/operator-defaults.ts'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -13,7 +14,7 @@ import {
 } from '@omne-harness/identity/cordis'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { decodeModelCallId, decodeModelOperationId } from '@omne-harness/model-contract'
-import type { ModelRuntime } from '@omne-harness/model-contract'
+import type { ModelDispatchFacts, ModelRuntime } from '@omne-harness/model-contract'
 import type { ModelHostAuthority } from '@omne-harness/model-contract/provider'
 import {
   ModelCommandsService,
@@ -21,6 +22,7 @@ import {
   ModelSendBoundaryService,
   modelCommandsKey,
   modelDiagnosticsKey,
+  modelDispatchFactsKey,
   modelHostAuthorityKey,
   modelRuntimeKey,
   modelSendBoundaryKey,
@@ -183,6 +185,7 @@ const entryObjects = [
   modelClock,
   modelHostAuthority,
   identityClock,
+  tenantDomainScannerPrincipal,
 ]
 
 describe('the model-records and model-host rows', () => {
@@ -191,7 +194,12 @@ describe('the model-records and model-host rows', () => {
       row: 'model-records',
       implementation: 'real',
       manifest: {
-        provides: [modelCommandsKey, modelSendBoundaryKey, modelDiagnosticsKey],
+        provides: [
+          modelCommandsKey,
+          modelSendBoundaryKey,
+          modelDiagnosticsKey,
+          modelDispatchFactsKey,
+        ],
         injects: [
           'storage',
           'tenantDomainLookup',
@@ -234,6 +242,7 @@ describe('the model-records and model-host rows', () => {
             modelSendBoundaryKey,
             modelRuntimeKey,
             modelHostAuthorityKey,
+            modelDispatchFactsKey,
             WORK_KEY,
           ],
         },
@@ -260,7 +269,20 @@ describe('the model-records and model-host rows', () => {
             admission: ADMISSION.ok,
           })
           const resolved = await host.resolve({ tenant: TENANT, call: CALL.ok })
+          const facts = ctx.get(modelDispatchFactsKey) as ModelDispatchFacts<unknown>
+          const query = {
+            tenant: TENANT,
+            range: null,
+            consumer: null,
+            order: 'ascending' as const,
+            after: null,
+            limit: 10,
+          }
+          const page = await facts.list({ ...query, principal: work })
+          const pageDenied = await facts.list({ ...query, principal: structuredClone(work) })
           return {
+            page,
+            pageDenied,
             commands: commands instanceof ModelCommandsService,
             boundary: boundary instanceof ModelSendBoundaryService,
             runtime: runtime instanceof ModelRuntimeService,
@@ -287,6 +309,8 @@ describe('the model-records and model-host rows', () => {
       expect(value.resolved).toEqual({
         failure: { kind: 'invalid', field: 'call', reason: 'not-found' },
       })
+      expect(value.page).toEqual({ ok: { entries: [], undated: 0, next: null } })
+      expect(value.pageDenied).toEqual({ failure: { kind: 'denied', action: 'read-account' } })
       const report = run.of('shutdown-result')[0]
       expect(report).toMatchObject({ overall: 'settled' })
       expect(report?.['outcomes']).toContainEqual({

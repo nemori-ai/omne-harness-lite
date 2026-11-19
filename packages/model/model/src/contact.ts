@@ -28,6 +28,8 @@ export async function contactOf<P>(
   const { state } = found.ok
   const settled = state.phase === 'settled'
   if (settled && state.custody.kind === 'acknowledged') return { ok: { kind: 'settled' } }
+  if (state.custody.kind === 'abandoned')
+    return { ok: { kind: 'lost', evidence: structuredClone(state.custody.record) } }
   const holder = liveness?.holds(resolved.ok) ?? null
   if (holder === 'drive') return { ok: { kind: 'holding' } }
   if (settled && holder === 'push') return { ok: { kind: 'settled' } }

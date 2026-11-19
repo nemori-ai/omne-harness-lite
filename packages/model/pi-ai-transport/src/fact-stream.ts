@@ -1,4 +1,4 @@
-import type { ModelFault } from '@omne-harness/model-contract'
+import type { ConnectRetryReason, ModelFault } from '@omne-harness/model-contract'
 import type {
   ProviderDiagnostic,
   TransportFact,
@@ -13,7 +13,9 @@ import {
   ResponseBodyStoppedError,
   type ExchangeResult,
   type HttpExchange,
+  type ResponseHeaders,
 } from './http.ts'
+import { OPENROUTER_ACCOUNTING } from './chat-completions/openrouter.ts'
 import { closeSourceOnEarlyEnd } from './iteration.ts'
 import { readSseEvents, SseProtocolError } from './sse.ts'
 import { terminationOf, type SendEnd } from './termination.ts'
@@ -27,7 +29,27 @@ export type SendInput = Readonly<{
   /** Whether the request carried reasoning state back. */
   replayCarried: boolean
   onResponseBody?: (() => void) | undefined
+  connectRetries?: (() => readonly ConnectRetryReason[]) | undefined
 }>
+
+/** The response header in which the place keeping the account names the request; null where none is known. */
+function requestHeaderOf(route: Pick<CheckedRoute, 'accounting'>): string | null {
+  return route.accounting.place === OPENROUTER_ACCOUNTING.place ? 'x-generation-id' : null
+}
+
+/** The upstream's identity of the request: only from the response header, never from the stream. */
+function requestOf(headers: ResponseHeaders, name: string | null): string | null {
+  if (name === null) return null
+  const value = headers[name]
+  const first = typeof value === 'string' ? value : value?.[0]
+  return first === undefined || first === '' ? null : first
+}
+
+function* exchangeFacts(input: SendInput, result: ExchangeResult): Generator<TransportFact> {
+  for (const reason of input.connectRetries?.() ?? []) yield { kind: 'connect-retry', reason }
+  if (result.kind === 'ok' || result.kind === 'http-error')
+    yield { kind: 'response', request: requestOf(result.headers, requestHeaderOf(input.route)) }
+}
 
 export function factsOfSend(input: SendInput): AsyncGenerator<TransportFact, void, undefined> {
   const { exchange } = input
@@ -93,6 +115,7 @@ async function* decodeSend(
 ): AsyncGenerator<TransportFact, SendEnd, undefined> {
   const { exchange, decoder, route, limits, replayCarried } = input
   const result = await exchange.result
+  yield* exchangeFacts(input, result)
   switch (result.kind) {
     case 'stopped':
       return { kind: 'stopped' }

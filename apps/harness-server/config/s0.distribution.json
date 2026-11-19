@@ -71,6 +71,11 @@
       "config": {}
     },
     {
+      "id": "calendar-notification",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "stubPlugin",
       "config": {}

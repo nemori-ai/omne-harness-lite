@@ -85,6 +85,15 @@ export {
   type SqlModelDiagnosticsOptions,
 } from './diagnostics.ts'
 export {
+  DISPATCH_FACTS_HANDLER,
+  DISPATCH_FACTS_PAGE_MAX,
+  DISPATCH_FACTS_WORKS_MAX,
+  createSqlModelDispatchFacts,
+  dispatchFactsHandler,
+  type SqlModelDispatchFactsOptions,
+} from './dispatch-facts.ts'
+export { DISPATCH_FACT, FACT_MIGRATION, dispatchFactsMigration } from './fact-schema.ts'
+export {
   DEFAULT_MAX_CLAIMS,
   createSendMirror,
   type SendMirror,

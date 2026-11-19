@@ -50,6 +50,7 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         'Files',
         'Notifications',
         'Schedules',
+        'Sessions',
         'Shell',
         'Skills',
         'TodoItems',
@@ -100,9 +101,9 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         return { failure: { kind: 'unavailable', diagnostic: 'test' } }
       },
     })
-    expect(seen).toHaveLength(11)
+    expect(seen).toHaveLength(12)
     for (const access of seen) expect(access).toBe(registrant)
-    expect(results.map(result => result.outcome)).toEqual(Array(11).fill('unavailable'))
+    expect(results.map(result => result.outcome)).toEqual(Array(12).fill('unavailable'))
   })
 
   it('a throw while reading the release is kept in the start load: a warning, no rejection', async () => {

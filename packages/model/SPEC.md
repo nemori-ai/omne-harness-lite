@@ -155,7 +155,7 @@ Model 声明、由别人实现的端口：
 - 调用方以调用引用经 `contact` 问「你的活体还在推进这次调用吗」，回答只有五种：`holding`（还拿着：我的活体正在推进它）、`settled`（有结果了：已收场，结果正在或将要按正常的路交回）、`lost`（不在我手里了：活体没有推进它，而且能证明没有任何人在推进它，带证据）、`not-accepted`（没受理过）、`unknown`（此刻答不了）。
 - 回答之前先过访问核对。资格在实际执行处核，没有查看资格的主体得到拒绝，不论调用在不在活体里。回答要读一次这次调用的记录。
 - 「活体里有」指此刻真的有东西在推进它：本进程的宿主对它有在跑的驱动、排着或欠着的下一次唤醒，或排着的结果交回。受理过而驱动已经停下、又没有任何东西会再叫醒它的调用，不算在活体里，所以同一进程里卡死的调用也问得出来。
-- 「结果交回还排着」指推送在跑、排着或欠着下一次唤醒，或有未确认的结果而此刻还没有登记的接收方。接收方登记着而推送已经放弃（结果未知或回执不符）的不算；认不出消费方、又不在跑也不排着的不算。
+- 「结果交回还排着」指推送在跑、排着或欠着下一次唤醒，或有未确认的结果而此刻还没有登记的接收方。接收方登记着而推送已经放手（回执不符）的不算；结果未知的要在间隔之后重投，算欠着下一次唤醒；认不出消费方、又不在跑也不排着的不算。
 
 | 调用记录 | 活体里有 | 活体里没有，本进程的启动扫描还没处理到它 | 活体里没有，启动扫描已处理过它 |
 | --- | --- | --- | --- |
@@ -185,6 +185,7 @@ Model 声明、由别人实现的端口：
 - 放弃是与确认并列的保管结局：结果不会被任何消费者保存了。它只在两种时候成立：冻结的接收方确定拒绝了这份结果；或 Model 自己读这份结果被确定拒绝。结果未知、暂时不可用、回执不符都不成为放弃。放弃要求整调用已真实收场且还在生产者保管中；已确认的不能放弃，已放弃的不能确认，同一个放弃重复提交认回原放弃。
 - 放弃与清理任务在同一裁定里成立，放弃不回滚。放弃之后不再交回结果，新的读取被拒绝，迟到的账目照常补录。
 - 清理只移除本调用无用的输入、输出与引用；确认之前已开始的真实读取不被截断，在途写与未知写先核实；保留准确结算所需的最小事实。没有确认后默认永久保存完整副本的模式。
+- 迟到账目交付给消费者并由它保存之后，宿主凭它的回执向 Model 确认这一修订；随已确认的结果一起交出的迟到账目，凭结果的回执确认。已确认的调用在它的迟到账目都确认之前不释放清理；补查没查完不挡清理。
 
 ### 结果推送与保存
 
@@ -314,11 +315,11 @@ Model 声明、由别人实现的端口：
 | MD-6  | 已经启动的发出不带 `credential` 失败收场                                                         | 已发出、可能已计费的调用被报成凭据缺失                       | 模型 `model-contract/verification/models/SendBoundary.tla` 的 `NoCredFailureAfterStart`                                                                                                                           |
 | MD-7  | 未确认的终止写重试时不写第二个终止                                                               | 同一调用两条终止事实                                         | 同一模型的 `AtMostOneTerminal`；`model` 的发送用例                                                                                                                                                                |
 | MD-8  | 凭据确定失败的发出最终收场，或由驱动以确定拒绝结束                                               | 调用方一直等，份额不归还                                     | 同一模型的 `FinalDecided`、`FinalSettlesUnlessStolen`                                                                                                                                                             |
-| MD-9  | 每次调用最终收场，进程重启有限次时也成立；没有发出的调用不以完成收场                             | 调用永远停在执行中；未发出被报成完成                         | 模型 `model/verification/models/call-ends/CallEnds.tla` 的 `CallEnds`、`CompletedWasSent`，含崩溃与启动扫描；发行树的重启用例                                                                                                     |
+| MD-9  | 每次调用最终收场，进程重启有限次时也成立；没有发出的调用不以完成收场                             | 调用永远停在执行中；未发出被报成完成                         | 模型 `model/verification/models/call-ends/CallEnds.tla` 的 `CallEnds`、`CompletedWasSent`、`NoDispatchAfterLost`，含崩溃与启动扫描；发行树的重启用例                                                                                                     |
 | MD-10 | 首内容之后或首内容无法排除时，同一逻辑回复不重新生成                                             | 已展示或已执行的内容被第二次生成，工具参数被执行两次         | `model` 的接收窗口与零内容用例；证明 `model/verification/proofs/not-sent.md` 守零内容依据；已发出的请求由证明 `model-host-local/verification/proofs/receive-evidence.md` 与本机宿主的接收证明用例守；其余只有文字 |
 | MD-11 | 调用终局不反转；终局后只补事实与费用                                                             | 已交给消费者的结局被改写                                     | `CallEnds.tla` 的 `NothingAfterSettle`；`model` 的收场用例                                                                                                                                                        |
 | MD-12 | 确认只对 saved 的结果、经 owner 证据适配器确认后成立                                             | 唯一副本在消费者保存前被确认并清理                           | 模型 `model-contract/verification/models/ResultPush.tla` 的 `AckNeedsSaved`、`AckNeedsAdapter`；`model` 的交接证据用例                                                                                            |
-| MD-13 | 清理与份额释放只在确认或放弃之后；清理后不留正文                                                       | 份额提前释放而结果丢失；已确认调用无界累积                   | 同一模型的 `ReleaseNeedsAck`、`BodyDroppedAfterRelease`                                                                                                                                                           |
+| MD-13 | 清理与份额释放只在确认或放弃之后；清理后不留正文                                                       | 份额提前释放而结果丢失；已确认调用无界累积                   | 模型 `model-contract/verification/models/ResultPush.tla` 的 `ReleaseNeedsCustodyEnd`、`BodyDroppedAfterRelease`                                                                                                                                                           |
 | MD-14 | saved 只认原键与原 owner 的回执；未知只被 saved 取代；saved 是终态                               | 伪回执接管保管；已保存的结果被重推或遗忘                     | 同一模型的 `SavedReceiptMatches`、`UnknownOnlyToSaved`、`SavedIsFinal`、`SavedReceiverNotLost`                                                                                                                    |
 | MD-15 | 账目交付只在结果 saved 之后                                                                      | 消费者收到无结果的账目                                       | 同一模型的 `AccountsAfterResultSaved`                                                                                                                                                                             |
 | MD-16 | 一次唤醒对一个交付至多推送 `1 + maxRedeliveries` 次                                              | 热循环打满 CPU 与日志                                        | 同一模型的 `PushesPerWakeBounded`；证明 `model-contract/verification/proofs/push-bounds.md`；`model-host-local` 的推送上限用例                                                                                    |
@@ -343,9 +344,9 @@ Model 声明、由别人实现的端口：
 | MD-35 | 绑定前缀的型号，带回的每个推理状态前面的内容与产生它时相同                                       | 上游丢掉这段推理，模型接不上先前的思路，而请求照样成功，没有任何报错 | `model-contract` 的回放投影用例；请求只追加与回放的性质测试 |
 | MD-36 | 型号记录的每条适配事实有真实请求的出处                                                           | 记录照过期或转述有误的文档写，系统按错的事实发请求                   | 记录的出处类型；核对证据存在的用例                         |
 | MD-37 | 记下的时刻不改写；时长只由两个都记下的时刻算出；时刻不参与任何判定，时钟读不到时调用照常推进 | 诊断给出编出来的时长；时钟故障让调用失败或卡住 | `model` 的时刻用例与性质测试；时钟不可用的故障注入用例 |
-| MD-38 | 放弃只在接收方确定拒绝或结果读不出之后成立；结果未知不成为放弃；确认与放弃互斥 | 一个仍可能被保存的结果被丢掉，调用方另要一次并再付一次钱 | 模型 `model-contract/verification/models/ResultPush.tla` 里放弃的安全性质；`model` 的保管用例 |
-| MD-39 | 每个占着份额的调用最终释放，或正有人在推进它；进程重启有限次时也成立 | 份额只减不增，租户最后发不出任何请求 | 模型 `model-contract/verification/models/ResultPush.tla` 含崩溃的进展性质；`model-host-local` 的启动扫描用例；发行树的重启用例 |
-| MD-40 | 启动扫描处理到一次调用之前，那一问不对它答 `lost` | 一个仍会被交回的结果被答成失联，同一个回复付两次钱 | 系统级模型 `docs/architecture/verification/recovery/SystemRecovery.tla`；`model-host-local` 的那一问用例 |
+| MD-38 | 放弃只在接收方确定拒绝或结果读不出之后成立；结果未知不成为放弃；确认与放弃互斥 | 一个仍可能被保存的结果被丢掉，调用方另要一次并再付一次钱 | 模型 `model-contract/verification/models/ResultPush.tla` 的 `AbandonNeedsRefusal`、`SavedNotAbandoned`、`AckOrAbandon`；`model` 的保管用例 |
+| MD-39 | 每个占着份额的调用最终释放，或正有人在推进它；进程重启有限次时也成立 | 份额只减不增，租户最后发不出任何请求 | 模型 `model-contract/verification/models/ResultPush.tla` 含崩溃的进展性质 `EventuallyReleased`；`model-host-local` 的启动扫描用例；发行树的重启用例 |
+| MD-40 | 启动扫描处理到一次调用之前，那一问不对它答 `lost` | 一个仍会被交回的结果被答成失联，同一个回复付两次钱 | 系统级模型 `docs/architecture/verification/recovery/SystemRecovery.tla` 的 `LostMeansNobodyHolds`（含扫描之前的那一段）；`model-host-local` 的那一问用例 |
 | MD-41 | 费用补查只读；查不到时费用保持未知；补查到的费用只作为原发出账目的后一修订进入 | 为对账又花一次钱；未知被写成零；同一笔费用记两次 | `pi-ai-transport` 的补查用例；`model` 的补录用例；录制的真实应答 |
 | MD-42 | 发出事实与发出记录同提交；不随清理删除；没有正文 | 清理之后用量变少；读口泄漏内容 | `model-storage-sql` 的提交与清理用例；发出事实的类型 |
 | MD-43 | 列出模型只读，答的是此刻的档案求值；读不到时答依据不可用，不答成空表；缺凭据的档案仍在表里并标明 | 界面把读失败显示成「没有可用的模型」，或把暂时调不了的模型藏起来 | `model-access` 的 `operations.spec.ts`；发行应用的 `tests/rows/model-access/release.spec.ts` |

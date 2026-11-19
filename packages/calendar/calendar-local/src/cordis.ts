@@ -102,6 +102,7 @@ export class CalendarLocalQueryProvider extends CalendarQueryService {
   readonly get: CalendarQueries['get']
   readonly effective: CalendarQueries['effective']
   readonly resolve: CalendarQueries['resolve']
+  readonly health: CalendarQueries['health']
   readonly close: () => Promise<CalendarProviderStop>
 
   constructor(ctx: Context, config: CalendarLocalQueryConfiguration) {
@@ -117,6 +118,7 @@ export class CalendarLocalQueryProvider extends CalendarQueryService {
     this.get = (context, input) => gate.invoke(context, () => queries.get(context, input))
     this.effective = context => gate.invoke(context, () => queries.effective(context))
     this.resolve = (context, input) => gate.invoke(context, () => queries.resolve(context, input))
+    this.health = context => gate.invoke(context, () => queries.health(context))
   }
 }
 
