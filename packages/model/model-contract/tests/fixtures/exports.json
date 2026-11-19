@@ -392,6 +392,21 @@
               "pending": false
             },
             {
+              "name": "costLookupOf",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "accountUndelivered",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "CostLookupState",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "OverLimitMetric",
               "kind": "type",
               "pending": false
@@ -1068,6 +1083,11 @@
             },
             {
               "name": "CommitQuery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CostLookupAnswer",
               "kind": "type",
               "pending": false
             },
