@@ -194,10 +194,10 @@ it.each(Array.from({ length: 12 }, (_, seed) => seed + 1))(
     await observed.catch(() => {})
 
     const [first, ...rest] = frames as { kind: string; value: unknown }[]
-    expect(first?.kind).toBe('snapshot')
+    if (first?.kind !== 'snapshot') throw new Error('the first frame is not the snapshot')
     expect(rest.filter(frame => frame.kind === 'delta').length).toBeGreaterThan(1)
-    expect((first?.value as ModelStreamSnapshot).value.blocks).toEqual([])
-    let snapshot = first?.value as ModelStreamSnapshot
+    let snapshot = first.value as ModelStreamSnapshot
+    expect(snapshot.value.blocks).toEqual([])
     for (const frame of rest) {
       if (frame.kind !== 'delta') continue
       snapshot = unbox(
