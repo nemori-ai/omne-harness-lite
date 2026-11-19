@@ -11,6 +11,7 @@ import {
 } from '../../../src/rows/authorization/current-tool-permission.ts'
 import { echoCall, toolsCall } from '../../entry/tool-call-support.ts'
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
 
 type Tier = 'allowed' | 'prohibited' | 'decision-required'
 type Mode = 'never' | 'auto_permission' | 'bypass-permissions'
@@ -44,9 +45,15 @@ function permission(tiers: Readonly<Record<string, Tier>>, mode: Mode) {
         inquiry: { policy: { onAsk: ON_ASK[mode] } },
         basis: { permissionRevision: '1' },
       } as never
-      return permissionDecisionOf({ kind, revision: '1' }, inquiry, input.carrier === true, {
+      const verdict =
+        kind === 'allowed'
+          ? { kind, revision: '1', layer: 'tenant' as const }
+          : { kind, revision: '1' }
+      return permissionDecisionOf(verdict, inquiry, input.carrier === true, {
         evidence,
         condition: null,
+        holders: { tenant: 'tenant', session: 'session' },
+        gateRef: { capability: input.definition.name, key: input.gate.id },
       })
     },
   }
@@ -240,7 +247,7 @@ describe('one judging pass over a batch reads the session once', () => {
       const check: ToolPermissionCheck = {
         async check(input) {
           await inquiry(input)
-          return { kind: 'allow', evidence, condition: null }
+          return { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }
         },
       }
       const admission = createActionAdmission({

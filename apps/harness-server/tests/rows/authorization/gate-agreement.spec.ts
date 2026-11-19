@@ -11,6 +11,7 @@ import { createToolTargetPolicy } from '../../../src/rows/authorization/tool-tar
 import { objectTree, toolsCall } from '../../entry/tool-call-support.ts'
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
 import { okOf } from '../../entry/support.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
 
 const evidence = decisionEvidence('gate-agreement', '1', {})
 const allowing = { check: async () => ({ kind: 'allowed', evidence }) } as unknown as AdmissionCheck
@@ -43,7 +44,7 @@ function call(world: World, tool: Tool, command: string, params: unknown, intent
 
 async function paths(
   world: World,
-  decision: Decision = { kind: 'allow', evidence, condition: null },
+  decision: Decision = { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE },
 ) {
   const resolution = createToolActionResolution({
     release: () => world.release,
@@ -147,7 +148,10 @@ describe('admission and the start fence take the same gate for the same call', (
   it.each([
     ['the session asks a person', { kind: 'ask', evidence }],
     ['the session never asks', { kind: 'deny', evidence, reason: 'inquiry-policy' }],
-    ['the session skips asking', { kind: 'allow', evidence, condition: null }],
+    [
+      'the session skips asking',
+      { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE },
+    ],
     ['the permission basis cannot be read', { kind: 'unavailable', evidence }],
   ] as const)(
     'Ask ask has no gate: it is admitted and started without a permission read when %s',

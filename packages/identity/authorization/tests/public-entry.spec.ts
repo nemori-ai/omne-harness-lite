@@ -5,6 +5,7 @@ it('publishes the authorization shapes: the decision, the system action decision
   expect(Object.keys(root).sort()).toEqual(
     [
       'noArguments',
+      'GRANT_REF_TEXT_LIMIT',
       'PERMIT_ID_MAX_LENGTH',
       'RELEASE_ARGUMENTS_LIMIT',
       'RELEASE_OPTIONS',
@@ -17,7 +18,10 @@ it('publishes the authorization shapes: the decision, the system action decision
       'decodePermitId',
       'digestOf',
       'effectiveArgumentsOf',
+      'grantLayerOf',
+      'grantRefText',
       'inMemoryPermitLedger',
+      'parseGrantRef',
       'operationEquals',
       'referenceAdmissionCheck',
       'releaseCard',

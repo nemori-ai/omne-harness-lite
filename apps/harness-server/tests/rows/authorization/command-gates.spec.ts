@@ -68,10 +68,15 @@ describe('a tool with two gates', () => {
       reading: null,
       condition: null,
       authorizations: {
-        session: { capabilityId: 'tool.Files', enforcementKey: 'tool.write', basis: 'basis-1' },
+        session: {
+          capabilityId: 'tool.Files',
+          enforcementKey: 'tool.write',
+          basis: 'basis-1',
+          source: { owner: 'hitl', record: 'answer', revision: '1', digest: 'd' },
+        },
       },
     } as unknown as Parameters<typeof sessionGrantFor>[1]
-    expect(sessionGrantFor(request('tool.write'), read)).toBe('basis-1')
+    expect(sessionGrantFor(request('tool.write'), read)).toMatchObject({ basis: 'basis-1' })
     expect(sessionGrantFor(request('tool.read'), read)).toBeNull()
   })
 })

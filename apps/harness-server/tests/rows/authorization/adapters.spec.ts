@@ -58,6 +58,7 @@ import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
 import { ownResolution } from './own-resolution.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
 
 const A = fixtureTenant('a')
 const B = fixtureTenant('b')
@@ -1244,6 +1245,7 @@ describe('agentActionAdmission', () => {
             kind: 'allow',
             evidence: decisionEvidence('permission-fixture', '1', request.operation),
             condition: null,
+            release: VERDICT_RELEASE,
           }
         },
       }),
@@ -1345,6 +1347,7 @@ describe('agentActionAdmission', () => {
         check: async input => ({
           kind: 'allow',
           condition: null,
+          release: VERDICT_RELEASE,
           evidence: decisionEvidence('permission-fixture', '1', {
             operation: input.operation,
             arguments: input.effectiveArguments,

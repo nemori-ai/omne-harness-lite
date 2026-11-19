@@ -13,6 +13,7 @@ import { createToolActionResolution } from '../../../src/entry/tool-action-resol
 import { okOf } from '../../entry/support.ts'
 import { echoCall, toolsCall } from '../../entry/tool-call-support.ts'
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
 
 type World = Awaited<ReturnType<typeof forwardWorld>>
 const resolving = (world: World) => {
@@ -68,6 +69,7 @@ describe('current target rules of the authorization row', () => {
               kind: 'allow',
               evidence: decisionEvidence('permission-fixture', '1', {}),
               condition: { basis: 'fixture' },
+              release: VERDICT_RELEASE,
             }
           },
         }),
@@ -249,7 +251,7 @@ describe('what the start policy asks and answers', () => {
       policy.qualify({ ...access, request: world.request(tool) })
     return { world, access, identities, judged, qualify }
   }
-  const allow: Decision = { kind: 'allow', evidence, condition: null }
+  const allow: Decision = { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }
 
   it('asks the identity check as the tool admitting this call, and the permission as this call', async () => {
     const w = await asking(allow)
@@ -300,7 +302,13 @@ describe('what the start policy asks and answers', () => {
     const consumer = { owner: '@omne-harness/agent', work: 'exe-1', position: 'act-1' }
     const authorization = { consumer, target: 't', argumentsDigest: 'd', source }
     const condition = { basis: 'fixture' } as never
-    const w = await asking({ kind: 'allow', evidence, condition, authorization })
+    const w = await asking({
+      kind: 'allow',
+      evidence,
+      condition,
+      release: VERDICT_RELEASE,
+      authorization,
+    })
     try {
       expect(await w.qualify()).toEqual({
         kind: 'allowed',
