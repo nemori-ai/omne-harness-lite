@@ -144,7 +144,7 @@ type SessionOutcomes = {
     | 'unsupported'
 }
 
-test('the operations are exactly the twenty-two of session/v1', () => {
+test('the operations are exactly the twenty-four of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
@@ -156,6 +156,7 @@ test('the operations are exactly the twenty-two of session/v1', () => {
     | 'read-pending'
     | 'read-waiting-calls'
     | 'read-input-fate'
+    | 'search-history'
     | 'list-sessions'
     | 'list-archived-sessions'
     | 'archive-session'
@@ -166,6 +167,7 @@ test('the operations are exactly the twenty-two of session/v1', () => {
     | 'background-call'
     | 'list-background-calls'
     | 'select-model'
+    | 'read-model-selection'
     | 'read-permission-mode'
     | 'change-permission-mode'
   >()
@@ -209,11 +211,12 @@ test('list-sessions has a body and a success body of its own, and `invalid` is e
   expectTypeOf<Outcomes<'list-sessions'>['basis-unavailable']>().toEqualTypeOf<true>()
 })
 
-test('create-session differs only in that definition may be left out', () => {
+test('create-session differs only in that definition may be left out and a model may be named', () => {
   expectTypeOf<BodyOf<'create-session'>>().toEqualTypeOf<
     Flat<
       Omit<SessionRequestBodies['create-session'], 'definition'> & {
         readonly definition?: string
+        readonly model?: string
       }
     >
   >()

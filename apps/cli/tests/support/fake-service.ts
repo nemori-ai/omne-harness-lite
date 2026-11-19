@@ -103,6 +103,8 @@ export function defaultAnswer(seen: Seen): Answer {
         outcome: 'succeeded',
         body: { controlId: body['controlId'], model: body['model'], credential: 'available' },
       }
+    case 'list-models':
+      return { outcome: 'succeeded', body: { models: [] } }
     default:
       return governanceAnswer(seen.operation, body) ?? { outcome: 'denied', body: {} }
   }

@@ -35,6 +35,8 @@
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/mcp-ui": "workspace:*",
+    "@omne-harness/model-protocol": "workspace:*",
+    "@omne-harness/model-ui": "workspace:*",
     "@omne-harness/notification-protocol": "workspace:*",
     "@omne-harness/notification-ui": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",

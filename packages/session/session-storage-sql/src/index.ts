@@ -29,6 +29,12 @@ export {
 } from './materials.ts'
 export { SESSION_PARTICIPANT } from './participants.ts'
 export { registerSessionNotifier } from './committed.ts'
+export {
+  createSearchCursorSeal,
+  createSessionSearchLog,
+  type SessionSearchCursorOptions,
+  type SessionSearchLogOptions,
+} from './search-log.ts'
 
 export function createSessionStorage<P>(
   options: SessionStorageOptions<P>,

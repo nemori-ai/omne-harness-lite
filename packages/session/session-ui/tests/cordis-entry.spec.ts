@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 
-it('Cordis 入口给出界面模块、客户端服务名、三个位置标识、三个拓展点与它们的名字', async () => {
+it('Cordis 入口给出界面模块、客户端服务名、三个位置标识、三个拓展点与它们的名字与交模型列表的口', async () => {
   const cordis = (await import('@omne-harness/session-ui/cordis')) as Record<string, unknown>
   expect(Object.keys(cordis).sort()).toEqual([
     'CONVERSATION_PAGE',
@@ -11,9 +11,11 @@ it('Cordis 入口给出界面模块、客户端服务名、三个位置标识、
     'sessionCallDetail',
     'sessionClientService',
     'sessionDock',
+    'sessionModelChoicesKey',
     'sessionSide',
     'sessionUiModule',
   ])
+  expect(cordis['sessionModelChoicesKey']).toBe('session.model-choices')
   expect(cordis['SESSION_SIDE']).toBe('session.side')
   expect(cordis['sessionDock']).toMatchObject({ name: 'session.dock' })
   expect(cordis['sessionSide']).toMatchObject({ name: 'session.side' })

@@ -22,8 +22,10 @@ describe('public entries', () => {
     const root = (await import('@omne-harness/session-storage-sql')) as Record<string, unknown>
     expect(Object.keys(root).sort()).toEqual([
       'SESSION_PARTICIPANT',
+      'createSearchCursorSeal',
       'createSessionPrincipalBindings',
       'createSessionScopeOwners',
+      'createSessionSearchLog',
       'createSessionStorage',
       'createSessionStoragePair',
       'registerSessionNotifier',
