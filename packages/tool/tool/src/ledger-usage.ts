@@ -25,15 +25,12 @@ const CURSOR_PREFIX = 'tu1.'
 
 export function usageOutcome(terminal: ToolTerminal): ToolUsageOutcome {
   switch (terminal.kind) {
-    case 'completed':
-    case 'unavailable':
-    case 'no-response':
-      return { kind: terminal.kind }
     case 'failed':
+      return { kind: 'failed', cause: terminal.cause }
     case 'interrupted':
-      return terminal.kind === 'failed'
-        ? { kind: 'failed', cause: terminal.cause }
-        : { kind: 'interrupted', cause: terminal.cause }
+      return { kind: 'interrupted', cause: terminal.cause }
+    default:
+      return { kind: terminal.kind }
   }
 }
 
@@ -92,7 +89,7 @@ export function selectUsage(
   return {
     kind: 'page',
     facts: dated.slice(0, query.limit).map(({ fact }) => fact),
-    undated: scoped.length - scoped.filter(fact => fact.start !== null).length,
+    undated: scoped.filter(fact => fact.start === null).length,
     more: dated.length > query.limit,
   }
 }
@@ -150,6 +147,23 @@ function openCursor(fingerprint: string, cursor: string): Outcome<Position, Tool
   return fail(invalid('after', 'cursor'))
 }
 
+type Admitted = Readonly<{ query: LedgerUsageQuery; fingerprint: string }>
+
+function admittedQuery(
+  input: Readonly<{ tenant: TenantId }> & ToolUsageQuery,
+): Outcome<Admitted, ToolFailure> {
+  const range = checkedQuery(input)
+  if ('failure' in range) return range
+  const fingerprint = fingerprintOf(input.tenant, input)
+  const after = input.after === null ? succeed(null) : openCursor(fingerprint, input.after)
+  if ('failure' in after) return after
+  const { tenant, consumer, order, limit } = input
+  return succeed({
+    fingerprint,
+    query: { tenant, range: range.ok, consumer, order, after: after.ok, limit },
+  })
+}
+
 /** The tenant-wide usage read: the principal qualified for the tenant, the query checked. */
 export function createToolAccounts<P>(
   store: Pick<ToolLedgerStore, 'usage'>,
@@ -165,25 +179,15 @@ export function createToolAccounts<P>(
           dependency: 'tool-access',
           diagnostic: verdict.diagnostic,
         })
-      const range = checkedQuery(input)
-      if ('failure' in range) return range
-      const fingerprint = fingerprintOf(input.tenant, input)
-      const after = input.after === null ? succeed(null) : openCursor(fingerprint, input.after)
-      if ('failure' in after) return after
-      const read = await store.usage({
-        tenant: input.tenant,
-        range: range.ok,
-        consumer: input.consumer,
-        order: input.order,
-        after: after.ok,
-        limit: input.limit,
-      })
+      const admitted = admittedQuery(input)
+      if ('failure' in admitted) return admitted
+      const read = await store.usage(admitted.ok.query)
       if (read.kind === 'unavailable')
         return fail({ kind: 'unavailable', dependency: 'tool-ledger', diagnostic: read.diagnostic })
       const last = read.facts.at(-1)
       const next =
         read.more && last?.start != null
-          ? cursorOf(fingerprint, { start: last.start, call: last.call })
+          ? cursorOf(admitted.ok.fingerprint, { start: last.start, call: last.call })
           : null
       return succeed({ entries: read.facts, undated: read.undated, next })
     },

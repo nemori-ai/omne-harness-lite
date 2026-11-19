@@ -3,6 +3,7 @@ import type { ToolUsageFact } from '@omne-harness/tool-contract/provider'
 import { createToolAccounts, type ToolAccountsGuard } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import type { AccessVerdict } from '../src/ledger-guards.ts'
+import { usageOutcome } from '../src/ledger-usage.ts'
 import { callId, principalA, tenantA, tenantB } from './runtime-values.ts'
 
 const account = (revision: string): ToolUsageFact['account'] =>
@@ -172,5 +173,25 @@ describe('the usage of a tenant, listed by start and consumer (C18)', () => {
     expect(await down.list()).toEqual({
       failure: { kind: 'unavailable', dependency: 'tool-access', diagnostic: 'offline' },
     })
+  })
+})
+
+describe('how a call ended, as its usage keeps it', () => {
+  it('keeps the kind and the cause of each terminal and drops every diagnostic, reason and wait', () => {
+    expect(
+      [
+        { kind: 'completed' },
+        { kind: 'failed', cause: 'environment', diagnostic: 'd' },
+        { kind: 'unavailable', reason: 'r' },
+        { kind: 'interrupted', cause: 'cancel' },
+        { kind: 'no-response', wait: 'w', reason: 'r' },
+      ].map(terminal => usageOutcome(terminal as never)),
+    ).toEqual([
+      { kind: 'completed' },
+      { kind: 'failed', cause: 'environment' },
+      { kind: 'unavailable' },
+      { kind: 'interrupted', cause: 'cancel' },
+      { kind: 'no-response' },
+    ])
   })
 })
