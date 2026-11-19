@@ -30,6 +30,8 @@ export type ScenarioAnswer =
   | GatewayReply
   | Readonly<{ kind: 'hold' }>
   | Readonly<{ kind: 'partial'; body: string; more: string; everyMs: number }>
+  /** The head and the first frames of a streamed success, then the connection is cut. */
+  | Readonly<{ kind: 'break'; body: string; headers?: Readonly<Record<string, string>> }>
 
 export const answer504: GatewayReply = Object.freeze({
   kind: 'answer',
@@ -38,7 +40,9 @@ export const answer504: GatewayReply = Object.freeze({
   body: UPSTREAM_504_BODY,
 })
 
-export type ScenarioScript = (request: Readonly<{ index: number; body: string }>) => ScenarioAnswer
+export type ScenarioScript = (
+  request: Readonly<{ index: number; body: string; method: string; path: string }>,
+) => ScenarioAnswer
 
 export type ScenarioGateway = Readonly<{
   url: string
@@ -106,13 +110,21 @@ export async function startScenarioGateway(script: ScenarioScript): Promise<Scen
           new URL(request.url ?? '/', 'https://127.0.0.1').pathname,
           body,
         )
-        const reply = script({ index, body })
+        const path = request.url ?? '/'
+        const reply = script({ index, body, method: request.method ?? 'GET', path })
         if (reply.kind === 'partial') {
           const translate = streamTranslator(spoken) ?? ((part: string) => part)
           response.writeHead(200, { 'content-type': 'text/event-stream' })
           response.write(translate(reply.body))
           const timer = setInterval(() => response.write(translate(reply.more)), reply.everyMs)
           response.on('close', () => clearInterval(timer))
+          return
+        }
+        if (reply.kind === 'break') {
+          const translate = streamTranslator(spoken) ?? ((part: string) => part)
+          response.writeHead(200, { 'content-type': 'text/event-stream', ...reply.headers })
+          response.write(translate(reply.body))
+          setTimeout(() => response.destroy(), 50)
           return
         }
         if (reply.kind === 'hold') {
