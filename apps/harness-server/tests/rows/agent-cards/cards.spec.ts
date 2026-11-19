@@ -85,17 +85,19 @@ describe('a round of card requests as HITL questions', () => {
       displayContext: 'Agent',
     })
 
-  it('turns the draft of an admission chain into an admission card that HITL accepts', () => {
-    const cards = roundCards(admission, [cardRequestOf('one', draft)])
+  const extensionPassage = minted(decodePassageId('step-1/before_model/0'))
+
+  it('turns the draft of an extension into an extension card that HITL accepts', () => {
+    const cards = roundCards(extensionPassage, [cardRequestOf('one', draft)])
     if ('failure' in cards) throw new Error(cards.failure)
-    expect(cards.ok.kind).toBe('admission')
+    expect(cards.ok.kind).toBe('agent-extension')
     expect(cards.ok.questions).toEqual([
       {
-        kind: 'admission',
+        kind: 'extension',
         cardId: 'c1',
         title: 'The agent wants to run `rm notes.txt`.',
         description: draft.explanation,
-        declineConsequence: 'The action is not admitted this time.',
+        declineConsequence: 'The extension gets no answer.',
         options: [
           { id: 'once', label: 'This time', description: 'This time' },
           { id: 'no', label: 'No', description: 'No' },
@@ -159,19 +161,21 @@ describe('a round of card requests as HITL questions', () => {
           entries: [{ key: 'kind', value: { kind: 'string' as const, value: 'survey' } }],
         },
       }
-      const unknown = roundCards(admission, [cardRequestOf('one', other)])
-      if ('failure' in unknown) throw new Error('no round')
-      expect(unknown.ok.questions[0]).toMatchObject({ kind: 'admission' })
-      const plain = roundCards(admission, [cardRequestOf('one', broken)])
+      for (const notRelease of [other, broken])
+        expect(roundCards(admission, [cardRequestOf('one', notRelease)])).toEqual({
+          failure: 'an admission draft carries no release card',
+        })
       const shapeless = roundCards(admission, [cardRequestOf('one', kindOnly)])
-      if ('failure' in plain || 'failure' in shapeless) throw new Error('no round')
-      expect(plain.ok.questions[0]).toMatchObject({ kind: 'admission' })
+      if ('failure' in shapeless) throw new Error('no round')
       expect(registration(shapeless.ok).success).toBe(false)
     })
   })
 
   it('numbers the cards of a round in the order of the requests', () => {
-    const cards = roundCards(admission, [cardRequestOf('one', draft), cardRequestOf('two', draft)])
+    const cards = roundCards(extensionPassage, [
+      cardRequestOf('one', draft),
+      cardRequestOf('two', draft),
+    ])
     if ('failure' in cards) throw new Error(cards.failure)
     expect(cards.ok.questions.map(question => question.cardId)).toEqual(['c1', 'c2'])
   })
@@ -195,7 +199,7 @@ describe('a round of card requests as HITL questions', () => {
   })
 
   it('cuts the title at the limit of a HITL title when the first sentence is longer', () => {
-    const cards = roundCards(admission, [
+    const cards = roundCards(extensionPassage, [
       cardRequestOf('one', { ...draft, explanation: 'x'.repeat(300) }),
     ])
     if ('failure' in cards) throw new Error(cards.failure)
@@ -242,7 +246,7 @@ describe('the evidence of one card', () => {
 describe('the state of a card as the reply of the port', () => {
   const cardRef = { request: { tenantRef: 't', requestId: 'r' }, cardId: 'c1' }
   const question = {
-    kind: 'admission',
+    kind: 'extension',
     cardId: 'c1',
     title: 'T',
     description: 'D',

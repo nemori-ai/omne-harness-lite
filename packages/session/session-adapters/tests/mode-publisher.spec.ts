@@ -83,7 +83,6 @@ function fixture(runtime?: SessionModesPublisherInput<string>['runtime']) {
       },
       interaction: {
         humanInteraction: true,
-        requestApproval: true,
         source: evidence('mode'),
         translation: adoption('collaboration-translation'),
       },

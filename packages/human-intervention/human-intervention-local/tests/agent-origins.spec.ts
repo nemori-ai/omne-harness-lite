@@ -15,14 +15,24 @@ const cards = {
   admission: {
     origin: { kind: 'admission', toolCallRef: 'call-1' },
     question: {
-      kind: 'admission',
+      kind: 'release',
       cardId: 'admit',
       title: 'Run the command?',
       description: 'The agent wants to run `rm notes.txt`',
       declineConsequence: 'The action is not admitted this time',
+      target: { tool: 'Shell', command: 'execute', preview: 'rm notes.txt' },
+      arguments: { text: '{"script":"rm notes.txt"}', truncated: false, digest: 'digest-1' },
+      origin: { session: 'session-1', agent: 'agent-1' },
+      gateTitle: '执行',
       options: [
-        { id: 'once', label: 'This time', description: 'This time', effectRef: 'grant/once' },
-        { id: 'no', label: 'No', description: 'No' },
+        {
+          id: 'allow-once',
+          label: 'This time',
+          description: 'This time',
+          offered: true,
+          lasting: false,
+        },
+        { id: 'deny-once', label: 'No', description: 'No', offered: true, lasting: false },
       ],
     },
   },
@@ -73,7 +83,7 @@ it.each(['admission', 'agent-extension'] as const)(
     expect(await pool(w, { sessionRef: SESSION })).toEqual(listed)
     expect(await pool(w, { sessionRef: SESSION, originKind: kind })).toEqual(listed)
     expect(await pool(w)).toEqual(listed)
-    for (const other of ['tool', 'independent', 'admission', 'agent-extension'] as const)
+    for (const other of ['tool', 'admission', 'agent-extension'] as const)
       if (other !== kind) expect(await pool(w, { originKind: other })).toEqual([])
     expect(await pool(w, { sessionRef: 'session-2', originKind: kind })).toEqual([])
 

@@ -79,7 +79,7 @@ describe('the wake-up after a reply', () => {
   })
 
   it('a card from another origin wakes no Tool call', async () => {
-    const { app } = application({ origin: { kind: 'independent', originRef: 'work-1' } })
+    const { app } = application({ origin: { kind: 'agent-extension', originRef: 'work-1' } })
     const { host, scheduled } = instanceHost()
     await withDecided(app, wakeOnDecision(host)).submitReply(access, command)
     await settle()

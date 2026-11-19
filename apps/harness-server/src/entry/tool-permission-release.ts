@@ -19,7 +19,7 @@ import {
 export const TOOL_GOVERNANCE_OWNER = 'harness-server.tool-release'
 export const toolPermissionReleaseSchema = z.strictObject({
   declaration: GovernanceDefinitionBundleSchema,
-  interpretations: z.array(permissionInterpretationSchema).min(1),
+  interpretations: z.array(permissionInterpretationSchema),
 })
 export type ToolPermissionRelease = z.infer<typeof toolPermissionReleaseSchema>
 
@@ -148,13 +148,15 @@ function releaseAtVersion(input: ControlledTool, version: string): ToolPermissio
     return { permission, settings: projection.definition, binding, effects }
   })
   const [first] = gates
-  if (first === undefined) throw new Error(`Tool ${input.name} releases no gate`)
-  const settings = { ...first.settings, items: gates.flatMap(gate => gate.settings.items) }
+  const settings =
+    first === undefined
+      ? []
+      : [{ ...first.settings, items: gates.flatMap(gate => gate.settings.items) }]
   const reference = { ownerId: TOOL_GOVERNANCE_OWNER, definitionId: `tool.${input.name}`, version }
   const body = {
     reference,
     origin,
-    settings: [settings],
+    settings,
     permissions: gates.map(gate => gate.permission),
     enforcementBindings: gates.map(gate => gate.binding),
   }

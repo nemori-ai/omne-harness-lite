@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { loadProductionRelease } from '../../src/entry/tool-release.ts'
+import { releasedGatesOf } from '../../src/entry/tool-permission-release.ts'
 import { RELEASE_UNGATED } from '../../src/entry/tool-release-manifest.ts'
 import { releaseCatalog } from '../rows/authorization/release-catalog.ts'
 
@@ -24,7 +25,7 @@ const EXPECTED: Readonly<
   ],
   TodoItems: [['invoke', 'auto', ['help', 'add', 'remove', 'mark_complete', 'list']]],
   BkgToolCalls: [['invoke', 'auto', ['help', 'list', 'output', 'terminate']]],
-  Ask: [['invoke', 'ask', ['ask', 'request_approval']]],
+  Ask: [],
   Web: [
     ['read', 'auto', ['help']],
     ['fetch', 'ask', ['search', 'fetch']],
@@ -62,6 +63,7 @@ describe('the gates of the release tools', () => {
   })
 
   it('puts every command under exactly one gate, or leaves it ungated only where the release names it', async () => {
+    expect(RELEASE_UNGATED).toEqual({ Ask: ['ask'] })
     const catalog = releaseCatalog(release)
     for (const entry of release.manifest.entries) {
       const inspected = await catalog.inspect({ name: entry.asset.name } as never)
@@ -72,6 +74,9 @@ describe('the gates of the release tools', () => {
       const gated = entry.gates.flatMap(gate => gate.commands)
       expect(new Set(gated).size).toBe(gated.length)
       expect(sorted([...gated, ...named])).toEqual(sorted(definition.commands.map(c => c.name)))
+      for (const name of named)
+        expect(definition.commands.find(c => c.name === name)?.release).toEqual({ gate: null })
+      expect(releasedGatesOf(definition, named)).toEqual(entry.gates)
       // A tool with several gates names the gate of every command: a new command never lands silently.
       if ((definition.gates?.length ?? 0) > 1)
         expect(

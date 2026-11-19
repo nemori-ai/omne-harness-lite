@@ -16,7 +16,7 @@ const wait = {
   destination: 'inbox-a',
 }
 const origin = {
-  kind: 'independent',
+  kind: 'agent-extension',
   originRef: 'origin-a',
   wait,
   positionRef: 'step-a',
@@ -89,7 +89,7 @@ describe('bounded JSON command boundary', () => {
 })
 
 describe('request source and question contracts', () => {
-  it('supports an independent source with no session', () => {
+  it('supports a source with no session', () => {
     expect(
       RegisterRequestSchema.safeParse({
         protocol: 'hitl/1',
@@ -111,16 +111,15 @@ describe('request source and question contracts', () => {
       OriginSchema.safeParse({ ...origin, runRef: 'run-a', sessionRef: 'session-a' }).success,
     ).toBe(true)
   })
-  it('reserves effect references for approval and admission', () => {
+  it('has the three kinds of question and refuses the kinds it does not have', () => {
+    expect(QuestionSchema.safeParse({ ...question, kind: 'extension' }).success).toBe(true)
+    for (const kind of ['approval', 'admission'])
+      expect(QuestionSchema.safeParse({ ...question, kind }).success).toBe(false)
     const options = [{ ...option, effectRef: 'authorization-choice' }]
     expect(QuestionSchema.safeParse({ ...question, options }).success).toBe(false)
-    expect(QuestionSchema.safeParse({ ...question, kind: 'extension', options }).success).toBe(
-      false,
-    )
-    expect(QuestionSchema.safeParse({ ...question, kind: 'approval', options }).success).toBe(true)
-    expect(QuestionSchema.safeParse({ ...question, kind: 'admission', options }).success).toBe(true)
+    expect(OriginSchema.safeParse({ ...origin, kind: 'independent' }).success).toBe(false)
   })
-  it.each(['question', 'approval', 'admission', 'extension'] as const)(
+  it.each(['question', 'extension'] as const)(
     'requires a non-empty decline consequence on a %s card, bounded like the description',
     kind => {
       const card = { ...question, kind }

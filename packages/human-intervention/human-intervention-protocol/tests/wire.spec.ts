@@ -22,10 +22,10 @@ const question = {
   description: 'The tool deletes 3 files',
   declineConsequence: 'The tool does not run',
 }
-const approval = {
+const extension = {
   ...question,
-  kind: 'approval',
-  options: [{ id: 'yes', label: 'Yes', description: 'Delete', effectRef: 'effect-1' }],
+  kind: 'extension',
+  options: [{ id: 'yes', label: 'Yes', description: 'Delete' }],
 }
 const asking = {
   ...question,
@@ -66,7 +66,7 @@ const item = (card: object, own: object = origin) => ({
   origin: own,
   displayContext: 'a tool call in a session',
 })
-const pending = { ...head, question: approval, kind: 'pending' }
+const pending = { ...head, question: extension, kind: 'pending' }
 const decided = {
   ...head,
   question: asking,
@@ -76,7 +76,7 @@ const decided = {
 }
 const invalidated = {
   ...head,
-  question: approval,
+  question: extension,
   kind: 'invalidated',
   reason: 'origin-terminal',
   terminalEvidenceRef: 'evidence-1',
@@ -146,7 +146,7 @@ const successBodies: Readonly<Record<Name, readonly object[]>> = {
     {
       items: [
         item(pending),
-        item(decided, { kind: 'independent' }),
+        item(decided, { kind: 'admission', sessionRef: session }),
         item(invalidated, { kind: 'agent-extension', sessionRef: session }),
       ],
       next: 'cursor-2',

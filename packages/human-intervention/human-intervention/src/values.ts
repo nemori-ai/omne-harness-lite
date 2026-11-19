@@ -62,7 +62,6 @@ const option = z.strictObject({
   label: text(256),
   description: text(4096),
 })
-const effectOption = option.extend({ effectRef: HitlIdentifierSchema.optional() })
 // A release card shows every option of the issuer; one it does not offer now cannot be answered.
 // The issuer marks which options last beyond this call, so the card body groups them apart.
 const releaseOption = option.extend({ offered: z.boolean(), lasting: z.boolean() })
@@ -97,16 +96,6 @@ export const QuestionSchema = z
     }),
     z.strictObject({
       ...questionFields,
-      kind: z.literal('approval'),
-      options: z.array(effectOption.readonly()).max(64).readonly(),
-    }),
-    z.strictObject({
-      ...questionFields,
-      kind: z.literal('admission'),
-      options: z.array(effectOption.readonly()).max(64).readonly(),
-    }),
-    z.strictObject({
-      ...questionFields,
       kind: z.literal('release'),
       target: z
         .strictObject({
@@ -136,11 +125,6 @@ export const DecisionQuestionSchema = z
       kind: z.literal('question'),
       options: z.array(option.readonly()).min(1).max(64).readonly(),
     }),
-    z.strictObject({
-      ...decisionFields,
-      kind: z.literal('approval'),
-      options: z.array(option.readonly()).min(1).max(64).readonly(),
-    }),
   ])
   .refine(uniqueOptions, { message: 'Option identities must be unique within a card' })
   .readonly()
@@ -161,7 +145,6 @@ export const OriginSchema = z
       kind: z.literal('admission'),
       toolCallRef: HitlIdentifierSchema.optional(),
     }),
-    z.strictObject({ ...originFields, kind: z.literal('independent') }),
   ])
   .refine(origin => origin.runRef === undefined || origin.sessionRef !== undefined, {
     message: 'A run reference requires its session reference',

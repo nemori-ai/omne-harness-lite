@@ -17,8 +17,6 @@ export const draftOfShown = (card: Shown): Draft =>
 
 const WHO: Readonly<Record<string, string>> = {
   question: 'Agent 在问你',
-  approval: 'Agent 想先问你批不批准',
-  admission: '系统要你放行',
   release: '系统要你放行这一次调用',
   extension: '拓展件在问你',
 }
@@ -27,7 +25,6 @@ const ORIGIN: Readonly<Record<string, string>> = {
   tool: '工具',
   'agent-extension': '拓展件',
   admission: '系统放行',
-  independent: '独立的工作',
 }
 
 const OPTION = 'option:'

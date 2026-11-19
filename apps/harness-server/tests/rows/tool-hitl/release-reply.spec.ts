@@ -28,29 +28,16 @@ const question = (title: string) => ({
 })
 const ask = (...titles: string[]) =>
   JSON.stringify({ command: 'ask', params: { questions: titles.map(question) } })
-const APPROVAL = JSON.stringify({
-  command: 'request_approval',
-  params: {
-    action: 'Delete the build directory',
-    reason: 'It holds stale artifacts.',
-    impact: 'The next build takes longer.',
-    reversibility: 'The build directory can be rebuilt.',
-    fallback: 'Keep it and build into a new directory.',
-  },
-})
-
 function recordedScript(): Readonly<{ script: GatewayScript; bodies: string[] }> {
   const bodies: string[] = []
   const answer = toolCallsThenText(body => [
-    body.includes('start: approval')
-      ? { id: 'call_approval', tool: 'Ask', arguments: APPROVAL }
-      : body.includes('start: three')
-        ? {
-            id: 'call_three',
-            tool: 'Ask',
-            arguments: ask('Which port?', 'Which host?', 'Which protocol?'),
-          }
-        : { id: 'call_one', tool: 'Ask', arguments: ask('Which port should the dev server use?') },
+    body.includes('start: three')
+      ? {
+          id: 'call_three',
+          tool: 'Ask',
+          arguments: ask('Which port?', 'Which host?', 'Which protocol?'),
+        }
+      : { id: 'call_one', tool: 'Ask', arguments: ask('Which port should the dev server use?') },
   ])
   return {
     bodies,
@@ -151,7 +138,6 @@ async function outcomeOf(
 }
 
 const ONE = 'Which port should the dev server use?'
-const ACTION = 'Delete the build directory'
 
 describe('a person answers an Ask on the release tree and the call resumes once', () => {
   it(
@@ -210,7 +196,7 @@ describe('a person answers an Ask on the release tree and the call resumes once'
   )
 
   it(
-    'an option, own words and a skip give the result texts of the spec on question and approval cards',
+    'an option, own words and a skip give the result texts of the spec on question cards',
     { timeout: 300_000 },
     async () => {
       const { script, bodies } = recordedScript()
@@ -239,27 +225,6 @@ describe('a person answers an Ask on the release tree and the call resumes once'
               input: 'start: three skipped',
               replies: [{ kind: 'decline' }, { kind: 'decline' }, { kind: 'decline' }],
               result: 'The person did not answer any question.',
-            },
-            {
-              input: 'start: approval approved',
-              replies: [{ kind: 'selection', optionId: 'approve' }],
-              result: `Approved: ${ACTION}`,
-            },
-            {
-              input: 'start: approval rejected',
-              replies: [{ kind: 'selection', optionId: 'reject' }],
-              result: `Not approved: ${ACTION}`,
-            },
-            {
-              input: 'start: approval words',
-              replies: [{ kind: 'text', text: 'Only after the release' }],
-              result:
-                'No decision. The person wrote: "Only after the release". This is not permission.',
-            },
-            {
-              input: 'start: approval skipped',
-              replies: [{ kind: 'decline' }],
-              result: 'No decision: the person did not approve or reject. This is not permission.',
             },
           ]
           const sessions: string[] = []

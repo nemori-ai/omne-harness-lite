@@ -59,7 +59,8 @@ const ASK_PICK = '8081 (Recommended)'
 const AFTER_ASK = 'the port is settled'
 const ASK_SECOND_TITLE = 'What should the new branch be called?'
 const ASK_OWN_WORDS = 'walk/asset-page'
-const APPROVAL_ACTION = 'Delete the build cache under ./dist'
+const THIRD_TITLE = 'Should the build cache under ./dist be kept?'
+const THIRD_PICK = 'Keep it'
 const POOL_TITLE = 'Should the walk keep the screenshots?'
 const POOL_PICK = 'Keep them'
 const AFTER_POOL = 'the screenshots are kept'
@@ -86,14 +87,19 @@ const ASK_ARGUMENTS = JSON.stringify({
     ],
   },
 })
-const APPROVAL_ARGUMENTS = JSON.stringify({
-  command: 'request_approval',
+const THIRD_ARGUMENTS = JSON.stringify({
+  command: 'ask',
   params: {
-    action: APPROVAL_ACTION,
-    reason: 'The cache holds a stale build of the page.',
-    impact: 'The next build takes longer.',
-    reversibility: 'The cache is rebuilt by the next build.',
-    fallback: 'Keep the cache and build on top of it.',
+    questions: [
+      {
+        title: THIRD_TITLE,
+        description: 'The cache holds a stale build of the page.',
+        options: [
+          { label: THIRD_PICK, description: 'Build on top of it.' },
+          { label: 'Clear it', description: 'The next build takes longer.' },
+        ],
+      },
+    ],
   },
 })
 const POOL_ARGUMENTS = JSON.stringify({
@@ -134,10 +140,7 @@ function answer({ index, body }) {
   if (phase === 'pooled') return { ...reply, body: final(body, AFTER_POOL) }
   const calls =
     phase === 'ask'
-      ? [
-          askCall(0, 'call_ask_walk', ASK_ARGUMENTS),
-          askCall(1, 'call_approval_walk', APPROVAL_ARGUMENTS),
-        ]
+      ? [askCall(0, 'call_ask_walk', ASK_ARGUMENTS), askCall(1, 'call_third_walk', THIRD_ARGUMENTS)]
       : phase === 'pool'
         ? [askCall(0, 'call_pool_walk', POOL_ARGUMENTS)]
         : []
@@ -754,9 +757,9 @@ async function walk(browser, origin, proofs, elsewhere) {
       if (at < 3) area.querySelector('button[aria-label="下一题"]').click()
     }
     const titles = seen.map(card => card.title).sort()
-    const expected = ${JSON.stringify([ASK_TITLE, ASK_SECOND_TITLE, APPROVAL_ACTION].sort())}
+    const expected = ${JSON.stringify([ASK_TITLE, ASK_SECOND_TITLE, THIRD_TITLE].sort())}
     if (JSON.stringify(titles) !== JSON.stringify(expected)) throw new Error('the cards ask something else: ' + JSON.stringify(seen))
-    if (seen.filter(card => card.kind === 'approval').length !== 1) throw new Error('not one approval card: ' + JSON.stringify(seen))
+    if (!seen.every(card => card.kind === 'question')) throw new Error('a card is not a question: ' + JSON.stringify(seen))
     if (!seen.every(card => card.source.endsWith(' · Ask'))) throw new Error('a card source does not name the tool: ' + JSON.stringify(seen))
     const hint = await wait('the waiting hint', () => document.querySelector('section[data-page=conversation] .hitl-wait-hint')?.textContent)
     if (!hint.includes('Agent 在等你回答 3 个问题')) throw new Error('the hint says ' + hint)
@@ -810,7 +813,7 @@ async function walk(browser, origin, proofs, elsewhere) {
       if (title === ${JSON.stringify(ASK_SECOND_TITLE)}) {
         fill(card.querySelector('textarea.hitl-card-words'), ${JSON.stringify(ASK_OWN_WORDS)})
       } else {
-        const label = title === ${JSON.stringify(ASK_TITLE)} ? ${JSON.stringify(ASK_PICK)} : '同意'
+        const label = title === ${JSON.stringify(ASK_TITLE)} ? ${JSON.stringify(ASK_PICK)} : ${JSON.stringify(THIRD_PICK)}
         const choice = [...card.querySelectorAll('.hitl-card-choice')].find(item =>
           item.querySelector('.hitl-card-choice-label').textContent === label)
         choice.querySelector('[role=radio]').click()

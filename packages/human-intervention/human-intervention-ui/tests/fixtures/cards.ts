@@ -25,25 +25,25 @@ export function questionItem(cardId = 'card-1', revision = '3'): HumanInterventi
   }
 }
 
-export function approvalItem(cardId = 'card-2'): HumanInterventionCardItem {
+export function extensionItem(cardId = 'card-2'): HumanInterventionCardItem {
   return {
     card: {
       kind: 'pending',
       ref: { request: { tenantRef: TENANT_REF, requestId: `request-${cardId}` }, cardId },
       revision: '1',
       question: {
-        kind: 'approval',
+        kind: 'extension',
         cardId,
-        title: '运行 rm -rf build？',
+        title: '发布窗口开着吗？',
         description: '',
         declineConsequence: '',
         options: [
-          { id: 'allow', label: '允许', description: '这一次允许。', effectRef: 'effect-1' },
-          { id: 'deny', label: '拒绝', description: '' },
+          { id: 'allow', label: '开着', description: '可以发布。' },
+          { id: 'deny', label: '关了', description: '' },
         ],
       },
     },
-    origin: { kind: 'admission' },
+    origin: { kind: 'agent-extension' },
     displayContext: '',
   }
 }

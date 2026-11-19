@@ -13,7 +13,9 @@ import { hitlCommandBinding } from '@omne-harness/human-intervention-local'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
+import { decisionEvidence } from '@omne-harness/authorization'
 import { cardEvidence, roundKey, roundOperation } from '../../../src/rows/agent-cards/cards.ts'
+import { askedDecision } from '../../../src/rows/authorization/release-asking.ts'
 import { createAgentDecisionCards } from '../../../src/rows/agent-cards/provider.ts'
 import type { ToolHitlHost } from '../../../src/rows/tool-hitl/host.ts'
 import { SESSION_WORK_COMPONENT } from '../../../src/rows/tool-runtime/session-work.ts'
@@ -54,14 +56,21 @@ const advance = {
   generation: '1',
   source: evidence('advance'),
 } as unknown as Authority
-const draft: DecisionCardDraft = {
-  explanation: 'The agent wants to run `rm notes.txt`.',
-  options: [
-    { id: 'once', label: 'This time' },
-    { id: 'no', label: 'No' },
-  ],
-  about: { position: 'before_action', action },
-}
+const asked = await askedDecision(
+  { label: async () => ({ tool: 'Shell', command: 'execute', preview: 'rm notes.txt' }) },
+  {
+    input: { tenant: 't', execution: 'exec-1', action } as never,
+    principal: 'p' as never,
+    session: 'session-1',
+    definition: { owner: 'tool', name: 'Shell', revision: '1', digest: 'd' },
+    effectiveArguments: '{"command":"execute","params":{"script":"rm notes.txt"}}',
+    gateTitle: '执行',
+    lasting: { allow: false, deny: false },
+    evidence: decisionEvidence('provider-test', '1', {}),
+  },
+)
+if (asked.kind !== 'need-decision') throw new Error(asked.kind)
+const draft: DecisionCardDraft = asked.card
 const requests = [cardRequestOf('one', draft), cardRequestOf('two', draft)]
 const access = { principal: caller, tenant }
 const present = { ...access, advance, passage, round, original: evidence('input'), requests }
@@ -156,7 +165,7 @@ const pendingCard = (cardId: string) => ({
   ref: { request: requestRef, cardId },
   revision: '1',
   question: {
-    kind: 'admission',
+    kind: 'extension',
     cardId,
     title: 'T',
     description: 'D',

@@ -27,7 +27,7 @@ it('publishes complete permission and Settings declarations from the actual veri
     expect(declaration.reference.version).toMatch(/^[a-f0-9]{64}$/)
     // One permission per gate, in the order the tool declares its gates; the gates share one Settings group.
     expect(declaration.permissions).toHaveLength(entry.gates.length)
-    expect(declaration.settings).toHaveLength(1)
+    expect(declaration.settings).toHaveLength(entry.gates.length === 0 ? 0 : 1)
     const [settings] = declaration.settings
     for (const [index, permission] of declaration.permissions.entries()) {
       const gate = entry.gates[index]!

@@ -120,9 +120,9 @@ export const RELEASE_TOOLS = Object.freeze([
 export type ReleaseToolName = (typeof RELEASE_TOOLS)[number]['name']
 export type ReleaseToolExport = (typeof RELEASE_TOOLS)[number]['export']
 
-export const RELEASE_UNGATED: Readonly<Partial<Record<string, readonly string[]>>> = Object.freeze(
-  {},
-)
+export const RELEASE_UNGATED: Readonly<Partial<Record<string, readonly string[]>>> = Object.freeze({
+  Ask: ['ask'],
+})
 export function namedUngated(tool: string): readonly string[] {
   return RELEASE_UNGATED[tool] ?? []
 }
@@ -176,7 +176,7 @@ const manifestSchema = z.strictObject({
       governance: toolPermissionReleaseSchema,
       settings: adoptionSchema,
       definition: digestText,
-      gates: z.array(releasedGateSchema).min(1),
+      gates: z.array(releasedGateSchema),
       holding: evidenceSchema,
       publication: evidenceSchema,
     }),

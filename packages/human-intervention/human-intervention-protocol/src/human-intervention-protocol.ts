@@ -33,7 +33,7 @@ const reply = {
   ],
 } as const
 
-const originKinds = literal('tool', 'agent-extension', 'admission', 'independent')
+const originKinds = literal('tool', 'agent-extension', 'admission')
 
 const filter = object({
   states: {
@@ -84,16 +84,6 @@ const question = {
       ...questionFields,
       kind: { rule: literal('question', 'extension') },
       options: { rule: { kind: 'array', item: object(option) } },
-    }),
-    object({
-      ...questionFields,
-      kind: { rule: literal('approval', 'admission') },
-      options: {
-        rule: {
-          kind: 'array',
-          item: object({ ...option, effectRef: { rule: text, optional: true } }),
-        },
-      },
     }),
     object({
       ...questionFields,

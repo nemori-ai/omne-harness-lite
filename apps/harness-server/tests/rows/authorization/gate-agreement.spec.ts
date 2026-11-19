@@ -16,7 +16,7 @@ const evidence = decisionEvidence('gate-agreement', '1', {})
 const allowing = { check: async () => ({ kind: 'allowed', evidence }) } as unknown as AdmissionCheck
 const rules = {
   revision: 'r1',
-  rules: ['Tools', 'Shell', 'Files', 'ToyEcho'].map(tool => ({
+  rules: ['Tools', 'Shell', 'Files', 'ToyEcho', 'Ask'].map(tool => ({
     id: tool,
     effect: 'allow',
     tool,
@@ -24,7 +24,8 @@ const rules = {
 }
 
 type World = Awaited<ReturnType<typeof forwardWorld>>
-type Tool = 'Shell' | 'Files' | 'Tools' | 'ToyEcho'
+type Tool = 'Shell' | 'Files' | 'Tools' | 'ToyEcho' | 'Ask'
+type Decision = Awaited<ReturnType<ToolPermissionCheck['check']>>
 // What each path handed the permission check: the gate it judged, and whether as a carrier.
 type Seen = readonly (readonly [string, boolean])[]
 
@@ -40,7 +41,10 @@ function call(world: World, tool: Tool, command: string, params: unknown, intent
   )
 }
 
-async function paths(world: World) {
+async function paths(
+  world: World,
+  decision: Decision = { kind: 'allow', evidence, condition: null },
+) {
   const resolution = createToolActionResolution({
     release: () => world.release,
     catalog: () => world.catalog,
@@ -50,7 +54,7 @@ async function paths(world: World) {
   const check: ToolPermissionCheck = {
     check: async input => {
       seen.push([input.gate.id, input.carrier === true])
-      return { kind: 'allow', evidence, condition: null }
+      return decision
     },
   }
   const admission = createActionAdmission({
@@ -139,6 +143,37 @@ describe('admission and the start fence take the same gate for the same call', (
       await world.close()
     }
   })
+
+  it.each([
+    ['the session asks a person', { kind: 'ask', evidence }],
+    ['the session never asks', { kind: 'deny', evidence, reason: 'inquiry-policy' }],
+    ['the session skips asking', { kind: 'allow', evidence, condition: null }],
+    ['the permission basis cannot be read', { kind: 'unavailable', evidence }],
+  ] as const)(
+    'Ask ask has no gate: it is admitted and started without a permission read when %s',
+    async (_label, decision) => {
+      const world = await forwardWorld()
+      try {
+        const { admitted, started } = await paths(world, decision as Decision)
+        const args = call(world, 'Ask', 'ask', {
+          questions: [
+            {
+              title: 'Which port?',
+              description: 'Port 8080 is taken.',
+              options: [
+                { label: '8081', description: 'The next free port.' },
+                { label: '3000', description: 'The framework default.' },
+              ],
+            },
+          ],
+        })
+        expect(await admitted('Ask', args)).toEqual([])
+        expect(await started('Ask', args)).toEqual([])
+      } finally {
+        await world.close()
+      }
+    },
+  )
 
   it('a call naming no command of its tool: only the first gate, as a carrier, on both paths', async () => {
     const world = await forwardWorld()

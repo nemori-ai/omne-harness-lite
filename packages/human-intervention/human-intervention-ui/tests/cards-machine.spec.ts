@@ -17,7 +17,7 @@ import {
   type ReplyAnswer,
   type State,
 } from '../src/model/cards-machine.ts'
-import { approvalItem, page, questionItem } from './fixtures/cards.ts'
+import { extensionItem, page, questionItem } from './fixtures/cards.ts'
 
 const run = (state: State, ...events: Event[]) =>
   events.reduce<{ state: State; effects: readonly Effect[] }>(
@@ -30,7 +30,7 @@ const run = (state: State, ...events: Event[]) =>
 
 const ITEM = questionItem()
 const KEY = keyOf(ITEM.card.ref)
-const OTHER = approvalItem()
+const OTHER = extensionItem()
 const OTHER_KEY = keyOf(OTHER.card.ref)
 const SELECT = { kind: 'selection', optionId: 'main' } as const
 const PICK_MAIN: Draft = { choice: { kind: 'option', optionId: 'main' }, text: '' }

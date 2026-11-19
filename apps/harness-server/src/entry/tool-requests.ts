@@ -18,10 +18,7 @@ import type {
   SessionId,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
-import {
-  sessionInquiryBinding,
-  sessionInteractionBinding,
-} from '@omne-harness/session-adapters/cordis'
+import { sessionInteractionBinding } from '@omne-harness/session-adapters/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
@@ -40,11 +37,7 @@ import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
 import { RELEASE_REQUEST_CONTEXT, runToolScope } from '../rows/tool-runtime/scope.ts'
 import { verifySessionWork } from '../rows/tool-runtime/session-work.ts'
 import { publishedViewPortsOf, readPublishedView } from '../rows/session-ad03/published-view.ts'
-import {
-  judgeMetaCommand,
-  type SessionInquiryRead,
-  type SessionInteractionRead,
-} from './meta-capabilities.ts'
+import { judgeMetaCommand, type SessionInteractionRead } from './meta-capabilities.ts'
 import { toolOperatorSettingsKey } from '../rows/tool-host/operator-settings.ts'
 import { toolLimitsOf } from './tool-limits.ts'
 import { releaseOf, type ToolRelease } from './tool-release.ts'
@@ -66,7 +59,6 @@ export type ToolRequestPorts = Readonly<{
   /** The operator's values for the settings a release tool declares; undefined when absent. */
   operatorSettings(tool: string): Readonly<Record<string, unknown>> | undefined
   interaction: SessionInteractionRead
-  inquiry: SessionInquiryRead
 }>
 
 const unavailable = (diagnostic: string) =>
@@ -367,12 +359,6 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
       if (ports === null) return fail('the Session or Runtime Context services are absent')
       const view = await readPublishedView(ports, access, sessionInteractionBinding)
       return 'failure' in view ? view : succeed(view.ok.interaction)
-    },
-    inquiry: async access => {
-      const ports = publishedViewPortsOf(ctx)
-      if (ports === null) return fail('the Session or Runtime Context services are absent')
-      const view = await readPublishedView(ports, access, sessionInquiryBinding)
-      return 'failure' in view ? view : succeed(view.ok.inquiry.policy.onAsk)
     },
   })
 }
