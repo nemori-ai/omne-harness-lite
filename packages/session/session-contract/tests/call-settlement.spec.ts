@@ -3,7 +3,7 @@ import type { HistoryEntry, WorkSnapshot } from '@omne-harness/session-contract'
 import { evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
 import type { SessionCall } from '../src/call-settlement.ts'
 import { decodeEntry } from '../src/entries.ts'
-import { callScene } from './call-scene.ts'
+import { callScene, intentScene } from './call-scene.ts'
 
 const held = (snapshot: WorkSnapshot, consumption: string) => ({
   consumption: snapshot.consumptions.some(item => item.id === consumption),
@@ -110,6 +110,56 @@ describe('a stop of a call that left the snapshot', () => {
     const after = await s.read()
     expect(after.controls).toEqual(before.controls)
     expect(held(after, s.consumption)).toEqual(gone)
+  })
+})
+
+describe('an intent that left with its Run and is associated afterwards', () => {
+  it('leaves at the terminal of its Run when nobody waits for it', async () => {
+    const s = await intentScene()
+    expect(held(await s.read(), s.consumption).registration).toBe(true)
+    await s.cancel()
+    expect(held(await s.read(), s.consumption)).toEqual(gone)
+    expect(s.call(s.consumption)?.record.registration.kind).toBe('tool-intent')
+  })
+
+  it('the association is recorded as history: the call stays out, and its producer answers the binding', async () => {
+    const s = await intentScene()
+    await s.cancel()
+    expect(succeeded(await s.bound(), 'before the association')).toBeNull()
+    succeeded(await s.associate('associate'), 'associate')
+    expect(held(await s.read(), s.consumption)).toEqual(gone)
+    expect(s.call(s.consumption)?.record.registration).toMatchObject({
+      kind: 'associated',
+      binding: s.binding,
+    })
+    expect(succeeded(await s.bound(), 'after the association')).toEqual({
+      consumption: s.consumption,
+      binding: s.binding,
+    })
+  })
+
+  it('the result of the invocation is kept under the call, and the call stays out', async () => {
+    const s = await intentScene()
+    await s.cancel()
+    succeeded(await s.associate('associate'), 'associate')
+    const kept = succeeded(await s.preserve('preserve'), 'preserve')
+    expect(succeeded(await s.preserve('preserve'), 'the same custody')).toEqual(kept)
+    expect(s.call(s.consumption)?.consumed?.results.map(item => item.custody?.digest)).toEqual([
+      evidence('custody').digest,
+    ])
+    expect(held(await s.read(), s.consumption)).toEqual(gone)
+  })
+
+  it('another invocation for the same intent is refused, as before', async () => {
+    const s = await intentScene()
+    await s.cancel()
+    succeeded(await s.associate('associate'), 'associate')
+    const other = await s.associate('associate-other', s.bindingTo('another-invocation'), '3')
+    expect(other).toHaveProperty('failure')
+    expect(succeeded(await s.bound(), 'the original binding')).toMatchObject({ binding: s.binding })
+    expect(
+      succeeded(await s.bound({ kind: 'tool', call: 'another-invocation' }), 'the other'),
+    ).toBeNull()
   })
 })
 

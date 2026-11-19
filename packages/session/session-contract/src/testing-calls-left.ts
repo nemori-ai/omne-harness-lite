@@ -29,7 +29,7 @@ export const lookupOf =
   (store: Held | undefined): SettledCallLookup =>
   keys => {
     const { settled, late } = store?.left ?? NONE_LEFT
-    return settled.filter(call => callNamed(call, keys)).map(call => callWithLate(call, late))
+    return settled.map(call => callWithLate(call, late)).filter(call => callNamed(call, keys))
   }
 
 export const leftAfter = (store: Held | undefined, reduced: CallsLeft): CallsLeft => ({

@@ -4,7 +4,14 @@ import { describe, expect, it } from 'vitest'
 import { canonicalText, encodeValue } from '../src/codec.ts'
 import { createSessionStorage } from '../src/index.ts'
 import { app, textOf, TENANT_A } from './fixtures/app.ts'
-import { startRun } from './fixtures/real-provider.ts'
+import {
+  activeRun,
+  agentEventOf,
+  agentPublisher,
+  cancelRun,
+  eventOf,
+  startRun,
+} from './fixtures/real-provider.ts'
 
 const SESSION = 'session-1'
 const binding = {
@@ -204,5 +211,56 @@ describe('the binding of a producer, asked from the store', () => {
     expect(holds(await s.read(), s.consumption)).toBe(false)
     expect(ok(await s.call())).toEqual(bound)
     expect(ok(await s.call({ kind: 'tool', call: 'never-bound' }))).toBeNull()
+  })
+})
+
+describe('an intent that left the stored snapshot and is associated afterwards', () => {
+  it('one row keeps the intent, one row the association; the producer answers the binding, cache and store agree', async () => {
+    const s = await scene()
+    const agent = agentPublisher({
+      storage: s.a.provider.storage,
+      combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
+      domainOf: () => 'dom_0',
+    })
+    const commitLog = s.a.port.commitLog
+    if (commitLog === undefined) throw new Error('the SQL port offers no commitLog')
+    const run = activeRun(await s.read())
+    const consumption = 'intent-consumption'
+    const fields = {
+      action: 'tool-action',
+      consumer: { owner: 'agent', work: 'work', position: 'position', purpose: 'action' },
+      request: evidence('intent/request'),
+      initiatingAttempt: run.attempt,
+    }
+    const interpret = async (n: number, consequence: Record<string, unknown>) => {
+      const event = eventOf(run, n, [{ consumption, ...consequence } as never], `log-${String(n)}`)
+      await agent.publish(agentEventOf(event))
+      return commitLog({ observation: event })
+    }
+    ok(
+      await interpret(1, {
+        kind: 'call-registration',
+        registration: { kind: 'tool-intent', ...fields, purpose: 'action' },
+      }),
+    )
+    expect(holds(await s.whole(), consumption)).toBe(true)
+    ok(await cancelRun(s.a, run.run, 'cancel'))
+    expect(holds(await s.whole(), consumption)).toBe(false)
+    const invoked = { producer: { kind: 'tool' as const, call: 'real-invocation' }, ...fields }
+    expect(ok(await s.call(invoked.producer))).toBeNull()
+    expect([s.rows('sl_call_left'), s.rows('sl_call_late')]).toEqual([1, 0])
+    await s.read()
+    ok(
+      await interpret(2, {
+        kind: 'call-association',
+        binding: invoked,
+        source: evidence('intent/association'),
+      }),
+    )
+    expect([s.rows('sl_call_left'), s.rows('sl_call_late')]).toEqual([1, 1])
+    const held = await s.read()
+    expect(holds(held, consumption)).toBe(false)
+    expect(canonicalText(encodeValue(held))).toBe(canonicalText(encodeValue(await s.whole())))
+    expect(ok(await s.call(invoked.producer))).toEqual({ consumption, binding: invoked })
   })
 })

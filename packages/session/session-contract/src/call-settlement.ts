@@ -201,6 +201,23 @@ export function settleCalls(draft: Draft, lent: readonly SessionCall[]): CallSet
   return { settled, late }
 }
 
+type Kept = Consumption['results'][number]
+type LateResultFact = Exclude<SessionLateCallFact, { slot: 'association' }>
+
+function resultsWith(results: readonly Kept[], fact: LateResultFact): readonly Kept[] {
+  if (fact.slot === 'result')
+    return results.some(item => item.result.version === fact.version)
+      ? results
+      : [...results, { result: fact.result, custody: null, completion: null, release: 'pending' }]
+  return results.map(item =>
+    item.result.version !== fact.version
+      ? item
+      : fact.slot === 'release'
+        ? { ...item, release: 'confirmed' }
+        : { ...item, [fact.slot]: item[fact.slot] ?? fact.evidence },
+  )
+}
+
 /** A settled call with the facts written about it since: what the snapshot would hold had it kept the call. */
 export function callWithLate(call: SessionCall, late: readonly SessionLateCallFact[]): SessionCall {
   let { record, consumed } = call
@@ -210,26 +227,8 @@ export function callWithLate(call: SessionCall, late: readonly SessionLateCallFa
       record = fact.record
       if (consumed === null && record.registration.kind === 'associated')
         consumed = { id: record.consumption, binding: record.registration.binding, results: [] }
-      continue
-    }
-    if (consumed === null) continue
-    const has = consumed.results.some(item => item.result.version === fact.version)
-    const results =
-      fact.slot === 'result' && !has
-        ? [
-            ...consumed.results,
-            { result: fact.result, custody: null, completion: null, release: 'pending' as const },
-          ]
-        : consumed.results.map(item =>
-            item.result.version !== fact.version
-              ? item
-              : fact.slot === 'release'
-                ? { ...item, release: 'confirmed' as const }
-                : fact.slot === 'result'
-                  ? item
-                  : { ...item, [fact.slot]: item[fact.slot] ?? fact.evidence },
-          )
-    consumed = { ...consumed, results }
+    } else if (consumed !== null)
+      consumed = { ...consumed, results: resultsWith(consumed.results, fact) }
   }
   return { record, consumed, references: call.references }
 }
