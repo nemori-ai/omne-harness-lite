@@ -36,6 +36,7 @@ import {
   type NotificationsArguments,
   type NotificationsCommandName,
 } from './protocol.ts'
+import { describeSend } from './release.ts'
 import { cancelled, unavailable, writing, type Segment } from './results.ts'
 
 const NOTIFICATIONS_GATES: readonly ToolGate[] = [
@@ -247,6 +248,7 @@ function operationOf(name: NotificationsCommandName, maximum: number) {
       renderer: { render: (value: string) => succeed(value) },
       program: { kind: 'none' },
     },
+    ...(name === 'send' ? { describeRelease: describeSend } : {}),
   })
 }
 

@@ -38,8 +38,10 @@ const page = { items: [], next: null, snapshotRef: 'snapshot-1', completeness: '
 
 async function serve(answer?: (seen: Seen) => Answer | undefined): Promise<FakeService> {
   const service = await startFakeService(seen => {
+    const given = answer?.(seen)
+    if (given !== undefined) return given
     if (seen.operation === 'list-cards') return { outcome: 'succeeded', body: page }
-    return answer?.(seen) ?? defaultAnswer(seen)
+    return defaultAnswer(seen)
   })
   services.push(service)
   return service
@@ -134,6 +136,113 @@ describe('read-card', () => {
       messageId: hitlSeen(service)[0]?.messageId,
       tenant: otherTenantText,
     })
+  })
+})
+
+describe('a release card on the human channel', () => {
+  const option = (label: string, description: string, offered = true) => ({
+    id: label,
+    label,
+    description,
+    offered,
+    lasting: false,
+  })
+  const release = (detail?: object) => ({
+    cardId: 'q1',
+    kind: 'release',
+    title: '要执行 Notifications send，放行吗？',
+    description: '下面是 agent 要执行的这一次调用。',
+    declineConsequence: '这一次调用不执行。',
+    target: { tool: 'Notifications', command: 'send', preview: '' },
+    arguments: { text: '{"title":"T"}', truncated: false, digest: 'd' },
+    origin: { session: 'ses-1', agent: 'exe-1' },
+    gateTitle: '发送',
+    ...(detail === undefined ? {} : { detail }),
+    options: [
+      option('本次不放行', '这一次调用不执行'),
+      option('本次放行', '只执行这一次调用，参数不变'),
+      option('本会话放行', '这个会话里「Notifications：发送」不再问你'),
+      option('始终放行', '把「Notifications：发送」设成自动', false),
+      option('始终禁止', '把「Notifications：发送」设成禁止', false),
+    ],
+  })
+  const item = (question: object) => ({
+    card: {
+      ref: { request: { tenantRef: tenantText, requestId: 'r-1' }, cardId: 'q1' },
+      revision: '1',
+      kind: 'pending',
+      question,
+    },
+    origin: { kind: 'admission', sessionRef: sessionId, toolCallRef: 'call-1' },
+    displayContext: 'an action in a session',
+  })
+  const given = {
+    state: 'given',
+    rows: [
+      { label: '收件人', value: '你' },
+      { label: '标签', value: ['a', 'b'] },
+    ],
+    typed: { kind: 'test.release@1', value: '{"title":"T"}' },
+  }
+  const reading = (question: object) => async () => {
+    await loggedIn(seen =>
+      seen.operation === 'read-card'
+        ? { outcome: 'succeeded', body: { item: item(question) } }
+        : undefined,
+    )
+    return cli(['read-card', ...ref])
+  }
+
+  it('prints the call, its gate, what each option covers and the rows, and leaves the result as it was', async () => {
+    const result = await reading(release(given))()
+    expect(result.code).toBe(0)
+    expect(JSON.parse(result.stdout).body.item.card.question.detail).toEqual(given)
+    expect(result.stderr).toBe(
+      [
+        '放行卡：Notifications send',
+        '关口：发送',
+        '  本次不放行：这一次调用不执行',
+        '  本次放行：只执行这一次调用，参数不变',
+        '  本会话放行：这个会话里「Notifications：发送」不再问你',
+        '  始终放行：把「Notifications：发送」设成自动（现在不能选）',
+        '  始终禁止：把「Notifications：发送」设成禁止（现在不能选）',
+        '详情：',
+        '  收件人：你',
+        '  标签：a、b',
+        '',
+      ].join('\n'),
+    )
+  })
+
+  it('says the tool could not give a detail, and prints no detail when the card has none', async () => {
+    const unavailable = await reading(release({ state: 'unavailable' }))()
+    expect(unavailable.stderr).toContain('工具没能给出这次调用的详情\n')
+    expect(unavailable.stderr).not.toContain('详情：')
+    const none = await reading(release())()
+    expect(none.stderr).not.toContain('详情')
+  })
+
+  it('prints every release card of a listed page, and nothing for a card of another kind', async () => {
+    const question = {
+      cardId: 'q2',
+      kind: 'question',
+      title: 'Which port?',
+      description: 'Pick one',
+      declineConsequence: 'The agent picks',
+      options: [{ id: 'a', label: '8080', description: 'the default' }],
+    }
+    await loggedIn(seen =>
+      seen.operation === 'list-cards'
+        ? {
+            outcome: 'succeeded',
+            body: { ...page, items: [item(release(given)), item(question)] },
+          }
+        : undefined,
+    )
+    const listed = await cli(['list-cards'])
+    expect(listed.code).toBe(0)
+    expect(listed.stderr.match(/^放行卡：/gmu)).toHaveLength(1)
+    expect(listed.stderr).toContain('  标签：a、b\n')
   })
 })
 

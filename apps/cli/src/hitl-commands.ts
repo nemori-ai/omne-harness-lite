@@ -42,6 +42,40 @@ interface HitlCommand {
   readonly required: readonly string[]
   readonly switches?: readonly string[]
   readonly build: (values: Option, context: Context) => Built | undefined
+  readonly cards?: (body: unknown) => readonly unknown[]
+}
+
+type Row = Readonly<{ label: string; value: string | readonly string[] }>
+type ReleaseQuestion = Readonly<{
+  kind: 'release'
+  target: Readonly<{ tool: string; command: string | null }>
+  gateTitle: string
+  options: readonly Readonly<{ label: string; description: string; offered: boolean }>[]
+  detail?: Readonly<{ state: 'given'; rows: readonly Row[] }> | Readonly<{ state: 'unavailable' }>
+}>
+
+const questionOf = (card: unknown): unknown =>
+  (card as { card?: { question?: unknown } } | undefined)?.card?.question
+
+function isRelease(question: unknown): question is ReleaseQuestion {
+  return (question as { kind?: unknown } | undefined)?.kind === 'release'
+}
+
+function releaseLines(question: ReleaseQuestion): string {
+  const call = [question.target.tool, question.target.command].filter(Boolean).join(' ')
+  const lines = [`放行卡：${call}`, `关口：${question.gateTitle}`]
+  for (const option of question.options)
+    lines.push(`  ${option.label}：${option.description}${option.offered ? '' : '（现在不能选）'}`)
+  const { detail } = question
+  if (detail?.state === 'unavailable') lines.push('工具没能给出这次调用的详情')
+  if (detail?.state === 'given') {
+    lines.push('详情：')
+    for (const row of detail.rows)
+      lines.push(
+        `  ${row.label}：${typeof row.value === 'string' ? row.value : row.value.join('、')}`,
+      )
+  }
+  return `${lines.join('\n')}\n`
 }
 
 async function runHitl(
@@ -70,7 +104,12 @@ async function runHitl(
   if (built === undefined) return usageError(output, unrecognized(name))
   const result = await built.send(loaded.link)
   if (result === undefined) return usageError(output, unrecognized(name))
-  return report(name, result, built.echo, output)
+  const code = report(name, result, built.echo, output)
+  if (command.cards === undefined || result.kind !== 'response' || result.outcome !== 'succeeded')
+    return code
+  for (const question of command.cards(result.body).map(questionOf))
+    if (isRelease(question)) output.stderr(releaseLines(question))
+  return code
 }
 
 function cardOf(values: Option, tenant: TenantId) {
@@ -109,6 +148,7 @@ const listCards: HitlCommand = {
       echo: { messageId, tenant: encodeTenantText(tenant) },
     }
   },
+  cards: body => (body as { items?: readonly unknown[] } | undefined)?.items ?? [],
 }
 
 const readCard: HitlCommand = {
@@ -125,6 +165,7 @@ const readCard: HitlCommand = {
       ),
     echo: { messageId, tenant: encodeTenantText(tenant) },
   }),
+  cards: body => [(body as { item?: unknown } | undefined)?.item],
 }
 
 function replyOf(values: Option): Reply | undefined {

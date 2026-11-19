@@ -250,10 +250,42 @@
 }
 
 .hitl-release-cut,
-.hitl-release-origin {
+.hitl-release-origin,
+.hitl-release-missing {
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
   overflow-wrap: anywhere;
+}
+
+.hitl-release-detail {
+  display: grid;
+  gap: var(--omne-space-inline);
+  justify-items: start;
+}
+
+.hitl-release-rows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--omne-space-inline);
+  margin: 0;
+}
+
+.hitl-release-row {
+  display: contents;
+}
+
+.hitl-release-row dt {
+  color: var(--omne-ink-muted);
+}
+
+.hitl-release-row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.hitl-release-row ul {
+  margin: 0;
+  padding-inline-start: 1.25em;
 }
 
 .hitl-release-options {

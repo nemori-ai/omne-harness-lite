@@ -4,6 +4,7 @@ import { useId, type JSX } from 'react'
 import type { CardsDriver } from '../model/cards-driver.ts'
 import type { Closed, Draft, Entry } from '../model/cards-machine.ts'
 import { NoticeLine } from './notice.tsx'
+import { ReleaseDetailView } from './release-detail.tsx'
 
 export type Shown =
   | Readonly<{ kind: 'pending'; key: string; entry: Entry; draft: Draft }>
@@ -175,9 +176,21 @@ function Choice({
   )
 }
 
-// The release card's body: the call as a summary line, its arguments on demand, where it comes from.
+function Arguments({ given }: Readonly<{ given: ReleaseQuestion['arguments'] }>): JSX.Element {
+  return (
+    <details className="hitl-release-arguments">
+      <summary>参数</summary>
+      <pre>{given.text}</pre>
+      {given.truncated ? (
+        <p className="hitl-release-cut">{`参数太长，只显示开头。全文摘要 ${given.digest}`}</p>
+      ) : null}
+    </details>
+  )
+}
+
+// The release card's body: the call as a summary line, what the tool said it would do, where it comes from.
 function ReleaseCall({ question }: Readonly<{ question: ReleaseQuestion }>): JSX.Element {
-  const { target, arguments: given, origin } = question
+  const { target, arguments: given, origin, detail } = question
   const call = [target.tool, target.command, target.preview]
     .filter(part => part !== null && part !== '')
     .join(' ')
@@ -185,13 +198,11 @@ function ReleaseCall({ question }: Readonly<{ question: ReleaseQuestion }>): JSX
     <div className="hitl-release-call">
       <code className="hitl-release-summary">{call}</code>
       <p className="hitl-release-gate">{`归「${target.tool}：${question.gateTitle}」这一类动作`}</p>
-      <details className="hitl-release-arguments">
-        <summary>参数</summary>
-        <pre>{given.text}</pre>
-        {given.truncated ? (
-          <p className="hitl-release-cut">{`参数太长，只显示开头。全文摘要 ${given.digest}`}</p>
-        ) : null}
-      </details>
+      {detail?.state === 'given' ? <ReleaseDetailView detail={detail} /> : null}
+      {detail?.state === 'unavailable' ? (
+        <p className="hitl-release-missing">工具没能给出这次调用的详情</p>
+      ) : null}
+      {detail?.state === 'given' ? null : <Arguments given={given} />}
       <p className="hitl-release-origin">{`会话 ${origin.session} · Agent ${origin.agent}`}</p>
     </div>
   )
