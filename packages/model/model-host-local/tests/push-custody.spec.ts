@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import { createCustodyEnd } from '../src/plugins/push-custody.ts'
 import { isDelayTable } from '../src/plugins/push-values.ts'
 import type { DeliveryStanding, ResultPushRecord, RuntimeEvent } from '../src/plugins/runtime.ts'
 
-const ACCESS = { principal: 'host', tenant: 'tenant' } as never
+const ACCESS = { principal: 'host', tenant: 'tenant' as unknown as TenantId }
 const RESULT = 'mrver_one'
 
 /** A push record whose result stands as given, and the commands that answer its abandonment. */
