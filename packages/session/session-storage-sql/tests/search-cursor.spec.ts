@@ -37,6 +37,17 @@ describe('the cursors of the history search', () => {
     expect(await seal.open(TENANT, sealed)).toBe('invalid')
   })
 
+  it('lives fifteen minutes when no other lifetime is given', async () => {
+    const clock = { now: 1_000_000 }
+    const signing = createFixedSessionCursorSigning()
+    const seal = createSearchCursorSeal({ signing, now: () => clock.now })
+    const sealed = (await seal.seal(TENANT, STATE as never))!
+    clock.now += 14 * 60_000
+    expect(await seal.open(TENANT, sealed)).toEqual(STATE)
+    clock.now += 2 * 60_000
+    expect(await seal.open(TENANT, sealed)).toBe('invalid')
+  })
+
   it('does not open the cursor of another read of the session storage', async () => {
     const { seal, signing } = sealing()
     const payload = new TextEncoder().encode(

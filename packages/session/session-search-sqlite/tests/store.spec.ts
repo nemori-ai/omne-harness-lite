@@ -184,6 +184,24 @@ describe('the states of the index of a tenant', () => {
     expect(storeOf(root).candidates(ask(generation, ANY))).toBe('unavailable')
   })
 
+  it('is broken when its file is laid out another way: row numbers of another layout are not read', () => {
+    const root = rootOf()
+    const store = storeOf(root)
+    const generation = ready(store)
+    store.close()
+    const file = new DatabaseSync(join(directoryIn(root), `g${String(generation)}.db`))
+    file.exec("UPDATE meta SET value = '1' WHERE key = 'layout'")
+    file.close()
+    expect(storeOf(root).state(TENANT)).toEqual({
+      kind: 'broken',
+      diagnostic: 'the index file has another layout',
+    })
+    file.open()
+    file.exec("DELETE FROM meta WHERE key = 'layout'")
+    file.close()
+    expect(storeOf(root).state(TENANT).kind).toBe('broken')
+  })
+
   it('starts a new build from a broken index: the next generation, beside what is there', () => {
     const root = rootOf()
     const generation = ready(storeOf(root))
