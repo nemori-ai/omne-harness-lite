@@ -45,6 +45,11 @@
 - `ProtocolIdentity` · `records.d.ts`
 - `QueuePosition` · `records.d.ts`
 - `RawOutput` · `custody.d.ts`
+- `ReleaseDescription` · `release-detail.d.ts`
+- `ReleaseDetail` · `release-detail.d.ts`
+- `ReleaseDetailAnswer` · `release-detail.d.ts`
+- `ReleaseDetailPolicy` · `release-detail.d.ts`
+- `ReleaseRow` · `release-detail.d.ts`
 - `ReleasedDelivery` · `results.d.ts`
 - `Reply` · `results.d.ts`
 - `ResidentHolderPage` · `resident-key.d.ts`
@@ -84,6 +89,7 @@
 - `ToolCommandDeclaration` · `definitions.d.ts`
 - `ToolCommandOutcome` · `operations.d.ts`
 - `ToolCommandRelease` · `definitions.d.ts`
+- `ToolCommandReleaseDetail` · `definitions.d.ts`
 - `ToolConsumerProfile` · `authoring.d.ts`
 - `ToolControl` · `operations.d.ts`
 - `ToolCursor` · `identity.d.ts`
@@ -132,6 +138,8 @@
 - `ToolReferenceRejection` · `reference.d.ts`
 - `ToolRelation` · `results.d.ts`
 - `ToolReleaseDeliveryOutcome` · `operations.d.ts`
+- `ToolReleaseDescriber` · `release-detail.d.ts`
+- `ToolReleaseDetails` · `release-detail.d.ts`
 - `ToolRenderedResult` · `results.d.ts`
 - `ToolResult` · `results.d.ts`
 - `ToolResultData` · `results.d.ts`
@@ -219,6 +227,7 @@
 - `ChildReservation` · `program.d.ts`
 - `ChildState` · `program.d.ts`
 - `ControlDispatch` · `records.d.ts`
+- `DEFAULT_RELEASE_DETAIL_POLICY` · `release-detail.d.ts`
 - `DrainState` · `records.d.ts`
 - `ExternalOperationResolution` · `records.d.ts`
 - `FactBatch` · `records.d.ts`
@@ -422,6 +431,7 @@
 - `judgeHandoff` · `judge-release.d.ts`
 - `judgeImplementationFacts` · `judge-definition.d.ts`
 - `judgePreparationFact` · `judge-preparation.d.ts`
+- `judgeReleaseDescription` · `release-detail.d.ts`
 - `judgeToolArguments` · `parameter-codec.d.ts`
 - `judgeToolDefinition` · `judge-definition.d.ts`
 - `judgeToolInvokeRequest` · `judge-request.d.ts`
@@ -481,6 +491,7 @@
 - `ToolStartAuthorizationFixture` · `testing-start-authorization.d.ts`
 - `ToolStartAuthorizationHandles` · `testing-start-authority.d.ts`
 - `ToolStartFenceFixture` · `testing-start-fence.d.ts`
+- `checkReleaseDescription` · `testing-release-detail.d.ts`
 - `clockAnswers` · `testing-clock.d.ts`
 - `completedFinal` · `testing-executor-binding.d.ts`
 - `completedFinalEnvelope` · `testing-executor-binding.d.ts`
@@ -720,6 +731,7 @@ import type { ParameterContract, SourceLayer, ToolArguments, ToolAssetVersion, T
 import type { CheckpointedToolExecutor } from './checkpointed-author.ts';
 import type { TextRenderer, ToolExecutor } from './execution.ts';
 import type { Access, Adoption, DurableEvidence, ToolCallId } from './identity.ts';
+import type { ToolReleaseDescriber } from './release-detail.ts';
 import type { Reply, ToolRenderedResult } from './results.ts';
 export type ToolDeclarations = Readonly<{
     adoption: Adoption;
@@ -877,6 +889,7 @@ type SpecAuthor<T extends Readonly<{
 }>;
 export type ToolOperationSpec<A, R, E, B extends ContentBlock, P extends ToolOperationParameters> = Readonly<{
     parameters: P;
+    describeRelease?: ToolReleaseDescriber<A>;
 }> & (Readonly<{
     returns: ToolReturnDeclaration & Readonly<{
         kind: 'ordinary';
@@ -1762,8 +1775,13 @@ export type ToolGate = Readonly<{
     title: string;
     default: ToolGateDefault;
 }>;
+export type ToolCommandReleaseDetail = Readonly<{
+    kind: string;
+    schema: JsonValue;
+}>;
 export type ToolCommandRelease = Readonly<{
     gate: string | null;
+    detail?: ToolCommandReleaseDetail;
 }>;
 export type ToolCommandDeclaration = Readonly<{
     name: string;
@@ -2382,7 +2400,7 @@ export type { CallOutput, ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyR
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolBodyId, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
 export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
-export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolBodyDeclaration, ToolCommandBackground, ToolCommandDeclaration, ToolCommandRelease, ToolDefinition, ToolEnvironmentDeclaration, ToolGate, ToolGateDefault, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
+export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolBodyDeclaration, ToolCommandBackground, ToolCommandDeclaration, ToolCommandRelease, ToolCommandReleaseDetail, ToolDefinition, ToolEnvironmentDeclaration, ToolGate, ToolGateDefault, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
 export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolRenderedResult, ToolOffloadedBody, ToolBodyRetention, ToolBodyRepresentation, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';
@@ -2403,6 +2421,7 @@ export { commandCallSchema, commandMenu, decodeCommandCallText, describeCommandC
 export type { CommandCall, CommandCallEncoding, CommandCallRejection, CommandShape, CommandTable, IntentFault, } from './command-call.ts';
 export { callLabel } from './call-label.ts';
 export { IMPLICIT_TOOL_GATE, commandGateOf, toolGatesOf } from './gates.ts';
+export type { ReleaseDescription, ReleaseDetail, ReleaseDetailAnswer, ReleaseDetailPolicy, ReleaseRow, ToolReleaseDescriber, ToolReleaseDetails, } from './release-detail.ts';
 export type { ToolActionGate } from './gates.ts';
 export type { ToolCallLabel } from './call-label.ts';
 export { toolsCapabilityOf } from './tools-capability.ts';
@@ -2456,7 +2475,15 @@ export declare const toolGates: Check<readonly ({
 } & Partial<{}>)[]>;
 export declare const commandRelease: Check<{
     readonly gate: string | null;
-} & Partial<{}>>;
+} & Partial<{
+    readonly detail: {
+        readonly kind: string;
+        readonly schema: {
+            readonly kind: 'object';
+            readonly entries: readonly import("@omne-harness/json-text").JsonEntry[];
+        };
+    } & Partial<{}>;
+}>>;
 export declare function unknownGateAt(gates: readonly Pick<ToolGate, 'id'>[] | undefined, commands: readonly Pick<ToolCommandDeclaration, 'release'>[]): number;
 export declare const toolDefinition: Check<ToolDefinition>;
 export declare function judgeImplementationFacts(value: unknown): Outcome<ToolImplementationFacts, Readonly<{
@@ -3216,6 +3243,7 @@ export { PREVIEW_MAX_CHARS, actionPreview, toolCallLabel } from './call-label.ts
 export { attachToolsCapability } from './tools-capability.ts';
 export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, ToolForwardSource, ToolForwardRuntime, } from './forwarding.ts';
 export { returnGuide } from './return-description.ts';
+export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts';
 ```
 
 ## 声明文件 `records.d.ts`
@@ -3737,6 +3765,7 @@ export {};
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import { type CheckpointedToolExecutor } from './checkpointed-author.ts';
+import type { ToolReleaseDescriber } from './release-detail.ts';
 import type { ToolAuthor, ToolImplementation, ToolImplementationDeclaration, ToolOperation, ToolOperationParameters, ToolOperationSpec } from './authoring.ts';
 import type { ToolCommandBackground, ToolCommandRelease, ToolGate, ToolReturnDeclaration } from './definitions.ts';
 import { type CommandCallEncoding } from './command-call.ts';
@@ -3751,6 +3780,7 @@ export type ToolOperationSlot = Readonly<{
     parameters: ToolOperationParameters;
     returns: ToolReturnDeclaration;
     segments: AnyCheckpointed | null;
+    describeRelease: ToolReleaseDescriber<unknown> | null;
 }>;
 export type ToolRegistrationSlot = Readonly<{
     kind: 'function';
@@ -3784,6 +3814,64 @@ export declare function defineCommandTool<E, B extends ContentBlock>(input: Read
     }>>>;
 }>): Outcome<ToolImplementation<E, B>, Rejection>;
 export {};
+```
+
+## 声明文件 `release-detail.d.ts`
+
+```ts
+import { type JsonValue } from '@omne-harness/json-text';
+import type { TenantId } from '@omne-harness/legal-identity';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { ToolAvailability, ToolCommandReleaseDetail } from './definitions.ts';
+import type { Access } from './identity.ts';
+export type ReleaseRow = Readonly<{
+    label: string;
+    value: string | readonly string[];
+}>;
+export type ReleaseDescription = Readonly<{
+    rows: readonly ReleaseRow[];
+    typed?: JsonValue;
+}>;
+export type ToolReleaseDescriber<A> = (input: Readonly<{
+    principal: unknown;
+    tenant: TenantId;
+    arguments: A;
+}>) => Promise<ReleaseDescription>;
+export type ReleaseDetail = Readonly<{
+    rows: readonly ReleaseRow[];
+    typed?: Readonly<{
+        kind: string;
+        value: string;
+    }>;
+}>;
+export type ReleaseDetailAnswer = (Readonly<{
+    kind: 'detail';
+}> & ReleaseDetail) | Readonly<{
+    kind: 'none';
+}> | Readonly<{
+    kind: 'unavailable';
+    reason: string;
+}>;
+export interface ToolReleaseDetails<P> {
+    describe(input: Access<P> & Readonly<{
+        availability: Extract<ToolAvailability, {
+            kind: 'available';
+        }>;
+        command: string | null;
+        effectiveArguments: string;
+    }>): Promise<ReleaseDetailAnswer>;
+}
+export type ReleaseDetailPolicy = Readonly<{
+    timeoutMs: number;
+    maxRows: number;
+    maxLabel: number;
+    maxText: number;
+    maxItems: number;
+    maxItem: number;
+    maxTypedBytes: number;
+}>;
+export declare const DEFAULT_RELEASE_DETAIL_POLICY: ReleaseDetailPolicy;
+export declare function judgeReleaseDescription(value: unknown, declared: ToolCommandReleaseDetail | undefined, policy: ReleaseDetailPolicy): Outcome<ReleaseDetail, string>;
 ```
 
 ## 声明文件 `resident-key.d.ts`
@@ -4902,6 +4990,17 @@ import type { ToolDefinition } from './definitions.ts';
 export declare function testingCallLabel(definition: ToolDefinition, command: string | null): ToolCallLabel;
 ```
 
+## 声明文件 `testing-release-detail.d.ts`
+
+```ts
+import { type Outcome } from '@omne-harness/operation-result';
+import type { ReleaseDescription, ToolReleaseDescriber } from './release-detail.ts';
+export declare function checkReleaseDescription<A>(describe: ToolReleaseDescriber<A>, input: Parameters<ToolReleaseDescriber<A>>[0], options: Readonly<{
+    state: () => Promise<unknown>;
+    times?: number;
+}>): Promise<Outcome<ReleaseDescription, string>>;
+```
+
 ## 声明文件 `testing-resource-responses.d.ts`
 
 ```ts
@@ -5234,6 +5333,7 @@ export { createMemoryToolDecisionBridge, decisionBridgeAnswers, memoryToolDecisi
 export { createMemoryToolResourceResponses, resourceResponsesAnswers, memoryToolResourceResponsesFixture, toolResourceResponsesConformance, type MemoryToolResourceResponses, type ToolResourceResponsesFixture, } from './testing-resource-responses.ts';
 export { testingTenant, testingTenantText, testingWorkspace } from './testing-values.ts';
 export { toolEnvironmentAllocationConformance, type ToolEnvironmentAllocationFixture, } from './testing-environment-allocation.ts';
+export { checkReleaseDescription } from './testing-release-detail.ts';
 ```
 
 ## 声明文件 `tools-capability.d.ts`

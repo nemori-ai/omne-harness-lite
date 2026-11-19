@@ -3,6 +3,7 @@ export type {
   StartPermitRequirements,
 } from './start-permit-requirements.ts'
 export { createLocalToolLoader, type LocalToolLoaderInput } from './author-loader.ts'
+export { createLocalReleaseDetails, type LocalReleaseDetailsInput } from './release-details.ts'
 export { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
 export type { LocalAuthorExecution } from './live-author-execution.ts'
 export { createLocalCallRecords } from './call-records.ts'

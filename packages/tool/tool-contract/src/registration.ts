@@ -2,6 +2,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { CHECKPOINT_STATE_MAX_BYTES, type CheckpointedToolExecutor } from './checkpointed-author.ts'
 import type { ToolExecutor } from './execution.ts'
+import type { ToolReleaseDescriber } from './release-detail.ts'
 import type {
   ToolAuthor,
   ToolImplementation,
@@ -154,11 +155,14 @@ const operationParameters: Check<ToolOperationParameters> = variant('kind', {
   }),
 })
 
-const operationSpec = record({
-  parameters: operationParameters,
-  returns: returnDeclaration,
-  author,
-})
+const operationSpec = record(
+  {
+    parameters: operationParameters,
+    returns: returnDeclaration,
+    author,
+  },
+  { describeRelease: fn },
+)
 
 type Program = AnyAuthor['program']
 
@@ -202,6 +206,7 @@ export type ToolOperationSlot = Readonly<{
   parameters: ToolOperationParameters
   returns: ToolReturnDeclaration
   segments: AnyCheckpointed | null
+  describeRelease: ToolReleaseDescriber<unknown> | null
 }>
 
 const runsInSegments: ToolExecutor<unknown, unknown, unknown> = Object.freeze({
@@ -281,6 +286,7 @@ export function defineToolOperation<
     parameters: spec.parameters,
     returns: spec.returns,
     segments,
+    describeRelease: (input.describeRelease as ToolReleaseDescriber<unknown> | undefined) ?? null,
   }
   const handle = marked(
     { parameters: spec.parameters, returns: spec.returns },

@@ -264,7 +264,16 @@ const gateId: Check<string> = (value, at) => {
 }
 const gate = record({ id: gateId, title: oneLine, default: literal('deny', 'ask', 'auto') })
 export const toolGates = unique(nonEmpty(list(gate)), entry => entry.id, 'id')
-export const commandRelease = record({ gate: nullable(gateId) })
+const detailKind: Check<string> = (value, at) => {
+  if (typeof value !== 'string') return reject(at, 'type')
+  return /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*@[1-9][0-9]{0,5}$/u.test(value) && value.length <= 128
+    ? succeed(value)
+    : reject(at, 'detail-kind')
+}
+export const commandRelease = record(
+  { gate: nullable(gateId) },
+  { detail: record({ kind: detailKind, schema: jsonObject }) },
+)
 const command = record(commandFields, {
   background: record({ unless: names(filled) }),
   release: commandRelease,

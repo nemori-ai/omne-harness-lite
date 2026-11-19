@@ -279,3 +279,4 @@ export type {
   ToolForwardRuntime,
 } from './forwarding.ts'
 export { returnGuide } from './return-description.ts'
+export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts'

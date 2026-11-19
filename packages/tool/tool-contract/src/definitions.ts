@@ -72,8 +72,13 @@ export type ToolGovernance = Readonly<{
 export type ToolCommandBackground = Readonly<{ unless: readonly string[] }>
 export type ToolGateDefault = 'deny' | 'ask' | 'auto'
 export type ToolGate = Readonly<{ id: string; title: string; default: ToolGateDefault }>
+/** The kind of a typed release detail, with its major version, and the JSON Schema of its value. */
+export type ToolCommandReleaseDetail = Readonly<{ kind: string; schema: JsonValue }>
 /** `null` declares the command ungated. */
-export type ToolCommandRelease = Readonly<{ gate: string | null }>
+export type ToolCommandRelease = Readonly<{
+  gate: string | null
+  detail?: ToolCommandReleaseDetail
+}>
 export type ToolCommandDeclaration = Readonly<{
   name: string
   summary: string
