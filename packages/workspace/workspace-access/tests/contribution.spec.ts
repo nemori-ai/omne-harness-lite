@@ -1,3 +1,4 @@
+import { access, tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import { describe, expect, it } from 'vitest'
 import { NAMES, OTHER, TENANT, world, type Name } from './fixtures/world.ts'
 
@@ -123,6 +124,25 @@ describe('registering', () => {
       body: REGISTERED,
     })
     expect(await w.call('query-register', register, OTHER)).toEqual({
+      outcome: 'not-committed',
+      body: {},
+    })
+  })
+
+  it('an operation name that was used for something else is not a registration', async () => {
+    const w = world()
+    w.things.put('/a', {})
+    await w.call('register', register)
+    const tenant = tenantCodec.parse(TENANT)
+    const workspace = workspaceCodec.parse(WORKSPACE)
+    if (!tenant.ok || !workspace.ok) throw new Error('fixture identity did not parse')
+    const ended = await w.instances.dissociate(access(w.principal as never, tenant.value), {
+      operation: 'op-9' as never,
+      workspace: workspace.value,
+      instance: INSTANCE as never,
+    })
+    expect(ended).toMatchObject({ kind: 'done', changed: true })
+    expect(await w.call('query-register', { operation: 'op-9', address: '/a' })).toEqual({
       outcome: 'not-committed',
       body: {},
     })

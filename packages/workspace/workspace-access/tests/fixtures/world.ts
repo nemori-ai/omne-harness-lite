@@ -5,7 +5,12 @@ import type {
   Principal,
 } from '@omne-harness/access-cordis-contract'
 import { readJsonText, writeJsonText, type JsonLimits } from '@omne-harness/json-text'
-import { createCatalog, createGovernance, createManagementTypes } from '@omne-harness/workspace'
+import {
+  createCatalog,
+  createGovernance,
+  createInstances,
+  createManagementTypes,
+} from '@omne-harness/workspace'
 import { createWorkspaceContribution, type WorkspaceFaces } from '@omne-harness/workspace-access'
 import { workspaceProtocol, type WorkspaceProtocol } from '@omne-harness/workspace-protocol'
 import {
@@ -97,5 +102,15 @@ export function world() {
     return wire(name, answer as AnswerOf<Operations[K]>)
   }
 
-  return { things, store, authority, state, real, principal, contribution, call }
+  return {
+    things,
+    store,
+    authority,
+    state,
+    real,
+    instances: createInstances(deps),
+    principal,
+    contribution,
+    call,
+  }
 }

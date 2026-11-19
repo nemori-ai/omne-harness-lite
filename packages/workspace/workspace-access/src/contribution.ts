@@ -131,7 +131,7 @@ export function createWorkspaceContribution(
       const view = await ready.faces.governance.operation(ready.caller, registration.operation)
       if (view.kind === 'not-permitted') return DENIED
       if (view.kind === 'unavailable') return UNAVAILABLE
-      if (view.kind === 'not-recorded' || view.operation !== 'register') return NOT_COMMITTED
+      if (view.kind !== 'recorded' || view.operation !== 'register') return NOT_COMMITTED
       const { workspace, instance, type } = view.value as Record<string, string>
       return {
         outcome: 'succeeded',
