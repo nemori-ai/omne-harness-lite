@@ -643,6 +643,51 @@ it('gives providers of one files configuration one engine, and another configura
   expect(await under(state, 'one-rooted-again')).toBe(rooted)
 })
 
+it('joins the engine of a files root once, hears its diagnostics, and leaves every engine when it retires', async () => {
+  const domain = createSourceDomain()
+  const state = await realpath(await mkdtemp(join(tmpdir(), 'omne-host-joins-')))
+  roots.push(state)
+  const internals = domainInternals(domain)
+  if (internals === undefined) throw new Error('no internals')
+  const joins: { root: string | undefined; left: number; tell: (fact: never) => void }[] = []
+  const joinEngine = internals.joinEngine.bind(internals)
+  Object.assign(internals, {
+    joinEngine: (...input: Parameters<typeof joinEngine>) => {
+      const membership = joinEngine(...input)
+      const joined = { root: input[0].root, left: 0, tell: input[1] as (fact: never) => void }
+      joins.push(joined)
+      return { engine: membership.engine, leave: () => ((joined.left += 1), membership.leave()) }
+    },
+  })
+  const heard: unknown[] = []
+  const provider = createSourceProvider({ domain, diagnose: fact => heard.push(fact) })
+  const under = async (filesRoot: string | undefined, key: string) => {
+    const bare = inputFor(provider, key)
+    const input =
+      filesRoot === undefined ? bare : { ...bare, placement: { ...bare.placement, filesRoot } }
+    await leaseOf(provider, input)
+  }
+  await under(state, 'rooted-1')
+  await under(state, 'rooted-2')
+  await under(undefined, 'bare')
+  // The engine without a root is joined when the provider is made, each root when it is first named.
+  expect(joins.map(joined => joined.root)).toEqual([undefined, state])
+  joins[1]?.tell({ batch: 'b', path: '/p', temporary: '/t' } as never)
+  expect(heard).toEqual([
+    {
+      kind: 'temporaryFileRemains',
+      provider: provider.name,
+      generation: provider.generation,
+      batch: 'b',
+      path: '/p',
+      temporary: '/t',
+    },
+  ])
+  expect(joins.map(joined => joined.left)).toEqual([0, 0])
+  expect(await provider.retire()).toEqual({ kind: 'drained' })
+  expect(joins.map(joined => joined.left)).toEqual([1, 1])
+})
+
 function countingIndex(pending: number, maintained: string[], name: string): RetainedProcessIndex {
   const unused = async (): Promise<never> => {
     throw new Error('not used by this test')
