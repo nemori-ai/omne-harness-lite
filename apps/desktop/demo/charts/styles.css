@@ -1,0 +1,17 @@
+@import '@omne-harness/ui-kit/styles.css';
+@source '.';
+
+body {
+  margin: 0;
+  background: var(--omne-surface-page);
+  color: var(--omne-ink-primary);
+}
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--omne-space-section);
+  padding: var(--omne-space-page);
+}
+.gallery .probe {
+  color: var(--omne-chart-1);
+}

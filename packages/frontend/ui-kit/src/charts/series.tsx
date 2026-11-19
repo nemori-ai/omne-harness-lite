@@ -37,6 +37,7 @@ type Datum = Record<string, string | number | null>
 const INK = 'currentColor'
 const TICK = { fill: INK }
 const CURSOR = { fill: INK, className: 'omne-chart-cursor' }
+const MARGIN = { top: 8, right: 16, bottom: 0, left: 0 }
 const keyOf = (index: number): string => `s${index}`
 
 function dataOf(series: readonly ChartSeries[], rows: readonly ChartRow[]): Datum[] {
@@ -118,7 +119,12 @@ function SeriesChart({
       table={<SeriesTable series={series} rows={rows} format={format} />}
     >
       <ResponsiveContainer width="100%" height={height} initialDimension={{ width: 480, height }}>
-        <Frame data={dataOf(series, rows)} accessibilityLayer className="omne-chart-plot">
+        <Frame
+          data={dataOf(series, rows)}
+          accessibilityLayer
+          className="omne-chart-plot"
+          margin={MARGIN}
+        >
           <CartesianGrid className="omne-chart-grid" vertical={false} stroke={INK} />
           <XAxis
             dataKey="x"
