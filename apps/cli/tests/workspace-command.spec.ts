@@ -82,6 +82,7 @@ describe('omne workspace register', () => {
       body: registered,
       request: { tenant: tenantText, operation: call?.body['operation'] },
     })
+    expect(result.stderr).toBe('')
     expect(sent(service, 'query-register')).toEqual([])
   })
 
@@ -99,7 +100,10 @@ describe('omne workspace register', () => {
     const result = await cli(['workspace', 'register', root])
     const operation = String(sent(service, 'register')[0]?.body['operation'])
     expect(result.code).toBe(5)
-    expect(result.stderr).toContain(`run it again with --resume ${operation}`)
+    expect(result.stderr).toBe(
+      `omne workspace register: to learn the result, run it again with --resume ${operation}\n` +
+        'omne workspace register: result uncertain\n',
+    )
   })
 
   it('resumed, asks first what was done and does not commit again when it was', async () => {
@@ -147,7 +151,12 @@ describe('omne workspace list and show', () => {
     const service = await serve()
     const result = await cli(['workspace', 'list'])
     expect(result.code).toBe(0)
-    expect(sent(service, 'list').map(seen => seen.body)).toEqual([{ tenant: tenantText }])
+    const [call] = sent(service, 'list')
+    expect(call?.body).toEqual({ tenant: tenantText })
+    expect(JSON.parse(result.stdout).request).toEqual({
+      messageId: call?.messageId,
+      tenant: tenantText,
+    })
     expect(JSON.parse(result.stdout).body.workspaces).toHaveLength(1)
   })
 
@@ -176,6 +185,7 @@ describe('what omne workspace refuses before it sends anything', () => {
     [['show']],
     [['show', WORKSPACE, '--type', 'git']],
     [['destroy', WORKSPACE]],
+    [['constructor']],
   ])('%j is a usage error', async args => {
     const service = await serve()
     const result = await cli(['workspace', ...args])
@@ -187,5 +197,8 @@ describe('what omne workspace refuses before it sends anything', () => {
   it('names the subcommand that was not recognized', async () => {
     await serve()
     expect((await cli(['workspace', 'destroy'])).stderr).toBe(commandUnrecognized('workspace'))
+    expect((await cli(['workspace', 'register', '--type', 'git'])).stderr).toBe(
+      commandUnrecognized('workspace register'),
+    )
   })
 })

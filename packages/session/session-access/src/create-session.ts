@@ -75,8 +75,9 @@ function namedDefinition(ports: CreateSessionPorts, body: Body<'create-session'>
   const definitions = ports.definitions()
   if (definitions === undefined) return UNAVAILABLE
   const name = body.definition ?? ports.settings.defaultDefinition
-  const resolved = name === undefined ? undefined : definitions(name)
-  return name === undefined || resolved === undefined ? INVALID : { name, resolved }
+  if (name === undefined) return INVALID
+  const resolved = definitions(name)
+  return resolved === undefined ? INVALID : { name, resolved }
 }
 
 export async function createSession(

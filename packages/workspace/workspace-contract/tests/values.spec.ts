@@ -16,6 +16,8 @@ describe('values read from outside are parsed once', () => {
       'wsi_',
       'wsp_0123456789abcdefghjkmnpqrs',
       'wsi_0123456789ABCDEFGHJKMNPQRS',
+      'xwsi_0123456789abcdefghjkmnpqrs',
+      'wsi_0123456789abcdefghjkmnpqrs0',
       7,
       null,
     ])
@@ -38,6 +40,7 @@ describe('values read from outside are parsed once', () => {
   it('a reason and a load basis written wrongly by code throw', () => {
     expect(reason('occupied')).toBe('occupied')
     expect(() => reason('Not A Code')).toThrow(TypeError)
+    expect(() => reason('occupied!')).toThrow(TypeError)
     expect(loadBasis('unpinned')).toBe('unpinned')
     expect(() => loadBasis('two\nlines')).toThrow(TypeError)
     expect(() => loadBasis('')).toThrow(TypeError)
