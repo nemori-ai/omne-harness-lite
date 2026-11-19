@@ -7,6 +7,9 @@ import {
 } from '@omne-harness/legal-identity'
 import type { UsageQuery } from '@omne-harness/usage-contract'
 import { usageKey, type UsageService } from '@omne-harness/usage-cordis-contract/cordis'
+import { tenantCodec } from '@omne-harness/legal-identity'
+import { sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
+import { savedTenant } from '../../r9/support.ts'
 import {
   historyOf,
   onReleaseTree,
@@ -24,10 +27,19 @@ const RANGE = {
 const sse = (events: readonly unknown[]) =>
   `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
 
+/** The work principal of a session of the saved tenant: a principal every usage source qualifies. */
+function workerOf(tree: ReleaseTree, session: string) {
+  const tenant = tenantCodec.parse(savedTenant(tree.home))
+  if (!tenant.ok) throw new Error('the saved tenant does not parse')
+  const issued = sessionWorkIssuerOf(tree.env)({ tenant: tenant.value, session })
+  if ('failure' in issued) throw new Error('no session work principal')
+  return { tenant: tenant.value as unknown, principal: issued.ok as unknown }
+}
+
 function query(
   tree: ReleaseTree,
   scope: UsageQuery['scope'],
-  as: Readonly<{ tenant: unknown; principal: unknown }> = tree.registrar(),
+  as: Readonly<{ tenant: unknown; principal: unknown }>,
 ) {
   const usage = tree.scope.get(usageKey) as UsageService<unknown> | undefined
   if (usage === undefined) throw new Error('the usage service is not in the tree')
@@ -128,7 +140,10 @@ describe('usage over the release tree', () => {
           expect(summaries).toHaveLength(1)
           const units = await pollUntil(
             'the usage of the ended Run',
-            async () => unitsByGroup(await query(tree, { kind: 'session', session })),
+            async () =>
+              unitsByGroup(
+                await query(tree, { kind: 'session', session }, workerOf(tree, session)),
+              ),
             seen => seen['model/summary'] === 1 && seen['model/main'] === main.length,
           )
           expect(units).toEqual({
@@ -136,7 +151,9 @@ describe('usage over the release tree', () => {
             'model/summary': 1,
             'tool/action': tools,
           })
-          const tenant = unitsByGroup(await query(tree, { kind: 'tenant' }))
+          const tenant = unitsByGroup(
+            await query(tree, { kind: 'tenant' }, workerOf(tree, session)),
+          )
           expect(tenant['model/summary']).toBe(1)
         },
       )
@@ -154,13 +171,14 @@ describe('usage over the release tree', () => {
       await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
         const session = await tree.startSession('hello')
         await ended(tree, session)
+        const worker = workerOf(tree, session)
         const own = await pollUntil(
           'the usage of the session',
-          async () => unitsByGroup(await query(tree, { kind: 'tenant' })),
+          async () => unitsByGroup(await query(tree, { kind: 'tenant' }, worker)),
           seen => (seen['model/main'] ?? 0) >= 1,
         )
         expect(own['model/main']).toBeGreaterThanOrEqual(1)
-        const { principal } = tree.registrar()
+        const { principal } = worker
         const across = await query(tree, { kind: 'tenant' }, { tenant: other, principal })
         expect(across, JSON.stringify(across)).toMatchObject({ failure: { kind: 'denied' } })
         const foreign = await query(
@@ -168,7 +186,11 @@ describe('usage over the release tree', () => {
           { kind: 'session', session },
           { tenant: other, principal },
         )
-        const unknown = await query(tree, { kind: 'session', session: 'ses_no_such_session' })
+        const unknown = await query(
+          tree,
+          { kind: 'session', session: 'ses_no_such_session' },
+          worker,
+        )
         expect(foreign).toEqual({ failure: { kind: 'not-found', what: 'session' } })
         expect(unknown).toEqual(foreign)
       })
@@ -192,7 +214,7 @@ describe('usage over the release tree', () => {
             await ended(tree, session)
             first = await pollUntil(
               'the usage of the session',
-              () => query(tree, { kind: 'session', session }),
+              () => query(tree, { kind: 'session', session }, workerOf(tree, session)),
               answer => 'ok' in answer && answer.ok.total.units >= 1,
             )
           },
@@ -207,7 +229,9 @@ describe('usage over the release tree', () => {
             )
           },
           async tree => {
-            expect(await query(tree, { kind: 'session', session })).toEqual(first)
+            expect(
+              await query(tree, { kind: 'session', session }, workerOf(tree, session)),
+            ).toEqual(first)
           },
         ],
       )

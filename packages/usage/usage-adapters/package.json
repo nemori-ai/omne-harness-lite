@@ -33,6 +33,7 @@
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/agent-contract": "workspace:*",
     "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/model-cordis-contract": "workspace:*",

@@ -5659,6 +5659,9 @@ importers:
       '@omne-harness/call-account':
         specifier: workspace:*
         version: link:../../common/call-account
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity

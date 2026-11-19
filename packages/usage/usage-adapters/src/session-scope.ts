@@ -1,6 +1,7 @@
 // A session as consumer scopes: its executions under the agent's owner, and its compactions under
 // the compaction provider's owner, each rebuilt from the session's history.
 import { decodeCompactionTaskId, encodeCompactionTaskRef } from '@omne-harness/agent-contract'
+import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { HistoryEntry, SessionHistory, SessionId } from '@omne-harness/session-contract'
@@ -10,11 +11,12 @@ export type ScopeOwners = Readonly<{ agent: string; compaction: string }>
 
 const KINDS = ['run.started', 'message.compaction'] as const
 
-function textAt(value: unknown, ...path: readonly string[]): string | null {
-  let at = value
+/** A text at a path of keys in the typed JSON tree of a history payload; null when it is not there. */
+function textAt(value: JsonValue, ...path: readonly string[]): string | null {
+  let at: JsonValue | undefined = value
   for (const key of path)
-    at = typeof at === 'object' && at !== null ? Reflect.get(at, key) : undefined
-  return typeof at === 'string' && at !== '' ? at : null
+    at = at?.kind === 'object' ? at.entries.find(entry => entry.key === key)?.value : undefined
+  return at?.kind === 'string' && at.value !== '' ? at.value : null
 }
 
 /** The work a compaction's summary call is consumed under, rebuilt from the compacted message. */

@@ -14,7 +14,19 @@ if (!org.ok || !acc.ok) throw new Error('fixture tenant')
 const tenant = composeTenant(org.value, acc.value)
 const owners = { agent: '@omne-harness/agent', compaction: '@omne-harness/context-compaction' }
 
-const entry = (kind: string, payload: unknown): HistoryEntry => ({ kind, payload }) as never
+/** A payload as the session history hands it out: the typed JSON tree, not plain JSON. */
+const tree = (value: unknown): unknown => {
+  if (value === null) return { kind: 'null' }
+  if (typeof value === 'string') return { kind: 'string', value }
+  if (typeof value === 'number') return { kind: 'number', lexeme: String(value) }
+  if (Array.isArray(value)) return { kind: 'array', items: value.map(tree) }
+  return {
+    kind: 'object',
+    entries: Object.entries(value as object).map(([key, item]) => ({ key, value: tree(item) })),
+  }
+}
+const entry = (kind: string, payload: unknown): HistoryEntry =>
+  ({ kind, payload: tree(payload) }) as never
 const started = (execution: string) => entry('run.started', { run: 'r', execution })
 const compacted = (task: string) =>
   entry('message.compaction', {
