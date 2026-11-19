@@ -28,6 +28,6 @@ describe('exact sums of account lexemes', () => {
 
   it('refuses a lexeme that is not a decimal of the accounts', () => {
     for (const bad of ['-1', '01', '1.', '.5', '1e3', ''])
-      expect(() => addLexemes(bad, '1'), bad).toThrow(RangeError)
+      expect(() => addLexemes(bad, '1'), bad).toThrow(`not a decimal lexeme: ${bad}`)
   })
 })

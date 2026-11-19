@@ -260,6 +260,10 @@ describe('folding, on cases written out', () => {
       undated: 0,
     })
     expect(result.buckets.map(bucket => bucket.total.units)).toEqual([0, 1, 1, 0, 0])
+    expect(result.buckets.slice(0, 2).map(bucket => [bucket.start, bucket.end])).toEqual([
+      [at(0), at(24)],
+      [at(24), at(48)],
+    ])
   })
 
   it('counts a retried unit as a unit but not as another call, and failures by cause', () => {
@@ -374,6 +378,14 @@ describe('the measures that the random facts do not pin down', () => {
       [[null, 'Shell'], 1],
       [['m-a', null], 2],
       [['m-b', null], 1],
+    ])
+    const sameModel = [
+      fact({ at: at(1), labels: { ...base.labels, model: 'm-a', tool: 'Shell' } }),
+      fact({ at: at(2), labels: { ...base.labels, model: 'm-a', tool: 'Files' } }),
+    ]
+    expect(once(sameModel, ['model', 'tool']).groups.map(cell => cell.key)).toEqual([
+      ['m-a', 'Files'],
+      ['m-a', 'Shell'],
     ])
     expect(once(facts, ['source', 'provider']).groups.map(cell => cell.key)).toEqual([
       ['model', null],

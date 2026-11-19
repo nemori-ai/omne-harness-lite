@@ -60,6 +60,7 @@ describe('a usage query checked before any read', () => {
       { kind: 'session', session: '' },
       { kind: 'session', session: 5 },
       { kind: 'galaxy' },
+      { kind: 'galaxy', session: 's-1' },
     ] as never[])
       expect(checkUsageQuery(query({ scope }), { buckets: 10 }), JSON.stringify(scope)).toEqual({
         failure: { kind: 'invalid', field: 'scope', reason: 'shape' },
