@@ -1458,12 +1458,30 @@ describe('Tool usage list qualification', () => {
     const w = world()
     expect(
       await createToolAccountsGuard(() => undefined).qualify({ principal: w.login(), tenant: A }),
-    ).toMatchObject({ kind: 'unavailable' })
+    ).toEqual({ kind: 'unavailable', diagnostic: 'the tool access dependency is unavailable' })
     const broken = createToolAccountsGuard(() => {
       throw new Error('admission reader broke')
     })
-    expect(await broken.qualify({ principal: w.login(), tenant: A })).toMatchObject({
+    expect(await broken.qualify({ principal: w.login(), tenant: A })).toEqual({
       kind: 'unavailable',
+      diagnostic: 'the tool access request or dependency failed; exception text is not reported',
+    })
+  })
+
+  it('answers as the admission does when it denies or cannot answer', async () => {
+    const w = world()
+    const answering = (answer: unknown) =>
+      createToolAccountsGuard(() => ({ check: () => Promise.resolve(answer) }) as never).qualify({
+        principal: w.login(),
+        tenant: A,
+      })
+    expect(await answering({ kind: 'denied', reason: 'no-grant' })).toEqual({
+      kind: 'denied',
+      reason: 'no-grant',
+    })
+    expect(await answering({ kind: 'unavailable' })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the tool access dependency is unavailable',
     })
   })
 })
