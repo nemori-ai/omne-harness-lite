@@ -94,6 +94,7 @@ async function callOn(
     operation: string,
     custody = evidence('custody'),
     part: Participation | null = null,
+    version = result.version,
   ) =>
     s.commit({
       kind: 'preserveResult',
@@ -101,7 +102,7 @@ async function callOn(
         ...s.base,
         operation: operationId(operation),
         consumption,
-        result,
+        result: { ...result, version },
         custody,
         participation: part,
       },
@@ -171,7 +172,7 @@ async function callOn(
 }
 
 /** One Tool intent of the active Run that nobody waits for, and the association that names its invocation. */
-export async function intentScene() {
+export async function intentScene(waited = false) {
   const s = await open()
   const { run, advance } = await s.active()
   const consumption = 'intent-consumption' as ConsumptionId
@@ -196,7 +197,18 @@ export async function intentScene() {
     await s.project(
       {
         ...event,
-        consequences: [{ kind: 'call-registration', consumption, registration: intent }],
+        consequences: [
+          { kind: 'call-registration', consumption, registration: intent },
+          ...(waited
+            ? [
+                {
+                  kind: 'registered-waiting' as const,
+                  calls: [{ consumption, position: intent.consumer.position }],
+                  other: [],
+                },
+              ]
+            : []),
+        ],
       },
       operationId('intent'),
     ),

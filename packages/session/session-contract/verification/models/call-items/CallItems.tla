@@ -49,7 +49,6 @@ Init == /\ alive = TRUE
 (* The open rule: a pure function of the open view. *)
 Open(c, rec, runAlive, ws, bg, ctl) ==
   \/ rec.reg = "intent" /\ runAlive
-  \/ c \in ws
   \/ rec.reg = "assoc" /\ \A v \in Versions : rec.res[v] = "none"
   \/ /\ rec.reg = "assoc" /\ runAlive
      /\ \E v \in Versions : rec.res[v] = "seen"

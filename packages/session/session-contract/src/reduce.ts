@@ -30,7 +30,6 @@ import { adoption, InitializationInvalid } from './initialization-parse.ts'
 import {
   callKeysIn,
   callKeysOutside,
-  callOf,
   lendCalls,
   settleCalls,
   type CallSettlement,
@@ -509,7 +508,7 @@ function lentTo(
   lookup: SettledCallLookup | undefined,
 ): readonly SessionCall[] {
   if (held === null || lookup === undefined) return []
-  return lookup(callKeysIn(entries)).filter(call => callOf(held, call.record.consumption) === null)
+  return lookup(callKeysIn(entries))
 }
 
 const withLent = (snapshot: WorkSnapshot | null, lent: readonly SessionCall[]) =>

@@ -82,16 +82,6 @@ export function callOf(snapshot: WorkSnapshot, consumption: ConsumptionId): Sess
 
 type Named = Readonly<{ consumption: ConsumptionId; producer: string | null }>
 
-function waited(snapshot: WorkSnapshot, { consumption, producer }: Named): boolean {
-  return (
-    (snapshot.callWaits ?? []).some(item => item.consumption === consumption) ||
-    (producer !== null &&
-      snapshot.waiting.some(
-        item => item.kind === 'producer' && digestOf(item.binding.producer) === producer,
-      ))
-  )
-}
-
 function controlled(snapshot: WorkSnapshot, { consumption, producer }: Named): boolean {
   const names = (item: Readonly<{ consumption: ConsumptionId }>) => item.consumption === consumption
   return (
@@ -111,13 +101,12 @@ function referenced(snapshot: WorkSnapshot, call: SessionCall): boolean {
     producer: producer === null ? null : digestOf(producer),
   }
   return (
-    waited(snapshot, named) ||
     (snapshot.backgroundPlaceholders ?? []).includes(named.consumption) ||
     controlled(snapshot, named)
   )
 }
 
-/** The open rule: a call is open work while someone waits for it, refers to it, or it is still out. */
+/** The open rule: a call is open work while a control or the background refers to it, or it is still out. */
 export function callOpen(snapshot: WorkSnapshot, call: SessionCall): boolean {
   if (referenced(snapshot, call)) return true
   const active = snapshot.run.kind === 'active'
@@ -128,28 +117,16 @@ export function callOpen(snapshot: WorkSnapshot, call: SessionCall): boolean {
 }
 
 function put(draft: Draft, call: SessionCall): void {
-  const { consumption } = call.record
-  draft.callRegistrations = [
-    ...(draft.callRegistrations ?? []).filter(item => item.consumption !== consumption),
-    call.record,
-  ]
-  if (call.consumed !== null)
-    draft.consumptions = [
-      ...draft.consumptions.filter(item => item.id !== consumption),
-      call.consumed,
-    ]
+  draft.callRegistrations = [...(draft.callRegistrations ?? []), call.record]
+  if (call.consumed !== null) draft.consumptions = [...draft.consumptions, call.consumed]
   if (call.references !== null && draft.workEntryIndex !== undefined)
     draft.workEntryIndex = {
       ...draft.workEntryIndex,
-      calls: [
-        ...draft.workEntryIndex.calls.filter(item => item.consumption !== consumption),
-        call.references,
-      ],
+      calls: [...draft.workEntryIndex.calls, call.references],
     }
 }
 
 function drop(draft: Draft, gone: ReadonlySet<ConsumptionId>): void {
-  if (gone.size === 0) return
   draft.callRegistrations = (draft.callRegistrations ?? []).filter(
     item => !gone.has(item.consumption),
   )
@@ -163,7 +140,7 @@ function drop(draft: Draft, gone: ReadonlySet<ConsumptionId>): void {
 
 export function lendCalls(snapshot: WorkSnapshot, lent: readonly SessionCall[]): WorkSnapshot {
   const draft: Draft = { ...snapshot }
-  for (const call of lent) if (callOf(snapshot, call.record.consumption) === null) put(draft, call)
+  for (const call of lent) put(draft, call)
   return draft
 }
 
@@ -216,8 +193,7 @@ export function settleCalls(draft: Draft, lent: readonly SessionCall[]): CallSet
   const late: SessionLateCallFact[] = []
   const gone = new Set<ConsumptionId>()
   for (const before of lent) {
-    const after = callOf(draft, before.record.consumption)
-    if (after !== null) late.push(...lateFacts(before, after))
+    late.push(...lateFacts(before, callOf(draft, before.record.consumption) as SessionCall))
     gone.add(before.record.consumption)
   }
   const settled: SessionCall[] = []

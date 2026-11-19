@@ -32,6 +32,32 @@ describe('the work snapshot holds the open calls', () => {
   })
 })
 
+describe('the open rule on the lists that name a call', () => {
+  it('a call with two result versions leaves when the first of them is processed', async () => {
+    const s = await callScene()
+    succeeded(await s.preserve('preserve-1'), 'the first version')
+    succeeded(
+      await s.preserve('preserve-2', evidence('custody-2'), null, '2'),
+      'the second version',
+    )
+    expect(held(await s.read(), s.consumption)).toEqual(there)
+    succeeded(await s.process('process'), 'process')
+    expect(held(await s.read(), s.consumption)).toEqual(gone)
+    expect(s.call(s.consumption)?.consumed?.results.map(item => item.completion !== null)).toEqual([
+      true,
+      false,
+    ])
+  })
+
+  it('an intent that a control took over stays after the terminal of its Run', async () => {
+    const s = await intentScene(true)
+    await s.cancel()
+    const after = await s.read()
+    expect(after.run.kind).toBe('terminal')
+    expect(held(after, s.consumption).registration).toBe(true)
+  })
+})
+
 describe('a fact about a call that left the snapshot', () => {
   it('the same confirmation again answers the original one, and the call stays out', async () => {
     const s = await callScene()

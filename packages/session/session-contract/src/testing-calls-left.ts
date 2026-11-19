@@ -32,10 +32,20 @@ export const lookupOf =
     return settled.map(call => callWithLate(call, late)).filter(call => callNamed(call, keys))
   }
 
-export const leftAfter = (store: Held | undefined, reduced: CallsLeft): CallsLeft => ({
-  settled: [...(store?.left ?? NONE_LEFT).settled, ...reduced.settled],
-  late: [...(store?.left ?? NONE_LEFT).late, ...reduced.late],
-})
+const slotOf = (fact: SessionLateCallFact): string =>
+  `${fact.consumption}/${fact.slot}/${'version' in fact ? fact.version : ''}`
+
+// As strict as a store with a key on each row: a call leaves once, a slot is written once.
+export const leftAfter = (store: Held | undefined, reduced: CallsLeft): CallsLeft => {
+  const held = store?.left ?? NONE_LEFT
+  const settled = [...held.settled, ...reduced.settled]
+  const late = [...held.late, ...reduced.late]
+  if (new Set(settled.map(call => call.record.consumption)).size !== settled.length)
+    throw new Error('a call left the work snapshot twice')
+  if (new Set(late.map(slotOf)).size !== late.length)
+    throw new Error('a slot of a call that left was written twice')
+  return { settled, late }
+}
 
 /** The snapshot with the calls that `named` names and that left it, for one decision. */
 export const lentFor = <T extends WorkSnapshot | null>(
