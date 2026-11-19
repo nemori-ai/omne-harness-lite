@@ -150,71 +150,6 @@ declare const item: {
                                                     rule: {
                                                         readonly kind: 'literal';
                                                         readonly values: readonly [
-                                                            "approval",
-                                                            "admission"
-                                                        ];
-                                                    };
-                                                };
-                                                readonly options: {
-                                                    readonly rule: {
-                                                        readonly kind: "array";
-                                                        readonly item: {
-                                                            readonly kind: 'object';
-                                                            readonly fields: {
-                                                                readonly id: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly label: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly description: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly effectRef: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                    readonly optional: true;
-                                                                };
-                                                            };
-                                                        };
-                                                    };
-                                                };
-                                            };
-                                        },
-                                        {
-                                            readonly kind: 'object';
-                                            readonly fields: {
-                                                readonly cardId: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly title: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly description: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly declineConsequence: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly kind: {
-                                                    rule: {
-                                                        readonly kind: 'literal';
-                                                        readonly values: readonly [
                                                             "release"
                                                         ];
                                                     };
@@ -459,71 +394,6 @@ declare const item: {
                                                                     readonly rule: {
                                                                         readonly kind: 'text';
                                                                     };
-                                                                };
-                                                            };
-                                                        };
-                                                    };
-                                                };
-                                            };
-                                        },
-                                        {
-                                            readonly kind: 'object';
-                                            readonly fields: {
-                                                readonly cardId: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly title: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly description: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly declineConsequence: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly kind: {
-                                                    rule: {
-                                                        readonly kind: 'literal';
-                                                        readonly values: readonly [
-                                                            "approval",
-                                                            "admission"
-                                                        ];
-                                                    };
-                                                };
-                                                readonly options: {
-                                                    readonly rule: {
-                                                        readonly kind: "array";
-                                                        readonly item: {
-                                                            readonly kind: 'object';
-                                                            readonly fields: {
-                                                                readonly id: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly label: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly description: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly effectRef: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                    readonly optional: true;
                                                                 };
                                                             };
                                                         };
@@ -1011,71 +881,6 @@ declare const item: {
                                                     rule: {
                                                         readonly kind: 'literal';
                                                         readonly values: readonly [
-                                                            "approval",
-                                                            "admission"
-                                                        ];
-                                                    };
-                                                };
-                                                readonly options: {
-                                                    readonly rule: {
-                                                        readonly kind: "array";
-                                                        readonly item: {
-                                                            readonly kind: 'object';
-                                                            readonly fields: {
-                                                                readonly id: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly label: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly description: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly effectRef: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                    readonly optional: true;
-                                                                };
-                                                            };
-                                                        };
-                                                    };
-                                                };
-                                            };
-                                        },
-                                        {
-                                            readonly kind: 'object';
-                                            readonly fields: {
-                                                readonly cardId: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly title: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly description: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly declineConsequence: {
-                                                    readonly rule: {
-                                                        readonly kind: 'text';
-                                                    };
-                                                };
-                                                readonly kind: {
-                                                    rule: {
-                                                        readonly kind: 'literal';
-                                                        readonly values: readonly [
                                                             "release"
                                                         ];
                                                     };
@@ -1256,8 +1061,7 @@ declare const item: {
                             readonly values: readonly [
                                 "tool",
                                 "agent-extension",
-                                "admission",
-                                "independent"
+                                "admission"
                             ];
                         };
                     };
@@ -1395,71 +1199,6 @@ declare const cardPage: {
                                                                                     readonly rule: {
                                                                                         readonly kind: 'text';
                                                                                     };
-                                                                                };
-                                                                            };
-                                                                        };
-                                                                    };
-                                                                };
-                                                            };
-                                                        },
-                                                        {
-                                                            readonly kind: 'object';
-                                                            readonly fields: {
-                                                                readonly cardId: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly title: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly description: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly declineConsequence: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly kind: {
-                                                                    rule: {
-                                                                        readonly kind: 'literal';
-                                                                        readonly values: readonly [
-                                                                            "approval",
-                                                                            "admission"
-                                                                        ];
-                                                                    };
-                                                                };
-                                                                readonly options: {
-                                                                    readonly rule: {
-                                                                        readonly kind: "array";
-                                                                        readonly item: {
-                                                                            readonly kind: 'object';
-                                                                            readonly fields: {
-                                                                                readonly id: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                };
-                                                                                readonly label: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                };
-                                                                                readonly description: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                };
-                                                                                readonly effectRef: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                    readonly optional: true;
                                                                                 };
                                                                             };
                                                                         };
@@ -1738,71 +1477,6 @@ declare const cardPage: {
                                                                                     readonly rule: {
                                                                                         readonly kind: 'text';
                                                                                     };
-                                                                                };
-                                                                            };
-                                                                        };
-                                                                    };
-                                                                };
-                                                            };
-                                                        },
-                                                        {
-                                                            readonly kind: 'object';
-                                                            readonly fields: {
-                                                                readonly cardId: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly title: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly description: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly declineConsequence: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly kind: {
-                                                                    rule: {
-                                                                        readonly kind: 'literal';
-                                                                        readonly values: readonly [
-                                                                            "approval",
-                                                                            "admission"
-                                                                        ];
-                                                                    };
-                                                                };
-                                                                readonly options: {
-                                                                    readonly rule: {
-                                                                        readonly kind: "array";
-                                                                        readonly item: {
-                                                                            readonly kind: 'object';
-                                                                            readonly fields: {
-                                                                                readonly id: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                };
-                                                                                readonly label: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                };
-                                                                                readonly description: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                };
-                                                                                readonly effectRef: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                    readonly optional: true;
                                                                                 };
                                                                             };
                                                                         };
@@ -2290,71 +1964,6 @@ declare const cardPage: {
                                                                     rule: {
                                                                         readonly kind: 'literal';
                                                                         readonly values: readonly [
-                                                                            "approval",
-                                                                            "admission"
-                                                                        ];
-                                                                    };
-                                                                };
-                                                                readonly options: {
-                                                                    readonly rule: {
-                                                                        readonly kind: "array";
-                                                                        readonly item: {
-                                                                            readonly kind: 'object';
-                                                                            readonly fields: {
-                                                                                readonly id: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                };
-                                                                                readonly label: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                };
-                                                                                readonly description: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                };
-                                                                                readonly effectRef: {
-                                                                                    readonly rule: {
-                                                                                        readonly kind: 'text';
-                                                                                    };
-                                                                                    readonly optional: true;
-                                                                                };
-                                                                            };
-                                                                        };
-                                                                    };
-                                                                };
-                                                            };
-                                                        },
-                                                        {
-                                                            readonly kind: 'object';
-                                                            readonly fields: {
-                                                                readonly cardId: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly title: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly description: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly declineConsequence: {
-                                                                    readonly rule: {
-                                                                        readonly kind: 'text';
-                                                                    };
-                                                                };
-                                                                readonly kind: {
-                                                                    rule: {
-                                                                        readonly kind: 'literal';
-                                                                        readonly values: readonly [
                                                                             "release"
                                                                         ];
                                                                     };
@@ -2535,8 +2144,7 @@ declare const cardPage: {
                                             readonly values: readonly [
                                                 "tool",
                                                 "agent-extension",
-                                                "admission",
-                                                "independent"
+                                                "admission"
                                             ];
                                         };
                                     };
@@ -2882,18 +2490,6 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly title: string;
                             } | {
-                                readonly cardId: string;
-                                readonly declineConsequence: string;
-                                readonly description: string;
-                                readonly kind: "admission" | "approval";
-                                readonly options: readonly {
-                                    readonly description: string;
-                                    readonly effectRef?: string;
-                                    readonly id: string;
-                                    readonly label: string;
-                                }[];
-                                readonly title: string;
-                            } | {
                                 readonly arguments: {
                                     readonly digest: string;
                                     readonly text: string;
@@ -2983,18 +2579,6 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly title: string;
                             } | {
-                                readonly cardId: string;
-                                readonly declineConsequence: string;
-                                readonly description: string;
-                                readonly kind: "admission" | "approval";
-                                readonly options: readonly {
-                                    readonly description: string;
-                                    readonly effectRef?: string;
-                                    readonly id: string;
-                                    readonly label: string;
-                                }[];
-                                readonly title: string;
-                            } | {
                                 readonly arguments: {
                                     readonly digest: string;
                                     readonly text: string;
@@ -3050,18 +2634,6 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly title: string;
                             } | {
-                                readonly cardId: string;
-                                readonly declineConsequence: string;
-                                readonly description: string;
-                                readonly kind: "admission" | "approval";
-                                readonly options: readonly {
-                                    readonly description: string;
-                                    readonly effectRef?: string;
-                                    readonly id: string;
-                                    readonly label: string;
-                                }[];
-                                readonly title: string;
-                            } | {
                                 readonly arguments: {
                                     readonly digest: string;
                                     readonly text: string;
@@ -3108,7 +2680,7 @@ export declare const humanInterventionProtocol: {
                         };
                         readonly displayContext: string;
                         readonly origin: {
-                            readonly kind: "admission" | "agent-extension" | "independent" | "tool";
+                            readonly kind: "admission" | "agent-extension" | "tool";
                             readonly runRef?: string;
                             readonly sessionRef?: string;
                             readonly toolCallRef?: string;
@@ -3134,7 +2706,7 @@ export declare const humanInterventionProtocol: {
                 readonly cursor: string | null;
                 readonly filter: {
                     readonly delivery?: "accepted" | "pending" | "superseded";
-                    readonly originKind?: "admission" | "agent-extension" | "independent" | "tool";
+                    readonly originKind?: "admission" | "agent-extension" | "tool";
                     readonly sessionRef?: string;
                     readonly states: readonly ("decided" | "invalidated" | "pending")[];
                 };
@@ -3155,18 +2727,6 @@ export declare const humanInterventionProtocol: {
                                 readonly kind: "extension" | "question";
                                 readonly options: readonly {
                                     readonly description: string;
-                                    readonly id: string;
-                                    readonly label: string;
-                                }[];
-                                readonly title: string;
-                            } | {
-                                readonly cardId: string;
-                                readonly declineConsequence: string;
-                                readonly description: string;
-                                readonly kind: "admission" | "approval";
-                                readonly options: readonly {
-                                    readonly description: string;
-                                    readonly effectRef?: string;
                                     readonly id: string;
                                     readonly label: string;
                                 }[];
@@ -3261,18 +2821,6 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly title: string;
                             } | {
-                                readonly cardId: string;
-                                readonly declineConsequence: string;
-                                readonly description: string;
-                                readonly kind: "admission" | "approval";
-                                readonly options: readonly {
-                                    readonly description: string;
-                                    readonly effectRef?: string;
-                                    readonly id: string;
-                                    readonly label: string;
-                                }[];
-                                readonly title: string;
-                            } | {
                                 readonly arguments: {
                                     readonly digest: string;
                                     readonly text: string;
@@ -3328,18 +2876,6 @@ export declare const humanInterventionProtocol: {
                                 }[];
                                 readonly title: string;
                             } | {
-                                readonly cardId: string;
-                                readonly declineConsequence: string;
-                                readonly description: string;
-                                readonly kind: "admission" | "approval";
-                                readonly options: readonly {
-                                    readonly description: string;
-                                    readonly effectRef?: string;
-                                    readonly id: string;
-                                    readonly label: string;
-                                }[];
-                                readonly title: string;
-                            } | {
                                 readonly arguments: {
                                     readonly digest: string;
                                     readonly text: string;
@@ -3386,7 +2922,7 @@ export declare const humanInterventionProtocol: {
                         };
                         readonly displayContext: string;
                         readonly origin: {
-                            readonly kind: "admission" | "agent-extension" | "independent" | "tool";
+                            readonly kind: "admission" | "agent-extension" | "tool";
                             readonly runRef?: string;
                             readonly sessionRef?: string;
                             readonly toolCallRef?: string;
