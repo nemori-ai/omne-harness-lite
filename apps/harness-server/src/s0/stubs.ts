@@ -327,6 +327,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'tool-records': {
     provides: [
+      'toolAccounts',
       'toolCommands',
       'toolReads',
       'toolStartAuthority',
