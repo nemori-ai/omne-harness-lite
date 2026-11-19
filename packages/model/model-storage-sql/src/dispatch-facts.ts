@@ -72,23 +72,16 @@ export function dispatchFactRows(
   })
 }
 
-/* --- the read handler, in the storage worker --- */
-
+/** The worker's consumer condition; the read face checked the consumer before it asked. */
 function scopeOf(input: Readonly<Record<string, unknown>>): { where: string[]; params: string[] } {
   const where = ['tenant = ?']
   const params = [textInput(input, 'tenant')]
-  if (input['owner'] === null) return { where, params }
   const works = input['works']
-  if (!Array.isArray(works) || works.length === 0) throw new Error('invalid input works')
-  where.push('consumer_owner = ?')
+  if (input['owner'] === null || !Array.isArray(works)) return { where, params }
+  const work = '(consumer_work = ? OR (consumer_work >= ? AND consumer_work < ?))'
+  where.push('consumer_owner = ?', `(${works.map(() => work).join(' OR ')})`)
   params.push(textInput(input, 'owner'))
-  where.push(
-    `(${works.map(() => '(consumer_work = ? OR (consumer_work >= ? AND consumer_work < ?))').join(' OR ')})`,
-  )
-  for (const work of works) {
-    if (typeof work !== 'string' || work === '') throw new Error('invalid input works')
-    params.push(work, `${work}/`, `${work}0`)
-  }
+  for (const item of works) params.push(String(item), `${String(item)}/`, `${String(item)}0`)
   return { where, params }
 }
 
@@ -137,8 +130,6 @@ export const dispatchFactsHandler: ReadHandlerModule = {
     }
   },
 }
-
-/* --- the read face --- */
 
 export type SqlModelDispatchFactsOptions<P> = Readonly<{
   storage: SqlStorage
@@ -226,6 +217,17 @@ function openCursor(
   return fail(invalid('after', 'cursor'))
 }
 
+function queryFailure(input: ModelDispatchFactsQuery): ModelFailure | null {
+  if (
+    !Number.isSafeInteger(input.limit) ||
+    input.limit < 1 ||
+    input.limit > DISPATCH_FACTS_PAGE_MAX
+  )
+    return invalid('limit', 'out-of-range')
+  if (input.order !== 'ascending' && input.order !== 'descending') return invalid('order', 'value')
+  return consumerValid(input.consumer) ? null : invalid('consumer', 'shape')
+}
+
 function admit<P>(
   options: SqlModelDispatchFactsOptions<P>,
   key: Uint8Array,
@@ -242,24 +244,16 @@ function admit<P>(
     return qualified.failure.kind === 'denied'
       ? fail({ kind: 'denied', action: 'read-account' })
       : qualified
-  if (
-    !Number.isSafeInteger(input.limit) ||
-    input.limit < 1 ||
-    input.limit > DISPATCH_FACTS_PAGE_MAX
-  )
-    return fail(invalid('limit', 'out-of-range'))
-  if (input.order !== 'ascending' && input.order !== 'descending')
-    return fail(invalid('order', 'value'))
-  if (!consumerValid(input.consumer)) return fail(invalid('consumer', 'shape'))
+  const refused = queryFailure(input)
+  if (refused !== null) return fail(refused)
   const range = rangeOf(input.range)
   if ('failure' in range) return range
   const [from, to] = range.ok ?? [null, null]
   const fingerprint = JSON.stringify([from, to, input.consumer, input.order])
-  if (input.after === null)
-    return succeed({ tenant: tenant.value, from, to, fingerprint, after: null })
+  const admitted = { tenant: tenant.value, from, to, fingerprint, after: null }
+  if (input.after === null) return succeed(admitted)
   const after = openCursor(key, tenant.value, fingerprint, input.after)
-  if ('failure' in after) return after
-  return succeed({ tenant: tenant.value, from, to, fingerprint, after: after.ok })
+  return 'failure' in after ? after : succeed({ ...admitted, after: after.ok })
 }
 
 class StoredError extends Error {}
@@ -318,6 +312,20 @@ function pageOf(
   }
 }
 
+function readInputOf<P>(scope: Admitted, input: ListInput<P>): JsonValue {
+  return {
+    tenant: scope.tenant,
+    owner: input.consumer?.owner ?? null,
+    works: input.consumer === null ? [] : [...input.consumer.works],
+    from: scope.from,
+    to: scope.to,
+    order: input.order,
+    afterPrepared: scope.after?.prepared ?? null,
+    afterRow: scope.after?.row ?? null,
+    limit: input.limit,
+  }
+}
+
 async function list<P>(
   options: SqlModelDispatchFactsOptions<P>,
   key: Uint8Array,
@@ -334,17 +342,7 @@ async function list<P>(
     handler: DISPATCH_FACTS_HANDLER,
     protocol: PROTOCOL,
     requestKey: randomUUID(),
-    input: {
-      tenant: scope.tenant,
-      owner: input.consumer?.owner ?? null,
-      works: input.consumer === null ? [] : [...input.consumer.works],
-      from: scope.from,
-      to: scope.to,
-      order: input.order,
-      afterPrepared: scope.after?.prepared ?? null,
-      afterRow: scope.after?.row ?? null,
-      limit: input.limit,
-    },
+    input: readInputOf(scope, input),
   })
   if (result.kind !== 'read')
     return fail(

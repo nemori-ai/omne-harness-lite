@@ -12,6 +12,7 @@ import {
   type WriteContext,
 } from '@omne-harness/model-contract/provider'
 import { createSqlModelDispatchFacts } from '@omne-harness/model-storage-sql'
+import { packText } from '@omne-harness/sql-contract/worker'
 import {
   callId,
   instanceId,
@@ -196,7 +197,7 @@ function scene() {
       limit: 10,
       ...fields,
     })
-  return { dispatched, query, facts, principalOf }
+  return { dispatched, query, facts, principalOf, built }
 }
 
 describe('the dispatch facts of the Model records (C17)', () => {
@@ -320,5 +321,108 @@ describe('the dispatch facts of the Model records (C17)', () => {
     expect(await s.query(A, { consumer: { owner: 'consumer', works: [] } })).toEqual({
       failure: { kind: 'invalid', field: 'consumer', reason: 'shape' },
     })
+  })
+})
+
+describe('what the read face refuses, and what it answers when it cannot read', () => {
+  it.each([
+    ['an order it does not know', { order: 'sideways' }, 'order', 'value'],
+    ['a limit over the page bound', { limit: 201 }, 'limit', 'out-of-range'],
+    ['a limit that is not an integer', { limit: 1.5 }, 'limit', 'out-of-range'],
+    ['a range end that is not an instant', { range: { from: T0, to: 'soon' } }, 'range', 'instant'],
+    ['an empty owner', { consumer: { owner: '', works: ['w'] } }, 'consumer', 'shape'],
+    ['an empty work', { consumer: { owner: 'consumer', works: ['w', ''] } }, 'consumer', 'shape'],
+    [
+      'more works than the bound',
+      { consumer: { owner: 'consumer', works: Array.from({ length: 101 }, (_, at) => `w${at}`) } },
+      'consumer',
+      'shape',
+    ],
+  ])('refuses %s', async (_name, fields, field, reason) => {
+    const s = scene()
+    expect(await s.query(A, fields as Partial<ModelDispatchFactsQuery>)).toEqual({
+      failure: { kind: 'invalid', field, reason },
+    })
+  })
+
+  it('refuses a cursor that was changed, cut short or given another prefix', async () => {
+    const s = scene()
+    await s.dispatched('c1')
+    await s.dispatched('c2')
+    const next = unbox(await s.query(A, { limit: 1 })).next ?? ''
+    const flipped = `${next.slice(0, -1)}${next.endsWith('A') ? 'B' : 'A'}`
+    for (const after of [
+      flipped,
+      next.slice(0, 20),
+      `x${next}`,
+      `${next.slice(0, 5)}e30${next.slice(8)}`,
+    ])
+      expect(await s.query(A, { limit: 1, after })).toEqual({
+        failure: { kind: 'invalid', field: 'after', reason: 'cursor' },
+      })
+  })
+
+  it('answers a tenant whose domain is not registered with an empty page', async () => {
+    const s = scene()
+    await s.dispatched('kept')
+    const unregistered = createSqlModelDispatchFacts({
+      storage: s.built.sqlite.storage,
+      domains: lookup([], s.built.domain),
+      authority: s.built.core.options.authority,
+    })
+    const page = await unregistered.list({
+      principal: s.principalOf(A),
+      tenant: A,
+      range: null,
+      consumer: null,
+      order: 'ascending',
+      after: null,
+      limit: 10,
+    })
+    expect(page).toEqual({ ok: { entries: [], undated: 0, next: null } })
+  })
+
+  it('answers unavailable for a read the storage does not do, and for a damaged stored row', async () => {
+    const s = scene()
+    await s.dispatched('damaged')
+    const refusing = createSqlModelDispatchFacts({
+      storage: {
+        ...s.built.sqlite.storage,
+        read: request =>
+          Promise.resolve({
+            kind: 'unavailable',
+            requestKey: request.requestKey,
+            reason: 'down',
+          } as never),
+      },
+      domains: lookup([textOf(A)], s.built.domain),
+      authority: s.built.core.options.authority,
+    })
+    expect(
+      await refusing.list({
+        principal: s.principalOf(A),
+        tenant: A,
+        range: null,
+        consumer: null,
+        order: 'ascending',
+        after: null,
+        limit: 10,
+      }),
+    ).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'read model.dispatch-facts: down' },
+    })
+    for (const [column, value] of [
+      ['profile', null],
+      ['fact', packText(JSON.stringify({ call: 'mcall_other', dispatch: 'mdisp_damaged' }))],
+      ['fact', packText('not json')],
+      ['context_window', packText('not json')],
+    ] as const) {
+      const fresh = scene()
+      await fresh.dispatched('damaged')
+      fresh.built.sqlite.seed(fresh.built.domain, `UPDATE md_dispatch_fact SET ${column} = ?`, [
+        value,
+      ])
+      expect(await fresh.query(A), column).toMatchObject({ failure: { kind: 'unavailable' } })
+    }
   })
 })
