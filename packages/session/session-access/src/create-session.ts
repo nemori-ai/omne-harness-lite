@@ -22,7 +22,9 @@ import type {
   PrincipalFact,
   SessionAccessFaces,
   SessionAccessSettings,
+  WorkspaceTargets,
 } from './ports.ts'
+import { checkedWorkspace } from './select-workspace.ts'
 
 export type CreateSessionPorts = Readonly<{
   admit(login: LoginIdentity, tenant: TenantId, session: string): Promise<Admitted | Refusal>
@@ -30,6 +32,7 @@ export type CreateSessionPorts = Readonly<{
   faces: () => SessionAccessFaces | undefined
   definitions: () => DefinitionResolver | undefined
   targets: () => ModelTargets | undefined
+  workspaces: () => WorkspaceTargets | undefined
   settings: SessionAccessSettings
 }>
 
@@ -51,6 +54,22 @@ async function initialSelection(
   return target.kind === 'refused' ? INVALID : { name: route, basis: target.basis }
 }
 
+type Attached = Pick<SessionCreation, 'workspace' | 'workspaceAttachment'>
+
+// The workspace a session starts in is verified by Workspace before anything is committed. A
+// target it refuses fails the creation: the session is not created without the workspace instead.
+async function initialWorkspace(
+  ports: CreateSessionPorts,
+  caller: Readonly<{ principal: Principal; tenant: TenantId }>,
+  asked: Body<'create-session'>['workspace'],
+): Promise<Attached | typeof INVALID | typeof UNAVAILABLE> {
+  if (asked === undefined) return { workspace: null, workspaceAttachment: null }
+  const target = await checkedWorkspace(ports.workspaces, caller, asked)
+  if (target.kind === 'unavailable') return UNAVAILABLE
+  if (target.kind === 'refused') return INVALID
+  return { workspace: target.workspace, workspaceAttachment: target.attachment }
+}
+
 export async function createSession(
   ports: CreateSessionPorts,
   principal: Principal,
@@ -67,6 +86,8 @@ export async function createSession(
   const asked = { principal, tenant: fact.tenant, route: body.model }
   const initialModelSelection = await initialSelection(ports, asked, resolved.initialModelSelection)
   if ('outcome' in initialModelSelection) return initialModelSelection
+  const attached = await initialWorkspace(ports, { principal, tenant: fact.tenant }, body.workspace)
+  if ('outcome' in attached) return attached
   const faces = ports.faces()
   if (faces === undefined) return UNAVAILABLE
   const tenantText = tenantTextOf(fact.tenant)
@@ -76,8 +97,7 @@ export async function createSession(
     execution: resolved.execution,
     requiredIdentities: resolved.requiredIdentities,
     purpose: body.purpose,
-    workspace: null,
-    workspaceAttachment: null,
+    ...attached,
     modes: { kind: 'tenant-default', source: resolved.tenantDefaults },
     initial: null,
     entryContract: resolved.entryContract,

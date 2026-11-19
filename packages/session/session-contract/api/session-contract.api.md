@@ -291,6 +291,7 @@
 - `WaitingCall` · `intake-reads.d.ts`
 - `WorkSnapshot` · `values.d.ts`
 - `WorkspaceAttachment` · `values.d.ts`
+- `WorkspaceSelection` · `workspace-selection.d.ts`
 - `admitDerived` · `input-sources.d.ts`
 - `admitDerivedOf` · `input-sources.d.ts`
 - `admitSource` · `input-sources.d.ts`
@@ -383,6 +384,7 @@
 - `waitingCalls` · `intake-reads.d.ts`
 - `wakingInputs` · `intake.d.ts`
 - `withIntakeTerms` · `input-sources.d.ts`
+- `workspaceSelection` · `workspace-selection.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
@@ -2335,6 +2337,7 @@ export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, P
 export { sessionModesBlock } from './block.ts';
 export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, judgeWaiting, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest } from './decide.ts';
+export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts';
 export { runCancelledBy } from './decision-support.ts';
 export { batchEvidence } from './batch-evidence.ts';
 export { EMPTY_AUTHORIZATIONS, incompleteAuthorization, onceAuthorizationOf, reduceAuthorizations, retireOnce, type AuthorizationConsumer, type AuthorizationContext, type AuthorizationExpression, type AuthorizationScope, type OnceAuthorization, type SessionAuthorization, } from './authorizations.ts';
@@ -3767,8 +3770,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:dff74beeb9e0748f958d0ee590aa4a9c872cb3676bedf4fda733d2039d448e65";
-export declare const SESSION_RELEASE_DIGEST = "sha256:dff74beeb9e0748f958d0ee590aa4a9c872cb3676bedf4fda733d2039d448e65";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:c1953da2b88f7b17466171ba9cb7b1588edb02d22b7259b3cdf3e1f60eb22f41";
+export declare const SESSION_RELEASE_DIGEST = "sha256:c1953da2b88f7b17466171ba9cb7b1588edb02d22b7259b3cdf3e1f60eb22f41";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -5280,4 +5283,16 @@ export type SessionWorkEntryIndex = Readonly<{
     calls: readonly SessionCallEntryReferences[];
     controls: readonly SessionControlEntryReferences[];
 }>;
+```
+
+## 声明文件 `workspace-selection.d.ts`
+
+```ts
+import type { WorkspaceId } from '@omne-harness/legal-identity';
+import type { WorkSnapshot, WorkspaceAttachment } from './values.ts';
+export type WorkspaceSelection = Readonly<{
+    workspace: WorkspaceId;
+    attachment: WorkspaceAttachment;
+}>;
+export declare function workspaceSelection(snapshot: Pick<WorkSnapshot, 'creation' | 'changes'>): WorkspaceSelection | null;
 ```

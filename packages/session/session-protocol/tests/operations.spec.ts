@@ -24,6 +24,7 @@ const table = {
   'list-background-calls': { identity: 'login', effect: 'read', limit: 'small' },
   'select-model': { identity: 'login', effect: 'commit', limit: 'small' },
   'read-model-selection': { identity: 'login', effect: 'read', limit: 'small' },
+  'select-workspace': { identity: 'login', effect: 'commit', limit: 'small' },
   'read-permission-mode': { identity: 'login', effect: 'read', limit: 'small' },
   'change-permission-mode': { identity: 'login', effect: 'commit', limit: 'small' },
 } as const
@@ -51,6 +52,7 @@ const outcomes = {
   'list-background-calls': ['invalid'],
   'select-model': ['invalid', 'archived', 'frozen', 'conflict', 'not-found', 'unknown'],
   'read-model-selection': ['invalid'],
+  'select-workspace': ['invalid', 'archived', 'frozen', 'conflict', 'not-found', 'unknown'],
   'read-permission-mode': ['invalid'],
   'change-permission-mode': ['invalid', 'no-change', 'conflict', 'unknown'],
 } as const
@@ -59,7 +61,7 @@ const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
 const operations = sessionProtocol.operations
 
 describe('session/v1', () => {
-  it('is session major 1 with exactly the twenty-four operations and one observation', () => {
+  it('is session major 1 with exactly the twenty-five operations and one observation', () => {
     expect(sessionProtocol.name).toBe('session')
     expect(sessionProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())

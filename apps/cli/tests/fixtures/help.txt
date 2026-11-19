@@ -9,7 +9,7 @@ Commands
 
   omne register --login-identifier <id>                                                                              Register and activate an account.
   omne login --login-identifier <id>                                                                                 Issue a login and save it in the state directory.
-  omne create-session --definition <name> [--model <route>]                                                          Create a session.
+  omne create-session --definition <name> [--model <route>] [--workspace <id> --instance <id>]                       Create a session, in a workspace when one is named.
   omne send-input --session <id> --text <text> [--model <route>]                                                     Send a user message to a session.
   omne interrupt-input --session <id> --text <text> [--model <route>]                                                Send an urgent user message: it releases what the run waits for, or is ordinary.
   omne read-history --session <id>                                                                                   Read the whole history of a session.
@@ -21,6 +21,7 @@ Commands
   omne cancel-run --session <id> --run <id>                                                                          Cancel a run.
   omne stop-call --session <id> --producer-kind <kind> --call <id>                                                   Stop a model or tool call.
   omne select-model --session <id> --model <route>                                                                   Select the model of a session: the next model request uses it.
+  omne select-workspace --session <id> (--workspace <id> --instance <id> | --none)                                   Select the workspace a session works in, or none: it is in force from the next step.
   omne read-model-selection --session <id>                                                                           Read the model a session stands at now.
   omne list-models [--tenant <tenant>]                                                                               List the models of the tenant: which can be selected, and why one cannot.
   omne archive-session --session <id>                                                                                Archive a session: its run ends and its background calls are withdrawn.

@@ -302,6 +302,7 @@
 - `WaitingCall` · 包 `@omne-harness/session-contract`
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
+- `WorkspaceSelection` · 包 `@omne-harness/session-contract`
 - `admitDerived` · 包 `@omne-harness/session-contract`
 - `admitDerivedOf` · 包 `@omne-harness/session-contract`
 - `admitSource` · 包 `@omne-harness/session-contract`
@@ -394,6 +395,7 @@
 - `waitingCalls` · 包 `@omne-harness/session-contract`
 - `wakingInputs` · 包 `@omne-harness/session-contract`
 - `withIntakeTerms` · 包 `@omne-harness/session-contract`
+- `workspaceSelection` · 包 `@omne-harness/session-contract`
 
 ## 入口 `./cordis` · `cordis.d.ts`
 

@@ -18,6 +18,7 @@ import {
   judgeRunStart,
   openWork,
   reduce,
+  workspaceSelection,
   resolveCascade,
   resolveControlScope,
   runCancelledBy,
@@ -440,6 +441,45 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
       expect(decisionOf(legal, created)).toMatchObject({
         kind: 'entries',
       })
+  })
+})
+
+describe('the workspace a session stands at', () => {
+  const other = () => testingWorkspace('wsp_00000000000000000000000002')
+  const elsewhere = { instance: 'host-1:/srv/other', basis: 'unpinned' }
+  const entriesOf = (command: SessionCommand, previous: WorkSnapshot) => {
+    const decision = decisionOf(command, previous)
+    if (decision.kind !== 'entries') throw new Error(JSON.stringify(decision))
+    return decision.entries.length
+  }
+
+  it('is none for a session created without one', () => {
+    expect(workspaceSelection(commit(null, createCommand()))).toBeNull()
+  })
+
+  it('is what it was created with, then its last change, and none once it is taken away', () => {
+    const created = commit(null, createCommand({ workspace: workspace(), workspaceAttachment }))
+    expect(workspaceSelection(created)).toEqual({
+      workspace: workspace(),
+      attachment: workspaceAttachment,
+    })
+    const moved = commit(created, changeWorkspace(other(), elsewhere))
+    expect(workspaceSelection(moved)).toEqual({ workspace: other(), attachment: elsewhere })
+    expect(moved.revisions.workspace).toBe('1')
+    const cleared = commit(moved, changeWorkspace(null, null))
+    expect(workspaceSelection(cleared)).toBeNull()
+    expect(cleared.revisions.workspace).toBe('2')
+  })
+
+  it('every legal change is one entry, a change to the selection it already stands at too', () => {
+    const none = commit(null, createCommand())
+    const created = commit(null, createCommand({ workspace: workspace(), workspaceAttachment }))
+    expect(entriesOf(changeWorkspace(null, null), none)).toBe(1)
+    expect(entriesOf(changeWorkspace(workspace(), workspaceAttachment), none)).toBe(1)
+    expect(entriesOf(changeWorkspace(workspace(), workspaceAttachment), created)).toBe(1)
+    expect(entriesOf(changeWorkspace(null, null), created)).toBe(1)
+    expect(entriesOf(changeWorkspace(workspace(), elsewhere), created)).toBe(1)
+    expect(entriesOf(changeWorkspace(other(), workspaceAttachment), created)).toBe(1)
   })
 })
 

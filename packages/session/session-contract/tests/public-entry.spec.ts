@@ -106,6 +106,7 @@ it('exports exactly the declared root runtime surface', () => {
     'waitingCalls',
     'wakingInputs',
     'withIntakeTerms',
+    'workspaceSelection',
   ])
 })
 

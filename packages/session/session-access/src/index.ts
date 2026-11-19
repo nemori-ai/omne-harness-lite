@@ -22,4 +22,6 @@ export type {
   SessionListPage,
   SessionPermissionModes,
   TargetTenantPrincipals,
+  WorkspaceTargetCheck,
+  WorkspaceTargets,
 } from './ports.ts'

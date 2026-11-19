@@ -21,6 +21,8 @@ import type {
   DefinitionResolver,
   ModelTargetCheck,
   ModelTargets,
+  WorkspaceTargetCheck,
+  WorkspaceTargets,
   PermissionModeReading,
   PrincipalFacts,
   RequestJournal,
@@ -131,14 +133,27 @@ type Port =
   | 'causes'
   | 'permissionModes'
   | 'modelTargets'
+  | 'workspaceTargets'
 
 type SearchCall = Parameters<HistorySearch<Principal>['search']>[0]
 type SearchScript = Awaited<ReturnType<HistorySearch<Principal>['search']>> | 'throw'
 
 export type TargetScript = ModelTargetCheck | 'throw'
 export type TargetCall = Parameters<ModelTargets['check']>[0]
+export type WorkspaceScript = WorkspaceTargetCheck | 'throw'
+export type WorkspaceCall = Parameters<WorkspaceTargets['check']>[0]
 
 /** The basis a selectable target answers with in these tests. */
+export const WORKSPACE = 'wsp_00000000000000000000000001'
+export const WORKSPACE_INSTANCE = 'wsi_00000000000000000000000001'
+export const WORKSPACE_DIRECTORY = '/srv/blog'
+export const WORKSPACE_ATTACHMENT = { instance: WORKSPACE_INSTANCE, basis: 'unpinned' }
+export const WORKSPACE_BASIS = {
+  owner: 'workspace',
+  record: `${WORKSPACE}/${WORKSPACE_INSTANCE}`,
+  revision: '1',
+  digest: 'b'.repeat(64),
+}
 export const TARGET_BASIS = {
   owner: 'model-profiles',
   record: 'anthropic/claude-sonnet-5',
@@ -175,6 +190,10 @@ export type World = Readonly<{
   targets: Readonly<{
     calls(): readonly TargetCall[]
     answer(script: TargetScript): void
+  }>
+  workspaces: Readonly<{
+    calls(): readonly WorkspaceCall[]
+    answer(script: WorkspaceScript): void
   }>
   modes: Readonly<{
     calls(): readonly SessionAccess<Principal>[]
@@ -315,6 +334,21 @@ export function createWorld(
     },
   }
 
+  const workspaceCalls: WorkspaceCall[] = []
+  let attached: WorkspaceScript = {
+    kind: 'attachable',
+    directory: WORKSPACE_DIRECTORY,
+    attachment: WORKSPACE_ATTACHMENT,
+    basis: WORKSPACE_BASIS,
+  }
+  const workspaceTargets: WorkspaceTargets = {
+    async check(call) {
+      workspaceCalls.push(call)
+      if (attached === 'throw') throw new Error('workspace fault')
+      return attached
+    },
+  }
+
   const modeCalls: SessionAccess<Principal>[] = []
   let moded: ModeScript = { kind: 'read', mode: 'bypass-permissions', revision: '0' }
   const permissionModes: SessionPermissionModes = {
@@ -354,6 +388,7 @@ export function createWorld(
       searching: () => (removed.has('searching') ? undefined : searching),
       causes: () => (removed.has('causes') ? undefined : causes),
       modelTargets: () => (removed.has('modelTargets') ? undefined : modelTargets),
+      workspaceTargets: () => (removed.has('workspaceTargets') ? undefined : workspaceTargets),
       permissionModes: () => (removed.has('permissionModes') ? undefined : permissionModes),
       principals,
       facts,
@@ -417,6 +452,12 @@ export function createWorld(
       calls: () => [...targetCalls],
       answer: next => {
         targeted = next
+      },
+    },
+    workspaces: {
+      calls: () => [...workspaceCalls],
+      answer: next => {
+        attached = next
       },
     },
     modes: {

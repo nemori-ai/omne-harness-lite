@@ -389,6 +389,6 @@
 | HS-41 | 名字像秘密的变量不进 Shell 的环境                                                            | 服务的秘密经 Shell 泄露给模型                         | `tests/local/operator-defaults.spec.ts`、`serve-local.spec.ts`                                                                             |
 | HS-42 | 本机档的位置规则与命令行客户端的副本一致                                                     | 客户端连到错误的端口                                  | 本应用的 `locations.spec.ts` 与客户端的 `local-server.spec.ts` 各固定一份                                                                  |
 | HS-43 | 读的排队时限等于已发出的写的观察上界，不短于一次读可以运行的时间                             | 排在一个合法的读或一次冷启动后面的读被判成不可用      | `tests/local/operator-defaults.spec.ts`、`read-wait-budget.spec.ts`                                                                        |
-| HS-44 | 指定了工作区的创建与更换，只在工作区核验答合法时提交；附着与确认依据取自工作区的答复 | 会话附着了一个这个租户无权使用的工作区，或一个不存在的实例 | 只有文字 |
+| HS-44 | 指定了工作区的创建与更换，只在工作区核验答合法时提交；附着与确认依据取自工作区的答复 | 会话附着了一个这个租户无权使用的工作区，或一个不存在的实例 | 会话接入层的处理函数在提交之前调「工作区目标」端口（`packages/session/session-access/tests/select-workspace.spec.ts`）；发行树上的用例 `tests/rows/session-access/workspace-release.spec.ts` |
 | HS-45 | 模型发出一次调用所依据的工作目录，等于这次调用固定请求里钉住的目录；它只随一步开始之前的动作更换 | 模型发出的命令落在它没被告知的目录里 | 模型 `WorkingDirectory` 的 `ToldDirectory`、`ToldAtBoundary`（`packages/session/session-adapters/verification/working-directory`） |
 | HS-46 | 固定请求带了工作区实例的调用，每次取落点之前按当时的关系再核一次资格；会话工作目录是「选了但用不了」或读不到时，需要环境的调用答不可用，不改用默认目录 | 被移除的租户继续在工作区里干活；或文件被写进另一个项目 | 只有文字 |

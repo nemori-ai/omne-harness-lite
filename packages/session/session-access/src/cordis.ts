@@ -19,6 +19,7 @@ import type {
   PrincipalFacts,
   RequestJournal,
   ModelTargets,
+  WorkspaceTargets,
   RunFailureCauses,
   SessionAccessFaces,
   SessionAccessSettings,
@@ -40,6 +41,8 @@ export type SessionAccessPluginInput<S = SessionAccessSettings> = Readonly<{
   causes?: (ctx: Context) => RunFailureCauses | undefined
   /** How a model route resolves for a selection; the release adapts Model's profiles to it. */
   modelTargets?: (ctx: Context) => ModelTargets | undefined
+  /** Whether an instance may be attached; the release adapts Workspace's verification to it. */
+  workspaceTargets?: (ctx: Context) => WorkspaceTargets | undefined
   permissionModes?: (ctx: Context) => SessionPermissionModes | undefined
   prepareCreation?: (input: SessionCreateInput) => SessionCreateInput
 }>
@@ -118,6 +121,7 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
               searching: () => provide(sessionSearchKey) as HistorySearch<Principal> | undefined,
               causes: () => input.causes?.(ctx),
               modelTargets: () => input.modelTargets?.(ctx),
+              workspaceTargets: () => input.workspaceTargets?.(ctx),
               permissionModes: () => input.permissionModes?.(ctx),
               principals,
               facts: input.facts,
