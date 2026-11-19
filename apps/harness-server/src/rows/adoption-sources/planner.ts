@@ -67,7 +67,7 @@ function recordedShape<P>(
   recorded: Recorded,
 ): ToolBindingEntry['shape'] | undefined {
   const projected = projectResidentReferences({
-    sessions: [{ ...recorded, tenant: access.tenant, session: access.session }],
+    references: [{ ...recorded, tenant: access.tenant, holder: access.session }],
     next: null,
   })
   if ('failure' in projected) return undefined

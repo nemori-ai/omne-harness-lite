@@ -13,7 +13,10 @@ import type {
   SessionManagement,
   SessionOperationId,
   SessionRevision,
+  InputFate,
+  PendingPage,
   SessionWaiting,
+  WaitingCall,
   SessionWork,
 } from '@omne-harness/session-contract'
 import { evidence } from '@omne-harness/session-contract/testing'
@@ -34,6 +37,9 @@ type FaceMethod =
   | 'history.begin'
   | 'history.next'
   | 'readWaiting'
+  | 'readPending'
+  | 'readWaitingCalls'
+  | 'readInputFate'
   | 'control'
   | 'readBackgroundCalls'
 
@@ -76,6 +82,9 @@ export type SessionDoubleControls = Readonly<{
   ): void
   sessions(): ReadonlyMap<string, SessionRecord>
   waitWith(waiting: SessionWaiting | null): void
+  pendingWith(page: PendingPage): void
+  waitingCallsWith(calls: readonly WaitingCall[]): void
+  fateWith(fates: Readonly<Record<string, InputFate>>): void
 }>
 
 export type SessionDouble = Readonly<{
@@ -105,6 +114,9 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
   const sessions = new Map<string, SessionRecord>()
   const throwing = new Map<FaceMethod, unknown>()
   let forcedFailure: SessionFailure | undefined
+  let pendingAnswer: PendingPage = { inputs: [], next: null }
+  let waitingCallsAnswer: readonly WaitingCall[] = []
+  let fates: Readonly<Record<string, InputFate>> = {}
   let existenceOnQuery = true
   let commits = 0
   let lostAnswers = 0
@@ -221,6 +233,13 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     },
   }
 
+  // The refusal every read of one session gives: no access and no session answer alike.
+  const readRefusal = (access: SessionAccess<P>, action: string) => {
+    if (accessDenied(access) || existing(access) === undefined)
+      return fail<SessionFailure>({ kind: 'denied', action })
+    return forcedFailure === undefined ? null : fail<SessionFailure>(forcedFailure)
+  }
+
   const work: Pick<
     SessionWork<P>,
     | 'accept'
@@ -229,6 +248,9 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     | 'stopCall'
     | 'retryRun'
     | 'readWaiting'
+    | 'readPending'
+    | 'readWaitingCalls'
+    | 'readInputFate'
     | 'control'
     | 'readBackgroundCalls'
   > = {
@@ -276,6 +298,23 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       if (existing(input) === undefined) return fail({ kind: 'denied', action: 'readWaiting' })
       if (forcedFailure !== undefined) return fail(forcedFailure)
       return succeed(waitingAnswer)
+    },
+    async readPending(input) {
+      record('readPending', input, { after: input.after, limit: input.limit })
+      const refusal = readRefusal(input, 'readPending')
+      return refusal ?? succeed(pendingAnswer)
+    },
+    async readWaitingCalls(input) {
+      record('readWaitingCalls', input, {})
+      const refusal = readRefusal(input, 'readWaitingCalls')
+      return refusal ?? succeed(waitingCallsAnswer)
+    },
+    async readInputFate(input) {
+      record('readInputFate', input, { input: input.input })
+      const refusal = readRefusal(input, 'readInputFate')
+      if (refusal !== null) return refusal
+      const fate = fates[input.input]
+      return fate === undefined ? fail({ kind: 'denied', action: 'readInputFate' }) : succeed(fate)
     },
     async retryRun(input) {
       record('retryRun', input, { run: input.run })
@@ -445,6 +484,15 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       sessions: () => new Map(sessions),
       waitWith: (waiting: SessionWaiting | null) => {
         waitingAnswer = waiting
+      },
+      pendingWith: (page: PendingPage) => {
+        pendingAnswer = page
+      },
+      waitingCallsWith: (calls: readonly WaitingCall[]) => {
+        waitingCallsAnswer = calls
+      },
+      fateWith: (given: Readonly<Record<string, InputFate>>) => {
+        fates = given
       },
     }),
   })

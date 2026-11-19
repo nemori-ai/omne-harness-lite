@@ -157,7 +157,11 @@ describe('the batch rules of the command migration, with their negative controls
     })
     const view = fold(
       { head: 0, executions: new Map() },
-      published(emptyExecutionView(execution), [received('result', 'r-1')]),
+      // The step still waits on the call: its checkpoint holds the consumption.
+      published(emptyExecutionView(execution), [
+        { kind: 'hold.changed', step, held: [['consumption', 'consumption-1']], released: [] },
+        received('result', 'r-1'),
+      ]),
     ).executions.get(execution)!
     const account = batchOf(
       view,

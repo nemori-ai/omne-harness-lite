@@ -67,7 +67,7 @@ import type {
 import { decide, commandDigest } from './decide.ts'
 import { judgeCompletion } from './judgments.ts'
 import { SESSION_INTERPRETER } from './entries.ts'
-import { type DecideReads, type OperationRecord } from './judgments.ts'
+import { type OperationRecord } from './judgments.ts'
 import { canonicalText, digestOf, deriveSessionOperation } from './operations.ts'
 import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
@@ -79,6 +79,8 @@ import { decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
 import { admittedInputs, withInputs } from './testing-inputs.ts'
+import { inputSourceName } from './input-sources.ts'
+import { testingWriter, type TestingWriterOptions } from './testing-sources.ts'
 import { digestSessionLog, executionReadThrough } from './log-interpretation.ts'
 import type {
   SessionEntriesObservation,
@@ -114,7 +116,6 @@ import {
   memoryOtherAccess,
   mintEvidence,
   operationId,
-  intakeInput,
   ordinaryInput,
   sessionId,
 } from './testing-values.ts'
@@ -430,21 +431,6 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | nul
   }
 }
 
-function firstInputRead(
-  command: SessionCommand,
-  store:
-    | Readonly<{
-        snapshot: WorkSnapshot
-        inputs: ReadonlyMap<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>
-      }>
-    | undefined,
-): Pick<DecideReads, 'firstInput'> {
-  if (command.kind !== 'startRun' || store === undefined) return {}
-  const [first] = runStartInputs(store.snapshot)
-  const stored = first === undefined ? undefined : store.inputs.get(first)
-  return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
-}
-
 function sameProducer(left: ProducerRef, right: ProducerRef): boolean {
   return left.kind === right.kind && left.call === right.call
 }
@@ -466,12 +452,13 @@ function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
   }
 }
 
-export type MemorySessionTransactionOptions<P> = Readonly<{
-  intakeLimits?: SessionIntakeLimits
-  initialization?: MemoryInitializationSource
-  history?: MemorySessionHistorySource
-  accessCheck: SessionAccessCheck<P>
-}>
+export type MemorySessionTransactionOptions<P> = TestingWriterOptions &
+  Readonly<{
+    intakeLimits?: SessionIntakeLimits
+    initialization?: MemoryInitializationSource
+    history?: MemorySessionHistorySource
+    accessCheck: SessionAccessCheck<P>
+  }>
 export type MemorySessionTransactionPair<P> = Readonly<{
   transactions: MemoryInitializationTransactions<P>
   delegated: SessionDelegatedTransactions<P>
@@ -513,8 +500,32 @@ function boundAccessCheck<P>(checked: SessionCheckedAccess<P>): SessionAccessChe
             ...(checked.writeQualification === undefined
               ? {}
               : { writeQualification: checked.writeQualification }),
+            ...(checked.subject === undefined ? {} : { subject: checked.subject }),
           }
         : { kind: 'denied' },
+  }
+}
+
+async function qualifyBy<P>(
+  accessCheck: SessionAccessCheck<P>,
+  request: SessionAccessRequest<P>,
+): Promise<Outcome<Extract<SessionAccessDecision, { kind: 'allowed' }>, SessionFailure>> {
+  let decision: SessionAccessDecision
+  try {
+    decision = await accessCheck.check(request)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return fail(unavailable(`access check threw for ${request.operation}: ${message}`))
+  }
+  switch (decision.kind) {
+    case 'allowed':
+      return succeed(decision)
+    case 'denied':
+      return fail(denied(request.operation))
+    case 'unavailable':
+      return fail(
+        unavailable(`access check unavailable for ${request.operation}: ${decision.diagnostic}`),
+      )
   }
 }
 
@@ -522,6 +533,7 @@ export function createMemorySessionTransactionPair<P>(
   options: MemorySessionTransactionOptions<P>,
 ): MemorySessionTransactionPair<P> {
   const intakeLimits = sessionIntakeLimits(options.intakeLimits)
+  const writer = testingWriter<P>(options)
   const stores = new Map<string, Store>()
   let directoryAvailable = true
   let failInitialization = false
@@ -570,32 +582,7 @@ export function createMemorySessionTransactionPair<P>(
   const surface = (
     accessCheck: SessionAccessCheck<P>,
   ): SessionTransactionPort<P> & Pick<MemorySessionTransactions<P>, 'commitLog'> => {
-    const qualify = async (
-      request: SessionAccessRequest<P>,
-    ): Promise<Outcome<DurableEvidence, SessionFailure>> => {
-      let decision: SessionAccessDecision
-      try {
-        decision = await accessCheck.check(request)
-      } catch (error) {
-        return fail(
-          unavailable(
-            `access check threw for ${request.operation}: ${error instanceof Error ? error.message : String(error)}`,
-          ),
-        )
-      }
-      switch (decision.kind) {
-        case 'allowed':
-          return succeed(decision.evidence)
-        case 'denied':
-          return fail(denied(request.operation))
-        case 'unavailable':
-          return fail(
-            unavailable(
-              `access check unavailable for ${request.operation}: ${decision.diagnostic}`,
-            ),
-          )
-      }
-    }
+    const qualify = (request: SessionAccessRequest<P>) => qualifyBy(accessCheck, request)
 
     const storeOf = async (
       access: SessionAccess<P>,
@@ -626,7 +613,8 @@ export function createMemorySessionTransactionPair<P>(
         return fail(denied(command.kind))
       const qualification = await qualify(mutationAccessRequest(input.access, command))
       if ('failure' in qualification) return fail(qualification.failure)
-      const accessEvidence = qualification.ok
+      const { evidence: accessEvidence, subject } = qualification.ok
+      const guards = await writer.guards(command, input.guards, subject)
       const key = keyOf(command.input.tenant, command.input.session)
       if ('failure' in key) return key
       const store = stores.get(key.ok)
@@ -684,7 +672,7 @@ export function createMemorySessionTransactionPair<P>(
               ...store.snapshot,
               ...(material === undefined ? {} : { historyIndex: material.index }),
             }
-      const decision = decide(prepared, command, input.guards, held?.record ?? null, {
+      const decision = decide(prepared, command, guards, held?.record ?? null, {
         ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
         intakeLimits,
         ...(material === undefined ? {} : { history: material.reads }),
@@ -701,7 +689,6 @@ export function createMemorySessionTransactionPair<P>(
         ...(command.kind === 'stopCall' && store !== undefined
           ? { calls: [callLookup(key.ok, store.snapshot, command.input.producer)] }
           : {}),
-        ...firstInputRead(command, store),
         initializationReceipts: [...(store?.operations.values() ?? [])].map(
           value => value.record.receipt,
         ),
@@ -857,6 +844,7 @@ export function createMemorySessionTransactionPair<P>(
         start,
         saved: store.snapshot.entriesProgress ?? [],
         record: held?.record ?? null,
+        derived: writer.entries(),
       })
       if (decision.kind === 'rejected') return fail(decision.failure)
       if (decision.kind === 'recovered') {
@@ -1297,11 +1285,11 @@ export function createMemorySessionTransactionPair<P>(
     }
     return port
   }
-  const port = surface(options.accessCheck)
+  const port = surface(writer.check(options.accessCheck))
 
   const delegated: SessionDelegatedTransactions<P> = Object.freeze({
     bind: (checked: SessionCheckedAccess<P>): SessionTransactionPort<P> => {
-      const view = surface(boundAccessCheck(checked))
+      const view = surface(writer.check(boundAccessCheck(checked)))
       return Object.freeze({
         ...view,
         commitEntries: async () => fail(denied('commitEntries')),
@@ -1788,16 +1776,16 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
 
     conformanceCase(
       'R2',
-      'an interactive startRun needs a first input whose stored origin is the login entry',
+      'an input of a source that is not registered is unavailable and accepts nothing; a registered one starts a Run',
       async fixture => {
         const s = scene(fixture)
         succeeded(await s.create(), 'create')
-        succeeded(await s.accept('input-1', 'accept-input-1', intakeInput('input-1')), 'accept')
-        succeeded(await s.accept('input-2'), 'accept login input')
-        const refusal = refused(await s.startRun('start-interactive'), 'interactive startRun')
-        expectKind(refusal, 'login-required', 'interactive startRun')
-        assert.equal((await s.readWork()).run.kind, 'none', 'the refusal opens no Run')
-        succeeded(await s.startRun('start-dispatch', 'dispatch'), 'dispatch startRun')
+        const stray = { ...ordinaryInput('input-1'), source: inputSourceName('test.unregistered') }
+        const refusal = refused(await s.accept('input-1', 'accept-input-1', stray), 'stray source')
+        expectKind(refusal, 'unavailable', 'an unregistered source')
+        assert.deepEqual((await s.readWork()).pending, [], 'the refusal accepts nothing')
+        succeeded(await s.accept('input-2'), 'accept of a registered source')
+        succeeded(await s.startRun('start-interactive'), 'startRun')
       },
     ),
 

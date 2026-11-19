@@ -53,6 +53,8 @@ import type {
   WorkSnapshot,
 } from './values.ts'
 
+import type { InputFate } from './input-fate.ts'
+import type { PendingPage, WaitingCall } from './intake-reads.ts'
 export type SessionFailure =
   | Readonly<{ kind: 'limited'; resource: 'pending-inputs' | 'input-bytes'; limit: number }>
   | Readonly<{ kind: 'denied'; action: string }>
@@ -147,6 +149,11 @@ export interface SessionWork<P> {
   readInput(
     input: SessionAccess<P> & Readonly<{ input: InputId }>,
   ): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>
+  readPending(
+    input: SessionAccess<P> & Readonly<{ after: EntryId | null; limit: number }>,
+  ): Reply<PendingPage>
+  readWaitingCalls(input: SessionAccess<P>): Reply<readonly WaitingCall[]>
+  readInputFate(input: SessionAccess<P> & Readonly<{ input: InputId }>): Reply<InputFate>
   startRun(
     input: Mutation<P> &
       Readonly<{

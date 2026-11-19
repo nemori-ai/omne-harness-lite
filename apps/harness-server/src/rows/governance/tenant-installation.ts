@@ -3,6 +3,7 @@ import type { AssetsLocal } from '@omne-harness/assets-local'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import type { SettingDefinitions } from '@omne-harness/settings'
 import { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
+import type { ReadUnavailableReason } from '@omne-harness/sql-contract'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { governedCapture } from './governed-capture.ts'
 import { independentTargetsOf } from './independent-settings.ts'
@@ -26,6 +27,10 @@ export type InstalledTenantOptions = Omit<
   tenantAssets(): Promise<AssetsLocal | undefined>
   independentSettings(): readonly SettingDefinitions[]
 }
+
+// A catalog that could not be read names the closed reason the store gave, never its diagnostic.
+const faultOf = (phase: string, refusal: ReadUnavailableReason | null): string =>
+  `tool installation ${phase}${phase === 'catalog' && refusal !== null ? ` (${refusal})` : ''}`
 
 export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) {
   const options = {
@@ -80,7 +85,8 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         assets,
         organizationTargets: options.organizationTargets,
       })
-      fault = installed.kind === 'installed' ? undefined : `tool installation ${installed.phase}`
+      fault =
+        installed.kind === 'installed' ? undefined : faultOf(installed.phase, runtime.readRefusal())
     } catch {
       fault = 'tool installation threw'
     } finally {

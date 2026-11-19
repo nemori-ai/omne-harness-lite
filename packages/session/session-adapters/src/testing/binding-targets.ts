@@ -44,7 +44,6 @@ export function bindTarget(
       ...prior,
       { execution: execution.id, pending: structuredClone(pending) },
     ])
-  state.consumerExecutions.set(canonical([tenant, pending.position]), execution.id)
   if (pending.kind === 'tool') {
     const key = keyOf(pending.reference)
     if (!state.toolTargets.has(key))

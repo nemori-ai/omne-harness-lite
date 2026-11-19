@@ -72,3 +72,8 @@
 .notification-badge {
   font-size: var(--omne-text-caption);
 }
+
+.notification-row[data-focused] {
+  border-radius: var(--omne-radius-control);
+  box-shadow: inset 2px 0 0 var(--omne-accent);
+}

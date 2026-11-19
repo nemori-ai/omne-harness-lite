@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // 经缓存跑 turbo，并让缓存命中的任务的输出目录只留 turbo 为它记下的文件：
 //   node scripts/turbo-exact.mjs run build [turbo 的其余参数]
+// 自己起 turbo 并已经拿到运行摘要的调用方，只做后一半：
+//   node scripts/turbo-exact.mjs prune <摘要文件> [--root <turbo 运行的根目录>]
 // 缓存命中时 turbo 把产物还原到已有目录之上，成员自己的 `rm -rf dist` 不执行，旧布局留下的文件
 // 一直留在输出目录里。把输出目录当集合读的消费者（发行清单、打包）就看到清单之外的产物（#1373）。
 // 没命中的任务跑的是成员自己的构建脚本，输出目录归它清，这里不碰。只用 Node 标准库。
@@ -105,9 +107,35 @@ function runTurbo(args) {
   })
 }
 
+function reportPruned(stale) {
+  if (stale.length > 0)
+    process.stderr.write(
+      `turbo-exact：删掉 ${String(stale.length)} 个缓存产物清单之外的旧文件：\n${stale.map(item => `  ${item}`).join('\n')}\n`,
+    )
+}
+
+const USAGE =
+  '用法：node scripts/turbo-exact.mjs run <任务> [turbo 的其余参数]\n' +
+  '      node scripts/turbo-exact.mjs prune <摘要文件> [--root <目录>]\n'
+
+/** 调用方自己的摘要文件：只清理，不删摘要。 */
+function pruneFrom(args) {
+  const [path, flag, directory, ...rest] = args
+  const rooted = flag === '--root' && directory !== undefined && rest.length === 0
+  if (path === undefined || (flag !== undefined && !rooted)) {
+    process.stderr.write(USAGE)
+    return 2
+  }
+  reportPruned(
+    pruneOutputs(JSON.parse(readFileSync(path, 'utf8')), rooted ? resolve(directory) : ROOT),
+  )
+  return 0
+}
+
 async function main(args) {
+  if (args[0] === 'prune') return pruneFrom(args.slice(1))
   if (args[0] !== 'run' || args.length < 2) {
-    process.stderr.write('用法：node scripts/turbo-exact.mjs run <任务> [turbo 的其余参数]\n')
+    process.stderr.write(USAGE)
     return 2
   }
   const ran = await runTurbo(args)
@@ -119,10 +147,7 @@ async function main(args) {
   }
   const stale = pruneOutputs(JSON.parse(readFileSync(path, 'utf8')))
   rmSync(path)
-  if (stale.length > 0)
-    process.stderr.write(
-      `turbo-exact：删掉 ${String(stale.length)} 个缓存产物清单之外的旧文件：\n${stale.map(item => `  ${item}`).join('\n')}\n`,
-    )
+  reportPruned(stale)
   return ran.code
 }
 

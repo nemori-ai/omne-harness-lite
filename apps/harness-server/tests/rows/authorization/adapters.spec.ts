@@ -517,6 +517,48 @@ describe('sessionAccessCheck: members and branches', () => {
   })
 })
 
+describe('sessionAccessCheck: the subject kind of an allowed answer (SE-28)', () => {
+  it('names a member for a login principal, on an intake and on any other allowed operation', async () => {
+    const w = world()
+    const login = w.login()
+    expect(await w.session.check(mutate(login, 'accept', ordinaryValue))).toMatchObject({
+      kind: 'allowed',
+      subject: { kind: 'member' },
+    })
+    expect(await w.session.check(mutate(login, 'create'))).toMatchObject({
+      kind: 'allowed',
+      subject: { kind: 'member' },
+    })
+  })
+
+  it('names the component for a system principal the matrix allows', async () => {
+    const w = world()
+    const maintainer = w.system(SESSION_MAINTAINER_COMPONENT)
+    expect(await w.session.check(pending(maintainer))).toMatchObject({
+      kind: 'allowed',
+      subject: { kind: 'system', component: SESSION_MAINTAINER_COMPONENT },
+    })
+  })
+
+  it('names no subject kind for a work principal: it sends no ordinary input', async () => {
+    const w = world()
+    const answer = await w.session.check(read(w.work(), 'readWork'))
+    expect(answer.kind).toBe('allowed')
+    expect(answer).not.toHaveProperty('subject')
+  })
+
+  it('a denied or unavailable answer carries nothing more', async () => {
+    const w = world()
+    expect(await w.session.check(mutate(w.login(), 'accept', businessValue))).toEqual({
+      kind: 'denied',
+    })
+    w.flags.verifierThrows = true
+    const down = await w.session.check(mutate(w.login(), 'accept', ordinaryValue))
+    expect(down.kind).toBe('unavailable')
+    expect(down).not.toHaveProperty('subject')
+  })
+})
+
 describe('sessionAccessCheck: the steps before the dependencies (policy draft §3)', () => {
   it('denies a work principal on the target of another session, and reads nothing', async () => {
     const w = world()

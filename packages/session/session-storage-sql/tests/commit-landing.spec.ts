@@ -4,6 +4,7 @@ import {
   operationId,
   ordinaryInput,
   sessionId,
+  testingIntakeGuards,
 } from '@omne-harness/session-contract/testing'
 import type { DomainRef, JsonValue, ReceiptV2, SqlStorage } from '@omne-harness/sql-contract'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -221,7 +222,10 @@ describe('the landing on a real store', () => {
       ...a.storageOptions.combination,
       commands: sessionCommitCommands([
         executionRecordFacts(jointWrite()),
-        sessionCommandFacts(command, [guard('login', 'login-entry', 'present')]),
+        sessionCommandFacts(command, [
+          guard('login', 'login-entry', 'present'),
+          ...testingIntakeGuards(command),
+        ]),
       ]),
     })
     if (result.kind !== 'committed') throw new Error(`the joint commit: ${result.kind}`)

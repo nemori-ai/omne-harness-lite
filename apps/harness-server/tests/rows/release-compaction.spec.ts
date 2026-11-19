@@ -91,7 +91,7 @@ function rulesExecutor(compactions: CompactionRequest[], delivered: unknown[]) {
 
 // Each model round before the last returns a large text and tool calls, so the next request needs
 // compaction. The first round asks for `oldToolCalls` calls; later rounds ask for one.
-function modelScript(requests: string[], cycles: number, oldToolCalls: number) {
+function modelScript(requests: string[], cycles: number, oldToolCalls: number, tool: string) {
   return async ({ body }: { body: string }) => {
     requests.push(body)
     const serving = { model: (JSON.parse(body) as { model: string }).model, provider: 'OpenAI' }
@@ -114,7 +114,7 @@ function modelScript(requests: string[], cycles: number, oldToolCalls: number) {
                         index,
                         id: `call_shell_${requests.length}_${index}`,
                         type: 'function',
-                        function: { name: 'Shell', arguments: TOOL },
+                        function: { name: 'Shell', arguments: tool },
                       }),
                     ),
                   },
@@ -148,7 +148,11 @@ function stopsWaiting(failures: readonly ServiceFailure[], compacted: boolean): 
   )
 }
 
-async function compactionRun(cycles: number, oldToolCalls: number): Promise<CompactionRun> {
+async function compactionRun(
+  cycles: number,
+  oldToolCalls: number,
+  tool = TOOL,
+): Promise<CompactionRun> {
   const requests: string[] = []
   const compactions: CompactionRequest[] = []
   const delivered: unknown[] = []
@@ -166,7 +170,7 @@ async function compactionRun(cycles: number, oldToolCalls: number): Promise<Comp
         inject: [],
         executor: rulesExecutor(compactions, delivered),
       },
-      script: modelScript(requests, cycles, oldToolCalls),
+      script: modelScript(requests, cycles, oldToolCalls, tool),
     },
     async world => {
       const failures: ServiceFailure[] = []
@@ -310,5 +314,22 @@ it(
       expect({ ...each, oldToolCalls: first?.oldToolCalls }, JSON.stringify(measured)).toEqual(
         first,
       )
+  },
+)
+
+// #1351: the refusals of 32 calls are long, so the history of this Run is longer than one page.
+it(
+  'ends the Run after one reply with 32 refused tool calls, with compaction on',
+  { timeout: 240_000 },
+  async () => {
+    const refused = JSON.stringify({ command: 'no-such-command', params: {} })
+    const { history, requests, compactions, diagnostics } = await compactionRun(2, 32, refused)
+    expect(
+      history.filter(entry => entry.kind === 'run.terminal'),
+      diagnostics,
+    ).toHaveLength(1)
+    expect(history.filter(entry => entry.kind === 'message.tool')).toHaveLength(33)
+    expect(JSON.stringify(history)).toContain('original-task-complete')
+    expect([requests.length, compactions.length]).toEqual([3, 2])
   },
 )

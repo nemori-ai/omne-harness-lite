@@ -13,6 +13,9 @@ export function wakeOnDecision(
   const missed = (step: string, why: string): void =>
     warn(`tool-hitl wake-up not done: ${step}: ${why}; the call waits for the next wake-up`)
   const reason = (error: unknown): string => (error instanceof Error ? error.message : 'unreadable')
+  // A host that is not installed or has a full queue answers so; it does not throw.
+  const refusal = (failure: Readonly<{ kind: string; diagnostic?: unknown }>): string =>
+    typeof failure.diagnostic === 'string' ? `${failure.kind}: ${failure.diagnostic}` : failure.kind
   return ({ application, access, card }) => {
     void (async () => {
       let read: Awaited<ReturnType<typeof application.getRequest>>
@@ -32,7 +35,8 @@ export function wakeOnDecision(
       const instance = host()
       if (instance === undefined) return missed('scheduling the call', 'no Tool instance host')
       try {
-        await instance.schedule({ tenant: access.tenant, call: call.ok })
+        const queued = await instance.schedule({ tenant: access.tenant, call: call.ok })
+        if ('failure' in queued) missed('scheduling the call', refusal(queued.failure))
       } catch (error) {
         missed('scheduling the call failed', reason(error))
       }

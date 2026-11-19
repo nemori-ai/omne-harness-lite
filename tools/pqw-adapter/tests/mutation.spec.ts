@@ -66,7 +66,8 @@ it('calls mutation.mjs per member with the omne build, Stryker modules and fast-
 it('builds only the upstream of each member, since pqw builds the instrumented member in the sandbox', () => {
   expect(upstreamBuildArgs(['@omne-harness/a'])).toEqual([
     'exec',
-    'turbo',
+    'node',
+    'scripts/turbo-exact.mjs',
     'run',
     'build',
     '--output-logs=errors-only',

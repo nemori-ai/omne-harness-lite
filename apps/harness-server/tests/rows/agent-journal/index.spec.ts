@@ -72,7 +72,7 @@ describe('the agent-journal row: declaration', () => {
     const manifest = compositeManifestDigest(storageCatalog())
     if (manifest.kind !== 'manifest') throw new Error(manifest.diagnostic)
     expect(agentJournalCombination()).toEqual({
-      combinationVersion: 'session-composite/14',
+      combinationVersion: 'session-composite/15',
       manifestDigest: manifest.digest,
     })
   })

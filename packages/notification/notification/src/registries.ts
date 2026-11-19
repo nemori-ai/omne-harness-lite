@@ -5,6 +5,7 @@ import {
   type ChannelContribution,
   type ChannelLookup,
   type ChannelName,
+  type DeliveryResult,
   type SourceDeclaration,
   type SourceLookup,
   type SourceName,
@@ -40,32 +41,66 @@ function checkDeclaration(declaration: SourceDeclaration): void {
 
 /** The extension point `notification.channels`. */
 export interface NotificationChannels {
-  register(channel: ChannelContribution): () => void
+  /** The result withdraws: absent at once, settled and the name free when no delivery is in flight. */
+  register(channel: ChannelContribution): () => Promise<void>
   lookup(name: ChannelName): ChannelLookup
   list(): readonly ChannelContribution[]
 }
 
+export const CHANNEL_WITHDRAWN: DeliveryResult = Object.freeze({
+  kind: 'failed',
+  reason: 'channel-withdrawn',
+  retryable: true,
+})
+
+type ChannelEntry = {
+  offered: ChannelContribution
+  open: boolean
+  flights: Set<Promise<unknown>>
+}
+
+function offer(channel: ChannelContribution): ChannelEntry {
+  const entry: ChannelEntry = { offered: channel, open: true, flights: new Set() }
+  entry.offered = {
+    ...channel,
+    deliver(delivery) {
+      if (!entry.open) return Promise.resolve(CHANNEL_WITHDRAWN)
+      const flight = (async () => channel.deliver(delivery))()
+      const landed = () => void entry.flights.delete(flight)
+      entry.flights.add(flight)
+      flight.then(landed, landed)
+      return flight
+    },
+  }
+  return entry
+}
+
 export function createChannelRegistry(onChange: () => void = () => {}): NotificationChannels {
-  const entries = new Map<ChannelName, ChannelContribution>()
+  const entries = new Map<ChannelName, ChannelEntry>()
   return {
     register(channel) {
       if (!channelNameSchema.safeParse(channel.name).success)
         throw new NotificationRegistrationError(`invalid channel name: ${String(channel.name)}`)
       if (entries.has(channel.name))
         throw new NotificationRegistrationError(`channel already registered: ${channel.name}`)
-      entries.set(channel.name, channel)
+      const entry = offer(channel)
+      entries.set(channel.name, entry)
       onChange()
-      return () => {
-        if (entries.get(channel.name) !== channel) return
-        entries.delete(channel.name)
+      let withdrawn: Promise<void> | undefined
+      const withdraw = (): Promise<void> => {
+        entry.open = false
         onChange()
+        const free = () => void entries.delete(channel.name)
+        if (entry.flights.size === 0) return Promise.resolve(free())
+        return Promise.allSettled(entry.flights).then(free)
       }
+      return () => (withdrawn ??= withdraw())
     },
     lookup(name) {
-      const channel = entries.get(name)
-      return channel === undefined ? { kind: 'absent' } : { kind: 'registered', channel }
+      const entry = entries.get(name)
+      return entry?.open ? { kind: 'registered', channel: entry.offered } : { kind: 'absent' }
     },
-    list: () => [...entries.values()],
+    list: () => [...entries.values()].filter(entry => entry.open).map(entry => entry.offered),
   }
 }
 

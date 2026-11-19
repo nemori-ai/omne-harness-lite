@@ -10,6 +10,7 @@ import {
   type ShellService,
 } from '@omne-harness/shell-contract/cordis'
 import { InboxHub } from './model/inbox-hub.ts'
+import { watchStrongArrivals } from './model/strong-arrivals.ts'
 import { inboxSections } from './points.ts'
 import { InboxPage } from './view/inbox-page.tsx'
 import { UnresolvedBadge } from './view/unresolved-badge.tsx'
@@ -50,9 +51,14 @@ function contribute(shell: ShellService, hub: InboxHub): void {
     order: PAGE_ORDER,
     badge: ({ scope }) =>
       scope === undefined ? null : <UnresolvedBadge hub={hub} tenant={scope} />,
-    render: ({ scope }) =>
+    render: ({ scope, subject }) =>
       scope === undefined ? null : (
-        <InboxPage hub={hub} tenant={scope} sections={sectionsOf(shell)} />
+        <InboxPage
+          hub={hub}
+          tenant={scope}
+          sections={sectionsOf(shell)}
+          {...(subject !== undefined && { focus: subject })}
+        />
       ),
   })
 }
@@ -66,5 +72,16 @@ export const notificationUiModule: UiModule = {
     const hub = new InboxHub({ client })
     ctx.effect(() => () => hub.dispose(), 'notification-ui.inbox')
     contribute(ctx.shell, hub)
+    const { shell } = ctx
+    ctx.effect(
+      () =>
+        watchStrongArrivals({
+          hub,
+          scope: shell.scope,
+          page: PAGE_ID,
+          toast: toast => shell.toast(toast),
+        }),
+      'notification-ui.arrivals',
+    )
   },
 }

@@ -108,6 +108,14 @@
 - `SnapshotResult` · `reader.d.ts`
 - `SourceEvidence` · `reader.d.ts`
 - `StatefulBlockDescriptor` · `descriptor.d.ts`
+- `StaticBlock` · `static-scope.d.ts`
+- `StaticContribution` · `static-scope.d.ts`
+- `StaticRead` · `static-scope.d.ts`
+- `StaticReaderGrant` · `static-scope.d.ts`
+- `StaticReaderRequest` · `static-scope.d.ts`
+- `StaticRegistration` · `static-scope.d.ts`
+- `StaticScopeFailure` · `static-scope.d.ts`
+- `StaticScopeHolder` · `static-scope.d.ts`
 - `StepBlockMaterial` · `update.d.ts`
 - `StepCommit` · `update.d.ts`
 - `StepRef` · `shared.d.ts`
@@ -328,6 +336,7 @@ export type { ContextUpdate, StepBlockMaterial, StepCommit } from './update.js';
 export type { Registration, RegistrationChange, EligibilityId, EligibilityState, Eligibility, EligibilityMaterial, } from './registration.js';
 export type { ReaderEligibilityRequest, ReaderEligibilityResult, ReaderEligibilityHandoff, } from './reader-eligibility.js';
 export type { Necessity, ContextNeed, Translation, NeedBinding, NeedBindingRef } from './need.js';
+export type { StaticBlock, StaticRegistration, StaticScopeFailure, StaticReaderRequest, StaticReaderGrant, StaticRead, StaticScopeHolder, StaticContribution, } from './static-scope.js';
 export type { BlockDescriptorBase, SuppliedBlockDescriptor, StatefulBlockDescriptor, ContextBlockDescriptor, DescriptorCatalog, } from './descriptor.js';
 export type { SupplyAnswer, SupplyInput, SupplyCallback, ProducerRegistration, PublishInput, PublishResult, InvalidateTarget, InvalidateResult, ProducerHandle, } from './producer.js';
 export type { ScopeBinding, ScopeBindingSource, AuthorityDecision, OrdinaryHolderAction, BeginReplayAction, FinishReplayAction, HolderAction, HolderDecision, ProducerAction, RuntimeContextAuthority, CheckCause, CheckUnavailable, CheckUnknown, } from './authority.js';
@@ -1008,6 +1017,61 @@ export type StepRef = Readonly<{
 }>;
 export type UpdateOriginRef = Readonly<{
     origin: string;
+}>;
+```
+
+## 声明文件 `static-scope.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { Outcome } from '@omne-harness/operation-result';
+import type { SuppliedBlockDescriptor } from './descriptor.js';
+import type { NeedBinding } from './need.js';
+import type { SupplyCallback } from './producer.js';
+import type { PerRequestEntry } from './reader.js';
+import type { EligibilityId } from './registration.js';
+import type { ConsumerClass, ContextBlockKey, ScopeRef } from './shared.js';
+export type StaticBlock<P = unknown> = Readonly<{
+    declaration: SuppliedBlockDescriptor<ContextBlockKey, unknown> & {
+        volatility: 'per-request';
+    };
+    supply: SupplyCallback<unknown, P>;
+}>;
+export type StaticRegistration<P = unknown> = Readonly<{
+    blocks: readonly StaticBlock<P>[];
+    needs: readonly NeedBinding[];
+}>;
+export type StaticScopeFailure = Readonly<{
+    kind: 'denied';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export type StaticReaderRequest = Readonly<{
+    consumer: ConsumerClass;
+    blocks: readonly ContextBlockKey[];
+    needs: readonly string[];
+}>;
+export type StaticReaderGrant = Readonly<{
+    eligibility: EligibilityId;
+    missing: Readonly<{
+        blocks: readonly ContextBlockKey[];
+        needs: readonly string[];
+    }>;
+}>;
+export type StaticRead = Readonly<{
+    entries: readonly PerRequestEntry[];
+    missing: StaticReaderGrant['missing'];
+}>;
+export interface StaticScopeHolder<P = unknown> {
+    scopeOf(tenant: TenantId): ScopeRef;
+    ensure(principal: P, tenant: TenantId): Promise<Outcome<ScopeRef, StaticScopeFailure>>;
+    issue(principal: P, tenant: TenantId, reader: StaticReaderRequest): Promise<Outcome<StaticReaderGrant, StaticScopeFailure>>;
+    read(principal: P, tenant: TenantId, reader: StaticReaderRequest): Promise<Outcome<StaticRead, StaticScopeFailure>>;
+}
+export type StaticContribution<P = unknown> = Readonly<{
+    blocks?: readonly StaticBlock<P>[];
+    needs?: readonly NeedBinding[];
 }>;
 ```
 

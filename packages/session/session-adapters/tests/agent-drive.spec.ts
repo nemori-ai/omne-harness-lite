@@ -48,6 +48,7 @@ import {
   operationId,
   sessionId,
   userMessage,
+  TESTING_SOURCES,
 } from '@omne-harness/session-contract/testing'
 import { SessionService, sessionAgentDriveKey } from '@omne-harness/session-cordis-contract/cordis'
 import {
@@ -299,6 +300,7 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
         input: input.input,
         message: userMessage(`text of ${input.input}`),
         origin: evidence('origin'),
+        source: TESTING_SOURCES.person,
       })
     },
   }

@@ -4,11 +4,8 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   CommitInput,
   CommitRef,
-  ConsumerClass,
   ContextBlockKey,
   EligibilityId,
-  NeedBinding,
-  NeedBindingRef,
   ReaderEligibilityRequest,
   ReaderEligibilityResult,
   RegistrationChange,
@@ -45,6 +42,7 @@ import {
   sessionKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
+import { readableBy, under, type ParentScope, type Registered } from './context-scope-readers.ts'
 
 const LOGGER = 'session-adapters/context-holder'
 const SCOPE_INDEX_ENTRIES = 4096
@@ -74,6 +72,7 @@ export type SessionContextHolderInput<P> = Readonly<{
       ended: boolean
     }>,
   ): Promise<void>
+  parentScope?: ParentScope
   scopeIndexEntries?: number
   pageBytes?: number
 }>
@@ -84,10 +83,6 @@ type WithoutAfter<C> = C extends { readonly after: unknown } ? Omit<C, 'after'> 
 export type RecordedCommit = WithoutAfter<CommitInput>
 
 type ContextRecord = Readonly<{ entry: HistoryEntry; input: RecordedCommit }>
-type Registered = Readonly<{
-  bindings: readonly NeedBinding[]
-  checkpointed: boolean
-}>
 
 type Folded = Readonly<{
   material: ReplayMaterial
@@ -529,7 +524,7 @@ function startReplay<P>(ctx: Context, shared: Shared<P>): void {
     let failedReplay = supersedes
     try {
       const begun = await holder.beginReplay(principal, {
-        scope,
+        scope: under(shared.input.parentScope, scope, bound.tenant),
         tenant: bound.tenant,
         through,
         supersedes,
@@ -937,21 +932,6 @@ function same(left: unknown, right: unknown): boolean {
   return a.length === b.size && a.every(([name, value]) => b.has(name) && same(value, b.get(name)))
 }
 
-function readableBy(
-  final: ReadonlyMap<ContextBlockKey, Registered>,
-  consumer: ConsumerClass,
-): Readonly<{ keys: readonly ContextBlockKey[]; bindings: readonly NeedBindingRef[] }> {
-  const keys = new Set<ContextBlockKey>()
-  const bindings: NeedBindingRef[] = []
-  for (const registered of final.values())
-    for (const binding of registered.bindings) {
-      if (binding.need.consumer !== consumer) continue
-      if (binding.translate === undefined) keys.add(binding.key)
-      else bindings.push({ need: binding.need.name, key: binding.key })
-    }
-  return { keys: [...keys], bindings }
-}
-
 class SessionReaderEligibilityProvider<P> extends RuntimeContextReaderEligibilityService<unknown> {
   private readonly scope: Context
   private readonly shared: Shared<P>
@@ -1044,7 +1024,7 @@ class SessionReaderEligibilityProvider<P> extends RuntimeContextReaderEligibilit
       try {
         answer = await this.scope[runtimeContextKey].issueEligibility(principal.ok, {
           supersedes,
-          scope: request.scope,
+          scope: under(this.shared.input.parentScope, request.scope, request.tenant),
           consumer: request.consumer,
           principal: request.principal,
           tenant: request.tenant,

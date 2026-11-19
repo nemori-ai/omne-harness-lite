@@ -33,6 +33,7 @@ export const ENTRY_COMPONENTS = Object.freeze({
   governanceInstallation: 'governanceInstallationPrincipals',
   sessionModes: 'sessionModesPrincipals',
   toolDecisions: 'toolDecisions',
+  tenantScope: 'tenantScopePrincipals',
 })
 
 type EntryPrincipals = Readonly<{
@@ -45,6 +46,7 @@ type EntryPrincipals = Readonly<{
   governanceInstallationActor: SystemPrincipal
   sessionModesActor: SystemPrincipal
   toolDecisionsActor: SystemPrincipal
+  tenantScopeActor: SystemPrincipal
 }>
 
 function issueSystem(issuer: PrincipalIssuer, component: string): SystemPrincipal {
@@ -68,6 +70,7 @@ function createEntryPrincipals(): EntryPrincipals {
     governanceInstallationActor: issueSystem(issuer, ENTRY_COMPONENTS.governanceInstallation),
     sessionModesActor: issueSystem(issuer, ENTRY_COMPONENTS.sessionModes),
     toolDecisionsActor: issueSystem(issuer, ENTRY_COMPONENTS.toolDecisions),
+    tenantScopeActor: issueSystem(issuer, ENTRY_COMPONENTS.tenantScope),
   })
 }
 
@@ -114,6 +117,24 @@ export function sessionModesIssuerOf(env: EntryEnv) {
       actor: sessionModesActor,
       tenant,
       work: SESSION_MODES_WORK,
+    })
+    return 'ok' in result ? result.ok : undefined
+  }
+}
+
+export const TENANT_SCOPE_WORK = Object.freeze({
+  owner: 'harness.runtime-context',
+  work: 'tenant-scope',
+})
+
+/** The principal the tenant-level scope of Runtime Context is held, supplied and read as. */
+export function tenantScopeIssuerOf(env: EntryEnv) {
+  const { issuer, tenantScopeActor } = principalsOf(env)
+  return (tenant: TenantId): ActingForTenantPrincipal | undefined => {
+    const result = issuer.issueActingForTenant({
+      actor: tenantScopeActor,
+      tenant,
+      work: TENANT_SCOPE_WORK,
     })
     return 'ok' in result ? result.ok : undefined
   }

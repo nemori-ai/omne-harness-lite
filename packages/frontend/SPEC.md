@@ -137,7 +137,8 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | `contribute(位置, 一项)` | 往一个插入位置里放一项，绑在调用者的作用域上。真正的存放由外壳实现受保护的 `place`，它返回撤下的函数；外壳的实现把 `place` 交给 `createSlotStore`，不另写存放规则 |
 | `login` | 登录在页面一侧的全部，类型 `ShellLogin`：`state()`、`subscribe(监听)`、`login(凭据)`、`logout()`。契约自己声明这个端口，登录状态 `ShellLoginState` 的四个取值与 `client-assembly` 的 `LoginState` 逐字相同，但契约不依赖客户端装配。应用在装配处把客户端装配的登录状态源交给外壳；两边的形状不一致时，在应用那里编译不过，这就是对上的办法 |
 | `scope` | 当前租户的文本：`get()`、`set(文本)`、`subscribe`。设它的是知道租户的那个界面模块（身份）。登录状态离开「已登录」时外壳把它清空 |
-| `navigate(页面的标识)` | 把一个页面切到前面。标识不在时什么都不做 |
+| `navigate(页面的标识, 可选的对象)` | 把一个页面切到前面。标识不在时什么都不做。带了对象时，这个页面的 `render` 在 `{ scope, subject }` 里收到它（一段文本，含义归这个页面），用来指到页面上的那一项；它不打开、不改变任何东西 |
+| `toast(一条提示)` | 见「瞬时提示」。同一个 `id` 的替换只在同一个界面模块之内；不画提示的外壳、已经卸载的调用方，提示直接丢掉，不报错 |
 | `attached(位置的名字, 对象)` | 给出附着位置里 `anchor` 与位置的名字相同的全部项的渲染结果，按存放的次序排；每一项收到 `{ scope, subject }`，`scope` 是外壳当前的租户文本，`subject` 是这里给的对象。位置里的项放进或撤下、租户变了，已经渲染出来的结果跟着变。没有匹配的项时什么都不渲染 |
 | `arranged(位置的名字, 对象, 排版函数)` | 和 `attached` 取同样的项、同样的次序，但不替宿主拼在一起：把每一项的标识、标签、渲染结果（`AttachedEntry`）交给宿主的排版函数，给出排版函数的返回值。没有匹配的项时排版函数收到空表。订阅位置与租户的变化仍在外壳里，宿主不碰存放 |
 
@@ -210,5 +211,5 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I12 | 登录与退出的答案只有结果，不含任何登录证明 | 页面里的界面模块读到登录证明 | `shell-contract/tests/slots.spec-d.ts` 里登录端口的类型用例 |
 | FE-I13 | 附着位置里的一项只渲染在名字相同的地方，收到那个地方给的对象；按键的拓展点里，一项只出现在它的键下 | 一个对象的界面出现在另一个对象上 | `shell-contract/tests/attached.spec.ts` 的参考外壳用例；`shell-contract/tests/point.spec.ts`；`apps/desktop/tests/shell.spec.tsx` 的附着位置用例 |
 | FE-I14 | 外壳画的一项在渲染当中抛出时，只有这一项显示读不出；别的项与宿主的页面照常。这一条由外壳的实现守，契约只规定它 | 一个领域的界面出错，整个页面卸掉 | `apps/desktop/tests/shell.spec.tsx` 的「一项坏了只坏这一项」一组 |
-| FE-I15 | 瞬时提示只有数据，外壳自己画；一个界面模块的提示随它的作用域撤掉；同一个 `id` 至多显示一条 | 一个领域的提示坏了连累外壳；卸掉的模块还留着提示 | 只有文字 |
-| FE-I16 | 瞬时提示不保存、不重放，提示这个操作没有结果 | 界面模块把「提示过」当成「人看到了」 | 只有文字 |
+| FE-I15 | 瞬时提示只有数据，外壳自己画；一个界面模块的提示随它的作用域撤掉；同一个 `id` 至多显示一条 | 一个领域的提示坏了连累外壳；卸掉的模块还留着提示 | `shell-contract/tests/toast.spec.ts` 与 `toast-store.spec.ts`；`shell-contract/tests/slots.spec-d.ts` 的 `Toast` 形状；`apps/desktop/tests/toasts.spec.tsx` |
+| FE-I16 | 瞬时提示不保存、不重放，提示这个操作没有结果 | 界面模块把「提示过」当成「人看到了」 | `shell-contract/tests/toast.spec.ts` 的「shows what a module hands over and gives nothing back」；`shell-contract/tests/slots.spec-d.ts` 的 `toast` 签名；`notification-ui/tests/toast-arrivals.spec.tsx` 的「toasting changes nothing about the notification」 |

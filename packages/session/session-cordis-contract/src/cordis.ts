@@ -1,5 +1,15 @@
-import { type Context, Service } from '@deepseek-ai/cordis'
+import { type Context, type Plugin, Service } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
+import {
+  createInputSourceRegistry,
+  type DerivedAdmission,
+  type DerivedInputKind,
+  type InputSourceDeclaration,
+  type InputSourceLookup,
+  type InputSourceName,
+  type InputSources,
+  type SessionDerivedInputs,
+} from '@omne-harness/session-contract'
 import type {
   AgentDrivePort,
   SessionAdoptionSource,
@@ -417,9 +427,60 @@ export abstract class SessionAdoptedRequestsService<P = unknown>
 }
 export const sessionAdoptedRequestsKey = SessionAdoptedRequestsService.provide
 
+/**
+ * The registration point `session.input-sources`: a deployment's declared input sources, keyed by
+ * name. A source says who may send as it and whether its inputs wake; Session computes every
+ * other value of an input from the subject kind the access check gives. Session takes a
+ * declaration at each intake (`ctx.get`), and an absent service or name is `unavailable`.
+ *
+ * @owner packages/session/session-contract
+ */
+export class SessionInputSourcesService extends Service implements InputSources {
+  static readonly provide = 'sessionInputSources'
+  private readonly registry = createInputSourceRegistry()
+  constructor(ctx: Context) {
+    super(ctx, SessionInputSourcesService.provide)
+  }
+
+  /** Registration is an effect of the caller's fiber (IC-13). A second declaration of a name throws. */
+  register(declaration: InputSourceDeclaration): void {
+    this.ctx.effect(() => this.registry.register(declaration), 'sessionInputSources.register')
+  }
+
+  lookup(name: InputSourceName): InputSourceLookup {
+    return this.registry.lookup(name)
+  }
+}
+export const sessionInputSourcesKey = SessionInputSourcesService.provide
+
+export const sessionInputSourcesPlugin: Plugin.Object = {
+  name: 'session-input-sources',
+  apply(ctx: Context) {
+    new SessionInputSourcesService(ctx)
+  },
+}
+
+/**
+ * The admissions of the inputs Session derives from a fact of its own log. The adapter that
+ * registers the sources of a kind provides it; the single writer takes it at each commit, and an
+ * absent service or a null answer leaves the derived input `unavailable`.
+ *
+ * @owner packages/session/session-contract
+ */
+export abstract class SessionDerivedInputsService extends Service implements SessionDerivedInputs {
+  static readonly provide = 'sessionDerivedInputs'
+  constructor(ctx: Context) {
+    super(ctx, SessionDerivedInputsService.provide)
+  }
+  abstract admission(kind: DerivedInputKind): DerivedAdmission | null
+}
+export const sessionDerivedInputsKey = SessionDerivedInputsService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     session: SessionService<unknown>
+    sessionInputSources: SessionInputSourcesService
+    sessionDerivedInputs: SessionDerivedInputsService
     sessionAccessCheck: SessionAccessCheckService<unknown>
     sessionTransactions: SessionTransactionPortService<unknown>
     sessionPrincipals: SessionInternalPrincipalsService<unknown>

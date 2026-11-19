@@ -198,7 +198,7 @@ it('retains one real shell across acquisition release and recovers its zero-atta
   const a = await f.acquire('a')
   await mkdir(join(f.cwd, 'child'))
   const terminal = value(
-    await a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'session' }),
+    await a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'scope' }),
   ).terminal
   expect(f.retentionLedger.resources).toHaveLength(1)
   expect(a.own.resources).toHaveLength(0)
@@ -239,7 +239,7 @@ it('keeps a real retained terminal busy and detaching another acquisition leaves
   const a = await f.acquire('a')
   const b = await f.acquire('b')
   const terminal = value(
-    await a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'session' }),
+    await a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'scope' }),
   ).terminal
   await b.terminal.retention?.attach({ ...b.request, terminal })
   const handle = value(
@@ -284,7 +284,7 @@ it('prevents real retained creation when its scope closes during durable permiss
     },
   })
   const a = await f.acquire('a')
-  const creating = a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'session' })
+  const creating = a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'scope' })
   await waiting
   expect(await f.listResources(f.retentionScope)).toMatchObject({
     kind: 'listed',
@@ -325,7 +325,7 @@ it('retains unknown planned shell ownership until the original ledger confirms s
     1,
   )
   const a = await f.acquire('a')
-  const create = () => a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'session' })
+  const create = () => a.terminal.create({ ...a.request, cwd: f.cwd, env, retain: 'scope' })
   expect(await create()).toMatchObject({ kind: 'unknown' })
   expect(await f.listResources(f.retentionScope)).toEqual({
     kind: 'listed',

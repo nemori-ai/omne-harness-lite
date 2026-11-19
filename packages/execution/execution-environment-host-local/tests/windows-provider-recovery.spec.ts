@@ -64,7 +64,7 @@ it('hands ordinary and retained responsibilities back until stop recording succe
       await a.terminal.create({ ...a.call, cwd: f.root, env: f.identity.env }),
     ).terminal
     const retained = value(
-      await a.terminal.create({ ...a.call, cwd: f.root, env: f.identity.env, retain: 'session' }),
+      await a.terminal.create({ ...a.call, cwd: f.root, env: f.identity.env, retain: 'scope' }),
     ).terminal
     const capacity = domainInternals(f.domain)?.windowsCapacity()
     expect(capacity?.reading().terminals).toBe(2)
@@ -91,9 +91,7 @@ it('stops a zero-attachment retained shell when its Session scope closes', async
   const released = new AbortController()
   try {
     const a = await f.acquire({ ...f.retention, released: released.signal })
-    value(
-      await a.terminal.create({ ...a.call, cwd: f.root, env: f.identity.env, retain: 'session' }),
-    )
+    value(await a.terminal.create({ ...a.call, cwd: f.root, env: f.identity.env, retain: 'scope' }))
     expect(await a.lease.release()).toEqual({ kind: 'released' })
     const capacity = domainInternals(f.domain)?.windowsCapacity()
     expect(capacity?.reading().terminals).toBe(1)

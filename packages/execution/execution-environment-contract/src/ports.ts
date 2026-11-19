@@ -35,7 +35,7 @@ export type RetainedProcessLedger = Pick<
   ended?(key: string): Promise<'confirmed' | 'none' | 'unavailable'>
 }
 
-export type SessionTerminalRetention = Readonly<{
+export type ScopeTerminalRetention = Readonly<{
   scope: ScopeRef
   ledger: RetainedTerminalLedger
   processes?: RetainedProcessLedger

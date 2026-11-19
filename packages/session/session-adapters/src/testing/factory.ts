@@ -1,3 +1,4 @@
+import { decideCreation } from './intake.ts'
 import { toolReleases } from './result-release.ts'
 import { captureModelSettlement } from './model-settlement.ts'
 import { resultPreparation, preparationOperation } from './result-preparation.ts'
@@ -21,7 +22,6 @@ import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-id
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   commandDigest,
-  decide,
   reduce,
   judgeCompletion,
   mutationAccessRequest,
@@ -361,7 +361,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     const root = cell.state()
     const execution = root.agent.executions.get(executionKey(root, input.execution))
     return {
-      accepted: execution?.inputs,
+      accepted: execution?.inputs.filter(() => true),
       snapshot: root.session?.snapshot,
       resultOf: caller =>
         execution
@@ -1168,7 +1168,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         const refusal = options.initialization.verify(command, guards)
         if (refusal) return fail(refusal)
         const first = batches[0],
-          prepared = decide(null, command, guards, null, { compaction: null })
+          prepared = decideCreation(command, guards)
         if (
           !first ||
           prepared.kind !== 'entries' ||

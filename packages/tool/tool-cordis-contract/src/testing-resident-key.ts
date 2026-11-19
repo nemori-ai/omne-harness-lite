@@ -15,7 +15,7 @@ export interface ResidentKeyRoundTripFixture {
     input: Readonly<{
       tenant: TenantId
       key: ToolBindingKey
-      shape: ResidentReferencesPage['sessions'][number]['shape']
+      shape: ResidentReferencesPage['references'][number]['shape']
     }>,
   ): Promise<void>
 }
