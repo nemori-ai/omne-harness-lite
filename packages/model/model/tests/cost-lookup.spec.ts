@@ -81,7 +81,7 @@ async function ended(facts: readonly TransportFact[]) {
     })
   const pending = async () =>
     unbox(await commands.scanPending({ ...f.admit, after: null, limit: 2 })).calls
-  return { f, commands, record, late, pending, write }
+  return { f, commands, execution, record, late, pending, write }
 }
 
 const withRequest: TransportFact[] = [
@@ -152,6 +152,41 @@ describe('the after-the-fact cost lookup of a dispatch (T5)', () => {
     unbox(await confirm('confirm', '1'))
     expect((await s.record()).lateDelivered).toBe('1')
     expect(accountUndelivered(await s.record())).toBe(false)
+  })
+
+  it('holds the cleanup of an acknowledged call while a late account waits for its consumer (C15)', async () => {
+    const s = await ended(withRequest)
+    const settlement = unbox(await s.commands.settle({ ...(await s.write()), termination: LOST }))
+    unbox(
+      await s.commands.handoff({
+        ...s.f.admit,
+        operation: op('ack'),
+        result: settlement.version,
+        evidence: {
+          kind: 'processed',
+          completion: proof(`${s.f.admit.call}/${settlement.version}`, 'consumer'),
+        },
+      }),
+    )
+    unbox(
+      await s.late('found', { kind: 'account', event: 'cost-lookup', value: found('0.0000916') }),
+    )
+    const cleanup = async (operation: string) =>
+      unbox(await s.commands.advanceCleanup({ ...s.execution, operation: op(operation) }))
+    expect(await cleanup('held')).toMatchObject({
+      cleanup: 'blocked',
+      diagnostic: 'unresolved-write-or-receive',
+    })
+    unbox(
+      await s.commands.confirmAccount({
+        ...s.f.admit,
+        operation: op('confirm'),
+        dispatch: unbox(decodeDispatchId('mdisp_one')),
+        revision: '1',
+        receipt: proof('saved', 'consumer'),
+      }),
+    )
+    expect(await cleanup('released')).toMatchObject({ cleanup: 'released' })
   })
 
   it('counts an account event delivered twice once, in the stream and late (C15)', async () => {

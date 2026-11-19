@@ -33,6 +33,14 @@ export type LateAccountsInput = Readonly<{
 export type UndeliveredAccount = Readonly<{ dispatch: DispatchId; revision: string }>
 type Target = Readonly<{ tenant: TenantId; call: ModelCallId }>
 
+function carries(record: ResultPushRecord | undefined, item: UndeliveredAccount): boolean {
+  return (
+    record?.result?.delivery.accounts.some(
+      held => held.dispatch === item.dispatch && held.account?.revision === item.revision,
+    ) === true
+  )
+}
+
 export function createLateAccounts(input: LateAccountsInput) {
   const late = {
     async undelivered(call: ModelCallId, access: Access): Promise<readonly UndeliveredAccount[]> {
@@ -65,22 +73,19 @@ export function createLateAccounts(input: LateAccountsInput) {
       const tenant = tenantCodec.encode(target.tenant)
       if (!tenant.ok) return
       const saved = record?.acknowledgement === 'acknowledged' ? savedResultOf(record) : null
-      for (const item of await late.undelivered(target.call, access)) {
-        const carried = record?.result?.delivery.accounts.some(
-          held => held.dispatch === item.dispatch && held.account?.revision === item.revision,
-        )
-        if (carried === true && saved !== null) {
+      for (const item of await late.undelivered(target.call, access))
+        if (saved !== null && carries(record, item))
           await late.confirm(access, target.call, item, saved.evidence)
-          continue
-        }
-        const reservation = JSON.stringify([tenant.value, 'again', item.dispatch])
-        const { reservations } = input
-        if (reservations.has(reservation) || reservations.size >= input.maxPending) continue
-        reservations.set(reservation, tenant.value)
-        if (!(await input.hold(target, item.dispatch, item.revision, reservation)))
-          reservations.delete(reservation)
-      }
+        else await holdAgain(target, tenant.value, item)
     },
+  }
+  async function holdAgain(target: Target, tenant: string, item: UndeliveredAccount) {
+    const reservation = JSON.stringify([tenant, 'again', item.dispatch])
+    const { reservations } = input
+    if (reservations.has(reservation) || reservations.size >= input.maxPending) return
+    reservations.set(reservation, tenant)
+    if (!(await input.hold(target, item.dispatch, item.revision, reservation)))
+      reservations.delete(reservation)
   }
   return late
 }

@@ -1,8 +1,10 @@
 // @module-tag slow — starts an openssl child process and talks to a real local HTTPS server.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { answerOf, lookupGenerationCost } from '../src/cost-lookup.ts'
+import { lookupGenerationCost } from '../src/cost-lookup.ts'
 import type { NetworkInternals } from '../src/network.ts'
 import { network } from './support/exchange.ts'
+import { providerName, SUPPLIER } from './support/test-family.ts'
+import { transportOver } from './support/transport.ts'
 import {
   createCertificate,
   startHttpsServer,
@@ -101,14 +103,39 @@ describe('the cost lookup of an OpenRouter route', () => {
   })
 })
 
-describe('the answer of the generation endpoint', () => {
-  it('never turns an unknown cost into zero', () => {
-    expect(answerOf(JSON.stringify({ data: {} }), 'openrouter', 'openrouter-credit')).toEqual({
-      kind: 'missed',
+describe('the cost lookup of a transport', () => {
+  it('asks the generation endpoint on the origin of an OpenRouter route, with the secret of the route', async () => {
+    answer = { status: 200, body: JSON.stringify(WHOLE) }
+    const transport = transportOver(resources, {
+      url: new URL('/api/v1/chat/completions', server.url).href,
     })
-    expect(answerOf(JSON.stringify({ data: { total_cost: 'n/a' } }), 'p', 'u')).toEqual({
+    const pending = server.nextRequest()
+    expect(
+      await transport.lookupCost(SUPPLIER, 'gen-route-1', new AbortController().signal),
+    ).toMatchObject({ kind: 'found', place: 'openrouter' })
+    const seen = await pending
+    expect(seen.path).toBe('/api/v1/generation?id=gen-route-1')
+    expect(seen.headers.authorization).toBe('Bearer test-secret')
+    await transport.close()
+  })
+
+  it('answers unsupported for a supplier with no route, and unavailable without a secret or once closed', async () => {
+    const url = new URL('/api/v1/chat/completions', server.url).href
+    const signal = new AbortController().signal
+    const transport = transportOver(resources, { url })
+    expect(
+      await transport.lookupCost({ ...SUPPLIER, provider: providerName('elsewhere') }, 'g', signal),
+    ).toEqual({ kind: 'unsupported' })
+    await transport.close()
+    expect(await transport.lookupCost(SUPPLIER, 'g', signal)).toEqual({
       kind: 'unavailable',
-      diagnostic: 'cost-not-a-number',
+      diagnostic: 'credential-missing',
     })
+    const secretless = transportOver(resources, { url, credential: { read: () => new Map() } })
+    expect(await secretless.lookupCost(SUPPLIER, 'g', signal)).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'credential-missing',
+    })
+    await secretless.close()
   })
 })

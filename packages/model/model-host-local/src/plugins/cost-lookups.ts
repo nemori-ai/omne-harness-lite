@@ -38,10 +38,9 @@ export function lookupSource(request: string): DurableEvidence {
 
 function factOf(
   record: DispatchRecord,
-  answer: CostLookupAnswer,
+  answer: Exclude<CostLookupAnswer, { kind: 'unavailable' }>,
   maxMisses: number,
-): LateDispatchFact | null {
-  if (answer.kind === 'unavailable') return null
+): LateDispatchFact {
   if (answer.kind === 'found') {
     const revision = record.account === null ? '1' : String(BigInt(record.account.revision) + 1n)
     return {
@@ -62,7 +61,42 @@ function factOf(
   return { kind: 'cost-miss', event: `miss-${misses}`, final }
 }
 
+/** One wake over the dispatches of one call. */
+type Round = Readonly<{
+  call: ModelCallId
+  access: Access
+  lookup: Lookup
+  recordLateFact: ModelCommands<unknown>['recordLateFact']
+  stopping: AbortSignal
+}>
+
 export function createCostLookups(input: CostLookupsInput) {
+  /** One question for one pending dispatch; true while its cost is still owed. */
+  async function ask(round: Round, record: DispatchRecord, request: string): Promise<boolean> {
+    const { call, access } = round
+    const answer = await round.lookup(
+      { ...access, call, dispatch: record.dispatch },
+      round.stopping,
+    )
+    if (answer.kind === 'unavailable') {
+      input.report({ kind: 'cost-lookup-pending', reason: `unavailable ${answer.diagnostic}` })
+      return true
+    }
+    const fact = factOf(record, answer, input.limits.maxCostMisses)
+    const recorded = await round.recordLateFact({
+      ...access,
+      call,
+      dispatch: record.dispatch,
+      operation: input.operation(),
+      source: lookupSource(request),
+      fact,
+    })
+    if ('failure' in recorded) {
+      input.report({ kind: 'cost-lookup-pending', reason: `unrecorded ${recorded.failure.kind}` })
+      return true
+    }
+    return fact.kind === 'cost-miss' && !fact.final
+  }
   /** Asks once for each dispatch of the call whose cost is still looked up; true while any is. */
   async function step(
     call: ModelCallId,
@@ -70,35 +104,16 @@ export function createCostLookups(input: CostLookupsInput) {
     recordLateFact: ModelCommands<unknown>['recordLateFact'],
     stopping: AbortSignal,
   ): Promise<boolean> {
-    if (input.lookup === undefined) return false
+    const lookup = input.lookup
+    if (lookup === undefined) return false
     const records = await input.commands.dispatches({ ...access, call })
     if ('failure' in records) return true
+    const round: Round = { call, access, lookup, recordLateFact, stopping }
     let owed = false
     for (const record of records.ok) {
       if (costLookupOf(record) !== 'pending' || record.request === undefined) continue
       if (stopping.aborted) return true
-      const answer = await input.lookup({ ...access, call, dispatch: record.dispatch }, stopping)
-      const fact = factOf(record, answer, input.limits.maxCostMisses)
-      if (fact === null) {
-        input.report({
-          kind: 'cost-lookup-pending',
-          reason: `unavailable ${answer.kind === 'unavailable' ? answer.diagnostic : ''}`,
-        })
-        owed = true
-        continue
-      }
-      const recorded = await recordLateFact({
-        ...access,
-        call,
-        dispatch: record.dispatch,
-        operation: input.operation(),
-        source: lookupSource(record.request),
-        fact,
-      })
-      if ('failure' in recorded) {
-        input.report({ kind: 'cost-lookup-pending', reason: `unrecorded ${recorded.failure.kind}` })
-        owed = true
-      } else if (fact.kind === 'cost-miss' && !fact.final) owed = true
+      owed = (await ask(round, record, record.request)) || owed
     }
     return owed
   }
