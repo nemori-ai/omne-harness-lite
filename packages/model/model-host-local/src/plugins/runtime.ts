@@ -246,6 +246,8 @@ type StageInput = Readonly<{
   clock: ModelClock
   report(event: RuntimeEvent): void
   released?(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
+  /** Wakes the drive of a call the start scan found not settled. */
+  schedule?(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
 }>
 
 export type RuntimeStage = Readonly<{
@@ -254,6 +256,8 @@ export type RuntimeStage = Readonly<{
   stop(): Promise<void>
   idle(signal: AbortSignal): Promise<number>
   delivering(target: Target): boolean
+  /** Whether the start scan has looked at this call, or has looked at every call. */
+  scanned(call: ModelCallId): boolean
 }>
 
 class RuntimeContribution extends ModelRuntimeService<unknown> {
@@ -303,6 +307,7 @@ export function createRuntimeStage(
       idle: async () => 0,
       stop: async () => {},
       delivering: () => false,
+      scanned: () => true,
     }
   return createResultPush(input, options.ledger, checkedLimits(options.limits), options.recovery)
 }
@@ -315,6 +320,8 @@ function createResultPush(
 ): RuntimeStage {
   const { commands, authority, clock, report } = input
   const dirty = new Map<string, Target>()
+  const seen = new Set<string>()
+  let swept = recovery === undefined
   const running = new Map<string, Promise<void>>()
   const reservations = new Map<string, string>()
   const intake = new Map<string, Promise<unknown>>()
@@ -802,6 +809,7 @@ function createResultPush(
     }
     report({ kind: 'recovered', woken })
     await Promise.all(again)
+    swept = true
   }
 
   async function scanAgain(scope: Access): Promise<void> {
@@ -888,13 +896,15 @@ function createResultPush(
     const loaded = await commands.loadRecovery({ ...scope, call })
     if ('failure' in loaded) {
       const { failure } = loaded
-      if (failure.kind === 'invalid' && failure.reason === 'recovery-material-released')
+      if (failure.kind === 'invalid' && failure.reason === 'recovery-material-released') {
+        seen.add(call)
         return 'skipped'
+      }
       return failed('load', failure) === 'again' ? 'again' : 'skipped'
     }
-    const { state } = loaded.ok
-    if (state.phase !== 'settled') return 'skipped'
-    wake({ tenant: scope.tenant, call })
+    seen.add(call)
+    if (loaded.ok.state.phase !== 'settled') input.schedule?.({ tenant: scope.tenant, call })
+    else wake({ tenant: scope.tenant, call })
     return 'woken'
   }
 
@@ -929,6 +939,7 @@ function createResultPush(
       if (recovery !== undefined) scanning = recover(recovery)
     },
     idle: signal => whenEmpty(running, signal),
+    scanned: call => swept || seen.has(call),
     delivering(target) {
       const key = keyOf(target)
       if (phase !== 'started' || key === undefined) return false

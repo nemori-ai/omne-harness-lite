@@ -209,8 +209,9 @@ type Hooks = {
   handoff?(): 'lost' | 'pass'
   advanceCleanup?(): 'fail' | 'pass'
   dispatches?(): Promise<void> | void
-  scanPending?(): 'unavailable' | 'denied' | 'pass'
+  scanPending?(): 'unavailable' | 'denied' | 'pass' | Promise<void>
   loadRecovery?(): 'unavailable' | 'pass'
+  settle?(): 'unavailable' | 'pass'
 }
 
 function world(
@@ -220,6 +221,7 @@ function world(
     custodyEvidence?: 'verified' | 'unavailable'
     share?: number
     recovery?: ResultPushRecovery
+    lostContact?: boolean
   }> = {},
 ) {
   let ledger = input.ledger ?? createMemoryResultPushLedger()
@@ -326,6 +328,10 @@ function world(
       memory.controls.commands.reveal({ ...ack, result: 'committed' })
       return reply
     },
+    settle: async input =>
+      hooks.settle?.() === 'unavailable'
+        ? { failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'settle-down' } }
+        : raw.settle(input),
     advanceCleanup: async step =>
       hooks.advanceCleanup?.() === 'fail'
         ? { failure: { kind: 'unavailable', dependency: 'cleanup', diagnostic: 'synthetic' } }
@@ -335,7 +341,7 @@ function world(
       return raw.dispatches(input)
     },
     scanPending: async input => {
-      const answer = hooks.scanPending?.()
+      const answer = await hooks.scanPending?.()
       if (answer === 'unavailable')
         return {
           failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'queue_timeout' },
@@ -437,11 +443,20 @@ function world(
             retry: memory.dependencies.retry,
             instances: given.host,
             clock: given.clock,
+            liveness: given.liveness,
           },
           CONFIGURATION,
         )
       },
       qualifyObservation: async () => ({ ok: undefined }),
+      ...(input.lostContact === true && {
+        lostContact: (call: string) => ({
+          owner: 'test',
+          record: 'state-lock',
+          revision: '1',
+          digest: `call:${call}`,
+        }),
+      }),
       results: {
         ledger,
         limits: input.limits ?? LIMITS,
@@ -504,6 +519,9 @@ function world(
         request,
         consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
       })
+    },
+    access(name: string) {
+      return { principal: PRINCIPAL, tenant: TENANT, call: callOf(name) }
     },
     async custody(name: string) {
       const lookup = unbox(
@@ -1061,6 +1079,29 @@ it('pushes again after a restart that lost the ledger, acknowledges, and gives t
   expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
 })
 
+it('drives after a restart a call the last process left unsettled, then pushes and gives the share back', async () => {
+  const w = world({ share: 1, recovery: SCAN_TENANT })
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  w.hooks.settle = () => 'unavailable'
+  await w.admit('first')
+  await until(
+    async () => unbox(await w.raw.dispatches(w.access('first')))[0]?.terminal != null,
+    'the dispatch ended and the settle refused',
+  )
+  await first.dispose()
+  w.restart()
+  w.hooks.settle = () => 'pass'
+  await w.load()
+  await until(() => w.record('first')?.cleanup === 'released', 'the drive, push, ACK and cleanup')
+  expect(scripted.pushes).toHaveLength(1)
+  expect(await w.custody('first')).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
+  expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
+})
+
 it('wakes nothing on a later restart once the call is acknowledged and cleaned', async () => {
   const w = world({ recovery: SCAN_TENANT })
   await w.services()
@@ -1135,7 +1176,63 @@ it('says so when the start scan cannot run, and the call stays with the producer
   expect(await w.custody('one')).toEqual({ kind: 'producer' })
 })
 
-it('leaves a call that is not settled to its own settle', async () => {
+it('answers the contact of a call the start scan has not reached as unknown, never as lost (C7)', async () => {
+  const w = world({ recovery: SCAN_TENANT, lostContact: true })
+  await w.services()
+  const first = w.load()
+  await first
+  w.hooks.settle = () => 'unavailable'
+  const admitted = await w.admit('first')
+  await until(
+    async () => unbox(await w.raw.dispatches(w.access('first')))[0]?.terminal != null,
+    'the dispatch ended and the settle refused',
+  )
+  await first.dispose()
+  w.restart()
+  let scan = () => {}
+  w.hooks.scanPending = () => new Promise<void>(resolve => (scan = resolve))
+  await w.load()
+  const contact = () =>
+    w.ctx.modelRuntime.calls.contact({
+      principal: PRINCIPAL,
+      tenant: TENANT,
+      reference: admitted.reference,
+    })
+  expect(await contact()).toEqual({ ok: { kind: 'unknown' } })
+  w.hooks.settle = () => 'pass'
+  w.hooks.scanPending = () => 'pass'
+  scan()
+  await until(async () => {
+    const answer = await contact()
+    return 'ok' in answer && answer.ok.kind !== 'unknown'
+  }, 'an answer once the scan reached the call')
+  expect(await contact()).not.toEqual({ ok: { kind: 'unknown' } })
+})
+
+it('answers lost at once, on a host without a start scan, for a call no drive holds', async () => {
+  const w = world({ lostContact: true })
+  await w.services()
+  const admitted = unbox(
+    await w.raw.admit({
+      principal: PRINCIPAL,
+      tenant: TENANT,
+      call: callOf('left'),
+      operation: op('admit-left'),
+      request,
+      consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
+    }),
+  )
+  await w.load()
+  expect(
+    await w.ctx.modelRuntime.calls.contact({
+      principal: PRINCIPAL,
+      tenant: TENANT,
+      reference: admitted.reference,
+    }),
+  ).toMatchObject({ ok: { kind: 'lost' } })
+})
+
+it('drives a call that was only admitted when the last process died, once, to its settle', async () => {
   const w = world({ recovery: SCAN_TENANT })
   await w.services()
   unbox(
@@ -1150,10 +1247,16 @@ it('leaves a call that is not settled to its own settle', async () => {
   )
   await w.load()
   await until(
-    () => w.messages.some(text => text.includes('start scan woke 0 owed calls')),
+    () => w.messages.some(text => text.includes('start scan woke 1 owed calls')),
     'the start scan',
   )
-  expect(w.record('running')).toBeUndefined()
+  await until(async () => {
+    const found = unbox(
+      await w.raw.recall({ ...w.access('running'), admission: op('admit-running') }),
+    )
+    return found.kind === 'found' && found.state.phase === 'settled'
+  }, 'the drive the scan woke')
+  expect(unbox(await w.raw.dispatches(w.access('running')))).toHaveLength(1)
 })
 
 afterEach(() => {
