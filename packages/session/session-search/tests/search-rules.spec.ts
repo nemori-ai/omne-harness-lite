@@ -134,6 +134,9 @@ describe('rule: one search, one generation', () => {
 
   it('says unavailable when the index stops answering in the middle of a walk', async () => {
     const { w, cursor } = await paged()
+    w.index.faults.failing = 'unavailable'
+    expect(await w.search(NEEDLE, { cursor })).toEqual({ failure: 'unavailable' })
+    w.index.faults.failing = null
     w.index.faults.duringCandidates = async () => {
       w.index.faults.failing = 'unavailable'
     }
@@ -227,6 +230,8 @@ describe('rule: what was not looked at is said', () => {
     const timed = await w.page(NEEDLE, { limits: { timeBudgetMs: 10 } })
     expect(timed.hits).toHaveLength(1)
     expect(timed.incomplete?.reason).toBe('budget')
+    // The time is counted from where the page began, not from zero.
+    expect((await w.page(NEEDLE, { limits: { timeBudgetMs: 30 } })).hits).toHaveLength(3)
   })
 
   it('gets somewhere on every page, however small the budgets: a search always ends', async () => {

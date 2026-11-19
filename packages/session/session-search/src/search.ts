@@ -5,13 +5,7 @@ import type { SearchHit } from './hit.ts'
 import type { Candidates, IndexState, Progress } from './index-port.ts'
 import type { LoggedSession } from './log-port.ts'
 import type { CompiledQuery } from './query.ts'
-import {
-  candidatesAsk,
-  pageFull,
-  type Run,
-  type SearchDeps,
-  type SearchInput,
-} from './search-run.ts'
+import { candidatesAsk, type Run, type SearchDeps, type SearchInput } from './search-run.ts'
 import { scanTails, type TailEnd } from './search-tail.ts'
 import { walkIndex, type WalkEnd } from './search-walk.ts'
 
@@ -61,7 +55,7 @@ type Opened = Readonly<{
   sessions: readonly LoggedSession[]
 }>
 
-// Covers and first candidates in one index read, the log heads after it: a sound cover is behind them.
+// Covers and first candidates in one index read, the log heads after: a sound cover is behind them.
 async function open(deps: SearchDeps, input: SearchInput): Promise<Outcome<Opened, SearchFailure>> {
   const { cursor, tenant } = input
   const state = await deps.index.state(tenant)
@@ -88,10 +82,14 @@ async function open(deps: SearchDeps, input: SearchInput): Promise<Outcome<Opene
   return succeed({ state, index, sessions: listed.ok })
 }
 
-type Ends = Readonly<{
-  tail: Extract<TailEnd, { kind: 'done' | 'stopped' }>
-  walk: Extract<WalkEnd, { kind: 'done' | 'stopped' }> | null
-}>
+type Ends =
+  | Readonly<{ tail: Extract<TailEnd, { kind: 'stopped' }> }>
+  | Readonly<{
+      tail: Readonly<{ kind: 'done' }>
+      walk: Extract<WalkEnd, { kind: 'done' | 'stopped' }>
+    }>
+
+const THROUGH: Ends = { tail: { kind: 'done' }, walk: { kind: 'done' } }
 
 function pageOf(run: Run, opened: Opened, frozen: readonly FrozenCover[], ends: Ends): SearchPage {
   const { digest, limits } = run.input
@@ -103,7 +101,7 @@ function pageOf(run: Run, opened: Opened, frozen: readonly FrozenCover[], ends: 
     complete: incomplete === null,
     incomplete,
   })
-  const { tail, walk } = ends
+  const { tail } = ends
   if (index === null) {
     if (tail.kind === 'done') return page(null, null)
     const total = opened.sessions.length
@@ -120,17 +118,13 @@ function pageOf(run: Run, opened: Opened, frozen: readonly FrozenCover[], ends: 
     const next = carried ? { query: digest, generation: index.generation, frozen, ...rest } : null
     return page(next, spent || next === null ? { ...short, progress } : null)
   }
-  if (tail.kind === 'stopped') {
-    const short = { reason: 'tail-budget', behind: tail.left } as const
-    return onward({ tail: tail.resume, before: null, last: null }, tail.spent, short)
+  if (!('walk' in ends)) {
+    const short = { reason: 'tail-budget', behind: ends.tail.left } as const
+    return onward({ tail: ends.tail.resume, before: null, last: null }, ends.tail.spent, short)
   }
-  const short = { reason: 'budget', behind: 0 } as const
-  if (walk === null) {
-    // The tails filled the page: the walk begins with the next one, if the index has anything.
-    if (index.first.rows.length === 0) return page(null, null)
-    return onward({ tail: null, before: null, last: null }, false, short)
-  }
+  const { walk } = ends
   if (walk.kind === 'done') return page(null, null)
+  const short = { reason: 'budget', behind: 0 } as const
   return onward({ tail: null, before: walk.before, last: walk.last }, walk.spent, short)
 }
 
@@ -158,14 +152,13 @@ export async function searchHistory(
   const tail: TailEnd = from === null ? { kind: 'done' } : await scanTails(run, frozen, from)
   if (tail.kind === 'unavailable') return fail('unavailable')
   if (tail.kind === 'stale') return fail('cursor-stale')
-  let walk: Ends['walk'] = null
-  if (tail.kind === 'done' && index !== null && !pageFull(run)) {
-    const { generation, first } = index
-    const last = cursor?.last ?? null
-    const walked = await walkIndex(run, { generation, first: first.rows, frozen, last })
-    if (walked.kind === 'unavailable') return fail('unavailable')
-    if (walked.kind === 'stale') return fail(cursor === null ? 'unavailable' : 'cursor-stale')
-    walk = walked
-  }
+  if (tail.kind === 'stopped') return succeed(pageOf(run, opened.ok, frozen, { tail }))
+  // The tails are through, and a page they had filled would have stopped in them: the walk goes on.
+  if (index === null) return succeed(pageOf(run, opened.ok, frozen, THROUGH))
+  const { generation, first } = index
+  const last = cursor?.last ?? null
+  const walk = await walkIndex(run, { generation, first: first.rows, frozen, last })
+  if (walk.kind === 'unavailable') return fail('unavailable')
+  if (walk.kind === 'stale') return fail(cursor === null ? 'unavailable' : 'cursor-stale')
   return succeed(pageOf(run, opened.ok, frozen, { tail, walk }))
 }
