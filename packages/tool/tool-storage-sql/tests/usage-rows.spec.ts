@@ -159,6 +159,23 @@ describe('the usage rows of the SQL ledger (C18)', () => {
     )
   })
 
+  it('takes the rows under any work of the scope and not a sibling that only shares its text', async () => {
+    const a = await app()
+    await written(a, [
+      [TENANT_A, fact('c1', T(1), 'exec-1')],
+      [TENANT_A, fact('c2', T(2), 'exec-1/step')],
+      [TENANT_A, fact('c3', T(3), 'exec-1-b')],
+      [TENANT_A, fact('c4', T(4), 'exec-2')],
+      [TENANT_A, fact('c5', T(5), 'exec-3')],
+      [TENANT_A, fact('c6', null, 'exec-2/step')],
+    ])
+    const scoped = await a.store.usage(
+      query({ consumer: { owner: 'agent', works: ['exec-1', 'exec-2'] } }),
+    )
+    expect(calls(scoped)).toEqual([call('c1'), call('c2'), call('c4')])
+    expect(scoped).toMatchObject({ undated: 1 })
+  })
+
   it('pages after a position, saying whether more remain', async () => {
     const a = await app()
     await written(a, [
