@@ -104,71 +104,82 @@ describe('the owner sets subscriptions', () => {
 })
 
 describe('an agent subscribes', () => {
-  it('needs the owner under per-request consent, and takes effect with the confirmation', async () => {
+  const grant = '{"via":"verdict"}'
+  const inCall = (w: ReturnType<typeof world>) => ({ ...w.as('a'), call: 'call-1' })
+
+  it('writes the consent its call was released on, asking the port with the context of the call', async () => {
     const w = world()
-    const self = w.as('a')
-    const asked = await w.subscriptions.set(self, change())
-    expect(asked).toMatchObject({
-      kind: 'needs-confirmation',
-      request: { change: { level: 'strong' } },
-    })
-    expect(w.store.facts(w.ctx.tenant).subscriptions.size).toBe(0)
-    if (asked.kind !== 'needs-confirmation') throw new Error(asked.kind)
-    const confirmation = { decision: 'card-7', content: asked.request.content, approved: true }
-    expect(await w.subscriptions.set(self, change(), confirmation)).toMatchObject({
+    w.consent.set({ kind: 'consented', basis: { kind: 'blanket', scope: 'standing', grant } })
+    expect(await w.subscriptions.set(inCall(w), change())).toMatchObject({
       kind: 'done',
-      value: { basis: { kind: 'granular', decision: 'card-7' } },
+      recalled: false,
+      value: { basis: { kind: 'blanket', scope: 'standing', grant } },
     })
-  })
-
-  it('is refused with a confirmation of other content or a rejection', async () => {
-    const w = world()
-    const self = w.as('a')
-    const asked = await w.subscriptions.set(self, change({ level: 'weak' }))
-    if (asked.kind !== 'needs-confirmation') throw new Error(asked.kind)
-    const forWeak = { decision: 'card-7', content: asked.request.content, approved: true }
-    expect(await w.subscriptions.set(self, change({ level: 'strong' }), forWeak)).toEqual(
-      refused('confirmation-mismatch'),
-    )
-    expect(
-      await w.subscriptions.set(self, change({ level: 'weak' }), { ...forWeak, approved: false }),
-    ).toEqual(refused('confirmation-mismatch'))
-    expect(w.store.facts(w.ctx.tenant).subscriptions.size).toBe(0)
-  })
-
-  it('takes effect at once under automatic consent and stays valid after the mode changes', async () => {
-    const w = world()
-    w.consent.set({ kind: 'automatic', generation: 2 })
-    expect(await w.subscriptions.set(w.as('a'), change())).toMatchObject({
-      value: { basis: { kind: 'blanket', generation: 2 } },
-    })
-    w.consent.set({ kind: 'per-request' })
+    expect(w.consent.asked).toEqual([inCall(w)])
     await w.sending.send(w.ctx, request('e1'))
     expect(await w.list(agent('a'))).toHaveLength(1)
   })
 
-  it('lowers, shortens and removes without consent', async () => {
+  it.each([
+    [
+      'a blanket consent of this session',
+      { kind: 'consented', basis: { kind: 'blanket', scope: 'session', grant } },
+      { kind: 'blanket', scope: 'session', grant },
+    ],
+    [
+      'a granular consent',
+      { kind: 'consented', basis: { kind: 'granular', scope: 'session', grant } },
+      { kind: 'granular', grant },
+    ],
+  ] as const)('writes %s as its basis', async (_case, answer, basis) => {
+    const w = world()
+    w.consent.set(answer)
+    expect(await w.subscriptions.set(inCall(w), change())).toMatchObject({ value: { basis } })
+  })
+
+  it.each([
+    ['no consent', { kind: 'none' }, refused('consent-required')],
+    ['a consent that cannot be read', { kind: 'unavailable' }, unavailable],
+    ['a port that throws', 'throw', unavailable],
+  ] as const)('writes nothing on %s', async (_case, answer, expected) => {
+    const w = world()
+    w.consent.set(answer)
+    expect(await w.subscriptions.set(inCall(w), change())).toEqual(expected)
+    expect(w.store.commits()).toBe(0)
+  })
+
+  it('needs consent to lower or shorten a subscription too, and writes the new basis', async () => {
     const w = world()
     await w.subscriptions.set(w.ctx, change())
-    const self = w.as('a')
-    expect(await w.subscriptions.set(self, change({ level: 'weak' }))).toMatchObject({
+    for (const lower of [{ level: 'weak' }, { term: { kind: 'once' } }] as const)
+      expect(await w.subscriptions.set(inCall(w), change(lower))).toEqual(
+        refused('consent-required'),
+      )
+    w.consent.set({ kind: 'consented', basis: { kind: 'granular', scope: 'session', grant } })
+    expect(await w.subscriptions.set(inCall(w), change({ level: 'weak' }))).toMatchObject({
       kind: 'done',
-      value: { level: 'weak', basis: { kind: 'owner' } },
+      value: { level: 'weak', basis: { kind: 'granular', grant } },
     })
-    expect(
-      await w.subscriptions.set(self, change({ level: 'weak', term: { kind: 'once' } })),
-    ).toMatchObject({
-      kind: 'done',
-    })
-    expect(
-      await w.subscriptions.set(self, change({ level: 'strong', term: { kind: 'once' } })),
-    ).toMatchObject({
-      kind: 'needs-confirmation',
-    })
-    expect(await w.subscriptions.remove(self, keyOf(change()))).toMatchObject({
+  })
+
+  it('asks no port for the owner, for a subscription that would not change, or for a removal', async () => {
+    const w = world()
+    await w.subscriptions.set(w.ctx, change())
+    expect(await w.subscriptions.set(inCall(w), change())).toMatchObject({ recalled: true })
+    expect(await w.subscriptions.remove(inCall(w), keyOf(change()))).toMatchObject({
       kind: 'done',
       recalled: false,
     })
+    expect(w.consent.asked).toEqual([])
+  })
+
+  it('keeps a subscription after the consent it was made on is gone', async () => {
+    const w = world()
+    w.consent.set({ kind: 'consented', basis: { kind: 'blanket', scope: 'session', grant } })
+    await w.subscriptions.set(inCall(w), change())
+    w.consent.set({ kind: 'none' })
+    await w.sending.send(w.ctx, request('e1'))
+    expect(await w.list(agent('a'))).toHaveLength(1)
   })
 
   it('refuses to remove a key that is not one, and writes nothing', async () => {
@@ -207,15 +218,6 @@ describe('an agent subscribes', () => {
       refused('not-permitted'),
     )
     expect(w.store.facts(w.ctx.tenant).subscriptions.size).toBe(1)
-  })
-
-  it('answers basis-unavailable when the consent mode cannot be read', async () => {
-    const w = world()
-    for (const mode of ['unavailable', 'throw'] as const) {
-      w.consent.set(mode)
-      expect(await w.subscriptions.set(w.as('a'), change())).toEqual(unavailable)
-    }
-    expect(await w.subscriptions.set(w.ctx, change())).toMatchObject({ kind: 'done' })
   })
 })
 

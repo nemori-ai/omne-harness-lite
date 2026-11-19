@@ -62,11 +62,12 @@ describe('two subscriptions are the same only when every stored part agrees', ()
   } as unknown as Subscription
   const bases = [
     { kind: 'owner' },
-    { kind: 'blanket', generation: 1 },
-    { kind: 'blanket', generation: 2 },
-    { kind: 'granular', decision: 'd1' },
-    { kind: 'granular', decision: 'd2' },
-    { kind: 'granular', decision: 'undefined' },
+    { kind: 'blanket', scope: 'standing', grant: 'g1' },
+    { kind: 'blanket', scope: 'session', grant: 'g1' },
+    { kind: 'blanket', scope: 'standing', grant: 'g2' },
+    { kind: 'granular', grant: 'g1' },
+    { kind: 'granular', grant: 'g2' },
+    { kind: 'granular', grant: 'undefined' },
   ] as readonly Basis[]
 
   it.each(bases.flatMap((a, i) => bases.map((b, j) => [a, b, i === j] as const)))(

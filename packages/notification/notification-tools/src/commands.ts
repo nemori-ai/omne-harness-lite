@@ -1,16 +1,12 @@
-import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import type {
   CatalogSource,
   Marks,
   NotificationSummary,
   Subscription,
-  SubscriptionChange,
 } from '@omne-harness/notification-contract'
-import { succeed } from '@omne-harness/operation-result'
-import { consentCard, encodeConsentState, requestTree } from './consent.ts'
 import type { BoundNotifications, Reached } from './port.ts'
 import type { ArgumentsOf, NotificationsCommandName } from './protocol.ts'
-import { answered, reading, tooLarge, unknown, writing, type Segment } from './results.ts'
+import { reading, writing, type Answer } from './results.ts'
 
 const resolutionOf = (marks: Marks) =>
   marks.supersededBy !== null ? 'superseded' : (marks.resolved?.how ?? 'unresolved')
@@ -52,7 +48,7 @@ export type Handler<K extends NotificationsCommandName> = (
   reached: Reached,
   params: ArgumentsOf<K>['params'],
   bound: BoundNotifications,
-) => Promise<Segment>
+) => Promise<Answer>
 type Disposal = 'done' | 'dismiss' | 'restore'
 
 /** The identity of a post: the source the application gave and an event id that is this agent's own. */
@@ -158,7 +154,7 @@ const subscriptions: Handler<'subscriptions'> = ({ faces, context, self }) =>
     found => ({ subscriptions: found.map(subscriptionOf) }),
   )
 
-export const changeOf = (reached: Reached, params: ArgumentsOf<'subscribe'>['params']) => ({
+const changeOf = (reached: Reached, params: ArgumentsOf<'subscribe'>['params']) => ({
   recipient: reached.self,
   source: params.source,
   type: params.type,
@@ -168,58 +164,18 @@ export const changeOf = (reached: Reached, params: ArgumentsOf<'subscribe'>['par
   term: params.term ?? { kind: 'standing' as const },
 })
 
-export const subscribed = (subscription: Subscription, recalled: boolean) => ({
+const subscribed = (subscription: Subscription, recalled: boolean) => ({
   ...subscriptionOf(subscription),
   recalled,
 })
 
-/** The label the owner reads on the card, best effort: without the catalogue it is the name of the type. */
-async function labelOf({ faces, context }: Reached, change: SubscriptionChange): Promise<string> {
-  const found = await faces.catalog.sources(context).catch(() => undefined)
-  for (const source of found?.kind === 'done' ? found.value : []) {
-    const type =
-      source.name === change.source
-        ? source.types.find(item => item.name === change.type)
-        : undefined
-    if (type !== undefined) return `${source.label}：${type.label}`
-  }
-  return change.type
-}
-
-async function suspendForConsent(
-  reached: Reached,
-  params: ArgumentsOf<'subscribe'>['params'],
-  request: Readonly<{ content: string; change: SubscriptionChange }>,
-): Promise<Segment> {
-  const { change, content } = request
-  const label = await labelOf(reached, change)
-  const card = consentCard({ self: reached.self, change, content, label })
-  const state = encodeConsentState({ params, content, cardId: card.cardId })
-  if ('failure' in state)
-    return tooLarge(
-      `${state.failure}: the note and the scope are too long to keep while the owner decides; shorten them`,
-    )
-  return succeed({
-    kind: 'suspended',
-    state: state.ok,
-    closedResult:
-      'owner-skipped: the card was closed before the owner answered; nothing was changed',
-    wait: { kind: 'ask', key: 'consent', contract: hitlDecisionWait, request: requestTree(card) },
-  })
-}
-
-const subscribe: Handler<'subscribe'> = async (reached, params) => {
-  const { faces, context } = reached
-  let outcome: Awaited<ReturnType<typeof faces.subscriptions.set>>
-  try {
-    outcome = await faces.subscriptions.set(context, changeOf(reached, params))
-  } catch {
-    return unknown('subscribe')
-  }
-  return outcome.kind === 'needs-confirmation'
-    ? suspendForConsent(reached, params, outcome.request)
-    : answered('subscribe', outcome, subscribed)
-}
+/** One call is one subscription: the call's release is the consent, read by the service, not asked here. */
+const subscribe: Handler<'subscribe'> = (reached, params) =>
+  writing(
+    'subscribe',
+    () => reached.faces.subscriptions.set(reached.context, changeOf(reached, params)),
+    subscribed,
+  )
 
 const unsubscribe: Handler<'unsubscribe'> = ({ faces, context, self }, params) => {
   const key = {

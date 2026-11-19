@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ToolCallId } from '@omne-harness/tool-contract'
+import type { ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 
 /** The access of a tool call while its scope is open; a handle for reading its release, not a fact. */
 export type LiveCall = Readonly<{ principal: unknown; tenant: TenantId; call: ToolCallId }>
@@ -17,4 +18,25 @@ export function liveCalls(ctx: Context): Map<string, LiveCall> {
   const created = new Map<string, LiveCall>()
   registries.set(root, created)
   return created
+}
+
+/** Keeps the access of a call registered while its scope is open, so a domain it writes to can read
+ * what the call was released on. */
+export function holdLiveCall(
+  ctx: Context,
+  access: LiveCall,
+  scope: ToolExecutionScope,
+): ToolExecutionScope {
+  const tenant = tenantCodec.encode(access.tenant)
+  const live = liveCalls(ctx)
+  const key = liveCallKey(tenant.ok ? tenant.value : '', access.call)
+  const entry = { principal: access.principal, tenant: access.tenant, call: access.call }
+  live.set(key, entry)
+  return {
+    ...scope,
+    finish(exit) {
+      if (live.get(key) === entry) live.delete(key)
+      return scope.finish(exit)
+    },
+  }
 }

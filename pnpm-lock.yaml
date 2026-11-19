@@ -3955,9 +3955,6 @@ importers:
 
   packages/notification/notification-tools:
     dependencies:
-      '@omne-harness/human-intervention-tool':
-        specifier: workspace:*
-        version: link:../../human-intervention/human-intervention-tool
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text

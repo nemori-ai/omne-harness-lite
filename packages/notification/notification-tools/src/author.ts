@@ -1,4 +1,3 @@
-import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { CommandTable, ToolGate } from '@omne-harness/tool-contract'
@@ -8,23 +7,13 @@ import {
   defineCommandTool,
   defineToolOperation,
   describedAdoption,
-  type CheckpointedToolExecutor,
+  type ToolExecutionContext,
   type ToolImplementationModule,
   type ToolMessageContentBlock,
   type ToolOperation,
   type ToolOperationParameters,
-  type ToolSegmentContext,
 } from '@omne-harness/tool-contract/provider'
-import { HANDLERS, changeOf, subscribed, type Handler, type Reaching } from './commands.ts'
-import {
-  CONSENT_STATE_MAX_BYTES,
-  consentStateCodec,
-  consentStateIdentity,
-  ownerAnswerOf,
-  readConsentState,
-  type ConsentState,
-  type OwnerAnswer,
-} from './consent.ts'
+import { HANDLERS, type Handler, type Reaching } from './commands.ts'
 import { notificationsOf, type BoundNotifications, type Reached } from './port.ts'
 import {
   notificationsAdoption,
@@ -36,8 +25,8 @@ import {
   type NotificationsArguments,
   type NotificationsCommandName,
 } from './protocol.ts'
-import { describeSend } from './release.ts'
-import { cancelled, unavailable, writing, type Segment } from './results.ts'
+import { describeSend, describeSubscribe } from './release.ts'
+import { unavailable, type Answer } from './results.ts'
 
 const NOTIFICATIONS_GATES: readonly ToolGate[] = [
   { id: 'read', title: '查看', default: 'auto' },
@@ -68,7 +57,7 @@ const guide = [
   'You act as yourself: a post is from you, and inbox, read, done, dismiss, restore and subscriptions are about your own inbox. A post goes to the owner; other agents get it only if they subscribed to you.',
   'Give every post an id of your own. After a failure that says unknown, send the same command with the same id: a post that was accepted is recalled, not posted twice.',
   'A notification is named by its source and event, as inbox lists them. Done and dismiss both resolve it; restore takes either back.',
-  'Subscribe sets one subscription: level off, weak or strong; scope all, one subject or a subject prefix; term standing, once or until an instant. See sources for the subject each event type takes. When the owner asks to confirm, an inquiry card waits for the owner and the call returns after the answer.',
+  'Subscribe sets one subscription: level off, weak or strong; scope all, one subject or a subject prefix; term standing, once or until an instant. See sources for the subject each event type takes.',
   'A failure starts with its reason, then says what to do.',
 ].join('\n\n')
 
@@ -128,8 +117,8 @@ const UNREACHABLE = {
 
 async function reach(
   command: NotificationsCommandName,
-  execution: ToolSegmentContext,
-): Promise<Readonly<{ reached: Reached; bound: BoundNotifications }> | Segment> {
+  execution: Pick<ToolExecutionContext, 'signal'>,
+): Promise<Readonly<{ reached: Reached; bound: BoundNotifications }> | Answer> {
   const bound = notificationsOf(execution)
   if (bound === undefined) return unavailable(command, UNREACHABLE.unattached)
   const reached = await bound.reach()
@@ -137,77 +126,33 @@ async function reach(
   return { reached, bound }
 }
 
-async function initial(
+/** One call is one read or one write: what the domain answers is the answer. */
+export async function answerNotifications(
   args: NotificationsArguments,
-  execution: ToolSegmentContext,
-): Promise<Segment> {
+  execution: Pick<ToolExecutionContext, 'signal'>,
+): Promise<Answer> {
   if (args.command === 'help')
-    return succeed({
-      kind: 'completed',
-      value: `done Notifications help${args.params.name === undefined ? '' : ` ${args.params.name}`}\n${commandGuide(menu, args.params.name)}`,
-    })
+    return succeed(
+      `done Notifications help${args.params.name === undefined ? '' : ` ${args.params.name}`}\n${commandGuide(menu, args.params.name)}`,
+    )
   const ready = await reach(args.command, execution)
   if (!('reached' in ready)) return ready
   const handler = HANDLERS[args.command] as Handler<Reaching>
   return handler(ready.reached, args.params, ready.bound)
 }
 
-const UNWRITTEN = {
-  declined: 'owner-declined: the owner declined; nothing was changed',
-  skipped: 'owner-skipped: the owner did not answer; nothing was changed',
-} as const
-
-/** What an answer that writes nothing tells the agent. */
-const unwritten = (answer: Exclude<OwnerAnswer, { kind: 'approved' }>) =>
-  answer.kind === 'replied'
-    ? `owner-replied: the owner answered in words; nothing was changed. text=${JSON.stringify(answer.text)}`
-    : UNWRITTEN[answer.kind]
-
-/** The owner answered: an approval sets the subscription with this card as its basis; anything else writes nothing. */
-async function resume(
-  state: ConsentState,
-  decision: Parameters<typeof ownerAnswerOf>[1],
-  execution: ToolSegmentContext,
-): Promise<Segment> {
-  const answer = ownerAnswerOf(state, decision)
-  if (answer.kind !== 'approved') return cancelled(unwritten(answer))
-  const ready = await reach('subscribe', execution)
-  if (!('reached' in ready)) return ready
-  const { reached, bound } = ready
-  const confirmation = {
-    decision: bound.decisionRef(state.cardId),
-    content: state.content,
-    approved: true,
-  }
-  return writing(
-    'subscribe',
-    async () => {
-      const change = changeOf(reached, state.params)
-      const outcome = await reached.faces.subscriptions.set(reached.context, change, confirmation)
-      return outcome.kind === 'needs-confirmation'
-        ? ({ kind: 'refused', reason: 'confirmation-mismatch' } as const)
-        : outcome
-    },
-    subscribed,
-  )
+/** A failed answer is thrown with its reason: the call fails with that reason as its result. */
+export const notificationsExecutor = {
+  async execute(args: NotificationsArguments, _environment: null, context: ToolExecutionContext) {
+    const answer = await answerNotifications(args, context)
+    if ('failure' in answer) throw new Error(answer.failure.reason)
+    return answer.ok
+  },
 }
 
-export const notificationsExecutor: CheckpointedToolExecutor<NotificationsArguments, string, null> =
-  {
-    checkpoint: {
-      schema: consentStateIdentity,
-      codec: consentStateCodec,
-      maxBytes: CONSENT_STATE_MAX_BYTES,
-    },
-    initial: (args, _environment, context) => initial(args, context),
-    async resume({ checkpoint, response }, _environment, context) {
-      const state = readConsentState(checkpoint)
-      if ('failure' in state) return fail({ kind: 'invalid', reason: state.failure })
-      return resume(state.ok, response, context)
-    },
-  }
-
 const constructionSchema = z.strictObject({ resultMaxBytes: z.int().min(64) })
+
+const DESCRIBERS = { send: describeSend, subscribe: describeSubscribe } as const
 
 type Operation = ToolOperation<null, ToolMessageContentBlock>
 
@@ -224,7 +169,7 @@ function operationOf(name: NotificationsCommandName, maximum: number) {
     author: {
       kind: 'ordinary',
       parameters: notificationsParameterCodec(name),
-      waits: [hitlDecisionWait],
+      waits: [],
       executor: notificationsExecutor,
       codec: {
         adoption: notificationsAdoption,
@@ -248,7 +193,7 @@ function operationOf(name: NotificationsCommandName, maximum: number) {
       renderer: { render: (value: string) => succeed(value) },
       program: { kind: 'none' },
     },
-    ...(name === 'send' ? { describeRelease: describeSend } : {}),
+    ...(name in DESCRIBERS ? { describeRelease: DESCRIBERS[name as keyof typeof DESCRIBERS] } : {}),
   })
 }
 
@@ -303,9 +248,9 @@ export const notificationsToolModule: ToolImplementationModule<null, ToolMessage
   executor: describedAdoption({
     owner: '@omne-harness/notification-tools',
     name: 'Notifications',
-    revision: '1',
+    revision: '2',
     changes:
-      'Commands over an attached notifications port; the emitter comes from the call; consent through one inquiry card checkpoint.',
+      'Commands over an attached notifications port; the emitter and the call reference come from the call; one call is one commit.',
   }),
   createAuthor: createNotificationsAuthor,
 }

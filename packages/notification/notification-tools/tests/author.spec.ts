@@ -6,7 +6,6 @@ import {
   notificationsAdoption,
   notificationsCommandNames,
   notificationsContract,
-  notificationsExecutor,
   notificationsParameterCodec,
   notificationsToolModule,
 } from '@omne-harness/notification-tools'
@@ -31,6 +30,13 @@ describe('the author of Notifications', () => {
         },
       })
     expect(createNotificationsAuthor(json({ resultMaxBytes: 64 }))).toHaveProperty('ok')
+  })
+
+  it('runs each command as one call that waits for nobody', () => {
+    for (const [name, operation] of author().registration.operations) {
+      expect(operation.author.waits, name).toEqual([])
+      expect(operation.segments, name).toBeNull()
+    }
   })
 
   it('says why a result over the limit is refused', () => {
@@ -81,7 +87,7 @@ describe('the author of Notifications', () => {
       restore {source, event} - Take back done or dismiss.
       sources {} - List the sources and event types you can subscribe to, with the subject each takes.
       subscriptions {} - List your own subscriptions.
-      subscribe {source, type, level=off|weak|strong, scope?, note?, term?} - Set your subscription to one event type. When the owner asks to confirm, an inquiry card waits for the owner.
+      subscribe {source, type, level=off|weak|strong, scope?, note?, term?} - Set your subscription to one event type.
       unsubscribe {source, type, scope?} - Return one subscription to the default of its event type.
 
       You act as yourself: a post is from you, and inbox, read, done, dismiss, restore and subscriptions are about your own inbox. A post goes to the owner; other agents get it only if they subscribed to you.
@@ -90,7 +96,7 @@ describe('the author of Notifications', () => {
 
       A notification is named by its source and event, as inbox lists them. Done and dismiss both resolve it; restore takes either back.
 
-      Subscribe sets one subscription: level off, weak or strong; scope all, one subject or a subject prefix; term standing, once or until an instant. See sources for the subject each event type takes. When the owner asks to confirm, an inquiry card waits for the owner and the call returns after the answer.
+      Subscribe sets one subscription: level off, weak or strong; scope all, one subject or a subject prefix; term standing, once or until an instant. See sources for the subject each event type takes.
 
       A failure starts with its reason, then says what to do."
     `)
@@ -100,35 +106,20 @@ describe('the author of Notifications', () => {
     expect({
       protocol: notificationsAdoption,
       executor: notificationsToolModule.executor,
-      checkpoint: notificationsExecutor.checkpoint,
       vocabulary: notificationsContract('sent').vocabulary,
     }).toMatchInlineSnapshot(`
       {
-        "checkpoint": {
-          "codec": {
-            "digest": "sha256:2e235b835cf73f30bdc2fb8321831e38e6db820f0e939ab36dbc78f13a253435",
-            "name": "consent-state-json",
-            "owner": "@omne-harness/notification-tools",
-            "revision": "1",
-          },
-          "maxBytes": 8192,
-          "schema": {
-            "digest": "sha256:8ff012abc57282f94c4ab462f0674b8b3128083da13cf6dbcdc8f0d925842831",
-            "id": "@omne-harness/notification-tools/consent-state",
-            "revision": "1",
-          },
-        },
         "executor": {
-          "digest": "sha256:902a08808284efc3d1edba3d2475b067c76fe77cda8e3643181f44fa389bb67b",
+          "digest": "sha256:09f75bfc5aa84d5bdfaace1f57acf345219a0da58944cd2e443016da115ce523",
           "name": "Notifications",
           "owner": "@omne-harness/notification-tools",
-          "revision": "1",
+          "revision": "2",
         },
         "protocol": {
-          "digest": "sha256:e9d36a017ba96c1c46b456cba6e3fac5021f7b7ff4a0aecfd38ef260271d87fb",
+          "digest": "sha256:72013f1a40047847660a469be6dc1b1d545472f50476014d49fb522b07cc042c",
           "name": "notifications-protocol",
           "owner": "@omne-harness/notification-tools",
-          "revision": "1",
+          "revision": "2",
         },
         "vocabulary": {
           "digest": "sha256:3bc678812d4bdd7ec87238b6aef84b74a1f843223164dea5907fae7bce0a4728",

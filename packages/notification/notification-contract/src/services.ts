@@ -20,8 +20,6 @@ import type {
 import type { MarkOperation } from './decide-mark.ts'
 import type { Destination, DestinationRef, MinLevel } from './delivery-model.ts'
 import type {
-  Confirmation,
-  SubscriptionChange,
   SubscriptionRefusal,
   subscriptionChangeSchema,
   subscriptionKeySchema,
@@ -32,8 +30,14 @@ export type Actor =
   | Readonly<{ kind: 'owner' }>
   | Readonly<{ kind: 'agent'; recipient: Extract<RecipientRef, { kind: 'agent' }> }>
 
-/** `subject` is the verified principal, handed to the authority port. A trusted adapter builds this, never a model. */
-export type CallContext = Readonly<{ tenant: TenantId; subject: unknown; actor: Actor }>
+/** `subject` is the verified principal, handed to the authority port. `call` is the reference of the
+ * call this context acts in, when it acts in one. A trusted adapter builds this, never a model. */
+export type CallContext = Readonly<{
+  tenant: TenantId
+  subject: unknown
+  actor: Actor
+  call?: string
+}>
 
 export type SendRequestInput = z.input<typeof sendRequestSchema>
 export type SendIdentityInput = z.input<typeof sendIdentitySchema>
@@ -113,11 +117,7 @@ export interface NotificationInbox {
 export type SubscriptionChangeInput = z.input<typeof subscriptionChangeSchema>
 export type SubscriptionKeyInput = z.input<typeof subscriptionKeySchema>
 
-export type ConfirmationRequest = Readonly<{ content: string; change: SubscriptionChange }>
-
-export type SubscriptionOutcome =
-  | Outcome<Subscription, SubscriptionRefusal>
-  | Readonly<{ kind: 'needs-confirmation'; request: ConfirmationRequest }>
+export type SubscriptionOutcome = Outcome<Subscription, SubscriptionRefusal>
 
 export type Beat =
   | Readonly<{ kind: 'default' }>
@@ -130,11 +130,7 @@ export type BeatRefusal = RecipientRefusal | 'out-of-range'
 
 export interface NotificationSubscriptions {
   /** Sets one subscription. It affects sends accepted afterwards, never what is in an inbox. */
-  set(
-    ctx: CallContext,
-    change: SubscriptionChangeInput,
-    confirmation?: Confirmation | null,
-  ): Promise<SubscriptionOutcome>
+  set(ctx: CallContext, change: SubscriptionChangeInput): Promise<SubscriptionOutcome>
   /** Returns the key to the default of its event type. Not the same as setting it to `off`. */
   remove(
     ctx: CallContext,

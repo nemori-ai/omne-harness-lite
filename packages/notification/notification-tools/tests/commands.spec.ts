@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest'
+import { answerNotifications, type NotificationCallSource } from '@omne-harness/notification-tools'
 import {
-  notificationsExecutor,
-  type NotificationCallSource,
-} from '@omne-harness/notification-tools'
-import { NOW, POSTS, TENANT, agent, author, caller, domain, person, unattached } from './world.ts'
+  NOW,
+  POSTS,
+  TENANT,
+  agent,
+  author,
+  caller,
+  consented,
+  domain,
+  person,
+  unattached,
+} from './world.ts'
 
 const post = (id: string, more: object = {}) => ({ id, title: `Title ${id}`, ...more })
 const changed = { source: 'demo.things', type: 'changed' }
@@ -68,7 +76,7 @@ describe('send', () => {
 
   it('reaches an agent that subscribed to the poster, and never the poster itself', async () => {
     const d = domain()
-    d.consent.set({ kind: 'automatic', generation: 1 })
+    d.consent.set(consented())
     const reader = caller(d, 'a2')
     await reader.ok('subscribe', {
       source: POSTS.source,
@@ -270,9 +278,9 @@ describe('sources and subscriptions', () => {
     })
   })
 
-  it('sets a subscription the owner lets through, lists it, and returns it to the default', async () => {
+  it('sets a subscription on the consent of its call, lists it, and returns it to the default', async () => {
     const d = domain()
-    d.consent.set({ kind: 'automatic', generation: 7 })
+    d.consent.set(consented('grant-7'))
     const a = caller(d)
     const set = {
       ...changed,
@@ -286,7 +294,7 @@ describe('sources and subscriptions', () => {
       level: 'strong',
       note: 'watch',
       term: { kind: 'standing' },
-      basis: { kind: 'blanket', generation: 7 },
+      basis: { kind: 'blanket', scope: 'standing', grant: 'grant-7' },
       expired: false,
     }
     expect(await a.ok('subscribe', set)).toEqual({
@@ -314,9 +322,34 @@ describe('sources and subscriptions', () => {
     expect(await a.ok('subscriptions')).toMatchObject({ value: { subscriptions: [] } })
   })
 
+  it('hands the service the reference of its call, which the consent is read by, and waits for nobody', async () => {
+    const d = domain()
+    d.consent.set(consented())
+    await caller(d, 'a1').ok('subscribe', { ...changed, level: 'weak' })
+    expect(d.consent.asked.map(context => context.call)).toEqual(['call-of-a1'])
+  })
+
+  it('a call released without consent writes nothing and fails with what that means', async () => {
+    const d = domain()
+    const a = caller(d)
+    expect(await a.failure('subscribe', { ...changed, level: 'weak' })).toEqual({
+      kind: 'unsupported',
+      reason:
+        'consent-required: this call was not released with a consent to subscribe; nothing was changed',
+    })
+    await expect(a.executed('subscribe', { ...changed, level: 'weak' })).rejects.toThrow(
+      /^consent-required: /,
+    )
+    expect(d.store.commits()).toBe(0)
+    d.consent.set(consented())
+    expect(await a.executed('subscribe', { ...changed, level: 'weak' })).toMatch(
+      /^done Notifications subscribe\n/,
+    )
+  })
+
   it('subscribes to everything of a type, standing, when scope and term are left out', async () => {
     const d = domain()
-    d.consent.set({ kind: 'automatic', generation: 1 })
+    d.consent.set(consented())
     expect(await caller(d).ok('subscribe', { ...changed, level: 'weak' })).toMatchObject({
       value: { scope: { kind: 'all' }, term: { kind: 'standing' }, note: null },
     })
@@ -339,7 +372,7 @@ describe('sources and subscriptions', () => {
     'a subscription the domain refuses is a failure with its reason',
     async (params, kind, reason) => {
       const d = domain()
-      d.consent.set({ kind: 'automatic', generation: 1 })
+      d.consent.set(consented())
       expect(await caller(d).failure('subscribe', params)).toEqual({
         kind,
         reason: expect.stringMatching(reason),
@@ -395,7 +428,7 @@ describe('a call that cannot reach the notification services', () => {
         if ('failure' in parsed) throw new Error(command)
         const answer =
           source === null
-            ? await notificationsExecutor.initial(parsed.ok as never, null, unattached())
+            ? await answerNotifications(parsed.ok as never, unattached())
             : await a.run(command, PARAMS[command])
         expect(answer, command).toEqual({
           failure: {
@@ -435,7 +468,7 @@ describe('a call that cannot reach the notification services', () => {
       'unsubscribe',
     ] as const) {
       const d = domain()
-      d.consent.set({ kind: 'automatic', generation: 1 })
+      d.consent.set(consented())
       d.store.fail('read-unavailable')
       expect(await caller(d).failure(command, PARAMS[command]), command).toMatchObject({
         kind: 'unavailable',

@@ -59,8 +59,8 @@ function scopeKey(scope: Scope): string {
 }
 const termKey = (term: Term) => (term.kind === 'until' ? `until ${term.at}` : term.kind)
 function basisKey(basis: Basis): string {
-  if (basis.kind === 'blanket') return `blanket ${String(basis.generation)}`
-  return basis.kind === 'granular' ? `granular ${basis.decision}` : 'owner'
+  if (basis.kind === 'blanket') return JSON.stringify([basis.kind, basis.scope, basis.grant])
+  return basis.kind === 'granular' ? JSON.stringify([basis.kind, basis.grant]) : 'owner'
 }
 
 export const sameScope = (a: Scope, b: Scope): boolean => scopeKey(a) === scopeKey(b)

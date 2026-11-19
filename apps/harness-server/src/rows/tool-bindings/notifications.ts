@@ -18,6 +18,7 @@ import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract
 import { readSystemInstant } from '../../entry/session-clock.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { domainCallerOf } from './domain-caller.ts'
+import { holdLiveCall } from './live-calls.ts'
 
 type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
@@ -36,7 +37,9 @@ function facesOf(ctx: Context): NotificationToolFaces | undefined {
     : { sending, inbox, subscriptions, catalog }
 }
 
-/** The agent is the verified session of the call. No turn is woken by a notification yet, so the depth is 0. */
+/** The agent is the verified session of the call. No turn is woken by a notification yet, so the
+ * depth is 0. The call's access stays registered while its scope is open, so the notification
+ * service can read what this call was released on. */
 export function bindReleaseNotifications(
   ctx: Context,
   parent: Parent,
@@ -68,5 +71,5 @@ export function bindReleaseNotifications(
       return instant.text
     },
   })
-  return attachNotifications(scope, notifications)
+  return holdLiveCall(ctx, parent, attachNotifications(scope, notifications))
 }

@@ -71,11 +71,18 @@ export function viewOf(view: NotificationView): NotificationViewBody {
   return { ...summaryOf(view), subject, at: instantOf(at), body, locator }
 }
 
+/** Why a subscription holds, without the authorization reference: the client has no use for it. */
+function basisOf(basis: Subscription['basis']): NotificationSubscriptionBody['basis'] {
+  if (basis.kind === 'blanket') return { kind: 'blanket', scope: basis.scope }
+  return { kind: basis.kind }
+}
+
 export function subscriptionOf(subscription: Subscription): NotificationSubscriptionBody {
   const { term } = subscription
   return {
     ...subscription,
     term: term.kind === 'until' ? { kind: 'until', at: instantOf(term.at) } : term,
+    basis: basisOf(subscription.basis),
   }
 }
 
