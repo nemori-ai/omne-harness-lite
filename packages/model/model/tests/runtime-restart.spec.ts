@@ -156,6 +156,32 @@ it('settles a call whose dispatch ended before the process died, with the ending
   }
 })
 
+it('settles a call whose dispatch was refused before the process died with that refusal, preparing nothing again', async () => {
+  const { hold, wrap, bury } = holding('settle')
+  const f = runtimeFixture({}, wrap)
+  try {
+    unbox(await f.provider.runtime.calls.admit(f.admit))
+    const stream = f.channel(f.admit.call)
+    stream.refusal = { kind: 'denied', action: 'synthetic-transport' }
+    stream.ready.resolve()
+    await eventually(() =>
+      f.preserveInputs.some(input => input.facts.some(fact => fact.kind === 'ended')),
+    )
+    hold.on = false
+    expect(await f.restart(f.admit.call, instance('after-restart'))).toEqual({ ok: undefined })
+    const current = await state(f)
+    expect(current.phase === 'settled' && current.settlement.termination).toMatchObject({
+      kind: 'failed',
+      fault: { cause: 'excluded' },
+    })
+    expect(stream.resent).toHaveLength(1)
+    expect(stream.starts).toBe(0)
+  } finally {
+    bury()
+    await f.dispose()
+  }
+})
+
 it('sends a call that was only admitted when the process died, once, to the end', async () => {
   const { hold, wrap, bury } = holding('prepareDispatch')
   const f = runtimeFixture({}, wrap)

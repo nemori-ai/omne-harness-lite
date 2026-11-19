@@ -20,6 +20,10 @@ import {
 } from '@omne-harness/model-contract/provider'
 import { fixture, instance, op, proof } from './memory-fixture.ts'
 
+type Refusal =
+  | NonNullable<Parameters<typeof createScriptedTransport>[0]['rejection']>['failure']
+  | null
+
 export const configuration: ModelConfiguration = {
   outputBatchBytes: 1024,
   outputBatchDelayMs: 0,
@@ -87,6 +91,8 @@ export function runtimeFixture(
     closes: number
     suppliers: string[]
     releaseFails: boolean
+    /** A refusal every prepare of this call answers; none by default. */
+    refusal: Refusal
     beforeRelease(): Promise<void>
     finish(): void
     fail(): void
@@ -112,6 +118,7 @@ export function runtimeFixture(
         closes: 0,
         suppliers: [],
         releaseFails: false,
+        refusal: null,
         beforeRelease: async () => {},
         finish() {
           done = true
@@ -189,7 +196,7 @@ export function runtimeFixture(
         },
         facts: [],
         ending: { kind: 'terminated', termination: { kind: 'completed', reason: 'stop' } },
-        rejection: null,
+        rejection: stream.refusal && { at: 'prepare', failure: stream.refusal },
       })
       return {
         ok: {
