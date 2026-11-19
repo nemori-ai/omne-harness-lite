@@ -140,7 +140,6 @@ function destroy(ready: Ready): Promise<ExitCode> | ExitCode {
 
 const ACT: Readonly<Record<string, (ready: Ready) => Promise<ExitCode> | ExitCode>> = {
   register: ready => commit(ready, 'register', registers(ready)),
-  list: ready => read(ready),
   ...Object.fromEntries(
     Object.entries(CHANGES).map(([action, call]) => [
       action,

@@ -353,6 +353,7 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
       assert.equal(read(await store.state('alice', 'wsp_2'))?.instances.length, 1)
       assert.deepEqual(committed(await store.destroy(destroy('x1'))), SAME)
       assert.deepEqual(committed(await store.destroy(destroy('x2'))), DENIED)
+      assert.equal(read(await store.operation('alice', 'x1'))?.kind, 'destroy')
       const first = register({
         operation: 'r9',
         digest: 'd-r9',

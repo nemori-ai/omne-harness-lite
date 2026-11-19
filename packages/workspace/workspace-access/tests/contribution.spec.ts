@@ -298,6 +298,28 @@ describe('changing who takes part, leaving and destroying', () => {
       })
   })
 
+  it('a name that is no operation name is invalid for the change and not committed for its query', async () => {
+    const w = await owned()
+    for (const name of CHANGES) {
+      const body = { ...SAMPLES[name], operation: 'a b' }
+      expect([name, await w.call(name, body)]).toEqual([
+        name,
+        { outcome: 'invalid', body: { reason: 'invalid-request' } },
+      ])
+      expect([name, await w.call(`query-${name}`, body)]).toEqual([name, NOT_COMMITTED])
+    }
+  })
+
+  it('a tenant that is no member is denied when it asks what was committed', async () => {
+    const w = await owned()
+    w.authority.standingIs(() => 'not-member')
+    for (const name of CHANGES)
+      expect([name, await w.call(`query-${name}`, SAMPLES[name])]).toEqual([
+        name,
+        { outcome: 'denied' },
+      ])
+  })
+
   it('a commit whose receipt was lost is unknown; the query then says it was committed', async () => {
     const w = await owned()
     w.store.fail('lost')

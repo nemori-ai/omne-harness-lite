@@ -102,10 +102,11 @@ describe('what stands before a change to a relation', () => {
     const grant = { operation: op('g1'), workspace, target: bob }
     w.authority.tenantIs(() => 'not-member')
     expect(await g.grantParticipation(ALICE, grant)).toEqual(DENIED)
+    const unread = { kind: 'unavailable', diagnostic: 'target' }
     w.authority.tenantIs(() => 'unavailable')
-    expect(await g.grantParticipation(ALICE, grant)).toMatchObject({ kind: 'unavailable' })
+    expect(await g.grantParticipation(ALICE, grant)).toEqual(unread)
     w.authority.tenantIs(() => 'throw')
-    expect(await g.grantParticipation(ALICE, grant)).toMatchObject({ kind: 'unavailable' })
+    expect(await g.grantParticipation(ALICE, grant)).toEqual(unread)
     expect(await w.standing(BOB)).toBe('none')
     w.authority.tenantIs(() => 'member')
     expect(await g.grantParticipation(ALICE, grant)).toEqual(DONE)
@@ -146,6 +147,27 @@ describe('what stands before a change to a relation', () => {
     })
     const elsewhere = { operation: op('g1'), workspace: fakeWorkspaceId(99), target: bob }
     expect(await g.grantParticipation(ALICE, elsewhere)).toEqual(DENIED)
+  })
+
+  it('an operation name used again for another target or another workspace is a conflict', async () => {
+    const w = await owned()
+    const { governance: g, workspace } = w
+    w.things.put('/b', { kinds: ['plain'] })
+    const other = await g.register(ALICE, { operation: op('r2'), address: '/b' })
+    if (other.kind !== 'done') throw new Error('the second registration did not happen')
+    const grant = { operation: op('g1'), workspace, target: bob }
+    expect(await g.grantParticipation(ALICE, grant)).toEqual(DONE)
+    expect(await g.grantParticipation(ALICE, { ...grant, target: carol })).toEqual({
+      kind: 'conflict',
+    })
+    expect(
+      await g.grantParticipation(ALICE, { ...grant, workspace: other.value.workspace }),
+    ).toEqual({ kind: 'conflict' })
+    expect(await g.destroy(ALICE, { operation: op('d1'), workspace })).toEqual(DONE)
+    expect(
+      await g.destroy(ALICE, { operation: op('d1'), workspace: other.value.workspace }),
+    ).toEqual({ kind: 'conflict' })
+    expect(await w.standing(CAROL)).toBe('none')
   })
 
   it('a commit whose receipt was lost is unknown, and asking about the operation says it was done', async () => {

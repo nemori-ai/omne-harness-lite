@@ -37,17 +37,15 @@ export function changeRelation(txn: WorkspaceTxn, command: RelationCommand): Rel
   })
 }
 
-/** One commit ends every relation and every association. What the instances point at is not touched. */
+/** One commit ends every relation and every association. Nobody is related to it afterwards, so nobody reads it. */
 export function destroyWorkspace(txn: WorkspaceTxn, command: DestroyCommand): DestroyResult {
   return once(txn, command, 'destroy', () => {
     const { workspace, tenant } = command
-    const record = txn.workspace(workspace)
     const caller = standingOf(txn.relation(workspace, tenant))
-    if (record === null || decide(caller, 'destroy') !== 'allow') return { kind: 'not-permitted' }
+    if (decide(caller, 'destroy') !== 'allow') return { kind: 'not-permitted' }
     txn.bumpSources(workspace)
     txn.endRelations(workspace)
     txn.dissociateInstances(workspace)
-    txn.setRevision(workspace, record.revision + 1)
     return { kind: 'done', value: null, changed: true }
   })
 }
