@@ -69,7 +69,11 @@ it.each([
   JSON.stringify({ action: 'create', name: 'x', next: { kind: 'times', times: [] } }),
   JSON.stringify({ action: 'create', name: 'x', next: { kind: 'times', times: [1] } }),
   JSON.stringify({ action: 'create', name: 'x', next: { kind: 'soon' } }),
+  JSON.stringify({ action: 'create', name: 'x', next: { kind: 'soon', times: ['a'] } }),
+  JSON.stringify({ action: 'create', name: 'x', next: { kind: 'times', times: ['a', 1] } }),
+  JSON.stringify({ action: 'create', name: 'x', next: null }),
   JSON.stringify({ action: 'create', name: 'x' }),
+  'null',
 ])('A4 reads nothing it does not recognise, so the card draws the rows instead: %s', text => {
   expect(readActivation(text)).toBeUndefined()
 })

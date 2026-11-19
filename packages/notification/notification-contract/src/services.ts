@@ -30,8 +30,7 @@ export type Actor =
   | Readonly<{ kind: 'owner' }>
   | Readonly<{ kind: 'agent'; recipient: Extract<RecipientRef, { kind: 'agent' }> }>
 
-/** `subject` is the verified principal, handed to the authority port. `call` is the reference of the
- * call this context acts in, when it acts in one. A trusted adapter builds this, never a model. */
+/** `subject` is the verified principal, handed to the authority port. A trusted adapter builds this, never a model. */
 export type CallContext = Readonly<{
   tenant: TenantId
   subject: unknown

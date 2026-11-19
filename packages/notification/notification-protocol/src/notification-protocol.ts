@@ -40,8 +40,6 @@ const term = oneOf(
   object({ kind: kind('once') }),
   object({ kind: kind('until'), at: { rule: instant } }),
 )
-/** Why a subscription holds: the owner's own act, a blanket consent standing or for one session, or
- * the release of this one subscription. */
 const basis = oneOf(
   object({ kind: kind('owner') }),
   object({ kind: kind('blanket'), scope: { rule: literal('standing', 'session') } }),

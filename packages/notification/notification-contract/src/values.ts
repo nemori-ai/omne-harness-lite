@@ -74,7 +74,6 @@ export const termSchema = z.discriminatedUnion('kind', [
 ])
 export type Term = z.infer<typeof termSchema>
 
-/** The bound of an authorization reference in UTF-8 bytes, the bound of its canonical text. */
 export const GRANT_MAX_BYTES = 2048
 const encoder = new TextEncoder()
 const grantSchema = z

@@ -37,9 +37,7 @@ function facesOf(ctx: Context): NotificationToolFaces | undefined {
     : { sending, inbox, subscriptions, catalog }
 }
 
-/** The agent is the verified session of the call. No turn is woken by a notification yet, so the
- * depth is 0. The call's access stays registered while its scope is open, so the notification
- * service can read what this call was released on. */
+/** The agent is the verified session of the call. No turn is woken by a notification yet, so the depth is 0. */
 export function bindReleaseNotifications(
   ctx: Context,
   parent: Parent,

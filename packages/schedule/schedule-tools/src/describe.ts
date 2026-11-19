@@ -5,7 +5,7 @@ import type {
   ScheduleView,
 } from '@omne-harness/schedule-contract'
 import type { ReleaseDescription, ReleaseRow } from '@omne-harness/tool-contract'
-import { scheduleReadsOf, type ScheduleReadFaces } from './port.ts'
+import { scheduleReadsOf, type ScheduleReadFaces, type ScheduleReads } from './port.ts'
 import { definitionOf, tree, type SchedulesArguments } from './protocol.ts'
 
 export const ACTIVATION_KIND = 'schedule.activation@1'
@@ -36,9 +36,7 @@ const VERBS: Readonly<Record<Activation['command'], string>> = {
   stop: '结束',
 }
 
-// Only an object: a resident call keeps its whole definition in one execution record command,
-// which already sits within a few KiB of the storage command cap; the schedule UI reads the value
-// defensively and the card falls back to the rows.
+// Only an object: a resident call's execution record command is near the storage command cap.
 export const activationSchema = tree({ type: 'object' })
 
 const local = (value: string) => value.replace('T', ' ').replace(/:00$/, '')
@@ -71,53 +69,64 @@ function purposeText(purpose: SchedulePurpose): string {
     : `执行${purpose.work.kind === 'agent' ? ' agent 的工作' : '一个程序'}`
 }
 
-/** What the call changes, read best effort: a failed read leaves the facts the arguments carry. */
-type Subject = Readonly<{
-  name: string
-  definition: ScheduleDefinition | undefined
+type Given = Readonly<{
+  label: string | undefined
+  proposed: ScheduleDefinition | undefined
+  schedule: string | undefined
+}>
+
+/** What only a read tells: the schedule as it is, and the next times. */
+type Seen = Readonly<{
+  current: ScheduleView | undefined
   next: Next
   timezone: string | undefined
 }>
 
-async function read(faces: ScheduleReadFaces | undefined, scheduleId: string) {
-  if (faces === undefined) return undefined
+const UNSEEN: Seen = { current: undefined, next: { kind: 'unavailable' }, timezone: undefined }
+const ENDING: ReadonlySet<Activation['command']> = new Set(['pause', 'stop'])
+
+function givenOf(args: Activation): Given {
+  if (args.command !== 'create' && args.command !== 'replace')
+    return { label: undefined, proposed: undefined, schedule: args.params.schedule }
+  const parsed = definitionOf(args.params.definition)
+  return {
+    label: args.params.definition.label,
+    proposed: parsed.success ? parsed.data : undefined,
+    schedule: args.command === 'replace' ? args.params.schedule : undefined,
+  }
+}
+
+function previewSource(given: Given) {
+  if (given.proposed !== undefined) return { kind: 'inline', definition: given.proposed } as const
+  return given.schedule === undefined
+    ? undefined
+    : ({ kind: 'schedule', scheduleId: given.schedule } as const)
+}
+
+async function read(faces: ScheduleReadFaces, scheduleId: string) {
   const found = await faces.queries.get(faces.context, { scheduleId: scheduleId as never })
   return found.kind === 'ok' ? (found.value as ScheduleView) : undefined
 }
 
-async function preview(
-  faces: ScheduleReadFaces | undefined,
-  source: Parameters<ScheduleReadFaces['queries']['preview']>[1]['source'],
-  after: string,
-) {
-  if (faces === undefined) return undefined
+async function nextOf(faces: ScheduleReadFaces, given: Given, after: string) {
+  const source = previewSource(given)
+  if (source === undefined) return undefined
   const answer = await faces.queries.preview(faces.context, {
-    source,
+    source: source as never,
     after: after as never,
     count: NEXT_COUNT,
   })
   return answer.kind === 'ok' ? answer.value : undefined
 }
 
-async function subjectOf(args: Activation, faces: ScheduleReadFaces | undefined, now: string) {
-  const fresh = args.command === 'create' || args.command === 'replace'
-  const given = fresh ? definitionOf(args.params.definition) : undefined
-  const proposed = given?.success === true ? given.data : undefined
-  const current = args.command === 'create' ? undefined : await read(faces, args.params.schedule)
-  const definition = proposed ?? current?.definition
-  const name = current?.definition.label ?? proposed?.label ?? '未命名'
-  if (args.command === 'pause' || args.command === 'stop')
-    return { name, definition, next: { kind: 'none' }, timezone: undefined } satisfies Subject
-  const source =
-    proposed === undefined
-      ? args.command === 'create'
-        ? undefined
-        : ({ kind: 'schedule', scheduleId: args.params.schedule } as const)
-      : ({ kind: 'inline', definition: proposed } as const)
-  const shown = source === undefined ? undefined : await preview(faces, source as never, now)
+async function seenOf(args: Activation, given: Given, reads: ScheduleReads): Promise<Seen> {
+  const faces = await reads.faces()
+  if ('kind' in faces) return UNSEEN
+  const current = given.schedule === undefined ? undefined : await read(faces, given.schedule)
+  const shown = ENDING.has(args.command) ? undefined : await nextOf(faces, given, reads.now())
   const times = shown?.candidates.map(item => local(item.adjustedLocal)) ?? []
   const next: Next = times.length === 0 ? { kind: 'unavailable' } : { kind: 'times', times }
-  return { name, definition, next, timezone: shown?.basis.timezone } satisfies Subject
+  return { current, next, timezone: shown?.basis.timezone }
 }
 
 async function within<T>(work: () => Promise<T>, ms: number): Promise<T | undefined> {
@@ -154,22 +163,16 @@ export async function describeActivation(
   input: Readonly<{ arguments: Activation; signal: AbortSignal }>,
 ): Promise<ReleaseDescription> {
   const args = input.arguments
+  const given = givenOf(args)
   const reads = scheduleReadsOf(input.signal)
-  const subject = await within(async () => {
-    const faces = reads === undefined ? undefined : await reads.faces()
-    const reachable = faces === undefined || 'kind' in faces ? undefined : faces
-    return subjectOf(args, reachable, reads?.now() ?? new Date().toISOString())
-  }, READ_WITHIN_MS)
-  const fallbackName =
-    args.command === 'create' || args.command === 'replace'
-      ? (args.params.definition.label ?? '未命名')
-      : '未命名'
-  const { name, definition, next, timezone } = subject ?? {
-    name: fallbackName,
-    definition: undefined,
-    next: { kind: 'unavailable' } as const,
-    timezone: undefined,
-  }
+  const seen =
+    reads === undefined
+      ? UNSEEN
+      : ((await within(() => seenOf(args, given, reads), READ_WITHIN_MS)) ?? UNSEEN)
+  const name = seen.current?.definition.label ?? given.label ?? '未命名'
+  const definition = given.proposed ?? seen.current?.definition
+  const next: Next = ENDING.has(args.command) ? { kind: 'none' } : seen.next
+  const timezone = seen.timezone
   return {
     rows: [
       { label: '动作', value: VERBS[args.command] },

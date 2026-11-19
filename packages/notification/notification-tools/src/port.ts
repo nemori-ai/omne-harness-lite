@@ -54,8 +54,7 @@ const forbidden: Unreachable = { unreachable: 'forbidden' }
 const digestOf = (value: unknown, length: number) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, length)
 
-/** Binds a call. A context of another tenant, or one that does not act as an agent, is refused before
- * any service is asked. The services get the reference of this call with every request. */
+/** Binds a call. A context of another tenant, or one that does not act as an agent, is refused before any service is asked. */
 export function bindNotifications(source: NotificationCallSource): BoundNotifications {
   return {
     async reach() {

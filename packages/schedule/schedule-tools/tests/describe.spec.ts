@@ -75,6 +75,73 @@ describe('what an activating call would do, for the release card', () => {
     expect(rows(renamed)).toMatchObject({ 动作: '修改生效中的日程', 改成: '名字「交季报」' })
   })
 
+  const bounded = { begin: '2026-11-01T00:00:00', until: null }
+  it.each([
+    [{ kind: 'once', localAt: '2026-12-01T09:30:00' }, '一次：2026-12-01 09:30'],
+    [{ kind: 'cron', expression: '0 9 * * 1', ...bounded }, 'cron 0 9 * * 1'],
+    [{ kind: 'rrule', rule: 'FREQ=WEEKLY;BYDAY=MO', ...bounded }, 'RRULE FREQ=WEEKLY;BYDAY=MO'],
+    [
+      {
+        kind: 'position',
+        period: 'quarter',
+        interval: 2,
+        ...bounded,
+        ordinal: 1,
+        selector: { kind: 'weekday', weekday: 3 },
+        times: ['09:00:00', '18:30:00'],
+      },
+      '每 2 季度第 1 个星期三，09:00、18:30',
+    ],
+    [
+      {
+        kind: 'position',
+        period: 'year',
+        interval: 1,
+        ...bounded,
+        ordinal: 'last',
+        selector: { kind: 'weekday', weekday: 7 },
+        times: ['09:00:00'],
+      },
+      '每年最后一个星期日，09:00',
+    ],
+  ])('writes the rule %j as %s', async (recurrence, text) => {
+    const definition = { ...DEFINITION, recurrence }
+    const described = await describing('create', { definition }, new AbortController().signal)
+    expect(rows(described)['规则']).toBe(text)
+  })
+
+  it('names the schedule a replace changes, with the rule it proposes and its next times', async () => {
+    const service = services([])
+    const { signal } = reading(service)
+    const recurrence = { ...DEFINITION.recurrence, times: ['09:00:00'] }
+    const replaced = await describing(
+      'replace',
+      {
+        schedule: ID,
+        revision: 3,
+        definition: { ...DEFINITION, label: '新名字', recurrence },
+        reason: '改到上午',
+      },
+      signal,
+    )
+    expect(rows(replaced)).toMatchObject({
+      动作: '换掉生效中日程的规则',
+      日程: '交月报',
+      规则: '每月最后一个工作日，09:00',
+    })
+    expect(typed(replaced).next.kind).toBe('times')
+  })
+
+  it('writes an instruction an update gives, when it gives no new name', async () => {
+    const { signal } = reading(services([]))
+    const instructed = await describing(
+      'update',
+      { schedule: ID, revision: 3, instruction: '改成每周一' },
+      signal,
+    )
+    expect(rows(instructed)['改成']).toBe('指令：改成每周一')
+  })
+
   it('says what it could not read instead of failing the detail', async () => {
     const service = services([])
     ;(service.queries as any).preview = async () => ({ kind: 'error', error: { code: 'x' } })

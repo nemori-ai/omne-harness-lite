@@ -86,7 +86,6 @@ export function bindScheduleReads(source: ScheduleReadSource): ScheduleReads {
 
 const readers = new WeakMap<AbortSignal, ScheduleReads>()
 
-/** Attaches the reads to one description; the returned function takes them away again. */
 export function attachScheduleReads(signal: AbortSignal, reads: ScheduleReads): () => void {
   readers.set(signal, reads)
   return () => {
