@@ -19,6 +19,7 @@ import {
   decided,
   digestOf,
   inspect,
+  isAddress,
   NOT_PERMITTED,
   recognise,
   tenantText,
@@ -75,6 +76,12 @@ async function admission<P>(
   return { kind: 'admitted', recognised: recognised.ok, revision: found.state.workspace.revision }
 }
 
+/** The stored result of an association, read back. */
+function associated(value: Readonly<{ instance: string }>): { instance: InstanceId } | undefined {
+  const instance = instanceId(value.instance)
+  return instance === null ? undefined : { instance }
+}
+
 export function createInstances<P>(deps: WorkspaceDependencies<P>): WorkspaceInstances<P> {
   return {
     async associate(access, input): Promise<Answer<Readonly<{ instance: InstanceId }>>> {
@@ -82,8 +89,7 @@ export function createInstances<P>(deps: WorkspaceDependencies<P>): WorkspaceIns
       const workspace = workspaceText(input.workspace)
       if (tenant === null || workspace === null) return NOT_PERMITTED
       const operation = operationId(input.operation)
-      if (operation === null || typeof input.address !== 'string' || input.address === '')
-        return INVALID
+      if (operation === null || !isAddress(input.address)) return INVALID
       const blocked = await admitted(deps.authority, access, 'workspace.associate', workspace)
       if (blocked !== null) return blocked
 
@@ -106,10 +112,7 @@ export function createInstances<P>(deps: WorkspaceDependencies<P>): WorkspaceIns
         })
         if (committed.kind !== 'committed') return uncommitted(committed, operation)
         if (committed.value.kind === 'stale') continue
-        return decided(committed.value, value => {
-          const made = instanceId(value.instance)
-          return made === null ? undefined : { instance: made }
-        })
+        return decided(committed.value, associated)
       }
       return unavailable('contended')
     },

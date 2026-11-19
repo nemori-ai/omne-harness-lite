@@ -17,6 +17,7 @@ import {
   admitted,
   answerOf,
   digestOf,
+  isAddress,
   NOT_PERMITTED,
   recognise,
   tenantText,
@@ -28,6 +29,10 @@ import type { TypeLookup } from './types.ts'
 
 const INVALID = { kind: 'not-performed', reason: reason('invalid-request') } as const
 const TYPE_UNKNOWN = { kind: 'not-performed', reason: reason('type-unknown') } as const
+
+/** No type named is null. A name that is not a type name is undefined. */
+const namedType = (name: TypeName | undefined): TypeName | null | undefined =>
+  name === undefined ? null : (typeName(name) ?? undefined)
 
 type Taken =
   | Readonly<{ kind: 'taken'; type: ManagementType; recognised: Recognised }>
@@ -57,10 +62,8 @@ export function createGovernance<P>(deps: WorkspaceDependencies<P>): WorkspaceGo
       const tenant = tenantText(access)
       if (tenant === null) return NOT_PERMITTED
       const operation = operationId(input.operation)
-      const named = input.type === undefined ? null : typeName(input.type)
-      if (operation === null || typeof input.address !== 'string' || input.address === '')
-        return INVALID
-      if (input.type !== undefined && named === null) return INVALID
+      const named = namedType(input.type)
+      if (operation === null || !isAddress(input.address) || named === undefined) return INVALID
       const blocked = await admitted(deps.authority, access, 'workspace.register', deps.node)
       if (blocked !== null) return blocked
 

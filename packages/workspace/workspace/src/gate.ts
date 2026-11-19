@@ -40,6 +40,10 @@ export function workspaceText(workspace: WorkspaceId): string | null {
   return encoded.ok ? encoded.value : null
 }
 
+/** An address is text and not empty. What it means is the type's to say. */
+export const isAddress = (value: unknown): value is string =>
+  typeof value === 'string' && value !== ''
+
 /**
  * The first step of every operation: is this tenant still a member, and is the action admitted.
  * A source that fails to answer is `unavailable`; it is never read as yes or as no.
