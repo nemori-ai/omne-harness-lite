@@ -17,6 +17,23 @@ const GRANTS: readonly GrantRef[] = [
   { via: 'skip-ask', holder: 'session-1', source },
 ]
 
+function broken(value: object, at = ''): (readonly [string, unknown])[] {
+  const variants: (readonly [string, unknown])[] = [
+    [`${at || 'it'} with an extra member`, { ...value, extra: 'x' }],
+  ]
+  for (const [key, member] of Object.entries(value)) {
+    const path = at === '' ? key : `${at}.${key}`
+    const { [key]: _gone, ...without } = value as Record<string, unknown>
+    variants.push([`${path} missing`, without])
+    for (const wrong of ['', 5, null, []])
+      variants.push([`${path} = ${JSON.stringify(wrong)}`, { ...value, [key]: wrong }])
+    if (typeof member === 'object' && member !== null)
+      for (const [label, inner] of broken(member, path))
+        variants.push([label, { ...value, [key]: inner }])
+  }
+  return variants
+}
+
 describe('the canonical text of a grant reference', () => {
   it.each(GRANTS)('reads back the same reference: $via', grant => {
     const text = grantRefText(grant)
@@ -46,6 +63,22 @@ describe('the canonical text of a grant reference', () => {
     ['text that is not canonical', ` ${grantRefText(GRANTS[2]!)}`],
   ])('rejects %s', (_label, text) => {
     expect(parseGrantRef(text)).toBeNull()
+  })
+
+  it.each([
+    ['an array', '[]'],
+    ['a number', '5'],
+    ['null', 'null'],
+  ])('rejects text that is %s', (_label, text) => {
+    expect(parseGrantRef(text)).toBeNull()
+  })
+
+  it.each(
+    GRANTS.flatMap(grant =>
+      broken(grant).map(([label, value]) => [`${grant.via}: ${label}`, value] as const),
+    ),
+  )('rejects one member broken, %s', (_label, value) => {
+    expect(parseGrantRef(grantRefText(value as GrantRef))).toBeNull()
   })
 
   it('rejects text over the limit and keeps every canonical reference of this shape under it', () => {

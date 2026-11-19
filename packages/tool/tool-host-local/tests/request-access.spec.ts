@@ -355,6 +355,7 @@ describe('what a start was released on', () => {
   it.each([
     ['a verdict', { by: 'verdict', grant: '{"via":"verdict"}' }],
     ['a once authorization', { by: 'once', grant: '{"via":"once"}' }],
+    ['a session authorization', { by: 'session', grant: '{"via":"session-grant"}' }],
     ['a carrier', { by: 'carrier', grant: null }],
     ['an ungated command', { by: 'ungated', grant: null }],
   ] as const)(
@@ -366,6 +367,36 @@ describe('what a start was released on', () => {
       expect(ok(await f.authority.releaseOf(f.call))).toEqual({ kind: 'released', release })
     },
   )
+
+  it('reads the release of the latest acceptance when a call is started again, and only an acceptance', async () => {
+    let release = { by: 'verdict', grant: '{"via":"verdict"}' }
+    const f = fixture(async () => ({ kind: 'allowed', condition: null, release }) as never)
+    await start(f)
+    const again = (generation: string) => ({
+      ...f.start,
+      operation: `${f.start.operation}/${generation}` as never,
+      execution: { ...f.start.execution, generation },
+    })
+    const startAgain = async (generation: string) => {
+      const next = again(generation)
+      const permit = ok(await f.authority.prepare({ ...f.call, start: next, request: f.fixed }))
+      const input = { ...f.call, start: next, permit, executorReceipt: evidence('executor') }
+      return ok(await f.authority.consume({ ...input, request: f.fixed })).kind
+    }
+    release = { by: 'once', grant: '{"via":"once"}' }
+    expect(await startAgain('2')).toBe('started')
+    expect(ok(await f.authority.releaseOf(f.call))).toEqual({ kind: 'released', release })
+    ok(await f.authority.prepare({ ...f.call, start: again('3'), request: f.fixed }))
+    expect(ok(await f.authority.inspect({ ...f.call, start: again('3') })).kind).toBe('not-started')
+    expect(ok(await f.authority.releaseOf(f.call))).toEqual({ kind: 'released', release })
+  })
+
+  it('answers invalid for a read that names no call', async () => {
+    const f = fixture(allowed)
+    expect(await f.authority.releaseOf({ ...f.call, call: '' } as never)).toMatchObject({
+      failure: { kind: 'invalid' },
+    })
+  })
 
   it('reads no release for a start the policy released without one', async () => {
     const f = fixture(allowed)

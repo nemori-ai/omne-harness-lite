@@ -40,6 +40,7 @@ it('publishes a read-only guard over the authorization context', () => {
     providesFacts: [],
     grouping: 'singleton',
   })
+  expect([guard.participant, guard.protocol]).toEqual(['session-authorization-guard', '1'])
 })
 
 describe('the authorization a start was released on, at its acceptance', () => {
@@ -86,7 +87,10 @@ describe('the authorization a start was released on, at its acceptance', () => {
     { request: { tenant: 't', session: 's', grant: { kind: 'guess' } } },
   ])('rejects malformed input without querying', facts => {
     const at = port('sl_authorization_once', 'once')
-    expect(guard.execute(facts, at as never)).toMatchObject({ kind: 'unsupported' })
+    expect(guard.execute(facts, at as never)).toEqual({
+      kind: 'unsupported',
+      basis: { reason: 'session-authorization-guard-input' },
+    })
     expect(at.execute).not.toHaveBeenCalled()
   })
 })
