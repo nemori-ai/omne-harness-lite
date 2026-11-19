@@ -22,6 +22,7 @@ import { useFollowBottom } from './scroll.ts'
 import { TranscriptRow, usePublication } from './transcript-arrivals.tsx'
 import { useSession } from './use-session.ts'
 import { WaitingNotice, waitingAnchor } from './waiting-notice.tsx'
+import { useShownEntry } from './shown-entry.ts'
 
 export type ConversationPageProps = Readonly<{
   workspaces: SessionWorkspaces
@@ -259,12 +260,14 @@ function Conversation({
   const publication = usePublication(epoch, keys, content.readThrough !== null)
   const arriving = (key: string) => publication.arrivals.has(key)
   const anchor = waitingAnchor(committed, waiting)
+  const rows = useMemo(() => committed.map(item => item.key), [committed])
+  const found = useShownEntry(epoch, scroller, rows, content.readThrough !== null)
   const notice = <WaitingNotice waiting={waiting} driver={driver} />
   return (
     <div className="omne-conversation" ref={scroller} onScroll={onScroll}>
       {committed.map(item => (
         <Fragment key={item.key}>
-          <TranscriptRow arriving={arriving(item.key)}>
+          <TranscriptRow arriving={arriving(item.key)} entry={item.key} found={item.key === found}>
             <ItemView item={item} />
           </TranscriptRow>
           {item.key === anchor ? notice : null}

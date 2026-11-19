@@ -45,15 +45,20 @@ export function usePublication(
 
 export function TranscriptRow({
   arriving,
+  entry,
+  found = false,
   children,
 }: {
   readonly arriving: boolean
+  /** The history entry this row shows, and whether it is the one a jump asked for. */
+  readonly entry?: string
+  readonly found?: boolean
   readonly children: ReactNode
 }) {
   const node = useRef<HTMLDivElement>(null)
   useArrival(node, { still: !arriving })
   return (
-    <div ref={node} className="omne-transcript-row">
+    <div ref={node} className="omne-transcript-row" data-entry={entry} data-found={found}>
       {children}
     </div>
   )
