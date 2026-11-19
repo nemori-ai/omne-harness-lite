@@ -206,7 +206,6 @@ export type LateDispatchFact =
   | Readonly<{ kind: 'account'; event: string; value: CallAccountReport }>
   | Readonly<{ kind: 'terminal'; event: string; actual: Termination }>
   | Readonly<{ kind: 'cost-miss'; event: string; final: boolean }>
-/** The upstream's answer to the cost of one request, asked after the fact. Only `missed` counts. */
 export type CostLookupAnswer =
   | Readonly<{ kind: 'found'; cost: CallAccountReport['cost']; place: string }>
   | Readonly<{ kind: 'missed' }>
@@ -272,7 +271,6 @@ export interface ModelCommands<P> {
   endRead(input: CallAccess<P> & Readonly<{ read: ReadId }>): Reply<ReadState>
   handoff(input: AckInput<P>): Reply<AckReceipt>
   abandon(input: AbandonInput<P>): Reply<AbandonReceipt>
-  /** Records that the consumer saved a late account of a dispatch, by the receipt it gave. */
   confirmAccount(
     input: CallAccess<P> &
       Readonly<{
@@ -305,7 +303,6 @@ export type SendResult =
   | Readonly<{ kind: 'unknown'; dispatch: DispatchId; diagnostic: string }>
 export interface ModelSendBoundary<P> {
   send(input: SendDemand<P>, signal: AbortSignal): Promise<SendResult>
-  /** Asks the upstream what an earlier dispatch cost, with the credential layer it was sent with. */
   lookupCost?(
     input: CallAccess<P> & Readonly<{ dispatch: DispatchId }>,
     signal: AbortSignal,

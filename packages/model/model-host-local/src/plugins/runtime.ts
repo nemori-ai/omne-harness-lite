@@ -131,7 +131,6 @@ export type ResultPushLimits = Readonly<{
   maxCleanupSteps: number
   maxPendingAccountsPerTenant: number
   maxPendingAccounts: number
-  /** How many lookups of one dispatch's cost may miss before it is recorded as not found. */
   maxCostMisses: number
   /** The pauses before a call that still owes work is woken again; the last one repeats. */
   delaysMs: readonly number[]
@@ -145,7 +144,6 @@ export type ResultPushOptions = Readonly<{
   ledger: ResultPushLedger
   limits: ResultPushLimits
   recovery?: ResultPushRecovery
-  /** Asks the upstream the cost of an earlier dispatch; without it no cost is looked up. */
   lookup?: NonNullable<ModelSendBoundary<unknown>['lookupCost']>
 }>
 
@@ -190,6 +188,27 @@ function checkedLimits(limits: ResultPushLimits): ResultPushLimits {
   if (!isDelayTable(limits?.delaysMs))
     throw new RangeError('model result push: delaysMs must list integers of at least 1')
   return { ...limits, delaysMs: [...limits.delaysMs] }
+}
+
+function pendingOf(reservations: ReadonlyMap<string, string>, tenant: string): number {
+  let count = 0
+  for (const owner of reservations.values()) if (owner === tenant) count += 1
+  return count
+}
+
+async function originOf(
+  { commands, report }: Pick<StageInput, 'commands' | 'report'>,
+  target: Target,
+  principal: unknown,
+): Promise<ResultPushRecord['origin']> {
+  const recovery = await commands.loadRecovery({ ...target, principal })
+  if ('failure' in recovery) {
+    report({ kind: 'freeze-failed', step: 'late-account-origin' })
+    return null
+  }
+  const reference = encodeModelInvocationRef({ ...target, admission: recovery.ok.admission })
+  if ('failure' in reference) return null
+  return frozen({ reference: reference.ok, consumer: recovery.ok.state.consumer })
 }
 
 function newOperation(): ModelOperationId {
@@ -337,7 +356,13 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     mark: owing.mark,
   })
   const costs = createCostLookups({ ...input, ...options, operation: newOperation })
-  const late = createLateAccounts({ ...input, operation: newOperation })
+  const late = createLateAccounts({
+    ...input,
+    operation: newOperation,
+    reservations,
+    maxPending: limits.maxPendingAccounts,
+    hold,
+  })
 
   function wake(target: Target): void {
     const key = keyOf(target)
@@ -389,7 +414,7 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
         return
       }
       const access = { principal: resolved.ok.principal, tenant: target.tenant }
-      await redeliver(target, access)
+      await late.redeliver(target, access, ledger.read(target))
       let record = receive(ledger.read(target) ?? fresh(target))
       if (record.origin === null || !custodyEnded(record.acknowledgement))
         record = await freeze(record, access)
@@ -661,34 +686,6 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     }
   }
 
-  // A late account the consumer has not confirmed: one the acknowledged result carried is confirmed
-  // by the result's receipt; any other is held again, so a restart delivers it once more.
-  async function redeliver(target: Target, access: Access): Promise<void> {
-    const tenant = tenantCodec.encode(target.tenant)
-    const record = ledger.read(target)
-    const saved = record?.acknowledgement === 'acknowledged' ? savedResultOf(record) : null
-    for (const item of tenant.ok ? await late.undelivered(target.call, access) : []) {
-      const carried = record?.result?.delivery.accounts.some(
-        held => held.dispatch === item.dispatch && held.account?.revision === item.revision,
-      )
-      if (carried === true && saved !== null) {
-        await late.confirm(access, target.call, item, saved.evidence)
-        continue
-      }
-      const reservation = JSON.stringify([tenant.ok && tenant.value, 'again', item.dispatch])
-      if (reservations.has(reservation) || reservations.size >= limits.maxPendingAccounts) continue
-      reservations.set(reservation, tenant.ok ? tenant.value : '')
-      if (!(await hold(target, item.dispatch, item.revision, reservation)))
-        reservations.delete(reservation)
-    }
-  }
-
-  function pendingOf(tenant: string): number {
-    let count = 0
-    for (const owner of reservations.values()) if (owner === tenant) count += 1
-    return count
-  }
-
   async function recordLateFact(
     late: Parameters<ModelCommands<unknown>['recordLateFact']>[0],
   ): ReturnType<ModelCommands<unknown>['recordLateFact']> {
@@ -700,7 +697,7 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     if (callKey === undefined || !tenantText.ok) return commands.recordLateFact(late)
     const reservation = JSON.stringify([tenantText.value, late.operation])
     if (!reservations.has(reservation)) {
-      const pending = pendingOf(tenantText.value)
+      const pending = pendingOf(reservations, tenantText.value)
       if (
         pending >= limits.maxPendingAccountsPerTenant ||
         reservations.size >= limits.maxPendingAccounts
@@ -771,7 +768,8 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
       report({ kind: 'freeze-failed', step: 'late-account' })
       return false
     }
-    const origin = ledger.read(target)?.origin ?? (await originOf(target, resolved.ok.principal))
+    const origin =
+      ledger.read(target)?.origin ?? (await originOf(input, target, resolved.ok.principal))
     if (origin === null) return false
     const delivery = frozen<AccountDelivery>({
       kind: 'account',
@@ -787,17 +785,6 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     }
     inbox.set(key, [...(inbox.get(key) ?? []), { target, held, origin }])
     return true
-  }
-
-  async function originOf(target: Target, principal: unknown): Promise<ResultPushRecord['origin']> {
-    const recovery = await commands.loadRecovery({ ...target, principal })
-    if ('failure' in recovery) {
-      report({ kind: 'freeze-failed', step: 'late-account-origin' })
-      return null
-    }
-    const reference = encodeModelInvocationRef({ ...target, admission: recovery.ok.admission })
-    if ('failure' in reference) return null
-    return frozen({ reference: reference.ok, consumer: recovery.ok.state.consumer })
   }
 
   async function paused(ms: number): Promise<boolean> {

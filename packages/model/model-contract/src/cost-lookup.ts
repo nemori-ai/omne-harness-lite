@@ -1,6 +1,5 @@
-// Where the after-the-fact lookup of one dispatch's cost stands. It is a view of the dispatch record:
-// a sent and ended dispatch without a known cost and with the upstream's request id is looked up
-// until the cost is found or the lookup gave up; an unknown cost never becomes zero.
+// Where the after-the-fact cost lookup of one dispatch stands, read off its record; an unknown cost
+// is looked up until it is found or the lookup gave up, and never becomes zero.
 import type { DispatchRecord } from './call-surface.ts'
 
 export type CostLookupState = 'not-needed' | 'pending' | 'found' | 'not-found' | 'no-request-id'

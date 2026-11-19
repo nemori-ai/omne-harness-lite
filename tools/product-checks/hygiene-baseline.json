@@ -80,7 +80,7 @@
       "packages/identity/identity/src/testing/governance-contract.ts": 2224,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
       "packages/model/model-storage-sql/src/commit.ts": 1109,
-      "packages/model/model/src/commands/commands.ts": 1070,
+      "packages/model/model/src/commands/commands.ts": 1054,
       "packages/session/session-adapters/src/cordis/agent-journal.ts": 1774,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
@@ -455,7 +455,7 @@
       },
       "packages/model/model-host-local/src/plugins/runtime.ts": {
         "count": 1,
-        "longest": 535
+        "longest": 529
       },
       "packages/model/model-storage-sql/src/commit.ts": {
         "count": 1,
@@ -463,7 +463,7 @@
       },
       "packages/model/model/src/commands/commands.ts": {
         "count": 2,
-        "longest": 429
+        "longest": 411
       },
       "packages/model/model/src/commands/initial.ts": {
         "count": 1,

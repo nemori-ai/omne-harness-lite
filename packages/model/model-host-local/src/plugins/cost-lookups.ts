@@ -1,7 +1,5 @@
-// The after-the-fact cost lookup of the dispatches of one settled call, one question per pending
-// dispatch per wake. A found cost goes in as the next revision of the dispatch's account, marked
-// late, through the late-fact entry that delivers it; a miss is counted and the last one gives up;
-// an unavailable answer only owes another wake.
+// One cost question per pending dispatch of a settled call per wake: a found cost becomes the next
+// late revision of its account; a miss is counted and the last one gives up.
 import { createHash } from 'node:crypto'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {

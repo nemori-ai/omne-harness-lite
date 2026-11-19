@@ -109,9 +109,7 @@ export type DispatchRecord = Readonly<{
   /** The upstream's identity of this request, taken from a response header; used only to look up its cost. */
   request?: string
   connectRetries?: readonly ConnectRetryReason[]
-  /** How often the after-the-fact cost lookup missed, and whether it gave up. Absent before a miss. */
   lookup?: Readonly<{ misses: number; exhausted: boolean }>
-  /** The highest revision of a late account the consumer confirmed it saved. */
   lateDelivered?: string
 }>
 export interface ModelCalls<P> {
