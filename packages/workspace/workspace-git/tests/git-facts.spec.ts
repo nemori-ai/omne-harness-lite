@@ -58,6 +58,16 @@ describe('reading a working copy from its files', () => {
     await rm(join(git, 'refs', 'heads', 'main'))
     expect(await headOf(root)).toBe('unborn:refs/heads/main')
     const packed = `# pack-refs with: peeled fully-peeled sorted\n${LATER} refs/heads/other\n${COMMIT} refs/heads/main\n^${LATER}\n`
+    for (const line of [
+      `x${COMMIT} refs/heads/main`,
+      `${COMMIT} refs/heads/main more`,
+      'a refs/heads/main',
+    ]) {
+      await writeFile(join(git, 'packed-refs'), `${line}\n`)
+      expect(await headOf(root)).toBe('unborn:refs/heads/main')
+    }
+    await writeFile(join(git, 'packed-refs'), `${'d'.repeat(64)} refs/heads/main\n`)
+    expect(await headOf(root)).toBe('d'.repeat(64))
     await writeFile(join(git, 'packed-refs'), packed)
     expect(await headOf(root)).toBe(COMMIT)
     await writeFile(join(git, 'refs', 'heads', 'main'), `${LATER}\n`)

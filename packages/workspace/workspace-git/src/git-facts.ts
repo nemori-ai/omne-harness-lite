@@ -99,7 +99,7 @@ export async function readWorkingCopy(root: string): Promise<TypeAnswer<WorkingC
     const gitDirectory = await gitDirectoryOf(root)
     if (gitDirectory === null) return NOT_ONE
     const shared = await text(join(gitDirectory, 'commondir'))
-    const common = await realpath(resolve(gitDirectory, shared ?? '.'))
+    const common = await realpath(resolve(gitDirectory, shared ?? ''))
     if ((await present(lstat(join(common, 'objects'))))?.isDirectory() !== true) return NOT_ONE
     if ((await present(lstat(join(common, 'reftable')))) !== null)
       return { refused: reason('unsupported-ref-format'), final: true }

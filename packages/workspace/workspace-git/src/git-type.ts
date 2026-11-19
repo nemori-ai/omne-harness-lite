@@ -17,11 +17,11 @@ export type GitMaterial = DirectoryMaterial & Readonly<{ repository: Repository 
 const OTHER = { kind: 'refused', reason: reason('not-the-same-resource') } as const
 
 /** Stored material may name no repository, or not a whole one: that is the same as another one. */
-const repositoryOf = (material: Material): Partial<Repository> | undefined =>
+const repositoryOf = (material: Material): Repository | undefined =>
   (material as Partial<GitMaterial>).repository ?? undefined
 
-const same = (left: Partial<Repository> | undefined, right: Partial<Repository>): boolean =>
-  left?.identity === right.identity && left?.commonDirectory === right.commonDirectory
+const same = (left: Repository | undefined, right: Repository): boolean =>
+  left?.identity === right.identity && left.commonDirectory === right.commonDirectory
 
 /** A directory that is also a working copy. Every override asks the directory type first. */
 export class GitType extends DirectoryType {
