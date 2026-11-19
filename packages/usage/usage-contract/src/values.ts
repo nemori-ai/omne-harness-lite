@@ -9,7 +9,7 @@ export type UsageCost =
   | Readonly<{ state: 'known'; lexeme: string; unit: string }>
   | Readonly<{ state: 'unknown' }>
 
-/** One unit of a producer (a real dispatch, a tool call); `cost` is null when nothing is payable. */
+/** A dispatch or a tool call. Null `cost`: nothing payable; durations: whole milliseconds. */
 export type UsageFact = Readonly<{
   source: string
   subject: Readonly<{ kind: SubjectKind; id: string }>
