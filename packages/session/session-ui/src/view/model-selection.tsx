@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode 
 import type { ModelChoice, ModelSelectionStore } from '../model/model-selection.ts'
 
 const DEFAULT = '::default'
+const OPTION = 'omne-session-model-option'
 
 function ModelSelect({
   label,
@@ -27,7 +28,12 @@ function ModelSelect({
       <SelectContent>
         {lead}
         {choices.map(choice => (
-          <SelectItem key={choice.route} value={choice.route} disabled={!choice.selectable}>
+          <SelectItem
+            key={choice.route}
+            className={OPTION}
+            value={choice.route}
+            disabled={!choice.selectable}
+          >
             {choice.route}
             {choice.note === null ? null : (
               <span className="omne-session-model-note">（{choice.note}）</span>
@@ -112,7 +118,11 @@ export function useNewSessionModel(
       value={model ?? DEFAULT}
       shown={model ?? '默认模型'}
       choices={listing.choices}
-      lead={<SelectItem value={DEFAULT}>默认模型</SelectItem>}
+      lead={
+        <SelectItem className={OPTION} value={DEFAULT}>
+          默认模型
+        </SelectItem>
+      }
       onValueChange={value => pick(value === DEFAULT ? null : value)}
     />
   )

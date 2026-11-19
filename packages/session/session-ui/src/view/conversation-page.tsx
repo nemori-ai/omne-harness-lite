@@ -85,7 +85,9 @@ function Page({
           {state.kind === 'open' || state.kind === 'unavailable' ? (
             <SessionId session={state.session} />
           ) : null}
-          {state.kind === 'open' ? heading(state.session) : null}
+          {state.kind === 'open' ? (
+            <div className="omne-session-actions">{heading(state.session)}</div>
+          ) : null}
         </div>
         <ConnectionBadge state={state} />
       </header>

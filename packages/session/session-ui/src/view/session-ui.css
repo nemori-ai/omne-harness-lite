@@ -82,9 +82,33 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 64px;
+  min-height: 64px;
   min-width: 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--omne-line-subtle);
+}
+.omne-session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.omne-session-model {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--omne-text-caption);
+}
+.omne-session-model-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+.omne-session-model-note {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
 }
 .omne-session-heading {
   display: flex;
