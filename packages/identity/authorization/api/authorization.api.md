@@ -333,6 +333,7 @@ export type ReleaseCardAction = Readonly<{
     tool: string;
     command: string | null;
     preview: string;
+    gateTitle: string;
     effectiveArguments: string;
     session: string;
     agent: string;
@@ -352,6 +353,7 @@ export type ReleaseCard = Readonly<{
         command: string | null;
         preview: string;
     }>;
+    gateTitle: string;
     arguments: Readonly<{
         text: string;
         truncated: boolean;

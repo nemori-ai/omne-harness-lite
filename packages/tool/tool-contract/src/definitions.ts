@@ -70,6 +70,10 @@ export type ToolGovernance = Readonly<{
 }>
 /** The command may go to the background unless the call gives one of these parameters. */
 export type ToolCommandBackground = Readonly<{ unless: readonly string[] }>
+export type ToolGateDefault = 'deny' | 'ask' | 'auto'
+export type ToolGate = Readonly<{ id: string; title: string; default: ToolGateDefault }>
+/** `null` declares the command ungated. */
+export type ToolCommandRelease = Readonly<{ gate: string | null }>
 export type ToolCommandDeclaration = Readonly<{
   name: string
   summary: string
@@ -78,6 +82,7 @@ export type ToolCommandDeclaration = Readonly<{
     | Readonly<{ kind: 'executor-owned' }>
   returns: ToolReturnDeclaration
   background?: ToolCommandBackground
+  release?: ToolCommandRelease
 }>
 export type ToolImplementationShape =
   | Readonly<{ kind: 'function'; parameters: ParameterContract; returns: ToolReturnDeclaration }>
@@ -86,6 +91,7 @@ export type ToolImplementationShape =
       encoding: CommandCallEncoding
       commands: readonly ToolCommandDeclaration[]
       guide?: string
+      gates?: readonly ToolGate[]
     }>
 export type ToolImplementationFacts = Readonly<{
   implements: ToolImplementationShape

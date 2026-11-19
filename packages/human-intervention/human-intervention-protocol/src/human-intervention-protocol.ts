@@ -113,6 +113,7 @@ const question = {
         }),
       },
       origin: { rule: object({ session: { rule: text }, agent: { rule: text } }) },
+      gateTitle: { rule: text },
       gate: {
         rule: object({
           capabilityId: { rule: text },

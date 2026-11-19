@@ -26,7 +26,7 @@ export type Answered = Readonly<{
   tenant: TenantId
   session: string
   consumer: AuthorizationConsumer
-  gate: Pick<ToolPermissionAction, 'definition' | 'effectiveArguments'>
+  gate: Pick<ToolPermissionAction, 'definition' | 'effectiveArguments' | 'gate'>
 }>
 export type EffectPorts = Readonly<{
   authorizations: AuthorizationWriter | undefined
@@ -78,6 +78,7 @@ async function lasting(
     principal: answered.principal,
     tenant: answered.tenant,
     definition: answered.gate.definition,
+    gate: answered.gate.gate,
     effect: effect.effect,
     option: effect.option,
     card: effect.card,

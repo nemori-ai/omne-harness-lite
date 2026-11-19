@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TenantSettings } from '@omne-harness/settings'
+import { IMPLICIT_TOOL_GATE } from '@omne-harness/tool-contract'
 import { releasedDeclaration } from '../../../src/entry/permission-declarations.ts'
 import { createTenantPicks } from '../../../src/rows/authorization/tenant-picks.ts'
 import { TOOL_RELEASE_TENANT, loadProductionRelease } from '../../../src/entry/tool-release.ts'
@@ -19,6 +20,7 @@ const gate = {
   principal: { kind: 'acting-for-tenant' } as never,
   tenant: TOOL_RELEASE_TENANT,
   definition: shell.asset.adoption,
+  gate: IMPLICIT_TOOL_GATE,
 }
 
 function view(over: Readonly<Record<string, unknown>> = {}): Described {

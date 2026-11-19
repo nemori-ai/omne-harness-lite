@@ -188,6 +188,7 @@ describe('the card for an action a person must release', () => {
     principal: 'principal' as never,
     session: 'ses-1',
     definition,
+    gateTitle: '调用',
     effectiveArguments: '{"command":"run","intent":"已获批准","params":{"cmd":"ls"}}',
     evidence,
     lasting: { allow: false, deny: false },

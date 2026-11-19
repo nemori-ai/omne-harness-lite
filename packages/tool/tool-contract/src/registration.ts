@@ -12,6 +12,8 @@ import type {
 } from './authoring.ts'
 import type {
   ToolCommandBackground,
+  ToolCommandRelease,
+  ToolGate,
   ToolImplementationFacts,
   ToolImplementationShape,
   ToolProgramDeclaration,
@@ -19,11 +21,14 @@ import type {
 } from './definitions.ts'
 import {
   commandName,
+  commandRelease,
   commandSummary,
   implementationDeclaration,
   judgeImplementationFacts,
   parameterContract,
   returnDeclaration,
+  toolGates,
+  unknownGateAt,
 } from './judge-definition.ts'
 import {
   filled,
@@ -321,11 +326,16 @@ export function defineFunctionTool<E, B extends ContentBlock>(
 
 const commandEntry = record(
   { summary: commandSummary, operation: operationHandle },
-  { background: record({ unless: list(filled) }) },
+  { background: record({ unless: list(filled) }), release: commandRelease },
 )
 type CommandEntry = readonly [
   string,
-  Readonly<{ summary: string; operation: ToolOperationSlot; background?: ToolCommandBackground }>,
+  Readonly<{
+    summary: string
+    operation: ToolOperationSlot
+    background?: ToolCommandBackground
+    release?: ToolCommandRelease
+  }>,
 ]
 
 const commandTable: Check<readonly CommandEntry[]> = (value, at) => {
@@ -352,6 +362,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
     implementation: ToolImplementationDeclaration
     encoding: CommandCallEncoding
     guide?: string
+    gates?: readonly ToolGate[]
     commands: Readonly<
       Record<
         string,
@@ -359,6 +370,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
           summary: string
           operation: ToolOperation<E, B>
           background?: ToolCommandBackground
+          release?: ToolCommandRelease
         }>
       >
     >
@@ -371,20 +383,30 @@ export function defineCommandTool<E, B extends ContentBlock>(
         encoding: literal(...COMMAND_CALL_ENCODINGS),
         commands: commandTable,
       },
-      { guide: nonBlank },
+      { guide: nonBlank, gates: toolGates },
     ),
     input,
     'input',
   )
   if ('failure' in checked) return checked
-  const { implementation, encoding, guide, commands } = checked.ok
+  const { implementation, encoding, guide, gates, commands } = checked.ok
+  const unknown = unknownGateAt(
+    gates,
+    commands.map(([, entry]) => entry),
+  )
+  if (unknown >= 0)
+    return reject(
+      `input.commands[${JSON.stringify(commands[unknown]![0])}].release.gate`,
+      'unknown-gate',
+    )
   return implement(
     implementation,
     {
       kind: 'commands',
       encoding,
       ...(guide === undefined ? {} : { guide }),
-      commands: commands.map(([name, { summary, operation, background }]) => ({
+      ...(gates === undefined ? {} : { gates }),
+      commands: commands.map(([name, { summary, operation, background, release }]) => ({
         name,
         summary,
         parameters:
@@ -393,6 +415,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
             : { kind: 'executor-owned' },
         returns: operation.returns,
         ...(background === undefined ? {} : { background }),
+        ...(release === undefined ? {} : { release }),
       })),
     },
     {

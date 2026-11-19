@@ -12,10 +12,12 @@ import {
 
 it('exports on the root only the names members outside the Tool group import, and their closure', () => {
   expect(Object.keys(tool).sort()).toEqual([
+    'IMPLICIT_TOOL_GATE',
     'backgroundCallsBlock',
     'backgroundCallsSchema',
     'callLabel',
     'commandCallSchema',
+    'commandGateOf',
     'commandMenu',
     'decodeCommandCallText',
     'decodeToolCallId',
@@ -35,6 +37,7 @@ it('exports on the root only the names members outside the Tool group import, an
     'toolAssetBody',
     'toolBodyContract',
     'toolCategoryDisplay',
+    'toolGatesOf',
     'toolsCapabilityOf',
   ])
 })

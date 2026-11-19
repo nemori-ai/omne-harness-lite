@@ -121,6 +121,7 @@ export const QuestionSchema = z
       origin: z
         .strictObject({ session: HitlIdentifierSchema, agent: HitlIdentifierSchema })
         .readonly(),
+      gateTitle: text(256),
       gate: releaseGate.readonly().optional(),
       options: z.array(releaseOption.readonly()).min(1).max(64).readonly(),
     }),

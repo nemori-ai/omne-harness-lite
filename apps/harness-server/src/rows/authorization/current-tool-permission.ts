@@ -22,8 +22,10 @@ import type {
   Adoption,
   FixedToolRequest,
   ToolCallId,
+  ToolGate,
   ToolOperationId,
 } from '@omne-harness/tool-contract'
+import { toolEnforcementKey } from '../../entry/tool-permission-release.ts'
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import type { AuthorizationConsumer, OnceAuthorization } from '@omne-harness/session-contract'
 import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
@@ -44,6 +46,7 @@ export type ToolPermissionAction = Readonly<{
   operation: PermissionBasisRequest['operation']
   definition: Adoption
   effectiveArguments: string
+  gate: ToolGate
   /** The call only carries another action: only a prohibition of this gate counts. */
   carrier?: true
   origin:
@@ -115,13 +118,14 @@ const undecidable = (diagnostic: string) => ({ kind: 'undecidable' as const, dia
 // A gate is found by the capability's identity in the declarations its category owners registered.
 export function declaredPermission(
   declarations: readonly PermissionDeclaration[],
-  input: Pick<ToolPermissionAction, 'definition'>,
+  input: Pick<ToolPermissionAction, 'definition' | 'gate'>,
 ) {
   const entries = declarations.filter(entry => sameAdoption(entry.asset.adoption, input.definition))
   if (entries.length !== 1) return undefined
   const entry = entries[0]!
+  const key = toolEnforcementKey(input.gate)
   const bindings = entry.governance.declaration.enforcementBindings.filter(
-    binding => binding.action === 'invoke' && binding.enforcementKey === 'tool.invoke',
+    binding => binding.action === 'invoke' && binding.enforcementKey === key,
   )
   if (bindings.length !== 1) return undefined
   const expected = bindings[0]!

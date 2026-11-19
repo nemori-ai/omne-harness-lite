@@ -68,6 +68,7 @@ export function releaseItem(cardId = 'card-3'): HumanInterventionCardItem {
         description: '',
         declineConsequence: '这一次调用不执行。',
         target: { tool: 'Shell', command: 'run', preview: 'ls -la' },
+        gateTitle: '执行',
         arguments: { text: '{"cmd":"ls -la"}', truncated: true, digest: 'digest-of-all' },
         origin: { session: 'ses_0123456789abcdef', agent: 'exe-1' },
         options: [

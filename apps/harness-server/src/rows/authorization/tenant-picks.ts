@@ -7,7 +7,7 @@ import type { CardStanding } from './settings-access.ts'
 
 /** What a lasting answer makes of the gate for the whole tenant. */
 export type LastingEffect = 'allow' | 'deny'
-type Gate = Pick<ToolPermissionAction, 'principal' | 'tenant' | 'definition'>
+type Gate = Pick<ToolPermissionAction, 'principal' | 'tenant' | 'definition' | 'gate'>
 
 /** The tenant's own pick of a gate, as the settings face holds it: read what it can take, and set it. */
 export type TenantPicks = Readonly<{

@@ -64,6 +64,7 @@ function draftOf(
       description: DESCRIPTION,
       declineConsequence: DECLINE,
       target: card.target,
+      gateTitle: card.gateTitle,
       arguments: card.arguments,
       origin: card.origin,
       ...(gate === undefined ? {} : { gate }),
@@ -87,6 +88,7 @@ export async function askedDecision(
     session: string
     definition: ToolPermissionAction['definition']
     effectiveArguments: string
+    gateTitle: string
     evidence: DecisionEvidence
     gate?: AskedGate | undefined
     lasting: Readonly<Record<LastingEffect, boolean>>
@@ -106,6 +108,7 @@ export async function askedDecision(
   const card = releaseCard(
     {
       ...label,
+      gateTitle: asking.gateTitle,
       effectiveArguments: asking.effectiveArguments,
       session: asking.session,
       agent: input.execution,

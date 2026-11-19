@@ -32,6 +32,7 @@
 - `FixedToolRequest` · `definitions.d.ts`
 - `ForegroundReturn` · `operations.d.ts`
 - `Handoff` · `operations.d.ts`
+- `IMPLICIT_TOOL_GATE` · `gates.d.ts`
 - `InspectArguments` · `tools-protocol.d.ts`
 - `IntentFault` · `command-call.d.ts`
 - `InterruptionCause` · `results.d.ts`
@@ -56,6 +57,7 @@
 - `SearchArguments` · `tools-protocol.d.ts`
 - `SearchPage` · `tools-protocol.d.ts`
 - `SourceLayer` · `definitions.d.ts`
+- `ToolActionGate` · `gates.d.ts`
 - `ToolActionResolution` · `forwarding.d.ts`
 - `ToolActionTarget` · `forwarding.d.ts`
 - `ToolArguments` · `definitions.d.ts`
@@ -81,6 +83,7 @@
 - `ToolCommandBackground` · `definitions.d.ts`
 - `ToolCommandDeclaration` · `definitions.d.ts`
 - `ToolCommandOutcome` · `operations.d.ts`
+- `ToolCommandRelease` · `definitions.d.ts`
 - `ToolConsumerProfile` · `authoring.d.ts`
 - `ToolControl` · `operations.d.ts`
 - `ToolCursor` · `identity.d.ts`
@@ -98,6 +101,8 @@
 - `ToolFailure` · `results.d.ts`
 - `ToolFixedReadArguments` · `tools-protocol.d.ts`
 - `ToolForwardIntent` · `forwarding.d.ts`
+- `ToolGate` · `definitions.d.ts`
+- `ToolGateDefault` · `definitions.d.ts`
 - `ToolIdentity` · `identity.d.ts`
 - `ToolIdentityRejection` · `identity.d.ts`
 - `ToolImplementationShape` · `definitions.d.ts`
@@ -163,6 +168,7 @@
 - `backgroundCallsSchema` · `background-calls.d.ts`
 - `callLabel` · `call-label.d.ts`
 - `commandCallSchema` · `command-call.d.ts`
+- `commandGateOf` · `gates.d.ts`
 - `commandMenu` · `command-call.d.ts`
 - `decodeCommandCallText` · `command-call.d.ts`
 - `decodeToolCallId` · `identity.d.ts`
@@ -182,6 +188,7 @@
 - `toolAssetBody` · `asset-body.d.ts`
 - `toolBodyContract` · `contract.d.ts`
 - `toolCategoryDisplay` · `contract.d.ts`
+- `toolGatesOf` · `gates.d.ts`
 - `toolsCapabilityOf` · `tools-capability.d.ts`
 
 ## 入口 `./binding` · `binding.d.ts`
@@ -1749,6 +1756,15 @@ export type ToolGovernance = Readonly<{
 export type ToolCommandBackground = Readonly<{
     unless: readonly string[];
 }>;
+export type ToolGateDefault = 'deny' | 'ask' | 'auto';
+export type ToolGate = Readonly<{
+    id: string;
+    title: string;
+    default: ToolGateDefault;
+}>;
+export type ToolCommandRelease = Readonly<{
+    gate: string | null;
+}>;
 export type ToolCommandDeclaration = Readonly<{
     name: string;
     summary: string;
@@ -1760,6 +1776,7 @@ export type ToolCommandDeclaration = Readonly<{
     }>;
     returns: ToolReturnDeclaration;
     background?: ToolCommandBackground;
+    release?: ToolCommandRelease;
 }>;
 export type ToolImplementationShape = Readonly<{
     kind: 'function';
@@ -1770,6 +1787,7 @@ export type ToolImplementationShape = Readonly<{
     encoding: CommandCallEncoding;
     commands: readonly ToolCommandDeclaration[];
     guide?: string;
+    gates?: readonly ToolGate[];
 }>;
 export type ToolImplementationFacts = Readonly<{
     implements: ToolImplementationShape;
@@ -2209,6 +2227,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
 ```ts
 import type { JsonValue } from '@omne-harness/json-text';
 import type { FixedToolRequest } from './definitions.ts';
+import type { ToolActionGate } from './gates.ts';
 import type { Access, Adoption, CallAccess, ToolCallId, ToolOperationId } from './identity.ts';
 import type { InvocationAccess, ToolInvokeRequest, ToolDefiniteFailure, ToolInvokeOutcome } from './operations.ts';
 import type { ToolStartRecord } from './ports.ts';
@@ -2229,20 +2248,29 @@ export type ToolActionTarget = Readonly<{
     definition: Adoption;
     command: string | null;
     effectiveArguments: string;
+    gate: ToolActionGate;
 }>;
 export type ToolCallAction = Readonly<{
     kind: 'own';
+    gate: ToolActionGate;
 }> | Readonly<{
     kind: 'carried';
     carrier: Readonly<{
         name: string;
         definition: Adoption;
+        gate: ToolActionGate;
     }>;
     target: ToolActionTarget;
+}> | Readonly<{
+    kind: 'argument-error';
+    gate: ToolActionGate;
+    field: string;
+    reason: string;
 }>;
 export interface ToolActionResolution<P> {
     resolve(input: Access<P> & Readonly<{
         name: string;
+        definition: Adoption;
         effectiveArguments: string;
     }>): Reply<ToolCallAction>;
 }
@@ -2283,6 +2311,24 @@ export interface ToolForwardRuntime<P> {
     }>): Promise<ToolInvokeOutcome>;
     resume(input: InvocationAccess<P>): Promise<ToolInvokeOutcome>;
 }
+```
+
+## 声明文件 `gates.d.ts`
+
+```ts
+import type { ToolDefinition, ToolGate, ToolImplementationShape } from './definitions.ts';
+export declare const IMPLICIT_TOOL_GATE: ToolGate;
+export type ToolActionGate = Readonly<{
+    kind: 'gate';
+    gate: ToolGate;
+}> | Readonly<{
+    kind: 'ungated';
+}>;
+export declare function toolGatesOf(shape: ToolImplementationShape): readonly [
+    ToolGate,
+    ...ToolGate[]
+];
+export declare function commandGateOf(definition: Pick<ToolDefinition, 'kind'> & ToolImplementationShape, command: string | null, named: readonly string[]): ToolActionGate;
 ```
 
 ## 声明文件 `identity.d.ts`
@@ -2336,7 +2382,7 @@ export type { CallOutput, ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyR
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolBodyId, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
 export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
-export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolBodyDeclaration, ToolCommandBackground, ToolCommandDeclaration, ToolDefinition, ToolEnvironmentDeclaration, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
+export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolBodyDeclaration, ToolCommandBackground, ToolCommandDeclaration, ToolCommandRelease, ToolDefinition, ToolEnvironmentDeclaration, ToolGate, ToolGateDefault, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
 export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolRenderedResult, ToolOffloadedBody, ToolBodyRetention, ToolBodyRepresentation, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';
@@ -2356,6 +2402,8 @@ export type { ResidentHolderPage, ResidentKeyFailure, ResidentReferencesPage, } 
 export { commandCallSchema, commandMenu, decodeCommandCallText, describeCommandCallRejection, selectCommandText, } from './command-call.ts';
 export type { CommandCall, CommandCallEncoding, CommandCallRejection, CommandShape, CommandTable, IntentFault, } from './command-call.ts';
 export { callLabel } from './call-label.ts';
+export { IMPLICIT_TOOL_GATE, commandGateOf, toolGatesOf } from './gates.ts';
+export type { ToolActionGate } from './gates.ts';
 export type { ToolCallLabel } from './call-label.ts';
 export { toolsCapabilityOf } from './tools-capability.ts';
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts';
@@ -2383,7 +2431,7 @@ import type { JsonValue } from '@omne-harness/json-text';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { ToolDeclarations } from './authoring.ts';
 import type { ToolImplementationDeclaration } from './authoring.ts';
-import type { ParameterContract, ToolDefinition, ToolImplementationFacts, ToolProgramDeclaration, ToolReturnDeclaration } from './definitions.ts';
+import type { ParameterContract, ToolCommandDeclaration, ToolDefinition, ToolGate, ToolImplementationFacts, ToolProgramDeclaration, ToolReturnDeclaration } from './definitions.ts';
 import { type Check } from './shape.ts';
 export declare const parameterContract: Check<ParameterContract>;
 export declare const programDeclaration: Check<ToolProgramDeclaration>;
@@ -2401,6 +2449,15 @@ export declare const toolDeclarations: Check<ToolDeclarations>;
 export declare const commandName: Check<string>;
 export declare const commandSummary: Check<string>;
 export declare const implementationDeclaration: Check<ToolImplementationDeclaration>;
+export declare const toolGates: Check<readonly ({
+    readonly id: string;
+    readonly title: string;
+    readonly default: "ask" | "auto" | "deny";
+} & Partial<{}>)[]>;
+export declare const commandRelease: Check<{
+    readonly gate: string | null;
+} & Partial<{}>>;
+export declare function unknownGateAt(gates: readonly Pick<ToolGate, 'id'>[] | undefined, commands: readonly Pick<ToolCommandDeclaration, 'release'>[]): number;
 export declare const toolDefinition: Check<ToolDefinition>;
 export declare function judgeImplementationFacts(value: unknown): Outcome<ToolImplementationFacts, Readonly<{
     field: string;
@@ -3681,7 +3738,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import { type CheckpointedToolExecutor } from './checkpointed-author.ts';
 import type { ToolAuthor, ToolImplementation, ToolImplementationDeclaration, ToolOperation, ToolOperationParameters, ToolOperationSpec } from './authoring.ts';
-import type { ToolCommandBackground, ToolReturnDeclaration } from './definitions.ts';
+import type { ToolCommandBackground, ToolCommandRelease, ToolGate, ToolReturnDeclaration } from './definitions.ts';
 import { type CommandCallEncoding } from './command-call.ts';
 type Rejection = Readonly<{
     field: string;
@@ -3718,10 +3775,12 @@ export declare function defineCommandTool<E, B extends ContentBlock>(input: Read
     implementation: ToolImplementationDeclaration;
     encoding: CommandCallEncoding;
     guide?: string;
+    gates?: readonly ToolGate[];
     commands: Readonly<Record<string, Readonly<{
         summary: string;
         operation: ToolOperation<E, B>;
         background?: ToolCommandBackground;
+        release?: ToolCommandRelease;
     }>>>;
 }>): Outcome<ToolImplementation<E, B>, Rejection>;
 export {};

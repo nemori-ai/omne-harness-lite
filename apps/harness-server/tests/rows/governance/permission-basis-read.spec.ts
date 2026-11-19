@@ -9,6 +9,7 @@ import { evaluatePermission, type PermissionBasisReading } from '@omne-harness/p
 import { sessionStorageMaterials } from '@omne-harness/session-storage-sql'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
+import { IMPLICIT_TOOL_GATE } from '@omne-harness/tool-contract'
 import {
   PERMISSION_BASIS,
   PERMISSION_BASIS_GUARD,
@@ -181,6 +182,7 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
       operation: agentPermissionOperation(request),
       definition: request.definition,
       effectiveArguments,
+      gate: IMPLICIT_TOOL_GATE,
       origin: {
         kind: 'agent-action',
         execution: request.execution,

@@ -38,6 +38,7 @@ const release = {
   target: { tool: 'Shell', command: null, preview: '' },
   arguments: { text: '{"cmd":"ls"}', truncated: false, digest: 'digest-1' },
   origin: { session: 'ses-1', agent: 'exe-1' },
+  gateTitle: '调用',
   options: [
     {
       id: 'deny-once',

@@ -3,7 +3,12 @@ import { effectiveArgumentsOf } from '@omne-harness/authorization'
 import type { RequestAccessVerdict } from '@omne-harness/tool-host-local'
 import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { FixedToolRequest, ToolOperationId } from '@omne-harness/tool-contract'
+import type {
+  FixedToolRequest,
+  ToolActionGate,
+  ToolGate,
+  ToolOperationId,
+} from '@omne-harness/tool-contract'
 import type { AdmissionReader, ResolutionReader, ToolPermissionReader } from './action-admission.ts'
 import type { ToolPermissionAction, ToolPermissionCheck } from './current-tool-permission.ts'
 import { toolActionRule, type ActionRules } from './action-rules.ts'
@@ -41,33 +46,37 @@ function permissionVerdict(
 
 type Qualified = Parameters<ToolTargetPolicy['qualify']>[0]
 
-// A call that only carries another action is judged as admission judged it: undefined when unknown now.
-async function carries(
+type Started = Readonly<{ carrier: boolean; gate: ToolActionGate }>
+
+async function startedGate(
   readResolution: ResolutionReader,
   principal: ToolPermissionAction['principal'],
   input: Qualified,
-): Promise<boolean | undefined> {
+): Promise<Started | undefined> {
   const resolved = await readResolution()?.resolve({
     principal,
     tenant: input.tenant,
     name: input.request.availability.definition.name,
+    definition: input.request.availability.definition.adoption,
     effectiveArguments: input.request.arguments.effective,
   })
-  if (resolved === undefined) return undefined
-  if ('failure' in resolved) return resolved.failure.kind === 'invalid' ? true : undefined
-  return resolved.ok.kind === 'carried'
+  if (resolved === undefined || 'failure' in resolved) return undefined
+  const action = resolved.ok
+  if (action.kind === 'own') return { carrier: false, gate: action.gate }
+  return { carrier: true, gate: action.kind === 'carried' ? action.carrier.gate : action.gate }
 }
 
 type Asked = Parameters<ToolTargetPolicy['qualify']>[0]
 type Who = NonNullable<ReturnType<typeof sessionWorkOf>>
 
-function actionOf(who: Who, input: Asked, carrier: boolean): ToolPermissionAction {
+function actionOf(who: Who, input: Asked, carrier: boolean, gate: ToolGate): ToolPermissionAction {
   return {
     principal: who.principal,
     tenant: input.tenant,
     operation: { owner: 'tool', operationId: input.call },
     definition: { ...input.request.availability.definition.adoption },
     effectiveArguments: input.request.arguments.effective,
+    gate: { ...gate },
     ...(carrier ? { carrier: true as const } : {}),
     origin: {
       kind: 'tool-call',
@@ -84,9 +93,8 @@ async function ruled(
   rules: ActionRules,
   who: Who,
   input: Asked,
-  action: ToolPermissionAction,
 ) {
-  const rule = toolActionRule(rules, action.definition)
+  const rule = toolActionRule(rules, input.request.availability.definition.adoption)
   const identity = await admission.check({
     access: { principal: who.principal, tenant: input.tenant },
     operation: { owner: 'tool', name: 'admit' },
@@ -113,13 +121,14 @@ export function createToolTargetPolicy(
         if (who === undefined) return { kind: 'denied', reason: 'session-work-required' }
         const admission = read()
         if (rules === undefined || admission === undefined) return unavailable()
-        const carrier = await carries(readResolution, who.principal, input)
-        if (carrier === undefined) return unavailable()
-        const action = actionOf(who, input, carrier)
-        const refused = await ruled(admission, rules, who, input, action)
+        const started = await startedGate(readResolution, who.principal, input)
+        if (started === undefined) return unavailable()
+        const refused = await ruled(admission, rules, who, input)
         if (refused !== null) return refused
+        if (started.gate.kind === 'ungated') return { kind: 'allowed', condition: null }
         const permission = readPermission()
         if (permission === undefined) return unavailable()
+        const action = actionOf(who, input, started.carrier, started.gate.gate)
         return permissionVerdict(await permission.check(action), input.tenant)
       } catch {
         return unavailable()

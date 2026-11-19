@@ -39,7 +39,7 @@ import {
   readBodyText,
   type BodyContract,
 } from '@omne-harness/assets'
-import { toolCategoryDisplay } from '@omne-harness/tool-contract'
+import { IMPLICIT_TOOL_GATE, toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createAssetsLocal, createTenantPublisher } from '@omne-harness/assets-local'
 import { createToolAssetCategory } from '../../../src/rows/governance/tool-assets.ts'
 import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
@@ -834,6 +834,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     operation: { owner: 'tool', operationId: fixture.input.call },
     definition: tool.asset.adoption,
     effectiveArguments: fixture.input.request.arguments.effective,
+    gate: IMPLICIT_TOOL_GATE,
     origin: {
       kind: 'tool-call' as const,
       call: fixture.input.call,

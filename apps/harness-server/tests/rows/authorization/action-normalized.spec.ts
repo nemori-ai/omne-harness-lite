@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { decisionEvidence, type AdmissionCheck } from '@omne-harness/authorization'
-import type { ToolActionResolution } from '@omne-harness/tool-contract'
+import { IMPLICIT_TOOL_GATE, type ToolActionResolution } from '@omne-harness/tool-contract'
 import { createToolActionResolution } from '../../../src/entry/tool-action-resolution.ts'
 import { createActionAdmission } from '../../../src/rows/authorization/action-admission.ts'
 import { inquiryOncePerPass } from '../../../src/rows/authorization/current-permission.ts'
@@ -212,9 +212,16 @@ describe('when the action the call performs cannot be resolved', () => {
   })
 
   it('judges only the carrier when the call names no valid target, so Tools answers the error', async () => {
-    const { answer, seen } = await admitThrough(
-      answering({ kind: 'invalid', field: 'name', reason: 'unknown-target' }),
-    )
+    const { answer, seen } = await admitThrough(() => ({
+      resolve: async () => ({
+        ok: {
+          kind: 'argument-error',
+          gate: { kind: 'gate', gate: IMPLICIT_TOOL_GATE },
+          field: 'name',
+          reason: 'unknown-target',
+        },
+      }),
+    }))
     expect(seen).toHaveLength(1)
     expect(seen[0]).toMatchObject({ carrier: true, definition: { name: 'Tools' } })
     expect(answer).toMatchObject({ ok: { kind: 'allow' } })

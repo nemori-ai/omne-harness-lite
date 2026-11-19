@@ -1,5 +1,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { FixedToolRequest } from './definitions.ts'
+import type { ToolActionGate } from './gates.ts'
 import type { Access, Adoption, CallAccess, ToolCallId, ToolOperationId } from './identity.ts'
 import type {
   InvocationAccess,
@@ -26,18 +27,20 @@ export type ToolActionTarget = Readonly<{
   definition: Adoption
   command: string | null
   effectiveArguments: string
+  gate: ToolActionGate
 }>
 export type ToolCallAction =
-  | Readonly<{ kind: 'own' }>
+  | Readonly<{ kind: 'own'; gate: ToolActionGate }>
   | Readonly<{
       kind: 'carried'
-      carrier: Readonly<{ name: string; definition: Adoption }>
+      carrier: Readonly<{ name: string; definition: Adoption; gate: ToolActionGate }>
       target: ToolActionTarget
     }>
-/** Answered before the call is made; only a carried call naming no valid target answers `invalid`. */
+  | Readonly<{ kind: 'argument-error'; gate: ToolActionGate; field: string; reason: string }>
+/** Answered before the call is made, for the exact definition the caller judges. */
 export interface ToolActionResolution<P> {
   resolve(
-    input: Access<P> & Readonly<{ name: string; effectiveArguments: string }>,
+    input: Access<P> & Readonly<{ name: string; definition: Adoption; effectiveArguments: string }>,
   ): Reply<ToolCallAction>
 }
 export type ToolForwardBinding = Readonly<{

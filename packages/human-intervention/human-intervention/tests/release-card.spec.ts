@@ -15,6 +15,7 @@ const release = {
     digest: 'd1',
   },
   origin: { session: 'ses_a', agent: 'exe_a' },
+  gateTitle: '执行',
   options: [
     {
       id: 'deny-once',

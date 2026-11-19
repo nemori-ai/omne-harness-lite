@@ -288,6 +288,11 @@ declare const item: {
                                                         };
                                                     };
                                                 };
+                                                readonly gateTitle: {
+                                                    rule: {
+                                                        readonly kind: 'text';
+                                                    };
+                                                };
                                                 readonly gate: {
                                                     readonly rule: {
                                                         readonly kind: 'object';
@@ -624,6 +629,11 @@ declare const item: {
                                                                 };
                                                             };
                                                         };
+                                                    };
+                                                };
+                                                readonly gateTitle: {
+                                                    rule: {
+                                                        readonly kind: 'text';
                                                     };
                                                 };
                                                 readonly gate: {
@@ -1139,6 +1149,11 @@ declare const item: {
                                                         };
                                                     };
                                                 };
+                                                readonly gateTitle: {
+                                                    rule: {
+                                                        readonly kind: 'text';
+                                                    };
+                                                };
                                                 readonly gate: {
                                                     readonly rule: {
                                                         readonly kind: 'object';
@@ -1552,6 +1567,11 @@ declare const cardPage: {
                                                                         };
                                                                     };
                                                                 };
+                                                                readonly gateTitle: {
+                                                                    rule: {
+                                                                        readonly kind: 'text';
+                                                                    };
+                                                                };
                                                                 readonly gate: {
                                                                     readonly rule: {
                                                                         readonly kind: 'object';
@@ -1888,6 +1908,11 @@ declare const cardPage: {
                                                                                 };
                                                                             };
                                                                         };
+                                                                    };
+                                                                };
+                                                                readonly gateTitle: {
+                                                                    rule: {
+                                                                        readonly kind: 'text';
                                                                     };
                                                                 };
                                                                 readonly gate: {
@@ -2403,6 +2428,11 @@ declare const cardPage: {
                                                                         };
                                                                     };
                                                                 };
+                                                                readonly gateTitle: {
+                                                                    rule: {
+                                                                        readonly kind: 'text';
+                                                                    };
+                                                                };
                                                                 readonly gate: {
                                                                     readonly rule: {
                                                                         readonly kind: 'object';
@@ -2877,6 +2907,7 @@ export declare const humanInterventionProtocol: {
                                     readonly capabilityId: string;
                                     readonly enforcementKey: string;
                                 };
+                                readonly gateTitle: string;
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
@@ -2977,6 +3008,7 @@ export declare const humanInterventionProtocol: {
                                     readonly capabilityId: string;
                                     readonly enforcementKey: string;
                                 };
+                                readonly gateTitle: string;
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
@@ -3043,6 +3075,7 @@ export declare const humanInterventionProtocol: {
                                     readonly capabilityId: string;
                                     readonly enforcementKey: string;
                                 };
+                                readonly gateTitle: string;
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
@@ -3152,6 +3185,7 @@ export declare const humanInterventionProtocol: {
                                     readonly capabilityId: string;
                                     readonly enforcementKey: string;
                                 };
+                                readonly gateTitle: string;
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
@@ -3252,6 +3286,7 @@ export declare const humanInterventionProtocol: {
                                     readonly capabilityId: string;
                                     readonly enforcementKey: string;
                                 };
+                                readonly gateTitle: string;
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
@@ -3318,6 +3353,7 @@ export declare const humanInterventionProtocol: {
                                     readonly capabilityId: string;
                                     readonly enforcementKey: string;
                                 };
+                                readonly gateTitle: string;
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;

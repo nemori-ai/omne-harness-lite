@@ -8,10 +8,10 @@ import {
   installToolTargetPolicy,
   toolTargetPolicyOf,
 } from '../../../src/rows/authorization/tool-target-policy.ts'
-import { decodeToolOperationId } from '@omne-harness/tool-contract'
+import { IMPLICIT_TOOL_GATE, decodeToolOperationId } from '@omne-harness/tool-contract'
 import { createToolActionResolution } from '../../../src/entry/tool-action-resolution.ts'
 import { okOf } from '../../entry/support.ts'
-import { toolsCall } from '../../entry/tool-call-support.ts'
+import { echoCall, toolsCall } from '../../entry/tool-call-support.ts'
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
 
 type World = Awaited<ReturnType<typeof forwardWorld>>
@@ -127,7 +127,15 @@ describe('current target rules of the authorization row', () => {
           arguments: { original: carrying, effective: carrying, complete: true },
         },
       })
-      await policy.qualify({ ...access, request: world.request('ToyEcho') })
+      // A real request's arguments name its command; the fixture's empty ones would name none.
+      const echo = echoCall(world, {})
+      await policy.qualify({
+        ...access,
+        request: {
+          ...world.request('ToyEcho'),
+          arguments: { original: echo, effective: echo, complete: true },
+        },
+      })
       expect(carriers.slice(-2)).toEqual([true, undefined])
       expect(await policy.qualify({ ...access, request: world.request('Shell') })).toEqual({
         kind: 'denied',
@@ -330,7 +338,14 @@ describe('what the start policy asks and answers', () => {
 
   it('judges a call whose carried target is not valid as a carrier, and waits when the resolution cannot answer', async () => {
     const invalid = await asking(allow, undefined, () => ({
-      resolve: async () => ({ failure: { kind: 'invalid', field: 'arguments', reason: 'x' } }),
+      resolve: async () => ({
+        ok: {
+          kind: 'argument-error',
+          gate: { kind: 'gate', gate: IMPLICIT_TOOL_GATE },
+          field: 'arguments',
+          reason: 'x',
+        },
+      }),
     }))
     const failing = await asking(allow, undefined, () => ({
       resolve: async () => ({ failure: { kind: 'unavailable' } }),

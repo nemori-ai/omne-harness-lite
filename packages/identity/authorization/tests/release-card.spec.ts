@@ -12,6 +12,7 @@ const action: ReleaseCardAction = {
   tool: 'Shell',
   command: 'run',
   preview: 'ls -la',
+  gateTitle: '执行',
   effectiveArguments: '{"command":"run","params":{"cmd":"ls -la"}}',
   session: 'session-1',
   agent: 'coding',
@@ -42,17 +43,35 @@ describe('the content of a release card', () => {
       ['allow-always', '始终放行'],
       ['deny-always', '始终禁止'],
     ])
+    expect(card.gateTitle).toBe('执行')
     expect(card.options.map(option => option.scope)).toEqual([
       '这一次调用不执行',
       '只执行这一次调用，参数不变',
-      '这个会话里调用 Shell 不再问你；设置变了会重新问',
-      '把 Shell 在你的租户里设成自动，所有会话下一次起生效',
-      '把 Shell 在你的租户里设成禁止，所有会话下一次起生效',
+      '这个会话里「Shell：执行」不再问你；设置变了会重新问',
+      '把「Shell：执行」在你的租户里设成自动，所有会话下一次起生效',
+      '把「Shell：执行」在你的租户里设成禁止，所有会话下一次起生效',
     ])
     expect(card.options.filter(option => option.lasting).map(option => option.id)).toEqual([
       'allow-session',
       'allow-always',
       'deny-always',
+    ])
+  })
+
+  it('scopes every lasting option to the gate of the action, not to the whole tool', () => {
+    const read = releaseCard({ ...action, tool: 'Files', command: 'read', gateTitle: '读' }, all)
+    const write = releaseCard({ ...action, tool: 'Files', command: 'write', gateTitle: '写' }, all)
+    const lasting = (card: typeof read) =>
+      card.options.filter(option => option.lasting).map(option => option.scope)
+    expect(lasting(read)).toEqual([
+      '这个会话里「Files：读」不再问你；设置变了会重新问',
+      '把「Files：读」在你的租户里设成自动，所有会话下一次起生效',
+      '把「Files：读」在你的租户里设成禁止，所有会话下一次起生效',
+    ])
+    expect(lasting(write)).toEqual([
+      '这个会话里「Files：写」不再问你；设置变了会重新问',
+      '把「Files：写」在你的租户里设成自动，所有会话下一次起生效',
+      '把「Files：写」在你的租户里设成禁止，所有会话下一次起生效',
     ])
   })
 

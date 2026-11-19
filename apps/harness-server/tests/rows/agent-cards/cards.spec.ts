@@ -114,6 +114,7 @@ describe('a round of card requests as HITL questions', () => {
         session: 'ses-1',
         definition: { owner: 'tool', name: 'Shell', revision: '1', digest: 'd' },
         effectiveArguments: '{"command":"run","params":{"cmd":"ls"}}',
+        gateTitle: '调用',
         lasting: { allow: false, deny: false },
         evidence: decisionEvidence('cards-test', '1', {}),
       },
@@ -292,6 +293,7 @@ describe('the state of a card as the reply of the port', () => {
       target: { tool: 'Shell', command: 'execute', preview: 'ls' },
       arguments: { text: '{}', truncated: false, digest: 'd' },
       origin: { session: 's', agent: 'e' },
+      gateTitle: '调用',
       gate,
       options: [
         { id: 'allow-session', label: 'L', description: 'S', offered: true, lasting: true },

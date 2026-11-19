@@ -1,6 +1,6 @@
 {
-  "format": "omne-harness/tool-release/3",
-  "generation": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
+  "format": "omne-harness/tool-release/4",
+  "generation": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
   "artifacts": [
     {
       "package": "@omne-harness/tool-definitions",
@@ -854,15 +854,15 @@
     "capabilities": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/capabilities",
-      "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-      "digest": "sha256:24d48c685215c9e9b2f031093b3ae10c5c583d54cbd2b41decfe064777c55dd4"
+      "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+      "digest": "sha256:c8e3ad07149cb3cc6502bfb2691c4b3347b058b9939783cbd987f0417cac5372"
     },
     "conversion": null,
     "attachmentAccess": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/attachment-access",
-      "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-      "digest": "sha256:02183136a01140a73409ab364ba16f0543876fbe2bac6981cc9474a92f251be6"
+      "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+      "digest": "sha256:6e91746442c563c7814c07707590c460f62e35c98239bf4a0b6d9180f9f83ca8"
     }
   },
   "entries": [
@@ -902,24 +902,38 @@
         "digest": "sha256:94108f64517d8751252caec2702b170d5c24e4326afa8c4abcfe0b47fb8d5129"
       },
       "definition": "sha256:220b38b091fb57324380e4e815b60c87a950f224c912a9ca74ae894509a8c95a",
+      "gates": [
+        {
+          "id": "invoke",
+          "title": "调用",
+          "default": "ask",
+          "commands": [
+            "create_session",
+            "execute",
+            "close_session",
+            "info",
+            "help"
+          ]
+        }
+      ],
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Shell",
-            "version": "55d84d5110aa4f60e7f717ad40511952fe2ec19f7a199095aa7f488a29d407e1",
-            "digest": "1761de2e5a461921479082ebe714be608df0707d09a117f9f28bd4b80fed79a0"
+            "version": "8d473a7c12d348b51d257a909e2d16bee9b6c7c23e7b5f858853320f3a3da0f5",
+            "digest": "f9590a3cc22bf4f9a0dc2caa7f0ff6ce36e06690f0025c366581f0c34fbe2f36"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Shell",
-            "releaseRef": "harness.tool.Shell/55d84d5110aa4f60e7f717ad40511952fe2ec19f7a199095aa7f488a29d407e1"
+            "releaseRef": "harness.tool.Shell/8d473a7c12d348b51d257a909e2d16bee9b6c7c23e7b5f858853320f3a3da0f5"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.Shell.permissions",
-              "version": "55d84d5110aa4f60e7f717ad40511952fe2ec19f7a199095aa7f488a29d407e1",
+              "version": "8d473a7c12d348b51d257a909e2d16bee9b6c7c23e7b5f858853320f3a3da0f5",
               "groups": [
                 {
                   "id": "tool.Shell",
@@ -935,8 +949,8 @@
                   "groupId": "tool.Shell",
                   "category": "governance",
                   "presentation": {
-                    "title": "Shell 调用权限",
-                    "description": "控制 Shell 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "title": "Shell：调用",
+                    "description": "控制 Shell 工具里归「调用」的命令（create_session、execute、close_session、info、help）。允许调用不代表执行环境可用或操作一定成功。",
                     "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
                     "clear": "清除本层挑选与锁界，重新按当前来源求值。",
                     "adoption": "next-boundary",
@@ -1022,15 +1036,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Shell",
-                  "releaseRef": "harness.tool.Shell/55d84d5110aa4f60e7f717ad40511952fe2ec19f7a199095aa7f488a29d407e1"
+                  "releaseRef": "harness.tool.Shell/8d473a7c12d348b51d257a909e2d16bee9b6c7c23e7b5f858853320f3a3da0f5"
                 },
                 "itemId": "invoke",
-                "revision": "55d84d5110aa4f60e7f717ad40511952fe2ec19f7a199095aa7f488a29d407e1"
+                "revision": "8d473a7c12d348b51d257a909e2d16bee9b6c7c23e7b5f858853320f3a3da0f5"
               },
               "capabilityId": "tool.Shell",
               "enforcementKey": "tool.invoke",
-              "title": "Shell 调用权限",
-              "description": "控制 Shell 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Shell：调用",
+              "description": "控制 Shell 工具里归「调用」的命令（create_session、execute、close_session、info、help）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -1102,7 +1116,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Shell.permissions",
-                "version": "55d84d5110aa4f60e7f717ad40511952fe2ec19f7a199095aa7f488a29d407e1",
+                "version": "8d473a7c12d348b51d257a909e2d16bee9b6c7c23e7b5f858853320f3a3da0f5",
                 "itemId": "invoke",
                 "groupId": "tool.Shell",
                 "groupTitle": "Shell 工具",
@@ -1114,7 +1128,7 @@
             {
               "capabilityId": "tool.Shell",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/44cae6c2a5d4040349cb15d59ac2597f6f83c9357ec720f2e735bc6eed394add",
+              "implementationRef": "tool/c75de135fd01b5d9d4162ae922245bbc4ae0cf2290cbeae5022f4d2c830ce8d0",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -1125,7 +1139,7 @@
             "binding": {
               "capabilityId": "tool.Shell",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/44cae6c2a5d4040349cb15d59ac2597f6f83c9357ec720f2e735bc6eed394add",
+              "implementationRef": "tool/c75de135fd01b5d9d4162ae922245bbc4ae0cf2290cbeae5022f4d2c830ce8d0",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -1134,15 +1148,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Shell",
-                  "releaseRef": "harness.tool.Shell/55d84d5110aa4f60e7f717ad40511952fe2ec19f7a199095aa7f488a29d407e1"
+                  "releaseRef": "harness.tool.Shell/8d473a7c12d348b51d257a909e2d16bee9b6c7c23e7b5f858853320f3a3da0f5"
                 },
                 "itemId": "invoke",
-                "revision": "55d84d5110aa4f60e7f717ad40511952fe2ec19f7a199095aa7f488a29d407e1"
+                "revision": "8d473a7c12d348b51d257a909e2d16bee9b6c7c23e7b5f858853320f3a3da0f5"
               },
               "capabilityId": "tool.Shell",
               "enforcementKey": "tool.invoke",
-              "title": "Shell 调用权限",
-              "description": "控制 Shell 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Shell：调用",
+              "description": "控制 Shell 工具里归「调用」的命令（create_session、execute、close_session、info、help）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -1214,7 +1228,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Shell.permissions",
-                "version": "55d84d5110aa4f60e7f717ad40511952fe2ec19f7a199095aa7f488a29d407e1",
+                "version": "8d473a7c12d348b51d257a909e2d16bee9b6c7c23e7b5f858853320f3a3da0f5",
                 "itemId": "invoke",
                 "groupId": "tool.Shell",
                 "groupTitle": "Shell 工具",
@@ -1241,14 +1255,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/holding",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:8e7f63683eef201db38699415e6ff0b687664c6d54a010abbb56942a7b9b6526"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:2c0e152f97ca608ca17c760b9b1a2836072de9531015eefae5e940f2f1f9dd84"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/publication",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:df1461527df926e8daa12ceddcbfe4f9d53920fddf4e0349ce77f1457a1157a6"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:42d98a8e65ee5f86b7b7f17ca0709062d10185a897278ea9dec1b37060e883be"
       }
     },
     {
@@ -1284,24 +1298,46 @@
         "digest": "sha256:5bee1c48c061684e0fa0bac8cc65796a1ae64faa833c2a6267bb550b375e152b"
       },
       "definition": "sha256:149a2835c9bb67daba583cb9b292e877c5c8128c1519074148a8254ebf9475b0",
+      "gates": [
+        {
+          "id": "invoke",
+          "title": "调用",
+          "default": "ask",
+          "commands": [
+            "read",
+            "open",
+            "write",
+            "edit",
+            "patch",
+            "list",
+            "find",
+            "info",
+            "move",
+            "copy",
+            "delete",
+            "mkdir",
+            "help"
+          ]
+        }
+      ],
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Files",
-            "version": "986e9a548e18be835118f658882f258aed1ce7214f847a4e220bb44ac0ee3bde",
-            "digest": "e55b143749d08775c49ac1b9602351c67bb0c686706fa472a56db7eb74c9f9a4"
+            "version": "0264f0a23dac21ac30f49fc2c16b35af22f21a33b672a91b21a1f758a78b2183",
+            "digest": "30c92fe06b9804ddbacd4d572dff60415d341f1dd8e1af437439c9a4f7d84909"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Files",
-            "releaseRef": "harness.tool.Files/986e9a548e18be835118f658882f258aed1ce7214f847a4e220bb44ac0ee3bde"
+            "releaseRef": "harness.tool.Files/0264f0a23dac21ac30f49fc2c16b35af22f21a33b672a91b21a1f758a78b2183"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.Files.permissions",
-              "version": "986e9a548e18be835118f658882f258aed1ce7214f847a4e220bb44ac0ee3bde",
+              "version": "0264f0a23dac21ac30f49fc2c16b35af22f21a33b672a91b21a1f758a78b2183",
               "groups": [
                 {
                   "id": "tool.Files",
@@ -1317,8 +1353,8 @@
                   "groupId": "tool.Files",
                   "category": "governance",
                   "presentation": {
-                    "title": "Files 调用权限",
-                    "description": "控制 Files 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "title": "Files：调用",
+                    "description": "控制 Files 工具里归「调用」的命令（read、open、write、edit、patch、list、find、info、move、copy、delete、mkdir、help）。允许调用不代表执行环境可用或操作一定成功。",
                     "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
                     "clear": "清除本层挑选与锁界，重新按当前来源求值。",
                     "adoption": "next-boundary",
@@ -1404,15 +1440,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Files",
-                  "releaseRef": "harness.tool.Files/986e9a548e18be835118f658882f258aed1ce7214f847a4e220bb44ac0ee3bde"
+                  "releaseRef": "harness.tool.Files/0264f0a23dac21ac30f49fc2c16b35af22f21a33b672a91b21a1f758a78b2183"
                 },
                 "itemId": "invoke",
-                "revision": "986e9a548e18be835118f658882f258aed1ce7214f847a4e220bb44ac0ee3bde"
+                "revision": "0264f0a23dac21ac30f49fc2c16b35af22f21a33b672a91b21a1f758a78b2183"
               },
               "capabilityId": "tool.Files",
               "enforcementKey": "tool.invoke",
-              "title": "Files 调用权限",
-              "description": "控制 Files 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Files：调用",
+              "description": "控制 Files 工具里归「调用」的命令（read、open、write、edit、patch、list、find、info、move、copy、delete、mkdir、help）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -1484,7 +1520,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Files.permissions",
-                "version": "986e9a548e18be835118f658882f258aed1ce7214f847a4e220bb44ac0ee3bde",
+                "version": "0264f0a23dac21ac30f49fc2c16b35af22f21a33b672a91b21a1f758a78b2183",
                 "itemId": "invoke",
                 "groupId": "tool.Files",
                 "groupTitle": "Files 工具",
@@ -1496,7 +1532,7 @@
             {
               "capabilityId": "tool.Files",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/cabb30e7b3c496b5ea783286460aef25bb240821c7009796f9797b47827f2bb0",
+              "implementationRef": "tool/ce02e2f90cd820daed12ca807d1e0cd73647990a505e35f274907c9013a97885",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -1507,7 +1543,7 @@
             "binding": {
               "capabilityId": "tool.Files",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/cabb30e7b3c496b5ea783286460aef25bb240821c7009796f9797b47827f2bb0",
+              "implementationRef": "tool/ce02e2f90cd820daed12ca807d1e0cd73647990a505e35f274907c9013a97885",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -1516,15 +1552,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Files",
-                  "releaseRef": "harness.tool.Files/986e9a548e18be835118f658882f258aed1ce7214f847a4e220bb44ac0ee3bde"
+                  "releaseRef": "harness.tool.Files/0264f0a23dac21ac30f49fc2c16b35af22f21a33b672a91b21a1f758a78b2183"
                 },
                 "itemId": "invoke",
-                "revision": "986e9a548e18be835118f658882f258aed1ce7214f847a4e220bb44ac0ee3bde"
+                "revision": "0264f0a23dac21ac30f49fc2c16b35af22f21a33b672a91b21a1f758a78b2183"
               },
               "capabilityId": "tool.Files",
               "enforcementKey": "tool.invoke",
-              "title": "Files 调用权限",
-              "description": "控制 Files 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Files：调用",
+              "description": "控制 Files 工具里归「调用」的命令（read、open、write、edit、patch、list、find、info、move、copy、delete、mkdir、help）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -1596,7 +1632,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Files.permissions",
-                "version": "986e9a548e18be835118f658882f258aed1ce7214f847a4e220bb44ac0ee3bde",
+                "version": "0264f0a23dac21ac30f49fc2c16b35af22f21a33b672a91b21a1f758a78b2183",
                 "itemId": "invoke",
                 "groupId": "tool.Files",
                 "groupTitle": "Files 工具",
@@ -1623,14 +1659,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/holding",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:0d193a71eaaeefcd6a9c522f8aae3e698afb4521fa88ac6fa4e41d0af37ac777"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:68641705a64f1e77c7f2b97e738653a891e4f397ceb217b22d2eae30f9c41ec8"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/publication",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:3badc9bcabe84c5a157e925fca440ca58cfcd6af6957a6dcfad6a927f355189e"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:825edbabcaf1cc5aac9f78c11288989490dbb7ed0555dbec2132dd2183cb54cd"
       }
     },
     {
@@ -1666,24 +1702,38 @@
         "digest": "sha256:7859283afca3b5b66c64e6d09cfb5d8638e15acbfe6f92673d88253bb9a8a153"
       },
       "definition": "sha256:af0e0762b07fc704b754dcd162db1e3da509e1a6553c5b24903ee93f3afbb12e",
+      "gates": [
+        {
+          "id": "invoke",
+          "title": "调用",
+          "default": "ask",
+          "commands": [
+            "help",
+            "search",
+            "inspect",
+            "execute",
+            "read_result"
+          ]
+        }
+      ],
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Tools",
-            "version": "69410b028935a0efcc6ea5c7b392241cd45d4231560526e127539004acd595b2",
-            "digest": "a1b23243b6f48dc41841a70d7f0407c7dc0b78e6be2034d065b61035fbb9f653"
+            "version": "32b1417e89fdb7bac8ab665a554034f19fb298d5761ecfc3a152062ffee280d6",
+            "digest": "49d1eb79b5fbfe9729e2fe1d517071f7fcda88bb8b4f0c1b35a150ab328727f8"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Tools",
-            "releaseRef": "harness.tool.Tools/69410b028935a0efcc6ea5c7b392241cd45d4231560526e127539004acd595b2"
+            "releaseRef": "harness.tool.Tools/32b1417e89fdb7bac8ab665a554034f19fb298d5761ecfc3a152062ffee280d6"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.Tools.permissions",
-              "version": "69410b028935a0efcc6ea5c7b392241cd45d4231560526e127539004acd595b2",
+              "version": "32b1417e89fdb7bac8ab665a554034f19fb298d5761ecfc3a152062ffee280d6",
               "groups": [
                 {
                   "id": "tool.Tools",
@@ -1699,8 +1749,8 @@
                   "groupId": "tool.Tools",
                   "category": "governance",
                   "presentation": {
-                    "title": "Tools 调用权限",
-                    "description": "控制 Tools 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "title": "Tools：调用",
+                    "description": "控制 Tools 工具里归「调用」的命令（help、search、inspect、execute、read_result）。允许调用不代表执行环境可用或操作一定成功。",
                     "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
                     "clear": "清除本层挑选与锁界，重新按当前来源求值。",
                     "adoption": "next-boundary",
@@ -1786,15 +1836,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Tools",
-                  "releaseRef": "harness.tool.Tools/69410b028935a0efcc6ea5c7b392241cd45d4231560526e127539004acd595b2"
+                  "releaseRef": "harness.tool.Tools/32b1417e89fdb7bac8ab665a554034f19fb298d5761ecfc3a152062ffee280d6"
                 },
                 "itemId": "invoke",
-                "revision": "69410b028935a0efcc6ea5c7b392241cd45d4231560526e127539004acd595b2"
+                "revision": "32b1417e89fdb7bac8ab665a554034f19fb298d5761ecfc3a152062ffee280d6"
               },
               "capabilityId": "tool.Tools",
               "enforcementKey": "tool.invoke",
-              "title": "Tools 调用权限",
-              "description": "控制 Tools 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Tools：调用",
+              "description": "控制 Tools 工具里归「调用」的命令（help、search、inspect、execute、read_result）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -1866,7 +1916,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Tools.permissions",
-                "version": "69410b028935a0efcc6ea5c7b392241cd45d4231560526e127539004acd595b2",
+                "version": "32b1417e89fdb7bac8ab665a554034f19fb298d5761ecfc3a152062ffee280d6",
                 "itemId": "invoke",
                 "groupId": "tool.Tools",
                 "groupTitle": "Tools 工具",
@@ -1878,7 +1928,7 @@
             {
               "capabilityId": "tool.Tools",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/3bbf16ed470749499758f4ad18fe6d3250e80a5948f68479cfa41e365b7afdb7",
+              "implementationRef": "tool/14d7db8fa7bb960ba91609dc935c4e499ea87077af1b5a849bc3dae86f7d416e",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -1889,7 +1939,7 @@
             "binding": {
               "capabilityId": "tool.Tools",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/3bbf16ed470749499758f4ad18fe6d3250e80a5948f68479cfa41e365b7afdb7",
+              "implementationRef": "tool/14d7db8fa7bb960ba91609dc935c4e499ea87077af1b5a849bc3dae86f7d416e",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -1898,15 +1948,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Tools",
-                  "releaseRef": "harness.tool.Tools/69410b028935a0efcc6ea5c7b392241cd45d4231560526e127539004acd595b2"
+                  "releaseRef": "harness.tool.Tools/32b1417e89fdb7bac8ab665a554034f19fb298d5761ecfc3a152062ffee280d6"
                 },
                 "itemId": "invoke",
-                "revision": "69410b028935a0efcc6ea5c7b392241cd45d4231560526e127539004acd595b2"
+                "revision": "32b1417e89fdb7bac8ab665a554034f19fb298d5761ecfc3a152062ffee280d6"
               },
               "capabilityId": "tool.Tools",
               "enforcementKey": "tool.invoke",
-              "title": "Tools 调用权限",
-              "description": "控制 Tools 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Tools：调用",
+              "description": "控制 Tools 工具里归「调用」的命令（help、search、inspect、execute、read_result）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -1978,7 +2028,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Tools.permissions",
-                "version": "69410b028935a0efcc6ea5c7b392241cd45d4231560526e127539004acd595b2",
+                "version": "32b1417e89fdb7bac8ab665a554034f19fb298d5761ecfc3a152062ffee280d6",
                 "itemId": "invoke",
                 "groupId": "tool.Tools",
                 "groupTitle": "Tools 工具",
@@ -2005,14 +2055,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Tools/holding",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:92bb8386fe230a0b6c91fe358f2762dec675224533a2fd766e3c242e688fe03f"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:7221aa5a358fb0eae01016e6a1d380607edd1d5bf54fa5a5e35f9d79dda869e4"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Tools/publication",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:9b33a8a764d5d541e0c483c08ce1be484fb5432f0d7170e8366a90c250a0005d"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:f4c0159fd527928e35ac3d4b4f3cefeb4a8d3fdaa92a0f0620128c188a8094aa"
       }
     },
     {
@@ -2047,24 +2097,38 @@
         "digest": "sha256:598d2bb46bbb375846bec841b0b16a941f756d83df6d69cc3415b2abecff064f"
       },
       "definition": "sha256:3c69b11bd7858233d7e8547c7a65172a26b3aaca853ea9f6cff8a02fc32f0ec9",
+      "gates": [
+        {
+          "id": "invoke",
+          "title": "调用",
+          "default": "ask",
+          "commands": [
+            "help",
+            "add",
+            "remove",
+            "mark_complete",
+            "list"
+          ]
+        }
+      ],
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.TodoItems",
-            "version": "1b167178d1015beb92d81b267d194e41d1eaf7ef154514dab92cdcac7643bf53",
-            "digest": "6552faa47cb0b1c111df1bf299b39a97dd342055e64dbc3f11d54bf8fde8ef70"
+            "version": "548a3119bdf088c51467828b5e3e4d2020df330a68839f47d881eba8ee4e320e",
+            "digest": "c1408dcda05c6b6f7b071cf7b338316167bc037f06ad5884efa16d18024450cc"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.TodoItems",
-            "releaseRef": "harness.tool.TodoItems/1b167178d1015beb92d81b267d194e41d1eaf7ef154514dab92cdcac7643bf53"
+            "releaseRef": "harness.tool.TodoItems/548a3119bdf088c51467828b5e3e4d2020df330a68839f47d881eba8ee4e320e"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.TodoItems.permissions",
-              "version": "1b167178d1015beb92d81b267d194e41d1eaf7ef154514dab92cdcac7643bf53",
+              "version": "548a3119bdf088c51467828b5e3e4d2020df330a68839f47d881eba8ee4e320e",
               "groups": [
                 {
                   "id": "tool.TodoItems",
@@ -2080,8 +2144,8 @@
                   "groupId": "tool.TodoItems",
                   "category": "governance",
                   "presentation": {
-                    "title": "TodoItems 调用权限",
-                    "description": "控制 TodoItems 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "title": "TodoItems：调用",
+                    "description": "控制 TodoItems 工具里归「调用」的命令（help、add、remove、mark_complete、list）。允许调用不代表执行环境可用或操作一定成功。",
                     "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
                     "clear": "清除本层挑选与锁界，重新按当前来源求值。",
                     "adoption": "next-boundary",
@@ -2167,15 +2231,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.TodoItems",
-                  "releaseRef": "harness.tool.TodoItems/1b167178d1015beb92d81b267d194e41d1eaf7ef154514dab92cdcac7643bf53"
+                  "releaseRef": "harness.tool.TodoItems/548a3119bdf088c51467828b5e3e4d2020df330a68839f47d881eba8ee4e320e"
                 },
                 "itemId": "invoke",
-                "revision": "1b167178d1015beb92d81b267d194e41d1eaf7ef154514dab92cdcac7643bf53"
+                "revision": "548a3119bdf088c51467828b5e3e4d2020df330a68839f47d881eba8ee4e320e"
               },
               "capabilityId": "tool.TodoItems",
               "enforcementKey": "tool.invoke",
-              "title": "TodoItems 调用权限",
-              "description": "控制 TodoItems 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "TodoItems：调用",
+              "description": "控制 TodoItems 工具里归「调用」的命令（help、add、remove、mark_complete、list）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -2247,7 +2311,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.TodoItems.permissions",
-                "version": "1b167178d1015beb92d81b267d194e41d1eaf7ef154514dab92cdcac7643bf53",
+                "version": "548a3119bdf088c51467828b5e3e4d2020df330a68839f47d881eba8ee4e320e",
                 "itemId": "invoke",
                 "groupId": "tool.TodoItems",
                 "groupTitle": "TodoItems 工具",
@@ -2259,7 +2323,7 @@
             {
               "capabilityId": "tool.TodoItems",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/74bc924865052259d60bf638f6d8a98ba4b68a623de3e61c95d40b2eb39b7b02",
+              "implementationRef": "tool/7354784c3f78a428e7860578ccf1f97c50035ae8905715692797e791e9b24f5b",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -2270,7 +2334,7 @@
             "binding": {
               "capabilityId": "tool.TodoItems",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/74bc924865052259d60bf638f6d8a98ba4b68a623de3e61c95d40b2eb39b7b02",
+              "implementationRef": "tool/7354784c3f78a428e7860578ccf1f97c50035ae8905715692797e791e9b24f5b",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -2279,15 +2343,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.TodoItems",
-                  "releaseRef": "harness.tool.TodoItems/1b167178d1015beb92d81b267d194e41d1eaf7ef154514dab92cdcac7643bf53"
+                  "releaseRef": "harness.tool.TodoItems/548a3119bdf088c51467828b5e3e4d2020df330a68839f47d881eba8ee4e320e"
                 },
                 "itemId": "invoke",
-                "revision": "1b167178d1015beb92d81b267d194e41d1eaf7ef154514dab92cdcac7643bf53"
+                "revision": "548a3119bdf088c51467828b5e3e4d2020df330a68839f47d881eba8ee4e320e"
               },
               "capabilityId": "tool.TodoItems",
               "enforcementKey": "tool.invoke",
-              "title": "TodoItems 调用权限",
-              "description": "控制 TodoItems 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "TodoItems：调用",
+              "description": "控制 TodoItems 工具里归「调用」的命令（help、add、remove、mark_complete、list）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -2359,7 +2423,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.TodoItems.permissions",
-                "version": "1b167178d1015beb92d81b267d194e41d1eaf7ef154514dab92cdcac7643bf53",
+                "version": "548a3119bdf088c51467828b5e3e4d2020df330a68839f47d881eba8ee4e320e",
                 "itemId": "invoke",
                 "groupId": "tool.TodoItems",
                 "groupTitle": "TodoItems 工具",
@@ -2386,14 +2450,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#TodoItems/holding",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:e8ab83ea29d2223e696528bda7883777fd0b4b839bfe01e08219c76273148dbe"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:277a60a79a86b64151191d61c49db1440eea5369cc6ff506cf7be3267aab889c"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#TodoItems/publication",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:2c16ab5ab6d6c2cc122c466877b4a8fe81a35c0bc09faa802623b9644e0ba5df"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:3884a86de8db329cd3df8fafe7f210f433e75fa51f84cd56da956a3c5f343a08"
       }
     },
     {
@@ -2428,24 +2492,37 @@
         "digest": "sha256:905f1b1b3024a65df5355ce54d773c92b9015f51cd258dc9edb737ebd53ce262"
       },
       "definition": "sha256:87ebd1682adc48a2137561d4631e935cc6802da577ed341c3318fc17199cd05a",
+      "gates": [
+        {
+          "id": "invoke",
+          "title": "调用",
+          "default": "ask",
+          "commands": [
+            "help",
+            "list",
+            "output",
+            "terminate"
+          ]
+        }
+      ],
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.BkgToolCalls",
-            "version": "e5c8b05453d46656c08dc9a657bd05a7f2d85b90846e1c9b319a4be2669ea86d",
-            "digest": "0932903c00b13c052a2ad6c85aceffa55429e35cbed5972363063eac92dcf23a"
+            "version": "e6f97b805426ce2e5644e14dc211bffa994f47159eae71bd4d5c3c8cb63a6145",
+            "digest": "ec52b380d662f3409bc4bd123da1e40900e010cd1638e5c1adf1bfeb3c9734c7"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.BkgToolCalls",
-            "releaseRef": "harness.tool.BkgToolCalls/e5c8b05453d46656c08dc9a657bd05a7f2d85b90846e1c9b319a4be2669ea86d"
+            "releaseRef": "harness.tool.BkgToolCalls/e6f97b805426ce2e5644e14dc211bffa994f47159eae71bd4d5c3c8cb63a6145"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.BkgToolCalls.permissions",
-              "version": "e5c8b05453d46656c08dc9a657bd05a7f2d85b90846e1c9b319a4be2669ea86d",
+              "version": "e6f97b805426ce2e5644e14dc211bffa994f47159eae71bd4d5c3c8cb63a6145",
               "groups": [
                 {
                   "id": "tool.BkgToolCalls",
@@ -2461,8 +2538,8 @@
                   "groupId": "tool.BkgToolCalls",
                   "category": "governance",
                   "presentation": {
-                    "title": "BkgToolCalls 调用权限",
-                    "description": "控制 BkgToolCalls 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "title": "BkgToolCalls：调用",
+                    "description": "控制 BkgToolCalls 工具里归「调用」的命令（help、list、output、terminate）。允许调用不代表执行环境可用或操作一定成功。",
                     "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
                     "clear": "清除本层挑选与锁界，重新按当前来源求值。",
                     "adoption": "next-boundary",
@@ -2548,15 +2625,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.BkgToolCalls",
-                  "releaseRef": "harness.tool.BkgToolCalls/e5c8b05453d46656c08dc9a657bd05a7f2d85b90846e1c9b319a4be2669ea86d"
+                  "releaseRef": "harness.tool.BkgToolCalls/e6f97b805426ce2e5644e14dc211bffa994f47159eae71bd4d5c3c8cb63a6145"
                 },
                 "itemId": "invoke",
-                "revision": "e5c8b05453d46656c08dc9a657bd05a7f2d85b90846e1c9b319a4be2669ea86d"
+                "revision": "e6f97b805426ce2e5644e14dc211bffa994f47159eae71bd4d5c3c8cb63a6145"
               },
               "capabilityId": "tool.BkgToolCalls",
               "enforcementKey": "tool.invoke",
-              "title": "BkgToolCalls 调用权限",
-              "description": "控制 BkgToolCalls 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "BkgToolCalls：调用",
+              "description": "控制 BkgToolCalls 工具里归「调用」的命令（help、list、output、terminate）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -2628,7 +2705,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.BkgToolCalls.permissions",
-                "version": "e5c8b05453d46656c08dc9a657bd05a7f2d85b90846e1c9b319a4be2669ea86d",
+                "version": "e6f97b805426ce2e5644e14dc211bffa994f47159eae71bd4d5c3c8cb63a6145",
                 "itemId": "invoke",
                 "groupId": "tool.BkgToolCalls",
                 "groupTitle": "BkgToolCalls 工具",
@@ -2640,7 +2717,7 @@
             {
               "capabilityId": "tool.BkgToolCalls",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/d19ce100178eefff4ccb7204e94b369d678f5ef8878bcca950655b4c48c443d7",
+              "implementationRef": "tool/e1e2ba80307d4b93ab02a5eb96bdda0eabe36f49c466748e99d5e3616f5ac5cf",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -2651,7 +2728,7 @@
             "binding": {
               "capabilityId": "tool.BkgToolCalls",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/d19ce100178eefff4ccb7204e94b369d678f5ef8878bcca950655b4c48c443d7",
+              "implementationRef": "tool/e1e2ba80307d4b93ab02a5eb96bdda0eabe36f49c466748e99d5e3616f5ac5cf",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -2660,15 +2737,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.BkgToolCalls",
-                  "releaseRef": "harness.tool.BkgToolCalls/e5c8b05453d46656c08dc9a657bd05a7f2d85b90846e1c9b319a4be2669ea86d"
+                  "releaseRef": "harness.tool.BkgToolCalls/e6f97b805426ce2e5644e14dc211bffa994f47159eae71bd4d5c3c8cb63a6145"
                 },
                 "itemId": "invoke",
-                "revision": "e5c8b05453d46656c08dc9a657bd05a7f2d85b90846e1c9b319a4be2669ea86d"
+                "revision": "e6f97b805426ce2e5644e14dc211bffa994f47159eae71bd4d5c3c8cb63a6145"
               },
               "capabilityId": "tool.BkgToolCalls",
               "enforcementKey": "tool.invoke",
-              "title": "BkgToolCalls 调用权限",
-              "description": "控制 BkgToolCalls 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "BkgToolCalls：调用",
+              "description": "控制 BkgToolCalls 工具里归「调用」的命令（help、list、output、terminate）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -2740,7 +2817,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.BkgToolCalls.permissions",
-                "version": "e5c8b05453d46656c08dc9a657bd05a7f2d85b90846e1c9b319a4be2669ea86d",
+                "version": "e6f97b805426ce2e5644e14dc211bffa994f47159eae71bd4d5c3c8cb63a6145",
                 "itemId": "invoke",
                 "groupId": "tool.BkgToolCalls",
                 "groupTitle": "BkgToolCalls 工具",
@@ -2767,14 +2844,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#BkgToolCalls/holding",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:ed3059454316031bafde2defa97ef553d52afcbebabf0525814593d0d8320860"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:082cd337afcebf10d7033d602711a017f22ef39bc4b451f93ea4139682d09ccf"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#BkgToolCalls/publication",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:226956869b399fbfc94621595ad6c926e7e822d834fb60c2efe7029a0dea30c4"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:a96ee543c214f4f31ba79bf5dc49f5d99357a675f77d800c1925d5c5bde667fb"
       }
     },
     {
@@ -2809,24 +2886,35 @@
         "digest": "sha256:d1f0f8d02aeb930e278923161330407de862529449a36b898e3ab1277de8395d"
       },
       "definition": "sha256:99f0e077082ba73af3234c9134392048e6ed10e85ae123271c1ccb0fc9038bb8",
+      "gates": [
+        {
+          "id": "invoke",
+          "title": "调用",
+          "default": "ask",
+          "commands": [
+            "ask",
+            "request_approval"
+          ]
+        }
+      ],
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Ask",
-            "version": "9a33db10f15d0ed808c7164925bccc056f52f280215afa925bb1c581a34dee37",
-            "digest": "2179aad06aa7454d04000c110ada0dafbb9e70fa6d4a518f0c4a78dd49daaae4"
+            "version": "52557f5dade43aeb695cae3d35af2b71e0a312fd33f2dbcc3b448ee69adc7e97",
+            "digest": "f6ebc2ae14ae360713e4215d74ea74d882ef7436a149adc2e1bcf0460ed46d76"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Ask",
-            "releaseRef": "harness.tool.Ask/9a33db10f15d0ed808c7164925bccc056f52f280215afa925bb1c581a34dee37"
+            "releaseRef": "harness.tool.Ask/52557f5dade43aeb695cae3d35af2b71e0a312fd33f2dbcc3b448ee69adc7e97"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.Ask.permissions",
-              "version": "9a33db10f15d0ed808c7164925bccc056f52f280215afa925bb1c581a34dee37",
+              "version": "52557f5dade43aeb695cae3d35af2b71e0a312fd33f2dbcc3b448ee69adc7e97",
               "groups": [
                 {
                   "id": "tool.Ask",
@@ -2842,8 +2930,8 @@
                   "groupId": "tool.Ask",
                   "category": "governance",
                   "presentation": {
-                    "title": "Ask 调用权限",
-                    "description": "控制 Ask 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "title": "Ask：调用",
+                    "description": "控制 Ask 工具里归「调用」的命令（ask、request_approval）。允许调用不代表执行环境可用或操作一定成功。",
                     "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
                     "clear": "清除本层挑选与锁界，重新按当前来源求值。",
                     "adoption": "next-boundary",
@@ -2929,15 +3017,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Ask",
-                  "releaseRef": "harness.tool.Ask/9a33db10f15d0ed808c7164925bccc056f52f280215afa925bb1c581a34dee37"
+                  "releaseRef": "harness.tool.Ask/52557f5dade43aeb695cae3d35af2b71e0a312fd33f2dbcc3b448ee69adc7e97"
                 },
                 "itemId": "invoke",
-                "revision": "9a33db10f15d0ed808c7164925bccc056f52f280215afa925bb1c581a34dee37"
+                "revision": "52557f5dade43aeb695cae3d35af2b71e0a312fd33f2dbcc3b448ee69adc7e97"
               },
               "capabilityId": "tool.Ask",
               "enforcementKey": "tool.invoke",
-              "title": "Ask 调用权限",
-              "description": "控制 Ask 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Ask：调用",
+              "description": "控制 Ask 工具里归「调用」的命令（ask、request_approval）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -3009,7 +3097,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Ask.permissions",
-                "version": "9a33db10f15d0ed808c7164925bccc056f52f280215afa925bb1c581a34dee37",
+                "version": "52557f5dade43aeb695cae3d35af2b71e0a312fd33f2dbcc3b448ee69adc7e97",
                 "itemId": "invoke",
                 "groupId": "tool.Ask",
                 "groupTitle": "Ask 工具",
@@ -3021,7 +3109,7 @@
             {
               "capabilityId": "tool.Ask",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/42a92620a86edebf76ae3be8a85ca4d5a4a7cee5eb2983da13f3f909b6985fb7",
+              "implementationRef": "tool/d7c55cfd14ad55f8d09581708184420298f112f206cc43fa255ec575c1111e1a",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -3032,7 +3120,7 @@
             "binding": {
               "capabilityId": "tool.Ask",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/42a92620a86edebf76ae3be8a85ca4d5a4a7cee5eb2983da13f3f909b6985fb7",
+              "implementationRef": "tool/d7c55cfd14ad55f8d09581708184420298f112f206cc43fa255ec575c1111e1a",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -3041,15 +3129,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Ask",
-                  "releaseRef": "harness.tool.Ask/9a33db10f15d0ed808c7164925bccc056f52f280215afa925bb1c581a34dee37"
+                  "releaseRef": "harness.tool.Ask/52557f5dade43aeb695cae3d35af2b71e0a312fd33f2dbcc3b448ee69adc7e97"
                 },
                 "itemId": "invoke",
-                "revision": "9a33db10f15d0ed808c7164925bccc056f52f280215afa925bb1c581a34dee37"
+                "revision": "52557f5dade43aeb695cae3d35af2b71e0a312fd33f2dbcc3b448ee69adc7e97"
               },
               "capabilityId": "tool.Ask",
               "enforcementKey": "tool.invoke",
-              "title": "Ask 调用权限",
-              "description": "控制 Ask 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Ask：调用",
+              "description": "控制 Ask 工具里归「调用」的命令（ask、request_approval）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -3121,7 +3209,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Ask.permissions",
-                "version": "9a33db10f15d0ed808c7164925bccc056f52f280215afa925bb1c581a34dee37",
+                "version": "52557f5dade43aeb695cae3d35af2b71e0a312fd33f2dbcc3b448ee69adc7e97",
                 "itemId": "invoke",
                 "groupId": "tool.Ask",
                 "groupTitle": "Ask 工具",
@@ -3148,14 +3236,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Ask/holding",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:8b0846c286cc9ad4516119d4000a5ae006c5a629e91e9bbbc849f4a3edf7c110"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:20214785d85a8164bba1274f7129537992d2040d7539df84ede5c705c5b08e4a"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Ask/publication",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:247d042442ae0370bd2ceeb5f03be22f9d366abb58014e01b2c9ef046811d429"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:96e1521ea9e2f379645d0a80380a1ff9d4f42f37ec9b17dcc3c8d594a61614ae"
       }
     },
     {
@@ -3191,24 +3279,36 @@
         "digest": "sha256:339ad4f7dd89c5bd08364d8a6290a66447ccac756e94f57ad51412c015ece5eb"
       },
       "definition": "sha256:6fe884549a36e90434745ac2234733aed3bdea79ad6a52889660bb6970ac2d00",
+      "gates": [
+        {
+          "id": "invoke",
+          "title": "调用",
+          "default": "ask",
+          "commands": [
+            "help",
+            "search",
+            "fetch"
+          ]
+        }
+      ],
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Web",
-            "version": "89cdf04404c079776b4378203aabb336d1f6f9ea2ebfc205bbaf5e857843593c",
-            "digest": "006da49eaef1c4ed24c13798bdd5ced39e25a9f9fdc4f6464296eccf7eefe9ea"
+            "version": "e0633eb71d0137bf27f6c2f13f8c0b8e284aaec31fa7b7d10015ae238dfc5599",
+            "digest": "0a26674db61aed40e83761a4ddc1f361a4921f8378110ad2a55176b9de478292"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Web",
-            "releaseRef": "harness.tool.Web/89cdf04404c079776b4378203aabb336d1f6f9ea2ebfc205bbaf5e857843593c"
+            "releaseRef": "harness.tool.Web/e0633eb71d0137bf27f6c2f13f8c0b8e284aaec31fa7b7d10015ae238dfc5599"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.Web.permissions",
-              "version": "89cdf04404c079776b4378203aabb336d1f6f9ea2ebfc205bbaf5e857843593c",
+              "version": "e0633eb71d0137bf27f6c2f13f8c0b8e284aaec31fa7b7d10015ae238dfc5599",
               "groups": [
                 {
                   "id": "tool.Web",
@@ -3224,8 +3324,8 @@
                   "groupId": "tool.Web",
                   "category": "governance",
                   "presentation": {
-                    "title": "Web 调用权限",
-                    "description": "控制 Web 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "title": "Web：调用",
+                    "description": "控制 Web 工具里归「调用」的命令（help、search、fetch）。允许调用不代表执行环境可用或操作一定成功。",
                     "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
                     "clear": "清除本层挑选与锁界，重新按当前来源求值。",
                     "adoption": "next-boundary",
@@ -3311,15 +3411,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Web",
-                  "releaseRef": "harness.tool.Web/89cdf04404c079776b4378203aabb336d1f6f9ea2ebfc205bbaf5e857843593c"
+                  "releaseRef": "harness.tool.Web/e0633eb71d0137bf27f6c2f13f8c0b8e284aaec31fa7b7d10015ae238dfc5599"
                 },
                 "itemId": "invoke",
-                "revision": "89cdf04404c079776b4378203aabb336d1f6f9ea2ebfc205bbaf5e857843593c"
+                "revision": "e0633eb71d0137bf27f6c2f13f8c0b8e284aaec31fa7b7d10015ae238dfc5599"
               },
               "capabilityId": "tool.Web",
               "enforcementKey": "tool.invoke",
-              "title": "Web 调用权限",
-              "description": "控制 Web 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Web：调用",
+              "description": "控制 Web 工具里归「调用」的命令（help、search、fetch）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -3391,7 +3491,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Web.permissions",
-                "version": "89cdf04404c079776b4378203aabb336d1f6f9ea2ebfc205bbaf5e857843593c",
+                "version": "e0633eb71d0137bf27f6c2f13f8c0b8e284aaec31fa7b7d10015ae238dfc5599",
                 "itemId": "invoke",
                 "groupId": "tool.Web",
                 "groupTitle": "Web 工具",
@@ -3403,7 +3503,7 @@
             {
               "capabilityId": "tool.Web",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/a250899fad01aaa89d53ce8fe6e2040d9b049f12ed52ef22c8abb053922e915c",
+              "implementationRef": "tool/aa3a70d9b9094cb5a3b1ebcd8b4053ae963db6a2bbf3487771c0f500cc956f53",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -3414,7 +3514,7 @@
             "binding": {
               "capabilityId": "tool.Web",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/a250899fad01aaa89d53ce8fe6e2040d9b049f12ed52ef22c8abb053922e915c",
+              "implementationRef": "tool/aa3a70d9b9094cb5a3b1ebcd8b4053ae963db6a2bbf3487771c0f500cc956f53",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -3423,15 +3523,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Web",
-                  "releaseRef": "harness.tool.Web/89cdf04404c079776b4378203aabb336d1f6f9ea2ebfc205bbaf5e857843593c"
+                  "releaseRef": "harness.tool.Web/e0633eb71d0137bf27f6c2f13f8c0b8e284aaec31fa7b7d10015ae238dfc5599"
                 },
                 "itemId": "invoke",
-                "revision": "89cdf04404c079776b4378203aabb336d1f6f9ea2ebfc205bbaf5e857843593c"
+                "revision": "e0633eb71d0137bf27f6c2f13f8c0b8e284aaec31fa7b7d10015ae238dfc5599"
               },
               "capabilityId": "tool.Web",
               "enforcementKey": "tool.invoke",
-              "title": "Web 调用权限",
-              "description": "控制 Web 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Web：调用",
+              "description": "控制 Web 工具里归「调用」的命令（help、search、fetch）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -3503,7 +3603,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Web.permissions",
-                "version": "89cdf04404c079776b4378203aabb336d1f6f9ea2ebfc205bbaf5e857843593c",
+                "version": "e0633eb71d0137bf27f6c2f13f8c0b8e284aaec31fa7b7d10015ae238dfc5599",
                 "itemId": "invoke",
                 "groupId": "tool.Web",
                 "groupTitle": "Web 工具",
@@ -3530,14 +3630,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Web/holding",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:6fa4977ffbf4fa0b24c2c5fba62f35bae807a82d0c04a12c896ec88e403b399d"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:a486b8837e09136338775b5379017fcea8233e6433801cc13c76dc35b4a35319"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Web/publication",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:778d31d9df60d146ae923a278f9b43eddb7c0b3532170fc4ccc662d24d454e7f"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:fd0a75bffab356fabcf903a7176f98f81d8539022f89f7e985b41d6b605f1c1e"
       }
     },
     {
@@ -3572,24 +3672,38 @@
         "digest": "sha256:da2e07dae7142cfdbcde02c70c96d31757ca1d5d1d710d964930f8123e02d118"
       },
       "definition": "sha256:42ee5594e0b2b4efb525bf81334ae254e86055f9ea06b4427b361c8da210b8c9",
+      "gates": [
+        {
+          "id": "invoke",
+          "title": "调用",
+          "default": "ask",
+          "commands": [
+            "help",
+            "search",
+            "read",
+            "list",
+            "read_file"
+          ]
+        }
+      ],
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Skills",
-            "version": "c12fcb44c9de2dc2f4cdc135c9951bdd7c91a6f33e9f172d6b0ae6dea1b350f3",
-            "digest": "83a2b529768a41cb28f986f684f4b4d527531812748eef7a6cad6ee39dbd5b57"
+            "version": "4f0cf87d2a5e48955b1924bb44349423768473b994b9c08009b147f5bea9cc42",
+            "digest": "f58cd638a707193f113ae2ad1f7e3af72c837d57532885c54d181bdccadbb2a2"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Skills",
-            "releaseRef": "harness.tool.Skills/c12fcb44c9de2dc2f4cdc135c9951bdd7c91a6f33e9f172d6b0ae6dea1b350f3"
+            "releaseRef": "harness.tool.Skills/4f0cf87d2a5e48955b1924bb44349423768473b994b9c08009b147f5bea9cc42"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.Skills.permissions",
-              "version": "c12fcb44c9de2dc2f4cdc135c9951bdd7c91a6f33e9f172d6b0ae6dea1b350f3",
+              "version": "4f0cf87d2a5e48955b1924bb44349423768473b994b9c08009b147f5bea9cc42",
               "groups": [
                 {
                   "id": "tool.Skills",
@@ -3605,8 +3719,8 @@
                   "groupId": "tool.Skills",
                   "category": "governance",
                   "presentation": {
-                    "title": "Skills 调用权限",
-                    "description": "控制 Skills 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "title": "Skills：调用",
+                    "description": "控制 Skills 工具里归「调用」的命令（help、search、read、list、read_file）。允许调用不代表执行环境可用或操作一定成功。",
                     "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
                     "clear": "清除本层挑选与锁界，重新按当前来源求值。",
                     "adoption": "next-boundary",
@@ -3692,15 +3806,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Skills",
-                  "releaseRef": "harness.tool.Skills/c12fcb44c9de2dc2f4cdc135c9951bdd7c91a6f33e9f172d6b0ae6dea1b350f3"
+                  "releaseRef": "harness.tool.Skills/4f0cf87d2a5e48955b1924bb44349423768473b994b9c08009b147f5bea9cc42"
                 },
                 "itemId": "invoke",
-                "revision": "c12fcb44c9de2dc2f4cdc135c9951bdd7c91a6f33e9f172d6b0ae6dea1b350f3"
+                "revision": "4f0cf87d2a5e48955b1924bb44349423768473b994b9c08009b147f5bea9cc42"
               },
               "capabilityId": "tool.Skills",
               "enforcementKey": "tool.invoke",
-              "title": "Skills 调用权限",
-              "description": "控制 Skills 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Skills：调用",
+              "description": "控制 Skills 工具里归「调用」的命令（help、search、read、list、read_file）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -3772,7 +3886,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Skills.permissions",
-                "version": "c12fcb44c9de2dc2f4cdc135c9951bdd7c91a6f33e9f172d6b0ae6dea1b350f3",
+                "version": "4f0cf87d2a5e48955b1924bb44349423768473b994b9c08009b147f5bea9cc42",
                 "itemId": "invoke",
                 "groupId": "tool.Skills",
                 "groupTitle": "Skills 工具",
@@ -3784,7 +3898,7 @@
             {
               "capabilityId": "tool.Skills",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/1a2b44850177a457148fbb63e2cb9f866697805e46e258bcf13eeb9e1e03cedc",
+              "implementationRef": "tool/fbded8de79c3fd5258a9aade7e1c7e87501f5869663fc77d271d1ed082efb6f3",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -3795,7 +3909,7 @@
             "binding": {
               "capabilityId": "tool.Skills",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/1a2b44850177a457148fbb63e2cb9f866697805e46e258bcf13eeb9e1e03cedc",
+              "implementationRef": "tool/fbded8de79c3fd5258a9aade7e1c7e87501f5869663fc77d271d1ed082efb6f3",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -3804,15 +3918,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Skills",
-                  "releaseRef": "harness.tool.Skills/c12fcb44c9de2dc2f4cdc135c9951bdd7c91a6f33e9f172d6b0ae6dea1b350f3"
+                  "releaseRef": "harness.tool.Skills/4f0cf87d2a5e48955b1924bb44349423768473b994b9c08009b147f5bea9cc42"
                 },
                 "itemId": "invoke",
-                "revision": "c12fcb44c9de2dc2f4cdc135c9951bdd7c91a6f33e9f172d6b0ae6dea1b350f3"
+                "revision": "4f0cf87d2a5e48955b1924bb44349423768473b994b9c08009b147f5bea9cc42"
               },
               "capabilityId": "tool.Skills",
               "enforcementKey": "tool.invoke",
-              "title": "Skills 调用权限",
-              "description": "控制 Skills 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Skills：调用",
+              "description": "控制 Skills 工具里归「调用」的命令（help、search、read、list、read_file）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -3884,7 +3998,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Skills.permissions",
-                "version": "c12fcb44c9de2dc2f4cdc135c9951bdd7c91a6f33e9f172d6b0ae6dea1b350f3",
+                "version": "4f0cf87d2a5e48955b1924bb44349423768473b994b9c08009b147f5bea9cc42",
                 "itemId": "invoke",
                 "groupId": "tool.Skills",
                 "groupTitle": "Skills 工具",
@@ -3911,14 +4025,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Skills/holding",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:a2351f919c284e4eead0c2827a6d00a997b91d522ac0cd6d0af43fb11a39e39f"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:625a0736258f1f81d25c77622d8fa164d44ba329bddd9ce5c98dc9bfa766d95b"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Skills/publication",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:d0b4f34c46a74c17203f4fe2f6ceb8080103f2da8c3d06d0208fcc34def39a11"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:2db9ea6a7dae28c79518ba81bd94f30938801a064aedeedf3809188fd6184f88"
       }
     },
     {
@@ -3955,24 +4069,39 @@
         "digest": "sha256:f984fbcf71d05640786827c66743f6519415bd735c8ce1cfe977ccc079af11ac"
       },
       "definition": "sha256:7635e0a1ae6e3fcca66447d371c556fcf0ee3b3880b459104a9ddae6c33a37f7",
+      "gates": [
+        {
+          "id": "invoke",
+          "title": "调用",
+          "default": "ask",
+          "commands": [
+            "help",
+            "day",
+            "count",
+            "shift",
+            "next",
+            "nth"
+          ]
+        }
+      ],
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Calendar",
-            "version": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56",
-            "digest": "7e4f4e3750a11494b332060515cf3427a1bc9e9190457a7f8585f34565f7d4d0"
+            "version": "5f69942569c8c710ac4042615880902cb7cb26bffbfba00781aaac16eb39847e",
+            "digest": "7a02752aec6575cc17a1a8693f9548f1dd796523bf2236bae7c5c32bbea7ba2b"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Calendar",
-            "releaseRef": "harness.tool.Calendar/7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56"
+            "releaseRef": "harness.tool.Calendar/5f69942569c8c710ac4042615880902cb7cb26bffbfba00781aaac16eb39847e"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.Calendar.permissions",
-              "version": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56",
+              "version": "5f69942569c8c710ac4042615880902cb7cb26bffbfba00781aaac16eb39847e",
               "groups": [
                 {
                   "id": "tool.Calendar",
@@ -3988,8 +4117,8 @@
                   "groupId": "tool.Calendar",
                   "category": "governance",
                   "presentation": {
-                    "title": "Calendar 调用权限",
-                    "description": "控制 Calendar 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "title": "Calendar：调用",
+                    "description": "控制 Calendar 工具里归「调用」的命令（help、day、count、shift、next、nth）。允许调用不代表执行环境可用或操作一定成功。",
                     "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
                     "clear": "清除本层挑选与锁界，重新按当前来源求值。",
                     "adoption": "next-boundary",
@@ -4075,15 +4204,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Calendar",
-                  "releaseRef": "harness.tool.Calendar/7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56"
+                  "releaseRef": "harness.tool.Calendar/5f69942569c8c710ac4042615880902cb7cb26bffbfba00781aaac16eb39847e"
                 },
                 "itemId": "invoke",
-                "revision": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56"
+                "revision": "5f69942569c8c710ac4042615880902cb7cb26bffbfba00781aaac16eb39847e"
               },
               "capabilityId": "tool.Calendar",
               "enforcementKey": "tool.invoke",
-              "title": "Calendar 调用权限",
-              "description": "控制 Calendar 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Calendar：调用",
+              "description": "控制 Calendar 工具里归「调用」的命令（help、day、count、shift、next、nth）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -4155,7 +4284,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Calendar.permissions",
-                "version": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56",
+                "version": "5f69942569c8c710ac4042615880902cb7cb26bffbfba00781aaac16eb39847e",
                 "itemId": "invoke",
                 "groupId": "tool.Calendar",
                 "groupTitle": "Calendar 工具",
@@ -4167,7 +4296,7 @@
             {
               "capabilityId": "tool.Calendar",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/561cc16ce88213cfea39f3af0d6f8c02961b7b696af92bbf84130bc36c7f762b",
+              "implementationRef": "tool/bc2c4fe131cd5702b4ca711bc4e267886e7ee31ba2654f6f7a03848bf696f8bb",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -4178,7 +4307,7 @@
             "binding": {
               "capabilityId": "tool.Calendar",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/561cc16ce88213cfea39f3af0d6f8c02961b7b696af92bbf84130bc36c7f762b",
+              "implementationRef": "tool/bc2c4fe131cd5702b4ca711bc4e267886e7ee31ba2654f6f7a03848bf696f8bb",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -4187,15 +4316,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Calendar",
-                  "releaseRef": "harness.tool.Calendar/7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56"
+                  "releaseRef": "harness.tool.Calendar/5f69942569c8c710ac4042615880902cb7cb26bffbfba00781aaac16eb39847e"
                 },
                 "itemId": "invoke",
-                "revision": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56"
+                "revision": "5f69942569c8c710ac4042615880902cb7cb26bffbfba00781aaac16eb39847e"
               },
               "capabilityId": "tool.Calendar",
               "enforcementKey": "tool.invoke",
-              "title": "Calendar 调用权限",
-              "description": "控制 Calendar 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Calendar：调用",
+              "description": "控制 Calendar 工具里归「调用」的命令（help、day、count、shift、next、nth）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -4267,7 +4396,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Calendar.permissions",
-                "version": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56",
+                "version": "5f69942569c8c710ac4042615880902cb7cb26bffbfba00781aaac16eb39847e",
                 "itemId": "invoke",
                 "groupId": "tool.Calendar",
                 "groupTitle": "Calendar 工具",
@@ -4294,14 +4423,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Calendar/holding",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:94b5a2da5c2744c21bad7b343f97d05e3a3a9199f92a1a7ac815be0356f2d9df"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:31903df1419bfeb2cda475e3de0e5f4513afaaca1c90dcc4fc665a6cefced002"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Calendar/publication",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:5a2f2e06085e21419fa3f2e5580c52711c4d0bdfc76c35cebfaa18a2532080fe"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:273bf5842a874a7a1d18bb936481db0506c1be5d6368c424e9ed7e29298ab88d"
       }
     },
     {
@@ -4339,24 +4468,48 @@
         "digest": "sha256:5f0896a3ef52e8ca82d9386eb65113c31e994dfcbfbec5945f4090d447b52bb2"
       },
       "definition": "sha256:4656dc8ed51693d24b24eec574b54603b47d220f21f2a195ddefeb1283e4901e",
+      "gates": [
+        {
+          "id": "invoke",
+          "title": "调用",
+          "default": "ask",
+          "commands": [
+            "help",
+            "preview",
+            "create",
+            "list",
+            "show",
+            "history",
+            "update",
+            "revise",
+            "replace",
+            "promote",
+            "pause",
+            "resume",
+            "stop",
+            "discard",
+            "recover"
+          ]
+        }
+      ],
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Schedules",
-            "version": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404",
-            "digest": "572d7ab716b271a5b68c8d001f207ad67fcc1048ab0726911c1d2219469d8f1c"
+            "version": "c3dd9f3c426f3202489b5d6f02a98f4fb04f3f3dffdbf67f913465a1a31096d0",
+            "digest": "a485d80bfe84b0abeaa461dadf94c27d12fdbbd2c97439207b9313bd859711dc"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Schedules",
-            "releaseRef": "harness.tool.Schedules/b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404"
+            "releaseRef": "harness.tool.Schedules/c3dd9f3c426f3202489b5d6f02a98f4fb04f3f3dffdbf67f913465a1a31096d0"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.Schedules.permissions",
-              "version": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404",
+              "version": "c3dd9f3c426f3202489b5d6f02a98f4fb04f3f3dffdbf67f913465a1a31096d0",
               "groups": [
                 {
                   "id": "tool.Schedules",
@@ -4372,8 +4525,8 @@
                   "groupId": "tool.Schedules",
                   "category": "governance",
                   "presentation": {
-                    "title": "Schedules 调用权限",
-                    "description": "控制 Schedules 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "title": "Schedules：调用",
+                    "description": "控制 Schedules 工具里归「调用」的命令（help、preview、create、list、show、history、update、revise、replace、promote、pause、resume、stop、discard、recover）。允许调用不代表执行环境可用或操作一定成功。",
                     "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
                     "clear": "清除本层挑选与锁界，重新按当前来源求值。",
                     "adoption": "next-boundary",
@@ -4459,15 +4612,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Schedules",
-                  "releaseRef": "harness.tool.Schedules/b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404"
+                  "releaseRef": "harness.tool.Schedules/c3dd9f3c426f3202489b5d6f02a98f4fb04f3f3dffdbf67f913465a1a31096d0"
                 },
                 "itemId": "invoke",
-                "revision": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404"
+                "revision": "c3dd9f3c426f3202489b5d6f02a98f4fb04f3f3dffdbf67f913465a1a31096d0"
               },
               "capabilityId": "tool.Schedules",
               "enforcementKey": "tool.invoke",
-              "title": "Schedules 调用权限",
-              "description": "控制 Schedules 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Schedules：调用",
+              "description": "控制 Schedules 工具里归「调用」的命令（help、preview、create、list、show、history、update、revise、replace、promote、pause、resume、stop、discard、recover）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -4539,7 +4692,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Schedules.permissions",
-                "version": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404",
+                "version": "c3dd9f3c426f3202489b5d6f02a98f4fb04f3f3dffdbf67f913465a1a31096d0",
                 "itemId": "invoke",
                 "groupId": "tool.Schedules",
                 "groupTitle": "Schedules 工具",
@@ -4551,7 +4704,7 @@
             {
               "capabilityId": "tool.Schedules",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/5becdae3bc29054a4d9a4a6bc8689fc608ce1eaed86b26e213cb1fa98ea4f21c",
+              "implementationRef": "tool/4cfa8acbba18d0b8ff4873ce6f4dcce032e506017d7c05b6344fa4003b74ff0c",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -4562,7 +4715,7 @@
             "binding": {
               "capabilityId": "tool.Schedules",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/5becdae3bc29054a4d9a4a6bc8689fc608ce1eaed86b26e213cb1fa98ea4f21c",
+              "implementationRef": "tool/4cfa8acbba18d0b8ff4873ce6f4dcce032e506017d7c05b6344fa4003b74ff0c",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -4571,15 +4724,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Schedules",
-                  "releaseRef": "harness.tool.Schedules/b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404"
+                  "releaseRef": "harness.tool.Schedules/c3dd9f3c426f3202489b5d6f02a98f4fb04f3f3dffdbf67f913465a1a31096d0"
                 },
                 "itemId": "invoke",
-                "revision": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404"
+                "revision": "c3dd9f3c426f3202489b5d6f02a98f4fb04f3f3dffdbf67f913465a1a31096d0"
               },
               "capabilityId": "tool.Schedules",
               "enforcementKey": "tool.invoke",
-              "title": "Schedules 调用权限",
-              "description": "控制 Schedules 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Schedules：调用",
+              "description": "控制 Schedules 工具里归「调用」的命令（help、preview、create、list、show、history、update、revise、replace、promote、pause、resume、stop、discard、recover）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -4651,7 +4804,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Schedules.permissions",
-                "version": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404",
+                "version": "c3dd9f3c426f3202489b5d6f02a98f4fb04f3f3dffdbf67f913465a1a31096d0",
                 "itemId": "invoke",
                 "groupId": "tool.Schedules",
                 "groupTitle": "Schedules 工具",
@@ -4678,14 +4831,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Schedules/holding",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:7b704ca8fa42fdb98b5ed1d531e916429f5413e8cbccbc76232201cfea41ed88"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:260e3ef90ac3215779b0c26fca345cd5da1626bf57ad3d1410c1f1c6219212b3"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Schedules/publication",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:5a6ebf23c31b50b1842bbc14d908751958fb00987584fa89abc5e76bd3b445a8"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:ae3a473455d59334a6a0521990542396db7a893d4322bb4d3faa19137fef6db4"
       }
     },
     {
@@ -4723,24 +4876,45 @@
         "digest": "sha256:0c130c274021811e80a9bc26fba1631b9eb21f1cbfc3da6e8d15c94ed57cc33d"
       },
       "definition": "sha256:a8b5a41ee7f87f8eda86ce4a28389790a743db1c94d2460b31faa6c7038322d1",
+      "gates": [
+        {
+          "id": "invoke",
+          "title": "调用",
+          "default": "ask",
+          "commands": [
+            "help",
+            "send",
+            "sent",
+            "inbox",
+            "read",
+            "done",
+            "dismiss",
+            "restore",
+            "sources",
+            "subscriptions",
+            "subscribe",
+            "unsubscribe"
+          ]
+        }
+      ],
       "governance": {
         "declaration": {
           "reference": {
             "ownerId": "harness-server.tool-release",
             "definitionId": "tool.Notifications",
-            "version": "fd8b4173203631c90e24743e9645a9a61450724a097b86d84f6cfd059d872342",
-            "digest": "699ca4e22fa45d7d054a506e761da3cb619e2cd3acb8f614afdb1ab615d7b2af"
+            "version": "349051e2daa987620b879e5daae56653a14ec09f71433ebde0cc9f1c3a850df7",
+            "digest": "9af949dd3823e3737b5e4f6f81a809044fb0881bfb307b8e8113ccc57961fb6b"
           },
           "origin": {
             "kind": "asset",
             "assetId": "harness.tool.Notifications",
-            "releaseRef": "harness.tool.Notifications/fd8b4173203631c90e24743e9645a9a61450724a097b86d84f6cfd059d872342"
+            "releaseRef": "harness.tool.Notifications/349051e2daa987620b879e5daae56653a14ec09f71433ebde0cc9f1c3a850df7"
           },
           "settings": [
             {
               "providerId": "harness-server.tool-release",
               "definitionId": "tool.Notifications.permissions",
-              "version": "fd8b4173203631c90e24743e9645a9a61450724a097b86d84f6cfd059d872342",
+              "version": "349051e2daa987620b879e5daae56653a14ec09f71433ebde0cc9f1c3a850df7",
               "groups": [
                 {
                   "id": "tool.Notifications",
@@ -4756,8 +4930,8 @@
                   "groupId": "tool.Notifications",
                   "category": "governance",
                   "presentation": {
-                    "title": "Notifications 调用权限",
-                    "description": "控制 Notifications 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "title": "Notifications：调用",
+                    "description": "控制 Notifications 工具里归「调用」的命令（help、send、sent、inbox、read、done、dismiss、restore、sources、subscriptions、subscribe、unsubscribe）。允许调用不代表执行环境可用或操作一定成功。",
                     "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
                     "clear": "清除本层挑选与锁界，重新按当前来源求值。",
                     "adoption": "next-boundary",
@@ -4843,15 +5017,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Notifications",
-                  "releaseRef": "harness.tool.Notifications/fd8b4173203631c90e24743e9645a9a61450724a097b86d84f6cfd059d872342"
+                  "releaseRef": "harness.tool.Notifications/349051e2daa987620b879e5daae56653a14ec09f71433ebde0cc9f1c3a850df7"
                 },
                 "itemId": "invoke",
-                "revision": "fd8b4173203631c90e24743e9645a9a61450724a097b86d84f6cfd059d872342"
+                "revision": "349051e2daa987620b879e5daae56653a14ec09f71433ebde0cc9f1c3a850df7"
               },
               "capabilityId": "tool.Notifications",
               "enforcementKey": "tool.invoke",
-              "title": "Notifications 调用权限",
-              "description": "控制 Notifications 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Notifications：调用",
+              "description": "控制 Notifications 工具里归「调用」的命令（help、send、sent、inbox、read、done、dismiss、restore、sources、subscriptions、subscribe、unsubscribe）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -4923,7 +5097,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Notifications.permissions",
-                "version": "fd8b4173203631c90e24743e9645a9a61450724a097b86d84f6cfd059d872342",
+                "version": "349051e2daa987620b879e5daae56653a14ec09f71433ebde0cc9f1c3a850df7",
                 "itemId": "invoke",
                 "groupId": "tool.Notifications",
                 "groupTitle": "Notifications 工具",
@@ -4935,7 +5109,7 @@
             {
               "capabilityId": "tool.Notifications",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/e43b09089f04551bb781aff5987b779291cb668550eb20f245ca292f8777452a",
+              "implementationRef": "tool/ce0c5ae18b427dabb1e07890679f7bcd18d056a2c60eb703a96a5537f584947a",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             }
@@ -4946,7 +5120,7 @@
             "binding": {
               "capabilityId": "tool.Notifications",
               "enforcementKey": "tool.invoke",
-              "implementationRef": "tool/e43b09089f04551bb781aff5987b779291cb668550eb20f245ca292f8777452a",
+              "implementationRef": "tool/ce0c5ae18b427dabb1e07890679f7bcd18d056a2c60eb703a96a5537f584947a",
               "action": "invoke",
               "interpretationRef": "harness.permission-rule/1"
             },
@@ -4955,15 +5129,15 @@
                 "origin": {
                   "kind": "asset",
                   "assetId": "harness.tool.Notifications",
-                  "releaseRef": "harness.tool.Notifications/fd8b4173203631c90e24743e9645a9a61450724a097b86d84f6cfd059d872342"
+                  "releaseRef": "harness.tool.Notifications/349051e2daa987620b879e5daae56653a14ec09f71433ebde0cc9f1c3a850df7"
                 },
                 "itemId": "invoke",
-                "revision": "fd8b4173203631c90e24743e9645a9a61450724a097b86d84f6cfd059d872342"
+                "revision": "349051e2daa987620b879e5daae56653a14ec09f71433ebde0cc9f1c3a850df7"
               },
               "capabilityId": "tool.Notifications",
               "enforcementKey": "tool.invoke",
-              "title": "Notifications 调用权限",
-              "description": "控制 Notifications 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "title": "Notifications：调用",
+              "description": "控制 Notifications 工具里归「调用」的命令（help、send、sent、inbox、read、done、dismiss、restore、sources、subscriptions、subscribe、unsubscribe）。允许调用不代表执行环境可用或操作一定成功。",
               "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
               "supportedScopes": [
                 {
@@ -5035,7 +5209,7 @@
               "settings": {
                 "providerId": "harness-server.tool-release",
                 "definitionId": "tool.Notifications.permissions",
-                "version": "fd8b4173203631c90e24743e9645a9a61450724a097b86d84f6cfd059d872342",
+                "version": "349051e2daa987620b879e5daae56653a14ec09f71433ebde0cc9f1c3a850df7",
                 "itemId": "invoke",
                 "groupId": "tool.Notifications",
                 "groupTitle": "Notifications 工具",
@@ -5062,14 +5236,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Notifications/holding",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:97d23807f9febe0aaa79466de909f41887973a46176408209fa02ee01bd42b25"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:7f380b7f81f004dd52bfa8e1c8dd06d04c5e183274b91ba50f1595a857b9259e"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Notifications/publication",
-        "revision": "sha256:f94bfae09c7583c5bc27edd5cebd7b2bf5452676cf07ece6b8d335f4f843a89a",
-        "digest": "sha256:45488e578e2d76c0319fa7169c79d253d6b946a73b22986c7bd6ed4069b26fee"
+        "revision": "sha256:67570c28515b3d976a4efd09faad963484f9295c7f0d8c1aedd2c8df8e9517c4",
+        "digest": "sha256:7215f859e8503bf5e02c538e737955863f4097b1fb6383a27870d8585697eaff"
       }
     }
   ]

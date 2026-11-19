@@ -13,6 +13,9 @@ import { CurrentPermissionService } from '../../../src/rows/governance/current-p
 import { ReleaseToolContributionAuthority } from '../../../src/entry/tool-release.ts'
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
+import { IMPLICIT_TOOL_GATE } from '@omne-harness/tool-contract'
+import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
+import { releaseCatalog } from './release-catalog.ts'
 import { decisionEvidence, effectiveArgumentsOf } from '@omne-harness/authorization'
 import {
   decodeAgentExecutionId,
@@ -68,6 +71,7 @@ function world() {
     operation: { owner: 'agent', operationId: 'fixture-action' },
     definition: entry!.asset.adoption,
     effectiveArguments: '{"command":"echo hello"}',
+    gate: IMPLICIT_TOOL_GATE,
     origin: {
       kind: 'agent-action',
       original: {
@@ -524,6 +528,8 @@ it('the default authorization row adopts the current source on each call without
       },
     })
     scope.provide(identityGovernanceKey, { queryCurrentTenant: async () => ({ kind: 'denied' }) })
+    // The action resolution reads the judged definition from the catalog.
+    scope.provide(toolCatalogKey, releaseCatalog(release))
     new ReleaseToolContributionAuthority(scope, release, () => null)
   })
   const row = await ctx.plugin(authorization, {

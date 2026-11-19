@@ -187,6 +187,7 @@ function ReleaseCall({ question }: Readonly<{ question: ReleaseQuestion }>): JSX
   return (
     <div className="hitl-release-call">
       <code className="hitl-release-summary">{call}</code>
+      <p className="hitl-release-gate">{`归「${target.tool}：${question.gateTitle}」这一类动作`}</p>
       <details className="hitl-release-arguments">
         <summary>参数</summary>
         <pre>{given.text}</pre>
