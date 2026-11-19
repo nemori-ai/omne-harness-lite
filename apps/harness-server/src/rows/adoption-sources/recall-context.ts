@@ -65,6 +65,17 @@ async function readOriginal<P>(
   return succeed(observed.ok.initialization)
 }
 
+type Planned = ReturnType<typeof contextInitialization>['blocks'][number]
+
+/** Whether the original creation registered a block with the decision and evidence planned now. */
+const registeredIn =
+  (original: InitializationState) =>
+  ({ preparation, result }: Planned): boolean =>
+    original.registrations.some(
+      item =>
+        same(item.decision, preparation.decision) && same(item.prepared, result.result.evidence),
+    )
+
 function originalGuard<P>(
   original: InitializationState,
   command: Create,
@@ -94,14 +105,8 @@ function originalGuard<P>(
     entry => entry.key === 'contextPreparations',
   )?.value
   const planned = candidate.blocks.map(block => canonicalText(block.preparation))
-  if (!same(preparations, jsonOf(planned))) return invalid()
-  for (const { preparation, result } of candidate.blocks) {
-    const registered = original.registrations.find(item =>
-      same(item.decision, preparation.decision),
-    )
-    if (registered === undefined || !same(registered.prepared, result.result.evidence))
-      return invalid()
-  }
+  if (!same(preparations, jsonOf(planned)) || !candidate.blocks.every(registeredIn(original)))
+    return invalid()
   const outcomes = []
   for (const result of command.input.creation.initialization?.results ?? []) {
     const found = original.results.find(

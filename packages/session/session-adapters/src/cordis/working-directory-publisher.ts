@@ -101,7 +101,7 @@ export function createWorkingDirectoryPublishers<P>(input: WorkingDirectoryPubli
 
   function publisherOf(tenant: TenantId) {
     const encoded = tenantCodec.encode(tenant)
-    if (closed || !encoded.ok) return undefined
+    if (!encoded.ok) return undefined
     const existing = publishers.get(encoded.value)
     if (existing !== undefined) return existing
     const principal = input.principal(tenant)
@@ -129,9 +129,7 @@ export function createWorkingDirectoryPublishers<P>(input: WorkingDirectoryPubli
     },
     async close(): Promise<void> {
       closed = true
-      const closing = [...publishers.values()].map(publisher => publisher.close())
-      publishers.clear()
-      await Promise.all(closing)
+      await Promise.all([...publishers.values()].map(publisher => publisher.close()))
     },
   })
 }

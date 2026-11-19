@@ -27,7 +27,7 @@ import {
   contextInitialization,
   type ContextPreparationRecord,
 } from '../../assembly/session-context-initialization.ts'
-import { prepareInitialContext } from './initial-context.ts'
+import { prepareInitialContext, type PreparedBlock } from './initial-context.ts'
 import { jsonOf } from './json.ts'
 import { recallInitialContext } from './recall-context.ts'
 import { plannedResidents } from './residents.ts'
@@ -228,7 +228,7 @@ function initializationGuardOf(
   command: CreateCommand,
   entry: DefinitionMappingEntry,
   residents: ResidentAdoption,
-  preparations: readonly ContextPreparationRecord[] | undefined,
+  blocks: readonly PreparedBlock[],
 ): Prepared {
   const { creation } = command.input
   const tenant = tenantCodec.encode(command.input.tenant)
@@ -236,7 +236,8 @@ function initializationGuardOf(
   const workspace = creation.workspace === null ? null : workspaceCodec.encode(creation.workspace)
   if (workspace !== null && !workspace.ok)
     return invalid('workspace', 'the workspace is not minted by its codec')
-  const plan = planOf(entry, preparations ?? [])
+  const preparations = blocks.map(block => block.record)
+  const plan = planOf(entry, preparations)
   const facts: InitializationGuardFacts = {
     version: 1,
     command: 'create',
@@ -247,15 +248,10 @@ function initializationGuardOf(
       createOperation: command.input.operation,
     },
     input: commandInputOf(command, tenant.value, workspace === null ? null : workspace.value),
-    initialAdoption: initialAdoptionOf(mappings, entry, residents, preparations ?? []),
+    initialAdoption: initialAdoptionOf(mappings, entry, residents, preparations),
     requirements: requirementsOf(entry, plan),
     plan,
-    results:
-      preparations === undefined
-        ? []
-        : contextInitialization({ ...command.input, principal: undefined }).blocks.map(
-            block => block.outcome,
-          ),
+    results: blocks.map(block => block.outcome),
   }
   return initializationMaterial(facts)
 }

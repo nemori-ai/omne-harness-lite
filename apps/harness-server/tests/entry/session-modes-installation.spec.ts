@@ -155,6 +155,10 @@ it('mounts one real producer per tenant through the production authority and wit
       })
     await fiber.dispose()
     expect(await modes.ensure(tenant)).toEqual({ kind: 'unavailable' })
+    // Without the installation, or without the caller's access, no block can be prepared.
+    const down = { failure: { kind: 'unavailable', owner: 'session.context' } }
+    expect(await source.prepare(command, access)).toMatchObject(down)
+    expect(await source.prepare(command, undefined)).toMatchObject(down)
     const replacement = await duplicate()
     expect(replacement).toMatchObject({ kind: 'registered' })
     if (replacement.kind === 'registered') await replacement.handle.dispose()

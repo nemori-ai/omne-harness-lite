@@ -542,6 +542,22 @@ describe('a boundary that cannot publish', () => {
       kind: 'unavailable',
       diagnostic: 'the working directory publisher has stopped',
     })
+    const refusing = createStepDirectory<string>({
+      defaultDirectory: DEFAULT,
+      targets: () => undefined,
+      recover,
+      publish: async () => ({ kind: 'unavailable', diagnostic: 'the publication was refused' }),
+    })
+    expect(await refusing.refresh({ ...input, snapshot: standing(null) })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the publication was refused',
+    })
+    // A workspace identity the codec did not mint is not asked about and not published.
+    const forged = { workspace: { ...workspace(1) }, instance: 'wsi_blog' }
+    expect(await refusing.refresh({ ...input, snapshot: standing(forged) })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the selected workspace is not minted by its codec',
+    })
   })
 })
 
