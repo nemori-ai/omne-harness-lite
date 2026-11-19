@@ -1,7 +1,7 @@
 import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { CommandTable } from '@omne-harness/tool-contract'
+import type { CommandTable, ToolGate } from '@omne-harness/tool-contract'
 import {
   commandGuide,
   defineCommandTool,
@@ -36,8 +36,32 @@ import {
   schedulesSummaries,
   tree,
   type SchedulesArguments,
+  type SchedulesCommandName,
 } from './protocol.ts'
 import { upcomingOf, writeLine } from './text.ts'
+
+const SCHEDULES_GATES: readonly ToolGate[] = [
+  { id: 'read', title: '查看', default: 'auto' },
+  { id: 'draft', title: '起草', default: 'auto' },
+  { id: 'activate', title: '让安排生效', default: 'auto' },
+]
+const SCHEDULES_GATE_OF: Readonly<Record<SchedulesCommandName, string>> = {
+  help: 'read',
+  preview: 'read',
+  list: 'read',
+  show: 'read',
+  history: 'read',
+  recover: 'read',
+  revise: 'draft',
+  discard: 'draft',
+  create: 'activate',
+  update: 'activate',
+  replace: 'activate',
+  promote: 'activate',
+  pause: 'activate',
+  resume: 'activate',
+  stop: 'activate',
+}
 
 const ENCODING = 'wrapped' as const
 const encoder = new TextEncoder()
@@ -291,7 +315,11 @@ export function createSchedulesAuthor(
     })
   const operations: Record<
     string,
-    { summary: string; operation: ToolOperation<null, ToolMessageContentBlock> }
+    {
+      summary: string
+      operation: ToolOperation<null, ToolMessageContentBlock>
+      release: Readonly<{ gate: string }>
+    }
   > = {}
   for (const name of schedulesCommandNames) {
     const operation = defineToolOperation<
@@ -333,9 +361,14 @@ export function createSchedulesAuthor(
     })
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
-    operations[name] = { summary: schedulesSummaries[name], operation: operation.ok }
+    operations[name] = {
+      summary: schedulesSummaries[name],
+      operation: operation.ok,
+      release: { gate: SCHEDULES_GATE_OF[name] },
+    }
   }
   const author = defineCommandTool({
+    gates: SCHEDULES_GATES,
     implementation: {
       description:
         'Create, change and read the owner schedules, and preview their next times with the calendar each one used.',

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { canonicalText, decisionEvidence, type AdmissionCheck } from '@omne-harness/authorization'
 import { writeJsonText } from '@omne-harness/json-text'
-import { IMPLICIT_TOOL_GATE } from '@omne-harness/tool-contract'
 import {
   createToolActionResolution,
   createToolCallLabeling,
@@ -143,7 +142,7 @@ describe('an action whose gate asks', () => {
         principal: w.forward.principal,
         tenant: w.forward.tenant,
         definition: w.adoption('ToyEcho'),
-        gate: IMPLICIT_TOOL_GATE,
+        gate: { id: 'read', title: '查看', default: 'auto' },
       },
     ])
   })

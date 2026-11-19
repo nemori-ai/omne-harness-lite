@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import type { TenantSettings } from '@omne-harness/settings'
-import { IMPLICIT_TOOL_GATE } from '@omne-harness/tool-contract'
 import { releasedDeclaration } from '../../../src/entry/permission-declarations.ts'
 import { createTenantPicks } from '../../../src/rows/authorization/tenant-picks.ts'
 import { TOOL_RELEASE_TENANT, loadProductionRelease } from '../../../src/entry/tool-release.ts'
@@ -20,7 +19,7 @@ const gate = {
   principal: { kind: 'acting-for-tenant' } as never,
   tenant: TOOL_RELEASE_TENANT,
   definition: shell.asset.adoption,
-  gate: IMPLICIT_TOOL_GATE,
+  gate: { id: 'run', title: '执行', default: 'ask' as const },
 }
 
 function view(over: Readonly<Record<string, unknown>> = {}): Described {
@@ -29,7 +28,7 @@ function view(over: Readonly<Record<string, unknown>> = {}): Described {
     item: {
       kind: 'permission',
       owner: { kind: 'asset', category: 'tool', name: 'Shell' },
-      item: 'invoke',
+      item: 'run',
       revision: '7',
       own: null,
       bound: null,
@@ -72,7 +71,7 @@ describe('which lasting picks the tenant setting of a gate can take', () => {
         principal: gate.principal,
         tenant: gate.tenant,
         owner: { kind: 'asset', name: 'Shell' },
-        item: 'invoke',
+        item: 'run',
       },
     ])
   })
@@ -124,7 +123,7 @@ describe('the setting item and the values a gate declares', () => {
     }
   }
   const interpretationOf = (entry: (typeof declarations)[number]) =>
-    entry.governance.interpretations[0]!
+    entry.governance.interpretations.find(value => value.binding.enforcementKey === 'tool.run')!
 
   it('offers nothing for a gate whose permission has no setting item', async () => {
     const unmapped = declared(entry => {
@@ -192,7 +191,7 @@ describe('writing the lasting pick on a card answer', () => {
         option: 'allow-always',
       },
       owner: { kind: 'asset', name: 'Shell' },
-      item: 'invoke',
+      item: 'run',
       expectedRevision: '7',
       value: { kind: 'permission', pick: 'auto' },
     })

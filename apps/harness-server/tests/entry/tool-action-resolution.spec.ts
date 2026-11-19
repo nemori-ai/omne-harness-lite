@@ -84,7 +84,10 @@ const adoptionOf = (world: World, name: 'Tools' | 'ToyEcho') => {
   return availability.definition.adoption
 }
 
-// The fixture tools declare no gate: every command is under the one implicit gate.
+// ToyEcho is the released Shell under another name; ToyFn is a function tool with the one implicit gate.
+const READ = { kind: 'gate', gate: { id: 'read', title: '查看', default: 'auto' } } as const
+const DISCOVER = { kind: 'gate', gate: { id: 'discover', title: '发现', default: 'auto' } } as const
+const FORWARD = { kind: 'gate', gate: { id: 'forward', title: '转调', default: 'auto' } } as const
 const INVOKE = { kind: 'gate', gate: IMPLICIT_TOOL_GATE } as const
 
 describe('the action a tool call performs', () => {
@@ -111,7 +114,7 @@ describe('the action a tool call performs', () => {
           definition: adoptionOf(world, 'ToyEcho'),
           effectiveArguments: echoCall(world, {}),
         }),
-      ).toEqual({ ok: { kind: 'own', gate: INVOKE } })
+      ).toEqual({ ok: { kind: 'own', gate: READ } })
       expect(inspected).toBe(1)
       const tools = world.request('Tools').availability
       if (tools.kind !== 'available' || tools.definition.kind !== 'commands')
@@ -130,7 +133,7 @@ describe('the action a tool call performs', () => {
           definition: adoptionOf(world, 'Tools'),
           effectiveArguments: search,
         }),
-      ).toEqual({ ok: { kind: 'own', gate: INVOKE } })
+      ).toEqual({ ok: { kind: 'own', gate: DISCOVER } })
       expect(inspected).toBe(2)
     } finally {
       await world.close()
@@ -174,13 +177,13 @@ describe('the action a tool call performs', () => {
       ).toEqual({
         ok: {
           kind: 'carried',
-          carrier: { name: 'Tools', definition: adoptionOf(world, 'Tools'), gate: INVOKE },
+          carrier: { name: 'Tools', definition: adoptionOf(world, 'Tools'), gate: FORWARD },
           target: {
             name: 'ToyEcho',
             definition: adoptionOf(world, 'ToyEcho'),
             command: 'info',
             effectiveArguments: echoCall(world, {}),
-            gate: INVOKE,
+            gate: READ,
           },
         },
       })
@@ -207,7 +210,7 @@ describe('the action a tool call performs', () => {
       expect(answer).toMatchObject({
         ok: {
           kind: 'carried',
-          carrier: { name: 'Tools', gate: INVOKE },
+          carrier: { name: 'Tools', gate: FORWARD },
           target: {
             name: 'ToyFn',
             command: null,
@@ -258,7 +261,7 @@ describe('the action a tool call performs', () => {
             definition: adoptionOf(world, 'Tools'),
             effectiveArguments: toolsCall(world, intent),
           }),
-        ).toMatchObject({ ok: { kind: 'argument-error', gate: INVOKE, field } })
+        ).toMatchObject({ ok: { kind: 'argument-error', gate: FORWARD, field } })
       } finally {
         await world.close()
       }
@@ -431,12 +434,12 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
         })
       // A call naming no command of the tool performs no action; it is under the tool's first gate.
       expect(await resolve('{"command":"nope","params":{}}')).toEqual({
-        ok: { kind: 'argument-error', gate: INVOKE, field: 'command', reason: 'unknown-command' },
+        ok: { kind: 'argument-error', gate: DISCOVER, field: 'command', reason: 'unknown-command' },
       })
       expect(await resolve(toolsCall(world, { command: 'info' }))).toEqual({
         ok: {
           kind: 'argument-error',
-          gate: INVOKE,
+          gate: FORWARD,
           field: 'arguments',
           reason: 'tools-execute-arguments',
         },
@@ -446,7 +449,7 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
           toolsCall(world, { name: 'Shell', command: 'execute', arguments: { script: 'ls' } }),
         ),
       ).toEqual({
-        ok: { kind: 'argument-error', gate: INVOKE, field: 'name', reason: 'target-refused' },
+        ok: { kind: 'argument-error', gate: FORWARD, field: 'name', reason: 'target-refused' },
       })
     } finally {
       await world.close()
@@ -487,7 +490,7 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
       ).toEqual({
         ok: {
           kind: 'argument-error',
-          gate: INVOKE,
+          gate: FORWARD,
           field: 'arguments',
           reason: 'target-call-refused',
         },

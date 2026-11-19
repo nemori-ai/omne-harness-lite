@@ -25,6 +25,18 @@ const perMessage = (through: 'Shell' | 'Tools') =>
       last?.role === 'user'
         ? /start: batch ([a-z0-9-]+)/.exec(JSON.stringify(last.content))?.[1]
         : undefined
+    const info =
+      last?.role === 'user'
+        ? /start: info ([a-z0-9-]+)/.exec(JSON.stringify(last.content))?.[1]
+        : undefined
+    if (info !== undefined)
+      return [
+        {
+          id: `call_${info}`,
+          tool: 'Shell',
+          arguments: JSON.stringify({ command: 'info', intent: 'test call', params: {} }),
+        },
+      ]
     if (batch !== undefined)
       return [1, 2, 3].map(n => ({
         id: `call_${batch}_${String(n)}`,
@@ -82,15 +94,22 @@ export async function answerCard(
   expect(answer.status, answer.stderr).toBe(0)
 }
 
-/** Sets the tenant's value of the Shell invoke permission, as a person does in the settings. */
-export async function setShell(
+/** Sets the tenant's value of the Shell run gate, as a person does in the settings. */
+export function setShell(tree: ReleaseTree, pick: 'deny' | 'ask' | 'auto', operation: string) {
+  return setGate(tree, SHELL, 'run', pick, operation)
+}
+
+/** Sets the tenant's value of one gate of a released tool, as a person does in the settings. */
+export async function setGate(
   tree: ReleaseTree,
+  owner: Readonly<{ kind: 'asset'; category: 'tool'; name: string }>,
+  gate: string,
   pick: 'deny' | 'ask' | 'auto',
   operation: string,
 ) {
   const face = faceOf(tree)
   const { principal, tenant } = await loginAccess(tree)
-  const item = { principal, tenant, owner: SHELL, item: 'invoke' }
+  const item = { principal, tenant, owner, item: gate }
   const before = await face.describe(item)
   if (before.kind !== 'described') throw new Error(JSON.stringify(before))
   const written = await face.set({

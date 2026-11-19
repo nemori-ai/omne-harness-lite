@@ -241,6 +241,7 @@ export function createSkillsAuthor(
     },
     encoding: ENCODING,
     guide,
+    gates: [{ id: 'invoke', title: '读技能', default: 'auto' }],
     commands: operations,
   })
   return 'failure' in author

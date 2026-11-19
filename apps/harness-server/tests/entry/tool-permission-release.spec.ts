@@ -66,7 +66,7 @@ it('serves the same original definition to separate tenant consumers without sha
     expect(b).toEqual(a)
     if (a.kind !== 'definition' || b.kind !== 'definition') throw new Error('missing release')
     a.declaration.permissions.splice(0)
-    expect(b.declaration.permissions).toHaveLength(1)
+    expect(b.declaration.permissions).toHaveLength(entry.governance.declaration.permissions.length)
     expect(await first.resolve(identity)).toEqual(b)
     expect(await first.resolve({ ...identity, version: 'another' })).toEqual({
       kind: 'unavailable',

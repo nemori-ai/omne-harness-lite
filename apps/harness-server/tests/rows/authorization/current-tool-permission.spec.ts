@@ -13,7 +13,6 @@ import { CurrentPermissionService } from '../../../src/rows/governance/current-p
 import { ReleaseToolContributionAuthority } from '../../../src/entry/tool-release.ts'
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
-import { IMPLICIT_TOOL_GATE } from '@omne-harness/tool-contract'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { releaseCatalog } from './release-catalog.ts'
 import { decisionEvidence, effectiveArgumentsOf } from '@omne-harness/authorization'
@@ -42,7 +41,9 @@ const release = await loadProductionRelease()
 if (release.kind !== 'trusted') throw new Error('Production release unavailable')
 const entry = release.manifest.entries.find(item => item.asset.name === 'Shell')
 if (entry === undefined) throw new Error('Shell release missing')
-const interpretation = entry.governance.interpretations[0]!
+const interpretation = entry.governance.interpretations.find(
+  value => value.binding.enforcementKey === 'tool.run',
+)!
 const definition = interpretation.definition
 const binding = interpretation.binding
 const blockIdentity = judgeBlockIdentity({
@@ -70,8 +71,9 @@ function world() {
     tenant: TOOL_RELEASE_TENANT,
     operation: { owner: 'agent', operationId: 'fixture-action' },
     definition: entry!.asset.adoption,
-    effectiveArguments: '{"command":"echo hello"}',
-    gate: IMPLICIT_TOOL_GATE,
+    effectiveArguments:
+      '{"command":"execute","intent":"test call","params":{"script":"echo hello"}}',
+    gate: { id: 'run', title: '执行', default: 'ask' },
     origin: {
       kind: 'agent-action',
       original: {

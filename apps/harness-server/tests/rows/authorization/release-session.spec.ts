@@ -15,8 +15,10 @@ import {
   pendingCard,
   perMessageShell,
   sendInput,
+  setGate,
   setShell,
 } from './release-flow-support.ts'
+import { SHELL } from '../../governance/tenant-settings-support.ts'
 
 const options = {
   script: perMessageShell,
@@ -50,6 +52,38 @@ it(
       const other = await tree.startSession('start: echo other')
       await pendingCard(tree, other, 'the other session')
       expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(2)
+    })
+    expect(exit).toBe(0)
+  },
+)
+
+it(
+  'a release for the session covers one gate: a command of the same tool under another gate still asks',
+  { timeout: 240_000 },
+  async () => {
+    const exit = await onReleaseTree(options, async tree => {
+      await setGate(tree, SHELL, 'read', 'ask', 'shell-read-asks')
+      const session = await tree.startSession('start: echo first')
+      const card = await pendingCard(tree, session, 'the run gate')
+      expect(card.question).toMatchObject({
+        kind: 'release',
+        target: { tool: 'Shell', command: 'execute' },
+        gateTitle: '执行',
+      })
+      await answerCard(tree, card, ['--option', 'allow-session'], 'reply-run')
+      await endedRuns(tree, session, 1)
+
+      await sendInput(tree, session, 'start: echo second')
+      await endedRuns(tree, session, 2)
+      expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toEqual([])
+
+      await sendInput(tree, session, 'start: info third')
+      const other = await pendingCard(tree, session, 'the read gate')
+      expect(other.question).toMatchObject({
+        kind: 'release',
+        target: { tool: 'Shell', command: 'info' },
+        gateTitle: '查看',
+      })
     })
     expect(exit).toBe(0)
   },

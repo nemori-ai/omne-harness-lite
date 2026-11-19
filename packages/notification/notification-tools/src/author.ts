@@ -1,7 +1,7 @@
 import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { CommandTable } from '@omne-harness/tool-contract'
+import type { CommandTable, ToolGate } from '@omne-harness/tool-contract'
 import { z } from 'zod'
 import {
   commandGuide,
@@ -37,6 +37,27 @@ import {
   type NotificationsCommandName,
 } from './protocol.ts'
 import { cancelled, unavailable, writing, type Segment } from './results.ts'
+
+const NOTIFICATIONS_GATES: readonly ToolGate[] = [
+  { id: 'read', title: '查看', default: 'auto' },
+  { id: 'triage', title: '处理收件箱', default: 'auto' },
+  { id: 'send', title: '发送', default: 'ask' },
+  { id: 'subscribe', title: '订阅', default: 'auto' },
+]
+const NOTIFICATIONS_GATE_OF: Readonly<Record<NotificationsCommandName, string>> = {
+  help: 'read',
+  sent: 'read',
+  inbox: 'read',
+  read: 'read',
+  sources: 'read',
+  subscriptions: 'read',
+  done: 'triage',
+  dismiss: 'triage',
+  restore: 'triage',
+  unsubscribe: 'triage',
+  send: 'send',
+  subscribe: 'subscribe',
+}
 
 const ENCODING = 'wrapped' as const
 const encoder = new TextEncoder()
@@ -238,14 +259,22 @@ export function createNotificationsAuthor(
       field: 'construction',
       reason: 'Notifications takes only resultMaxBytes, at least 64',
     })
-  const operations: Record<string, { summary: string; operation: Operation }> = {}
+  const operations: Record<
+    string,
+    { summary: string; operation: Operation; release: Readonly<{ gate: string }> }
+  > = {}
   for (const name of notificationsCommandNames) {
     const operation = operationOf(name, read.data.resultMaxBytes)
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
-    operations[name] = { summary: notificationsSummaries[name], operation: operation.ok }
+    operations[name] = {
+      summary: notificationsSummaries[name],
+      operation: operation.ok,
+      release: { gate: NOTIFICATIONS_GATE_OF[name] },
+    }
   }
   const author = defineCommandTool({
+    gates: NOTIFICATIONS_GATES,
     implementation: {
       description:
         'Post for the owner, read and resolve your own notifications, and subscribe to what the sources of this tenant publish.',

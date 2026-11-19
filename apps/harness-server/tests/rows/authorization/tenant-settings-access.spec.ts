@@ -78,7 +78,7 @@ const item = (principal: unknown, tenant: TenantId = A) => ({
   principal,
   tenant,
   owner: { kind: 'asset', name: 'Shell' } as const,
-  item: 'invoke',
+  item: 'run',
 })
 const write = (principal: unknown, tenant: TenantId = A) => ({
   ...item(principal, tenant),

@@ -3,7 +3,13 @@ import type { JsonValue } from '@omne-harness/json-text'
 import { judgeMediaType, judgeModalities } from '@omne-harness/modality'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createToolMessageResultCodec } from '@omne-harness/tool'
-import { toolsCapabilityOf, type CommandTable, type ToolResult } from '@omne-harness/tool-contract'
+import {
+  toolsCapabilityOf,
+  type CommandTable,
+  type ToolCommandRelease,
+  type ToolGate,
+  type ToolResult,
+} from '@omne-harness/tool-contract'
 import {
   commandGuide,
   defineCommandTool,
@@ -29,6 +35,18 @@ import {
   toolsProtocol,
   type ParsedToolsCommand,
 } from './tools-protocol.ts'
+
+const TOOLS_GATES: readonly ToolGate[] = [
+  { id: 'discover', title: '发现', default: 'auto' },
+  { id: 'forward', title: '转调', default: 'auto' },
+]
+const TOOLS_GATE_OF: Readonly<Record<(typeof toolsCommands)[number]['name'], string>> = {
+  help: 'discover',
+  search: 'discover',
+  inspect: 'discover',
+  read_result: 'discover',
+  execute: 'forward',
+}
 
 const GUIDE =
   'Use one wrapped call: {"command":"search","params":{"query":"read files","after":null,"limit":10}}. Search finds currently lawful nonresident tools. Ranking uses BM25 without historical call counts. Resident tools require direct calls and cannot be executed through Tools. Inspect can describe either kind. Inspect the target command before execute. Pass only its business parameters as arguments. Execute calls a nonresident target through the tool runtime. Discovery and execution never add that target to the model tool list. A pending or unknown execute response is not completion: copy its recovery call exactly and do not execute a replacement. read_result result/body/attachment uses fixed tr1/tb1/ta1 references and tc1 next; invocation queries a target; forwarding recovers an existing original slot and may continue its original admission. Start with after=null. next=null ends only that traversal. Offloaded bodies use kind=body and return UTF-8 text pages. Native attachments use kind=attachment and return base64 bytes. A body may expire; not-found body/expired means its retained text is no longer readable. References grant no access. Ending observation does not cancel an execute request already accepted by the provider; its original preparation and admission can still finish. The target runtime owns admitted targets.'
@@ -103,7 +121,11 @@ export function createToolsAuthor(
   }
   const commands: Record<
     string,
-    { summary: string; operation: ToolOperation<unknown, ToolMessageContentBlock> }
+    {
+      summary: string
+      operation: ToolOperation<unknown, ToolMessageContentBlock>
+      release: ToolCommandRelease
+    }
   > = {}
   for (const command of toolsCommands) {
     const made = defineToolOperation({
@@ -129,11 +151,16 @@ export function createToolsAuthor(
       },
     })
     if ('failure' in made) return fail({ field: 'commands', reason: 'Tools operation rejected' })
-    commands[command.name] = { summary: command.summary, operation: made.ok }
+    commands[command.name] = {
+      summary: command.summary,
+      operation: made.ok,
+      release: { gate: TOOLS_GATE_OF[command.name] },
+    }
   }
   const made = defineCommandTool({
     encoding: 'wrapped',
     guide: GUIDE,
+    gates: TOOLS_GATES,
     commands,
     implementation: {
       description:

@@ -7,7 +7,7 @@ import {
   type ToolImplementationModule,
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
-import { createAuthor } from './author.ts'
+import { createAuthor, type CommandGates } from './author.ts'
 import { shellCommands } from './commands.ts'
 import type { ShellAuthorEnvironment } from './environment.ts'
 import { resultMaximumField } from './files.ts'
@@ -144,8 +144,23 @@ export function createShellAuthor(
       (command, args, environment, execution) =>
         executeShell(command, args, environment, execution, config),
       shellSettings,
+      SHELL_GATES,
     ),
   )
+}
+
+const SHELL_GATES: CommandGates = {
+  gates: [
+    { id: 'read', title: '查看', default: 'auto' },
+    { id: 'run', title: '执行', default: 'ask' },
+  ],
+  of: {
+    help: 'read',
+    info: 'read',
+    create_session: 'run',
+    execute: 'run',
+    close_session: 'run',
+  },
 }
 export const shellToolModule: ToolImplementationModule<
   ShellAuthorEnvironment,

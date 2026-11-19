@@ -39,7 +39,7 @@ import {
   readBodyText,
   type BodyContract,
 } from '@omne-harness/assets'
-import { IMPLICIT_TOOL_GATE, toolCategoryDisplay } from '@omne-harness/tool-contract'
+import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createAssetsLocal, createTenantPublisher } from '@omne-harness/assets-local'
 import { createToolAssetCategory } from '../../../src/rows/governance/tool-assets.ts'
 import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
@@ -834,7 +834,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     operation: { owner: 'tool', operationId: fixture.input.call },
     definition: tool.asset.adoption,
     effectiveArguments: fixture.input.request.arguments.effective,
-    gate: IMPLICIT_TOOL_GATE,
+    gate: { id: 'run', title: '执行', default: 'ask' as const },
     origin: {
       kind: 'tool-call' as const,
       call: fixture.input.call,
@@ -848,7 +848,9 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(request).toMatchObject({
     scope: { tenantId: w.options.scope.tenantRef, sessionId: 'request-session' },
     operation: action.operation,
-    definition: tool.governance.interpretations[0]!.definition.reference,
+    definition: tool.governance.interpretations.find(
+      value => value.binding.enforcementKey === 'tool.run',
+    )!.definition.reference,
   })
   const targets = settings.views.filter(
     view =>
@@ -1292,7 +1294,7 @@ it('preserves a nonempty Settings assignment across default tenant installation 
     definitionRef: view.definitionRef,
     expectedRevision: 0,
     sourceId: 'tenant',
-    itemId: 'invoke',
+    itemId: 'run',
     action: { kind: 'set', value: { pick: 'deny', allowedSet: null } },
   })
   expect(staged).toMatchObject({ kind: 'prepared' })
@@ -1311,7 +1313,7 @@ it('preserves a nonempty Settings assignment across default tenant installation 
     id: 'tenant',
     values: [
       {
-        itemId: 'invoke',
+        itemId: 'run',
         value: { kind: 'value', value: { pick: 'deny', allowedSet: null } },
         locked: false,
       },
@@ -1530,7 +1532,9 @@ it('lists the settings of a holding whose category exists only in this test, bes
         : `independent/${item.item}`,
     )
   }
-  const tools = w.release.manifest.entries.map(entry => `tool/${entry.asset.name}/invoke`).sort()
+  const tools = w.release.manifest.entries
+    .flatMap(entry => entry.gates.map(gate => `tool/${entry.asset.name}/${gate.id}`))
+    .sort()
   const first = await listed()
   expect(first).toEqual(['gadget/one/enabled', ...tools])
 

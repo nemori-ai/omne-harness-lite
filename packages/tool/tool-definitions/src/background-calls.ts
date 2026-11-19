@@ -338,6 +338,7 @@ export function createBackgroundCallsAuthor(
     },
     encoding: 'wrapped',
     guide,
+    gates: [{ id: 'invoke', title: '后台调用', default: 'auto' }],
     commands,
   })
   return 'failure' in author
