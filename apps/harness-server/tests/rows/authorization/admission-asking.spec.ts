@@ -44,6 +44,7 @@ type Setup = Readonly<{
   details?: ToolReleaseDetails<unknown>
   express?: (input: unknown) => Promise<'written'>
   resolved?: (input: unknown) => void
+  ungated?: true
 }>
 
 async function world(setup: Setup = {}) {
@@ -86,9 +87,12 @@ async function world(setup: Setup = {}) {
     readAdmission: () => allowing,
     readPermission: () => check,
     readResolution: () => ({
-      resolve: input => {
+      resolve: async input => {
         setup.resolved?.(input)
-        return resolution.resolve(input)
+        const answer = await resolution.resolve(input)
+        return setup.ungated && 'ok' in answer && answer.ok.kind === 'own'
+          ? { ok: { ...answer.ok, gate: { kind: 'ungated' } } }
+          : answer
       },
     }),
     readLabeling: () =>
@@ -238,6 +242,30 @@ describe('the detail on the card of an asked action', () => {
       rows,
     })
     expect(r.asked).toHaveLength(1)
+  })
+
+  it('reads the permission and the detail of an ungated call not at all', async () => {
+    const r = recording()
+    const w = await world({ details: r.details, ungated: true })
+    expect(await w.admit('ToyEcho', echoCall(w.forward, {}))).toMatchObject({ kind: 'allow' })
+    expect(w.judged).toEqual([])
+    expect(r.asked).toEqual([])
+  })
+
+  it('asks the tool for a detail once for each action of a batch that asks, and never for a batch released at once', async () => {
+    const r = recording()
+    const verdicts = [ask, allow, ask]
+    const w = await world({ details: r.details, decide: () => verdicts.shift() ?? allow })
+    const batch = { id: 'batch-1', pass: 'pass-1' }
+    for (const action of ['a1', 'a2', 'a3'])
+      await w.admit('ToyEcho', echoCall(w.forward, {}), { batch, action })
+    expect(r.asked).toHaveLength(2)
+    const released = recording()
+    const all = await world({ details: released.details, decide: () => allow })
+    for (const action of ['a1', 'a2', 'a3'])
+      await all.admit('ToyEcho', echoCall(all.forward, {}), { batch, action })
+    expect(released.asked).toEqual([])
+    expect(all.judged).toHaveLength(3)
   })
 
   it.each([
