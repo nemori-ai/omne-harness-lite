@@ -732,6 +732,11 @@
       "id": "model-access",
       "plugin": "modelAccessRow",
       "config": {}
+    },
+    {
+      "id": "usage-access",
+      "plugin": "usageAccessRow",
+      "config": {}
     }
   ]
 }

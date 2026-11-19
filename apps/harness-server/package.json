@@ -150,6 +150,7 @@
     "@omne-harness/tool-host-local": "workspace:*",
     "@omne-harness/tool-storage-sql": "workspace:*",
     "@omne-harness/usage": "workspace:*",
+    "@omne-harness/usage-access": "workspace:*",
     "@omne-harness/usage-adapters": "workspace:*",
     "@omne-harness/usage-cordis-contract": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",

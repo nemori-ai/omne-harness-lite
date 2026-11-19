@@ -104,6 +104,7 @@
 | `notification-access` | `@omne-harness/notification-access` 的 `./cordis` 插件 `createNotificationAccessPlugin`：`notification/v1` 的接入插件。装上这一行，新地址才开放 `notification/v1`。登录能为租户行事时，行事者是这个租户的 owner | 无。插件把 `notification/v1` 的贡献（以一个来源发送与查一次发送，收件、订阅与节拍、去处、目录共 16 个操作，一条观察）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | 通知的五个服务面与 `notificationChanges`。服务面取不到时调用答 `basis-unavailable`，协议不撤下；变化源取不到时观察以不可用结束 | 无 |
 | `tool-access` | `@omne-harness/tool-access` 的 `./cordis` 插件 `createToolAccessPlugin`：`tool/v1` 的接入插件。装上这一行，新地址才开放 `tool/v1` | 无。插件把 `tool/v1` 的贡献（按调用引用读一次调用与读结果 2 个操作、观察 `observe-call`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createMemberActing`，把登录换成为目标租户行事的主体；资格读口缺席时换不出，调用答 `basis-unavailable`） | `toolRuntime` 的查询、实例与观察。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `model-access` | `@omne-harness/model-access` 的 `./cordis` 插件 `createModelAccessPlugin`：`model/v1` 的接入插件。装上这一行，新地址才开放 `model/v1` | 无。插件把 `model/v1` 的贡献（列出模型 1 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `modelProfiles`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
+| `usage-access` | `@omne-harness/usage-access` 的 `./cordis` 插件 `createUsageAccessPlugin`：`usage/v1` 的接入插件。装上这一行，新地址才开放 `usage/v1` | 无。插件把 `usage/v1` 的贡献（统计、逐笔记录、上下文占比 3 个读操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `usage`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 
 每行装一个插件（[IC-16](../cordis-integration-conventions.md#ic-16)）；插件自己的子插件随父插件装载。`session-ad*` 各行的 `inject` 以 [session-adapters 的 Cordis 页](../../../packages/session/SPEC.md#领域边界)为准，运维者可以按行 id 单独替换其中一行。
 
@@ -265,6 +266,14 @@ flowchart LR
   server-entry --> model-access
   identity -.-> model-access
   model-profiles -.-> model-access
+  usage --> usage-adapters
+  usage-adapters -.-> usage
+  model-records -.-> usage-adapters
+  tool-records -.-> usage-adapters
+  session-provider -.-> usage-adapters
+  server-entry --> usage-access
+  identity -.-> usage-access
+  usage -.-> usage-access
   tool-runtime -.-> session-call-control
   session-call-control -.-> session-provider
   authorization --> session-handoff
@@ -402,6 +411,7 @@ flowchart LR
 | `notification-access` | `principalIssuer`、`tenantStanding` |
 | `tool-access` | `principalIssuer`、`tenantStanding` |
 | `model-access` | `principalIssuer`、`tenantStanding` |
+| `usage-access` | `principalIssuer`、`tenantStanding` |
 
 表中未列的行可见集合为空。受信子树内的行提供的其他服务名不受隔离，根上的行照常 `inject`。
 

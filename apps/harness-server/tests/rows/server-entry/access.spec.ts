@@ -281,6 +281,7 @@ describe('the serve process with the release', () => {
         'session-diagnostics/v1',
         'session/v1',
         'tool/v1',
+        'usage/v1',
       ])
       const records = stdout
         .trim()
