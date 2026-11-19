@@ -11,8 +11,7 @@ import type {
   ObserveRequest,
   ProtocolKey,
 } from '@omne-harness/sdk/core'
-import type { LoginState } from '@omne-harness/client-assembly/cordis'
-import type { LoginCredentials, LoginResult, LogoutResult } from './host-bridge.ts'
+import type { LoginCredentials, LoginResult, LogoutResult } from './channel.ts'
 
 export const BRIDGE = {
   call: '/bridge/call',
@@ -21,7 +20,7 @@ export const BRIDGE = {
   events: '/bridge/events',
   login: '/bridge/login',
   logout: '/bridge/logout',
-  loginState: '/bridge/login-state',
+  loginStanding: '/bridge/login-standing',
 } as const
 
 export const WIRE_LIMITS: JsonLimits = {
@@ -234,22 +233,37 @@ export function readResult<R extends string>(text: string, allowed: readonly R[]
   return allowed.find(item => item === result)
 }
 
-const LOGIN_STATES: readonly LoginState[] = ['signed-out', 'signing-in', 'signed-in', 'signing-out']
+export type LoginStandingAnswer = Readonly<{
+  state: 'signed-in' | 'signed-out'
+  note?: 'expired' | 'unverified'
+}>
 
-export const writeLoginState = (state: LoginState, protocols: readonly ProtocolKey[]): string =>
+const STANDING_STATES = ['signed-in', 'signed-out'] as const
+const STANDING_NOTES = ['expired', 'unverified'] as const
+
+export const writeLoginStanding = (
+  standing: LoginStandingAnswer,
+  protocols: readonly ProtocolKey[],
+): string =>
   writeJsonText(
     object({
-      state: string(state),
+      state: string(standing.state),
+      ...(standing.note === undefined ? {} : { note: string(standing.note) }),
       protocols: { kind: 'array', items: protocols.map(protocolValue) },
     }),
   )
 
-export function readLoginState(text: string): LoginState | undefined {
-  const state = textOf(member(read(text), 'state'))
-  return LOGIN_STATES.find(item => item === state)
+export function readLoginStanding(text: string): LoginStandingAnswer | undefined {
+  const value = read(text)
+  const state = textOf(member(value, 'state'))
+  const found = STANDING_STATES.find(item => item === state)
+  if (found === undefined) return undefined
+  const note = textOf(member(value, 'note'))
+  const known = STANDING_NOTES.find(item => item === note)
+  return known === undefined ? { state: found } : { state: found, note: known }
 }
 
-export function readHostProtocols(text: string): readonly ProtocolKey[] | null {
+export function readForwardingProtocols(text: string): readonly ProtocolKey[] | null {
   const list = member(read(text), 'protocols')
   if (list?.kind !== 'array') return null
   return list.items.flatMap(item => {
@@ -258,12 +272,12 @@ export function readHostProtocols(text: string): readonly ProtocolKey[] | null {
   })
 }
 
-export function missingAtHost(
+export function missingAtForwarding(
   page: readonly ProtocolKey[],
-  host: readonly ProtocolKey[] | null,
+  forwarding: readonly ProtocolKey[] | null,
 ): readonly ProtocolKey[] {
-  if (host === null) return page
+  if (forwarding === null) return page
   return page.filter(
-    key => !host.some(known => known.name === key.name && known.major === key.major),
+    key => !forwarding.some(known => known.name === key.name && known.major === key.major),
   )
 }

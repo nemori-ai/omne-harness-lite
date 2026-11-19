@@ -8,14 +8,15 @@
     "node": ">=24"
   },
   "bin": {
-    "omne-desktop-host": "./dist/web-host/bin.js"
+    "omne-desktop-host": "./dist/standalone/bin.js"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json && vite build && vite build -c vite.preload.config.ts",
-    "window": "electron dist/electron-host/main.js",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && vite build",
+    "window": "node scripts/window.mjs",
+    "dev": "node scripts/dev.mjs",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
@@ -51,6 +52,7 @@
     "@omne-harness/tool-ui": "workspace:*",
     "@omne-harness/ui-kit": "workspace:*",
     "eventsource-parser": "catalog:",
+    "hono": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
