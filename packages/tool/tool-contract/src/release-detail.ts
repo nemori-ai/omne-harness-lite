@@ -83,7 +83,7 @@ export function judgeReleaseDescription(
   if (typeof value !== 'object' || value === null) return fail('not-an-object')
   const { rows, typed, ...rest } = value as Record<string, unknown>
   if (Object.keys(rest).length > 0) return fail('unknown-field')
-  if (!Array.isArray(rows) || rows.length > policy.maxRows) return fail('rows')
+  if (!Array.isArray(rows) || rows.length === 0 || rows.length > policy.maxRows) return fail('rows')
   const read = rows.map(row => rowOf(row, policy))
   if (read.some(row => row === undefined)) return fail('row')
   if ((typed === undefined) !== (declared === undefined)) return fail('typed-undeclared')

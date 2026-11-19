@@ -23,6 +23,7 @@ const tree = (value: unknown) => {
   return read.value
 }
 const DETAIL = { kind: 'test.detail@1', schema: tree({ type: 'object' }) }
+const ONE = [{ label: 'l', value: 'v' }]
 
 describe('what a description may hold, judged against its declaration and the budget', () => {
   it('keeps rows of text and of lists, and a typed value only when the command declares a kind', () => {
@@ -38,7 +39,8 @@ describe('what a description may hold, judged against its declaration and the bu
 
   it.each([
     ['a value that is no object', 'rows', 'not-an-object'],
-    ['an unknown member', { rows: [], note: 'x' }, 'unknown-field'],
+    ['an unknown member', { rows: ONE, note: 'x' }, 'unknown-field'],
+    ['no rows', { rows: [] }, 'rows'],
     ['rows that are no list', { rows: 'x' }, 'rows'],
     [
       'too many rows',
@@ -58,7 +60,7 @@ describe('what a description may hold, judged against its declaration and the bu
     ['a row with another member', { rows: [{ label: 'l', value: 'v', x: 1 }] }, 'row'],
     [
       'a typed value the command does not declare',
-      { rows: [], typed: tree(1) },
+      { rows: ONE, typed: tree(1) },
       'typed-undeclared',
     ],
   ])('gives nothing for %s', (_name, value, reason) => {
@@ -66,14 +68,14 @@ describe('what a description may hold, judged against its declaration and the bu
   })
 
   it('gives nothing for a declared kind without a value, a value that is no JSON, and one too large', () => {
-    expect(judgeReleaseDescription({ rows: [] }, DETAIL, POLICY)).toEqual({
+    expect(judgeReleaseDescription({ rows: ONE }, DETAIL, POLICY)).toEqual({
       failure: 'typed-undeclared',
     })
-    expect(judgeReleaseDescription({ rows: [], typed: () => 1 }, DETAIL, POLICY)).toEqual({
+    expect(judgeReleaseDescription({ rows: ONE, typed: () => 1 }, DETAIL, POLICY)).toEqual({
       failure: 'typed-not-json',
     })
     const large = tree({ text: 'x'.repeat(16 * 1024) })
-    expect(judgeReleaseDescription({ rows: [], typed: large }, DETAIL, POLICY)).toEqual({
+    expect(judgeReleaseDescription({ rows: ONE, typed: large }, DETAIL, POLICY)).toEqual({
       failure: 'typed-too-large',
     })
   })
