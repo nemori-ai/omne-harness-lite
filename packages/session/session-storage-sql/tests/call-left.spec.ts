@@ -3,6 +3,8 @@ import { evidence, operationId } from '@omne-harness/session-contract/testing'
 import { describe, expect, it } from 'vitest'
 import { canonicalText, encodeValue } from '../src/codec.ts'
 import { createSessionStorage } from '../src/index.ts'
+import { callsLeft } from '../src/worker/call-left.ts'
+import readCallsLeft from '../src/worker/read-calls-left.ts'
 import { app, textOf, TENANT_A } from './fixtures/app.ts'
 import {
   activeRun,
@@ -14,6 +16,8 @@ import {
 } from './fixtures/real-provider.ts'
 
 const SESSION = 'session-1'
+const CALLS_LEFT = 'session.calls-left'
+const WHOLE = 'session.work'
 const binding = {
   producer: { kind: 'tool' as const, call: 'outside-call' },
   action: 'external-action',
@@ -41,13 +45,12 @@ async function scene() {
   const access = a.access(TENANT_A)
   const read = async (): Promise<WorkSnapshot> => ok(await a.port.readWork(access))
   // A port with a cache of its own: its first read is a whole read of the store.
-  const whole = async (): Promise<WorkSnapshot> =>
-    ok(
-      await createSessionStorage<string>({
-        ...a.storageOptions,
-        storage: { ...a.provider.storage, database: {} },
-      }).readWork(access),
-    )
+  const fresh = () =>
+    createSessionStorage<string>({
+      ...a.storageOptions,
+      storage: { ...a.provider.storage, database: {} },
+    })
+  const whole = async (): Promise<WorkSnapshot> => ok(await fresh().readWork(access))
   const commit = (command: Record<string, unknown>) =>
     a.port.commit({ access, guards: [], command: command as never })
   const bind = async (operation: string) =>
@@ -123,6 +126,18 @@ async function scene() {
     expect(canonicalText(encodeValue(held))).toBe(canonicalText(encodeValue(await whole())))
   }
   const call = (producer = binding.producer) => a.port.readCall({ ...access, producer })
+  const asked = (from: number) =>
+    a.provider.calls
+      .slice(from)
+      .flatMap(item => (item.kind === 'read' && item.handler === CALLS_LEFT ? [item.input] : []))
+  const slots = () =>
+    (
+      a.provider.select(
+        'dom_0',
+        'SELECT slot FROM sl_call_late WHERE tenant = ? AND session = ? ORDER BY slot',
+        [textOf(TENANT_A), SESSION],
+      ).rows as unknown as [string][]
+    ).map(([slot]) => slot)
   return {
     a,
     read,
@@ -136,6 +151,10 @@ async function scene() {
     reads,
     folded,
     call,
+    fresh,
+    access,
+    asked,
+    slots,
   }
 }
 
@@ -165,6 +184,7 @@ describe('a fact about a call that left the stored snapshot', () => {
     ok(await s.release('release'))
     expect(holds(await s.whole(), s.consumption)).toBe(false)
     expect([s.rows('sl_call_left'), s.rows('sl_call_late')]).toEqual([1, 1])
+    expect(s.slots()).toEqual(['release/1'])
     ok(await s.release('release-again'))
     expect([s.rows('sl_call_left'), s.rows('sl_call_late')]).toEqual([1, 1])
   })
@@ -202,6 +222,42 @@ describe('the cache follows the store through a call that leaves', () => {
   })
 })
 
+describe('what the cache asks about the calls that left', () => {
+  it('a batch that names only calls of the held snapshot asks nothing', async () => {
+    const s = await scene()
+    await s.read()
+    const from = s.a.provider.calls.length
+    ok(await s.preserve('preserve'))
+    await s.read()
+    expect(s.asked(from)).toEqual([])
+  })
+
+  it('a batch that names a call that left asks once, as the store was before the batch', async () => {
+    const s = await scene()
+    ok(await s.preserve('preserve'))
+    ok(await s.process('process'))
+    const before = (await s.read()).revision
+    const from = s.a.provider.calls.length
+    ok(await s.release('release'))
+    await s.read()
+    expect(s.asked(from)).toMatchObject([{ through: before }])
+  })
+
+  it('a failed read of the calls that left gives the fold up: the next read is whole and right', async () => {
+    const s = await scene()
+    ok(await s.preserve('preserve'))
+    ok(await s.process('process'))
+    await s.read()
+    s.a.provider.failReads(CALLS_LEFT)
+    const from = s.a.provider.calls.length
+    ok(await s.release('release'))
+    const held = await s.read()
+    s.a.provider.failReads(null)
+    expect(s.reads(WHOLE, from)).toBe(1)
+    expect(canonicalText(encodeValue(held))).toBe(canonicalText(encodeValue(await s.whole())))
+  })
+})
+
 describe('the binding of a producer, asked from the store', () => {
   it('is the same while the call is in the snapshot and after it left; another producer has none', async () => {
     const s = await scene()
@@ -211,6 +267,38 @@ describe('the binding of a producer, asked from the store', () => {
     expect(holds(await s.read(), s.consumption)).toBe(false)
     expect(ok(await s.call())).toEqual(bound)
     expect(ok(await s.call({ kind: 'tool', call: 'never-bound' }))).toBeNull()
+  })
+
+  it('a store that cannot be read answers its failure, never that there is no such call', async () => {
+    const s = await scene()
+    ok(await s.process('process'))
+    s.a.provider.failReads(CALLS_LEFT)
+    expect(await s.call()).toHaveProperty('failure.kind', 'unavailable')
+    s.a.provider.failReads(WHOLE)
+    const unread = await s.fresh().readCall({ ...s.access, producer: binding.producer })
+    s.a.provider.failReads(null)
+    expect(unread).toHaveProperty('failure.kind', 'unavailable')
+    expect(ok(await s.call())).toEqual({ consumption: s.consumption, binding })
+  })
+})
+
+describe('the read of the calls that left refuses an input it cannot read', () => {
+  it('without a session, without keys, or with a position that is not a count', () => {
+    const port = {
+      execute: () => {
+        throw new Error('nothing is read for a refused input')
+      },
+    }
+    const keys = encodeValue({ consumptions: [], producers: [] })
+    const scope = { tenant: textOf(TENANT_A), session: SESSION }
+    for (const input of [
+      { tenant: scope.tenant, keys, through: '1' },
+      { ...scope, through: '1' },
+      { ...scope, keys },
+      { ...scope, keys, through: '-1' },
+      { ...scope, keys, through: 'one' },
+    ])
+      expect(() => readCallsLeft.read(input as never, port as never)).toThrow('invalid input')
   })
 })
 
@@ -258,9 +346,41 @@ describe('an intent that left the stored snapshot and is associated afterwards',
       }),
     )
     expect([s.rows('sl_call_left'), s.rows('sl_call_late')]).toEqual([1, 1])
+    expect(s.slots()).toEqual(['association'])
     const held = await s.read()
     expect(holds(held, consumption)).toBe(false)
     expect(canonicalText(encodeValue(held))).toBe(canonicalText(encodeValue(await s.whole())))
     expect(ok(await s.call(invoked.producer))).toEqual({ consumption, binding: invoked })
+    ok(
+      await s.a.port.commit({
+        access: s.access,
+        guards: [],
+        command: {
+          kind: 'preserveResult',
+          input: {
+            ...s.access,
+            operation: operationId('preserve-invoked'),
+            consumption,
+            result: { ...result, producer: invoked.producer },
+            custody: evidence('custody-invoked'),
+            participation: null,
+          },
+        } as never,
+      }),
+    )
+    expect(s.slots()).toEqual(['association', 'custody/1', 'result/1'])
+    // The slots are read a page at a time, in the order they were written: no number of them fails the read.
+    const port = {
+      execute: (sql: string, params: readonly unknown[]) =>
+        s.a.provider.select('dom_0', sql, params as never),
+    }
+    const scope = { tenant: textOf(TENANT_A), session: SESSION }
+    const keys = { consumptions: [consumption], producers: [] }
+    const [paged] = callsLeft(port as never, scope, null, 1)(keys as never)
+    expect(paged?.consumed?.results.map(item => item.custody?.digest)).toEqual([
+      evidence('custody-invoked').digest,
+    ])
+    expect(callsLeft(port as never, scope, null, 2)(keys as never)).toEqual([paged])
+    expect(callsLeft(port as never, scope)(keys as never)).toEqual([paged])
   })
 })

@@ -33,6 +33,7 @@ import {
   callOf,
   lendCalls,
   settleCalls,
+  type CallSettlement,
   type SessionCall,
   type SessionCallKeys,
   type SettledCallLookup,
@@ -435,7 +436,7 @@ function reduceBatch(
     decodedEntries.push(decoded.ok)
   }
   const lent = lentTo(held, decodedEntries, lookup)
-  if (previous !== null) previous = lendCalls(previous, lent)
+  previous = withLent(previous, lent)
   let draft: Draft | null = previous === null ? null : { ...previous }
   const interpretationRuns =
     previous === null
@@ -481,9 +482,7 @@ function reduceBatch(
         draft.controls.some(control => control.operation === item.operation && unsettled(control)),
       ),
     }
-  // A call leaves only when someone keeps what left: the store behind `lookup`.
-  const { settled, late } =
-    lookup === undefined ? { settled: [], late: [] } : settleCalls(draft, lent)
+  const { settled, late } = settlementOf(draft, lent, lookup)
   pruneInputLists(draft)
   draft.revision = batch.revision
   draft.source = batchEvidence(batch, draft.session)
@@ -512,6 +511,16 @@ function lentTo(
   if (held === null || lookup === undefined) return []
   return lookup(callKeysIn(entries)).filter(call => callOf(held, call.record.consumption) === null)
 }
+
+const withLent = (snapshot: WorkSnapshot | null, lent: readonly SessionCall[]) =>
+  snapshot === null ? null : lendCalls(snapshot, lent)
+
+// A call leaves only when someone keeps what left: the store behind `lookup`.
+const settlementOf = (
+  draft: Draft,
+  lent: readonly SessionCall[],
+  lookup: SettledCallLookup | undefined,
+): CallSettlement => (lookup === undefined ? { settled: [], late: [] } : settleCalls(draft, lent))
 
 /** The calls a batch names that the snapshot does not hold; null when the batch does not decode. */
 export function batchCallKeys(

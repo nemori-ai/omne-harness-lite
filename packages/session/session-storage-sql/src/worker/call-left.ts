@@ -31,8 +31,6 @@ export const CALL_LEFT_STATEMENTS: readonly string[] = [
     WHERE producer IS NOT NULL`,
 ]
 
-const LATE_ROWS = 10_000
-
 type Producer = SessionCallKeys['producers'][number]
 const named = (producer: Producer): string =>
   sha256(canonicalText({ kind: producer.kind, call: producer.call }))
@@ -97,11 +95,40 @@ function consumptionsOf(
   return ids
 }
 
+const LATE_PAGE = 256
+
+// Every statement is bounded; the read goes on until a page comes back short, so no number of slots fails it.
+function lateOf(
+  port: Executor,
+  scope: Scope,
+  consumption: string,
+  through: bigint | null,
+  page: number,
+): SessionLateCallFact[] {
+  const facts: SessionLateCallFact[] = []
+  const bound = through === null ? [] : [through]
+  let after: readonly bigint[] = [-1n, -1n]
+  for (;;) {
+    const rows = rowsOf(
+      port,
+      `SELECT position, ordinal, body FROM sl_call_late
+        WHERE tenant = ? AND session = ? AND consumption = ? AND (position, ordinal) > (?, ?)
+        ${through === null ? '' : 'AND position <= ?'} ORDER BY position, ordinal LIMIT ?`,
+      [scope.tenant, scope.session, consumption, ...after, ...bound, BigInt(page)],
+    )
+    for (const row of rows) facts.push(read<SessionLateCallFact>(row['body']))
+    const last = rows.at(-1)
+    if (last === undefined || rows.length < page) return facts
+    after = [BigInt(String(last['position'])), BigInt(String(last['ordinal']))]
+  }
+}
+
 /** The calls that left, as of the batch at `through` when given: a row written later is not seen. */
 export function callsLeft(
   port: Executor,
   scope: Scope,
   through: bigint | null = null,
+  page = LATE_PAGE,
 ): SettledCallLookup {
   const bound = through === null ? '' : ' AND position <= ?'
   return keys =>
@@ -114,20 +141,8 @@ export function callsLeft(
         params,
       )
       if (left === undefined) return []
-      const late = rowsOf(
-        port,
-        `SELECT body FROM sl_call_late WHERE tenant = ? AND session = ? AND consumption = ?${bound}
-          ORDER BY position, ordinal LIMIT ${LATE_ROWS + 1}`,
-        params,
-      )
-      if (late.length > LATE_ROWS)
-        throw new Error('the late facts of one call exceed the read bound')
-      return [
-        callWithLate(
-          read<SessionCall>(left['body']),
-          late.map(row => read<SessionLateCallFact>(row['body'])),
-        ),
-      ]
+      const late = lateOf(port, scope, consumption, through, page)
+      return [callWithLate(read<SessionCall>(left['body']), late)]
     })
 }
 

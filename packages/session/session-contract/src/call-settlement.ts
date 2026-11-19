@@ -80,28 +80,40 @@ export function callOf(snapshot: WorkSnapshot, consumption: ConsumptionId): Sess
   }
 }
 
-function referenced(snapshot: WorkSnapshot, call: SessionCall): boolean {
-  const { consumption } = call.record
-  const producer = producerOf(call)
-  const named = producer === null ? null : digestOf(producer)
+type Named = Readonly<{ consumption: ConsumptionId; producer: string | null }>
+
+function waited(snapshot: WorkSnapshot, { consumption, producer }: Named): boolean {
   return (
     (snapshot.callWaits ?? []).some(item => item.consumption === consumption) ||
-    (named !== null &&
+    (producer !== null &&
       snapshot.waiting.some(
-        item => item.kind === 'producer' && digestOf(item.binding.producer) === named,
-      )) ||
-    (snapshot.backgroundPlaceholders ?? []).includes(consumption) ||
+        item => item.kind === 'producer' && digestOf(item.binding.producer) === producer,
+      ))
+  )
+}
+
+function controlled(snapshot: WorkSnapshot, { consumption, producer }: Named): boolean {
+  const names = (item: Readonly<{ consumption: ConsumptionId }>) => item.consumption === consumption
+  return (
     snapshot.controls.some(
       control =>
         unsettled(control) &&
-        ((named !== null && control.pending.some(item => digestOf(item) === named)) ||
-          (control.pendingUnassociatedWaiting ?? []).some(
-            item => item.consumption === consumption,
-          )),
-    ) ||
-    (snapshot.workEntryIndex?.controls ?? []).some(control =>
-      control.selected.some(item => item.consumption === consumption),
-    )
+        ((producer !== null && control.pending.some(item => digestOf(item) === producer)) ||
+          (control.pendingUnassociatedWaiting ?? []).some(names)),
+    ) || (snapshot.workEntryIndex?.controls ?? []).some(control => control.selected.some(names))
+  )
+}
+
+function referenced(snapshot: WorkSnapshot, call: SessionCall): boolean {
+  const producer = producerOf(call)
+  const named = {
+    consumption: call.record.consumption,
+    producer: producer === null ? null : digestOf(producer),
+  }
+  return (
+    waited(snapshot, named) ||
+    (snapshot.backgroundPlaceholders ?? []).includes(named.consumption) ||
+    controlled(snapshot, named)
   )
 }
 
@@ -155,24 +167,43 @@ export function lendCalls(snapshot: WorkSnapshot, lent: readonly SessionCall[]):
   return draft
 }
 
+type Kept = Consumption['results'][number]
+
+function versionFacts(
+  consumption: ConsumptionId,
+  was: Kept | undefined,
+  now: Kept,
+): SessionLateCallFact[] {
+  const { version } = now.result
+  const facts: SessionLateCallFact[] = []
+  if (was === undefined) facts.push({ consumption, slot: 'result', version, result: now.result })
+  for (const slot of ['custody', 'completion'] as const) {
+    const evidence = now[slot]
+    if (evidence !== null && (was?.[slot] ?? null) === null)
+      facts.push({ consumption, slot, version, evidence })
+  }
+  if (now.release === 'confirmed' && was?.release !== 'confirmed')
+    facts.push({ consumption, slot: 'release', version })
+  return facts
+}
+
 function lateFacts(before: SessionCall, after: SessionCall): SessionLateCallFact[] {
   const { consumption } = before.record
-  const facts: SessionLateCallFact[] = []
-  if (digestOf(before.record) !== digestOf(after.record))
-    facts.push({ consumption, slot: 'association', record: after.record })
-  for (const now of after.consumed?.results ?? []) {
-    const { version } = now.result
-    const was = before.consumed?.results.find(item => item.result.version === version)
-    if (was === undefined) facts.push({ consumption, slot: 'result', version, result: now.result })
-    for (const slot of ['custody', 'completion'] as const) {
-      const evidence = now[slot]
-      if (evidence !== null && (was?.[slot] ?? null) === null)
-        facts.push({ consumption, slot, version, evidence })
-    }
-    if (now.release === 'confirmed' && was?.release !== 'confirmed')
-      facts.push({ consumption, slot: 'release', version })
-  }
-  return facts
+  const association: SessionLateCallFact[] =
+    digestOf(before.record) === digestOf(after.record)
+      ? []
+      : [{ consumption, slot: 'association', record: after.record }]
+  const earlier = before.consumed?.results ?? []
+  return [
+    ...association,
+    ...(after.consumed?.results ?? []).flatMap(now =>
+      versionFacts(
+        consumption,
+        earlier.find(item => item.result.version === now.result.version),
+        now,
+      ),
+    ),
+  ]
 }
 
 export type CallSettlement = Readonly<{
@@ -201,7 +232,6 @@ export function settleCalls(draft: Draft, lent: readonly SessionCall[]): CallSet
   return { settled, late }
 }
 
-type Kept = Consumption['results'][number]
 type LateResultFact = Exclude<SessionLateCallFact, { slot: 'association' }>
 
 function resultsWith(results: readonly Kept[], fact: LateResultFact): readonly Kept[] {
