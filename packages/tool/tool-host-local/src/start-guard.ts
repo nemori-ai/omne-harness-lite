@@ -63,6 +63,21 @@ function allowed(
   }
 }
 
+/** What an allowed start records with its acceptance besides the permit. */
+export type AcceptedFacts = Readonly<{
+  authorizations?: readonly ToolPermitConsumption[]
+  release?: ToolStartRelease
+}>
+
+export function acceptedFacts(
+  verdict: Extract<RequestAccessVerdict, { kind: 'allowed' }>,
+): AcceptedFacts {
+  return {
+    ...(verdict.authorizations === undefined ? {} : { authorizations: verdict.authorizations }),
+    ...(verdict.release === undefined ? {} : { release: verdict.release }),
+  }
+}
+
 export async function qualifyRequestAccess<P>(
   provider: ToolRequestAccess<P> | undefined,
   input: Parameters<ToolRequestAccess<P>['qualify']>[0],

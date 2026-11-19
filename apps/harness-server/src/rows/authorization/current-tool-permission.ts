@@ -91,7 +91,6 @@ export function agentPermissionOperation(
 type Decision = Exclude<AdmissionDecision, { kind: 'need-decision' }>
 /** The gate that asks, and the revision of its verdict: what a release for the session rests on. */
 export type AskedGate = Readonly<{ capabilityId: string; enforcementKey: string; basis: string }>
-/** What a release rests on: the way it was released and the grant it names (none for a carrier). */
 export type PermissionRelease = Readonly<
   | { by: 'carrier'; grant: null }
   | { by: 'verdict' | 'once' | 'session' | 'skip-ask'; grant: GrantRef }
@@ -246,7 +245,6 @@ function interpretReading(
 
 type Evaluation = Extract<PermissionBasisReading, { kind: 'current' }>['evaluation']
 
-// A session layer that picks or bounds the value took part: the release then lives with the session.
 function layerOf(evaluation: Evaluation): 'tenant' | 'session' {
   const source = evaluation.sources.session
   return source.kind === 'available' &&
@@ -292,27 +290,36 @@ function sessionFactsOf(
   }
 }
 
-// A release on a once or a session authorization holds only while that authorization does.
+function heldGrant(grant: GrantRef, once: OnceAuthorization | null | undefined) {
+  switch (grant.via) {
+    case 'verdict':
+    case 'skip-ask':
+      return null
+    case 'session-grant': {
+      const { gate, source } = grant
+      return {
+        kind: 'session',
+        capabilityId: gate.capability,
+        enforcementKey: gate.key,
+        source,
+      } as const
+    }
+    case 'once':
+      if (!once) throw new Error('A release on a once authorization names none.')
+      return { kind: 'once', consumer: once.consumer, source: grant.source } as const
+  }
+}
+
 function guardedCondition(
   decided: Extract<ReleaseDecision, { kind: 'release' }>,
-  { condition, holders, gateRef, once }: Found,
+  { condition, holders, once }: Found,
 ): StartCondition | null {
-  if (condition === null || (decided.by !== 'once' && decided.by !== 'session')) return condition
-  const grant =
-    decided.by === 'once' && once
-      ? { kind: 'once' as const, consumer: once.consumer, source: once.source }
-      : decided.grant.via === 'session-grant'
-        ? {
-            kind: 'session' as const,
-            capabilityId: gateRef.capability,
-            enforcementKey: gateRef.key,
-            source: decided.grant.source,
-          }
-        : null
+  if (condition === null || decided.by === 'carrier') return condition
+  const held = heldGrant(decided.grant, once)
+  if (held === null) return condition
   const commands = condition['commands']
-  if (grant === null || !Array.isArray(commands))
-    throw new Error('A release on a session authorization cannot be guarded at its acceptance.')
-  const guard = sessionAuthorizationGuardFacts({ ...holders, grant })
+  if (!Array.isArray(commands)) throw new Error('A start condition carries no commands.')
+  const guard = sessionAuthorizationGuardFacts({ ...holders, grant: held })
   return { ...condition, commands: [...commands, guard] }
 }
 

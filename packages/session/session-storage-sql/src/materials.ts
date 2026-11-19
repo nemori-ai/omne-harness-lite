@@ -417,54 +417,47 @@ function migrationOf(
   return { ...ref, moduleUrl: found.moduleUrl, checksum: found.digest, requires }
 }
 
+/** A guard reads in the commit's transaction and writes nothing. */
+function guardOf(
+  participant: string,
+  file: string,
+  readTables: readonly string[],
+  providesFacts: ParticipantDescriptor['providesFacts'],
+): ParticipantDescriptor {
+  const found = module(file)
+  return {
+    participant,
+    protocol: '1',
+    moduleUrl: found.moduleUrl,
+    codeDigest: found.digest,
+    ownedTables: [],
+    readTables,
+    requiresFacts: [],
+    providesFacts,
+    allowedFunctions: [],
+    grouping: 'singleton',
+  }
+}
+
 export function sessionStorageMaterials(
   options: SessionStorageMaterialsOptions,
 ): SessionStorageMaterials {
   const readOutputLimitBytes = requireReadOutputLimit(options)
-  const permissionGuard = module('permission-current-guard')
-  const authorizationGuard = module('authorization-guard')
-  const runLiveGuard = module('run-live-guard')
   const participant = module('participant')
   const ordinaryBasis = module('ordinary-basis')
   const record = module('execution-record')
   return {
     participants: [
-      {
-        participant: SESSION_RUN_LIVE_GUARD,
-        protocol: '1',
-        moduleUrl: runLiveGuard.moduleUrl,
-        codeDigest: runLiveGuard.digest,
-        ownedTables: [],
-        readTables: ['sl_journal', 'sl_state', ...STATE_ITEM_TABLES],
-        requiresFacts: [],
-        providesFacts: [SESSION_RUN_LIVE_FACT],
-        allowedFunctions: [],
-        grouping: 'singleton',
-      },
-      {
-        participant: SESSION_PERMISSION_GUARD,
-        protocol: '1',
-        moduleUrl: permissionGuard.moduleUrl,
-        codeDigest: permissionGuard.digest,
-        ownedTables: [],
-        readTables: PERMISSION_CURRENT_TABLES,
-        requiresFacts: [],
-        providesFacts: [SESSION_PERMISSION_CURRENT_FACT],
-        allowedFunctions: [],
-        grouping: 'singleton',
-      },
-      {
-        participant: SESSION_AUTHORIZATION_GUARD,
-        protocol: '1',
-        moduleUrl: authorizationGuard.moduleUrl,
-        codeDigest: authorizationGuard.digest,
-        ownedTables: [],
-        readTables: AUTHORIZATION_CONTEXT_TABLES,
-        requiresFacts: [],
-        providesFacts: [],
-        allowedFunctions: [],
-        grouping: 'singleton',
-      },
+      guardOf(
+        SESSION_RUN_LIVE_GUARD,
+        'run-live-guard',
+        ['sl_journal', 'sl_state', ...STATE_ITEM_TABLES],
+        [SESSION_RUN_LIVE_FACT],
+      ),
+      guardOf(SESSION_PERMISSION_GUARD, 'permission-current-guard', PERMISSION_CURRENT_TABLES, [
+        SESSION_PERMISSION_CURRENT_FACT,
+      ]),
+      guardOf(SESSION_AUTHORIZATION_GUARD, 'authorization-guard', AUTHORIZATION_CONTEXT_TABLES, []),
       {
         participant: EXECUTION_RECORD_PARTICIPANT,
         protocol: EXECUTION_RECORD_PROTOCOL,

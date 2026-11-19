@@ -11,12 +11,7 @@ import {
   type LedgerWrite,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
-import type {
-  ToolPermitConsumption,
-  ToolStartRelease,
-  ToolStartReleaseReading,
-  ToolStartReleases,
-} from '@omne-harness/tool-contract/provider'
+import { startReleases, type StartAuthorityWithReleases } from './start-releases.ts'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -49,7 +44,7 @@ import {
   type StartPermitRequirements,
 } from './start-permit-requirements.ts'
 import type { ConditionalLedgerCommit, StartCondition, ToolRequestAccess } from './ledger-guards.ts'
-import { qualifyRequestAccess } from './start-guard.ts'
+import { acceptedFacts, qualifyRequestAccess, type AcceptedFacts } from './start-guard.ts'
 
 type TenantId = LedgerDomain['tenant']
 
@@ -109,17 +104,16 @@ type PermitRecord = Readonly<{
   requestBinding?: string
   requirementSource?: DurableEvidence
 }>
-type AcceptanceRecord = Readonly<{
-  kind: 'acceptance'
-  call: ToolCallId
-  start: ToolOperationId
-  permit: string
-  executorReceipt: DurableEvidence
-  acceptance: DurableEvidence
-  requirementSource?: DurableEvidence
-  authorizations?: readonly ToolPermitConsumption[]
-  release?: ToolStartRelease
-}>
+type AcceptanceRecord = AcceptedFacts &
+  Readonly<{
+    kind: 'acceptance'
+    call: ToolCallId
+    start: ToolOperationId
+    permit: string
+    executorReceipt: DurableEvidence
+    acceptance: DurableEvidence
+    requirementSource?: DurableEvidence
+  }>
 type RejectionRecord = Readonly<{
   kind: 'rejection'
   call: ToolCallId
@@ -270,23 +264,6 @@ function progressOf(
   if (rejected?.kind === 'rejection')
     return { kind: 'rejected', reason: rejected.reason, exclusion: rejected.evidence }
   return null
-}
-
-// A call whose start was accepted again answers the release of its latest acceptance.
-function latestRelease(snapshot: DomainSnapshot, call: ToolCallId): ToolStartReleaseReading {
-  let latest: AcceptanceRecord | undefined
-  for (const record of snapshot.records.values()) {
-    if (record.kind !== 'acceptance' || record.call !== call || record.release === undefined)
-      continue
-    if (
-      latest === undefined ||
-      BigInt(record.acceptance.revision) > BigInt(latest.acceptance.revision)
-    )
-      latest = record
-  }
-  return latest?.release === undefined
-    ? { kind: 'absent' }
-    : { kind: 'released', release: latest.release }
 }
 
 function invalid(field: string, reason: string): Outcome<never, ToolFailure> {
@@ -592,7 +569,7 @@ function snapshotOf(
 
 export function createLocalStartCoordinator<P>(
   input: LocalStartCoordinatorInput<P>,
-): ToolStartAuthority<P> & ToolStartReleases<P> {
+): StartAuthorityWithReleases<P> {
   const { store, access, guardsOf, commitAttempts, permitRequirements } = input
   const requestAccess = input.requestAccess?.access
   const commitWith: ConditionalLedgerCommit['commit'] =
@@ -926,8 +903,7 @@ export function createLocalStartCoordinator<P>(
           permit: permit.ok.digest,
           executorReceipt: receipt.ok,
           requirementSource: requirement.source,
-          ...(policy.authorizations === undefined ? {} : { authorizations: policy.authorizations }),
-          ...(policy.release === undefined ? {} : { release: policy.release }),
+          ...acceptedFacts(policy),
         }
         const acceptance = mint(tenant, key, revision, facts)
         const accepted: AcceptanceRecord = { kind: 'acceptance', call, start, ...facts, acceptance }
@@ -1074,24 +1050,6 @@ export function createLocalStartCoordinator<P>(
     )
   }
 
-  const releaseOf: ToolStartReleases<P>['releaseOf'] = async raw => {
-    const checked = await callEntry(raw)
-    if ('failure' in checked) return checked
-    const { tenant, call } = checked.ok
-    return transactOwn<ToolStartReleaseReading>(
-      startDomain(tenant, call),
-      snapshot => reply(succeed(latestRelease(snapshot, call))),
-      unavailable,
-    )
-  }
-
-  const authority: ToolStartAuthority<P> & ToolStartReleases<P> = {
-    exclude,
-    prepare,
-    consume,
-    inspect,
-    invalidate,
-    releaseOf,
-  }
-  return Object.freeze(authority)
+  const releaseOf = startReleases<P>(callEntry, read, startDomain)
+  return Object.freeze({ exclude, prepare, consume, inspect, invalidate, releaseOf })
 }
