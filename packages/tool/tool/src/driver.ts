@@ -758,16 +758,17 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       return task?.kind === 'prepare' ? prepare(step, recovery, task) : rest(step, recovery)
     }
 
+  const resumeOrDecide: Action = async (step, recovery) =>
+    owesQueue(recovery)
+      ? ((await resumeEnvironment(step, recovery)) ?? resumeStep(step, recovery))
+      : resumptions.decide(step, recovery)
+
   const phaseSteps: Readonly<Partial<Record<ToolRecovery['state']['phase'], Action>>> = {
     accepted: owing(plan),
     preparing: preparingFirst(owing(enqueue)),
     queued: owing(prepareStart),
     starting: preparingFirst(startStep),
-    suspended: preparingFirst(async (step, recovery) =>
-      owesQueue(recovery)
-        ? ((await resumeEnvironment(step, recovery)) ?? resumeStep(step, recovery))
-        : resumptions.decide(step, recovery),
-    ),
+    suspended: preparingFirst(resumeOrDecide),
   }
 
   type Duty = Readonly<{ key: string; run: () => Promise<StepResult> }>
