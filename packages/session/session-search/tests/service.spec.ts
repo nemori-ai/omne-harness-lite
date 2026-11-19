@@ -316,6 +316,30 @@ describe('how many searches of a tenant run at once (SH-5)', () => {
     expect(gate.entered()).toBe(3)
   })
 
+  it('keeps the bound when one search ends while another still runs', async () => {
+    const s = await filled({ maxConcurrent: 2, maxQueued: 2 })
+    const gate = held(s)
+    const first = s.ask(NEEDLE)
+    const second = s.ask(NEEDLE)
+    await settle()
+    expect(gate.entered()).toBe(2)
+    gate.release()
+    expect(await first).toMatchObject({ ok: { complete: true } })
+    // One still runs: one more may start, the one after it waits.
+    const third = s.ask(NEEDLE)
+    const fourth = s.ask(NEEDLE)
+    await settle()
+    expect(gate.entered()).toBe(3)
+    gate.release()
+    gate.release()
+    expect(await second).toMatchObject({ ok: { complete: true } })
+    expect(await third).toMatchObject({ ok: { complete: true } })
+    await settle()
+    gate.release()
+    expect(await fourth).toMatchObject({ ok: { complete: true } })
+    expect(gate.entered()).toBe(4)
+  })
+
   it('frees its place when a search fails, and counts each tenant by itself', async () => {
     const s = await filled({ maxConcurrent: 1, maxQueued: 0 })
     s.w.log.faults.stamps = true

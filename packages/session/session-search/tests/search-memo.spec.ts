@@ -3,6 +3,7 @@ import type { SessionId } from '@omne-harness/session-contract'
 import { testingTenant } from '@omne-harness/session-contract/testing'
 import { compileQuery, queryDigest, searchHistory, type SearchQuery } from '../src/index.ts'
 import { keysOf, ROOMY, S1, S2, said, TENANT, world } from './search-support.ts'
+import { createSearchMemo, headsOf } from '../src/search-memo.ts'
 import { LIMITS, queryOf } from './support.ts'
 
 // A page reads the covers of the index and the heads of the logs. Both only move on, so a stamp of
@@ -117,6 +118,30 @@ describe('what a page reads again', () => {
     expect(w.index.reads.covers).toBe(2)
   })
 
+  it('does not trust the covers of another generation, though its stamp is the same', async () => {
+    const w = world()
+    w.log.commit(S1, [said('needle a')], 1000)
+    w.log.commit(S1, [said('needle b')], 1100)
+    w.log.commit(S2, [said('needle c')], 1200)
+    w.log.commit(S2, [said('needle d')], 1300)
+    // The first generation: all of the first session, half of the second. Count 2, sum 3.
+    const first = w.index.ready()
+    await w.follow(first, S1)
+    await w.follow(first, S2, '1')
+    const all = [`${S2}#2`, `${S2}#1`, `${S1}#2`, `${S1}#1`]
+    expect(keysOf([await w.page(NEEDLE)])).toEqual(all)
+    // The second: half of the first session, all of the second. Count 2, sum 3 again.
+    const begun = await w.index.beginRebuild(TENANT, 2)
+    if ('failure' in begun) throw new Error('begin')
+    await w.follow(begun.ok.generation, S1, '1')
+    await w.follow(begun.ok.generation, S2)
+    await w.index.adopt(TENANT, begun.ok.generation)
+    // What the new generation has not reached is read from the logs and comes first.
+    const page = await w.page(NEEDLE)
+    expect(page.complete).toBe(true)
+    expect(keysOf([page]).sort()).toEqual([...all].sort())
+  })
+
   it('keeps what it knows of one tenant apart from another', async () => {
     const w = settled()
     await w.followAll(w.index.ready())
@@ -155,5 +180,35 @@ describe('what a page reads again', () => {
     expect(page.hits).toHaveLength(12)
     expect(w.index.reads.candidates).toBeGreaterThan(2)
     expect(w.index.reads.covers).toBe(1)
+  })
+})
+
+describe('the stamp of the log heads and the memory itself', () => {
+  it('counts the sessions, sums their heads and counts the archived ones', () => {
+    const listed = [
+      { session: S1, tail: '3', archived: false },
+      { session: S2, tail: '5', archived: true },
+    ] as Parameters<typeof headsOf>[0]
+    expect(headsOf(listed)).toEqual({ sessions: 2, total: '8', archived: 1 })
+    expect(headsOf([])).toEqual({ sessions: 0, total: '0', archived: 0 })
+  })
+
+  it('holds a few tenants and drops the one least lately set', () => {
+    const memo = createSearchMemo(2)
+    const [a, b, c] = [1, 2, 3].map(n =>
+      testingTenant(
+        `org_h1st0rysearch000000000000${String(n)}`,
+        `acc_h1st0rysearch000000000000${String(n)}`,
+      ),
+    )
+    const value = (generation: number) =>
+      ({ generation }) as NonNullable<ReturnType<typeof memo.get>>
+    memo.set(a!, value(1))
+    memo.set(b!, value(2))
+    memo.set(a!, value(3))
+    memo.set(c!, value(4))
+    expect(memo.get(a!)?.generation).toBe(3)
+    expect(memo.get(b!)).toBeUndefined()
+    expect(memo.get(c!)?.generation).toBe(4)
   })
 })

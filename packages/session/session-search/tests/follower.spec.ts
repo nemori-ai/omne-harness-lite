@@ -117,6 +117,33 @@ describe('following the logs of a tenant (SH-2, SH-3)', () => {
   })
 })
 
+describe('a pass over a ready index', () => {
+  it('says unavailable when the covers cannot be read, or a page cannot be appended', async () => {
+    const { w, pass } = logged()
+    expect(await pass()).toMatchObject({ ok: { adopted: true } })
+    w.log.commit(S1, [said('needle 4')], 4)
+    const covers = w.index.covers.bind(w.index)
+    w.index.covers = async () => ({ failure: 'unavailable' })
+    expect(await pass()).toEqual({ failure: 'unavailable' })
+    w.index.covers = covers
+    const append = w.index.append.bind(w.index)
+    w.index.append = async () => ({ failure: 'unavailable' })
+    expect(await pass()).toEqual({ failure: 'unavailable' })
+    w.index.append = append
+    expect(await pass()).toEqual({ ok: { behind: 0, steps: 1, adopted: false } })
+  })
+
+  it('counts an entry with no time of its own at the time the cover stood at, across passes', async () => {
+    const w = world()
+    const pass = () => followTenant({ index: w.index, log: w.log.reader }, TENANT, LIMITS)
+    w.log.commit(S1, [said('needle timed')], 1000)
+    await pass()
+    w.log.commit(S1, [said('needle untimed')], null)
+    await pass()
+    expect(w.index.coverOf(1, S1)).toEqual({ through: '2', at: 1000 })
+  })
+})
+
 describe('reading ahead while appending', () => {
   it('reads the next page while this one is appended, one read at a time, and none past its steps', async () => {
     const { w, pass } = logged()
@@ -276,6 +303,46 @@ describe('the follower of a process (SH-2, SH-4)', () => {
     const { w, follower } = following({ maxSteps: 100 })
     follower.poke(TENANT)
     w.log.commit(S2, [said('needle racing')], 91)
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(w.index.coverOf(1, S2).through).toBe('4')
+    follower.stop()
+  })
+
+  it('with a ready index: a pass that failed, or left sessions behind, is not a settled one', async () => {
+    const { w, follower } = following({ maxSteps: 1 })
+    follower.poke(TENANT)
+    await follower.idle()
+    w.log.commit(S1, [said('needle 4')], 4)
+    w.log.commit(S2, [said('needle 4')], 4)
+    w.log.faults.entries = true
+    follower.poke(TENANT)
+    await follower.idle()
+    w.log.faults.entries = false
+    // The logs stand where the failed pass found them; one step a pass, two sessions behind.
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(w.index.coverOf(1, S1).through).toBe('4')
+    expect(w.index.coverOf(1, S2).through).toBe('4')
+    follower.stop()
+  })
+
+  it('a commit and a poke that come after a pass listed the sessions get a pass of their own', async () => {
+    const { w, follower } = following({ maxSteps: 100 })
+    follower.poke(TENANT)
+    await follower.idle()
+    const sessions = w.log.reader.sessions.bind(w.log.reader)
+    let raced = false
+    w.log.reader.sessions = async tenant => {
+      const listed = await sessions(tenant)
+      if (!raced) {
+        raced = true
+        w.log.commit(S2, [said('needle racing')], 91)
+        follower.poke(TENANT)
+      }
+      return listed
+    }
+    w.log.commit(S1, [said('needle first')], 90)
     follower.poke(TENANT)
     await follower.idle()
     expect(w.index.coverOf(1, S2).through).toBe('4')
