@@ -137,7 +137,7 @@ describe('redelivering the late accounts of a call after a restart', () => {
       TARGET,
       ACCESS,
       saved([
-        { dispatch: 'mdisp_empty', revision: null },
+        { dispatch: 'mdisp_other', revision: null },
         { dispatch: 'mdisp_carried', revision: '2' },
         { dispatch: 'mdisp_newer', revision: '2' },
       ]),
