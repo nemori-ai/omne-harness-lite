@@ -363,4 +363,78 @@ describe('what the start policy asks and answers', () => {
       await absent.world.close()
     }
   })
+
+  it('answers a call whose carried target cannot be told, before it asks the identity or the permission', async () => {
+    const waiting = {
+      kind: 'unavailable',
+      diagnostic: 'The current target rule or its authority is unavailable.',
+    }
+    const failing = await asking(allow, undefined, () => ({
+      resolve: async () => ({ failure: { kind: 'unavailable' } }),
+    }))
+    const absent = await asking(allow, undefined, () => undefined)
+    const unknown = await asking(allow, undefined, () => ({ resolve: async () => undefined }))
+    const invalid = await asking(allow, undefined, () => ({
+      resolve: async () => ({
+        ok: {
+          kind: 'argument-error',
+          gate: { kind: 'gate', gate: IMPLICIT_TOOL_GATE },
+          field: 'arguments',
+          reason: 'x',
+        },
+      }),
+    }))
+    try {
+      for (const w of [failing, absent, unknown]) {
+        expect(await w.qualify('Tools')).toStrictEqual(waiting)
+        expect(w.identities).toEqual([])
+        expect(w.judged).toEqual([])
+      }
+      expect(await invalid.qualify('Tools')).toStrictEqual({ kind: 'allowed', condition: null })
+      expect(invalid.identities).toHaveLength(1)
+      expect(invalid.judged).toMatchObject([{ carrier: true }])
+    } finally {
+      for (const w of [failing, absent, unknown, invalid]) await w.world.close()
+    }
+  })
+
+  it('answers unavailable, with the same words, while the rules or the identity check are not there', async () => {
+    const waiting = {
+      kind: 'unavailable',
+      diagnostic: 'The current target rule or its authority is unavailable.',
+    }
+    const world = await forwardWorld()
+    try {
+      const access = {
+        principal: world.principal,
+        tenant: world.tenant,
+        call: world.call,
+        admission: okOf(decodeToolOperationId('original-admission'), 'operation'),
+      }
+      const request = world.request('ToyEcho')
+      const unruled = createToolTargetPolicy(
+        undefined,
+        () => ({ check: async () => ({ kind: 'allowed', evidence }) }) as never,
+        () => ({ check: async () => allow }),
+        resolving(world),
+      )
+      expect(await unruled.qualify({ ...access, request })).toStrictEqual(waiting)
+      const unjudged = createToolTargetPolicy(
+        rules,
+        () => ({ check: async () => ({ kind: 'allowed', evidence }) }) as never,
+        () => undefined,
+        resolving(world),
+      )
+      expect(await unjudged.qualify({ ...access, request })).toStrictEqual(waiting)
+      const unidentified = createToolTargetPolicy(
+        rules,
+        () => undefined,
+        () => ({ check: async () => allow }),
+        resolving(world),
+      )
+      expect(await unidentified.qualify({ ...access, request })).toStrictEqual(waiting)
+    } finally {
+      await world.close()
+    }
+  })
 })

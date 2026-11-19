@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { canonicalText, decisionEvidence, type AdmissionCheck } from '@omne-harness/authorization'
+import {
+  canonicalText,
+  decisionEvidence,
+  effectiveArgumentsOf,
+  type AdmissionCheck,
+} from '@omne-harness/authorization'
 import { writeJsonText } from '@omne-harness/json-text'
 import {
   createToolActionResolution,
   createToolCallLabeling,
 } from '../../../src/entry/tool-action-resolution.ts'
 import { createActionAdmission } from '../../../src/rows/authorization/action-admission.ts'
+import { actionRulesSchema } from '../../../src/rows/authorization/action-rules.ts'
 import type {
   ToolPermissionAction,
   ToolPermissionCheck,
@@ -271,4 +277,117 @@ describe('an action that comes with an answer', () => {
     })
     expect(w.judged).toEqual([])
   })
+
+  const unsaved: TenantPicks = {
+    writable: async () => ({ allow: true, deny: true }),
+    write: async () => 'not-writable',
+  }
+
+  it('says on the allow that always allow was not saved, when judging again allows this call', async () => {
+    const w = await world({
+      picks: unsaved,
+      writer: true,
+      decide: () => ({ kind: 'allow', evidence, condition: null }),
+    })
+    const answer = await w.admit('ToyEcho', echoCall(w.forward, {}), {
+      decision: chose('allow-always'),
+    })
+    expect(answer).toMatchObject({
+      kind: 'allow',
+      notice: expect.stringContaining('could not be saved. This call was allowed'),
+    })
+  })
+
+  it('puts that notice on no answer other than an allow', async () => {
+    const w = await world({ picks: unsaved, writer: true })
+    const answer = await w.admit('ToyEcho', echoCall(w.forward, {}), {
+      decision: chose('allow-always'),
+    })
+    expect(answer.kind).toBe('need-decision')
+    expect(answer).not.toHaveProperty('notice')
+  })
+})
+
+describe('the evidence and the refusal of a judged action', () => {
+  const allowing = () => ({ kind: 'allow' as const, evidence, condition: null })
+  const target = { owner: 'agent', kind: 'action', key: canonicalText(['e', 'p', 'a']) }
+  const ruleEvidence = (rulesGiven: ReturnType<typeof rules>, id: string, args: string) => {
+    const rule = actionRulesSchema.parse(rulesGiven).rules.find(item => item.id === id)
+    return decisionEvidence(`action-rule/${id}`, 'r1', {
+      rule,
+      target,
+      arguments: effectiveArgumentsOf(args),
+      identity: evidence,
+    })
+  }
+
+  it('gives the rule of the gate it stood on, and the permission of the gate, as the evidence of an allow', async () => {
+    const w = await world({ decide: allowing })
+    const args = echoCall(w.forward, {})
+    expect(await w.admit('ToyEcho', args)).toEqual({
+      kind: 'allow',
+      evidence: decisionEvidence('action-current-permission', 'r1', {
+        rule: ruleEvidence(rules('Tools', 'ToyEcho'), 'toyecho', args),
+        permission: evidence,
+      }),
+    })
+  })
+
+  it('gives no rule as the evidence of a carrier that no rule names, and judges it alone', async () => {
+    const w = await world({ rules: rules('ToyEcho'), decide: allowing })
+    const missing = toolsCall(w.forward, { name: 'NoSuchTool', command: null, arguments: {} })
+    expect(await w.admit('Tools', missing)).toEqual({
+      kind: 'allow',
+      evidence: decisionEvidence('action-current-permission', 'r1', {
+        rule: null,
+        permission: evidence,
+      }),
+    })
+    expect(w.judged.map(action => [action.definition.name, action.carrier])).toEqual([
+      ['Tools', true],
+    ])
+  })
+
+  it('refuses a carrier its action rule prohibits, by that rule, and judges no permission', async () => {
+    const given = {
+      revision: 'r1',
+      rules: [
+        { id: 'no-tools', effect: 'deny', tool: 'Tools' },
+        { id: 'toyecho', effect: 'allow', tool: 'ToyEcho' },
+      ],
+    }
+    const w = await world({ rules: given, decide: allowing })
+    const carried = toolsCall(w.forward, { name: 'ToyEcho', command: 'info', arguments: {} })
+    expect(await w.admit('Tools', carried)).toEqual({
+      kind: 'deny',
+      category: 'rule',
+      reason: 'rule/no-tools',
+      evidence: ruleEvidence(given as never, 'no-tools', carried),
+    })
+    expect(w.judged).toEqual([])
+  })
+
+  it.each([
+    ['declined', { kind: 'declined', evidence: said }, 'not-released', 'declined'],
+    [
+      'deny-once',
+      { kind: 'chosen', option: 'deny-once', value: null, evidence: said },
+      'not-released',
+      'deny-once',
+    ],
+    ['words', { kind: 'remark', text: 'not now', evidence: said }, 'guidance', 'human-guidance'],
+  ] as const)(
+    'refuses on %s, with the card and the answer it came from as the evidence',
+    async (_what, answer, category, reason) => {
+      const w = await world()
+      expect(
+        await w.admit('ToyEcho', echoCall(w.forward, {}), { decision: { card, answer } }),
+      ).toEqual({
+        kind: 'deny',
+        category,
+        reason,
+        evidence: decisionEvidence('action-answer', '1', { card, answer: said, reason }),
+      })
+    },
+  )
 })

@@ -10,7 +10,12 @@ import { succeed } from '@omne-harness/operation-result'
 import type { ToolActionGate, ToolActionResolution, ToolGate } from '@omne-harness/tool-contract'
 import type { ToolCallLabeling } from '../../entry/tool-action-resolution.ts'
 import { actionRulesSchema, toolActionRule, type ActionRules } from './action-rules.ts'
-import { applyAnswer, type AuthorizationWriter } from './answer-effects.ts'
+import {
+  applyAnswer,
+  type Applied,
+  type AuthorizationWriter,
+  type JudgeAgain,
+} from './answer-effects.ts'
 import { answerEffect, askedDecision, type AnswerEffect } from './release-asking.ts'
 import type { TenantPicks } from './tenant-picks.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
@@ -191,6 +196,54 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
   }
 }
 
+type Admitting = Readonly<{
+  who: NonNullable<ReturnType<typeof sessionWorkOf>>
+  target: AdmissionInput['target']
+  argumentsDigest: AdmissionInput['arguments']
+  effect: Exclude<AnswerEffect, { kind: 'decided' }> | null
+}>
+
+async function judgeAdmitted(
+  input: Request,
+  rules: ActionRules,
+  readers: Readers,
+  admitting: Admitting,
+): Promise<AdmissionDecision> {
+  const { who, target, argumentsDigest, effect } = admitting
+  const admission = readers.readAdmission()
+  if (admission === undefined) return unavailable('the action admission dependency is unavailable')
+  const identity = await admission.check({
+    access: { principal: who.principal, tenant: input.tenant },
+    operation: { owner: 'agent', name: 'admit-action' },
+    target,
+    arguments: argumentsDigest,
+    requires: [],
+    permit: null,
+  })
+  const gates = await judgedOf(input, who.principal, readers.readResolution)
+  if ('kind' in gates) return gates
+  const judging = {
+    input,
+    rules,
+    principal: who.principal,
+    session: who.session,
+    identity,
+    target,
+    argumentsDigest,
+    permission: readers.readPermission(),
+    labeling: readers.readLabeling?.(),
+    picks: readers.readPicks?.(),
+  }
+  const applied = effect === null ? null : await answered(judging, gates, effect, readers)
+  if (applied === null) return judgeGates(judging, gates)
+  return applied.kind === 'judge-again'
+    ? noticed(await judgeGates(judging, gates), applied)
+    : applied
+}
+
+const noticed = (answer: AdmissionDecision, { notice }: JudgeAgain): AdmissionDecision =>
+  answer.kind === 'allow' ? { ...answer, notice } : answer
+
 async function decide(
   input: Request,
   rules: ActionRules | undefined,
@@ -217,32 +270,7 @@ async function decide(
   }
   const effect = input.decision === null ? null : answerEffect(input.decision)
   if (effect?.kind === 'decided') return effect.decision
-  const admission = readers.readAdmission()
-  if (admission === undefined) return unavailable('the action admission dependency is unavailable')
-  const identity = await admission.check({
-    access: { principal: who.principal, tenant: input.tenant },
-    operation: { owner: 'agent', name: 'admit-action' },
-    target,
-    arguments: argumentsDigest,
-    requires: [],
-    permit: null,
-  })
-  const gates = await judgedOf(input, who.principal, readers.readResolution)
-  if ('kind' in gates) return gates
-  const judging = {
-    input,
-    rules,
-    principal: who.principal,
-    session: who.session,
-    identity,
-    target,
-    argumentsDigest,
-    permission: readers.readPermission(),
-    labeling: readers.readLabeling?.(),
-    picks: readers.readPicks?.(),
-  }
-  const applied = effect === null ? null : await answered(judging, gates, effect, readers)
-  return applied ?? judgeGates(judging, gates)
+  return judgeAdmitted(input, rules, readers, { who, target, argumentsDigest, effect })
 }
 
 // The answer's effect comes first, so judging again reads what it wrote.
@@ -251,7 +279,7 @@ function answered(
   gates: Gates,
   effect: Exclude<AnswerEffect, { kind: 'decided' }>,
   readers: Readers,
-): Promise<AdmissionDecision | null> {
+): Promise<Applied> {
   const { input } = judging
   const last = gates[gates.length - 1]!
   if (last.gate.kind === 'ungated') return Promise.resolve(null)

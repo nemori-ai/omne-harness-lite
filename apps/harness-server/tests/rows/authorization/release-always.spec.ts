@@ -157,6 +157,10 @@ it('always deny does not interrupt a call that already started', { timeout: 240_
 })
 
 const NOT_ALLOWED = 'The tool call did not run: the person did not allow it this time.'
+const ALWAYS_ALLOW_NOT_SAVED =
+  'The person chose to always allow this capability, but that choice could not be saved. This call was allowed; later calls will ask again.'
+const ALWAYS_DENY_NOT_SAVED =
+  'The person chose to always prohibit this capability, but that choice could not be saved. This call was not allowed; later calls will ask again.'
 
 it(
   'a lasting option the tenant setting cannot take is not on the card, and one that cannot be written when answered counts for this call only',
@@ -193,6 +197,7 @@ it(
       await answerCard(tree, locked, ['--option', 'allow-always'], 'reply-locked')
       const second = await endedRuns(tree, session, 2)
       expect(toolResults(second).join('\n')).toContain('locked-done')
+      expect(toolResults(second).at(-1)).toContain(ALWAYS_ALLOW_NOT_SAVED)
       expect(second.filter(entry => entry.kind === ONCE)).toHaveLength(1)
       expect(await shellSetting(tree)).toBe(null)
 
@@ -200,7 +205,7 @@ it(
       const again = await pendingCard(tree, session, 'again')
       await answerCard(tree, again, ['--option', 'deny-always'], 'reply-again')
       const third = await endedRuns(tree, session, 3)
-      expect(toolResults(third).at(-1)).toBe(NOT_ALLOWED)
+      expect(toolResults(third).at(-1)).toBe(`${NOT_ALLOWED}\n${ALWAYS_DENY_NOT_SAVED}`)
       expect(await shellSetting(tree)).toBe(null)
       expect(third.filter(entry => entry.kind === ONCE)).toHaveLength(1)
       expect(shellStarts(tree)).toBeLessThanOrEqual(1)

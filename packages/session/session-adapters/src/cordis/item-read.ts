@@ -71,6 +71,50 @@ export async function readOpenItems(
   return unread('the open items of the execution kept changing while they were read')
 }
 
+type ItemsPage =
+  | Readonly<{
+      kind: 'page'
+      published: string
+      items: readonly ExecutionItem[]
+      rest: readonly ExecutionItemKey[]
+    }>
+  | ItemsRead
+
+async function readItemsPage(
+  read: Reader,
+  scope: ItemScope,
+  rest: readonly ExecutionItemKey[],
+): Promise<ItemsPage> {
+  const output = await read(EXECUTION_RECORD_HANDLERS.items, { ...scope, keys: [...rest] })
+  if (output.kind === 'unread')
+    return unread(`the items of the execution are not readable: ${output.reason}`)
+  const found = decodeExecutionRecordItems(output.output)
+  if (found === null) return unread('the items of the execution do not decode')
+  if (found.kind === 'denied') return { kind: 'read', published: 0, items: [] }
+  if (found.kind === 'missing') return unread('the Agent records of the session are older')
+  return { kind: 'page', published: found.published, items: found.items, rest: found.rest }
+}
+
+async function readItemsOnce(
+  read: Reader,
+  scope: ItemScope,
+  keys: readonly ExecutionItemKey[],
+): Promise<ItemsRead | null> {
+  let rest = keys
+  let published: string | null = null
+  const items: ExecutionItem[] = []
+  while (rest.length > 0) {
+    const page = await readItemsPage(read, scope, rest)
+    if (page.kind !== 'page') return page
+    if (published !== null && page.published !== published) return null
+    if (page.rest.length >= rest.length) return unread('a page of items read none of its keys')
+    published = page.published
+    items.push(...page.items)
+    rest = page.rest
+  }
+  return { kind: 'read', published: Number(published ?? 0), items }
+}
+
 // Items of one execution by original key, open or closed; keys the store never held are left out.
 export async function readItems(
   read: Reader,
@@ -78,24 +122,8 @@ export async function readItems(
   keys: readonly ExecutionItemKey[],
 ): Promise<ItemsRead> {
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
-    let rest: readonly ExecutionItemKey[] = keys
-    let published: string | null = null
-    const items: ExecutionItem[] = []
-    while (rest.length > 0) {
-      const output = await read(EXECUTION_RECORD_HANDLERS.items, { ...scope, keys: [...rest] })
-      if (output.kind === 'unread')
-        return unread(`the items of the execution are not readable: ${output.reason}`)
-      const found = decodeExecutionRecordItems(output.output)
-      if (found === null) return unread('the items of the execution do not decode')
-      if (found.kind === 'denied') return { kind: 'read', published: 0, items: [] }
-      if (found.kind === 'missing') return unread('the Agent records of the session are older')
-      if (published !== null && found.published !== published) break
-      if (found.rest.length >= rest.length) return unread('a page of items read none of its keys')
-      published = found.published
-      items.push(...found.items)
-      rest = found.rest
-    }
-    if (rest.length === 0) return { kind: 'read', published: Number(published ?? 0), items }
+    const once = await readItemsOnce(read, scope, keys)
+    if (once !== null) return once
   }
   return unread('the items of the execution kept changing while they were read')
 }

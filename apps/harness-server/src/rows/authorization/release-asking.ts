@@ -150,6 +150,7 @@ export function refusal(
   answered: Readonly<{ card: DurableEvidence; source: DurableEvidence }>,
   category: DenialCategory,
   reason: string,
+  notice?: string,
 ): AdmissionDecision {
   const facts = { card: answered.card, answer: answered.source, reason }
   return {
@@ -157,6 +158,7 @@ export function refusal(
     category,
     reason,
     evidence: decisionEvidence('action-answer', '1', facts),
+    ...(notice === undefined ? {} : { notice }),
   }
 }
 

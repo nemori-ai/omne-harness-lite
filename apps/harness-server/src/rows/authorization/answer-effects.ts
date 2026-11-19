@@ -67,12 +67,20 @@ function onceScope(answered: Answered): Scope {
   }
 }
 
+const ALWAYS_ALLOW_NOT_SAVED =
+  'The person chose to always allow this capability, but that choice could not be saved. This call was allowed; later calls will ask again.'
+const ALWAYS_DENY_NOT_SAVED =
+  'The person chose to always prohibit this capability, but that choice could not be saved. This call was not allowed; later calls will ask again.'
+
+export type JudgeAgain = Readonly<{ kind: 'judge-again'; notice: string }>
+export type Applied = AdmissionDecision | JudgeAgain | null
+
 // The tenant's setting is written first; what follows it is judged from the setting as it then stands.
 async function lasting(
   answered: Answered,
   effect: Extract<Writing, { kind: 'lasting' }>,
   ports: EffectPorts,
-): Promise<AdmissionDecision | null> {
+): Promise<Applied> {
   if (ports.picks === undefined) return unavailable('the tenant settings are unavailable')
   const written = await ports.picks.write({
     principal: answered.principal,
@@ -85,22 +93,25 @@ async function lasting(
     source: effect.source,
   })
   if (written === 'unavailable') return unavailable('the tenant setting could not be written now')
-  const grant = { scope: onceScope(answered), direction: 'grant' } as const
-  if (effect.effect === 'allow')
-    // Not written, the answer still releases this one call.
-    return written === 'written' ? null : express(answered, effect, ports.authorizations, grant)
-  if (written !== 'written') return refusal(effect, 'not-released', 'deny-always-not-written')
+  if (effect.effect === 'allow') {
+    if (written === 'written') return null
+    const grant = { scope: onceScope(answered), direction: 'grant' } as const
+    const refused = await express(answered, effect, ports.authorizations, grant)
+    return refused ?? { kind: 'judge-again', notice: ALWAYS_ALLOW_NOT_SAVED }
+  }
+  if (written !== 'written')
+    return refusal(effect, 'not-released', 'deny-always-not-written', ALWAYS_DENY_NOT_SAVED)
   const revoke = { scope: { kind: 'session', ...effect.gate }, direction: 'revoke' } as const
   const revoked = await express(answered, effect, ports.authorizations, revoke)
   return revoked ?? refusal(effect, 'prohibited', 'deny-always')
 }
 
-/** Gives the answer its effect before judging again; null says judging goes on from what was written. */
+/** Gives the answer its effect before judging again; null and judge-again say judging goes on from what was written. */
 export function applyAnswer(
   answered: Answered,
   effect: Writing,
   ports: EffectPorts,
-): Promise<AdmissionDecision | null> {
+): Promise<Applied> {
   if (effect.kind === 'lasting') return lasting(answered, effect, ports)
   const scope: Scope =
     effect.scope === 'session' ? { kind: 'session', ...effect.gate } : onceScope(answered)
