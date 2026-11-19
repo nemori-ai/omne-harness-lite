@@ -2,7 +2,7 @@ import type { DurableEvidence, RunId, SessionOperationId } from './identity.ts'
 import type { WorkSnapshot, ResidentAdoption, RunTerminal } from './values.ts'
 import type { HistoryEntry, SessionFailure } from './faces.ts'
 import { encodeEntry } from './entries.ts'
-import { digestOf } from './operations.ts'
+import { deriveDriveOperation, digestOf } from './operations.ts'
 import type { Decision, EncodedEntry } from './judgments.ts'
 import { closingEntries } from './run-closure.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
@@ -24,19 +24,17 @@ const CONTROL = 'control'
 export const controlSource = (operation: SessionOperationId): DurableEvidence =>
   sourceOf(operation, CONTROL)
 
-/** The control whose commit ended this Run as cancelled; null for any other terminal. A control writes the terminal with its own source as the evidence. */
-export function cancellingControlOf(terminal: RunTerminal): SessionOperationId | null {
+// A control writes the terminal of the Run it cancels with its own source as the evidence: the terminal names its control.
+function cancellingControlOf(terminal: RunTerminal): SessionOperationId | null {
   if (terminal.outcome !== 'cancelled') return null
-  const { evidence } = terminal
-  const suffix = `/${CONTROL}`
-  if (!evidence.record.endsWith(suffix)) return null
-  const operation = evidence.record.slice(0, -suffix.length) as SessionOperationId
-  const source = controlSource(operation)
-  return evidence.owner === source.owner &&
-    evidence.revision === source.revision &&
-    evidence.digest === source.digest
-    ? operation
-    : null
+  const operation = terminal.evidence.record.slice(0, -`/${CONTROL}`.length) as SessionOperationId
+  return digestOf(terminal.evidence) === digestOf(controlSource(operation)) ? operation : null
+}
+
+/** The drive operation under which the Agent of `execution` was told of the control that ended this Run as cancelled; null for any other terminal. */
+export function cancellationDriveOf(terminal: RunTerminal, execution: string): string | null {
+  const control = cancellingControlOf(terminal)
+  return control === null ? null : deriveDriveOperation({ kind: 'control', execution, control })
 }
 
 export function runCancelledBy(

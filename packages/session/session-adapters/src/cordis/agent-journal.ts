@@ -20,9 +20,8 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  cancellingControlOf,
+  cancellationDriveOf,
   commandDigest,
-  deriveDriveOperation,
   judgeCompletion,
   mutationAccessRequest,
   type InputId,
@@ -896,10 +895,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       case 'terminal':
         return fact(judged.terminal.evidence, { kind: 'changed' })
       case 'cancelled': {
-        const by = cancellingControlOf(judged.terminal)
-        const matches =
-          by !== null &&
-          deriveDriveOperation({ kind: 'control', execution, control: by }) === control
+        const matches = cancellationDriveOf(judged.terminal, execution) === control
         return fact(judged.terminal.evidence, { kind: matches ? 'ready' : 'changed' })
       }
     }

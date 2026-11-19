@@ -1,6 +1,5 @@
 import {
-  cancellingControlOf,
-  deriveDriveOperation,
+  cancellationDriveOf,
   judgeCompletion,
   type DurableEvidence,
   type HistoryEntry,
@@ -282,9 +281,7 @@ function runCheck(port: ParticipantPort, check: SessionCheck): ParticipantReply 
           return stopped({ kind: 'terminal', terminal: judged.terminal })
         case 'cancelled': {
           if (check.conclusion !== 'cancelled' || check.control === null) return changed
-          const by = cancellingControlOf(judged.terminal)
-          return by !== null &&
-            deriveDriveOperation({ kind: 'control', execution, control: by }) === check.control
+          return cancellationDriveOf(judged.terminal, execution) === check.control
             ? checked(null, null)
             : changed
         }

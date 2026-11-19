@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  cancellingControlOf,
+  cancellationDriveOf,
+  deriveDriveOperation,
   runCancelledBy,
   type RunTerminal,
 } from '@omne-harness/session-contract'
@@ -36,7 +37,9 @@ describe('the control behind a cancelled Run', () => {
     async control => {
       const { snapshot, terminal, operation, run } = await cancelledBy(control)
       expect(terminal.outcome).toBe('cancelled')
-      expect(cancellingControlOf(terminal)).toBe(operation)
+      expect(cancellationDriveOf(terminal, 'execution-1')).toBe(
+        deriveDriveOperation({ kind: 'control', execution: 'execution-1', control: operation }),
+      )
       expect(runCancelledBy(snapshot, operation)).toBe(run)
       expect(runCancelledBy(snapshot, operationId('another'))).toBeNull()
     },
@@ -68,6 +71,6 @@ describe('the control behind a cancelled Run', () => {
       },
     }
     for (const [name, value] of Object.entries(cases))
-      expect(cancellingControlOf(value), name).toBeNull()
+      expect(cancellationDriveOf(value, 'execution-1'), name).toBeNull()
   })
 })

@@ -9,14 +9,11 @@ import type {
 } from '@omne-harness/agent-contract'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 
+// Nothing was written to the execution since its current judgment: a new candidate is a write too.
 function judgmentHolds(read: ExecutionSnapshot): boolean {
-  const { candidate, currentJudgment, judgments } = read.settlement
+  const { currentJudgment, judgments } = read.settlement
   const current = judgments.find(item => item.operation === currentJudgment)
-  return (
-    current !== undefined &&
-    current.candidate === candidate?.candidate &&
-    current.receipt.revision === read.revision
-  )
+  return current?.receipt.revision === read.revision
 }
 
 // Null off the cancellation route. A judgment is a function of what it reads: a new one is written only

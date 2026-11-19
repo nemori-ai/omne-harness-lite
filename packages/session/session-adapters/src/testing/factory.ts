@@ -21,7 +21,7 @@ import {
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  cancellingControlOf,
+  cancellationDriveOf,
   commandDigest,
   reduce,
   judgeCompletion,
@@ -40,8 +40,6 @@ import {
   type CommittedBatch,
   type GuardCommand,
   type HistoryEntry,
-  type RunTerminal,
-  deriveDriveOperation,
 } from '@omne-harness/session-contract'
 import type { InitializationSource } from './ports.ts'
 import {
@@ -462,13 +460,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     return true
   }
 
-  function terminalControl(execution: AgentExecutionId, terminal: RunTerminal): string | undefined {
-    const by = cancellingControlOf(terminal)
-    return by === null
-      ? undefined
-      : deriveDriveOperation({ kind: 'control', execution, control: by })
-  }
-
   function terminalParticipant(
     cell: JournalCell<P>,
     execution: AgentExecutionId,
@@ -506,7 +497,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         }
         case 'cancelled':
           return fact(judged.terminal.evidence, {
-            kind: terminalControl(execution, judged.terminal) === control ? 'ready' : 'changed',
+            kind: cancellationDriveOf(judged.terminal, execution) === control ? 'ready' : 'changed',
           })
         case 'terminal':
           return fact(judged.terminal.evidence, { kind: 'changed' })
@@ -570,7 +561,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       if (finish.authorization.kind === 'cancel' && checked.kind === 'cancelled') {
         if (
           finish.intent.conclusion.kind !== 'cancelled' ||
-          terminalControl(input.execution, checked.terminal) !==
+          cancellationDriveOf(checked.terminal, input.execution) !==
             String(finish.authorization.control)
         )
           return { kind: 'changed' }
