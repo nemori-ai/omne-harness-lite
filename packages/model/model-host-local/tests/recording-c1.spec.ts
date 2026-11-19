@@ -14,9 +14,14 @@ import {
   type ScriptedPrincipal,
 } from '@omne-harness/model-contract/testing'
 import { createNetworkResources, createPiTransport } from '@omne-harness/pi-ai-transport'
-import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import { createCertificate, startHttpsServer } from './support/https-server.ts'
-import { FAMILIES, PLACEHOLDER, ROUTE_PATH, TRANSPORT_LIMITS } from './support/local-host.ts'
+import {
+  FAMILIES,
+  PLACEHOLDER,
+  TRANSPORT_LIMITS,
+  isGatewayPath,
+  gatewayEndpoints,
+} from './support/local-host.ts'
 import {
   RECORD_CASE_NAMES,
   RECORD_CASES,
@@ -90,7 +95,7 @@ async function transportObligations(
   const certificate = createCertificate()
   try {
     const server = await startHttpsServer(certificate, (res, request) => {
-      if (request.path !== ROUTE_PATH) {
+      if (!isGatewayPath(request.path)) {
         res.writeHead(404).end()
         return
       }
@@ -112,8 +117,7 @@ async function transportObligations(
           families: FAMILIES,
           routes: {
             openrouter: {
-              url: new URL(ROUTE_PATH, server.url).href,
-              endMarker: GATEWAY_END_MARKER,
+              endpoints: gatewayEndpoints(server.url),
               accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
               auth: { kind: 'bearer', item: 'apiKey' },
             },
@@ -146,7 +150,7 @@ async function transportObligations(
       const counted = counters.reduce((total, sends) => total + sends(), 0)
       expect(counted).toBeGreaterThan(0)
       await expect.poll(() => server.requests.length).toBe(counted)
-      expect(server.requests.every(request => request.path === ROUTE_PATH)).toBe(true)
+      expect(server.requests.every(request => isGatewayPath(request.path))).toBe(true)
       return TRANSPORT_OBLIGATIONS.map(obligation => {
         const result = report.results.find(entry => entry.obligation === obligation)
         return { obligation, status: result?.status, detail: result?.detail }

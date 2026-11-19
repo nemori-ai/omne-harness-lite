@@ -11,15 +11,10 @@ export async function resumeInputs<P>(
   context: OperationContext<P>,
   basis?: ReuseBasis & Readonly<{ reuse?: AssemblyReuse | undefined }>,
 ): Promise<AssemblyResult> {
-  if (
-    input.contextRead.read.kind !== 'success' ||
-    !('viewRevision' in input.contextRead.read.value)
-  )
-    return { kind: 'invalid', field: 'contextRead', reason: 'resume-without-full-snapshot' }
   const transition = input.transition
   if (transition === null)
-    return { kind: 'invalid', reason: 'missing-input', field: 'context.transition' }
+    return { kind: 'invalid', reason: 'missing-input', field: 'history.transition' }
   if (transition.candidate !== input.identity.candidate || transition.epoch !== input.history.epoch)
-    return { kind: 'invalid', reason: 'transition-mismatch', field: 'context.transition' }
+    return { kind: 'invalid', reason: 'transition-mismatch', field: 'history.transition' }
   return assembleInputs(input, key, rows, context, basis)
 }

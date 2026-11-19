@@ -34,7 +34,6 @@ import type {
   InvokeRuntimeContext,
   LoopFacts,
   MessageSource,
-  ModelContextRead,
   OriginalInputAcceptance,
   PendingHandoff,
   Next,
@@ -180,7 +179,6 @@ export type LoopPorts<P> = Pick<
   | 'conditions'
   | 'requests'
   | 'selection'
-  | 'modelContext'
   | 'handoff'
   | 'clock'
   | 'materials'
@@ -459,7 +457,6 @@ const DEPENDENCY_PORTS = [
   'conditions',
   'requests',
   'selection',
-  'modelContext',
   'admission',
   'handoff',
   'materials',
@@ -2360,7 +2357,6 @@ function coordinate<P>(
     async I1() {
       const current = required(iteration, 'iteration')
       const advance = required(authority, 'authority')
-      const history = required(snapshot, 'snapshot').history
       const readConditions = () =>
         ports.conditions.read({
           ...access,
@@ -2377,33 +2373,13 @@ function coordinate<P>(
         return selected.failure.kind === 'unavailable'
           ? waitFor('I1', selected.failure, () => select(conditions.ok))
           : selected
-      const readContext = () =>
-        capabilityResult(
-          ports.modelContext.read({
-            ...access,
-            advance,
-            position: current.position,
-            recipient: selected.ok.recipient,
-            history,
-            adopted: required(checkpoint, 'checkpoint').adoptedContext,
-            transition: null,
-          }),
-        )
-      const context = await readContext()
-      if ('failure' in context)
-        return context.failure.kind === 'unavailable'
-          ? waitFor('I1', context.failure, readContext)
-          : context
-      const prepared = await prepare(conditions.ok, selected.ok, context.ok, null, null)
+      const prepared = await prepare(conditions.ok, selected.ok, null, null)
       if ('failure' in prepared)
         return prepared.failure.kind === 'unavailable'
-          ? waitFor('I1', prepared.failure, () =>
-              prepare(conditions.ok, selected.ok, context.ok, null, null),
-            )
+          ? waitFor('I1', prepared.failure, () => prepare(conditions.ok, selected.ok, null, null))
           : prepared
       current.conditions = conditions.ok
       current.selected = selected.ok
-      current.context = context.ok
       current.preparation = prepared.ok
       if (prepared.ok.kind === 'ready')
         return fail(
@@ -2437,8 +2413,7 @@ function coordinate<P>(
           : selected
       if (!sameRecipient(selected.ok, required(current.selected, 'selection')))
         return fail(notYet('P1', 'a changed selection', '#502 1.5'))
-      const context = required(current.context, 'context')
-      const prepareAgain = () => prepare(conditions, selected.ok, context, current.preparation, [])
+      const prepareAgain = () => prepare(conditions, selected.ok, current.preparation, [])
       const prepared = await prepareAgain()
       if ('failure' in prepared)
         return prepared.failure.kind === 'unavailable'
@@ -2493,7 +2468,6 @@ function coordinate<P>(
   function prepare(
     conditions: RuntimeConditions,
     selection: SelectedModel,
-    context: ModelContextRead,
     previous: Preparation | null,
     beforeModelCall: readonly never[] | null,
   ) {
@@ -2510,7 +2484,6 @@ function coordinate<P>(
         definition: binding.definition,
         conditions,
         selection,
-        context,
         previous,
         alterations: [],
         beforeModelCall,
@@ -2561,7 +2534,6 @@ function coordinate<P>(
       position: mainPosition(of),
       conditions: null,
       selected: null,
-      context: null,
       preparation: null,
       ready: null,
       pending: null,

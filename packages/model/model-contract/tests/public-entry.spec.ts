@@ -49,6 +49,7 @@ it('the root entry exports exactly the runtime values of the consumer face', asy
       'profileResolutionValue',
       'projectModelOutputV1',
       'readProfileResolution',
+      'replaySourceCall',
       'resolveModelInvocationRef',
     ].sort(),
   )

@@ -5,6 +5,7 @@ import type { ModelChoices } from '@omne-harness/model-contract/provider'
 import { createScriptedModelProfiles } from '@omne-harness/model-contract/testing'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { officialOpenAiProfiles, OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
+import { ANTHROPIC_RECORDS, officialAnthropicProfiles } from '@omne-harness/pi-ai-anthropic'
 import { expect, it } from 'vitest'
 import { ModelProfilesLocalPlugin } from '../src/cordis.ts'
 
@@ -46,9 +47,9 @@ const requirement = (modalities: ModalityRequirement['modalities']): ModalityReq
   source: MODALITY_SOURCE,
 })
 
-const ROUTES = OPENAI_RECORDS.filter(record => record.status === 'current').map(
-  record => record.name,
-)
+const ROUTES = [...OPENAI_RECORDS, ...ANTHROPIC_RECORDS]
+  .filter(record => record.status === 'current')
+  .map(record => record.name)
 
 async function loaded() {
   const ctx = new Context()
@@ -68,14 +69,12 @@ it('serves the official profiles as the modelProfiles service', async () => {
   expect(ctx.modelProfiles?.resolve).toEqual(expect.any(Function))
 })
 
-it('resolves every official route to the profile definition the family publishes', async () => {
+it('resolves every official route of both families to the profile definition its family publishes', async () => {
   const { ctx } = await loaded()
   const service = ctx.modelProfiles
   if (service === undefined) throw new Error('no modelProfiles service')
-  const official = officialOpenAiProfiles({
-    retryPolicy: RETRY,
-    compactionTriggerPercent: CONFIG.compactionTriggerPercent,
-  })
+  const input = { retryPolicy: RETRY, compactionTriggerPercent: CONFIG.compactionTriggerPercent }
+  const official = [...officialOpenAiProfiles(input), ...officialAnthropicProfiles(input)]
   expect(official).toHaveLength(ROUTES.length)
   for (const [index, route] of ROUTES.entries()) {
     const resolved = must(

@@ -122,6 +122,7 @@ export declare const sessionDiagnosticsProtocol: {
                                     readonly kind: "failed";
                                     readonly upstreamStatus: string | null;
                                 };
+                                readonly reasoning?: "carried" | "not-carried" | "unknown";
                                 readonly revision: string;
                                 readonly send: "not-sent" | "sent" | "unknown";
                                 readonly timing: {

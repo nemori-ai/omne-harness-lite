@@ -12,7 +12,7 @@ import type {
   NeedValue,
   NeedBinding,
   BlockEntry,
-  PerRequestEntry,
+  PerReadEntry,
   MissingItem,
   SourceEvidence,
   Snapshot,
@@ -86,7 +86,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     e: Eligibility<P>,
   ) {
     let stored = found.s.values.get(key)
-    if (d.volatility === 'per-request') return { found, stored }
+    if (d.volatility === 'per-read') return { found, stored }
     let parent = found.s.scope.parent
     while (!stored?.present && parent) {
       const candidate = world.registration(parent, key)
@@ -103,7 +103,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     key: ContextBlockKey,
     d: Descriptor,
     outcome: SupplyOutcome,
-  ): PerRequestEntry | Refusal | null {
+  ): PerReadEntry | Refusal | null {
     switch (outcome.kind) {
       case 'refused':
         return { kind: 'refused', reason: 'unauthorized' }
@@ -120,11 +120,11 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     }
   }
 
-  async function perRequest(
+  async function perRead(
     key: ContextBlockKey,
     d: Descriptor,
     source: ScopeState,
-  ): Promise<{ entry: PerRequestEntry | Refusal } | { stored: Stored }> {
+  ): Promise<{ entry: PerReadEntry | Refusal } | { stored: Stored }> {
     const producer = supplier.producerFor(source, key)
     if (!producer || !supplier.isCurrent(producer) || !producer.supply)
       return {
@@ -153,7 +153,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     found: Found,
     key: ContextBlockKey,
     d: Descriptor,
-  ): Promise<PerRequestEntry | Refusal | null> {
+  ): Promise<PerReadEntry | Refusal | null> {
     const s = found.s
     if (s.needsSupply.get(key) !== s.replayEpoch) return null
     const producer = supplier.producerFor(s, key)
@@ -166,13 +166,13 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
   async function readBlock(
     e: Eligibility<P>,
     key: ContextBlockKey,
-  ): Promise<PerRequestEntry | Refusal> {
+  ): Promise<PerReadEntry | Refusal> {
     let found = world.registration(e.scope, key)
     const d = world.descriptors.get(key)
     if (!found || !d || world.incompatible.has(found.s.scope.ref + '\0' + key))
       return { key, kind: 'missing', cause: 'no-value' }
     if (!tenantEquals(found.s.tenant, e.tenant)) return { key, kind: 'missing', cause: 'no-value' }
-    if (d.kind === 'supplied' && d.volatility !== 'per-request') {
+    if (d.kind === 'supplied' && d.volatility !== 'per-read') {
       const refreshed = await refresh(found, key, d)
       if (refreshed) return refreshed
     }
@@ -181,8 +181,8 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     let stored = inherited.stored
     if (stored?.refused) return { kind: 'refused', reason: 'unauthorized' }
     if (stored?.unknown) return { key, kind: 'unknown', cause: 'source-unknown' }
-    if (d.volatility === 'per-request') {
-      const supplied = await perRequest(key, d, found.s)
+    if (d.volatility === 'per-read') {
+      const supplied = await perRead(key, d, found.s)
       if ('entry' in supplied) return supplied.entry
       stored = supplied.stored
     }
@@ -242,7 +242,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
       const { e, s } = checked
       const blocks: BlockEntry[] = [],
         missing: MissingItem[] = [],
-        perRequestEntries: PerRequestEntry[] = []
+        perReadEntries: PerReadEntry[] = []
       for (const key of e.keys) {
         if (!allowed(e, key)) return { kind: 'refused', reason: 'unauthorized' }
         if (!world.registration(e.scope, key))
@@ -256,8 +256,8 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
         const item = await readBlock(e, key),
           d = world.descriptors.get(key)
         if (item.kind === 'refused') return item
-        if (d?.volatility === 'per-request') {
-          perRequestEntries.push(item)
+        if (d?.volatility === 'per-read') {
+          perReadEntries.push(item)
           continue
         }
         if (item.kind === 'unknown') return { kind: 'unknown', cause: item.cause }
@@ -293,7 +293,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
         cursor,
         blocks,
         missing,
-        perRequest: perRequestEntries,
+        perRead: perReadEntries,
       }
       const result = disclose(checked, value)
       if ('kind' in result) return result
@@ -411,7 +411,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
           cursor: next.value.cursor,
           entries: next.value.blocks.filter(b => prior.get(b.key)?.revision !== b.revision),
           missing: next.value.missing,
-          perRequest: next.value.perRequest,
+          perRead: next.value.perRead,
         },
       }
     }

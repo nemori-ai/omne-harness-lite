@@ -6,7 +6,7 @@ import type {
   Principal,
 } from '@omne-harness/access-cordis-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { HistoryPage, SessionCreation, SessionId } from '@omne-harness/session-contract'
+import type { SessionCreation, SessionId } from '@omne-harness/session-contract'
 import type {
   SessionObservation,
   SessionObservationEnd,
@@ -29,11 +29,13 @@ import {
 import { cancelRun } from './cancel-run.ts'
 import { retryRun } from './retry-run.ts'
 import { backgroundCall, listBackgroundCalls } from './background-calls.ts'
+import { selectModel } from './select-model.ts'
 import { stopCall } from './stop-call.ts'
 import { archiveSession, listArchivedSessions, listSessions, unarchiveSession } from './archive.ts'
 import type {
   DefinitionResolver,
   PrincipalFacts,
+  ModelTargets,
   RunFailureCauses,
   SessionAccessFaces,
   SessionAccessSettings,
@@ -42,6 +44,7 @@ import type {
   TargetTenantPrincipals,
 } from './ports.ts'
 import { changePermissionMode, readPermissionMode } from './permission-mode.ts'
+import { readHistory } from './read-history.ts'
 import { sessionReadOperations } from './intake-reads.ts'
 import type { RequestDrain } from './request-drain.ts'
 import { interruptInput, querySendInput, sendInput } from './send-input.ts'
@@ -52,6 +55,7 @@ export type SessionContributionInput = Readonly<{
   definitions: () => DefinitionResolver | undefined
   listing: () => SessionListing | undefined
   causes: () => RunFailureCauses | undefined
+  modelTargets: () => ModelTargets | undefined
   permissionModes: () => SessionPermissionModes | undefined
   principals: TargetTenantPrincipals
   facts: PrincipalFacts
@@ -62,29 +66,6 @@ export type SessionContributionInput = Readonly<{
 type ObserveSession = SessionProtocol['observations']['observe-session']
 
 type TenantPrincipal = Readonly<{ principal: Principal; tenantText: string }>
-
-function withinPageBound(pageBytes: string, bound: number): boolean {
-  const boundText = String(bound)
-  return (
-    pageBytes.length < boundText.length ||
-    (pageBytes.length === boundText.length && pageBytes <= boundText)
-  )
-}
-
-function pageOf(page: HistoryPage) {
-  return {
-    entries: page.entries.map(entry => ({
-      entryId: entry.id,
-      revision: entry.revision,
-      kind: entry.kind,
-      payload: entry.payload,
-    })),
-    next: page.next,
-    exhausted: page.exhausted,
-    scannedThrough: page.scannedThrough,
-    upper: page.upper,
-  }
-}
 
 async function* framesOf(
   frames: AsyncGenerator<SessionObservationFrame, SessionObservationEnd | undefined>,
@@ -179,7 +160,13 @@ export function createSessionContribution(
   }
 
   const factOf = (principal: Principal) => describedBy(facts, principal)
-  const held = { admit, factOf, causes: input.causes, modes: input.permissionModes }
+  const held = {
+    admit,
+    factOf,
+    causes: input.causes,
+    modes: input.permissionModes,
+    targets: input.modelTargets,
+  }
   const sending = { target, factOf, faces: input.faces, requests: input.requests }
   const listing = { principalFor, listing: input.listing, settings }
 
@@ -257,31 +244,6 @@ export function createSessionContribution(
     }
   }
 
-  async function readHistory(
-    login: LoginIdentity,
-    body: Body<'read-history'>,
-  ): Promise<Answer<'read-history'>> {
-    const admitted = await admit(login, body.tenant, body.session)
-    if ('outcome' in admitted) return admitted
-    if (body.cursor === null && !withinPageBound(body.pageBytes, settings.maxPageBytes))
-      return { outcome: 'invalid', body: {} }
-    const { access, faces } = admitted
-    const result = await readCall(() =>
-      body.cursor === null
-        ? faces.history.begin({
-            ...access,
-            kinds: settings.historyKinds,
-            from: null,
-            direction: body.direction,
-            pageBytes: Number(body.pageBytes),
-          })
-        : faces.history.next({ ...access, cursor: body.cursor }),
-    )
-    if (result === 'basis-unavailable') return UNAVAILABLE
-    if ('failure' in result) return refused('read-history', result.failure)
-    return { outcome: 'succeeded', body: pageOf(result.ok) }
-  }
-
   return {
     operations: {
       'create-session': (call, body) => createSession(call.principal, body),
@@ -289,10 +251,11 @@ export function createSessionContribution(
       'send-input': (call, body) => sendInput(sending, call.principal, body),
       'interrupt-input': (call, body) => interruptInput(sending, call.principal, body),
       'query-send-input': (call, body) => querySendInput(sending, call.principal, body),
-      'read-history': (call, body) => readHistory(call.principal, body),
+      'read-history': (call, body) => readHistory({ admit, settings }, call.principal, body),
       ...sessionReadOperations(held),
       'cancel-run': (call, body) => cancelRun(held, call.principal, body),
       'stop-call': (call, body) => stopCall(held, call.principal, body),
+      'select-model': (call, body) => selectModel(held, call.principal, body),
       'retry-run': (call, body) => retryRun(held, call.principal, body),
       'background-call': (call, body) => backgroundCall(held, call.principal, body),
       'list-background-calls': (call, body) => listBackgroundCalls(held, call.principal, body),

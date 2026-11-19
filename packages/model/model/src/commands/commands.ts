@@ -18,7 +18,6 @@ import type {
   ModelOperationId,
   ReadStart,
   Revision,
-  Settlement,
   Snapshot,
 } from '@omne-harness/model-contract'
 import {
@@ -60,6 +59,7 @@ import {
   settlementFailure,
   tasks,
   unresolved,
+  settlementOf,
 } from './judge.ts'
 import {
   accountFact,
@@ -74,7 +74,7 @@ import {
   releaseMaterial,
   type ModelCommandCore,
 } from './state.ts'
-import { beginAttempt, initialAttempts, positionRetry, recordRetryDecision } from './attempts.ts'
+import { beginDispatch, initialAttempts, positionRetry, recordRetryDecision } from './attempts.ts'
 import type { ModelCommandStorage } from './storage.ts'
 import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
@@ -315,18 +315,7 @@ export function callCommands<P>(
               const legality = settlementFailure(call, input.termination)
               if (legality) return { failure: legality }
               if (executionFailed(input.termination)) abandonReceiveWindows(call)
-              const version = resultVersion()
-              const settlement: Settlement = {
-                version,
-                termination: structuredClone(input.termination),
-                cursor: call.cursor,
-                source: {
-                  owner: 'model-memory',
-                  record: `${input.call}/${version}`,
-                  revision: String(BigInt(call.state.revision) + 1n),
-                  digest: digest(input.termination),
-                },
-              }
+              const settlement = settlementOf(call, input, resultVersion())
               if (encodedBytes(settlement) > MAX_SETTLEMENT_BYTES)
                 return { failure: invalid('settlement', 'encoded-byte-limit') }
               call.state = { ...call.state, phase: 'settled', settlement }
@@ -661,35 +650,7 @@ export function dispatchCommands<P>(
           if (call.request === null) return invalid('supplier', 'outside-request')
           const supplier = prepareSupplierFailure(call, call.request, input)
           if (supplier) return supplier
-          call.dispatches.push({
-            record: {
-              dispatch: input.dispatch,
-              supplier: structuredClone(input.supplier),
-              intent: input.operation,
-              send: 'prepared',
-              firstContent: 'none-proven',
-              terminal: null,
-              account: null,
-              materialization: null,
-              messages: [...call.request.messageIds],
-            },
-            logicalTerminal: null,
-            windows: new Map(),
-            events: new Map(),
-            assembly: null,
-            blocks: [],
-            nextSeq: new Map(),
-            trims: new Map(),
-            hadContent: new Set(),
-            diagnostics: [],
-          })
-          beginAttempt(call)
-          call.state = {
-            ...call.state,
-            phase: 'running',
-            dispatch: input.dispatch,
-            firstContent: 'none-proven',
-          }
+          beginDispatch(call, input, call.request.messageIds)
           return null
         },
       ),
@@ -944,7 +905,8 @@ export function dispatchCommands<P>(
           if ('failure' in proof) return proof.failure
           if (call.retry && digest(call.retry) !== digest(input.decision))
             return { kind: 'conflict', operation: input.operation, revision: call.state.revision }
-          const choice = retryChoiceFailure(positioned.ok, call.dispatches.length, input.decision)
+          const { request, dispatch } = positioned.ok
+          const choice = retryChoiceFailure(call, request, dispatch, input.decision)
           if (choice) return choice
           recordRetryDecision(call, input.decision, proof.ok)
           return null

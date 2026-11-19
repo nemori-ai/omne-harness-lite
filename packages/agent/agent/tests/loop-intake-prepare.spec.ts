@@ -238,12 +238,6 @@ describe('I1 prepares at the fixed input boundary', () => {
           return d.selection.select(input)
         },
       },
-      modelContext: {
-        read(input) {
-          log.push('context')
-          return d.modelContext.read(input)
-        },
-      },
       requests: {
         ...d.requests,
         prepare(input) {
@@ -265,11 +259,10 @@ describe('I1 prepares at the fixed input boundary', () => {
     }))
     assembly.release.open()
     ok(await run(assembly))
-    expect(log.slice(0, 8)).toEqual([
+    expect(log.slice(0, 7)).toEqual([
       'conditions',
       'conditions',
       'select',
-      'context',
       'prepare-first',
       'select',
       'prepare-review',
@@ -295,7 +288,7 @@ describe('I1 prepares at the fixed input boundary', () => {
     expect(saved[0]?.priorConditions).toEqual(initial?.conditions.source)
   })
 
-  it('new execution reads with no adopted coverage, then M0 adopts the returned coverage', async () => {
+  it('M0 adopts the coverage of the ready preparation', async () => {
     let recorded: AgentCheckpoint | null = null
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -309,9 +302,6 @@ describe('I1 prepares at the fixed input boundary', () => {
     }))
     assembly.release.open()
     ok(await run(assembly))
-    const [read] = assembly.controls.modelContext.read.calls
-    expect(read?.adopted).toBeNull()
-    expect(read?.transition).toBeNull()
     const final = (await snapshot(assembly)).checkpoint
     expect(final.requestPreparation).toBeNull()
     expect(recorded).toMatchObject({ adoptedContext: final.adoptedContext })
@@ -356,7 +346,7 @@ describe('I1 prepares at the fixed input boundary', () => {
     ])
   })
 
-  it.each(['conditions', 'selection', 'modelContext', 'requests'] as const)(
+  it.each(['conditions', 'selection', 'requests'] as const)(
     'unavailable %s saves one I1 wait without preparing or calling Model',
     async port => {
       let modelCalls = 0
@@ -380,12 +370,6 @@ describe('I1 prepares at the fixed input boundary', () => {
           selection: {
             select: input =>
               port === 'selection' ? Promise.resolve(fail(unavailable)) : d.selection.select(input),
-          },
-          modelContext: {
-            read: input =>
-              port === 'modelContext'
-                ? Promise.resolve(fail(unavailable))
-                : d.modelContext.read(input),
           },
           requests: {
             ...d.requests,

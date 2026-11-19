@@ -13,7 +13,21 @@ describe('the config of the model-host row', () => {
     const policy = { maxAttempts: 3, maxElapsedMs: 1000, delaysMs: [100, 200], jitter: 0.5 }
     const parsed = modelHostConfig.safeParse({ ...base, retry: { ...base.retry, policy } })
     expect(parsed.success).toBe(true)
-    expect(parsed.data?.retry).toEqual({ adoption: base.retry.adoption, policy })
+    expect(parsed.data?.retry).toEqual({
+      adoption: base.retry.adoption,
+      policy,
+      replayResend: base.retry.replayResend,
+    })
+  })
+
+  it.each([
+    ['without the bound', undefined, false],
+    ['with a negative bound', { max: -1 }, false],
+    ['with a bound that is not whole', { max: 0.5 }, false],
+    ['with a bound of zero', { max: 0 }, true],
+  ])('takes the resend after a refusal of reasoning state %s: %s', (_name, replayResend, ok) => {
+    const config = { ...base, retry: { ...base.retry, replayResend } }
+    expect(modelHostConfig.safeParse(config).success).toBe(ok)
   })
 
   it.each(['owner', 'name', 'revision', 'digest'] as const)(

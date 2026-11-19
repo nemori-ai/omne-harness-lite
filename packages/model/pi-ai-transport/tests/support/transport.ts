@@ -57,8 +57,7 @@ export function transportOver(
     families: family.families,
     routes: {
       [SUPPLIER.provider]: {
-        url: options.url,
-        endMarker: END_MARKER,
+        endpoints: { 'chat-completions': { url: options.url, endMarker: END_MARKER } },
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: options.auth === undefined ? { kind: 'bearer', item: 'apiKey' } : options.auth,
       },

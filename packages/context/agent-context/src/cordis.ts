@@ -1,8 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { AgentAccountOutlet, ModelContextReader } from '@omne-harness/agent-contract'
 import {
-  AgentAccountOutletService,
-  ModelContextReaderService,
   RequestPreparationService,
   agentAdoptionsKey,
   agentCompactionInputsKey,
@@ -13,18 +10,11 @@ import { fail } from '@omne-harness/operation-result'
 import { createAbsentConversionResults } from '@omne-harness/request-context'
 import { standardSchema, type Adoption, type Decoder } from '@omne-harness/request-context-contract'
 import {
-  contextAccountingInboxKey,
   contextHolderSourcesKey,
   requestContextKey,
 } from '@omne-harness/request-context-cordis-contract/cordis'
-import {
-  runtimeContextKey,
-  runtimeContextReaderEligibilityKey,
-} from '@omne-harness/runtime-context-cordis-contract/cordis'
-import { absentAccountTarget, createAgentAccountOutlet } from './account-outlet.ts'
 import { createContextMaterials } from './materials.ts'
 import type { ContextMeasure } from './measure.ts'
-import { createAgentModelContext } from './model-context.ts'
 import { createAgentRequests, type AgentRequests } from './requests.ts'
 import { absentToolLookup, toolsSourceOf, type ToolLookup } from './tools.ts'
 import { definitionSourceOf, unavailable } from './translate.ts'
@@ -48,75 +38,25 @@ function isAdoption(value: unknown): value is Adoption {
   )
 }
 
-export type AgentAccountOutletConfig = Readonly<{ sender: Adoption }>
-
-const decodeOutletConfig: Decoder<AgentAccountOutletConfig> = (value, path) => {
-  const fail = (message: string) => ({ ok: false as const, issues: [{ path, message }] })
-  if (!isRecord(value)) return fail('The plugin configuration must be an object')
-  if (!hasExactly(value, ['sender']))
-    return fail('The plugin configuration has exactly one field: sender')
-  return isAdoption(value['sender'])
-    ? { ok: true, value: { sender: value['sender'] } }
-    : fail('sender must be an adoption: owner, name, revision and digest, all text')
-}
-
-export class AgentAccountOutletProvider extends AgentAccountOutletService<unknown> {
-  static readonly inject = [requestContextKey, contextAccountingInboxKey]
-  static readonly Config = standardSchema(decodeOutletConfig)
-  private closed = false
-  readonly deliver: AgentAccountOutlet<unknown>['deliver']
-
-  constructor(ctx: Context, config: AgentAccountOutletConfig) {
-    super(ctx)
-    const outlet = createAgentAccountOutlet({
-      inbox: ctx.contextAccountingInbox,
-      sender: config.sender,
-      resolveTarget: absentAccountTarget,
-    })
-    this.deliver = async input =>
-      this.closed ? { kind: 'unavailable', diagnostic: 'outlet-closed' } : outlet.deliver(input)
-    ctx.effect(() => () => {
-      this.closed = true
-    })
-  }
-}
-
-export const DEFAULT_MATERIAL_CAPACITY = 256
-
 export type AgentContextConfig = Readonly<{
   owner: Adoption
-  materials?: number
 }>
 
 const decodeContextConfig: Decoder<AgentContextConfig> = (value, path) => {
   const fail = (message: string) => ({ ok: false as const, issues: [{ path, message }] })
   if (!isRecord(value)) return fail('The plugin configuration must be an object')
-  const { owner, materials } = value
-  const known = ['owner', 'materials']
-  if (Object.keys(value).some(name => !known.includes(name)))
-    return fail('The plugin configuration has the fields owner and materials')
+  const { owner } = value
+  if (Object.keys(value).some(name => name !== 'owner'))
+    return fail('The plugin configuration has the one field owner')
   if (!isAdoption(owner))
     return fail('owner must be an adoption: owner, name, revision and digest, all text')
-  if (materials === undefined) return { ok: true, value: { owner } }
-  if (typeof materials !== 'number' || !Number.isSafeInteger(materials) || materials < 1)
-    return fail('materials must be a positive safe integer')
-  return { ok: true, value: { owner, materials } }
-}
-
-class ModelContextProvider extends ModelContextReaderService<unknown> {
-  readonly read: ModelContextReader<unknown>['read']
-  constructor(ctx: Context, read: ModelContextReader<unknown>['read']) {
-    super(ctx)
-    this.read = read
-  }
+  return { ok: true, value: { owner } }
 }
 
 export class AgentContextProvider extends RequestPreparationService<unknown> {
   static readonly inject = {
     [requestContextKey]: null,
     [contextHolderSourcesKey]: null,
-    [runtimeContextReaderEligibilityKey]: null,
-    [runtimeContextKey]: { consumer: 'model' },
     [modelRequestPreparationKey]: null,
     [MODEL_PREPARATION_RESOURCES]: null,
     [agentAdoptionsKey]: null,
@@ -131,12 +71,8 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
     super(ctx)
     const { measure } = input
     const toolLookup = input.toolLookup?.(ctx) ?? absentToolLookup
-    const materials = createContextMaterials({
-      owner: config.owner,
-      capacity: config.materials ?? DEFAULT_MATERIAL_CAPACITY,
-    })
+    const materials = createContextMaterials({ owner: config.owner })
     let requests: AgentRequests<unknown> | null = null
-    let closed = false
     const leased = ctx.contextHolderSources.lease({
       settle: () => requests?.close() ?? Promise.resolve({ kind: 'settled' }),
     })
@@ -145,7 +81,6 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
       leased.kind === 'leased'
         ? unavailable('agent-context-closed')
         : unavailable(leased.diagnostic, 'context-holder')
-    let read: ModelContextReader<unknown>['read'] = async () => fail(refused)
     if (leased.kind === 'leased') {
       const { parts } = leased.lease
       requests = createAgentRequests({
@@ -160,27 +95,11 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
         definitions: definitionSourceOf(ctx.agentAdoptions),
         ...(measure === undefined ? {} : { measure }),
       })
-      read = createAgentModelContext({
-        materials,
-        parts,
-        eligibility: ctx.runtimeContextReaderEligibility,
-        runtimeContext: { bind: eligibility => ctx.runtimeContext.bind(eligibility) },
-        ...(measure === undefined ? {} : { measure }),
-      }).read
     }
     const live = requests
     this.prepare = async input => (live ? live.prepare(input) : fail(refused))
     this.assessCompaction = async input => (live ? live.assessCompaction(input) : fail(refused))
     this.resume = async input => (live ? live.resume(input) : fail(refused))
-    const modelRead = read
-    new ModelContextProvider(ctx, async input => (closed ? fail(refused) : modelRead(input)))
-    ctx.effect(
-      () => () => {
-        closed = true
-        materials.close()
-      },
-      'agentContext.close',
-    )
   }
 }
 

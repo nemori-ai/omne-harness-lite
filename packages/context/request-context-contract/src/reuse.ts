@@ -9,12 +9,8 @@ import type {
   ConditionsEvidence,
   HistoryEvidence,
   PreparedInputKey,
-  ProjectedMessage,
   RequestPurpose,
-  SnapshotAnchor,
-  SnapshotReminder,
 } from './values.js'
-import type { EligibilityId, ScopeRef, ViewRevision } from '@omne-harness/runtime-context-contract'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { canonical } from './internal.js'
 
@@ -33,19 +29,7 @@ export type CachedAssemblyMaterial = Readonly<{
     rendered: Extract<SystemPromptResult, { kind: 'rendered' }>
   }>
   tools: Readonly<{ token: GroupToken; declarations: ToolDeclarationSet }>
-  snapshot: Readonly<{ identity: SnapshotIdentity; reminder: SnapshotReminder }> | null
-  split: Readonly<{
-    anchor: SnapshotAnchor
-    head: readonly ProjectedMessage[]
-    body: readonly ProjectedMessage[]
-  }>
   contentControl: ContentControl
-}>
-export type SnapshotIdentity = Readonly<{
-  scope: ScopeRef['ref']
-  eligibility: EligibilityId
-  viewRevision: ViewRevision
-  anchor: SnapshotAnchor
 }>
 export type ContentControl = Readonly<{
   conditions: ConditionsEvidence

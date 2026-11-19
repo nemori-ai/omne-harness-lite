@@ -1,20 +1,9 @@
-import { placeContext, type Placement } from './placement.js'
 import type { StablePreparation } from './preparation.js'
-import type { AssemblyFailure } from './values.js'
 import type * as M from '@omne-harness/model-contract'
 import type { Message } from '@omne-harness/message'
-import type {
-  AssemblyInput,
-  HistoryRow,
-  ProjectedMessage,
-  RequestLayers,
-  SnapshotAnchor,
-} from './values.js'
-import type { SnapshotIdentity, CachedAssemblyMaterial } from './reuse.js'
+import type { AssemblyInput, RequestLayers } from './values.js'
 import { adoptionDigest } from './internal.js'
 import { buildModelInput } from './model-input.js'
-import { compareHistorySequence, type HistorySequence } from './refs.js'
-import { canonical } from './internal.js'
 export function assembledInput<P>(
   input: AssemblyInput<P>,
   layers: RequestLayers,
@@ -34,107 +23,12 @@ export function assembledInput<P>(
   })
 }
 
-export type LayeredRequest = Readonly<{
-  kind: 'layers'
-  layers: RequestLayers
-  messages: readonly Message[]
-  anchorSource: Placement['anchorSource']
-  stable: Readonly<{
-    identity: SnapshotIdentity
-    split: NonNullable<CachedAssemblyMaterial['split']>
-  }>
-}>
-type Split = CachedAssemblyMaterial['split']
-
-function rowAt(rows: readonly HistoryRow[], seq: HistorySequence): HistoryRow | undefined {
-  const direct = rows[Number(seq)]
-  return direct?.seq === seq ? direct : rows.find(r => r.seq === seq)
-}
-const before = (message: ProjectedMessage, upper: HistorySequence) =>
-  compareHistorySequence(message.seq, upper) <= 0
-
-function splitFull(messages: readonly ProjectedMessage[], anchor: SnapshotAnchor): Split {
-  const position = anchor.position
+// The history layer is the model view of the session log, in log order. Nothing outside the log
+// enters a request, so a later request starts with an earlier one while the log only grows.
+export function layersOf(prepared: StablePreparation): RequestLayers {
   return {
-    anchor,
-    head: messages.filter(r => position.kind === 'entry' && before(r, position.seq)),
-    body: messages.filter(
-      r => position.kind === 'empty' || compareHistorySequence(r.seq, position.seq) > 0,
-    ),
-  }
-}
-function splitFrom(
-  cached: CachedAssemblyMaterial,
-  messages: readonly ProjectedMessage[],
-  anchor: SnapshotAnchor,
-): Split {
-  const earlier = cached.split.anchor
-  const position = anchor.position
-  const added = messages.slice(cached.history.view.messages.length)
-  if (canonical(earlier.position) === canonical(position) && earlier.epoch === anchor.epoch)
-    return {
-      anchor,
-      head: cached.split.head,
-      body: added.length === 0 ? cached.split.body : [...cached.split.body, ...added],
-    }
-  const forward =
-    earlier.epoch === anchor.epoch &&
-    position.kind === 'entry' &&
-    (earlier.position.kind === 'empty' ||
-      compareHistorySequence(position.seq, earlier.position.seq) > 0)
-  if (!forward || position.kind !== 'entry') return splitFull(messages, anchor)
-  const pending = [...cached.split.body, ...added]
-  let moved = 0
-  while (moved < pending.length && before(pending[moved] as ProjectedMessage, position.seq)) moved++
-  return {
-    anchor,
-    head: [...cached.split.head, ...pending.slice(0, moved)],
-    body: pending.slice(moved),
-  }
-}
-export function placeLayers<P>(
-  input: AssemblyInput<P>,
-  prepared: StablePreparation,
-): LayeredRequest | AssemblyFailure {
-  const placement = placeContext({
-    candidate: input.identity.candidate,
-    contextRead: input.contextRead,
-    adopted: input.adopted?.coverage ?? null,
-    transition: input.transition,
-    view: prepared.view,
-    newInputs: input.inputs,
-    cachedSnapshot: prepared.layers?.snapshot ?? null,
-  })
-  if ('kind' in placement) return placement
-  const anchor = placement.snapshot.anchor
-  // The history owner supplies the chained digest; never manufacture it from content.
-  const position = anchor.position
-  const anchorRow = position.kind === 'entry' ? rowAt(prepared.rows, position.seq) : undefined
-  const actualAnchor = { ...anchor, prefixDigest: anchorRow?.prefixDigest ?? null }
-  const snapshot = { ...placement.snapshot, anchor: actualAnchor }
-  const split =
-    prepared.layers !== null && prepared.viewFrom !== null
-      ? splitFrom(prepared.layers, prepared.view.messages, actualAnchor)
-      : splitFull(prepared.view.messages, actualAnchor)
-  const layers: RequestLayers = {
     systemPrompt: prepared.prompt.blocks,
     toolDeclarations: prepared.declarations,
-    historyHead: split.head.map(r => r.message),
-    snapshotReminder: snapshot,
-    historyBody: split.body.map(r => r.message),
-    tailFacts: placement.tail,
-  }
-  const messages = [
-    ...layers.historyHead,
-    ...(snapshot.message === null ? [] : [snapshot.message]),
-    ...layers.historyBody,
-    ...(layers.tailFacts.message === null ? [] : [layers.tailFacts.message]),
-  ]
-  return {
-    kind: 'layers',
-    layers,
-    messages,
-    anchorSource: placement.anchorSource,
-    stable: { identity: placement.identity, split },
+    history: prepared.view.messages.map(row => row.message),
   }
 }

@@ -141,8 +141,7 @@ export function prepareStable<P>(
     return {
       kind: 'invalid',
       field: `prompt.${prompt.name}`,
-      reason:
-        prompt.reason === 'per-request-variable' ? 'per-request-variable' : 'unsupported-format',
+      reason: 'unsupported-format',
     }
   const declarations =
     reusable?.layers.toolDeclarations ??

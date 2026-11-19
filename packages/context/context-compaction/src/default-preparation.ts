@@ -68,10 +68,10 @@ export async function prepareDefaultSummary<P>(
   })
   if ('rejected' in instruction || instruction.ok.role !== 'user')
     throw new TypeError('invalid summary instruction')
+  // The instruction is the last message, in the user role: some models refuse a request that
+  // ends with their own turn, and the material it summarizes stays as it was in the history.
   const assembled: M.AssembledModelInput = {
-    ...assembledFor(input, planned.ok.messages, false),
-    system: instruction.ok.blocks,
-    tools: [],
+    ...assembledFor(input, [...planned.ok.messages, instruction.ok], false),
     toolChoice: 'none',
     source: request.provider,
   }

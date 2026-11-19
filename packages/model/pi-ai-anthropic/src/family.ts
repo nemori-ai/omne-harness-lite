@@ -1,21 +1,17 @@
 import type { Adoption, TokenizerDefinition, TransportFailure } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import { defineFamily, type PiFamily, type PiFamilyBinding } from '@omne-harness/pi-ai-transport'
-import {
-  bindChatCompletions,
-  type ChatCompletionsLimits,
-} from '@omne-harness/pi-ai-transport/chat-completions'
+import { bindMessages, type MessagesLimits } from '@omne-harness/pi-ai-transport/messages'
 import type { TiktokenExecutor, TiktokenResources } from '@omne-harness/tokenizer-tiktoken'
 import { createAnthropicMeter, type MeterMargin } from './meter.ts'
 import { ANTHROPIC_OWNER } from './owner.ts'
 import type { AnthropicRecord } from './record.ts'
 import { ANTHROPIC_RECORDS } from './records.ts'
-import { hooksOf } from './rules.ts'
 
 export type AnthropicFamilyConfig = Readonly<{
   tokenizer: TiktokenResources
   executor: Pick<TiktokenExecutor, 'acquire'>
-  limits: ChatCompletionsLimits
+  limits: MessagesLimits
   margin: MeterMargin
 }>
 
@@ -75,10 +71,9 @@ export function createAnthropicFamily(config: AnthropicFamilyConfig): PiFamily {
       if (!('ok' in tokenizer)) return unavailable(`tokenizer-${tokenizer.failure.kind}`)
       try {
         return {
-          ok: bindChatCompletions({
+          ok: bindMessages({
             record,
             supplier,
-            hooks: hooksOf(record),
             meter: createAnthropicMeter(record, tokenizer.ok.tokenizer, config.margin),
             limits: config.limits,
             release: async () => {

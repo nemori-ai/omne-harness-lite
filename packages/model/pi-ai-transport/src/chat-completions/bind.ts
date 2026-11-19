@@ -166,6 +166,7 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
       plan: (planInput: Parameters<typeof planRequest>[1]) => planRequest(context, planInput),
     }),
     meter: meter.instance,
+    endpoint: 'chat-completions',
     replayFormat: record.replay.formats.produces,
     tools: Object.freeze({
       convertToModelPayload: (declaration: Parameters<typeof convertTool>[0]) =>

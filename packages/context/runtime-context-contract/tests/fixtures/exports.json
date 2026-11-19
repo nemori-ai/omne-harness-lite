@@ -264,7 +264,7 @@
               "pending": false
             },
             {
-              "name": "PerRequestEntry",
+              "name": "PerReadEntry",
               "kind": "type",
               "pending": false
             },
@@ -680,6 +680,16 @@
             },
             {
               "name": "diffForReminder",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "renderSnapshotReminder",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "renderChangeReminder",
               "kind": "value",
               "pending": false
             }

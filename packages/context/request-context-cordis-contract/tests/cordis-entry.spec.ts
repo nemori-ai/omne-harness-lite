@@ -29,11 +29,9 @@ it('exports only the Service definitions and their derived keys', async () => {
   expect(
     Object.keys(await import('@omne-harness/request-context-cordis-contract/cordis')).sort(),
   ).toEqual([
-    'ContextAccountingInboxService',
     'ContextHolderSourcesService',
     'RequestContextService',
     'RequestContextTrustService',
-    'contextAccountingInboxKey',
     'contextHolderSourcesKey',
     'requestContextKey',
     'requestContextTrustKey',
@@ -109,7 +107,7 @@ it('missing scope refuses registration; explicit null means global; ancestor sco
   await noScope.dispose()
   await provider.dispose()
 })
-it('scope shadows global; duplicate names and per-request variables are rejected without replacement', async () => {
+it('scope shadows global; duplicate names are rejected without replacement', async () => {
   const ctx = new Context()
   const provider = await ctx.plugin(ProbeProvider)
   const scope = createAssemblyFixture().target.scope
@@ -119,20 +117,15 @@ it('scope shadows global; duplicate names and per-request variables are rejected
       c.requestContext.contributeVariable(variable('name', 'global'))
     },
   })
-  let duplicate: ContributionResult | undefined, volatile: ContributionResult | undefined
+  let duplicate: ContributionResult | undefined
   const local = await ctx.plugin({
     inject: { [requestContextKey]: { scope } },
     apply(c) {
       c.requestContext.contributeVariable(variable('name', 'local'))
       duplicate = c.requestContext.contributeVariable(variable('name', 'overwrite'))
-      volatile = c.requestContext.contributeVariable({
-        ...variable('date', 'now'),
-        volatility: 'per-request',
-      })
     },
   })
   expect(duplicate).toMatchObject({ kind: 'rejected', reason: 'duplicate-name' })
-  expect(volatile).toMatchObject({ kind: 'rejected', reason: 'per-request-variable' })
   expect(current(ctx, scope).contributions[0]).toMatchObject({ kind: 'variable', value: 'local' })
   await local.dispose()
   expect(current(ctx, scope).contributions[0]).toMatchObject({ value: 'global' })

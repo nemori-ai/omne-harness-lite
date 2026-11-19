@@ -118,7 +118,7 @@ function renderDispatch(attempt: SessionModelAttemptDiagnostic): string[] {
   return [
     at(
       3,
-      `${attempt.dispatch} ${attempt.adapter.name}: ${attempt.send}, first content ${attempt.firstContent}, ${attemptOutcome(attempt.outcome)}`,
+      `${attempt.dispatch} ${attempt.adapter.name}: ${attempt.send}, first content ${attempt.firstContent}, ${attemptOutcome(attempt.outcome)}${attempt.reasoning === undefined ? '' : `, reasoning ${attempt.reasoning}`}`,
     ),
     at(
       4,

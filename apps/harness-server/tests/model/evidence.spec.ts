@@ -157,6 +157,7 @@ it('accepts the retry decision of the default policy, and refuses the same sourc
   const policy = createDefaultRetryPolicy<unknown>({
     adoption: ADOPTION,
     policy: { maxAttempts: 2, maxElapsedMs: 1000, delaysMs: [0], jitter: 0 },
+    replayResend: { max: 1 },
     clock: { now: () => '2026-11-17T00:00:00.000Z' },
     random: () => 0,
   })

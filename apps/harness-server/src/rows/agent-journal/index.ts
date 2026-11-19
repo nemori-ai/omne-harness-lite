@@ -17,7 +17,12 @@ import {
   sessionAccessCheckKey,
   sessionAdoptedRequestsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  runtimeContextKey,
+  runtimeContextReaderEligibilityKey,
+} from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
+import { suppliedContextBlocks } from '../../assembly/context-definitions.ts'
 import { releaseCancellation } from '../../entry/cancellation-installation.ts'
 import { defineRow } from '../../row.ts'
 import { agentJournalCombination, combinationConfig, type CombinationConfig } from './config.ts'
@@ -42,7 +47,12 @@ export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}
         agentToolReceptionTargetsKey,
         sessionAdoptedRequestsKey,
       ],
-      injects: INJECTS,
+      injects: [
+        ...INJECTS,
+        ...(input.reminders === undefined
+          ? []
+          : [runtimeContextKey, runtimeContextReaderEligibilityKey]),
+      ],
       sameProviderGroup: 'agent-journal',
     },
     lifecycle: { kind: 'none' },
@@ -60,4 +70,8 @@ export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}
   })
 }
 
-export const agentJournalRow = createAgentJournalRow({ cancellation: releaseCancellation })
+// The release tells the model the runtime context before each step.
+export const agentJournalRow = createAgentJournalRow({
+  cancellation: releaseCancellation,
+  reminders: { descriptors: suppliedContextBlocks },
+})

@@ -79,11 +79,17 @@ it('the factory takes the configuration and gives a model transport with its own
   >()
 })
 
-it('a route names its endpoint, end marker, accounting and auth, and the credential slot reads the secrets by item or nothing', () => {
+it('a route names its endpoints by interface, its accounting and auth, and the credential slot reads the secrets by item or nothing', () => {
   expectTypeOf<PiRoute>().toEqualTypeOf<
     Readonly<{
-      url: string
-      endMarker: string | null
+      endpoints: Readonly<
+        Partial<
+          Record<
+            'chat-completions' | 'messages' | 'responses',
+            Readonly<{ url: string; endMarker: string | null }>
+          >
+        >
+      >
       accounting: Readonly<{ place: string; costUnit: string }>
       auth: Readonly<{ kind: 'bearer'; item: string }> | null
     }>

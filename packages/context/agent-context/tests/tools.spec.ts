@@ -231,10 +231,7 @@ describe('toolsSourceOf: the sixth group from the bindings of the conditions', (
 
 describe('the sixth group through the real Request Context', () => {
   async function preparedWith(w: World, bindings: readonly Adoption[]) {
-    const context = await w.read()
-    return w.requests.prepare(
-      w.prepareInput(context, { conditions: { ...w.conditions, bindings } }),
-    )
+    return w.requests.prepare(w.prepareInput({ conditions: { ...w.conditions, bindings } }))
   }
 
   it('declares to the model one tool per bound definition, with its command menu and call schema', async () => {

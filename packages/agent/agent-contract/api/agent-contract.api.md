@@ -32,9 +32,6 @@
 - `AgentAccessDecision` · `execution.d.ts`
 - `AgentAccessOperation` · `execution.d.ts`
 - `AgentAccessTarget` · `execution.d.ts`
-- `AgentAccountHandoff` · `receiving.d.ts`
-- `AgentAccountOutcome` · `receiving.d.ts`
-- `AgentAccountOutlet` · `receiving.d.ts`
 - `AgentActionQualification` · `action-qualification.d.ts`
 - `AgentAdoptions` · `execution.d.ts`
 - `AgentCheckpoint` · `evaluation.d.ts`
@@ -128,7 +125,6 @@
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ConsumptionId` · `identity.d.ts`
 - `ContextCompaction` · `compaction.d.ts`
-- `ContextContent` · `request.d.ts`
 - `Continuation` · `identity.d.ts`
 - `ContinuationRequest` · `finishing.d.ts`
 - `ControlRecord` · `execution.d.ts`
@@ -220,8 +216,6 @@
 - `MessageHandoff` · `passages.d.ts`
 - `MessageSource` · `passages.d.ts`
 - `MigrationRecord` · `finishing.d.ts`
-- `ModelContextRead` · `request.d.ts`
-- `ModelContextReader` · `request.d.ts`
 - `ModelPurpose` · `evaluation.d.ts`
 - `ModelReceptionTarget` · `receiving.d.ts`
 - `ModelReceptionTargets` · `receiving.d.ts`
@@ -360,7 +354,6 @@
 
 ## 入口 `./testing` · `testing.d.ts`
 
-- `AgentAccountOutletFixture` · `testing-account-outlet.d.ts`
 - `AgentJournalCoreFixture` · `testing-journal-helpers.d.ts`
 - `AgentJournalCoreOpenOptions` · `testing-journal-helpers.d.ts`
 - `AgentJournalCoreOpened` · `testing-journal-helpers.d.ts`
@@ -370,7 +363,6 @@
 - `JournalReplayState` · `testing-journal-replay.d.ts`
 - `JournalReplayStep` · `testing-journal-replay.d.ts`
 - `JournalReplayTrace` · `testing-journal-replay.d.ts`
-- `MemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `MemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `ReceivedCommitFixture` · `testing-received-fixture.d.ts`
 - `RecordFault` · `testing-journal-entries.d.ts`
@@ -382,24 +374,20 @@
 - `TEST_CANCELLATION_INPUT_SCHEMA` · `testing-cancellation.d.ts`
 - `TEST_CANCELLATION_POLICY` · `testing-cancellation.d.ts`
 - `TestHostRecord` · `testing-cancellation.d.ts`
-- `agentAccountOutletConformance` · `testing-account-outlet.d.ts`
 - `agentJournalCoreConformance` · `testing-journal-core.d.ts`
 - `agentJournalEntriesConformance` · `testing-journal-entries.d.ts`
 - `agentJournalReplayConformance` · `testing-journal-replay.d.ts`
 - `agentJournalReplayTraces` · `testing-journal-replay.d.ts`
 - `agentJournalViolatingTraces` · `testing-journal-replay.d.ts`
-- `createMemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `createMemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `createTestCancellationPolicy` · `testing-cancellation.d.ts`
 - `describeMaterial` · `testing-journal-reads.d.ts`
 - `entryPage` · `testing-journal-reads.d.ts`
 - `materialDigest` · `testing-journal-reads.d.ts`
-- `memoryAgentAccountOutletFixture` · `testing-account-outlet.d.ts`
 - `memoryAgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
 - `memoryReceivedCommitFixture` · `testing-received-memory.d.ts`
 - `receivedEntriesOf` · `testing-journal-reads.d.ts`
 - `replayJournalTrace` · `testing-journal-replay.d.ts`
-- `sampleAccountHandoff` · `testing-account-outlet.d.ts`
 - `sampleCompactionAdoption` · `testing-compaction.d.ts`
 - `sampleCompactionInput` · `testing-compaction.d.ts`
 - `sampleReceivedModelAccount` · `testing-journal-samples.d.ts`
@@ -552,8 +540,6 @@ export type CompactionTarget = Readonly<{
 export type CompactionFrame = Readonly<{
     system: M.AssembledModelInput['system'];
     tools: M.AssembledModelInput['tools'];
-    snapshotReminder: Message | null;
-    tailFacts: Message | null;
 }>;
 export type CompactionInput = Readonly<{
     outputMessageId: MessageId;
@@ -3650,35 +3636,6 @@ export type AgentReceivedProvider<P, B extends ContentBlock> = Readonly<{
     materials: AgentMaterials<P, B>;
     received: AgentReceivedCommits<P, B> | null;
 }>;
-export type AgentAccountHandoff = Readonly<{
-    call: M.ModelInvocationRef;
-    dispatch: M.DispatchId;
-    account: CallAccount;
-    resultVersion: M.ResultVersion | null;
-    committed: DurableEvidence;
-}>;
-export type AgentAccountOutcome = Readonly<{
-    kind: 'received';
-}> | Readonly<{
-    kind: 'denied';
-}> | Readonly<{
-    kind: 'conflict';
-}> | Readonly<{
-    kind: 'invalid';
-    field: string;
-    reason: string;
-}> | Readonly<{
-    kind: 'unknown';
-}> | Readonly<{
-    kind: 'unavailable';
-    diagnostic: string;
-}>;
-export interface AgentAccountOutlet<P> {
-    deliver(input: Readonly<{
-        access: Access<P>;
-        handoff: AgentAccountHandoff;
-    }>): Promise<AgentAccountOutcome>;
-}
 ```
 
 ## 声明文件 `request.d.ts`
@@ -3715,23 +3672,6 @@ export interface ModelSelection<P> {
         conditions: RuntimeConditions;
         alterations: readonly DurableEvidence[];
     }>): Reply<SelectedModel>;
-}
-export type ContextContent = 'full' | 'incremental';
-export type ModelContextRead = Readonly<{
-    recipient: ModelRecipient;
-    content: ContextContent;
-    source: DurableEvidence;
-    coverage: DurableEvidence;
-}>;
-export interface ModelContextReader<P> {
-    read(input: Access<P> & Readonly<{
-        advance: Authority;
-        position: ConsumerRef;
-        recipient: ModelRecipient;
-        history: DurableEvidence;
-        adopted: DurableEvidence | null;
-        transition: DurableEvidence | null;
-    }>): Reply<ModelContextRead>;
 }
 export type Preparation = Readonly<{
     id: ActionId;
@@ -3804,7 +3744,6 @@ export interface RequestPreparation<P> {
         inputs: InputBatch;
         conditions: RuntimeConditions;
         selection: SelectedModel;
-        context: ModelContextRead;
         previous: Preparation | null;
         alterations: readonly DurableEvidence[];
         beforeModelCall: readonly PassageId[] | null;
@@ -3827,8 +3766,8 @@ export interface RequestPreparation<P> {
             kind: 'needs-compaction';
         }>;
         transition: DurableEvidence;
+        history: DurableEvidence;
         selection: SelectedModel;
-        context: ModelContextRead;
     }>): Reply<Exclude<Preparation, {
         kind: 'needs-compaction';
     }>>;
@@ -3880,31 +3819,6 @@ export declare const refusal: (field: string, reason: StructureFailure['reason']
 export declare function textMember(members: OwnMembers, name: string): Outcome<string, StructureFailure>;
 export declare function unknownMember(members: OwnMembers, known: readonly string[]): string | undefined;
 export declare function identityMember<T extends AgentIdentity<string>>(members: OwnMembers, name: string, decode: (value: unknown) => Outcome<T, IdentityFailure>): Outcome<T, StructureFailure>;
-```
-
-## 声明文件 `testing-account-outlet.d.ts`
-
-```ts
-import type { TenantId } from '@omne-harness/legal-identity';
-import type { Access } from './identity.ts';
-import type { AgentAccountHandoff, AgentAccountOutlet } from './receiving.ts';
-import { type ConformanceCase } from './testing-case.ts';
-export interface MemoryAgentAccountOutlet<P> extends AgentAccountOutlet<P> {
-    readonly durability: 'none';
-    received(tenant: TenantId): readonly AgentAccountHandoff[];
-}
-export declare function createMemoryAgentAccountOutlet<P>(): MemoryAgentAccountOutlet<P>;
-export interface AgentAccountOutletFixture<P> {
-    readonly outlet: AgentAccountOutlet<P>;
-    readonly access: Access<P>;
-    readonly otherAccess: Access<P>;
-    current(access: Access<P>, handoff: AgentAccountHandoff): Promise<string | null>;
-}
-export declare function sampleAccountHandoff(tenant: TenantId, name: string, revision?: string, lexeme?: string): AgentAccountHandoff;
-export declare function agentAccountOutletConformance<P>(fixture: AgentAccountOutletFixture<P>): readonly ConformanceCase[];
-export declare function memoryAgentAccountOutletFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentAccountOutletFixture<P> & Readonly<{
-    double: MemoryAgentAccountOutlet<P>;
-}>;
 ```
 
 ## 声明文件 `testing-cancellation.d.ts`
@@ -4583,7 +4497,6 @@ export declare function receivedFailure<P, B extends ContentBlock>(input: Receiv
 ```ts
 export type { ConformanceCase } from './testing-case.ts';
 export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, type RecordFault, } from './testing-journal-entries.ts';
-export { agentAccountOutletConformance, createMemoryAgentAccountOutlet, memoryAgentAccountOutletFixture, sampleAccountHandoff, type AgentAccountOutletFixture, type MemoryAgentAccountOutlet, } from './testing-account-outlet.ts';
 export { agentJournalCoreConformance, type AgentJournalCoreFixture, type AgentJournalCoreOpenOptions, type AgentJournalCoreOpened, type AgentJournalReplyAdmissionControls, type ReplyAdmissionDamage, type ReplyAdmissionReadStatistics, type SettlementQualification, } from './testing-journal-core.ts';
 export { createTestCancellationPolicy, TEST_CANCELLATION_IMPLEMENTATION, TEST_CANCELLATION_INPUT_SCHEMA, TEST_CANCELLATION_POLICY, testCancellationPolicyInstallation, type TestHostRecord, } from './testing-cancellation.ts';
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts';

@@ -63,9 +63,19 @@ export type ModelHostBinding = Readonly<{
   ledger: ResultPushLedger
 }>
 
+/** A row that reads Model records qualifies each read here, like the host does. */
+export type ModelReadersPort = Readonly<{
+  bindReader(ctx: Context): Readonly<{
+    qualifyRead(
+      access: Parameters<ModelQualification['qualifyRead']>[0],
+    ): ReturnType<ModelQualification['qualifyRead']>
+  }>
+}>
+
 export type ModelRunComposition = Readonly<{
   records: ModelRecordsPort
   host: ModelHostPort
+  readers: ModelReadersPort
   grantOriginRead(target: InitialTarget): () => void
   attached(): ModelRecordsAttachment | undefined
   executionChannel(): Outcome<ModelInitialHostChannel<unknown>, ModelFailure>
@@ -200,9 +210,25 @@ export function createModelRunComposition(): ModelRunComposition {
     })
   }
 
+  const bindReader: ModelReadersPort['bindReader'] = ctx => {
+    const current = currentForReader(readers, ctx)
+    return Object.freeze({
+      qualifyRead: async access => {
+        const live = attached
+        if (live === undefined)
+          return {
+            check: async () => fail(unavailable('records-not-attached')),
+            release() {},
+          }
+        return live.qualification.qualifyRead(access, () => current() && attached === live)
+      },
+    })
+  }
+
   return Object.freeze({
     records: Object.freeze({ checkOriginRead, attach }),
     host: Object.freeze({ bindHost }),
+    readers: Object.freeze({ bindReader }),
     grantOriginRead,
     attached: () => attached,
     executionChannel,

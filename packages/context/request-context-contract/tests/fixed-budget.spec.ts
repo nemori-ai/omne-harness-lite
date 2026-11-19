@@ -2,31 +2,17 @@ import { expect, it } from 'vitest'
 import type { Message } from '@omne-harness/message'
 import { fixture, row, upper, assemble } from './fixtures.js'
 it.each([
-  [
-    'only old history exceeds',
-    { old: 1000, input: 10, snapshot: 10, tail: 10 },
-    'needs-compaction',
-  ],
-  ['new input alone exceeds', { old: 10, input: 250, snapshot: 10, tail: 10 }, 'cannot-fit'],
-  ['snapshot alone exceeds', { old: 10, input: 10, snapshot: 250, tail: 10 }, 'cannot-fit'],
-  ['live tail alone exceeds', { old: 10, input: 10, snapshot: 10, tail: 250 }, 'cannot-fit'],
-  ['all layers fit', { old: 10, input: 10, snapshot: 10, tail: 10 }, 'candidate-before-extension'],
+  ['only old history exceeds', { old: 1000, input: 10 }, 'needs-compaction'],
+  ['new input alone exceeds', { old: 10, input: 250 }, 'cannot-fit'],
+  ['all layers fit', { old: 10, input: 10 }, 'candidate-before-extension'],
 ] as const)('fixed-budget responsibility: %s', async (_name, weights, outcome) => {
   const f = fixture(),
     old = row(0),
     inputRow = row(1)
-  const snapshot = f.input.contextRead.snapshot
-  if (snapshot === null) throw new Error('Fixture needs full snapshot')
   const calls: (readonly Message[])[] = []
   function cost(message: Message) {
     if (message.id === old.message.id) return weights.old
     if (message.id === inputRow.message.id) return weights.input
-    if (
-      message.blocks.some(block => block.kind === 'text' && block.text.includes('fixed:snapshot'))
-    )
-      return weights.snapshot
-    if (message.blocks.some(block => block.kind === 'text' && block.text.includes('fixed:tail')))
-      return weights.tail
     throw new Error('Unexpected fixture message in meter')
   }
   const meter = {
@@ -59,30 +45,6 @@ it.each([
       ...f.input,
       history: { ...f.input.history, upper: upper(1) },
       inputs: { ...f.input.inputs, entries: [inputRow.entry] },
-      contextRead: {
-        ...f.input.contextRead,
-        snapshot: {
-          ...snapshot,
-          blocks: [
-            {
-              key: 'test.snapshot',
-              revision: 1,
-              value: 'fixed:snapshot',
-              previous: null,
-              volatility: 'stable',
-            },
-          ],
-        },
-        perRequest: [
-          {
-            key: 'test.live',
-            revision: 1,
-            value: 'fixed:tail',
-            previous: null,
-            volatility: 'per-request',
-          },
-        ],
-      },
     },
     {
       ...f.ports,
@@ -101,19 +63,6 @@ it.each([
   expect(calls).toHaveLength(2)
   const [whole, fixed] = calls
   if (whole === undefined || fixed === undefined) throw new Error('Missing whole/fixed accounting')
-  expect(whole).toHaveLength(4)
-  expect(fixed).toHaveLength(3)
-  expect(whole.map(message => message.id)).toContain(old.message.id)
-  expect(fixed.map(message => message.id)).not.toContain(old.message.id)
-  expect(fixed.map(message => message.id)).toContain(inputRow.message.id)
-  expect(
-    fixed.some(message =>
-      message.blocks.some(block => block.kind === 'text' && block.text.includes('fixed:snapshot')),
-    ),
-  ).toBe(true)
-  expect(
-    fixed.some(message =>
-      message.blocks.some(block => block.kind === 'text' && block.text.includes('fixed:tail')),
-    ),
-  ).toBe(true)
+  expect(whole.map(message => message.id)).toEqual([old.message.id, inputRow.message.id])
+  expect(fixed.map(message => message.id)).toEqual([inputRow.message.id])
 })

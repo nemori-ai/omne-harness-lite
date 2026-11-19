@@ -65,6 +65,7 @@ describe('an Anthropic message in an OpenAI request', () => {
         scope: ANTHROPIC_SCOPE,
         format: 'anthropic-claude-v1',
         omittedParts: 1,
+        reason: 'scope',
       },
     ])
     const text = writeJsonText(encoded.ok.body)
@@ -114,6 +115,9 @@ describe('an Anthropic message in an OpenAI request', () => {
       formats: new Set(SOL.replay.formats.accepts),
       off: false,
       resent: new Set(),
+      system: request.system,
+      tools: request.tools,
+      binding: 'none',
     })
     const [openai, anthropic] = request.messages.filter(item => item.role === 'assistant')
     expect(projection.diagnostics).toEqual([
@@ -122,6 +126,7 @@ describe('an Anthropic message in an OpenAI request', () => {
         scope: ANTHROPIC_SCOPE,
         format: 'anthropic-claude-v1',
         omittedParts: 1,
+        reason: 'scope',
       },
     ])
     expect(projection.treatments).toEqual([

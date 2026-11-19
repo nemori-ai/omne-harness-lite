@@ -1,0 +1,246 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "I'm counting the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " num"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "bers from 1 to "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "99:"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "33 are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "isible by 3, 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by 7, and 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " by 21. By incl"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "usion-exclusion,"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "33 + 14 - "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "2×4 g"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ives 39 numbers div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "isible by exactly one of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " them, which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is odd, so it's"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n\n"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\"city\": \"L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "I'm counting the numbers from 1 to 99: 33 are divisible by 3, 14 by 7, and 4 by 21. By inclusion-exclusion, 33 + 14 - 2×4 gives 39 numbers divisible by exactly one of them, which is odd, so it's Lima.\n\n"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "toolu_016QQYhxZtEbENsbwkQgjyRz",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"signature\":\"CAQS/QUKEAgTGAI4AUIIdGhpbmtpbmcSDG45aVno5goJQgaOxRoMLfhtv6ROkPI0l1FVIjDECVdSm5DcgeGaSx54OYLP+ft3yE/Ra1On3S6kvrESyQ/bkcgOK7NTDuZYI46K+C0qmgVLx8QX6loWiN0ZJD95nyr641lpT1SaOWbIVonz0M8M73irTBE5cvX52DccOjjQxOvnpV56gpVG+X1OqQTmU5cf8zGWyLeK4B7PuSW9I44SjfSvvbRE3MUcf/pdo4CbgUFPvwBHakiKYKvZV7dfq0g4UNlXYLHmLMW+KUsBrTdCcgvvKbZ2KLEpazqiXc1IngH7Yk5BHebUn+zU2NAQdT3EhpnGXSy3jKWTkvrxnGisbgMJ0O4cmjE42Xb2E99BRLyk1NSeesI1hV7vHJvEoqA948wq7RRN/Y3Q9xlCsTglQSUmqi5ROCrJQCznOp67nzyMMBhXgU16EVJdnOJJee3IFoWMNwUSQzhH+DlB6Pcbd0obCQpaRPcSBOY3hF5RA+Ww0aHvPBCcSGnGXgt3tb3k+HA5aGD/2VRGDX4aHGQ8qxRuxKnTcccULIQhUDQSNkztpoJubBv2IsI3SEBz+6GmD+bA8dF7o3lKeKTPeQcKEpiFc6FP7H43mrrcPgzFWkeH018ZYS3xxw+vI/+ltTjoeiwwDXF/jyFpClPeyqY7T6G0Yg3s14IzdLPBMpyi8E3ap7DLFG3jwFDKgmT4SoWOX7gGHQNZaPbtPKZhrL241xVGVsxiYEqhN00nNVgOmD9PJQ6eo/d5WowrD09dtO/Q2q3H8aEI+Y/vbfE78tXDdoHUmZYBeBmlyeRnqWgc1F9zxt5Bzwq91MEw8k3qQrVXVuda5KXxEDg9VO3yjOD29OPp7Bh8P1Gb2zylosBIQIY4lo/VTVLOhL7W8v+iZIlbz31skI2kGIzsd/xczfZU24m8Dj11PTYBsglxJtW5rcyC9NeMkHDrDO23qQDUhsv87DZlBu4TX7bMl1UKcMmBAKLN2alnNzK7auAYAQ==.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1zb25uZXQtNS41LTIwMjYwOTI4fGFudGhyb3BpYyJ9\",\"thinking\":\"I'm counting the numbers from 1 to 99: 33 are divisible by 3, 14 by 7, and 4 by 21. By inclusion-exclusion, 33 + 14 - 2×4 gives 39 numbers divisible by exactly one of them, which is odd, so it's Lima.\\n\\n\",\"type\":\"thinking\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "445",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "112",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "61",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.00201",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Anthropic",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

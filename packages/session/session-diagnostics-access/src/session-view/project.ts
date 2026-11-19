@@ -370,9 +370,27 @@ function dispatchAccountsOf(
   }
 }
 
+type Reasoning = NonNullable<SessionModelAttemptDiagnostic['reasoning']>
+
+// The receipt says whether the request carried reasoning back; no receipt is not knowing.
+function dispatchReasoningOf(
+  dispatches: ModelAnswers['dispatches'],
+): (dispatch: string) => Reasoning {
+  if (dispatches === null || dispatches.kind === 'gap') return () => 'unknown'
+  const receipts = new Map(
+    dispatches.value.map(record => [record.dispatch as string, record.materialization?.receipt]),
+  )
+  return dispatch => {
+    const receipt = receipts.get(dispatch)
+    if (receipt === undefined) return 'unknown'
+    return receipt.replayCarried === true ? 'carried' : 'not-carried'
+  }
+}
+
 function attemptOf(
   attempt: ModelAttemptDiagnostic,
   accounts: DispatchAccounts,
+  reasoning: (dispatch: string) => Reasoning,
 ): SessionModelAttemptDiagnostic {
   const { adapter, outcome } = attempt
   return {
@@ -396,6 +414,7 @@ function attemptOf(
       execution: millisecondsOf(attempt.timing.execution),
     },
     account: accounts(attempt.dispatch),
+    reasoning: reasoning(attempt.dispatch),
   }
 }
 
@@ -416,10 +435,11 @@ function attemptsOf(
     gaps.push({ source: 'model', subject: reference, reason: 'retention-expired' })
   if (page.next !== null) gaps.push({ source: 'model', subject: reference, reason: 'truncated' })
   const accounts = dispatchAccountsOf(reference, answers.dispatches)
+  const reasoning = dispatchReasoningOf(answers.dispatches)
   gaps.push(...accounts.gaps)
   return {
     value: {
-      dispatches: page.entries.map(attempt => attemptOf(attempt, accounts.value)),
+      dispatches: page.entries.map(attempt => attemptOf(attempt, accounts.value, reasoning)),
       coverage: page.coverage,
     },
     gaps,

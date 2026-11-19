@@ -3,6 +3,7 @@ import { judgeMessage } from '@omne-harness/message'
 import { describe, expect, it } from 'vitest'
 import type { ContextMeasureEvent } from '@omne-harness/agent-context'
 import {
+  HEAD,
   authority,
   createWorld,
   meterBy,
@@ -22,26 +23,21 @@ const calls = (events: readonly ContextMeasureEvent[]) =>
   events.map(event => `${event.operation}:${event.phase}`)
 
 describe('the Context segment', () => {
-  it('read then prepare emit one start and one end each, in call order, with the execution', async () => {
+  it('prepare emits one start and one end, with the execution', async () => {
     const { w, events } = await observed()
-    const context = await w.read()
-    const result = await w.requests.prepare(w.prepareInput(context))
+    const result = await w.requests.prepare(w.prepareInput())
     expect('ok' in result).toBe(true)
-    expect(calls(events)).toEqual(['read:start', 'read:end', 'prepare:start', 'prepare:end'])
+    expect(calls(events)).toEqual(['prepare:start', 'prepare:end'])
     expect(events.every(event => event.execution === authority().execution)).toBe(true)
     expect(events.filter(event => event.phase === 'end').map(event => event.outcome)).toEqual([
       'ok',
-      'ok',
     ])
     expect(events[0]?.span).toBe(events[1]?.span)
-    expect(events[2]?.span).toBe(events[3]?.span)
-    expect(events[0]?.span).not.toBe(events[2]?.span)
   })
 
   it('assessment and resume emit their own segments; an answer with a failure ends as failure', async () => {
     const { w, events } = await observed({ meter: meterBy(500) })
-    const context = await w.read()
-    const original = await w.requests.prepare(w.prepareInput(context))
+    const original = await w.requests.prepare(w.prepareInput())
     if (!('ok' in original) || original.ok.kind !== 'needs-compaction')
       throw new Error('expected needs-compaction')
     events.length = 0
@@ -69,20 +65,17 @@ describe('the Context segment', () => {
       received: evidence('received'),
       message: message.ok,
     })
-    const after = await w.read({ transition: { ...w.selection.evidence } })
     const resumed = await w.requests.resume({
       ...w.access,
       advance: authority(),
       original: original.ok,
       transition: { ...w.selection.evidence },
+      history: HEAD,
       selection: w.selection,
-      context: after,
     })
     expect(calls(events)).toEqual([
       'assess-compaction:start',
       'assess-compaction:end',
-      'read:start',
-      'read:end',
       'resume:start',
       'resume:end',
     ])
@@ -94,10 +87,9 @@ describe('the Context segment', () => {
 
   it('a refused prepare ends its segment as failure', async () => {
     const { w, events } = await observed()
-    const context = await w.read()
     events.length = 0
     const refused = await w.requests.prepare(
-      w.prepareInput(context, { principal: 'bob', tenant: tenantOf('2') }),
+      w.prepareInput({ principal: 'bob', tenant: tenantOf('2') }),
     )
     expect('failure' in refused).toBe(true)
     expect(events.at(-1)).toMatchObject({ operation: 'prepare', phase: 'end', outcome: 'failure' })
@@ -112,7 +104,7 @@ describe('the Context segment', () => {
       },
     })
     const prepare = async (w: typeof plain) => {
-      const result = await w.requests.prepare(w.prepareInput(await w.read()))
+      const result = await w.requests.prepare(w.prepareInput())
       if (!('ok' in result)) return result
       return { kind: result.ok.kind, input: 'input' in result.ok ? result.ok.input : null }
     }

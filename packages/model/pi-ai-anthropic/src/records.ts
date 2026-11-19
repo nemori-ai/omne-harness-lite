@@ -1,3 +1,4 @@
+import type { RecordFact, RecordProvenance } from '@omne-harness/pi-ai-transport'
 import type { ParameterTable } from '@omne-harness/pi-ai-transport/chat-completions'
 import { IMAGE_MEDIA_TYPES } from './images.ts'
 import type { AnthropicRecord } from './record.ts'
@@ -69,20 +70,16 @@ const PARAMETERS = {
   'presence-penalty': { support: 'unsupported' },
 } as const satisfies ParameterTable
 
-const REPLAY = {
-  declaration: {},
-  formats: { produces: 'anthropic-claude-v1', accepts: ['anthropic-claude-v1'] },
-} as const
+/** The payload of a reasoning state on the Messages interface: its thinking blocks, in order. */
+export const ANTHROPIC_REASONING_FORMAT = 'anthropic-messages-v1'
 
 const COMMON = {
+  engine: 'messages',
   serving: { order: ['anthropic'], reports: ['Anthropic', 'anthropic'] },
   wire: {
-    roles: { instruction: 'system', reminder: 'user' },
-    content: 'parts',
     cache: { kind: 'last-message', ttl: '1h' },
-    image: { mediaTypes: IMAGE_MEDIA_TYPES, detail: 'auto' },
-    fixed: [{ field: 'store', value: false }],
-    usageTail: { maxFrames: 2 },
+    image: { mediaTypes: IMAGE_MEDIA_TYPES },
+    thinking: { display: 'summarized' },
     toolNames: { rule: 'underscore/1', maxLength: 64 },
   },
   parameters: PARAMETERS,
@@ -97,14 +94,7 @@ const COMMON = {
     },
     limits: [{ metric: 'image-bytes', provided: '4194304', upstream: { kind: 'unknown' } }],
     evidence:
-      'Anthropic models overview (https://platform.claude.com/docs/en/about-claude/models/overview) and model pages (https://platform.claude.com/docs/en/models/<model>/overview) observed 2026-11-03: a 1M-token context window and a 128K-token max output on the synchronous Messages API for every model of these records. OpenRouter endpoint metadata (https://openrouter.ai/api/v1/models/<route>/endpoints) observed 2026-11-03 for the Anthropic endpoint agrees: a 1000000-token context and a 128000-token max completion, with no max prompt. No upstream input limit is published; the 872000-token input limit reserves the whole output ceiling. The 4194304-byte image limit and the stop sequence limits are the offering of this project.',
-  },
-  replay: REPLAY,
-  rules: {
-    reasoning: 'anthropic-signed-group/1',
-    usage: 'anthropic-usage/1',
-    toolSchema: 'object-root/1',
-    check: 'none/1',
+      'Anthropic models overview (https://platform.claude.com/docs/en/about-claude/models/overview) and model pages (https://platform.claude.com/docs/en/models/<model>/overview) observed 2026-11-03: a 1M-token context window and a 128K-token max output on the synchronous Messages API for every model of these records. OpenRouter endpoint metadata (https://openrouter.ai/api/v1/models/<route>/endpoints) observed 2026-11-03 for the Anthropic endpoint agrees: a 1000000-token context and a 128000-token max completion, with no max prompt; the same endpoint metadata for claude-fable-5.2, observed 2026-11-18, gives the same two values. No upstream input limit is published; the 872000-token input limit reserves the whole output ceiling. The 4194304-byte image limit and the stop sequence limits are the offering of this project.',
   },
   meter: {
     representation: 'anthropic-visible-json/1',
@@ -114,47 +104,93 @@ const COMMON = {
   },
 } as const
 
+const MEASURED = '2026-11-18'
+
+const MATRIX: Readonly<Partial<Record<RecordFact, string>>> = {
+  efforts: 'one request per effort: low to max accepted; minimal and none refused with 400',
+  'reasoning-off':
+    'thinking disabled, one request; no record maps effort none, by the project convention',
+  'forced-tool-choice': 'tool_choice any and tool, one request each',
+  'ends-with-assistant':
+    'a request ending with an assistant message, one request: 400 "does not support assistant message prefill"',
+  'replay-binding':
+    'a reasoning block carried after an earlier message was edited, one request: kept means no binding, dropped and reported means bound to the prefix',
+}
+
+// Every fact cites the real stream of this record on the Messages interface; the facts that
+// stream cannot show also name the measurement that showed them.
+function provenanceOf(model: string, revision: string): RecordProvenance {
+  const record = encodeURIComponent(`anthropic/${model}`)
+  const evidence = `packages/model/pi-ai-anthropic/tests/fixtures/records/${record}/${revision}/stream.sse`
+  const fact = (name: RecordFact) => {
+    const note = MATRIX[name]
+    return note === undefined
+      ? { measuredAt: MEASURED, evidence }
+      : { measuredAt: MEASURED, evidence, note }
+  }
+  return {
+    engine: fact('engine'),
+    efforts: fact('efforts'),
+    'reasoning-off': fact('reasoning-off'),
+    'forced-tool-choice': fact('forced-tool-choice'),
+    'ends-with-assistant': fact('ends-with-assistant'),
+    'replay-shape': fact('replay-shape'),
+    'replay-binding': fact('replay-binding'),
+    cache: fact('cache'),
+    'system-placement': fact('system-placement'),
+    'usage-fields': fact('usage-fields'),
+  }
+}
+
+function replayOf(binding: 'prefix' | 'none') {
+  return {
+    declaration: {},
+    formats: { produces: ANTHROPIC_REASONING_FORMAT, accepts: [ANTHROPIC_REASONING_FORMAT] },
+    binding,
+  } as const
+}
+
+type Measured = Readonly<{
+  model: string
+  revision: string
+  forcedToolChoice: boolean
+  binding: 'prefix' | 'none'
+}>
+
+function recordOf(item: Measured) {
+  return {
+    name: `anthropic/${item.model}`,
+    revision: item.revision,
+    route: { provider: OPENROUTER, model: `anthropic/${item.model}` },
+    status: 'current',
+    ...COMMON,
+    accepts: { forcedToolChoice: item.forcedToolChoice, endsWithAssistant: false },
+    replay: replayOf(item.binding),
+    provenance: provenanceOf(item.model, item.revision),
+  } as const satisfies AnthropicRecord
+}
+
 export const ANTHROPIC_RECORDS = [
-  {
-    name: 'anthropic/claude-opus-5.5',
-    revision: '2',
-    route: { provider: OPENROUTER, model: 'anthropic/claude-opus-5.5' },
-    status: 'current',
-    ...COMMON,
-  },
-  {
-    name: 'anthropic/claude-sonnet-5.5',
+  recordOf({
+    model: 'claude-fable-5.2',
     revision: '1',
-    route: { provider: OPENROUTER, model: 'anthropic/claude-sonnet-5.5' },
-    status: 'current',
-    ...COMMON,
-  },
-  {
-    name: 'anthropic/claude-haiku-5.5',
-    revision: '1',
-    route: { provider: OPENROUTER, model: 'anthropic/claude-haiku-5.5' },
-    status: 'current',
-    ...COMMON,
-  },
-  {
-    name: 'anthropic/claude-opus-5',
+    forcedToolChoice: false,
+    binding: 'prefix',
+  }),
+  recordOf({
+    model: 'claude-fable-5.1',
+    revision: '3',
+    forcedToolChoice: false,
+    binding: 'prefix',
+  }),
+  recordOf({ model: 'claude-opus-5.5', revision: '3', forcedToolChoice: false, binding: 'prefix' }),
+  recordOf({ model: 'claude-opus-5', revision: '3', forcedToolChoice: true, binding: 'none' }),
+  recordOf({
+    model: 'claude-sonnet-5.5',
     revision: '2',
-    route: { provider: OPENROUTER, model: 'anthropic/claude-opus-5' },
-    status: 'current',
-    ...COMMON,
-  },
-  {
-    name: 'anthropic/claude-sonnet-5',
-    revision: '2',
-    route: { provider: OPENROUTER, model: 'anthropic/claude-sonnet-5' },
-    status: 'current',
-    ...COMMON,
-  },
-  {
-    name: 'anthropic/claude-fable-5.1',
-    revision: '2',
-    route: { provider: OPENROUTER, model: 'anthropic/claude-fable-5.1' },
-    status: 'current',
-    ...COMMON,
-  },
+    forcedToolChoice: false,
+    binding: 'prefix',
+  }),
+  recordOf({ model: 'claude-sonnet-5', revision: '3', forcedToolChoice: true, binding: 'none' }),
+  recordOf({ model: 'claude-haiku-5.5', revision: '2', forcedToolChoice: true, binding: 'prefix' }),
 ] as const satisfies readonly AnthropicRecord[]

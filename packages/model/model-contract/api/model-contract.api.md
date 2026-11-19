@@ -125,6 +125,7 @@
 - `RetryPosition` · `provider-protocol.d.ts`
 - `RetryResolution` · `provider-protocol.d.ts`
 - `Revision` · `root.d.ts`
+- `SettledReplay` · `result.d.ts`
 - `Settlement` · `result.d.ts`
 - `Snapshot` · `call-surface.d.ts`
 - `Supplier` · `root.d.ts`
@@ -161,6 +162,7 @@
 - `profileResolutionValue` · `profile-codec.d.ts`
 - `projectModelOutputV1` · `model-output-v1.d.ts`
 - `readProfileResolution` · `profile-codec.d.ts`
+- `replaySourceCall` · `replay-values.d.ts`
 - `resolveModelInvocationRef` · `reference.d.ts`
 
 ## 入口 `./conformance` · `conformance/index.d.ts`
@@ -258,7 +260,9 @@
 - `ProviderDiagnostic` · `provider-protocol.d.ts`
 - `Publication` · `provider-protocol.d.ts`
 - `RecoveryRecord` · `provider-protocol.d.ts`
+- `ReplayBinding` · `profile.d.ts`
 - `ReplayDiagnostic` · `profile.d.ts`
+- `ReplayOmission` · `profile.d.ts`
 - `ReplayProjection` · `profile.d.ts`
 - `ReplayProjectionInput` · `profile.d.ts`
 - `ReplayTreatment` · `profile.d.ts`
@@ -290,6 +294,7 @@
 - `MODEL_PROVIDER_CATEGORY` · `provider-asset.d.ts`
 - `ModelProviderBody` · `provider-asset.d.ts`
 - `ModelProviderBodyRejection` · `provider-asset.d.ts`
+- `ModelProviderEndpoint` · `provider-asset.d.ts`
 - `modelProviderBodyContract` · `provider-asset.d.ts`
 - `modelProviderCategoryDisplay` · `provider-asset.d.ts`
 - `parseModelProviderBody` · `provider-asset.d.ts`
@@ -438,6 +443,7 @@ export type DispatchRecord = Readonly<{
         source: DurableEvidence;
     }> | null;
     messages?: readonly MessageId[];
+    withoutReplay?: 'resend' | 'later';
 }>;
 export interface ModelCalls<P> {
     admit(input: Admit<P>): Reply<Admission>;
@@ -1290,6 +1296,7 @@ export type * from './diagnostics.ts';
 export { decodeProviderName } from './provider-name.ts';
 export { MODEL_IDENTITY_MAX_LENGTH, MODEL_IDENTITY_PREFIXES, compareOutputCursors, decodeDispatchId, decodeModelCallId, decodeModelDiagnosticCursor, decodeModelDiagnosticId, decodeModelInstanceId, decodeModelOperationId, decodeOutputCursor, decodeResultVersion, decodeRevision, } from './identity-values.ts';
 export { deriveGuardControlOperation } from './guard-control.ts';
+export { replaySourceCall } from './replay-values.ts';
 export type { ModelInvocationParts, ModelInvocationRef, ModelReferenceFailure, ModelReferenceRejection, } from './reference.ts';
 export { MODEL_REFERENCE_MAX_LENGTH, encodeModelInvocationRef, decodeModelInvocationRef, resolveModelInvocationRef, } from './reference.ts';
 export { profileResolutionValue, readProfileResolution, judgeModelParameters, judgeToolDeclarations, } from './profile-codec.ts';
@@ -1913,22 +1920,29 @@ export type ReplayTreatment = Readonly<{
     omit: readonly number[];
     thinking: ForeignThinking;
 }>);
+export type ReplayOmission = 'scope' | 'format' | 'resent' | 'no-prefix' | 'prefix-history' | 'prefix-system' | 'prefix-tools' | 'prefix-projection';
 export type ReplayDiagnostic = Readonly<{
     message: MessageId;
     scope: string;
     format: string;
     omittedParts: number;
+    reason: ReplayOmission;
 }>;
+export type ReplayBinding = 'prefix' | 'none';
 export type ReplayProjectionInput = Readonly<{
     messages: readonly Message[];
     declaration: ReplayDeclaration;
     formats: ReadonlySet<string>;
     off: boolean;
     resent: ReadonlySet<MessageId>;
+    system: unknown;
+    tools: unknown;
+    binding: ReplayBinding;
 }>;
 export type ReplayProjection = Readonly<{
     treatments: readonly ReplayTreatment[];
     diagnostics: readonly ReplayDiagnostic[];
+    prefix: string;
 }>;
 ```
 
@@ -1947,20 +1961,21 @@ export type CredentialItemDeclaration = Readonly<{
     impact: string;
     clear: string;
 }>;
+export type ModelProviderEndpoint = Readonly<{
+    protocol: string;
+    url: string;
+    endMarker?: string;
+}>;
 export type ModelProviderBody = Readonly<{
     name: ProviderName;
-    protocol: string;
-    endpoint: Readonly<{
-        url: string;
-        endMarker?: string;
-    }>;
+    endpoints: readonly ModelProviderEndpoint[];
     accounting: Readonly<{
         place: string;
         costUnit: string;
     }>;
     credentials: readonly CredentialItemDeclaration[];
 }>;
-export type ModelProviderBodyRejection = 'not-an-object' | 'invalid-name' | 'name-mismatch' | 'invalid-protocol' | 'invalid-endpoint' | 'invalid-accounting' | 'invalid-credentials' | 'duplicate-credential';
+export type ModelProviderBodyRejection = 'not-an-object' | 'invalid-name' | 'name-mismatch' | 'invalid-endpoints' | 'invalid-protocol' | 'duplicate-protocol' | 'invalid-endpoint' | 'invalid-accounting' | 'invalid-credentials' | 'duplicate-credential';
 export declare function parseModelProviderBody(body: unknown, capabilityName?: string): Outcome<ModelProviderBody, ModelProviderBodyRejection>;
 export declare function readModelProviderBody(body: unknown): ModelProviderBody | undefined;
 export declare function modelProviderBodyContract(): BodyContract;
@@ -1985,6 +2000,7 @@ import type { Access, Adoption, ActorRef, Admit, CallAccess, ConsumerRef, Dispat
 import type { AckInput, AckReceipt, Admission, CallState, ControlState, CustodyState, DurableEvidence, ModelFailure, ModelBlock, ModelFault, Lookup, Reply, Settlement, Termination } from './result.ts';
 import type { DispatchRecord, GrowingContentKind, LiveRoute, ModelHandle, ModelRuntime, ReadState, ReadStart, Snapshot } from './call-surface.ts';
 import type { CallAccount } from '@omne-harness/call-account';
+import type { ReplayOmission } from './profile.ts';
 export type TransportFailure = Extract<ModelFailure, {
     kind: 'denied' | 'invalid' | 'unsupported' | 'unavailable';
 }>;
@@ -2017,6 +2033,7 @@ export type ProviderDiagnostic = Readonly<{
     scope: string;
     format: string;
     omittedParts: number;
+    reason: ReplayOmission;
 }> | Readonly<{
     kind: 'reasoning-disabled';
     reason: 'foreign-prefix';
@@ -2027,6 +2044,11 @@ export type ProviderDiagnostic = Readonly<{
 }> | Readonly<{
     kind: 'usage-inconsistent';
     field: string;
+}> | Readonly<{
+    kind: 'upstream-transformed';
+    type: string;
+    path: string;
+    reason: string;
 }>;
 export type TransportTermination = Exclude<Termination, {
     kind: 'interrupted';
@@ -2080,6 +2102,8 @@ export type MaterializationReceipt = Readonly<{
     representation: Adoption;
     payloadDigest: string;
     replayFormat?: string;
+    replayPrefix?: string;
+    replayCarried?: true;
 }>;
 export interface MaterializedTransport {
     readonly receipt: MaterializationReceipt;
@@ -2129,6 +2153,9 @@ export type RetryDecision = Readonly<{
     supplier: Supplier;
     notBefore: string;
     basis: Adoption;
+}> | Readonly<{
+    kind: 'resend-without-replay';
+    supplier: Supplier;
 }>;
 export type RetryPosition = Readonly<{
     operation: ModelOperationId;
@@ -2324,7 +2351,7 @@ export interface ModelProvider<P> {
 ```ts
 export type { ActorRef, FixedRequestHead } from '../root.ts';
 export type { CallAccountReport, CommitQuery, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, ModelMediaLease, ModelMediaReader, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
-export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayDiagnostic, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
+export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayBinding, ReplayDiagnostic, ReplayOmission, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
 export type { ConversionFailure, ConversionReply, ConverterKey, ConverterLookup, ModelConverter, ModelConverterCatalog, ModelMessageConversion, } from '../conversion.ts';
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts';
 export type { ModelBindingFailure, ModelDriveInput, ModelDriver, ModelDriverBinding, ModelDriverHost, ModelHostAuthority, } from '../driver.ts';
@@ -2388,9 +2415,10 @@ export {};
 
 ```ts
 import { type Outcome } from '@omne-harness/operation-result';
-import { type MessageId } from '@omne-harness/message';
+import { type Message, type MessageId } from '@omne-harness/message';
 import type { ReplayDeclaration, ReplayProjection, ReplayProjectionInput } from './profile.ts';
 import type { ModelFailure } from './result.ts';
+import type { ModelCallId } from './root.ts';
 export declare function judgeReplayDeclaration(supplier: Readonly<{
     provider: string;
     model: string;
@@ -2400,6 +2428,7 @@ export declare function judgeReplayDeclaration(supplier: Readonly<{
 }>>;
 export declare function projectReplay(input: ReplayProjectionInput): ReplayProjection;
 export declare function continuedMessages(projection: ReplayProjection): ReadonlySet<MessageId>;
+export declare function replaySourceCall(message: Message): ModelCallId | null;
 ```
 
 ## 声明文件 `request-head.d.ts`
@@ -2611,11 +2640,18 @@ export type Termination = Readonly<{
     kind: 'interrupted';
     control: ModelOperationId;
 }>;
+export type SettledReplay = Readonly<{
+    scope: string;
+    format: string;
+    prefix?: string;
+    call?: string;
+}>;
 export type Settlement = Readonly<{
     version: ResultVersion;
     termination: Termination;
     cursor: OutputCursor;
     source: DurableEvidence;
+    replay?: SettledReplay;
 }>;
 export type CustodyState = Readonly<{
     kind: 'producer';
@@ -2872,7 +2908,7 @@ export declare function createConsumption<P>(core: Core<P>): ModelConsumption<P>
 
 ```ts
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { CallContact, ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, Reply, Termination, VisibleBlock } from '../index.ts';
+import type { CallContact, ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, Reply, Settlement, Termination, VisibleBlock } from '../index.ts';
 import type { CommitQuery, TransportFact } from '../provider/index.ts';
 import type { CallAccess, DispatchId, ModelCallId, ModelInstanceId, ModelOperationId, ResultVersion, Revision } from '../root.ts';
 import { type Core, type ScriptedAction } from './core.ts';
@@ -2896,6 +2932,7 @@ export interface ScriptController<P> {
         source: DurableEvidence;
         pageSize: number;
         pageTargetBytes: number;
+        replay?: Settlement['replay'];
     }>): void;
     play(input: ScriptedCall & Readonly<{
         facts: readonly TransportFact[];

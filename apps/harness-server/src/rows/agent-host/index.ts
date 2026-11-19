@@ -21,13 +21,11 @@ import {
   agentJournalKey,
   agentMaterialsKey,
   agentMessageHandoffKey,
-  agentModelContextKey,
   agentModelSelectionKey,
   agentPublicationAuthorityKey,
   agentReceivedCommitsKey,
   agentModelReceptionTargetsKey,
   agentRequestsKey,
-  agentAccountOutletKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
@@ -129,9 +127,7 @@ export function createAgentHostRowOver(pluginOf: (ctx: Context) => AgentHostPlug
         agentCompactionKey,
         agentCompactionInputsKey,
         agentModelSelectionKey,
-        agentModelContextKey,
         agentMessageHandoffKey,
-        agentAccountOutletKey,
         modelRuntimeKey,
         agentClockKey,
         AGENT_HOST_PRINCIPAL,

@@ -1,5 +1,7 @@
+import type { RecordFact, RecordProvenance } from '@omne-harness/pi-ai-transport'
 import type { ParameterTable } from '@omne-harness/pi-ai-transport/chat-completions'
-import type { OpenAiRecord } from './record.ts'
+import type { ImageRuleName } from './images.ts'
+import type { OpenAiRecord, OpenAiResponsesRecord, ProfileData } from './record.ts'
 
 const OPENROUTER = 'openrouter'
 
@@ -64,13 +66,28 @@ const PARAMETERS = {
   'presence-penalty': { support: 'unsupported' },
 } as const satisfies ParameterTable
 
-const COMMON = {
+const IMAGE_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const
+
+const ENDPOINT_PROFILE = {
+  input: ['text', 'image'],
+  output: ['text'],
+  context: {
+    window: { provided: '1050000', upstream: { kind: 'finite', amount: '1050000' } },
+    input: { provided: '922000', upstream: { kind: 'finite', amount: '922000' } },
+    output: { provided: '128000', upstream: { kind: 'finite', amount: '128000' } },
+  },
+  limits: [{ metric: 'image-bytes', provided: '4194304', upstream: { kind: 'unknown' } }],
+  evidence:
+    'OpenRouter endpoint metadata observed 2026-09-28 for the selected OpenAI endpoint: a 1050000-token shared window, a 922000-token max prompt and a 128000-token max completion. The 4194304-byte image limit is the offering of this project; no upstream per-image byte limit is established.',
+} as const
+
+const CHAT = {
   serving: { order: ['openai'], reports: ['OpenAI', 'openai'] },
   wire: {
     roles: { instruction: 'system', reminder: 'developer' },
     content: 'compact',
     cache: { kind: 'none' },
-    image: { mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], detail: 'auto' },
+    image: { mediaTypes: IMAGE_MEDIA_TYPES, detail: 'auto' },
     fixed: [{ field: 'store', value: false }],
     usageTail: { maxFrames: 2 },
     toolNames: { rule: 'underscore/1', maxLength: 64 },
@@ -80,18 +97,7 @@ const COMMON = {
     declaration: {},
     formats: { produces: 'openai-responses-v1', accepts: ['openai-responses-v1'] },
   },
-  profile: {
-    input: ['text', 'image'],
-    output: ['text'],
-    context: {
-      window: { provided: '1050000', upstream: { kind: 'finite', amount: '1050000' } },
-      input: { provided: '922000', upstream: { kind: 'finite', amount: '922000' } },
-      output: { provided: '128000', upstream: { kind: 'finite', amount: '128000' } },
-    },
-    limits: [{ metric: 'image-bytes', provided: '4194304', upstream: { kind: 'unknown' } }],
-    evidence:
-      'OpenRouter endpoint metadata observed 2026-09-28 for the selected OpenAI endpoint: a 1050000-token shared window, a 922000-token max prompt and a 128000-token max completion. The 4194304-byte image limit is the offering of this project; no upstream per-image byte limit is established.',
-  },
+  profile: ENDPOINT_PROFILE,
 } as const
 
 const RULES = {
@@ -111,102 +117,180 @@ const METER = {
 const GPT61_LIMITS =
   'OpenAI model pages and OpenRouter endpoint metadata observed 2026-11-03 for the selected OpenAI endpoint: a 1050000-token shared window, a 922000-token max prompt and a 128000-token max completion. The 4194304-byte image limit is the offering of this project; no upstream per-image byte limit is established.'
 
-const GPT61_SOL_PROFILE = { ...COMMON.profile, evidence: GPT61_LIMITS } as const
+const GPT61_SOL_PROFILE = { ...ENDPOINT_PROFILE, evidence: GPT61_LIMITS } as const
 
 const GPT61_TERRA_PROFILE = {
-  ...COMMON.profile,
+  ...ENDPOINT_PROFILE,
   evidence: `${GPT61_LIMITS} The image rule sol-luna-auto-proxy/1 is an inference: the OpenAI image guide of 2026-11-03 does not name gpt-6.1-terra and GPT-6 has no Terra model, so the rule of GPT-6 Sol and Luna stands in.`,
 } as const
 
-export const OPENAI_RECORDS = [
-  {
-    name: 'openai/gpt-6-astra',
-    revision: '1',
-    route: { provider: OPENROUTER, model: 'openai/gpt-6-astra' },
-    status: 'current',
-    ...COMMON,
-    parameters: PARAMETERS,
-    rules: { ...RULES, usage: 'openai-usage/1' },
-    meter: { ...METER, image: 'astra-patch/1' },
+function gpt62Profile(model: string) {
+  return {
+    ...GPT61_SOL_PROFILE,
+    evidence: `OpenRouter endpoint metadata observed 2026-11-18 for openai/${model}: a 1050000-token context, a 922000-token max prompt and a 128000-token max completion on the OpenAI endpoint; image input listed. The image rule sol-luna-auto-proxy/1 is an inference: the OpenAI site gives no image rule for GPT-6.2, so the rule of GPT-6.1 Sol stands in.`,
+  } as const
+}
+
+/** The payload of a reasoning state on the Responses interface: the output items of one reply. */
+export const OPENAI_REASONING_FORMAT = 'openai-responses-items-v1'
+
+const RESPONSES = {
+  engine: 'responses',
+  serving: { order: ['openai'], reports: ['OpenAI'] },
+  wire: {
+    system: 'developer',
+    cache: { kind: 'automatic' },
+    image: { mediaTypes: IMAGE_MEDIA_TYPES },
+    reasoning: { summary: 'auto' },
+    toolNames: { rule: 'underscore/1', maxLength: 64 },
   },
+  parameters: PARAMETERS,
+  extensions: [],
+  accepts: { forcedToolChoice: true, endsWithAssistant: true },
+} as const
+
+const MEASURED = '2026-11-18'
+
+const MATRIX: Readonly<Partial<Record<RecordFact, string>>> = {
+  efforts: 'one request per effort: minimal to max accepted',
+  'reasoning-off':
+    'reasoning disabled, one request: gpt-6.2-astra, gpt-6-astra, gpt-6.2-sol and gpt-6.1-sol refused with 400 "Reasoning is mandatory for this endpoint and cannot be disabled.", the others accepted; no record maps effort none, by the project convention',
+  'forced-tool-choice': 'tool_choice required and a named function, one request each: accepted',
+  'ends-with-assistant': 'a request ending with an assistant message, one request: accepted',
+  'replay-binding':
+    'reasoning items carried after an earlier message was edited, one request: on gpt-6.2-astra and gpt-6.2-sol the input tokens fell by 7 to 16, read as dropped, so bound to the prefix; on the others they counted as usual, so no binding',
+  cache:
+    'a three-turn session on the release service (live model matrix): with automatic caching and a session key the later requests read 0.996 of their input from the cache on gpt-6.1-terra and gpt-6.2-sol; an explicit breakpoint moved to the newest message each turn read nothing on gpt-6.1-terra',
+  'system-placement': 'one developer message asking for capital letters: the reply was in capitals',
+}
+
+// Every fact cites the real stream of this record on the Responses interface; the facts that
+// stream cannot show also name the measurement that showed them.
+function provenanceOf(name: string, revision: string): RecordProvenance {
+  const evidence = `packages/model/pi-ai-openai/tests/fixtures/records/${encodeURIComponent(name)}/${revision}/stream.sse`
+  const fact = (key: RecordFact) => {
+    const note = MATRIX[key]
+    return note === undefined
+      ? { measuredAt: MEASURED, evidence }
+      : { measuredAt: MEASURED, evidence, note }
+  }
+  return {
+    engine: fact('engine'),
+    efforts: fact('efforts'),
+    'reasoning-off': fact('reasoning-off'),
+    'forced-tool-choice': fact('forced-tool-choice'),
+    'ends-with-assistant': fact('ends-with-assistant'),
+    'replay-shape': fact('replay-shape'),
+    'replay-binding': fact('replay-binding'),
+    cache: fact('cache'),
+    'system-placement': fact('system-placement'),
+    'usage-fields': fact('usage-fields'),
+  }
+}
+
+function replayOf(binding: 'prefix' | 'none') {
+  return {
+    declaration: {},
+    formats: { produces: OPENAI_REASONING_FORMAT, accepts: [OPENAI_REASONING_FORMAT] },
+    binding,
+  } as const
+}
+
+type Measured = Readonly<{
+  model: string
+  revision: string
+  binding: 'prefix' | 'none'
+  profile: ProfileData
+  image: ImageRuleName
+}>
+
+function recordOf(item: Measured) {
+  const name = `openai/${item.model}`
+  return {
+    name,
+    revision: item.revision,
+    route: { provider: OPENROUTER, model: name },
+    status: 'current',
+    ...RESPONSES,
+    replay: replayOf(item.binding),
+    profile: item.profile,
+    meter: { ...METER, image: item.image },
+    provenance: provenanceOf(name, item.revision),
+  } as const satisfies OpenAiResponsesRecord
+}
+
+export const OPENAI_RECORDS = [
+  recordOf({
+    model: 'gpt-6-astra',
+    revision: '3',
+    binding: 'none',
+    profile: ENDPOINT_PROFILE,
+    image: 'astra-patch/1',
+  }),
   {
     name: 'openai/gpt-6-astra-pro',
     revision: '1',
     route: { provider: OPENROUTER, model: 'openai/gpt-6-astra-pro' },
     status: 'current',
-    ...COMMON,
+    ...CHAT,
     parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'astra-patch/1' },
   },
-  {
-    name: 'openai/gpt-6-sol',
-    revision: '1',
-    route: { provider: OPENROUTER, model: 'openai/gpt-6-sol' },
-    status: 'current',
-    ...COMMON,
-    parameters: PARAMETERS,
-    rules: { ...RULES, usage: 'openai-usage/1' },
-    meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
-  },
+  recordOf({
+    model: 'gpt-6-sol',
+    revision: '3',
+    binding: 'none',
+    profile: ENDPOINT_PROFILE,
+    image: 'sol-luna-auto-proxy/1',
+  }),
   {
     name: 'openai/gpt-6-sol-pro',
     revision: '1',
     route: { provider: OPENROUTER, model: 'openai/gpt-6-sol-pro' },
     status: 'current',
-    ...COMMON,
+    ...CHAT,
     parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
   },
-  {
-    name: 'openai/gpt-6-luna',
-    revision: '1',
-    route: { provider: OPENROUTER, model: 'openai/gpt-6-luna' },
-    status: 'current',
-    ...COMMON,
-    parameters: PARAMETERS,
-    rules: { ...RULES, usage: 'openai-usage/1' },
-    meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
-  },
+  recordOf({
+    model: 'gpt-6-luna',
+    revision: '3',
+    binding: 'none',
+    profile: ENDPOINT_PROFILE,
+    image: 'sol-luna-auto-proxy/1',
+  }),
   {
     name: 'openai/gpt-6-luna-pro',
     revision: '1',
     route: { provider: OPENROUTER, model: 'openai/gpt-6-luna-pro' },
     status: 'current',
-    ...COMMON,
+    ...CHAT,
     parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
   },
-  {
-    name: 'openai/gpt-6.1-sol',
-    revision: '1',
-    route: { provider: OPENROUTER, model: 'openai/gpt-6.1-sol' },
-    status: 'current',
-    ...COMMON,
+  recordOf({
+    model: 'gpt-6.1-sol',
+    revision: '3',
+    binding: 'none',
     profile: GPT61_SOL_PROFILE,
-    parameters: PARAMETERS,
-    rules: { ...RULES, usage: 'openai-usage/1' },
-    meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
-  },
-  {
-    name: 'openai/gpt-6.1-terra',
-    revision: '1',
-    route: { provider: OPENROUTER, model: 'openai/gpt-6.1-terra' },
-    status: 'current',
-    ...COMMON,
+    image: 'sol-luna-auto-proxy/1',
+  }),
+  recordOf({
+    model: 'gpt-6.1-terra',
+    revision: '3',
+    binding: 'none',
     profile: GPT61_TERRA_PROFILE,
-    parameters: PARAMETERS,
-    rules: { ...RULES, usage: 'openai-usage/1' },
-    meter: { ...METER, image: 'sol-luna-auto-proxy/1' },
-  },
+    image: 'sol-luna-auto-proxy/1',
+  }),
   {
     name: 'openai/gpt-5.6-sol',
     revision: '1',
     route: { provider: OPENROUTER, model: 'openai/gpt-5.6-sol' },
     status: 'current',
-    ...COMMON,
+    ...CHAT,
     parameters: PARAMETERS,
     rules: { ...RULES, usage: 'openai-usage/1' },
     meter: { ...METER, image: 'gpt56-patch/1' },
@@ -216,49 +300,57 @@ export const OPENAI_RECORDS = [
     revision: '1',
     route: { provider: OPENROUTER, model: 'openai/gpt-5.6-sol-pro' },
     status: 'current',
-    ...COMMON,
+    ...CHAT,
     parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'gpt56-patch/1' },
   },
-  {
-    name: 'openai/gpt-5.6-terra',
-    revision: '1',
-    route: { provider: OPENROUTER, model: 'openai/gpt-5.6-terra' },
-    status: 'current',
-    ...COMMON,
-    parameters: PARAMETERS,
-    rules: { ...RULES, usage: 'openai-usage/1' },
-    meter: { ...METER, image: 'gpt56-patch/1' },
-  },
+  recordOf({
+    model: 'gpt-5.6-terra',
+    revision: '3',
+    binding: 'none',
+    profile: ENDPOINT_PROFILE,
+    image: 'gpt56-patch/1',
+  }),
   {
     name: 'openai/gpt-5.6-terra-pro',
     revision: '1',
     route: { provider: OPENROUTER, model: 'openai/gpt-5.6-terra-pro' },
     status: 'current',
-    ...COMMON,
+    ...CHAT,
     parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'gpt56-patch/1' },
   },
-  {
-    name: 'openai/gpt-5.6-luna',
-    revision: '1',
-    route: { provider: OPENROUTER, model: 'openai/gpt-5.6-luna' },
-    status: 'current',
-    ...COMMON,
-    parameters: PARAMETERS,
-    rules: { ...RULES, usage: 'openai-usage/1' },
-    meter: { ...METER, image: 'gpt56-patch/1' },
-  },
+  recordOf({
+    model: 'gpt-5.6-luna',
+    revision: '3',
+    binding: 'none',
+    profile: ENDPOINT_PROFILE,
+    image: 'gpt56-patch/1',
+  }),
   {
     name: 'openai/gpt-5.6-luna-pro',
     revision: '1',
     route: { provider: OPENROUTER, model: 'openai/gpt-5.6-luna-pro' },
     status: 'current',
-    ...COMMON,
+    ...CHAT,
     parameters: PARAMETERS,
     rules: { ...RULES, usage: 'unknown-scope/1' },
     meter: { ...METER, image: 'gpt56-patch/1' },
   },
+  recordOf({
+    model: 'gpt-6.2-astra',
+    revision: '2',
+    binding: 'prefix',
+    profile: gpt62Profile('gpt-6.2-astra'),
+    image: 'sol-luna-auto-proxy/1',
+  }),
+  recordOf({
+    model: 'gpt-6.2-sol',
+    revision: '2',
+    binding: 'prefix',
+    profile: gpt62Profile('gpt-6.2-sol'),
+    image: 'sol-luna-auto-proxy/1',
+  }),
 ] as const satisfies readonly OpenAiRecord[]

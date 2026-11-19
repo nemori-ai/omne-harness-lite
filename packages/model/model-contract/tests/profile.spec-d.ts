@@ -351,7 +351,7 @@ it('a replay projection is made of treatments and diagnostics that carry no payl
   expectTypeOf<ReplayProjection['treatments']>().toEqualTypeOf<readonly ReplayTreatment[]>()
   expectTypeOf<ReplayProjection['diagnostics']>().toEqualTypeOf<readonly ReplayDiagnostic[]>()
   expectTypeOf<keyof ReplayDiagnostic>().toEqualTypeOf<
-    'message' | 'scope' | 'format' | 'omittedParts'
+    'message' | 'scope' | 'format' | 'omittedParts' | 'reason'
   >()
   expectTypeOf<ReplayTreatment['thinking']>().toEqualTypeOf<'native' | ForeignThinking>()
   expectTypeOf<ReplayProjectionInput['resent']>().toEqualTypeOf<

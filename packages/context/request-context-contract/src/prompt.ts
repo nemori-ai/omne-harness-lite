@@ -16,7 +16,7 @@ export type SystemPromptResult =
     }>
   | Readonly<{
       kind: 'invalid'
-      reason: 'per-request-variable' | 'duplicate-name' | 'unknown-variable'
+      reason: 'duplicate-name' | 'unknown-variable'
       name: string
       scope: ScopeRef | null
     }>
@@ -84,8 +84,6 @@ function validateSectionVariables(
     const variable = selected.get(name)
     if (!section.uses.includes(name) || variable?.kind !== 'variable')
       return { kind: 'invalid', reason: 'unknown-variable', name, scope: section.scope }
-    if (variable.volatility === 'per-request')
-      return { kind: 'invalid', reason: 'per-request-variable', name, scope: section.scope }
   }
   return null
 }

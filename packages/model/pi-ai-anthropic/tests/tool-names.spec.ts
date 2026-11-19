@@ -26,47 +26,43 @@ function data(value: object) {
   return { kind: 'data', value: read.value } as const
 }
 
-function chunk(delta: object, finish: string | null = null): object {
-  return {
-    id: 'gen-1',
-    object: 'chat.completion.chunk',
-    model: SONNET.route.model,
-    provider: 'Anthropic',
-    choices: [{ index: 0, delta, finish_reason: finish }],
-  }
-}
-
 describe('dotted tool names through the Anthropic binding', () => {
   it('go out as gateway names and come back as the Tool names', async () => {
     const binding = await bindingOf(SONNET)
     const request = fixedRequest(SONNET, { tools: [tool('Files.read'), tool('Shell.execute')] })
     const encoded = binding.encode(encodeInput(request))
     if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded.failure))
-    const body = JSON.parse(writeJsonText(encoded.ok.body)) as {
-      tools: { function: { name: string } }[]
-    }
-    expect(body.tools.map(item => item.function.name)).toEqual(['Files_read', 'Shell_execute'])
+    const body = JSON.parse(writeJsonText(encoded.ok.body)) as { tools: { name: string }[] }
+    expect(body.tools.map(item => item.name)).toEqual(['Files_read', 'Shell_execute'])
 
     const decoder = binding.createDecoder({ request, accounting: OPENROUTER_ACCOUNTING })
     const facts: TransportFact[] = []
     for (const outcome of [
       decoder.accept(
-        data(
-          chunk({
-            role: 'assistant',
-            tool_calls: [
-              {
-                index: 0,
-                id: 'toolu_1',
-                type: 'function',
-                function: { name: 'Shell_execute', arguments: '{}' },
-              },
-            ],
-          }),
-        ),
+        data({
+          type: 'message_start',
+          message: { model: SONNET.route.model, provider: 'Anthropic', usage: {} },
+        }),
       ),
-      decoder.accept(data(chunk({}, 'tool_calls'))),
-      decoder.accept({ kind: 'end-marker' }),
+      decoder.accept(
+        data({
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'tool_use', id: 'toolu_1', name: 'Shell_execute', input: {} },
+        }),
+      ),
+      decoder.accept(
+        data({
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'input_json_delta', partial_json: '{}' },
+        }),
+      ),
+      decoder.accept(data({ type: 'content_block_stop', index: 0 })),
+      decoder.accept(
+        data({ type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: {} }),
+      ),
+      decoder.accept(data({ type: 'message_stop' })),
       decoder.end(),
     ]) {
       if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))

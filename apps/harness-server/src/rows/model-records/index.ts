@@ -24,8 +24,7 @@ import {
   type ModelCommandsEvidence,
   type ModelInitialExecution,
 } from '@omne-harness/model/commands'
-import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
-import { composeFamilies } from '@omne-harness/pi-ai-transport'
+import type { TiktokenExecutor } from '@omne-harness/tokenizer-tiktoken'
 import { modelTokenizersKey, type ModelTokenizers } from '@omne-harness/tokenizer-tiktoken/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
@@ -38,6 +37,7 @@ import { modelRecordsPortOf } from '../../model/ports.ts'
 import { observationTiming } from '../../model/observation.ts'
 import { createModelQualification } from '../../model/qualification.ts'
 import { officialSendSources } from '../../model/sources.ts'
+import { releaseFamilies } from '../../model/families.ts'
 import { defineRow } from '../../row.ts'
 import { providerRoutes } from '../../assets/model-providers.ts'
 import { credentialLayerSupplier } from '../../model/credential-layer.ts'
@@ -160,21 +160,15 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         live.initial = undefined
         handle.detach()
       })
+      const executor: Pick<TiktokenExecutor, 'acquire'> = {
+        acquire: (definition, signal) =>
+          sendTokenizers.port?.acquire(definition, signal) ?? {
+            failure: { kind: 'unavailable', diagnostic: 'tokenizer-provider-unavailable' },
+          },
+      }
       const Stage = createModelSendStagePlugin<unknown>({
         requestDisclosure,
-        families: composeFamilies([
-          createOpenAiFamily({
-            tokenizer: openAiTokenizerResources(),
-            executor: {
-              acquire: (definition, signal) =>
-                sendTokenizers.port?.acquire(definition, signal) ?? {
-                  failure: { kind: 'unavailable', diagnostic: 'tokenizer-provider-unavailable' },
-                },
-            },
-            limits: sendStage.preparation.openai.limits,
-            margin: sendStage.preparation.openai.margin,
-          }),
-        ]),
+        families: releaseFamilies(sendStage.preparation, executor),
         coordinator,
         materialization: {
           maxRecords: sendStage.materialization.maxRecords,

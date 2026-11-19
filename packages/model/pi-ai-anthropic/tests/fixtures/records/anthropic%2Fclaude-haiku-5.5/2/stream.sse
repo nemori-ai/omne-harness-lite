@@ -1,0 +1,99 @@
+event: message_start
+data: {"type":"message_start","message":{"id":"msg_011ChA8Cva6Sk5rs1KTs3DGM","type":"message","role":"assistant","container":null,"content":[],"model":"anthropic/claude-haiku-5.5","stop_reason":null,"stop_details":null,"stop_sequence":null,"usage":{"input_tokens":445,"output_tokens":8,"output_tokens_details":null,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"inference_geo":"global","server_tool_use":null,"service_tier":"standard","speed":"standard"},"provider":"Anthropic"}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"I'm counting the"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" integers from"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 1 to 99 that"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" are divisible by 3 "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"or 7 "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"but not both. There"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" are 33 multiples of"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 3, 14 of "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"7, and 4 of "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"21, so the union is 43"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" and the exclusive count"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" com"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"es to"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 39,"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" which is odd,"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" so the city"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" is Lima. I'll"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" call the"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" weather tool for Lima"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":","}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" one call"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" at a time."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"\n\n"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"CAQSrAcKEAgTGAI4AUIIdGhpbmtpbmcSDKEdB0LvV98yz7Ce+hoMMSrXrWRUMCskZb2dIjBes5zjXt9Uf4WnCzuasZUCS76ew9qvl3Oh6Vabn+sTVHe4hpGOAzhWQLho/aDXChkqyQZrojVtupTvxpfpKMq971tJstJO9nGOTYUSttsPWvourSkfWr8JmDnXuASHse9oCq76ob+heHf75mktvP56FEcBYy3xG6TJCNXyrqgtumRnwiRoGpkj52ZWjhH28rC27LSaRd77Ajl1omEkBUbM8YEsTu3OosYANdefX5AXqyo28jUkBJB9gAKY+tFTL8WIqeX3n8o3ngLpDh/T4pScj4gjSpiuYHwpbgo1GX+SZQds1q0MJxxBvGtpCy56fgmERcGuwUK2pZQS3tE98wrM5Iv1MywkOZY4jINitwaO9dCbVBbnp5lCthEGO9WDd0gzWVHeloJ2PRHTwOTB7EbXCmhx1WX1TCFRyFu8jNm2etb04YPxB4PGHOAgh/y7UUTMvijEQe3YHWuS048vs6HhSlIpIsZjUzukq7KhhVbC7we8XZGz0PlwQOFaDqeESSpUzlGuqPlCp8Mm3KS/TNSGHvhjWtjYh8Pai2yjI2k0VguWLhKaodx+j/XjRoDDBFv8Wu+y8oOkvrXX1+ZrzFsIW35QDQvWGqb8jOi8OYXPXBUKzWPoVBRl/ouG7tBJPYk8Wj5RVp6bo5tC3WbCN0VBfTwSUEo8aRdCICpaImQJ1UkvQNzbFFjuFAOvp8D79PznoQouWIqmk7dyd9ix9iMZIbVj6aNBWjmOwrh9JzsLNg7yjtgcwhGSvqx6X4GEQaGPnYqMQdw0/lp2/E7JBDY1Hg6JJvXpLb9iIWdA90DDFRQ9VjeivaEbazm/G/exf75r2yoUKFKzQ945S9IFbf1lPAmBOp6Uh9adv6deRXIB+/RMifsJEei0+J4EKIy+UyCVmOJoIjihwMjfejmg9cR9B+YiX/UaJ0XQzqp3NNFguRomledYcWbcGBdfmGms8oMycz2Q9/MXr/uSJHynVph/sQA0JdkoQHofPaDBUj9U6S1wQY3V+MDVS506ZkIzLzcJbuMlZzg8ZWQDb6i4c8hWItQS51bUtOm/J/GEXE8+e+eO+SnYTmmQ/MWz8aWyY4B7XHBLH1uN7LO28r7tI+ZrSOrA3eYdE0uuTSyQ2vyz1LgjRkU+zN4UumXfEESqSs8gmdPEW6atxgj9QGMjTZtUhud+zYkPMgnDxyLPGAE=.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1oYWlrdS01LjUtMjAyNjEwMDd8YW50aHJvcGljIn0"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_01FNNvgGMsv3HTytN9JdDhMZ","caller":{"type":"direct"},"name":"get_weather","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"city\": \"Lima"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"container":null,"stop_details":null,"stop_reason":"tool_use","stop_sequence":null},"usage":{"input_tokens":445,"output_tokens":196,"output_tokens_details":{"thinking_tokens":145},"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"server_tool_use":null,"service_tier":"standard","speed":"standard","cost":0.0001425,"is_byok":false,"cost_details":{"upstream_inference_cost":0.0001425,"upstream_inference_prompt_cost":0.0000445,"upstream_inference_completions_cost":0.000098}},"context_management":null}
+
+event: message_stop
+data: {"type":"message_stop"}
+

@@ -4,8 +4,8 @@ import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { createModelProfiles } from '@omne-harness/model'
-import { officialOpenAiProfiles } from '@omne-harness/pi-ai-openai'
 import { fieldOf, isRecord } from '../fields.ts'
+import { officialProfiles } from '../official-profiles.ts'
 import { createOfficialProfileSource } from '../profile-source.ts'
 
 type PluginConfig = Readonly<{
@@ -70,7 +70,7 @@ export class ModelProfilesLocalPlugin extends ModelProfilesService<unknown> {
   constructor(ctx: Context, config: PluginConfig) {
     super(ctx)
     const source = createOfficialProfileSource({
-      definitions: officialOpenAiProfiles({
+      definitions: officialProfiles({
         retryPolicy: config.retryPolicy,
         compactionTriggerPercent: config.compactionTriggerPercent,
       }),

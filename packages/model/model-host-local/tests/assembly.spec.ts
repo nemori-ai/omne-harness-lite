@@ -89,8 +89,12 @@ function config(overrides: Partial<LocalModelConfig<Principal>> = {}): LocalMode
     network: { maxConnections: 1, idleConnectionTimeoutMs: 1_000 },
     routes: {
       openrouter: {
-        url: 'https://gateway.invalid/api/v1/chat/completions',
-        endMarker: '[DONE]',
+        endpoints: {
+          'chat-completions': {
+            url: 'https://gateway.invalid/api/v1/chat/completions',
+            endMarker: '[DONE]',
+          },
+        },
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },
@@ -125,8 +129,9 @@ describe('assembleLocalModel', () => {
         config({
           routes: {
             openrouter: {
-              url: 'http://gateway.invalid/',
-              endMarker: null,
+              endpoints: {
+                'chat-completions': { url: 'http://gateway.invalid/', endMarker: null },
+              },
               accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
               auth: { kind: 'bearer', item: 'apiKey' },
             },

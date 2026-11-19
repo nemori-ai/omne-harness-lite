@@ -1,5 +1,7 @@
 import type { LimitMetric, ModelModality, TokenizerDefinition } from '@omne-harness/model-contract'
+import type { RecordProvenance } from '@omne-harness/pi-ai-transport'
 import type { ChatCompletionsRecord } from '@omne-harness/pi-ai-transport/chat-completions'
+import type { ResponsesRecord } from '@omne-harness/pi-ai-transport/responses'
 import type { ImageRuleName } from './images.ts'
 import type {
   CheckRuleName,
@@ -42,9 +44,18 @@ export type MeterData = Readonly<{
   tokenizer: TokenizerDefinition
 }>
 
-export type OpenAiRecord = ChatCompletionsRecord &
+export type OpenAiChatRecord = ChatCompletionsRecord &
   Readonly<{
     profile: ProfileData
     rules: RuleNames
     meter: MeterData
   }>
+
+export type OpenAiResponsesRecord = ResponsesRecord &
+  Readonly<{
+    profile: ProfileData
+    meter: MeterData
+    provenance: RecordProvenance
+  }>
+
+export type OpenAiRecord = OpenAiChatRecord | OpenAiResponsesRecord

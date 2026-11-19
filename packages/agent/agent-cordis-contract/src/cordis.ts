@@ -7,7 +7,6 @@ import {
   judgeEvidence,
   type ActionAdmission,
   type AgentAccessCheck,
-  type AgentAccountOutlet,
   type AgentAccessOperation,
   type AgentAdoptions,
   type AgentClock,
@@ -29,7 +28,6 @@ import {
   type ExtensionImplementations,
   type Failure,
   type MessageHandoff,
-  type ModelContextReader,
   type ModelReceptionTargets,
   type ToolReceptionTargets,
   type ModelSelection,
@@ -108,19 +106,6 @@ export abstract class ModelSelectionService<P> extends Service implements ModelS
   abstract readonly select: ModelSelection<P>['select']
 }
 export const agentModelSelectionKey = ModelSelectionService.provide
-
-/** @owner packages/agent/agent-cordis-contract */
-export abstract class ModelContextReaderService<P>
-  extends Service
-  implements ModelContextReader<P>
-{
-  static readonly provide = 'agentModelContext'
-  constructor(ctx: Context) {
-    super(ctx, ModelContextReaderService.provide)
-  }
-  abstract readonly read: ModelContextReader<P>['read']
-}
-export const agentModelContextKey = ModelContextReaderService.provide
 
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class ActionAdmissionService<P> extends Service implements ActionAdmission<P> {
@@ -383,19 +368,6 @@ export abstract class ToolReceptionTargetsService<P>
   abstract readonly resolve: ToolReceptionTargets<P>['resolve']
 }
 export const agentToolReceptionTargetsKey = ToolReceptionTargetsService.provide
-
-/** @owner packages/agent/agent-cordis-contract */
-export abstract class AgentAccountOutletService<P>
-  extends Service
-  implements AgentAccountOutlet<P>
-{
-  static readonly provide = 'agentAccountOutlet'
-  constructor(ctx: Context) {
-    super(ctx, AgentAccountOutletService.provide)
-  }
-  abstract readonly deliver: AgentAccountOutlet<P>['deliver']
-}
-export const agentAccountOutletKey = AgentAccountOutletService.provide
 
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentExecutionControlService<P>
@@ -862,7 +834,6 @@ declare module '@deepseek-ai/cordis' {
     agentJournal: AgentJournalService<unknown>
     agentAccessCheck: AgentAccessCheckService<unknown>
     agentModelSelection: ModelSelectionService<unknown>
-    agentModelContext: ModelContextReaderService<unknown>
     agentActionAdmission: ActionAdmissionService<unknown>
     agentDecisionCards: DecisionCardsService<unknown>
     agentMessageHandoff: MessageHandoffService<unknown>
@@ -879,7 +850,6 @@ declare module '@deepseek-ai/cordis' {
     agentPublicationAuthority: AgentPublicationAuthorityService<unknown>
     agentExecutionRecovery: AgentExecutionRecoveryService<unknown>
     agentJournalEntries: AgentJournalEntriesService<unknown>
-    agentAccountOutlet: AgentAccountOutletService<unknown>
     agentReceivedCommits: AgentReceivedCommitsService<unknown, ContentBlock>
     agentReceivedRecords: AgentReceivedRecordsService<unknown>
     agentModelReceptionTargets: ModelReceptionTargetsService<unknown>

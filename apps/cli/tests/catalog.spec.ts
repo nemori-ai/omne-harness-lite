@@ -76,6 +76,7 @@ describe('command catalog', () => {
       'read-input-fate',
       'cancel-run',
       'stop-call',
+      'select-model',
       'archive-session',
       'unarchive-session',
       'read-permission-mode',
