@@ -17,7 +17,6 @@ export const modelHostConfig = z.strictObject({
     observerCheckIntervalMs: count(1),
     readIdleMs: count(1),
     resultPageTargetBytes: count(1),
-    cleanupRetryMs: count(0),
   }),
   retry: z.strictObject({
     adoption: z.strictObject({ owner: text, name: text, revision: text, digest: text }),

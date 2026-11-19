@@ -71,7 +71,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 
 function tenantOf(suffix: string) {

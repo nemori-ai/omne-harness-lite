@@ -68,6 +68,11 @@ describe('the config of the model-host row', () => {
       expect(withDelays(delaysMs).success, JSON.stringify(delaysMs)).toBe(false)
   })
 
+  it('refuses the removed cleanupRetryMs, which nothing read (C9)', () => {
+    const config = { ...base, runtime: { ...base.runtime, cleanupRetryMs: 0 } }
+    expect(modelHostConfig.safeParse(config).success).toBe(false)
+  })
+
   it('refuses the removed retryBackoffMs', () => {
     const config = { ...base, runtime: { ...base.runtime, retryBackoffMs: 0 } }
     expect(modelHostConfig.safeParse(config).success).toBe(false)

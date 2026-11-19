@@ -113,7 +113,6 @@ const MODEL_HOST = {
     observerCheckIntervalMs: 25,
     readIdleMs: 1000,
     resultPageTargetBytes: 4096,
-    cleanupRetryMs: 1000,
   },
   retry: {
     adoption: PROFILES.retryPolicy,

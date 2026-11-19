@@ -31,7 +31,6 @@ export const configuration: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 function deferred<T>() {
   let resolve!: (value: T) => void

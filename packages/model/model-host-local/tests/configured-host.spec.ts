@@ -43,7 +43,6 @@ const CONFIG = {
     observerCheckIntervalMs: 25,
     readIdleMs: 1000,
     resultPageTargetBytes: 4096,
-    cleanupRetryMs: 0,
   },
   retry: {
     adoption: ADOPTION,
@@ -245,7 +244,6 @@ it('rejects every missing or invalid numeric setting through the Cordis configur
         const lower = [
           'scanIntervalMs',
           'outputBatchDelayMs',
-          'cleanupRetryMs',
           'maxRedeliveries',
         ].includes(field)
           ? 0

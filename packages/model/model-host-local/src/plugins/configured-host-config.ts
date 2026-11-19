@@ -22,8 +22,7 @@ const RUNTIME_BOUNDS = {
   observerCheckIntervalMs: { minimum: 1, safe: true },
   readIdleMs: { minimum: 1, safe: false },
   resultPageTargetBytes: { minimum: 1, safe: false },
-  cleanupRetryMs: { minimum: 0, safe: false },
-} satisfies Record<keyof ModelConfiguration, Bound>
+} satisfies Record<Exclude<keyof ModelConfiguration, 'cleanupRetryMs'>, Bound>
 const RESULT_BOUNDS = {
   maxConcurrentCalls: { minimum: 1, safe: true },
   maxRedeliveries: { minimum: 0, safe: true },

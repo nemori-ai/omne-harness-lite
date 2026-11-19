@@ -113,7 +113,6 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       observerCheckIntervalMs: 25,
       readIdleMs: 1000,
       resultPageTargetBytes: 4096,
-      cleanupRetryMs: 1000,
     },
     retry: {
       adoption: profiles.retryPolicy,

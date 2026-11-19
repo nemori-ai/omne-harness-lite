@@ -204,7 +204,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 const CORE_LIMITS = {
   scanPageCalls: 2,
