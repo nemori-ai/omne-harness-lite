@@ -179,6 +179,38 @@ describe('a settlement for the transport of the last dispatch lost with its proc
     expect((await p.record())?.terminal).toBeNull()
   })
 
+  it('is refused for a call that has no dispatch', async () => {
+    const f = fixture()
+    const { commands } = createMemoryModelCommands(f.options)
+    const access = { principal: f.principal, tenant: f.tenant, call: f.admit.call }
+    unbox(await commands.admit(f.admit))
+    const execution = unbox(
+      await commands.claim({
+        ...access,
+        instance: instance(),
+        operation: next(),
+        continuity: proof(f.admit.call),
+      }),
+    )
+    const expected = unbox(await commands.loadRecovery(access)).state.revision
+    expect(
+      await commands.settle({ ...execution, operation: next(), expected, termination: lost }),
+    ).toMatchObject({ failure: { kind: 'invalid', field: 'termination' } })
+  })
+
+  it('is refused for another failure, and for a dispatch that already ended', async () => {
+    const p = await prepared()
+    await p.materialize()
+    const other: Termination = {
+      kind: 'failed',
+      fault: { cause: 'upstream-unavailable', diagnostic: 'x', upstreamStatus: null },
+    }
+    expect(await p.settle(other)).toMatchObject({ failure: { kind: 'invalid' } })
+    unbox(await p.deliver([{ kind: 'ended', termination: other }]))
+    expect(await p.settle(lost)).toMatchObject({ failure: { kind: 'invalid' } })
+    expect((await p.record())?.terminal).toEqual(other)
+  })
+
   it('ends a materialized dispatch with the loss in the same write, its open window closed unproven', async () => {
     const p = await prepared()
     await p.materialize()

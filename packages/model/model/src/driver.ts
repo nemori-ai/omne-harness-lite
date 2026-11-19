@@ -463,7 +463,6 @@ export function createModelDriver<P>(
     if (!active && recovery.ok.state.phase === 'settled') return { ok: null }
     const records = await commands.dispatches(input)
     if ('failure' in records) return records
-    const fresh = active === undefined
     if (!active || active.view.handle.instance !== input.instance) {
       const published = await publishActivity(
         key,
@@ -475,7 +474,7 @@ export function createModelDriver<P>(
       if ('failure' in published) return published
       active = published.ok
       const latest = records.ok.at(-1)
-      if (fresh && latest !== undefined && recovery.ok.state.phase !== 'settled') {
+      if (latest !== undefined && recovery.ok.state.phase !== 'settled') {
         const resumed = await resumedStage(commands, input, execution, recovery.ok, latest)
         if ('failure' in resumed) return resumed
         active.stage = resumed.ok

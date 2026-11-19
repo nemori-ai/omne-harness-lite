@@ -4,7 +4,7 @@ import type { DispatchRecord } from '@omne-harness/model-contract'
 import type { ModelCommands, TransportFact } from '@omne-harness/model-contract/provider'
 import { invocationReference } from './reference-input.ts'
 import { eventually, runtimeFixture } from './runtime-fixture.ts'
-import { instance, op, unbox } from './memory-fixture.ts'
+import { instance, op, proof, unbox } from './memory-fixture.ts'
 
 type Fixture = ReturnType<typeof runtimeFixture>
 const completed = { kind: 'completed', reason: 'stop' } as const
@@ -225,6 +225,42 @@ it('ends as runtime-lost a dispatch whose process died after it may have gone ou
     expect(f.channel(f.admit.call).starts).toBe(1)
   } finally {
     bury()
+    await f.dispose()
+  }
+})
+
+it('changes nothing for a settled call driven again under another instance', async () => {
+  const f = runtimeFixture()
+  try {
+    unbox(await f.provider.runtime.calls.admit(f.admit))
+    await f.start(f.admit.call)
+    f.channel(f.admit.call).push([
+      open,
+      delta('done'),
+      sealed('done'),
+      { kind: 'ended', termination: completed },
+    ])
+    await eventually(() => f.results.has(f.admit.call))
+    const before = await state(f)
+    expect(before.phase).toBe('settled')
+    await f.provider.driver.drive(
+      {
+        principal: f.principal,
+        tenant: f.tenant,
+        call: f.admit.call,
+        operation: op('drive-again'),
+        instance: instance('again'),
+        continuity: proof(f.admit.call),
+      },
+      new AbortController().signal,
+    )
+    const after = await state(f)
+    expect(after.phase === 'settled' && after.settlement).toEqual(
+      before.phase === 'settled' && before.settlement,
+    )
+    expect(await dispatches(f)).toHaveLength(1)
+    expect(f.channel(f.admit.call).starts).toBe(1)
+  } finally {
     await f.dispose()
   }
 })

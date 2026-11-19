@@ -45,9 +45,10 @@ function laterProcess(
   memory: MemoryState<ReturnType<typeof fixture>['principal']>,
   adopt?: ModelInitialRunAdopt,
   name = 'later',
+  maxRecords = 8,
 ) {
   const run = createModelInitialRun<typeof f.principal>({
-    limits: { maxRecords: 8, maxBindings: 2, maxCallsPerBinding: 2 },
+    limits: { maxRecords, maxBindings: 2, maxCallsPerBinding: 2 },
     checkOriginRead: () => ({ ok: undefined }),
     ...(adopt === undefined ? {} : { adopt }),
   })
@@ -97,6 +98,20 @@ it('takes over a call an earlier process claimed only with the evidence that nob
   expect(unbox(await later.prepare(access))).toEqual(prepared)
   expect(await first.prepare(access)).toMatchObject({
     failure: { diagnostic: 'successor-unavailable' },
+  })
+})
+
+it('takes over no more calls than its records hold', async () => {
+  const { f, memory, commands } = assembly()
+  unbox(await commands.admit(f.admit))
+  const second = { ...f.admit, call: callId('second'), operation: op('admit-second') }
+  unbox(await commands.admit(second))
+  const held = () => ({ owner: 'test', record: 'state-lock', revision: '1', digest: 'held' })
+  const later = laterProcess(f, memory, held, 'small', 1)
+  const access = { tenant: f.tenant, principal: f.principal, call: f.admit.call }
+  unbox(await later.prepare(access))
+  expect(await later.prepare({ ...access, call: second.call })).toMatchObject({
+    failure: { diagnostic: 'record-capacity' },
   })
 })
 
