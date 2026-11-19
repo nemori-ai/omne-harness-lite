@@ -24,7 +24,7 @@ const found = (lexeme: string, revision = '1'): CallAccountReport => ({
 })
 
 /** One call whose only dispatch went out, carried the upstream's request id or not, and ended. */
-async function ended(facts: readonly TransportFact[]) {
+async function ended(facts: readonly TransportFact[], send: 'started' | 'unknown' = 'started') {
   const f = fixture()
   const seen: unknown[] = []
   const [evidence] = f.options.evidence
@@ -72,8 +72,9 @@ async function ended(facts: readonly TransportFact[]) {
       window: 'w-1',
     }),
   )
-  unbox(await commands.recordSend({ ...(await write()), dispatch, state: 'started' }))
-  unbox(await commands.preserve({ ...(await write()), dispatch, window: 'w-1', facts }))
+  unbox(await commands.recordSend({ ...(await write()), dispatch, state: send }))
+  if (send === 'started')
+    unbox(await commands.preserve({ ...(await write()), dispatch, window: 'w-1', facts }))
   const record = async (): Promise<DispatchRecord> => {
     const [only] = unbox(await commands.dispatches(f.admit))
     if (!only) throw new Error('fixture dispatch')
@@ -313,9 +314,30 @@ describe('the late account of an ended call: who may confirm it, and what work i
       })
     const first = unbox(await confirm('confirm-12'))
     expect(await confirm('confirm-12')).toEqual({ ok: first })
+    expect(await confirm('confirm-12', { revision: '11' })).toMatchObject({
+      failure: { kind: 'conflict' },
+    })
     expect((await s.record()).lateDelivered).toBe('12')
     unbox(await confirm('confirm-11', { revision: '11' }))
     expect((await s.record()).lateDelivered).toBe('12')
+  })
+
+  it('refuses to confirm a dispatch that has no account yet', async () => {
+    const s = await ended(withRequest)
+    expect(
+      await s.commands.confirmAccount({
+        ...s.f.admit,
+        operation: op('confirm'),
+        dispatch: unbox(decodeDispatchId('mdisp_one')),
+        revision: '1',
+        receipt: proof('saved', 'consumer'),
+      }),
+    ).toMatchObject({ failure: { kind: 'invalid', field: 'account', reason: 'not-late' } })
+  })
+
+  it('owes account work for a dispatch whose send is unknown', async () => {
+    const s = await ended([], 'unknown')
+    expect(unbox(await s.commands.loadRecovery(s.f.admit)).tasks).toContain('account')
   })
 
   it('raises the confirmed revision, never lowers it', async () => {

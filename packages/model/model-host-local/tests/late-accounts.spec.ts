@@ -80,7 +80,7 @@ function lateOver(
 }
 
 /** A push record whose result is saved by its consumer and carries these accounts. */
-function saved(accounts: readonly Readonly<{ dispatch: string; revision: string }>[]) {
+function saved(accounts: readonly Readonly<{ dispatch: string; revision: string | null }>[]) {
   return {
     acknowledgement: 'acknowledged',
     result: {
@@ -89,7 +89,7 @@ function saved(accounts: readonly Readonly<{ dispatch: string; revision: string 
         key: { result: '3' },
         accounts: accounts.map(item => ({
           dispatch: item.dispatch,
-          account: { revision: item.revision },
+          account: item.revision === null ? null : { revision: item.revision },
         })),
       },
     },
@@ -131,12 +131,13 @@ describe('redelivering the late accounts of a call after a restart', () => {
     const s = lateOver([
       dispatch('mdisp_carried', '2'),
       dispatch('mdisp_newer', '3'),
-      dispatch('mdisp_other', '1'),
+      dispatch('mdisp_other', '2'),
     ])
     await s.late.redeliver(
       TARGET,
       ACCESS,
       saved([
+        { dispatch: 'mdisp_empty', revision: null },
         { dispatch: 'mdisp_carried', revision: '2' },
         { dispatch: 'mdisp_newer', revision: '2' },
       ]),
@@ -154,7 +155,7 @@ describe('redelivering the late accounts of a call after a restart', () => {
       {
         target: TARGET,
         dispatch: 'mdisp_other',
-        revision: '1',
+        revision: '2',
         reservation: JSON.stringify([TENANT_TEXT, 'again', 'mdisp_other']),
       },
     ])
