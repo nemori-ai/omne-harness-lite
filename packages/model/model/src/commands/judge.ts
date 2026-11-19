@@ -6,7 +6,7 @@ import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import { isReplayTag, REPLAY_PREFIX_MAX_LENGTH } from '@omne-harness/message'
 import { parseInstant } from '@omne-harness/utc-instant'
 import type { Outcome } from '@omne-harness/operation-result'
-import { costLookupOf, decodeRevision } from '@omne-harness/model-contract'
+import { accountUndelivered, costLookupOf, decodeRevision } from '@omne-harness/model-contract'
 import type {
   MaterializationReceipt,
   ModelBlock,
@@ -103,7 +103,11 @@ export function tasks(call: CallDocument, pending: readonly ModelOperationId[]):
     result.push('cleanup')
   if (
     pending.length > 0 ||
-    call.dispatches.some(d => d.record.send === 'unknown' || costLookupOf(d.record) === 'pending')
+    call.dispatches.some(
+      d => d.record.send === 'unknown' || costLookupOf(d.record) === 'pending',
+    ) ||
+    (call.state.custody.kind !== 'abandoned' &&
+      call.dispatches.some(d => accountUndelivered(d.record)))
   )
     result.push('account')
   return result

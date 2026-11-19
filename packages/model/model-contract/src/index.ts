@@ -27,7 +27,7 @@ export type {
 } from './root.ts'
 export type * from './result.ts'
 export { faultIsTransient } from './result.ts'
-export { costLookupOf, type CostLookupState } from './cost-lookup.ts'
+export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts'
 export type * from './result-delivery-values.ts'
 export type * from './result-delivery.ts'
 export type * from './result-delivery-judge.ts'

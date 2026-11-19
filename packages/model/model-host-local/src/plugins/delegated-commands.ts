@@ -27,6 +27,7 @@ export function delegatedCommands(commands: ModelCommands<unknown>): ModelComman
     endRead: input => commands.endRead(input),
     handoff: input => commands.handoff(input),
     abandon: input => commands.abandon(input),
+    confirmAccount: input => commands.confirmAccount(input),
     advanceCleanup: input => commands.advanceCleanup(input),
     query: input => commands.query(input),
     dispatches: input => commands.dispatches(input),

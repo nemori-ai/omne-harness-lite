@@ -88,6 +88,7 @@ export function createSqlModelRecordsPlugin<P, C>(
     readonly endRead
     readonly handoff
     readonly abandon
+    readonly confirmAccount
     readonly advanceCleanup
     readonly query
     readonly dispatches
@@ -133,6 +134,7 @@ export function createSqlModelRecordsPlugin<P, C>(
       this.endRead = commands.endRead
       this.handoff = commands.handoff
       this.abandon = commands.abandon
+      this.confirmAccount = commands.confirmAccount
       this.advanceCleanup = commands.advanceCleanup
       this.query = commands.query
       this.dispatches = commands.dispatches

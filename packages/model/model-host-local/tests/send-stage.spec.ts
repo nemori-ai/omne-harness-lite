@@ -182,6 +182,7 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
     declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -583,7 +584,7 @@ describe('the plugin and its dependencies', () => {
     expect(ctx.modelSendBoundary).toBeInstanceOf(ModelSendBoundaryService)
     expect(
       Object.keys(ctx.modelSendBoundary).filter(key => key !== 'ctx' && key !== 'name'),
-    ).toEqual(['send'])
+    ).toEqual(['send', 'lookupCost'])
     expect(watch.events).toEqual(['network', 'resources'])
 
     await fiber.dispose()

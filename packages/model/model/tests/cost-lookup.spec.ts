@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  accountUndelivered,
   costLookupOf,
   decodeDispatchId,
   type DispatchRecord,
@@ -129,6 +130,62 @@ describe('the after-the-fact cost lookup of a dispatch (T5)', () => {
     expect(
       await s.late('miss-after', { kind: 'cost-miss', event: 'miss-after', final: false }),
     ).toMatchObject({ failure: { kind: 'invalid', field: 'dispatch' } })
+  })
+
+  it('keeps a late account undelivered until the consumer confirms its revision (C15)', async () => {
+    const s = await ended(withRequest)
+    unbox(
+      await s.late('found', { kind: 'account', event: 'cost-lookup', value: found('0.0000916') }),
+    )
+    expect(accountUndelivered(await s.record())).toBe(true)
+    const confirm = (operation: string, revision: string) =>
+      s.commands.confirmAccount({
+        ...s.f.admit,
+        operation: op(operation),
+        dispatch: unbox(decodeDispatchId('mdisp_one')),
+        revision,
+        receipt: proof('saved', 'consumer'),
+      })
+    expect(await confirm('ahead', '2')).toMatchObject({
+      failure: { kind: 'invalid', field: 'revision', reason: 'not-recorded' },
+    })
+    unbox(await confirm('confirm', '1'))
+    expect((await s.record()).lateDelivered).toBe('1')
+    expect(accountUndelivered(await s.record())).toBe(false)
+  })
+
+  it('counts an account event delivered twice once, in the stream and late (C15)', async () => {
+    const twice = await ended([
+      { kind: 'response', request: 'gen-twice' },
+      { kind: 'account', event: 'usage', value: found('0.0002522') },
+      { kind: 'account', event: 'usage', value: found('0.0002522') },
+      { kind: 'ended', termination: LOST },
+    ])
+    expect((await twice.record()).account).toMatchObject({
+      revision: '1',
+      cost: [{ lexeme: '0.0002522' }],
+    })
+    const late = await ended(withRequest)
+    const fact = { kind: 'account', event: 'cost-lookup', value: found('0.0000916') } as const
+    expect(unbox(await late.late('first', fact))).toMatchObject({ recovered: false })
+    expect(unbox(await late.late('again', fact))).toMatchObject({ recovered: true })
+    expect((await late.record()).account).toMatchObject({ revision: '1', receipt: 'late' })
+  })
+
+  it('refuses to confirm an account that came with its stream', async () => {
+    const known = await ended([
+      { kind: 'account', event: 'usage', value: found('0.0002522') },
+      { kind: 'ended', termination: LOST },
+    ])
+    expect(
+      await known.commands.confirmAccount({
+        ...known.f.admit,
+        operation: op('confirm'),
+        dispatch: unbox(decodeDispatchId('mdisp_one')),
+        revision: '1',
+        receipt: proof('saved', 'consumer'),
+      }),
+    ).toMatchObject({ failure: { kind: 'invalid', field: 'account', reason: 'not-late' } })
   })
 
   it('answers the same miss given again as recovered, and a different fact under the same event as a conflict', async () => {

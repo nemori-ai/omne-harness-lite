@@ -36,6 +36,7 @@ import { wakingCommands } from './delegated-commands.ts'
 import { createPushAgain } from './push-again.ts'
 import { createCustodyEnd, savedResultOf } from './push-custody.ts'
 import { createCostLookups } from './cost-lookups.ts'
+import { createLateAccounts } from './late-accounts.ts'
 import {
   awaitsReceiver,
   custodyEnded,
@@ -157,6 +158,7 @@ export type RuntimeEvent =
   | Readonly<{ kind: 'ack-failed'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'abandon-failed'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'cost-lookup-pending'; reason: string }>
+  | Readonly<{ kind: 'late-account-unconfirmed'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'cleanup-pending'; reason: string }>
   | Readonly<{ kind: 'late-account-refused'; pending: number }>
   | Readonly<{ kind: 'blocked'; failure: ModelFailure['kind'] }>
@@ -335,6 +337,7 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
     mark: owing.mark,
   })
   const costs = createCostLookups({ ...input, ...options, operation: newOperation })
+  const late = createLateAccounts({ ...input, operation: newOperation })
 
   function wake(target: Target): void {
     const key = keyOf(target)
@@ -386,6 +389,7 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
         return
       }
       const access = { principal: resolved.ok.principal, tenant: target.tenant }
+      await redeliver(target, access)
       let record = receive(ledger.read(target) ?? fresh(target))
       if (record.origin === null || !custodyEnded(record.acknowledgement))
         record = await freeze(record, access)
@@ -647,6 +651,35 @@ function createResultPush(input: StageInput, options: ResultPushOptions): Runtim
       current = save({ ...current, accounts })
       if (pushed.standing.status !== 'saved') return
       reservations.delete(held.reservation)
+      const { dispatch, revision } = held.delivery.key
+      await late.confirm(
+        access,
+        current.call,
+        { dispatch, revision },
+        pushed.standing.receipt.evidence,
+      )
+    }
+  }
+
+  // A late account the consumer has not confirmed: one the acknowledged result carried is confirmed
+  // by the result's receipt; any other is held again, so a restart delivers it once more.
+  async function redeliver(target: Target, access: Access): Promise<void> {
+    const tenant = tenantCodec.encode(target.tenant)
+    const record = ledger.read(target)
+    const saved = record?.acknowledgement === 'acknowledged' ? savedResultOf(record) : null
+    for (const item of tenant.ok ? await late.undelivered(target.call, access) : []) {
+      const carried = record?.result?.delivery.accounts.some(
+        held => held.dispatch === item.dispatch && held.account?.revision === item.revision,
+      )
+      if (carried === true && saved !== null) {
+        await late.confirm(access, target.call, item, saved.evidence)
+        continue
+      }
+      const reservation = JSON.stringify([tenant.ok && tenant.value, 'again', item.dispatch])
+      if (reservations.has(reservation) || reservations.size >= limits.maxPendingAccounts) continue
+      reservations.set(reservation, tenant.ok ? tenant.value : '')
+      if (!(await hold(target, item.dispatch, item.revision, reservation)))
+        reservations.delete(reservation)
     }
   }
 
@@ -871,6 +904,11 @@ export function reportRuntimeEvent(ctx: Context, event: RuntimeEvent): void {
       return
     case 'cost-lookup-pending':
       ctx.logger.warn(`model result push: a cost lookup stays pending (${event.reason})`)
+      return
+    case 'late-account-unconfirmed':
+      ctx.logger.warn(
+        `model result push: a delivered late account is not confirmed (${event.failure})`,
+      )
       return
     case 'cleanup-pending':
       ctx.logger.warn(`model result push: the cleanup stays pending (${event.reason})`)

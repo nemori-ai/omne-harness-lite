@@ -272,6 +272,16 @@ export interface ModelCommands<P> {
   endRead(input: CallAccess<P> & Readonly<{ read: ReadId }>): Reply<ReadState>
   handoff(input: AckInput<P>): Reply<AckReceipt>
   abandon(input: AbandonInput<P>): Reply<AbandonReceipt>
+  /** Records that the consumer saved a late account of a dispatch, by the receipt it gave. */
+  confirmAccount(
+    input: CallAccess<P> &
+      Readonly<{
+        operation: ModelOperationId
+        dispatch: DispatchId
+        revision: string
+        receipt: DurableEvidence
+      }>,
+  ): Reply<Revision>
   advanceCleanup(
     input: ExecutionRef & Readonly<{ operation: ModelOperationId }>,
   ): Reply<CustodyState>

@@ -1,5 +1,8 @@
 // @module-tag slow
+import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   freePort,
@@ -12,6 +15,7 @@ import {
   type ServerHandle,
 } from '../../r9/support.ts'
 import {
+  answer504,
   createSession,
   registerAndLogin,
   sendInput,
@@ -37,6 +41,43 @@ const modelOf = (body: string) => (JSON.parse(body) as { model?: string }).model
 const firstFrame = (body: string, text: string) =>
   `data: ${JSON.stringify({ model: modelOf(body), provider: 'OpenAI', choices: [{ delta: { content: text } }] })}\n\n`
 
+const retried = new Set<string>()
+
+/** Every dispatch fact the release stored, grouped by call, in dispatch order. */
+function dispatchFacts(
+  storageRoot: string,
+): ReadonlyMap<string, readonly Record<string, unknown>[]> {
+  const files: string[] = []
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) walk(path)
+      else if (entry.name.endsWith('.sqlite')) files.push(path)
+    }
+  }
+  walk(storageRoot)
+  const facts = new Map<string, Record<string, unknown>[]>()
+  for (const file of files) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const table =
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'md_dispatch_fact'"
+      if (db.prepare(table).get() === undefined) continue
+      for (const row of db
+        .prepare('SELECT call, fact FROM md_dispatch_fact ORDER BY call, seq')
+        .all()) {
+        const raw = row['fact']
+        const text = raw instanceof Uint8Array ? unpackText(raw) : String(raw)
+        const call = String(row['call'])
+        facts.set(call, [...(facts.get(call) ?? []), JSON.parse(text) as Record<string, unknown>])
+      }
+    } finally {
+      db.close()
+    }
+  }
+  return facts
+}
+
 function answerOf(
   request: Readonly<{ body: string; method: string; path: string }>,
 ): ScenarioAnswer {
@@ -55,6 +96,10 @@ function answerOf(
       contentType: 'application/json',
       body: '{"error":{"message":"Generation not found","code":404}}',
     }
+  }
+  if (request.body.includes('COSTS-RETRY') && !retried.has(request.body)) {
+    retried.add(request.body)
+    return answer504
   }
   if (request.body.includes('COSTS-LATE'))
     return {
@@ -163,6 +208,27 @@ describe('the cost of a dispatch on the release tree, read on the command line',
       expect(text).toContain('billable 0.0000916 openrouter-credit known')
       expect(text).toContain('receipt late')
       expect(lookups.some(path => path.includes(LATE_ID))).toBe(true)
+    },
+  )
+
+  it(
+    'C15: keeps two dispatch facts for a call that was retried once',
+    { timeout: 180_000 },
+    async () => {
+      const session = await createSession(dana)
+      await sendInput(dana, session, 'COSTS-RETRY answer briefly')
+      await untilRunEnded(dana, session, RUN_END_TIMEOUT_MS)
+      const twice = [...dispatchFacts(scratch.storageRoot).values()].filter(
+        facts => facts.length === 2,
+      )
+      expect(
+        twice.some(
+          ([first, second]) =>
+            JSON.stringify(first?.['outcome']).includes('504') &&
+            JSON.stringify(second?.['outcome']).includes('completed'),
+        ),
+        JSON.stringify(twice),
+      ).toBe(true)
     },
   )
 

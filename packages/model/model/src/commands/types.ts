@@ -176,6 +176,7 @@ export const MODEL_WRITE_METHODS = [
   'acquireRead',
   'handoff',
   'abandon',
+  'confirmAccount',
   'advanceCleanup',
 ] as const
 export type ModelWriteMethod = (typeof MODEL_WRITE_METHODS)[number]

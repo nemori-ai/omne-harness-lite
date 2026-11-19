@@ -62,6 +62,7 @@ const METHODS = {
     'endRead',
     'handoff',
     'abandon',
+    'confirmAccount',
     'advanceCleanup',
     'query',
     'dispatches',

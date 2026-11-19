@@ -432,6 +432,7 @@ function world(
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
     declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -1176,6 +1177,39 @@ it('cleans up after a restart that lost the ledger a result the last process aba
   expect(scripted.pushes).toHaveLength(1)
   expect(w.handoffs).toEqual([])
   expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
+})
+
+it('delivers after a restart a late account the last process accepted and did not deliver, confirms it, and only then cleans up (C15)', async () => {
+  const w = world({ recovery: SCAN_TENANT })
+  await w.services()
+  w.hooks.advanceCleanup = () => 'fail'
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.record('one')?.acknowledgement === 'acknowledged', 'the ACK')
+  scripted.state.refuseAccounts = true
+  expect(await w.late('one', '2')).toMatchObject({ ok: { recovered: false } })
+  await until(
+    () => w.record('one')?.accounts.some(held => held.standing.status === 'waiting') === true,
+    'the late account waiting for its receiver',
+  )
+  expect((await w.dispatches('one'))[0]?.lateDelivered).toBeUndefined()
+
+  await first.dispose()
+  w.restart()
+  scripted.state.refuseAccounts = false
+  w.hooks.advanceCleanup = () => 'pass'
+  const before = scripted.pushes.length
+  await w.load()
+  await until(
+    async () => (await w.dispatches('one'))[0]?.lateDelivered === '2',
+    'the late account delivered again and confirmed',
+  )
+  const again = scripted.pushes.slice(before)
+  expect(again.some(push => push.kind === 'account' && push.key.revision === '2')).toBe(true)
+  await until(() => w.record('one')?.cleanup === 'released', 'the cleanup once delivered')
 })
 
 it('drives after a restart a call the last process left unsettled, then pushes and gives the share back', async () => {

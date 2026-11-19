@@ -109,6 +109,7 @@ class Commands extends ModelCommandsService<unknown> {
   readonly endRead = unused
   readonly handoff = unused
   readonly abandon = unused
+  readonly confirmAccount = unused
   readonly advanceCleanup = unused
   readonly query = unused
   readonly dispatches = unused

@@ -1,6 +1,6 @@
 // The two ends of producer custody besides acknowledgement: abandoning a settled result that no
 // consumer will save, and cleaning up once custody ended either way (T4).
-import { decodeResultVersion } from '@omne-harness/model-contract'
+import { accountUndelivered, decodeResultVersion } from '@omne-harness/model-contract'
 import type {
   AbandonBasis,
   AbandonInput,
@@ -41,8 +41,37 @@ function abandonment(input: AbandonInput<unknown>, revision: Revision): Abandone
 export function custodyCommands<P>(
   core: ModelCommandCore<P>,
   bound?: BoundCommandAccess<P>,
-): Pick<ModelCommands<P>, 'abandon' | 'advanceCleanup'> {
+): Pick<ModelCommands<P>, 'abandon' | 'advanceCleanup' | 'confirmAccount'> {
   return {
+    confirmAccount: input =>
+      core.runWrite(input, () =>
+        core.write<Revision>({
+          input,
+          method: 'confirmAccount',
+          fields: { dispatch: input.dispatch, revision: input.revision, receipt: input.receipt },
+          check: call => authFailure(core.authorize(input, 'handoff', call, input.call)),
+          apply: draft => {
+            const call = draft.call
+            if (!call) return { failure: invalid('call', 'not-found') }
+            const dispatch = call.dispatches.find(item => item.record.dispatch === input.dispatch)
+            if (!dispatch) return { failure: invalid('dispatch', 'not-found') }
+            const account = dispatch.record.account
+            if (account?.receipt !== 'late') return { failure: invalid('account', 'not-late') }
+            if (
+              !/^[1-9][0-9]*$/.test(input.revision) ||
+              BigInt(input.revision) > BigInt(account.revision)
+            )
+              return { failure: invalid('revision', 'not-recorded') }
+            const known = dispatch.record.lateDelivered
+            if (known === undefined || BigInt(known) < BigInt(input.revision))
+              dispatch.record = { ...dispatch.record, lateDelivered: input.revision }
+            const revision = bump(call)
+            return { ok: { value: revision, receipt: { kind: 'revision', revision } } }
+          },
+          replay: (_call, b) =>
+            b.receipt.kind === 'revision' ? { ok: b.receipt.revision } : missingReceipt(),
+        }),
+      ),
     abandon: input =>
       core.runWrite(input, () =>
         core.write<AbandonReceipt>({
@@ -106,6 +135,8 @@ export function custodyCommands<P>(
             const active = [...call.reads.values()].some(r => r.state.kind === 'reading')
             const pending =
               unresolved(draft.tenant, input.call).length > 0 ||
+              (call.state.custody.kind === 'acknowledged' &&
+                call.dispatches.some(d => accountUndelivered(d.record))) ||
               call.dispatches.some(
                 d => d.record.send === 'unknown' || [...d.windows.values()].includes('open'),
               )

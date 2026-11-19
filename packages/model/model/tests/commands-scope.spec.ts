@@ -136,6 +136,15 @@ function everyMethod(f: ReturnType<typeof fixture>) {
         result: unbox(decodeResultVersion('mrver_one')),
         basis: { kind: 'refused', refusal: 'denied' },
       }),
+    confirmAccount: c =>
+      c.confirmAccount({
+        ...access,
+        call,
+        operation: op('confirmAccount'),
+        dispatch,
+        revision: '1',
+        receipt: evidence,
+      }),
     advanceCleanup: c => c.advanceCleanup({ ...execution, operation: op('advanceCleanup') }),
     query: c => c.query({ ...access, call, operation: op('admit') }),
     dispatches: c => c.dispatches({ ...access, call }),
@@ -143,14 +152,14 @@ function everyMethod(f: ReturnType<typeof fixture>) {
   return calls
 }
 
-it('every one of the 24 methods runs its attempt under a scope that names the tenant and the call, and a write or a query also names its operation', async () => {
+it('every one of the 25 methods runs its attempt under a scope that names the tenant and the call, and a write or a query also names its operation', async () => {
   const f = fixture()
   const text = tenantCodec.encode(f.tenant)
   if (!text.ok) throw new Error('fixture tenant')
   const writes: readonly string[] = MODEL_WRITE_METHODS
   const calls = everyMethod(f)
   const methods = Object.keys(calls) as (keyof typeof calls)[]
-  expect(methods).toHaveLength(24)
+  expect(methods).toHaveLength(25)
   for (const method of methods) {
     const { commands, scopes } = recording(f)
     await calls[method](commands)

@@ -5,6 +5,15 @@ import type { DispatchRecord } from './call-surface.ts'
 
 export type CostLookupState = 'not-needed' | 'pending' | 'found' | 'not-found' | 'no-request-id'
 
+/** A late account the consumer has not confirmed it saved, at its latest revision. */
+export function accountUndelivered(record: DispatchRecord): boolean {
+  const account = record.account
+  if (account?.receipt !== 'late') return false
+  return (
+    record.lateDelivered === undefined || BigInt(record.lateDelivered) < BigInt(account.revision)
+  )
+}
+
 export function costLookupOf(record: DispatchRecord): CostLookupState {
   if (record.send !== 'started' && record.send !== 'unknown') return 'not-needed'
   if (record.terminal === null) return 'not-needed'
