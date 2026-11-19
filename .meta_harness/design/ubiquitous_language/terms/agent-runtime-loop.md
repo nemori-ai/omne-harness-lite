@@ -227,7 +227,7 @@
 - **形态**：属性
 - **出处**：[PF-015 §4 会话类型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 21）
 - **⚠️ 别混**：**它不是一道闸门。**它**不参与**
-  [放行三元组](../../product/meta-capabilities/design.md#meta-ask)，
+  [放行三元组](../../product/meta-capabilities/design.md#动作放行与环境准入)，
   也不收窄任何[权限](capabilities-and-composition.md#ul-permission--权限--permission)——
   **一个 `coding` 会话不会因为类型就做不了别的事**
 - **注意 ①**：**是算出来的，不是绑上去的。**它与来源之间是一条**映射**，
@@ -255,21 +255,21 @@
 
 - **形态**：属性
 - **出处**：[PF-015 §4 会话运行模式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 21）；
-  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 10）里是第 ④ 步
+  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 11）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。
   另外**上游有一个叫 `auto` 的档，语义是「不问人、改问模型」**，
   **我们这一档从不替人作判断**；`never` 与 `bypass-permissions` 两档则与上游同义
 - **注意 ①**：**`auto_permission` 是有闭环的那一档**——问人的答案**落成新的[授权表达](interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression)**，
-  同一动作仍在有效授权范围内、许可未撤回或消费、重要依据未实质改变时，不重复请示；单次许可已经消费或依据变化时重新判断
+  同一动作仍在有效授权范围内、许可未撤回或消费、重要依据未实质改变时，不重复问人；单次许可已经消费或依据变化时重新判断
 - **注意 ②**：**`bypass-permissions` 跳过的是「问」，不是「禁」**——
   **任何层的明确禁止，它一样翻不了案**
-- **注意 ③**：**`never` 连带一个后果**——
-  [`Ask().request_approval` 在这个会话里不可用](../../product/meta-capabilities/design.md#协作模式与命令限制)，
-  **而 `Ask()` 这扇门还在**，`never` 本身不禁 `ask`，其交互可用性另受会话协作模式约束
+- **注意 ③**：**`never` 不关 `Ask()` 这扇门**——
+  [会话运行模式不影响 `ask`](../../product/meta-capabilities/design.md#协作模式与命令限制)，
+  向人提问不在放行判断之内；它的交互可用性只受会话协作模式约束
 - **维度**：本词专指权限维度，运行时可变；不包括独立的[会话协作模式](#ul-session-collaboration-mode--会话协作模式--session-collaboration-mode)。
-- **注意 ④**：**它的限制往子会话传**——[父处于 `never` 时，子不能借自己的 `request_approval` 取得更宽权限](../../product/meta-capabilities/design.md#动作放行与环境准入)；[父的权限与模式限制不能由子会话绕过](../../product/meta-capabilities/design.md#协作模式与命令限制)
+- **注意 ④**：**它的限制往子会话传**——[父处于 `never` 时，子不能借自己的会话运行模式取得更宽权限](../../product/meta-capabilities/design.md#动作放行与环境准入)；[父的协作模式限制不能由子会话绕过](../../product/meta-capabilities/design.md#协作模式与命令限制)
 
 ### UL-session-collaboration-mode · 会话协作模式 · Session Collaboration Mode
 
@@ -1018,7 +1018,7 @@
 > **EN**: A session subtype created to execute one job that requests a new session. It retains session identity and lifecycle semantics, with capabilities for reporting that job’s results and checking its objective.
 
 - **形态**：变体（父：[会话](#ul-session--会话--session)）
-- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 5）
+- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 6）
 - **别混**：它只对应 agent-new 路径。向已有会话提交 Job 不把该会话转换为作业会话，也不自动建立 parent-child 关系。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
