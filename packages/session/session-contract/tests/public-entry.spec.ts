@@ -29,6 +29,7 @@ it('exports exactly the declared root runtime surface', () => {
     'callKeysIn',
     'callKeysOutside',
     'callWithLate',
+    'cancellingControlOf',
     'commandDigest',
     'commandInput',
     'commitWithinBudget',

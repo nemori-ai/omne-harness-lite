@@ -306,6 +306,7 @@
 - `callKeysIn` · `call-settlement.d.ts`
 - `callKeysOutside` · `call-settlement.d.ts`
 - `callWithLate` · `call-settlement.d.ts`
+- `cancellingControlOf` · `decision-support.d.ts`
 - `commandDigest` · `decide.d.ts`
 - `commandInput` · `input-sources.d.ts`
 - `commitWithinBudget` · `input-sources.d.ts`
@@ -1267,6 +1268,8 @@ export declare const rejected: (failure: SessionFailure) => Decision;
 export declare const invalid: (field: string, reason: string) => Decision;
 export declare const entries: (values: readonly EncodedEntry[]) => Decision;
 export declare const sourceOf: (operation: SessionOperationId, what: string) => DurableEvidence;
+export declare const controlSource: (operation: SessionOperationId) => DurableEvidence;
+export declare function cancellingControlOf(terminal: RunTerminal): SessionOperationId | null;
 export declare function runCancelledBy(snapshot: WorkSnapshot, operation: SessionOperationId): RunId | null;
 export declare const originOf: (source: DurableEvidence) => HistoryEntry['origin'];
 export declare const completeEvidence: (source: DurableEvidence) => boolean;
@@ -2335,7 +2338,7 @@ export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, P
 export { sessionModesBlock } from './block.ts';
 export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, judgeWaiting, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest } from './decide.ts';
-export { runCancelledBy } from './decision-support.ts';
+export { cancellingControlOf, runCancelledBy } from './decision-support.ts';
 export { batchEvidence } from './batch-evidence.ts';
 export { EMPTY_AUTHORIZATIONS, incompleteAuthorization, onceAuthorizationOf, reduceAuthorizations, retireOnce, type AuthorizationConsumer, type AuthorizationContext, type AuthorizationExpression, type AuthorizationScope, type OnceAuthorization, type SessionAuthorization, } from './authorizations.ts';
 export { batchCallKeys, reduce } from './reduce.ts';
@@ -3767,8 +3770,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:dff74beeb9e0748f958d0ee590aa4a9c872cb3676bedf4fda733d2039d448e65";
-export declare const SESSION_RELEASE_DIGEST = "sha256:dff74beeb9e0748f958d0ee590aa4a9c872cb3676bedf4fda733d2039d448e65";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:0b3c0529c4103d74bc7cab384b52080d03bc6ad6aa9d57e2fa861a4e323cade4";
+export declare const SESSION_RELEASE_DIGEST = "sha256:0b3c0529c4103d74bc7cab384b52080d03bc6ad6aa9d57e2fa861a4e323cade4";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

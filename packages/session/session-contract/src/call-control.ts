@@ -1,5 +1,5 @@
 import type { ControlIntent, ControlProgress, ProducerRef, WorkSnapshot } from './values.ts'
-import { sourceOf } from './decision-support.ts'
+import { controlSource } from './decision-support.ts'
 import { equalValue } from './session-validation.ts'
 
 type ToolProducer = Extract<ProducerRef, { kind: 'tool' }>
@@ -53,7 +53,7 @@ export function archiveCollapse(
   progress: ControlProgress,
 ): ArchiveCollapse | null {
   if (!archives(progress.intent)) return null
-  const source = sourceOf(progress.operation, 'control')
+  const source = controlSource(progress.operation)
   const ended =
     snapshot.run.kind === 'terminal' && equalValue(snapshot.run.terminal.evidence, source)
   return {

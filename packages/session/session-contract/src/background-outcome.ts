@@ -17,7 +17,7 @@ import type {
 import { settledControls } from './call-control.ts'
 import { equalValue } from './session-validation.ts'
 import { stopReminderInput, stoppedText } from './stop-reminder.ts'
-import { originOf, sourceOf } from './decision-support.ts'
+import { controlSource, originOf } from './decision-support.ts'
 import {
   INTAKE_GUARD_OWNER,
   admitDerivedOf,
@@ -192,7 +192,7 @@ export function withStopReminder(
   const source = admitDerivedOf(terms?.derived, 'background-stop', {})
   if (source === null) return { kind: 'rejected', failure: noTerms('a stop reminder') }
   const input = stopReminderInput(record, stop, source.name)
-  const origin = originOf(sourceOf(stop.operation, 'control'))
+  const origin = originOf(controlSource(stop.operation))
   return {
     ...decision,
     entries: [...decision.entries, ...reminderEntries(snapshot, input, source, origin)],

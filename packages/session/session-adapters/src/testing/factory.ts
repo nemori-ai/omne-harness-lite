@@ -21,6 +21,7 @@ import {
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  cancellingControlOf,
   commandDigest,
   reduce,
   judgeCompletion,
@@ -73,7 +74,7 @@ import {
 import { canonical, digestOf, materializeModelView, rowData } from './session-values.ts'
 import { journalEvidence, operationText } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
-import { cancelBatchRow, fieldOf, sessionCaller } from './factory-values.ts'
+import { cancelBatchRow, sessionCaller } from './factory-values.ts'
 import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
@@ -461,20 +462,11 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     return true
   }
 
-  function terminalControl(
-    root: CommonRoot,
-    execution: AgentExecutionId,
-    terminal: RunTerminal,
-  ): string | undefined {
-    for (const row of root.sources.rowsById.values()) {
-      if (row.kind !== 'control.requested') continue
-      if (canonical(row.origin.source) !== canonical(terminal.evidence)) continue
-      const operation = fieldOf(rowData(row)['progress'], 'operation')
-      const control = root.session?.snapshot.controls.find(item => item.operation === operation)
-      if (control === undefined) return undefined
-      return deriveDriveOperation({ kind: 'control', execution, control: control.operation })
-    }
-    return undefined
+  function terminalControl(execution: AgentExecutionId, terminal: RunTerminal): string | undefined {
+    const by = cancellingControlOf(terminal)
+    return by === null
+      ? undefined
+      : deriveDriveOperation({ kind: 'control', execution, control: by })
   }
 
   function terminalParticipant(
@@ -514,10 +506,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         }
         case 'cancelled':
           return fact(judged.terminal.evidence, {
-            kind:
-              terminalControl(cell.state(), execution, judged.terminal) === control
-                ? 'ready'
-                : 'changed',
+            kind: terminalControl(execution, judged.terminal) === control ? 'ready' : 'changed',
           })
         case 'terminal':
           return fact(judged.terminal.evidence, { kind: 'changed' })
@@ -581,7 +570,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       if (finish.authorization.kind === 'cancel' && checked.kind === 'cancelled') {
         if (
           finish.intent.conclusion.kind !== 'cancelled' ||
-          terminalControl(cell.state(), input.execution, checked.terminal) !==
+          terminalControl(input.execution, checked.terminal) !==
             String(finish.authorization.control)
         )
           return { kind: 'changed' }

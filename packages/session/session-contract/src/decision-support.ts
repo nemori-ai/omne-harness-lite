@@ -20,20 +20,32 @@ export const sourceOf = (operation: SessionOperationId, what: string): DurableEv
   revision: '1',
   digest: `sha256:${digestOf({ operation, what })}`,
 })
+const CONTROL = 'control'
+export const controlSource = (operation: SessionOperationId): DurableEvidence =>
+  sourceOf(operation, CONTROL)
+
+/** The control whose commit ended this Run as cancelled; null for any other terminal. A control writes the terminal with its own source as the evidence. */
+export function cancellingControlOf(terminal: RunTerminal): SessionOperationId | null {
+  if (terminal.outcome !== 'cancelled') return null
+  const { evidence } = terminal
+  const suffix = `/${CONTROL}`
+  if (!evidence.record.endsWith(suffix)) return null
+  const operation = evidence.record.slice(0, -suffix.length) as SessionOperationId
+  const source = controlSource(operation)
+  return evidence.owner === source.owner &&
+    evidence.revision === source.revision &&
+    evidence.digest === source.digest
+    ? operation
+    : null
+}
+
 export function runCancelledBy(
   snapshot: WorkSnapshot,
   operation: SessionOperationId,
 ): RunId | null {
   if (snapshot.run.kind !== 'terminal') return null
   const { terminal } = snapshot.run
-  const source = sourceOf(operation, 'control')
-  return terminal.outcome === 'cancelled' &&
-    terminal.evidence.owner === source.owner &&
-    terminal.evidence.record === source.record &&
-    terminal.evidence.revision === source.revision &&
-    terminal.evidence.digest === source.digest
-    ? terminal.run
-    : null
+  return cancellingControlOf(terminal) === operation ? terminal.run : null
 }
 
 export const originOf = (source: DurableEvidence): HistoryEntry['origin'] => ({

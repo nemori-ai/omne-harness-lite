@@ -317,6 +317,7 @@
 - `callKeysIn` · 包 `@omne-harness/session-contract`
 - `callKeysOutside` · 包 `@omne-harness/session-contract`
 - `callWithLate` · 包 `@omne-harness/session-contract`
+- `cancellingControlOf` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
 - `commandInput` · 包 `@omne-harness/session-contract`
 - `commitWithinBudget` · 包 `@omne-harness/session-contract`

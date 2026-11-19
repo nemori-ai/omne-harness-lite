@@ -20,6 +20,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  cancellingControlOf,
   commandDigest,
   deriveDriveOperation,
   judgeCompletion,
@@ -895,13 +896,10 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       case 'terminal':
         return fact(judged.terminal.evidence, { kind: 'changed' })
       case 'cancelled': {
-        const cancels = snapshot.controls.filter(
-          item => item.intent.kind === 'control' && item.intent.value.kind === 'cancel-run',
-        )
-        const own = cancels.length === 1 ? cancels[0] : undefined
+        const by = cancellingControlOf(judged.terminal)
         const matches =
-          own !== undefined &&
-          deriveDriveOperation({ kind: 'control', execution, control: own.operation }) === control
+          by !== null &&
+          deriveDriveOperation({ kind: 'control', execution, control: by }) === control
         return fact(judged.terminal.evidence, { kind: matches ? 'ready' : 'changed' })
       }
     }

@@ -192,7 +192,7 @@ export {
   type RunStartJudgment,
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
-export { runCancelledBy } from './decision-support.ts'
+export { cancellingControlOf, runCancelledBy } from './decision-support.ts'
 export { batchEvidence } from './batch-evidence.ts'
 export {
   EMPTY_AUTHORIZATIONS,
