@@ -949,6 +949,30 @@
       "domains": ["mcp"],
       "status": "adopted",
       "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-contract",
+      "paths": ["packages/workspace/workspace-contract/src/**"],
+      "layer": "contract",
+      "domains": ["workspace"],
+      "status": "adopted",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace",
+      "paths": ["packages/workspace/workspace/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-filesystem",
+      "paths": ["packages/workspace/workspace-filesystem/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
     }
   ],
   "rules": [
@@ -1336,6 +1360,45 @@
       "from": ["packages/mcp/mcp-cordis-contract"],
       "to": ["packages/mcp/mcp", "packages/mcp/mcp-host-local"],
       "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-OUTWARD",
+      "from": [
+        "packages/workspace/workspace-contract",
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-filesystem"
+      ],
+      "to": [
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-access",
+        "packages/tool/tool-ui",
+        "packages/session/session-contract",
+        "packages/session/session-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/session/session-cordis",
+        "packages/session/session-adapters",
+        "packages/session/session-observation",
+        "packages/session/session-access",
+        "packages/session/session-ui",
+        "packages/session/session-protocol",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session",
+        "packages/session/session-storage-sql",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite"
+      ],
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-GOVERNANCE",
+      "from": ["packages/workspace/workspace-contract", "packages/workspace/workspace"],
+      "to": ["packages/workspace/workspace-filesystem"],
+      "source": "packages/workspace/SPEC.md"
     }
   ]
 }
