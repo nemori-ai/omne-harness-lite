@@ -171,12 +171,12 @@ export type ReleaseEnvironment = Readonly<{
   origins: ReadonlyMap<OriginRef, string>
 }>
 
-/** The directory a call is pinned to, after its tenant's standing in the workspace is checked now. */
+/** The directory a call is pinned to, after its tenant's standing there is checked now. Null: it may not work there any more, so nothing is inside its fence. */
 export async function admittedDirectory(
   workspaces: ReleaseEnvironmentOptions['workspaces'],
   request: Pick<Preparation, 'principal' | 'tenant'> &
     Readonly<{ request: Readonly<{ directory?: ToolCallDirectory }> }>,
-): Promise<Outcome<string, ToolFailure>> {
+): Promise<Outcome<string | null, ToolFailure>> {
   const pinned = request.request.directory
   if (pinned === undefined)
     return unavailable('working-directory', 'the request pins no working directory')
@@ -191,11 +191,9 @@ export async function admittedDirectory(
   })
   switch (verified.kind) {
     case 'attachable':
-      return verified.directory === pinned.path
-        ? succeed(pinned.path)
-        : fail({ kind: 'denied', action: 'workspace-instance' })
+      return succeed(verified.directory === pinned.path ? pinned.path : null)
     case 'not-permitted':
-      return fail({ kind: 'denied', action: 'workspace' })
+      return succeed(null)
     case 'instance-unavailable':
       return unavailable('workspace', `the instance of the call is unavailable: ${verified.reason}`)
     case 'unavailable':

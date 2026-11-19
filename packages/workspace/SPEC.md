@@ -168,4 +168,4 @@ Workspace 包组回答一个问题：加在一份物理资源上的这层逻辑�
 | INV-WS21 | 同一个节点上，同一个物理位置至多属于一个有效实例                                        | 同一批文件上有两层互不知道的治理           | `workspace-local` 的占用键唯一索引（`tests/storage/in-process.spec.ts`）；`workspace` 的仓储符合性用例；发行树上的 `tests/rows/workspace-access/release.spec.ts` |
 | INV-WS22 | 工作区多出一个实例，只在管理类型接纳并且有人显式关联时发生                              | 两个无关的目录被当成同一个工作区           | 管理类型的 `admits` 与关联的事务脚本；符合性用例 |
 | INV-WS23 | 读取物理资源的事实不执行其中指定的任何程序                                              | 登记或打开一个不受信的仓库就运行了它的程序 | 只有文字 |
-| INV-WS24 | 一次合法的核验不是许可；关系解除之后的第一次核验就不通过                                | 被移除的租户靠旧的答复继续使用工作区       | 只有文字 |
+| INV-WS24 | 一次合法的核验不是许可；关系解除之后的第一次核验就不通过                                | 被移除的租户靠旧的答复继续使用工作区       | `apps/harness-server` 发行树上的两条用例（`tests/rows/working-directory-tools-release.spec.ts`「a tenant removed from a workspace」）：移除之后下一步被告知、调用答不可用；移除之前已受理的调用到执行时什么都做不成 |

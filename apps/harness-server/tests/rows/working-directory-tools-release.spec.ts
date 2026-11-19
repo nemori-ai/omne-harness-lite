@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { runOmne, savedTenant } from '../r9/support.ts'
 import { answerCard, pendingCard } from './authorization/release-flow-support.ts'
 import {
   historyOf,
@@ -105,6 +106,20 @@ const runsEnded = (tree: ReleaseTree, session: string, runs: number) =>
 async function ran(tree: ReleaseTree, session: string, runs: number, text: string) {
   await send(tree, session, text)
   return toolResults(await runsEnded(tree, session, runs)).join('\n')
+}
+
+/** Another account on the same tree, with its own home: the tree as that account drives it. */
+async function another(tree: ReleaseTree, name: string) {
+  const base = dirname(tree.home)
+  const home = join(base, name)
+  const server = `http://127.0.0.1:${String(tree.port)}`
+  for (const command of ['register', 'login']) {
+    const args = [command, '--login-identifier', name]
+    const done = await runOmne({ args, home, server, cwd: base, credential: `${name}-pw-9c1e77a2` })
+    expect(done.status, done.stderr).toBe(0)
+  }
+  const cli = (args: readonly string[]) => runOmne({ args, home, server, cwd: base })
+  return { tree: { ...tree, home, cli } as ReleaseTree, tenant: savedTenant(home) }
 }
 
 const read = (path: string) => readFileSync(path, 'utf8').trim()
@@ -322,6 +337,129 @@ describe('the working directory of a call over a restart of the server', () => {
           expect(read(join(blog, 'twice.txt'))).toBe('ran')
         },
       ])
+    },
+  )
+})
+
+/** The one pending card of an account, read and answered through that account's own command line. */
+async function allowOnce(tree: ReleaseTree, what: string) {
+  type Listed = {
+    card: { ref: { request: { requestId: string }; cardId: string }; revision: string }
+  }
+  const [item] = await pollUntil(
+    `the card of ${what}`,
+    async () =>
+      (JSON.parse((await tree.cli(['list-cards'])).stdout) as { body: { items?: Listed[] } }).body
+        .items ?? [],
+    items => items.length === 1,
+  )
+  const { ref, revision } = item!.card
+  const reply = ['--revision', revision, '--option', 'allow-once', '--reply-id', `reply-${what}`]
+  await ok(tree, [
+    'submit-reply',
+    '--request',
+    ref.request.requestId,
+    '--card',
+    ref.cardId,
+    ...reply,
+  ])
+}
+
+const REFUSED =
+  /unavailable: the workspace selected for this session cannot be used now \(reason: not-permitted\)/gu
+const reminded = (entries: Awaited<ReturnType<typeof historyOf>>) =>
+  entries
+    .filter(entry => entry.kind === 'message.system_reminder')
+    .map(entry => JSON.stringify(entry.payload))
+    .filter(
+      text => text.includes('session.working-directory') && text.includes('these values changed'),
+    )
+
+describe('a tenant removed from a workspace', () => {
+  const told = { ...bypass, extraHistoryKinds: ['message.system_reminder'] }
+
+  it(
+    'is told at its next step, its calls there are answered unavailable, and a new session there is refused',
+    { tags: ['slow'], timeout: 360_000 },
+    async () => {
+      const base = realpathSync(mkdtempSync(join(tmpdir(), 'directory-removed-')))
+      const blog = project(base, 'blog')
+      await onReleaseTree(told, async tree => {
+        const at = await registered(tree, blog)
+        const workspace = at[1]!
+        const frank = await another(tree, 'frank')
+        await ok(tree, ['workspace', 'grant', workspace, frank.tenant])
+        const session = await sessionIn(frank.tree, at)
+        await ran(frank.tree, session, 1, plan([write('by-frank.txt', 'one')]))
+        expect(read(join(blog, 'by-frank.txt'))).toBe('one')
+        expect(reminded(await historyOf(frank.tree, session))).toEqual([])
+
+        // Nothing tells the session: its next step asks, and so does each call.
+        await ok(tree, ['workspace', 'remove', workspace, frank.tenant])
+        const work = plan([write('after.txt', 'two'), shell('pwd > after-shell.txt')])
+        const answers = await ran(frank.tree, session, 2, work)
+        expect(answers.match(REFUSED)).toHaveLength(2)
+        for (const directory of [blog, defaultOf(tree)])
+          for (const name of ['after.txt', 'after-shell.txt'])
+            expect(existsSync(join(directory, name))).toBe(false)
+        const reminders = reminded(await historyOf(frank.tree, session))
+        expect(reminders).toHaveLength(1)
+        expect(reminders[0]).toMatch(/state\\+":\\+"unusable/u)
+        expect(reminders[0]).toMatch(/reason\\+":\\+"not-permitted/u)
+
+        const again = await frank.tree.cli(['create-session', '--definition', 'coding', ...at])
+        expect([again.status, (JSON.parse(again.stdout) as Reply).outcome]).toEqual([3, 'invalid'])
+        const hidden = await frank.tree.cli(['workspace', 'show', workspace])
+        expect((JSON.parse(hidden.stdout) as Reply).outcome).toBe('not-found')
+
+        // What it did before stays where it was done, and the owner is as before.
+        expect(read(join(blog, 'by-frank.txt'))).toBe('one')
+        expect(read(join(blog, 'README.md'))).toBe('# blog')
+        const owned = (await ok(tree, ['workspace', 'list'])).body['workspaces']
+        expect(owned).toEqual([{ workspace, type: 'directory', standing: 'owner' }])
+        const own = await sessionIn(tree, at)
+        await ran(tree, own, 1, plan([write('by-owner.txt', 'mine')]))
+        expect(read(join(blog, 'by-owner.txt'))).toBe('mine')
+      })
+    },
+  )
+
+  it(
+    'a call it already made, accepted before the removal, is refused when it comes to run: knowing the directory is no permit',
+    { tags: ['slow'], timeout: 360_000 },
+    async () => {
+      const base = realpathSync(mkdtempSync(join(tmpdir(), 'directory-removed-step-')))
+      const blog = project(base, 'blog')
+      const asking = { ...told, permission: 'auto_permission' }
+      await onReleaseTree(asking, async tree => {
+        const at = await registered(tree, blog)
+        const frank = await another(tree, 'frank')
+        await ok(tree, ['workspace', 'grant', at[1]!, frank.tenant])
+        const session = await sessionIn(frank.tree, at)
+        await send(frank.tree, session, plan([shell('pwd > same-step.txt')]))
+        // The call was accepted in this step and waits for a person. No step begins before it runs.
+        const entries = await pollUntil(
+          'the call to be made',
+          () => historyOf(frank.tree, session),
+          seen => seen.some(entry => entry.kind === 'message.assistant'),
+        )
+        expect(reminded(entries)).toEqual([])
+        await ok(tree, ['workspace', 'remove', at[1]!, frank.tenant])
+        await allowOnce(frank.tree, 'the command of the removed tenant')
+        const after = await runsEnded(frank.tree, session, 1)
+        // The call ends, refused: it is fenced into nothing. The step after it is told why.
+        expect(toolResults(after).join('\n')).toMatch(
+          /^rejected request="[^"]+" reason=notAuthorized$/u,
+        )
+        const kinds = after.map(entry => entry.kind)
+        expect(kinds.indexOf('message.tool')).toBeLessThan(
+          kinds.lastIndexOf('message.system_reminder'),
+        )
+        expect(reminded(after)).toHaveLength(1)
+        expect(reminded(after)[0]).toMatch(/reason\\+":\\+"not-permitted/u)
+        expect(existsSync(join(blog, 'same-step.txt'))).toBe(false)
+        expect(existsSync(join(defaultOf(tree), 'same-step.txt'))).toBe(false)
+      })
     },
   )
 })
