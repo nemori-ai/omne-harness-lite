@@ -39,7 +39,8 @@
     "@omne-harness/sdk": "workspace:*",
     "@omne-harness/session-diagnostics-protocol": "workspace:*",
     "@omne-harness/session-protocol": "workspace:*",
-    "@omne-harness/tool-protocol": "workspace:*"
+    "@omne-harness/tool-protocol": "workspace:*",
+    "@omne-harness/usage-protocol": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
