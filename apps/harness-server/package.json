@@ -35,6 +35,7 @@
     "acceptance": "vitest run --config vitest.acceptance.config.ts",
     "check:aa-rows": "node scripts/aa-rows.mjs check --aa ../../docs/architecture/runtime/application-assembly.md --rows src/s0/aa-rows.json",
     "check:tool-release": "node scripts/tool-release.mjs check",
+    "check:calendar-release": "node scripts/calendar-release.mjs check",
     "matrix": "node tests/matrix/run.ts",
     "crash-matrix": "node tests/matrix/crash-run.ts",
     "live-matrix": "node tests/live-matrix/run.ts"
