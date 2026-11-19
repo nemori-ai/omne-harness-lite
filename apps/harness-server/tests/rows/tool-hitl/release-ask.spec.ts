@@ -90,7 +90,7 @@ describe('Ask on the release tree puts its cards before a person and parks its c
     'a Run that ended before the registration lands rejects the registration in the same commit: no card, no wait',
     { timeout: 240_000 },
     async () => {
-      await onReleaseTree(options, async world => {
+      const exit = await onReleaseTree(options, async world => {
         let reached: (() => void) | undefined
         const atRegistration = new Promise<void>(resolve => {
           reached = resolve
@@ -154,7 +154,13 @@ describe('Ask on the release tree puts its cards before a person and parks its c
         expect(answers[0]).toMatchObject({ failure: { kind: 'conflict' } })
         expect(await world.cards({ states: ['pending', 'decided', 'invalidated'] })).toEqual([])
         expect(await world.cards({ sessionRef: session })).toEqual([])
+        await pollUntil(
+          'the cancelled execution to end',
+          async () => (await world.cli(['read-session-diagnostics', '--session', session])).stdout,
+          text => text.includes('reason: no-failure cancelled'),
+        )
       })
+      expect(exit).toBe(0)
     },
   )
 })

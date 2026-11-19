@@ -79,6 +79,7 @@ import {
   presentRequest,
 } from './admission-chain.ts'
 import { cardClosing } from './card-closing.ts'
+import { judgeCancellation } from './cancellation-judgment.ts'
 import { canonical } from '../canonical.ts'
 import { waitForExecutionChange, type HeldPosition, type ReconciliationPacer } from './wait.ts'
 import { diagnosticOf } from './diagnostic.ts'
@@ -523,7 +524,7 @@ function coordinate<P>(
   let finishWait = false
   let endReported = false
   let reportedWait: string | null = null
-  let reissueObligations = false
+  let finishChanged = false
   let cancellationChanged = false
   let waits: readonly Waiting[] = []
   const unsentRounds = new Set<CardRoundId>()
@@ -1259,7 +1260,7 @@ function coordinate<P>(
       cancellationChanged = false
       return finishDependencyWait('F1')
     }
-    if (reissueObligations) {
+    if (finishChanged) {
       finishRefused = false
       return step('reconciled', null)
     }
@@ -1466,7 +1467,7 @@ function coordinate<P>(
         if ('failure' in withdrawn) return withdrawn
         const pending = pendingPassage(snapshot.checkpoint.passages)
         if (pending !== null) return fail(pending)
-        if (reissueObligations) {
+        if (finishChanged) {
           finishRefused = false
           return step('reconciled', null)
         }
@@ -2955,7 +2956,7 @@ function coordinate<P>(
       candidate,
     })
     if ('ok' in prepared) {
-      reissueObligations = false
+      finishChanged = false
       return succeed(null)
     }
     if (prepared.failure.kind === 'changed') {
@@ -2979,7 +2980,7 @@ function coordinate<P>(
       return step('reconcile', null)
     }
     if (finished.ok.kind !== 'ended') {
-      if (finished.ok.kind === 'changed') reissueObligations = true
+      if (finished.ok.kind === 'changed') finishChanged = true
       finishRefused = true
       return step('reconcile', null)
     }
@@ -3098,28 +3099,13 @@ function coordinate<P>(
     async F2() {
       const read = await load()
       if ('failure' in read) return read
-      const control = cancellationOf(read.ok)
-      const candidate = read.ok.settlement.candidate
-      const route = read.ok.settlement.route
-      if (control !== undefined && candidate !== null && route?.kind === 'cancellation') {
-        const judged = await journalAt('F2').commitSettlement({
-          ...access,
-          execution,
-          operation: journalOperation('F2', 'cancel-judge', read.ok.revision),
-          kind: 'judge-cancellation',
-          authorization: {
-            kind: 'cancel',
-            control: control.operation,
-            source: control.stages.accepted.source,
-          },
-          expected: read.ok.revision,
-          installation: route.installation,
-          candidate: candidate.candidate,
-          route: route.record,
-        })
-        return 'failure' in judged ? refusedSettlement(judged.failure) : step('proceed', null)
-      }
-      return step('proceed', { state: { kind: 'settling' } })
+      const judged = await judgeCancellation(journalAt('F2'), { ...access, execution }, read.ok, {
+        control: cancellationOf(read.ok),
+        operation: journalOperation('F2', 'cancel-judge', read.ok.revision),
+        again: finishChanged,
+      })
+      if (judged === null) return step('proceed', { state: { kind: 'settling' } })
+      return 'failure' in judged ? refusedSettlement(judged.failure) : step('proceed', null)
     },
     async F3() {
       const before = await load()
@@ -3130,7 +3116,7 @@ function coordinate<P>(
         return step('reconcile', null)
       }
       const authorization = finishAuthorization(before.ok)
-      if (before.ok.state.intent.obligations === null || reissueObligations) {
+      if (before.ok.state.intent.obligations === null || finishChanged) {
         const issued = await issueObligations(before.ok, candidate.candidate, authorization)
         if ('failure' in issued) return issued
         if (issued.ok !== null) return issued.ok
