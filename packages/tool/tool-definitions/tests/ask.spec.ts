@@ -429,6 +429,7 @@ describe('the Ask command tool', () => {
     )
     expect(shape.guide).toContain('Do not use Ask to ask for permission')
     expect(shape.guide).toContain('An answer to Ask grants no permission for any action.')
+    expect(shape.guide).toContain('There is no timeout and no default answer.')
     expect(shape.gates).toBeUndefined()
     expect(shape.commands.map(command => [command.name, command.release])).toEqual([
       ['ask', { gate: null }],
