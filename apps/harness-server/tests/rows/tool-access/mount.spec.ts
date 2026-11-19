@@ -221,6 +221,12 @@ describe('tool-access and session-call-control rows', () => {
             () => output('0'),
             reply => (reply.json.body as Part | undefined)?.kind === 'sealed',
           )
+          // The end of the call wakes the agent for a second Run; stopping before it ends leaves it in flight.
+          await pollUntil(
+            'the Run the end of the call woke to end',
+            () => historyOf(tree, session),
+            entries => entries.filter(entry => entry.kind === 'run.terminal').length >= 2,
+          )
         },
       )
       expect(exitCode).toBe(0)
