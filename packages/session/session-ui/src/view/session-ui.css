@@ -82,9 +82,33 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 64px;
+  min-height: 64px;
   min-width: 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--omne-line-subtle);
+}
+.omne-session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.omne-session-model {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--omne-text-caption);
+}
+.omne-session-model-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+.omne-session-model-note {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
 }
 .omne-session-heading {
   display: flex;
@@ -332,4 +356,77 @@
   margin: 8px 0 4px;
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
+}
+.omne-search {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  padding: 16px;
+  overflow-y: auto;
+}
+.omne-search-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.omne-search-form [data-slot='input'] {
+  flex: 1 1 240px;
+}
+.omne-search-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.omne-search-note {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.omne-search-hits {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.omne-search-hit-open {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--omne-radius-window);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.omne-search-hit-open:hover,
+.omne-search-hit-open:focus-visible {
+  background: var(--omne-surface-overlay);
+}
+.omne-search-hit-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.omne-search-hit-text {
+  overflow-wrap: anywhere;
+  font-size: var(--omne-text-body);
+  line-height: var(--omne-leading-reading);
+}
+.omne-search-hit-text mark {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--omne-accent) 18%, transparent);
+  color: inherit;
+}
+.omne-transcript-row[data-found='true'] {
+  border-radius: var(--omne-radius-window);
+  box-shadow: 0 0 0 1px var(--omne-line-focus);
 }

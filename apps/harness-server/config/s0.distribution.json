@@ -31,6 +31,16 @@
       "config": {}
     },
     {
+      "id": "session-history-index",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-search",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "asset-categories",
       "plugin": "stubPlugin",
       "config": {}
@@ -372,6 +382,11 @@
     },
     {
       "id": "tool-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "model-access",
       "plugin": "stubPlugin",
       "config": {}
     }
