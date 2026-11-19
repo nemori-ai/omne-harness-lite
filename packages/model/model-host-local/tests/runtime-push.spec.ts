@@ -28,6 +28,7 @@ import {
 import {
   MODEL_SEND,
   type CallAccountReport,
+  type CostLookupAnswer,
   type ModelCommands,
   type ModelDriveInput,
   type TransportFact,
@@ -45,8 +46,10 @@ import {
   createModelRuntimeLocalPlugin,
   type ResultPushLedger,
   type ResultPushLimits,
+  type ResultPushOptions,
   type ResultPushRecovery,
 } from '../src/cordis.ts'
+import { COST_LOOKUP_OWNER } from '../src/plugins/cost-lookups.ts'
 import { providerName } from './support/credentials.ts'
 
 function unbox<T>(decoded: { ok: T } | { failure: unknown }): T {
@@ -231,6 +234,8 @@ function world(
     share?: number
     recovery?: ResultPushRecovery
     lostContact?: boolean
+    answer?: readonly Exclude<TransportFact, { kind: 'ended' }>[]
+    lookup?: ResultPushOptions['lookup']
   }> = {},
 ) {
   let ledger = input.ledger ?? createMemoryResultPushLedger()
@@ -271,7 +276,7 @@ function world(
           },
         }),
         lateFact: given =>
-          given.source.owner === 'supplier'
+          given.source.owner === 'supplier' || given.source.owner === COST_LOOKUP_OWNER
             ? { ok: given.source }
             : { failure: { kind: 'invalid', field: 'source', reason: 'untrusted' } },
         retry: () => ({
@@ -371,7 +376,7 @@ function world(
           representation: demand.request.representation,
           payloadDigest: 'a'.repeat(64),
         },
-        facts: ANSWER,
+        facts: input.answer ?? ANSWER,
         ending: { kind: 'terminated', termination: ENDING },
         rejection: null,
       })
@@ -472,6 +477,7 @@ function world(
         ledger,
         limits: input.limits ?? LIMITS,
         ...(input.recovery !== undefined && { recovery: input.recovery }),
+        ...(input.lookup !== undefined && { lookup: input.lookup }),
       },
     })
   let Plugin = pluginClass()
@@ -1177,6 +1183,46 @@ it('cleans up after a restart that lost the ledger a result the last process aba
   expect(scripted.pushes).toHaveLength(1)
   expect(w.handoffs).toEqual([])
   expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
+})
+
+it('looks a cost the stream did not carry up again on later wakes, and records it late once found (C14)', async () => {
+  const answers: CostLookupAnswer[] = [
+    { kind: 'missed' },
+    { kind: 'unavailable', diagnostic: 'status-502' },
+    {
+      kind: 'found',
+      cost: [
+        { state: 'known', lexeme: '0.0000916', unit: 'openrouter-credit', source: 'billable' },
+      ],
+      place: 'openrouter',
+    },
+  ]
+  const asked: unknown[] = []
+  const w = world({
+    limits: { ...LIMITS, delaysMs: [5, 5, 5] },
+    answer: [{ kind: 'response', request: 'gen-push-1' }, ...ANSWER.slice(0, 2)],
+    lookup: input => {
+      asked.push(input)
+      return Promise.resolve(answers.shift() ?? { kind: 'missed' })
+    },
+  })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(
+    async () => (await w.dispatches('one'))[0]?.account?.receipt === 'late',
+    'the cost found on the third wake',
+  )
+  expect(asked).toHaveLength(3)
+  expect((await w.dispatches('one'))[0]).toMatchObject({
+    lookup: { misses: 1, exhausted: false },
+    account: { cost: [{ lexeme: '0.0000916' }] },
+  })
+  expect(
+    w.warnings.some(text => text.includes('cost lookup stays pending (unavailable status-502)')),
+  ).toBe(true)
 })
 
 it('delivers after a restart a late account the last process accepted and did not deliver, confirms it, and only then cleans up (C15)', async () => {

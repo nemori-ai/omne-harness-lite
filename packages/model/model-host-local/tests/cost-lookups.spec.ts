@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
@@ -7,7 +8,7 @@ import {
 } from '@omne-harness/model-contract'
 import type { CostLookupAnswer, ModelCommands } from '@omne-harness/model-contract/provider'
 import { createCostLookups, lookupSource } from '../src/plugins/cost-lookups.ts'
-import type { RuntimeEvent } from '../src/plugins/runtime.ts'
+import { reportRuntimeEvent, type RuntimeEvent } from '../src/plugins/runtime.ts'
 
 const ACCESS = { principal: 'host', tenant: 'tenant' as unknown as TenantId }
 const CALL = 'mcall_one' as ModelCallId
@@ -35,16 +36,33 @@ function dispatch(over: Partial<DispatchRecord> = {}): DispatchRecord {
 }
 
 /** The step over one dispatch record, a scripted answer and a late-fact entry that answers as told. */
-function stepping(record: DispatchRecord, answer: CostLookupAnswer, refuse = false) {
+function stepping(
+  record: DispatchRecord,
+  answer: CostLookupAnswer,
+  refuse = false,
+  given: Readonly<{ records?: 'unavailable'; lookup?: 'absent' }> = {},
+) {
   const facts: Parameters<ModelCommands<unknown>['recordLateFact']>[0][] = []
   const asked: unknown[] = []
   const reports: RuntimeEvent[] = []
   const lookups = createCostLookups({
-    commands: { dispatches: () => Promise.resolve({ ok: [record] }) },
-    lookup: input => {
-      asked.push(input)
-      return Promise.resolve(answer)
+    commands: {
+      dispatches: input => {
+        asked.push({ records: input })
+        return Promise.resolve(
+          given.records === 'unavailable'
+            ? { failure: { kind: 'unavailable', dependency: 'model-records', diagnostic: 'd' } }
+            : { ok: [record] },
+        ) as never
+      },
     },
+    lookup:
+      given.lookup === 'absent'
+        ? undefined
+        : input => {
+            asked.push(input)
+            return Promise.resolve(answer)
+          },
     limits: { maxCostMisses: 3 },
     report: event => reports.push(event),
     operation: op,
@@ -57,7 +75,8 @@ function stepping(record: DispatchRecord, answer: CostLookupAnswer, refuse = fal
         : { ok: { revision: '9', recovered: false } },
     ) as never
   }
-  const step = () => lookups.step(CALL, ACCESS, recordLateFact, new AbortController().signal)
+  const step = (stopping = new AbortController().signal) =>
+    lookups.step(CALL, ACCESS, recordLateFact, stopping)
   return { step, facts, asked, reports }
 }
 
@@ -71,23 +90,31 @@ describe('the cost lookups of a settled call', () => {
   it('records a found cost as the next revision of the account, from the request id, and owes nothing more', async () => {
     const s = stepping(dispatch(), FOUND)
     expect(await s.step()).toBe(false)
-    expect(s.asked).toEqual([{ ...ACCESS, call: CALL, dispatch: 'mdisp_one' }])
-    expect(s.facts).toMatchObject([
-      {
-        call: CALL,
-        dispatch: 'mdisp_one',
-        source: lookupSource('gen-1'),
-        fact: {
-          kind: 'account',
-          event: 'cost-lookup',
-          value: {
-            cost: FOUND.kind === 'found' ? FOUND.cost : [],
-            place: 'openrouter/OpenAI',
-            revision: '1',
-          },
-        },
-      },
+    expect(s.asked).toEqual([
+      { records: { ...ACCESS, call: CALL } },
+      { ...ACCESS, call: CALL, dispatch: 'mdisp_one' },
     ])
+    expect(s.facts).toMatchObject([
+      { call: CALL, dispatch: 'mdisp_one', source: lookupSource('gen-1') },
+    ])
+    expect(s.facts[0]?.fact).toEqual({
+      kind: 'account',
+      event: 'cost-lookup',
+      value: {
+        usage: [],
+        cost: FOUND.kind === 'found' ? FOUND.cost : [],
+        trimmed: { state: 'unknown', unit: 'token' },
+        place: 'openrouter/OpenAI',
+        duration: { state: 'unknown' },
+        revision: '1',
+      },
+    })
+    expect(lookupSource('gen-1')).toEqual({
+      owner: 'model-cost-lookup',
+      record: 'gen-1',
+      revision: '1',
+      digest: createHash('sha256').update('gen-1').digest('hex'),
+    })
     const later = stepping(
       dispatch({
         account: { usage: [], cost: [], revision: '4' } as unknown as DispatchRecord['account'],
@@ -134,7 +161,32 @@ describe('the cost lookups of a settled call', () => {
     ]) {
       const s = stepping(record, FOUND)
       expect(await s.step()).toBe(false)
-      expect(s.asked).toEqual([])
+      expect(s.asked).toEqual([{ records: { ...ACCESS, call: CALL } }])
     }
+  })
+
+  it('owes another wake when the records cannot be read or the wake is stopping, and nothing without a lookup', async () => {
+    expect(await stepping(dispatch(), FOUND, false, { records: 'unavailable' }).step()).toBe(true)
+    const stopped = new AbortController()
+    stopped.abort()
+    const s = stepping(dispatch(), FOUND)
+    expect(await s.step(stopped.signal)).toBe(true)
+    expect(s.facts).toEqual([])
+    const none = stepping(dispatch(), FOUND, false, { lookup: 'absent' })
+    expect(await none.step()).toBe(false)
+    expect(none.asked).toEqual([])
+  })
+})
+
+describe('the runtime events of the cost lookups and the late accounts', () => {
+  it('logs a pending lookup and an unconfirmed late account as warnings with their reason', () => {
+    const warned: string[] = []
+    const ctx = { logger: { warn: (text: string) => warned.push(text), info: () => {} } }
+    reportRuntimeEvent(ctx as never, { kind: 'cost-lookup-pending', reason: 'unavailable x' })
+    reportRuntimeEvent(ctx as never, { kind: 'late-account-unconfirmed', failure: 'denied' })
+    expect(warned).toEqual([
+      'model result push: a cost lookup stays pending (unavailable x)',
+      'model result push: a delivered late account is not confirmed (denied)',
+    ])
   })
 })

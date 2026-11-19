@@ -1,7 +1,7 @@
 // @module-tag slow — starts an openssl child process and talks to a real local HTTPS server.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lookupGenerationCost } from '../src/cost-lookup.ts'
-import type { NetworkInternals } from '../src/network.ts'
+import { openNetwork, type NetworkInternals } from '../src/network.ts'
 import { network } from './support/exchange.ts'
 import { providerName, SUPPLIER } from './support/test-family.ts'
 import { transportOver } from './support/transport.ts'
@@ -28,13 +28,20 @@ const STOPPED = {
 let certificate: Certificate
 let server: HttpsFixture
 let resources: NetworkInternals
-let answer: { status: number; body: string } = { status: 200, body: '' }
+/** What the server does next: answer whole, never answer, or cut the body after its first bytes. */
+let answer: { status: number; body: string; mode?: 'hold' | 'cut' } = { status: 200, body: '' }
 
 beforeAll(async () => {
   certificate = createCertificate()
   server = await startHttpsServer(certificate, res => {
-    res.writeHead(answer.status, { 'content-type': 'application/json' })
-    res.end(answer.body)
+    if (answer.mode === 'hold') return
+    res.writeHead(answer.status, { 'content-type': 'application/json', 'content-length': '4096' })
+    if (answer.mode === 'cut') {
+      res.write(answer.body)
+      setTimeout(() => res.destroy(), 20)
+      return
+    }
+    res.end(answer.body.padEnd(4096, ' '))
   })
   resources = network(server.ca)
 })
@@ -45,17 +52,21 @@ afterAll(async () => {
   certificate.dispose()
 })
 
-function lookup(signal = new AbortController().signal) {
+function lookup(
+  signal = new AbortController().signal,
+  over: Readonly<{ url?: URL; timeoutMs?: number; maxBodyBytes?: number }> = {},
+  through: NetworkInternals = resources,
+) {
   return lookupGenerationCost(
-    resources,
+    through,
     {
-      url: new URL('/api/v1/generation', server.url),
+      url: over.url ?? new URL('/api/v1/generation', server.url),
       request: 'gen-17950-abc',
       secret: 'sk-test-secret',
       place: 'openrouter',
       costUnit: 'openrouter-credit',
-      timeoutMs: 5000,
-      maxBodyBytes: 65_536,
+      timeoutMs: over.timeoutMs ?? 5000,
+      maxBodyBytes: over.maxBodyBytes ?? 65_536,
     },
     signal,
   )
@@ -76,6 +87,7 @@ describe('the cost lookup of an OpenRouter route', () => {
     expect(seen.method).toBe('GET')
     expect(seen.path).toBe('/api/v1/generation?id=gen-17950-abc')
     expect(seen.headers.authorization).toBe('Bearer sk-test-secret')
+    expect(seen.headers.accept).toBe('application/json')
     expect(seen.body.byteLength).toBe(0)
     answer = { status: 200, body: JSON.stringify(WHOLE) }
     expect(await lookup()).toMatchObject({
@@ -103,6 +115,47 @@ describe('the cost lookup of an OpenRouter route', () => {
   })
 })
 
+describe('the cost lookup over a network that fails', () => {
+  it('answers unavailable for a reply that does not come in time, and for one stopped while asked', async () => {
+    answer = { status: 200, body: '', mode: 'hold' }
+    const started = Date.now()
+    expect(await lookup(undefined, { timeoutMs: 100 })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'timeout',
+    })
+    expect(Date.now() - started).toBeLessThan(3000)
+    const stopping = new AbortController()
+    const asked = lookup(stopping.signal)
+    await server.nextRequest()
+    stopping.abort()
+    expect(await asked).toEqual({ kind: 'unavailable', diagnostic: 'stopped' })
+    server.resetConnections()
+  })
+
+  it('answers unavailable for a body past the bound, a body cut short, and a server it cannot reach', async () => {
+    answer = { status: 200, body: JSON.stringify(WHOLE) }
+    expect(await lookup(undefined, { maxBodyBytes: 4095 })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'body-too-large',
+    })
+    expect(await lookup(undefined, { maxBodyBytes: 4096 })).toMatchObject({ kind: 'found' })
+    answer = { status: 200, body: '{"data":', mode: 'cut' }
+    expect(await lookup()).toEqual({ kind: 'unavailable', diagnostic: 'body-read' })
+    const closed = new URL('/api/v1/generation', 'https://127.0.0.1:1')
+    expect(await lookup(undefined, { url: closed })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'network',
+    })
+    const untrusting = openNetwork({ maxConnections: 1, idleConnectionTimeoutMs: 60_000 })
+    answer = { status: 200, body: JSON.stringify(WHOLE) }
+    expect(await lookup(undefined, {}, untrusting)).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'network',
+    })
+    await untrusting.close()
+  })
+})
+
 describe('the cost lookup of a transport', () => {
   it('asks the generation endpoint on the origin of an OpenRouter route, with the secret of the route', async () => {
     answer = { status: 200, body: JSON.stringify(WHOLE) }
@@ -119,7 +172,7 @@ describe('the cost lookup of a transport', () => {
     await transport.close()
   })
 
-  it('answers unsupported for a supplier with no route, and unavailable without a secret or once closed', async () => {
+  it('answers unsupported for a supplier with no route or a route not accounted at OpenRouter, and unavailable without a secret or once closed', async () => {
     const url = new URL('/api/v1/chat/completions', server.url).href
     const signal = new AbortController().signal
     const transport = transportOver(resources, { url })
@@ -131,11 +184,23 @@ describe('the cost lookup of a transport', () => {
       kind: 'unavailable',
       diagnostic: 'credential-missing',
     })
-    const secretless = transportOver(resources, { url, credential: { read: () => new Map() } })
-    expect(await secretless.lookupCost(SUPPLIER, 'g', signal)).toEqual({
-      kind: 'unavailable',
-      diagnostic: 'credential-missing',
+    for (const options of [
+      { credential: { read: () => new Map<string, string>() } },
+      { credential: { read: () => undefined } },
+      { auth: null },
+    ]) {
+      const secretless = transportOver(resources, { url, ...options })
+      expect(await secretless.lookupCost(SUPPLIER, 'g', signal)).toEqual({
+        kind: 'unavailable',
+        diagnostic: 'credential-missing',
+      })
+      await secretless.close()
+    }
+    const elsewhere = transportOver(resources, {
+      url,
+      accounting: { place: 'gateway', costUnit: 'usd' },
     })
-    await secretless.close()
+    expect(await elsewhere.lookupCost(SUPPLIER, 'g', signal)).toEqual({ kind: 'unsupported' })
+    await elsewhere.close()
   })
 })

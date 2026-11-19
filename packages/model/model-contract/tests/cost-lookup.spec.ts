@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { accountUndelivered, costLookupOf, type DispatchRecord } from '@omne-harness/model-contract'
 
 type Account = NonNullable<DispatchRecord['account']>
-const cost = (state: 'known' | 'unknown') =>
-  state === 'known'
+const cost = (state: 'known' | 'unknown'): Account['cost'][number] =>
+  (state === 'known'
     ? { state, lexeme: '0.001', unit: 'openrouter-credit', source: 'billable' }
-    : { state, unit: 'openrouter-credit', source: 'billable', reason: 'not-recorded' }
+    : {
+        state,
+        unit: 'openrouter-credit',
+        source: 'billable',
+        reason: 'not-recorded',
+      }) as Account['cost'][number]
 const account = (receipt: 'received' | 'late', known: boolean, revision = '1') =>
   ({ cost: [cost(known ? 'known' : 'unknown')], receipt, revision }) as unknown as Account
 const FAILED = {
@@ -31,6 +36,13 @@ describe('where the cost lookup of a dispatch stands', () => {
       ['not ended yet', record({ terminal: null }), 'not-needed'],
       ['cost came with the stream', record({ account: account('received', true) }), 'not-needed'],
       ['cost found later', record({ account: account('late', true) }), 'found'],
+      [
+        'one known item among unknown ones is a known cost',
+        record({
+          account: { ...account('received', false), cost: [cost('unknown'), cost('known')] },
+        }),
+        'not-needed',
+      ],
       ['no request id', (({ request: _request, ...rest }) => rest)(record()), 'no-request-id'],
       ['nothing asked yet', record(), 'pending'],
       ['send unknown', record({ send: 'unknown' }), 'pending'],

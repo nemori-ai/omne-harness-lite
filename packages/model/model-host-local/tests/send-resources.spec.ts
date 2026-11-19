@@ -75,6 +75,7 @@ type Observed = {
   reads: (ReadonlyMap<string, string> | undefined)[]
   closes: number
   preparedCloses: number
+  looked?: Readonly<{ request: string; secrets: ReadonlyMap<string, string> | undefined }>
 }
 
 type Faults = {
@@ -99,7 +100,10 @@ function observingFactory() {
     const fault = faults.get(transports.length) ?? {}
     transports.push(observed)
     return {
-      lookupCost: () => Promise.resolve({ kind: 'unsupported' as const }),
+      lookupCost: (_supplier, request) => {
+        observed.looked = { request, secrets: config.credential.read() }
+        return Promise.resolve({ kind: 'missed' as const })
+      },
       transport: {
         async prepare(request) {
           observed.prepares += 1
@@ -585,6 +589,23 @@ describe('release and close', () => {
         diagnostic: 'send-resources-closed',
       },
     })
+  })
+
+  it('looks a cost up on a transport of its own that reads the secrets given, closes it, and refuses once closed', async () => {
+    const { factory, resources } = observed()
+    const secrets = new Map([['apiKey', 'lookup-secret']])
+    const ask = () =>
+      resources.lookupCost?.(
+        { supplier: DEMAND.supplier, request: 'gen-1', secrets },
+        new AbortController().signal,
+      )
+    expect(await ask()).toEqual({ kind: 'missed' })
+    const [, lookup] = factory.transports
+    expect(lookup?.looked).toEqual({ request: 'gen-1', secrets })
+    expect(lookup?.closes).toBe(1)
+    await resources.close()
+    expect(await ask()).toEqual({ kind: 'unavailable', diagnostic: 'send-resources-closed' })
+    expect(factory.transports).toHaveLength(2)
   })
 
   it('refuses a configuration that the transport refuses when it is built', () => {

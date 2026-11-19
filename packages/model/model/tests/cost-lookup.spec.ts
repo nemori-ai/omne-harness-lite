@@ -8,7 +8,7 @@ import {
 } from '@omne-harness/model-contract'
 import type { CallAccountReport, TransportFact } from '@omne-harness/model-contract/provider'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
-import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'
+import { callId, fixture, instance, op, proof, unbox } from './memory-fixture.ts'
 
 const LOST: Termination = {
   kind: 'failed',
@@ -26,6 +26,14 @@ const found = (lexeme: string, revision = '1'): CallAccountReport => ({
 /** One call whose only dispatch went out, carried the upstream's request id or not, and ended. */
 async function ended(facts: readonly TransportFact[]) {
   const f = fixture()
+  const seen: unknown[] = []
+  const [evidence] = f.options.evidence
+  if (evidence) {
+    const judge = evidence.lateFact.bind(evidence)
+    Object.assign(evidence, {
+      lateFact: (input: Parameters<typeof judge>[0]) => (seen.push(input), judge(input)),
+    })
+  }
   const memory = createMemoryModelCommands(f.options)
   const { commands } = memory
   unbox(await commands.admit(f.admit))
@@ -81,7 +89,7 @@ async function ended(facts: readonly TransportFact[]) {
     })
   const pending = async () =>
     unbox(await commands.scanPending({ ...f.admit, after: null, limit: 2 })).calls
-  return { f, commands, execution, record, late, pending, write }
+  return { f, commands, execution, record, late, pending, write, seen }
 }
 
 const withRequest: TransportFact[] = [
@@ -129,7 +137,9 @@ describe('the after-the-fact cost lookup of a dispatch (T5)', () => {
     expect(costLookupOf(record)).toBe('found')
     expect(
       await s.late('miss-after', { kind: 'cost-miss', event: 'miss-after', final: false }),
-    ).toMatchObject({ failure: { kind: 'invalid', field: 'dispatch' } })
+    ).toMatchObject({
+      failure: { kind: 'invalid', field: 'dispatch', reason: 'no-pending-cost-lookup' },
+    })
   })
 
   it('keeps a late account undelivered until the consumer confirms its revision (C15)', async () => {
@@ -246,5 +256,131 @@ describe('the after-the-fact cost lookup of a dispatch (T5)', () => {
       { kind: 'ended', termination: LOST },
     ])
     expect(costLookupOf(await known.record())).toBe('not-needed')
+  })
+})
+
+/** The call of `ended`, settled as lost and ended for its consumer by `end`. */
+async function settledLost(end: 'ack' | 'abandon') {
+  const s = await ended(withRequest)
+  const settlement = unbox(await s.commands.settle({ ...(await s.write()), termination: LOST }))
+  const result = { ...s.f.admit, operation: op(end), result: settlement.version }
+  if (end === 'ack')
+    unbox(
+      await s.commands.handoff({
+        ...result,
+        evidence: {
+          kind: 'processed',
+          completion: proof(`${s.f.admit.call}/${settlement.version}`, 'consumer'),
+        },
+      }),
+    )
+  else unbox(await s.commands.abandon({ ...result, basis: { kind: 'refused', refusal: 'denied' } }))
+  const tasks = async () => unbox(await s.commands.loadRecovery(s.f.admit)).tasks
+  return { ...s, tasks }
+}
+
+describe('the late account of an ended call: who may confirm it, and what work it leaves', () => {
+  it('confirms only for an authorized principal, a known call and dispatch, and a revision it recorded', async () => {
+    const s = await ended(withRequest)
+    unbox(
+      await s.late('found', {
+        kind: 'account',
+        event: 'cost-lookup',
+        value: found('0.0000916', '12'),
+      }),
+    )
+    const confirm = (operation: string, over: Record<string, unknown> = {}) =>
+      s.commands.confirmAccount({
+        ...s.f.admit,
+        operation: op(operation),
+        dispatch: unbox(decodeDispatchId('mdisp_one')),
+        revision: '12',
+        receipt: proof('saved', 'consumer'),
+        ...over,
+      })
+    s.f.denied.add('handoff')
+    expect(await confirm('denied')).toMatchObject({ failure: { kind: 'denied' } })
+    s.f.denied.delete('handoff')
+    expect(await confirm('no-call', { call: callId('other') })).toMatchObject({
+      failure: { kind: 'invalid', field: 'call', reason: 'not-found' },
+    })
+    expect(
+      await confirm('no-dispatch', { dispatch: unbox(decodeDispatchId('mdisp_other')) }),
+    ).toMatchObject({ failure: { kind: 'invalid', field: 'dispatch', reason: 'not-found' } })
+    for (const revision of ['0', '01', '1x', '13'])
+      expect(await confirm(`bad-${revision}`, { revision }), revision).toMatchObject({
+        failure: { kind: 'invalid', field: 'revision', reason: 'not-recorded' },
+      })
+    const first = unbox(await confirm('confirm-12'))
+    expect(await confirm('confirm-12')).toEqual({ ok: first })
+    expect((await s.record()).lateDelivered).toBe('12')
+    unbox(await confirm('confirm-11', { revision: '11' }))
+    expect((await s.record()).lateDelivered).toBe('12')
+  })
+
+  it('raises the confirmed revision, never lowers it', async () => {
+    const s = await ended(withRequest)
+    unbox(await s.late('found', { kind: 'account', event: 'cost-lookup', value: found('1', '2') }))
+    const confirm = (revision: string) =>
+      s.commands.confirmAccount({
+        ...s.f.admit,
+        operation: op(`confirm-${revision}`),
+        dispatch: unbox(decodeDispatchId('mdisp_one')),
+        revision,
+        receipt: proof('saved', 'consumer'),
+      })
+    unbox(await confirm('1'))
+    expect((await s.record()).lateDelivered).toBe('1')
+    unbox(await confirm('2'))
+    expect((await s.record()).lateDelivered).toBe('2')
+  })
+
+  it('owes account work while the cost is looked up, and not once the lookup gave up', async () => {
+    const s = await ended(withRequest)
+    expect(unbox(await s.commands.loadRecovery(s.f.admit)).tasks).toContain('account')
+    for (const [event, final] of [
+      ['miss-1', false],
+      ['miss-2', true],
+    ] as const)
+      unbox(await s.late(event, { kind: 'cost-miss', event, final }))
+    expect(unbox(await s.commands.loadRecovery(s.f.admit)).tasks).not.toContain('account')
+  })
+
+  it('owes the delivery of a late account to the consumer that took the result, and holds its cleanup', async () => {
+    const acked = await settledLost('ack')
+    unbox(await acked.late('found', { kind: 'account', event: 'cost-lookup', value: found('1') }))
+    expect(await acked.tasks()).toContain('account')
+  })
+
+  it('owes nothing of a late account once the result was abandoned, and cleans up without it', async () => {
+    const abandoned = await settledLost('abandon')
+    unbox(
+      await abandoned.late('found', { kind: 'account', event: 'cost-lookup', value: found('1') }),
+    )
+    expect(await abandoned.tasks()).not.toContain('account')
+    expect(
+      unbox(
+        await abandoned.commands.advanceCleanup({
+          ...abandoned.execution,
+          operation: op('cleanup'),
+        }),
+      ),
+    ).toMatchObject({ kind: 'abandoned', cleanup: 'released' })
+  })
+
+  it('judges a late fact with the request id the dispatch kept, and refuses a terminal past the byte limit', async () => {
+    const s = await ended(withRequest)
+    unbox(await s.late('found', { kind: 'account', event: 'cost-lookup', value: found('1') }))
+    expect(s.seen).toMatchObject([{ upstreamRequest: 'gen-17950-abc' }])
+    const anonymous = await ended(withRequest.filter(fact => fact.kind !== 'response'))
+    await anonymous.late('found', { kind: 'account', event: 'cost-lookup', value: found('1') })
+    expect(anonymous.seen).toMatchObject([{ upstreamRequest: null }])
+    const huge: Termination = {
+      kind: 'failed',
+      fault: { cause: 'stream-lost', diagnostic: 'x'.repeat(70_000), upstreamStatus: null },
+    }
+    expect(await s.late('huge', { kind: 'terminal', event: 'huge', actual: huge })).toMatchObject({
+      failure: { kind: 'invalid', field: 'termination', reason: 'encoded-byte-limit' },
+    })
   })
 })
