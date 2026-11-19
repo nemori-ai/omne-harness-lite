@@ -1,15 +1,21 @@
 // The two ends of producer custody besides acknowledgement: abandoning a settled result that no
 // consumer will save, and cleaning up once custody ended either way (T4).
 import { decodeResultVersion } from '@omne-harness/model-contract'
-import type { AbandonBasis, AbandonReceipt, CustodyState } from '@omne-harness/model-contract'
+import type {
+  AbandonBasis,
+  AbandonInput,
+  AbandonReceipt,
+  CustodyState,
+  Revision,
+} from '@omne-harness/model-contract'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import type { BoundCommandAccess } from './initial.ts'
 import { authFailure, missingReceipt, unresolved } from './judge.ts'
 import { bump, expireReads, releaseMaterial, type ModelCommandCore } from './state.ts'
-import type { CallDocument } from './types.ts'
 import { digest, invalid } from './value.ts'
 
 const REFUSALS: readonly string[] = ['denied', 'invalid', 'conflict']
+type AbandonedCustody = Extract<CustodyState, { kind: 'abandoned' }>
 
 function basisFailure(basis: AbandonBasis) {
   const valid =
@@ -19,13 +25,16 @@ function basisFailure(basis: AbandonBasis) {
   return valid ? null : invalid('basis', 'not-a-refusal-or-unreadable')
 }
 
-function abandoned(call: CallDocument): AbandonReceipt | null {
-  const { state } = call
-  if (state.phase !== 'settled' || state.custody.kind !== 'abandoned') return null
+/** The custody an abandonment records: the refusal it rests on and a record of its own. */
+function abandonment(input: AbandonInput<unknown>, revision: Revision): AbandonedCustody {
+  const record = `${input.call}/${input.result}/abandoned`
   return {
-    call: state.call,
-    result: state.settlement.version,
-    custody: structuredClone(state.custody),
+    kind: 'abandoned',
+    operation: input.operation,
+    basis: structuredClone(input.basis),
+    record: { owner: 'model-memory', record, revision, digest: digest(input.basis) },
+    cleanup: 'pending',
+    diagnostic: null,
   }
 }
 
@@ -53,27 +62,28 @@ export function custodyCommands<P>(
             if (refused) return { failure: refused }
             if (call.state.custody.kind === 'acknowledged')
               return { failure: invalid('custody', 'acknowledged') }
-            if (call.state.custody.kind === 'producer') {
-              const revision = bump(call)
-              const record = `${input.call}/${input.result}/abandoned`
-              const custody = {
-                kind: 'abandoned' as const,
-                operation: input.operation,
-                basis: structuredClone(input.basis),
-                record: { owner: 'model-memory', record, revision, digest: digest(input.basis) },
-                cleanup: 'pending' as const,
-                diagnostic: null,
-              }
-              call.state = { ...call.state, custody }
+            const custody =
+              call.state.custody.kind === 'abandoned'
+                ? call.state.custody
+                : abandonment(input, bump(call))
+            call.state = { ...call.state, custody }
+            const value = {
+              call: input.call,
+              result: input.result,
+              custody: structuredClone(custody),
             }
-            const receipt = abandoned(call)
-            if (receipt === null) return missingReceipt()
-            return { ok: { value: receipt, receipt: { kind: 'abandon' } } }
+            return { ok: { value, receipt: { kind: 'abandon' } } }
           },
-          replay: call => {
-            const receipt = call ? abandoned(call) : null
-            return receipt === null ? missingReceipt() : { ok: receipt }
-          },
+          replay: call =>
+            call?.state.phase === 'settled' && call.state.custody.kind === 'abandoned'
+              ? {
+                  ok: {
+                    call: call.state.call,
+                    result: call.state.settlement.version,
+                    custody: structuredClone(call.state.custody),
+                  },
+                }
+              : missingReceipt(),
         }),
       ),
     advanceCleanup: input =>

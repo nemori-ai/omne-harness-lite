@@ -141,6 +141,17 @@ describe('abandoning a settled result (T4)', () => {
     expect(await s.custody()).toEqual({ kind: 'producer' })
   })
 
+  it('refuses a call it never admitted, and the same operation given another basis', async () => {
+    const f = await settled()
+    expect(await f.commands.abandon({ ...f.abandon(), call: callId('never') })).toEqual({
+      failure: { kind: 'invalid', field: 'call', reason: 'not-found' },
+    })
+    unbox(await f.commands.abandon(f.abandon()))
+    expect(
+      await f.commands.abandon(f.abandon('abandon', { kind: 'unreadable', reason: 'other' })),
+    ).toMatchObject({ failure: { kind: 'conflict', operation: op('abandon') } })
+  })
+
   it('refuses a basis that is neither a refusal nor an unreadable result', async () => {
     const f = await settled()
     for (const basis of [
