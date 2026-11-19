@@ -12,7 +12,7 @@ export type {
   ReadResult,
   BlockState,
   BlockEntry,
-  PerRequestEntry,
+  PerReadEntry,
   Snapshot,
   ChangeEntry,
   Changes,

@@ -232,7 +232,7 @@
       },
       "packages/context/runtime-context-contract/src/testing/memory-producer.ts": {
         "count": 1,
-        "longest": 389
+        "longest": 373
       },
       "packages/context/runtime-context-contract/src/testing/memory-reader.ts": {
         "count": 2,
@@ -248,7 +248,7 @@
       },
       "packages/context/runtime-context/src/producer.ts": {
         "count": 1,
-        "longest": 425
+        "longest": 409
       },
       "packages/context/runtime-context/src/reader.ts": {
         "count": 2,

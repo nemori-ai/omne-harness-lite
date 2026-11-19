@@ -91,7 +91,7 @@ function corruptReply(value: unknown): unknown {
                 },
               },
             ],
-            perRequest: [],
+            perRead: [],
             viewRevision: -1,
           },
         }

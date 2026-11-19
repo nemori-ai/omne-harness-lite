@@ -264,7 +264,7 @@
               "pending": false
             },
             {
-              "name": "PerRequestEntry",
+              "name": "PerReadEntry",
               "kind": "type",
               "pending": false
             },

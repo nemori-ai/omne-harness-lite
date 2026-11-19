@@ -33,11 +33,11 @@ it('an old generation publication, a supply timeout and a failing change outlet 
     'published',
   )
   await producer(h, tenantA, 'test.slow', {
-    declaration: { ...supplied('test.slow'), volatility: 'per-request' },
+    declaration: { ...supplied('test.slow'), volatility: 'per-read', consumers: ['tool'] },
     supply: () => new Promise(() => {}),
   })
   await register(h, a, tenantA, 'test.slow', 1)
-  const r = await reader(h, await issue(h, a, tenantA, ['test.secret', 'test.slow']))
+  const r = await reader(h, await issue(h, a, tenantA, ['test.secret', 'test.slow'], 'tool'))
   const s = await r.snapshot()
   expect(s.kind).toBe('success')
   const kinds = new Set(h.diagnostics.map(d => d.kind))

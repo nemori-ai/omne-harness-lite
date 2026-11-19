@@ -97,8 +97,7 @@ export function createReading<P>(runtime: RuntimeContextOperations<P>, bindAs: B
         held.set(at, { granted, context })
       }
       const snapshot = await context.snapshot()
-      if (snapshot.kind === 'success')
-        return succeed({ entries: snapshot.value.perRequest, missing })
+      if (snapshot.kind === 'success') return succeed({ entries: snapshot.value.perRead, missing })
       held.delete(at)
       if (snapshot.kind !== 'refused') return unavailable(`snapshot answered ${snapshot.kind}`)
     }

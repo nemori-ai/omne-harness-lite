@@ -174,7 +174,7 @@ export async function producer(
   const registration: ProducerRegistration<ContextBlockKey, string> = !isStable(declaration)
     ? {
         ...head,
-        declaration: { ...declaration, volatility: 'per-request' },
+        declaration: { ...declaration, volatility: 'per-read' },
         scoped: false,
         supply: supply ?? (async () => ({ kind: 'none' })),
       }
