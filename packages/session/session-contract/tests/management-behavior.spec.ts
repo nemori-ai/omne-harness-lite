@@ -196,7 +196,7 @@ describe('management and derived history behavior', () => {
         kind,
       )
     }
-    expect((await s.read()).consumptions[0]?.results[0]?.release).toBe('pending')
+    expect(s.call(s.consumption)?.consumed?.results[0]?.release).toBe('pending')
     expect(
       refused(
         await s.commit({

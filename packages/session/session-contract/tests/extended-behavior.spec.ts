@@ -477,7 +477,7 @@ describe('Session governance beyond the first path', () => {
       }),
       'release',
     )
-    expect((await s.read()).consumptions[0]?.results[0]?.release).toBe('confirmed')
+    expect(s.call(bound.consumption)?.consumed?.results[0]?.release).toBe('confirmed')
     expect(
       refused(
         await s.commit({

@@ -207,7 +207,8 @@ export {
   type OnceAuthorization,
   type SessionAuthorization,
 } from './authorizations.ts'
-export { reduce } from './reduce.ts'
+export { batchCallKeys, reduce } from './reduce.ts'
+export { consumptionIdOf } from './decide-results.ts'
 export {
   decideCompactionCommit,
   projectCompactionCommit,
@@ -273,6 +274,19 @@ export type {
 } from './history-values.ts'
 export { uninterpretedCalls } from './uninterpreted-calls.ts'
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
+export {
+  bindingOf,
+  boundCall,
+  callKeysIn,
+  callKeysOutside,
+  callWithLate,
+  lendCalls,
+  type SessionCallBinding,
+  type SessionCall,
+  type SessionCallKeys,
+  type SessionLateCallFact,
+  type SettledCallLookup,
+} from './call-settlement.ts'
 export { readCallRegistration } from './call-registration.ts'
 export type { CallRegistrationView } from './call-registration.ts'
 export { readRunBoundary } from './run-boundary.ts'

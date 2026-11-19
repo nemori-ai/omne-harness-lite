@@ -1,6 +1,6 @@
 import { admittedGuards, derivedTerms } from './intake.ts'
 import { commandScope, runStartInputs } from './frontier.ts'
-import { compactionContextForView } from '@omne-harness/session-contract'
+import { boundCall, compactionContextForView } from '@omne-harness/session-contract'
 import type { ToolRelease } from './result-release.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
@@ -794,18 +794,19 @@ export function createSessionTransactions<P>(
     readWork: async input => {
       const store = await storeOf(input, 'readWork')
       if ('failure' in store) return store
-      const material = options.history?.read(store.ok.snapshot, store.ok.entries, {
-        kind: 'pending',
-        inputs: store.ok.snapshot.pending,
-      })
-      return succeed({
-        ...store.ok.snapshot,
-        ...(material === undefined ? {} : { historyIndex: material.index }),
-      })
+      const { snapshot, entries } = store.ok
+      const scope = { kind: 'pending', inputs: snapshot.pending } as const
+      const material = options.history?.read(snapshot, entries, scope)
+      const index = material === undefined ? {} : { historyIndex: material.index }
+      return succeed({ ...snapshot, ...index })
     },
     readCurrentScope: async input => {
       const store = await storeOf(input, 'readCurrentScope')
       return 'failure' in store ? store : succeed(store.ok.snapshot.contextScopes?.at(-1) ?? null)
+    },
+    readCall: async input => {
+      const store = await storeOf(input, 'readWork')
+      return 'failure' in store ? store : succeed(boundCall(store.ok.snapshot, input.producer))
     },
     readInput: async input => {
       const store = await storeOf(input, 'readInput')
@@ -821,11 +822,10 @@ export function createSessionTransactions<P>(
       const held = store.ok.operations.get(input.operation)
       if (held?.form === 'control' || store.ok.answers.has(input.operation))
         return fail({ kind: 'conflict', operation: input.operation })
-      const resolution: OperationResolution =
-        held === undefined
-          ? { kind: 'unknown' }
-          : { kind: 'committed', receipt: held.record.receipt }
-      return succeed(resolution)
+      const receipt = held?.record.receipt
+      return succeed<OperationResolution>(
+        receipt === undefined ? { kind: 'unknown' } : { kind: 'committed', receipt },
+      )
     },
     queryControlOperation: async input => {
       const store = await storeOf(input, 'queryControlOperation')

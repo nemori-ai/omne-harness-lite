@@ -699,6 +699,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
   const frontier = createFrontier<P>(options.budget ?? defaultBudget, interpretEvent)
   const transactions: SessionTransactionPort<P> = {
     readInput: base.readInput,
+    readCall: base.readCall,
     readCurrentScope: base.readCurrentScope,
     queryOperation: base.queryOperation,
     queryControlOperation: base.queryControlOperation,
@@ -713,12 +714,10 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       try {
         return await base.readWork(input)
       } catch (error) {
-        if (error instanceof HistoryFailure) {
-          if (error.failure.kind === 'quarantined')
-            cellOf(input.tenant, input.session).quarantine(error.failure.diagnostic)
-          return fail(error.failure)
-        }
-        throw error
+        if (!(error instanceof HistoryFailure)) throw error
+        if (error.failure.kind === 'quarantined')
+          cellOf(input.tenant, input.session).quarantine(error.failure.diagnostic)
+        return fail(error.failure)
       }
     },
     commit: (async input => {

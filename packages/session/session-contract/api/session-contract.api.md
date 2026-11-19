@@ -179,8 +179,11 @@
 - `SessionAuthorization` · `authorizations.d.ts`
 - `SessionBatchRecord` · `history-values.d.ts`
 - `SessionBlockDeclaration` · `ports.d.ts`
+- `SessionCall` · `call-settlement.d.ts`
+- `SessionCallBinding` · `call-settlement.d.ts`
 - `SessionCallControl` · `ports.d.ts`
 - `SessionCallEntryReferences` · `work-entry-values.d.ts`
+- `SessionCallKeys` · `call-settlement.d.ts`
 - `SessionCallLookup` · `control-values.d.ts`
 - `SessionCallRecord` · `call-values.d.ts`
 - `SessionCallRegistration` · `call-values.d.ts`
@@ -234,6 +237,7 @@
 - `SessionIntakeBudget` · `input-sources.d.ts`
 - `SessionIntakeLimits` · `intake.d.ts`
 - `SessionInternalPrincipals` · `ports.d.ts`
+- `SessionLateCallFact` · `call-settlement.d.ts`
 - `SessionListItem` · `faces.d.ts`
 - `SessionListPage` · `faces.d.ts`
 - `SessionLogCommitObservation` · `interpretation-values.d.ts`
@@ -267,6 +271,7 @@
 - `SessionWork` · `faces.d.ts`
 - `SessionWorkEntryIndex` · `work-entry-values.d.ts`
 - `SessionWorkPrincipals` · `ports.d.ts`
+- `SettledCallLookup` · `call-settlement.d.ts`
 - `SourceAdmission` · `input-sources.d.ts`
 - `SourceRefusal` · `input-sources.d.ts`
 - `SourceRequest` · `source-requests.d.ts`
@@ -293,13 +298,20 @@
 - `backgroundCallView` · `background-calls.d.ts`
 - `backgroundCalls` · `call-control.d.ts`
 - `backgroundInputId` · `background-outcome.d.ts`
+- `batchCallKeys` · `reduce.d.ts`
 - `batchEvidence` · `batch-evidence.d.ts`
+- `bindingOf` · `call-settlement.d.ts`
+- `boundCall` · `call-settlement.d.ts`
 - `budgetTermsOf` · `input-sources.d.ts`
+- `callKeysIn` · `call-settlement.d.ts`
+- `callKeysOutside` · `call-settlement.d.ts`
+- `callWithLate` · `call-settlement.d.ts`
 - `commandDigest` · `decide.d.ts`
 - `commandInput` · `input-sources.d.ts`
 - `commitWithinBudget` · `input-sources.d.ts`
 - `compactionCallChangeOf` · `work-entry-state.d.ts`
 - `compactionContextForView` · `model-view.d.ts`
+- `consumptionIdOf` · `decide-results.d.ts`
 - `contextScopeOf` · `context-scopes.d.ts`
 - `contextScopesOf` · `context-scopes.d.ts`
 - `controlAnswer` · `call-control.d.ts`
@@ -333,6 +345,7 @@
 - `judgeRunStart` · `judgments.d.ts`
 - `judgeSessionIntake` · `intake.d.ts`
 - `judgeWaiting` · `judgments.d.ts`
+- `lendCalls` · `call-settlement.d.ts`
 - `mutationAccessRequest` · `access.d.ts`
 - `onceAuthorizationOf` · `authorizations.d.ts`
 - `openWork` · `judgments.d.ts`
@@ -786,6 +799,66 @@ export type CallRegistrationView = Readonly<{
     purpose: 'main' | 'compaction' | 'extension' | 'action';
 }>;
 export declare function readCallRegistration(payload: JsonValue): CallRegistrationView | null;
+```
+
+## 声明文件 `call-settlement.d.ts`
+
+```ts
+import type { SessionCallRecord } from './call-values.ts';
+import type { ConsumptionId, DurableEvidence } from './identity.ts';
+import type { CallBinding, Consumption, ProducedResult, ProducerRef, WorkSnapshot } from './values.ts';
+import type { SessionCallEntryReferences } from './work-entry-values.ts';
+type Draft = {
+    -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
+};
+export type SessionCall = Readonly<{
+    record: SessionCallRecord;
+    consumed: Consumption | null;
+    references: SessionCallEntryReferences | null;
+}>;
+export type SessionLateCallFact = Readonly<{
+    consumption: ConsumptionId;
+    slot: 'association';
+    record: SessionCallRecord;
+}> | Readonly<{
+    consumption: ConsumptionId;
+    slot: 'result';
+    version: string;
+    result: ProducedResult;
+}> | Readonly<{
+    consumption: ConsumptionId;
+    slot: 'custody' | 'completion';
+    version: string;
+    evidence: DurableEvidence;
+}> | Readonly<{
+    consumption: ConsumptionId;
+    slot: 'release';
+    version: string;
+}>;
+export type SessionCallKeys = Readonly<{
+    consumptions: readonly ConsumptionId[];
+    producers: readonly ProducerRef[];
+}>;
+export type SettledCallLookup = (keys: SessionCallKeys) => readonly SessionCall[];
+export declare function callKeysIn(value: unknown): SessionCallKeys;
+export declare function callOf(snapshot: WorkSnapshot, consumption: ConsumptionId): SessionCall | null;
+export declare function callOpen(snapshot: WorkSnapshot, call: SessionCall): boolean;
+export declare function lendCalls(snapshot: WorkSnapshot, lent: readonly SessionCall[]): WorkSnapshot;
+export type CallSettlement = Readonly<{
+    settled: readonly SessionCall[];
+    late: readonly SessionLateCallFact[];
+}>;
+export declare function settleCalls(draft: Draft, lent: readonly SessionCall[]): CallSettlement;
+export declare function callWithLate(call: SessionCall, late: readonly SessionLateCallFact[]): SessionCall;
+export declare function callNamed(call: SessionCall, keys: SessionCallKeys): boolean;
+export declare function callKeysOutside(snapshot: WorkSnapshot, keys: SessionCallKeys): SessionCallKeys;
+export type SessionCallBinding = Readonly<{
+    consumption: ConsumptionId;
+    binding: CallBinding;
+}>;
+export declare function bindingOf(call: SessionCall): SessionCallBinding | null;
+export declare function boundCall(snapshot: WorkSnapshot, producer: ProducerRef): SessionCallBinding | null;
+export {};
 ```
 
 ## 声明文件 `call-state.d.ts`
@@ -1539,6 +1612,7 @@ export declare function expandHistoryEntries(rows: readonly HistoryEntry[], crea
 import type { BackgroundCallResolution, BackgroundCallView } from './background-calls.ts';
 import type { ArchiveCollapse } from './call-control.ts';
 import type { ContextScopeBinding } from './values.ts';
+import type { SessionCallBinding } from './call-settlement.ts';
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
@@ -1676,6 +1750,9 @@ export interface SessionWork<P> {
     resolveBackgroundCall(input: SessionAccess<P> & Readonly<{
         id: string;
     }>): Reply<BackgroundCallResolution>;
+    readCall(input: SessionAccess<P> & Readonly<{
+        producer: ProducerRef;
+    }>): Reply<SessionCallBinding | null>;
     readInput(input: SessionAccess<P> & Readonly<{
         input: InputId;
     }>): Reply<Extract<RoutedInput, {
@@ -2261,7 +2338,8 @@ export { decide, commandDigest } from './decide.ts';
 export { runCancelledBy } from './decision-support.ts';
 export { batchEvidence } from './batch-evidence.ts';
 export { EMPTY_AUTHORIZATIONS, incompleteAuthorization, onceAuthorizationOf, reduceAuthorizations, retireOnce, type AuthorizationConsumer, type AuthorizationContext, type AuthorizationExpression, type AuthorizationScope, type OnceAuthorization, type SessionAuthorization, } from './authorizations.ts';
-export { reduce } from './reduce.ts';
+export { batchCallKeys, reduce } from './reduce.ts';
+export { consumptionIdOf } from './decide-results.ts';
 export { decideCompactionCommit, projectCompactionCommit, type CompactionCommitState, } from './compaction-commit.ts';
 export { expandHistoryEntries } from './entries.ts';
 export { CONTEXT_SCOPE_KINDS, contextScopeOf, contextScopesOf, type SessionContextScope, } from './context-scopes.ts';
@@ -2280,6 +2358,7 @@ export type { InitializationRequirement } from './initialization-requirements.ts
 export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, InputAdmissionMember, ExecutionHistoryBoundary, SessionFactBoundary, SessionBatchRecord, SessionAttemptRecord, SessionTakenRecord, SessionHistoryReads, SessionInputScope, InputAdmissionPage, SessionInputAdmission, SessionExecutionPrefix, SessionPrefixFact, SessionUninterpretedCall, } from './history-values.ts';
 export { uninterpretedCalls } from './uninterpreted-calls.ts';
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
+export { bindingOf, boundCall, callKeysIn, callKeysOutside, callWithLate, lendCalls, type SessionCallBinding, type SessionCall, type SessionCallKeys, type SessionLateCallFact, type SettledCallLookup, } from './call-settlement.ts';
 export { readCallRegistration } from './call-registration.ts';
 export type { CallRegistrationView } from './call-registration.ts';
 export { readRunBoundary } from './run-boundary.ts';
@@ -2747,6 +2826,7 @@ import type { GuardCommand, MutationName, SessionCommand } from './ports.ts';
 import type { ConsumptionId, DurableEvidence } from './identity.ts';
 import type { SessionHistoryReads } from './history-values.ts';
 import type { SessionCallWait } from './call-values.ts';
+import type { SessionCall, SessionLateCallFact } from './call-settlement.ts';
 import type { SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionRunLookup } from './control-values.ts';
 import type { SessionEntriesChannel } from './interpretation-values.ts';
 export type AdvanceJudgment = Readonly<{
@@ -2864,6 +2944,8 @@ export type CommittedBatch = Readonly<{
 export type ReduceResult = Readonly<{
     kind: 'reduced';
     snapshot: WorkSnapshot;
+    settled: readonly SessionCall[];
+    late: readonly SessionLateCallFact[];
 }> | Readonly<{
     kind: 'quarantined';
     diagnostic: string;
@@ -3212,6 +3294,7 @@ export type SessionPermissionWriteQualification = Readonly<{
 
 ```ts
 import type { ContextScopeBinding } from './values.ts';
+import type { SessionCallBinding } from './call-settlement.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { Outcome } from '@omne-harness/operation-result';
@@ -3438,6 +3521,9 @@ export interface SessionTransactionPort<P> {
     }>): ReturnType<Mutations[K]>;
     readWork(input: SessionAccess<P>): Reply<WorkSnapshot>;
     readCurrentScope(input: SessionAccess<P>): Reply<ContextScopeBinding | null>;
+    readCall(input: SessionAccess<P> & Readonly<{
+        producer: ProducerRef;
+    }>): Reply<SessionCallBinding | null>;
     readInput(input: SessionAccess<P> & Readonly<{
         input: InputId;
     }>): Reply<Extract<RoutedInput, {
@@ -3673,14 +3759,16 @@ export {};
 import type { SessionHistoryReads } from './history-values.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { CommittedBatch, ReduceResult } from './judgments.ts';
-export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch, reads?: SessionHistoryReads): ReduceResult;
+import { type SessionCallKeys, type SettledCallLookup } from './call-settlement.ts';
+export declare function batchCallKeys(previous: WorkSnapshot, batch: CommittedBatch): SessionCallKeys | null;
+export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch, reads?: SessionHistoryReads, lookup?: SettledCallLookup): ReduceResult;
 ```
 
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:221f957151afa076cbf352e75fc71a273ada1ad37f7190740e96b3e3275cc39d";
-export declare const SESSION_RELEASE_DIGEST = "sha256:221f957151afa076cbf352e75fc71a273ada1ad37f7190740e96b3e3275cc39d";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:dff74beeb9e0748f958d0ee590aa4a9c872cb3676bedf4fda733d2039d448e65";
+export declare const SESSION_RELEASE_DIGEST = "sha256:dff74beeb9e0748f958d0ee590aa4a9c872cb3676bedf4fda733d2039d448e65";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3820,6 +3908,30 @@ export interface ScriptedSessionAccessCheck<P> extends SessionAccessCheck<P> {
 export declare function createScriptedSessionAccessCheck<P>(answers: readonly SessionAccessScript[]): ScriptedSessionAccessCheck<P>;
 export declare function createPolicySessionAccessCheck<P>(policy: (request: SessionAccessRequest<P>) => SessionAccessScript): ScriptedSessionAccessCheck<P>;
 export declare function withMemberSubject<P>(check: SessionAccessCheck<P>): SessionAccessCheck<P>;
+```
+
+## 声明文件 `testing-calls-left.d.ts`
+
+```ts
+import { type Outcome } from '@omne-harness/operation-result';
+import { type SessionCall, type SessionCallBinding, type SessionLateCallFact, type SettledCallLookup } from './call-settlement.ts';
+import type { ProducerRef, WorkSnapshot } from './values.ts';
+export type CallsLeft = Readonly<{
+    settled: readonly SessionCall[];
+    late: readonly SessionLateCallFact[];
+}>;
+type Held = Readonly<{
+    snapshot: WorkSnapshot;
+    left: CallsLeft;
+}>;
+export declare const lookupOf: (store: Held | undefined) => SettledCallLookup;
+export declare const leftAfter: (store: Held | undefined, reduced: CallsLeft) => CallsLeft;
+export declare const lentFor: <T extends WorkSnapshot | null>(store: Held | undefined, snapshot: T, named: unknown) => T;
+export declare function callIn(store: Held | undefined, consumption: string): SessionCall | null;
+export declare function autoArchiveVerdict(snapshot: WorkSnapshot): "disabled" | "due" | "exempt" | "not-due" | "unavailable";
+export declare const bindingFor: <F>(store: Outcome<Held, F>, producer: ProducerRef) => Outcome<SessionCallBinding | null, F>;
+export declare const callAt: (stores: ReadonlyMap<string, Held>, key: Outcome<string, unknown>, consumption: string) => SessionCall | null;
+export {};
 ```
 
 ## 声明文件 `testing-case.d.ts`
@@ -4142,6 +4254,7 @@ import type { BoundedClose, RoutedInput, RunTerminal, SessionCreation, WorkSnaps
 import type { CommitReceipt, AdmittedMessage, EntryClass, HistoryEntry, PendingReason, SessionFailure } from './faces.ts';
 import type { GuardCommand, MutationName, Mutations, SessionCommand, SessionTransactionPort } from './ports.ts';
 import { type SessionLogObservation } from './projection.ts';
+import type { SessionCall } from './call-settlement.ts';
 import { type TestingWriterOptions } from './testing-sources.ts';
 import { type MemoryInitializationSource } from './testing-initialization-source.ts';
 import { type ConformanceCase } from './testing-case.ts';
@@ -4150,6 +4263,7 @@ export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> 
     readonly commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>;
     readonly controls: Readonly<{
         entriesOf(tenant: TenantId, session: SessionId): readonly HistoryEntry[];
+        callOf(tenant: TenantId, session: SessionId, consumption: string): SessionCall | null;
         decisionOf(tenant: TenantId, session: SessionId, operation: SessionOperationId): DurableEvidence | null;
     }>;
 }

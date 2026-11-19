@@ -27,6 +27,16 @@ import { applyParticipation } from './result-state.ts'
 import { initializationProjection, validateInitializationBatch } from './reduce-initialization.ts'
 import { sameInitializationValue } from './initialization-plan.ts'
 import { adoption, InitializationInvalid } from './initialization-parse.ts'
+import {
+  callKeysIn,
+  callKeysOutside,
+  lendCalls,
+  settleCalls,
+  type CallSettlement,
+  type SessionCall,
+  type SessionCallKeys,
+  type SettledCallLookup,
+} from './call-settlement.ts'
 
 const RUN_LAYER_KINDS: ReadonlySet<string> = new Set([
   'run.started',
@@ -351,10 +361,12 @@ function created(
 }
 
 function reduceBatch(
-  previous: WorkSnapshot | null,
+  held: WorkSnapshot | null,
   batch: CommittedBatch,
   reads?: SessionHistoryReads,
+  lookup?: SettledCallLookup,
 ): ReduceResult {
+  let previous = held
   if (batch.entries.length === 0) return quarantined(`batch ${batch.revision} has no entries`)
   try {
     for (const row of batch.entries) adoption(row.schema)
@@ -378,7 +390,7 @@ function reduceBatch(
     )
   if (previous !== null && batch.revision === previous.revision)
     return sameInitializationValue(previous.source, batchEvidence(batch, previous.session))
-      ? { kind: 'reduced', snapshot: previous }
+      ? { kind: 'reduced', snapshot: previous, settled: [], late: [] }
       : quarantined('the repeated batch contradicts the committed snapshot')
   if (
     previous !== null &&
@@ -413,7 +425,6 @@ function reduceBatch(
   }
   if (batch.entries.some(entry => entry.revision !== batch.revision))
     return quarantined(`batch ${batch.revision} holds an entry of another revision`)
-  let draft: Draft | null = previous === null ? null : { ...previous }
   const decodedEntries: SessionEntry[] = []
   for (const decoded of decodeEntries(
     batch.entries,
@@ -423,6 +434,9 @@ function reduceBatch(
     if ('malformed' in decoded) return quarantined(decoded.malformed)
     decodedEntries.push(decoded.ok)
   }
+  const lent = lentTo(held, decodedEntries, lookup)
+  previous = withLent(previous, lent)
+  let draft: Draft | null = previous === null ? null : { ...previous }
   const interpretationRuns =
     previous === null
       ? undefined
@@ -467,6 +481,7 @@ function reduceBatch(
         draft.controls.some(control => control.operation === item.operation && unsettled(control)),
       ),
     }
+  const { settled, late } = settlementOf(draft, lent, lookup)
   pruneInputLists(draft)
   draft.revision = batch.revision
   draft.source = batchEvidence(batch, draft.session)
@@ -484,16 +499,53 @@ function reduceBatch(
     if (typeof progress === 'string') return quarantined(progress)
     draft.entriesProgress = progress
   }
-  return { kind: 'reduced', snapshot: draft }
+  return { kind: 'reduced', snapshot: draft, settled, late }
 }
 
+function lentTo(
+  held: WorkSnapshot | null,
+  entries: readonly SessionEntry[],
+  lookup: SettledCallLookup | undefined,
+): readonly SessionCall[] {
+  if (held === null || lookup === undefined) return []
+  return lookup(callKeysIn(entries))
+}
+
+const withLent = (snapshot: WorkSnapshot | null, lent: readonly SessionCall[]) =>
+  snapshot === null ? null : lendCalls(snapshot, lent)
+
+// A call leaves only when someone keeps what left: the store behind `lookup`.
+const settlementOf = (
+  draft: Draft,
+  lent: readonly SessionCall[],
+  lookup: SettledCallLookup | undefined,
+): CallSettlement => (lookup === undefined ? { settled: [], late: [] } : settleCalls(draft, lent))
+
+/** The calls a batch names that the snapshot does not hold; null when the batch does not decode. */
+export function batchCallKeys(
+  previous: WorkSnapshot,
+  batch: CommittedBatch,
+): SessionCallKeys | null {
+  const entries: SessionEntry[] = []
+  for (const decoded of decodeEntries(
+    batch.entries,
+    previous.initialization?.initialAdoption ?? null,
+  )) {
+    if (!('ok' in decoded)) return null
+    entries.push(decoded.ok)
+  }
+  return callKeysOutside(previous, callKeysIn(entries))
+}
+
+/** `lookup` answers the calls that left the snapshot. Without it no call leaves: nobody would keep it. */
 export function reduce(
   previous: WorkSnapshot | null,
   batch: CommittedBatch,
   reads?: SessionHistoryReads,
+  lookup?: SettledCallLookup,
 ): ReduceResult {
   try {
-    return reduceBatch(previous, batch, reads)
+    return reduceBatch(previous, batch, reads, lookup)
   } catch (error) {
     if (
       error instanceof SessionValidationFailure ||

@@ -36,6 +36,7 @@ import type { GuardCommand, MutationName, SessionCommand } from './ports.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
+import type { SessionCall, SessionLateCallFact } from './call-settlement.ts'
 import type {
   SessionCallLookup,
   SessionCallTerminal,
@@ -116,7 +117,14 @@ export type CommittedBatch = Readonly<{
   entries: readonly HistoryEntry[]
 }>
 export type ReduceResult =
-  | Readonly<{ kind: 'reduced'; snapshot: WorkSnapshot }>
+  | Readonly<{
+      kind: 'reduced'
+      snapshot: WorkSnapshot
+      /** The calls that left the snapshot with this batch, as it held them. */
+      settled: readonly SessionCall[]
+      /** What this batch wrote about calls that had left before. */
+      late: readonly SessionLateCallFact[]
+    }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
 export type EncodedEntry = Omit<HistoryEntry, 'id' | 'revision'>
 export type Decision =
@@ -506,10 +514,7 @@ export function judgeIdle(
     Object.values(work).some(items => items.length > 0) ||
     snapshot.tasks.length > 0 ||
     snapshot.controls.some(control => control.state !== 'reconciled') ||
-    snapshot.consumptions.some(
-      item =>
-        item.results.length === 0 || item.results.some(result => result.release !== 'confirmed'),
-    )
+    (snapshot.callRegistrations ?? []).length > 0
   )
     return { kind: 'not-due' }
   if (input.observation.kind !== 'interval')
