@@ -53,6 +53,19 @@ export function qualifyingCommands(
       }
     }
   }
+  return Object.freeze({
+    ...wrapped,
+    ...qualifyingReads(inner, qualifyRead),
+  }) as unknown as ModelCommands<unknown>
+}
+
+type QualifiedReads = Pick<ModelCommands<unknown>, 'recall' | 'dispatches'>
+
+/** The two reads of the commands, each checked against the reader's qualification before and after. */
+export function qualifyingReads(
+  inner: QualifiedReads,
+  qualifyRead: (access: Access<unknown>) => Promise<ModelReadLease>,
+): QualifiedReads {
   async function read<T>(
     input: CallAccess<unknown>,
     action: 'inspect' | 'read-account',
@@ -71,10 +84,9 @@ export function qualifyingCommands(
     }
   }
   return Object.freeze({
-    ...wrapped,
-    recall: (input: Parameters<ModelCommands<unknown>['recall']>[0]) =>
+    recall: (input: Parameters<QualifiedReads['recall']>[0]) =>
       read(input, 'inspect', () => inner.recall(input)),
-    dispatches: (input: Parameters<ModelCommands<unknown>['dispatches']>[0]) =>
+    dispatches: (input: Parameters<QualifiedReads['dispatches']>[0]) =>
       read(input, 'read-account', () => inner.dispatches(input)),
-  }) as unknown as ModelCommands<unknown>
+  })
 }

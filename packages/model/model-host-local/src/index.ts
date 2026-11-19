@@ -19,3 +19,5 @@ export {
   type RequestDisclosure,
   type SendResourceDefectReason,
 } from './send-resources.ts'
+export { officialProfiles } from './official-profiles.ts'
+export { officialProfileAdoption } from './profile-source.ts'

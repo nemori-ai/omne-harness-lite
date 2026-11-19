@@ -18,14 +18,15 @@ import type {
   VendorHooks,
 } from '@omne-harness/pi-ai-transport/chat-completions'
 import { OPENAI_OWNER } from './owner.ts'
-import type { OpenAiRecord } from './record.ts'
+import type { OpenAiChatRecord } from './record.ts'
 
-export const OPENAI_REASONING_FORMAT = 'openai-responses-v1'
+/** The format the gateway writes on an encrypted reasoning detail of the chat-completions interface. */
+const DETAIL_FORMAT = 'openai-responses-v1'
 /** The text a gateway writes in place of ciphertext it withholds. It is never a replayable item. */
 const REDACTED = '[REDACTED]'
 const ENCRYPTED = 'reasoning.encrypted'
 
-type RuleOf<H> = (record: OpenAiRecord) => H
+type RuleOf<H> = (record: OpenAiChatRecord) => H
 
 function stringMember(raw: Readonly<Record<string, JsonValue>>, key: string): string | null {
   const value = raw[key]
@@ -36,7 +37,7 @@ function isReplayable(raw: Readonly<Record<string, JsonValue>>): boolean {
   const data = stringMember(raw, 'data')
   return (
     stringMember(raw, 'type') === ENCRYPTED &&
-    stringMember(raw, 'format') === OPENAI_REASONING_FORMAT &&
+    stringMember(raw, 'format') === DETAIL_FORMAT &&
     data !== null &&
     data.length > 0 &&
     data !== REDACTED
@@ -186,7 +187,7 @@ export const USAGE_RULES = {
 
 export type UsageRuleName = keyof typeof USAGE_RULES
 
-function objectRoot(record: OpenAiRecord): VendorHooks['toolSchema'] {
+function objectRoot(record: OpenAiChatRecord): VendorHooks['toolSchema'] {
   const adapter = recordAdoption(OPENAI_OWNER, record)
   return schema =>
     schema.kind === 'object'
@@ -206,7 +207,7 @@ export const CHECK_RULES = {
 
 export type CheckRuleName = keyof typeof CHECK_RULES
 
-export function hooksOf(record: OpenAiRecord): VendorHooks {
+export function hooksOf(record: OpenAiChatRecord): VendorHooks {
   const reasoning: RuleOf<ReasoningCodec | null> = REASONING_RULES[record.rules.reasoning]
   const usage: RuleOf<VendorHooks['usage']> = USAGE_RULES[record.rules.usage]
   const toolSchema: RuleOf<VendorHooks['toolSchema']> = TOOL_SCHEMA_RULES[record.rules.toolSchema]

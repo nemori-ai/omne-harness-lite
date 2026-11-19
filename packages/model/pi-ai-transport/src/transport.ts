@@ -10,7 +10,13 @@ import type {
   TransportDispatch,
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
-import { checkConfig, type CheckedConfig, type PiTransportConfig } from './config.ts'
+import {
+  checkConfig,
+  routeFor,
+  type CheckedConfig,
+  type CheckedRoute,
+  type PiTransportConfig,
+} from './config.ts'
 import type { PiFamilyBinding } from './family.ts'
 import { materialize, type MaterializedHandle } from './materialized.ts'
 
@@ -46,7 +52,8 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
     dispatch: TransportDispatch,
   ): Promise<Outcome<PreparedTransport, TransportFailure>> {
     if (phase.kind !== 'open') return { failure: TRANSPORT_CLOSED }
-    if (!checked.routes.has(supplier.provider))
+    const provider = checked.routes.get(supplier.provider)
+    if (provider === undefined)
       return {
         failure: { kind: 'unsupported', field: 'supplier.provider', adapter: supplier.adoption },
       }
@@ -58,8 +65,15 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
       await acquired.ok.release()
       return { failure: TRANSPORT_CLOSED }
     }
+    const route = routeFor(provider, acquired.ok.endpoint)
+    if (route === undefined) {
+      await acquired.ok.release()
+      const adapter = acquired.ok.adoption
+      return { failure: { kind: 'unsupported', field: 'route.endpoint', adapter } }
+    }
     const prepared = createPrepared({
       config: checked,
+      route,
       request,
       supplier,
       declaration,
@@ -131,6 +145,7 @@ const REPEATED_MATERIALIZE: TransportFailure = Object.freeze({
 function createPrepared(
   input: Readonly<{
     config: CheckedConfig
+    route: CheckedRoute
     request: FixedModelRequest
     supplier: Supplier
     declaration: ReplayDeclaration
@@ -139,7 +154,7 @@ function createPrepared(
     onClosed: () => void
   }>,
 ): PreparedTransport {
-  const { config, request, supplier, declaration, resent, onClosed } = input
+  const { config, route, request, supplier, declaration, resent, onClosed } = input
   const closing = new AbortController()
   let phase: PreparedPhase = { kind: 'open', binding: input.binding }
 
@@ -147,8 +162,6 @@ function createPrepared(
     binding: PiFamilyBinding,
     signal: AbortSignal,
   ): Promise<Outcome<MaterializedHandle, TransportFailure>> {
-    const route = config.routes.get(supplier.provider)
-    if (route === undefined) throw new Error('the route of a prepared transport is missing')
     return materialize({
       config,
       route,

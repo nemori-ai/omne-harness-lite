@@ -12,6 +12,7 @@ import {
   LIMIT_MS,
   record,
   release,
+  producedReminder,
   textOf,
   until,
   untilQuiet,
@@ -62,12 +63,12 @@ it(
             'the reminder and a follow-up turn that took it',
             () => history(tree, session),
             entries => {
-              const at = entries.findIndex(entry => entry.kind === 'message.system_reminder')
+              const at = entries.findIndex(producedReminder)
               return at >= 0 && entries.slice(at).some(entry => entry.kind === 'run.terminal')
             },
           )
           observed['kinds'] = kinds(after)
-          const reminder = after.find(entry => entry.kind === 'message.system_reminder')
+          const reminder = after.find(producedReminder)
           assert.match(textOf(reminder), /go-s7-done/u, 'the reminder carries the command output')
           assert.ok(textOf(reminder).includes(callOf(reference)), 'the reminder names the call')
           const firstEnd = after.findIndex(entry => entry.kind === 'run.terminal')

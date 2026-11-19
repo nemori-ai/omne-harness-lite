@@ -21,7 +21,7 @@ function block(key: string, required = true): StaticBlock {
       required,
       disclosure: 'plain',
       carriesPrevious: false,
-      volatility: 'per-request',
+      volatility: 'per-read',
       recovery: 'reread',
     },
     supply: async () => ({ kind: 'none' }),

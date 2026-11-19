@@ -14,17 +14,20 @@ import {
   type Supplier,
   type TransportFailure,
 } from '@omne-harness/model-contract'
-import {
-  judgeReplayDeclaration,
-  type ProviderDiagnostic,
-  type TransportDispatch,
-} from '@omne-harness/model-contract/provider'
+import type { ProviderDiagnostic, TransportDispatch } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { PiMaterializedMedia } from '../family.ts'
-import { serializeBody } from '../payload.ts'
 import { gatewayMembers } from './gateway.ts'
 import { bool, list, object, text } from './json.ts'
-import { planParameters, wireParameter } from './parameters.ts'
+import { planParameters } from './parameters.ts'
+import {
+  appliedFor,
+  carriesReplay,
+  materialize,
+  profileDeclaration,
+  wiredParams,
+  type Materialized,
+} from '../engine-request.ts'
 import { cacheTarget, messagesJson, project, type Projection } from './projection.ts'
 import type {
   ChatCompletionsRecord,
@@ -42,38 +45,6 @@ export type RequestContext = Readonly<{
   adapter: Adoption
 }>
 
-type Materialized = Extract<MeterRepresentation, { kind: 'materialized' }>
-
-function sameAdoption(left: Adoption, right: Adoption): boolean {
-  return (
-    left.owner === right.owner &&
-    left.name === right.name &&
-    left.revision === right.revision &&
-    left.digest === right.digest
-  )
-}
-
-function profileDeclaration(
-  context: RequestContext,
-  profile: ModelProfile,
-  supplier: Supplier,
-): Outcome<ReplayDeclaration, TransportFailure> {
-  if (
-    !sameAdoption(supplier.adoption, context.adapter) ||
-    supplier.provider !== context.supplier.provider ||
-    supplier.model !== context.supplier.model
-  )
-    return { failure: { kind: 'invalid', field: 'supplier', reason: 'not-this-binding' } }
-  const index = profile.definition.suppliers.findIndex(item =>
-    sameAdoption(item.adoption, supplier.adoption),
-  )
-  const entry = profile.definition.suppliers[index]
-  if (entry === undefined)
-    return { failure: { kind: 'invalid', field: 'supplier', reason: 'not-in-profile' } }
-  const declared = judgeReplayDeclaration(entry, index)
-  return 'ok' in declared ? declared : { failure: declared.failure }
-}
-
 function diagnosticsOf(projection: Projection): readonly ProviderDiagnostic[] {
   return projection.diagnostics.map(item => ({
     kind: 'replay-omitted',
@@ -81,6 +52,7 @@ function diagnosticsOf(projection: Projection): readonly ProviderDiagnostic[] {
     scope: item.scope,
     format: item.format,
     omittedParts: item.omittedParts,
+    reason: item.reason,
   }))
 }
 
@@ -88,22 +60,8 @@ function gatewayParams(
   context: RequestContext,
   applied: readonly Parameter[],
 ): Outcome<readonly GatewayParam[], TransportFailure> {
-  const params: GatewayParam[] = []
-  const fields = new Set<GatewayParam['field']>()
-  for (const param of applied) {
-    const wired = wireParameter(param, {
-      record: context.record,
-      adapter: context.adapter,
-      outputLimit: null,
-    })
-    if (!('ok' in wired)) return wired
-    if (fields.has(wired.ok.field))
-      return { failure: { kind: 'invalid', field: 'parameterAdoptions', reason: 'repeated' } }
-    fields.add(wired.ok.field)
-    params.push(wired.ok)
-  }
-  params.push(...context.record.wire.fixed)
-  return { ok: params }
+  const params = wiredParams(context, applied)
+  return 'ok' in params ? { ok: [...params.ok, ...context.record.wire.fixed] } : params
 }
 
 function bodyOf(
@@ -170,22 +128,11 @@ function represent(
   if (!('ok' in params)) return params
   const body = bodyOf(context, input.projection, params.ok)
   if (!('ok' in body)) return body
-  const shown = context.meter.represent(viewOf(input.projection, input.applied))
-  if (!sameAdoption(shown.adoption, input.representation))
-    return { failure: { kind: 'unsupported', field: 'representation', adapter: context.adapter } }
-  return {
-    ok: {
-      body: body.ok,
-      representation: {
-        kind: 'materialized',
-        adoption: shown.adoption,
-        tokenInput: shown.tokenInput,
-        units: shown.units,
-        media: [],
-        requestBytes: String(serializeBody(body.ok).byteLength),
-      },
-    },
-  }
+  return materialize(context, {
+    body: body.ok,
+    view: viewOf(input.projection, input.applied),
+    representation: input.representation,
+  })
 }
 
 export function planRequest(
@@ -248,6 +195,8 @@ export function encodeRequest(
     body: JsonValue
     representation: Materialized
     diagnostics: readonly ProviderDiagnostic[]
+    replayPrefix: string
+    replayCarried: boolean
   }>,
   TransportFailure
 > {
@@ -265,9 +214,7 @@ export function encodeRequest(
     resent: new Set(input.resent),
   })
   if (!('ok' in projection)) return projection
-  const applied = request.parameterAdoptions
-    .filter(adoption => sameAdoption(adoption.supplier, context.adapter))
-    .map(adoption => adoption.applied)
+  const applied = appliedFor(context, request)
   const checked = context.hooks.check({
     applied,
     messages: request.messages,
@@ -280,5 +227,12 @@ export function encodeRequest(
     representation: request.representation,
   })
   if (!('ok' in encoded)) return encoded
-  return { ok: { ...encoded.ok, diagnostics: diagnosticsOf(projection.ok) } }
+  return {
+    ok: {
+      ...encoded.ok,
+      diagnostics: diagnosticsOf(projection.ok),
+      replayPrefix: projection.ok.replayPrefix,
+      replayCarried: carriesReplay(projection.ok.treatments),
+    },
+  }
 }

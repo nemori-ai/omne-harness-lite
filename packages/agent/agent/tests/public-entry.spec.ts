@@ -53,7 +53,6 @@ it('testing entry exports the memory Journal, the scripted doubles, the clock an
     'createScriptedExtensions',
     'createScriptedMaterials',
     'createScriptedMessageHandoff',
-    'createScriptedModelContext',
     'createScriptedModelSelection',
     'createScriptedReads',
     'createScriptedRequestPreparation',

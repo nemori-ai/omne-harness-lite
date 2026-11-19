@@ -6,7 +6,6 @@ import {
   agentMaterialsKey,
   agentRequestsKey,
   agentJournalKey,
-  agentModelContextKey,
   agentToolReceptionTargetsKey,
   agentMessageHandoffKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
@@ -30,7 +29,6 @@ const WATCHED = [
   [agentMaterialsKey, ['read']],
   [agentRequestsKey, ['prepare', 'assessCompaction', 'resume']],
   [agentJournalKey, ['commit', 'load', 'query', 'recordResult', 'recordHandoff']],
-  [agentModelContextKey, ['read']],
   [agentToolReceptionTargetsKey, ['resolve']],
   [agentMessageHandoffKey, ['prepare', 'lookup']],
 ] as const
@@ -131,10 +129,9 @@ function modelScript(requests: string[], cycles: number, oldToolCalls: number, t
   }
 }
 
-function stopsWaiting(failures: readonly ServiceFailure[], compacted: boolean): boolean {
+function stopsWaiting(failures: readonly ServiceFailure[]): boolean {
   return failures.some(
     ({ operation, failure }) =>
-      (compacted && operation === `${agentModelContextKey}.read`) ||
       operation === `${agentRequestsKey}.resume` ||
       operation === `${agentRequestsKey}.assessCompaction` ||
       (typeof failure === 'object' &&
@@ -207,9 +204,7 @@ async function compactionRun(
       const history = await pollUntil(
         'compaction and original Run completion',
         () => historyOf(world, session),
-        seen =>
-          seen.some(entry => entry.kind === 'run.terminal') ||
-          stopsWaiting(failures, compactions.length > 0),
+        seen => seen.some(entry => entry.kind === 'run.terminal') || stopsWaiting(failures),
       )
       outcome = {
         requests,
@@ -249,6 +244,11 @@ function expectCompletedRun(run: CompactionRun, cycles: number, oldToolCalls: nu
   expect(run.requests).toHaveLength(cycles + 1)
   expect(run.requests[1]).toContain(SUMMARY)
   expect(run.requests[1]).not.toContain(LARGE_HISTORY)
+  // C6: the step after the compaction tells the model the runtime context again, in full.
+  const after = run.requests[1] ?? ''
+  expect(after.lastIndexOf('Runtime context: the current values.')).toBeGreaterThan(
+    after.indexOf(SUMMARY),
+  )
   expect(JSON.stringify(history)).toContain(LARGE_HISTORY)
   expect(JSON.stringify(history)).toContain('original-task-complete')
   expect(JSON.stringify(history)).toContain('compaction-tool-complete')

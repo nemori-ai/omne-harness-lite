@@ -41,26 +41,6 @@ export interface ModelSelection<P> {
       }>,
   ): Reply<SelectedModel>
 }
-export type ContextContent = 'full' | 'incremental'
-export type ModelContextRead = Readonly<{
-  recipient: ModelRecipient
-  content: ContextContent
-  source: DurableEvidence
-  coverage: DurableEvidence
-}>
-export interface ModelContextReader<P> {
-  read(
-    input: Access<P> &
-      Readonly<{
-        advance: Authority
-        position: ConsumerRef
-        recipient: ModelRecipient
-        history: DurableEvidence
-        adopted: DurableEvidence | null
-        transition: DurableEvidence | null
-      }>,
-  ): Reply<ModelContextRead>
-}
 export type Preparation = Readonly<{
   id: ActionId
   purpose: ModelPurpose
@@ -130,7 +110,6 @@ export interface RequestPreparation<P> {
         inputs: InputBatch
         conditions: RuntimeConditions
         selection: SelectedModel
-        context: ModelContextRead
         previous: Preparation | null
         alterations: readonly DurableEvidence[]
         beforeModelCall: readonly PassageId[] | null
@@ -155,8 +134,8 @@ export interface RequestPreparation<P> {
         advance: Authority
         original: Extract<Preparation, { kind: 'needs-compaction' }>
         transition: DurableEvidence
+        history: DurableEvidence
         selection: SelectedModel
-        context: ModelContextRead
       }>,
   ): Reply<Exclude<Preparation, { kind: 'needs-compaction' }>>
 }

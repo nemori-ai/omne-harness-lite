@@ -3,7 +3,14 @@ import { join } from 'node:path'
 import type { FixedModelRequest, ModelFailure } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { tapResponseBodies } from './body-tap.ts'
-import { assembleLocalHost, decoded, ROUTE_PATH, type Gateway } from './local-host.ts'
+import {
+  assembleLocalHost,
+  decoded,
+  MESSAGES_PATH,
+  RESPONSES_PATH,
+  ROUTE_PATH,
+  type Gateway,
+} from './local-host.ts'
 import { RECORDING_FILES, type RecordingNote } from './recording-cases.ts'
 import { findSecrets, type SecretPattern } from './secret-scan.ts'
 
@@ -49,7 +56,9 @@ export async function recordRound(input: RecordInput): Promise<RecordOutcome> {
   const directory = join(input.output, input.name)
   // Checked before the send, so a run that cannot write costs nothing.
   if (existsSync(directory)) return refused({ kind: 'recording-exists', directory })
-  const tap = tapResponseBodies(new URL(ROUTE_PATH, input.gateway.url))
+  const tap = tapResponseBodies(
+    [ROUTE_PATH, MESSAGES_PATH, RESPONSES_PATH].map(path => new URL(path, input.gateway.url)),
+  )
   const local = assembleLocalHost({
     request: input.request,
     label: `record-${input.name}`,

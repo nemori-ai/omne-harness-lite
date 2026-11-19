@@ -407,6 +407,11 @@
               "pending": false
             },
             {
+              "name": "SettledReplay",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "CustodyState",
               "kind": "type",
               "pending": false
@@ -739,6 +744,11 @@
             },
             {
               "name": "judgeToolDeclarations",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "replaySourceCall",
               "kind": "value",
               "pending": false
             }
@@ -1128,6 +1138,16 @@
             },
             {
               "name": "ReplayDiagnostic",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReplayBinding",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReplayOmission",
               "kind": "type",
               "pending": false
             },
@@ -1750,6 +1770,11 @@
             },
             {
               "name": "ModelProviderBody",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelProviderEndpoint",
               "kind": "type",
               "pending": false
             },

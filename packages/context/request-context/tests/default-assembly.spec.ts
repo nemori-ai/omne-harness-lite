@@ -166,9 +166,6 @@ describe('default strategies in a real operation group', () => {
       candidate: first.candidate,
       order: order.ok,
       committed: evidence,
-      windowTokens: '1000',
-      accounting: { kind: 'unsettled' },
-      forecast: null,
       continuation: { ...first.continuation, call: owner, fixed: evidence },
     }
     const adopted = f.sources.adopted

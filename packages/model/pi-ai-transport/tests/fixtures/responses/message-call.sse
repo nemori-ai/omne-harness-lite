@@ -1,0 +1,54 @@
+: 
+
+data: {"type":"response.created","response":{"id":"gen-1794967007-O2cNQ4kZ0QwWGLTA6NkD","object":"response","created_at":1794967007,"model":"openai/gpt-6.2-sol","status":"in_progress","completed_at":null,"output":[],"error":null,"incomplete_details":null,"access_programs":null,"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"],"additionalProperties":false},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1500,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"auto","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"medium"},"safety_identifier":null,"prompt_cache_key":null,"prompt_cache_options":null,"usage":null},"sequence_number":0}
+
+data: {"type":"response.in_progress","response":{"id":"gen-1794967007-O2cNQ4kZ0QwWGLTA6NkD","object":"response","created_at":1794967007,"model":"openai/gpt-6.2-sol","status":"in_progress","completed_at":null,"output":[],"error":null,"incomplete_details":null,"access_programs":null,"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"],"additionalProperties":false},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1500,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"auto","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"medium"},"safety_identifier":null,"prompt_cache_key":null,"prompt_cache_options":null,"usage":null},"sequence_number":1}
+
+data: {"type":"response.output_item.added","output_index":0,"item":{"id":"msg_tmp_vn82jijzqi8","type":"message","status":"in_progress","role":"assistant","content":[],"phase":"commentary"},"sequence_number":2}
+
+data: {"type":"response.content_part.added","output_index":0,"item_id":"msg_tmp_vn82jijzqi8","content_index":0,"part":{"type":"output_text","text":"","annotations":[],"logprobs":[]},"sequence_number":3}
+
+data: {"type":"response.output_text.delta","output_index":0,"item_id":"msg_tmp_vn82jijzqi8","content_index":0,"delta":"Os","logprobs":[],"sequence_number":4}
+
+data: {"type":"response.output_text.delta","output_index":0,"item_id":"msg_tmp_vn82jijzqi8","content_index":0,"delta":"lo","logprobs":[],"sequence_number":5}
+
+data: {"type":"response.output_text.delta","output_index":0,"item_id":"msg_tmp_vn82jijzqi8","content_index":0,"delta":" is","logprobs":[],"sequence_number":6}
+
+data: {"type":"response.output_text.delta","output_index":0,"item_id":"msg_tmp_vn82jijzqi8","content_index":0,"delta":" farther","logprobs":[],"sequence_number":7}
+
+data: {"type":"response.output_text.delta","output_index":0,"item_id":"msg_tmp_vn82jijzqi8","content_index":0,"delta":" north","logprobs":[],"sequence_number":8}
+
+data: {"type":"response.output_text.delta","output_index":0,"item_id":"msg_tmp_vn82jijzqi8","content_index":0,"delta":" than","logprobs":[],"sequence_number":9}
+
+data: {"type":"response.output_text.delta","output_index":0,"item_id":"msg_tmp_vn82jijzqi8","content_index":0,"delta":" Lima","logprobs":[],"sequence_number":10}
+
+data: {"type":"response.output_text.delta","output_index":0,"item_id":"msg_tmp_vn82jijzqi8","content_index":0,"delta":".","logprobs":[],"sequence_number":11}
+
+data: {"type":"response.output_text.done","output_index":0,"item_id":"msg_tmp_vn82jijzqi8","content_index":0,"text":"Oslo is farther north than Lima.","logprobs":[],"sequence_number":12}
+
+data: {"type":"response.content_part.done","output_index":0,"item_id":"msg_tmp_vn82jijzqi8","content_index":0,"part":{"type":"output_text","text":"Oslo is farther north than Lima.","annotations":[],"logprobs":[]},"sequence_number":13}
+
+data: {"type":"response.output_item.done","output_index":0,"item":{"id":"msg_tmp_vn82jijzqi8","type":"message","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Oslo is farther north than Lima.","annotations":[],"logprobs":[]}],"phase":"commentary"},"sequence_number":14}
+
+data: {"type":"response.output_item.added","output_index":1,"item":{"id":"fc_tmp_730lnwdlvwx","type":"function_call","status":"in_progress","call_id":"call_6KU3iZXD0j683UUHb41HQBSM","name":"get_weather","arguments":""},"sequence_number":15}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_730lnwdlvwx","delta":"{\"","sequence_number":16}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_730lnwdlvwx","delta":"city","sequence_number":17}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_730lnwdlvwx","delta":"\":\"","sequence_number":18}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_730lnwdlvwx","delta":"Os","sequence_number":19}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_730lnwdlvwx","delta":"lo","sequence_number":20}
+
+data: {"type":"response.function_call_arguments.delta","output_index":1,"item_id":"fc_tmp_730lnwdlvwx","delta":"\"}","sequence_number":21}
+
+data: {"type":"response.function_call_arguments.done","output_index":1,"item_id":"fc_tmp_730lnwdlvwx","name":"get_weather","arguments":"{\"city\":\"Oslo\"}","sequence_number":22}
+
+data: {"type":"response.output_item.done","output_index":1,"item":{"id":"fc_tmp_730lnwdlvwx","type":"function_call","status":"completed","call_id":"call_6KU3iZXD0j683UUHb41HQBSM","name":"get_weather","arguments":"{\"city\":\"Oslo\"}"},"sequence_number":23}
+
+data: {"type":"response.completed","response":{"id":"gen-1794967007-O2cNQ4kZ0QwWGLTA6NkD","object":"response","created_at":1794967007,"model":"openai/gpt-6.2-sol","status":"completed","completed_at":1794967008,"output":[{"id":"msg_tmp_vn82jijzqi8","type":"message","role":"assistant","status":"completed","content":[{"type":"output_text","text":"Oslo is farther north than Lima.","annotations":[],"logprobs":[]}],"phase":"commentary"},{"id":"fc_tmp_730lnwdlvwx","type":"function_call","status":"completed","call_id":"call_6KU3iZXD0j683UUHb41HQBSM","name":"get_weather","arguments":"{\"city\":\"Oslo\"}"}],"error":null,"incomplete_details":null,"access_programs":{"cyber":"standard"},"input_transformations":[],"tools":[{"type":"function","name":"get_weather","description":"Read the current weather of one city.","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"],"additionalProperties":false},"strict":null}],"tool_choice":"auto","parallel_tool_calls":true,"max_output_tokens":1500,"temperature":1,"top_p":1,"presence_penalty":0,"frequency_penalty":0,"top_logprobs":0,"max_tool_calls":null,"metadata":{},"background":false,"previous_response_id":null,"service_tier":"default","truncation":"disabled","store":false,"instructions":null,"text":{"format":{"type":"text"}},"reasoning":{"effort":"medium","context":"all_turns","mode":"standard","summary":null},"safety_identifier":null,"prompt_cache_key":null,"prompt_cache_options":null,"usage":{"input_tokens":82,"input_tokens_details":{"cached_tokens":0},"output_tokens":34,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":116,"cost":0.000504,"is_byok":false,"cost_details":{"upstream_inference_cost":0.000504,"upstream_inference_input_cost":0.000164,"upstream_inference_output_cost":0.00034}}},"sequence_number":24}
+
+data: [DONE]
+

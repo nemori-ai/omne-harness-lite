@@ -14,8 +14,6 @@ export type RegistrationRef = RequestContextRef<'RegistrationRef'>
 export type SourceGeneration = RequestContextRef<'SourceGeneration'>
 export type GroupToken = RequestContextRef<'GroupToken'>
 export type CommitOrder = RequestContextRef<'CommitOrder'>
-export type AccountingGeneration = RequestContextRef<'AccountingGeneration'>
-export type RecoveryGrantRef = RequestContextRef<'RecoveryGrantRef'>
 export type PrincipalKey = RequestContextRef<'PrincipalKey'>
 export type HistorySequence = RequestContextRef<'HistorySequence'>
 export type ContextTarget = Readonly<{ tenant: TenantId; scope: ScopeRef }>
@@ -29,8 +27,6 @@ export type RefKind =
   | 'SourceGeneration'
   | 'GroupToken'
   | 'CommitOrder'
-  | 'AccountingGeneration'
-  | 'RecoveryGrantRef'
   | 'PrincipalKey'
   | 'HistorySequence'
 export type RefRejection = Readonly<{
@@ -65,8 +61,6 @@ export const decodeRegistrationRef = (v: unknown) => decode(v, 'RegistrationRef'
 export const decodeSourceGeneration = (v: unknown) => decode(v, 'SourceGeneration')
 export const decodeGroupToken = (v: unknown) => decode(v, 'GroupToken')
 export const decodeCommitOrder = (v: unknown) => decode(v, 'CommitOrder')
-export const decodeAccountingGeneration = (v: unknown) => decode(v, 'AccountingGeneration')
-export const decodeRecoveryGrantRef = (v: unknown) => decode(v, 'RecoveryGrantRef')
 export const decodePrincipalKey = (v: unknown) => decode(v, 'PrincipalKey')
 export const decodeHistorySequence = (v: unknown) => decode(v, 'HistorySequence')
 export function compareHistorySequence(left: HistorySequence, right: HistorySequence): number {

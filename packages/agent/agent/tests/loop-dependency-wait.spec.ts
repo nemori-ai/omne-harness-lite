@@ -15,24 +15,25 @@ async function idleTurns(count: number): Promise<void> {
   for (let turn = 0; turn < count; turn += 1) await new Promise(resolve => setImmediate(resolve))
 }
 
-async function parkedOnContext() {
+async function parkedOnPreparation() {
   const events: AgentMeasureEvent[] = []
   const dependency = { available: false, reads: 0 }
   const assembly = await loopAssembly(
     [execution()],
     d => ({
       ...d,
-      modelContext: {
-        read: input => {
+      requests: {
+        ...d.requests,
+        prepare: input => {
           dependency.reads += 1
           if (dependency.reads > READ_BUDGET) return new Promise(() => {})
           return dependency.available
-            ? d.modelContext.read(input)
+            ? d.requests.prepare(input)
             : Promise.resolve(
                 fail({
                   kind: 'unavailable' as const,
-                  owner: 'runtimeContext',
-                  diagnostic: 'no reader eligibility yet',
+                  owner: 'requestPreparation',
+                  diagnostic: 'no request preparation yet',
                 }),
               )
         },
@@ -57,14 +58,14 @@ async function parkedOnContext() {
 
 describe('a driver waiting on an unavailable I1 dependency', () => {
   it('makes one pass per check time and none in between', async () => {
-    const { assembly, handle, dependency, passes, settled } = await parkedOnContext()
+    const { assembly, handle, dependency, passes, settled } = await parkedOnPreparation()
     const first = dependency.reads
     const saved = ok(
       await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
     )
     expect(saved.state).toEqual({
       kind: 'waiting',
-      waits: [{ kind: 'dependency', owner: 'runtimeContext', position: 'I1' }],
+      waits: [{ kind: 'dependency', owner: 'requestPreparation', position: 'I1' }],
     })
     expect(assembly.controls.clock.pending()).toEqual([at(1)])
 

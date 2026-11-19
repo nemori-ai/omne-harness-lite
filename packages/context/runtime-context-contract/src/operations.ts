@@ -24,7 +24,12 @@ export type RegisterProducerResult<K extends ContextBlockKey = ContextBlockKey> 
   | Readonly<{ kind: 'registered'; handle: ProducerHandle<K> }>
   | Readonly<{
       kind: 'rejected'
-      reason: 'declaration-missing' | 'declaration-mismatch' | 'other-producer' | 'closed'
+      reason:
+        | 'declaration-missing'
+        | 'declaration-mismatch'
+        | 'other-producer'
+        | 'closed'
+        | 'per-read-for-model'
     }>
   | Readonly<{ kind: 'refused'; reason: 'unauthorized' }>
   | CheckUnavailable

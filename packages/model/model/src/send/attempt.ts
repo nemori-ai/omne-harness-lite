@@ -2,6 +2,8 @@ import { randomBytes } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import {
   decodeModelOperationId,
+  type DispatchRecord,
+  type FixedModelRequest,
   type MaterializationReceipt,
   type ModelFailure,
   type ModelFault,
@@ -18,6 +20,15 @@ import {
 import type { Outcome } from '@omne-harness/operation-result'
 import { SendLifetime, ownedFacts } from './lifetime.ts'
 import type { CredentialSelection, ModelSendBoundaryOptions, SendStart } from './types.ts'
+
+// A dispatch without reasoning state leaves out every reply that carries a replay mark: the
+// resend after a refusal of it, and every dispatch of the call after the resend.
+function resentOf(request: FixedModelRequest, dispatch: DispatchRecord) {
+  if (dispatch.withoutReplay === undefined) return []
+  return request.messages.flatMap(message =>
+    message.role === 'assistant' && message.replay !== undefined ? [message.id] : [],
+  )
+}
 type Commands = ModelCommands<unknown>
 type Write<A, T> = {
   input: A
@@ -209,14 +220,14 @@ export function createAttemptRunner<P>(
   }
   async function acquireResources(
     attempt: SendAttempt<P>,
+    dispatch: DispatchRecord,
   ): Promise<{ ok: MaterializedTransport } | RefusalReason> {
     const input = attempt.input
     const acquired = await resources.acquire(input)
     if ('failure' in acquired) return acquired
     attempt.lifetime.resource = acquired.ok
-    const prepared = await acquired.ok.transport.prepare(input.request, input.supplier, {
-      resent: [],
-    })
+    const resent = resentOf(input.request, dispatch)
+    const prepared = await acquired.ok.transport.prepare(input.request, input.supplier, { resent })
     if ('failure' in prepared) return transportRefusal(prepared.failure)
     attempt.lifetime.prepared = prepared.ok
     const materialized = await prepared.ok.materialize(attempt.signal)
@@ -254,7 +265,7 @@ export function createAttemptRunner<P>(
         kind: 'complete',
         result: stop(id, attempt, unavailable('model-send', 'cancelled-before-prepare')),
       }
-    const materialized = await acquireResources(attempt)
+    const materialized = await acquireResources(attempt, dispatch)
     if ('failure' in materialized) {
       if (materialized.fault !== undefined) {
         attempt.stage = { kind: 'refusal', result: { kind: 'refused', ...materialized } }

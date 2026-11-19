@@ -8,6 +8,7 @@ import type {
   DurableEvidence,
   ResultPart,
   Reply,
+  Settlement,
   Termination,
   VisibleBlock,
 } from '../index.ts'
@@ -57,6 +58,8 @@ export interface ScriptController<P> {
         source: DurableEvidence
         pageSize: number
         pageTargetBytes: number
+        /** The replay range the settlement carries, as Model writes it for a completed result. */
+        replay?: Settlement['replay']
       }>,
   ): void
   play(input: ScriptedCall & Readonly<{ facts: readonly TransportFact[] }>): void
@@ -107,6 +110,18 @@ function acceptedCall<P>(core: Core<P>, { tenant, call }: ScriptedCall): CallRec
   return record
 }
 
+// The settlement a script settles with, written as Model writes it: the replay range only when given.
+function settlementOf(input: Parameters<ScriptController<unknown>['settle']>[0], revision: number) {
+  const { version, termination, source, replay } = input
+  return structuredClone({
+    version,
+    termination,
+    cursor: mintCursor(revision),
+    source,
+    ...(replay === undefined ? {} : { replay }),
+  })
+}
+
 export function createController<P>(core: Core<P>): ScriptController<P> {
   const callOf = (input: ScriptedCall) => acceptedCall(core, input)
 
@@ -136,19 +151,14 @@ export function createController<P>(core: Core<P>): ScriptController<P> {
 
     settle(input) {
       const record = runningCallOf(input)
-      const { pageSize, pageTargetBytes, parts: given, version, termination, source } = input
+      const { pageSize, pageTargetBytes, parts: given } = input
       if (!Number.isSafeInteger(pageSize) || pageSize < 1)
         throw new ScriptedModelError('invalid-script', 'pageSize must be a positive integer')
       if (!Number.isSafeInteger(pageTargetBytes) || pageTargetBytes < 1)
         throw new ScriptedModelError('invalid-script', 'pageTargetBytes must be a positive integer')
       const parts = structuredClone(given)
       validateParts(parts)
-      const settlement = structuredClone({
-        version,
-        termination,
-        cursor: mintCursor(record.revision + 1),
-        source,
-      })
+      const settlement = settlementOf(input, record.revision + 1)
       record.revision += 1
       record.lifecycle = {
         phase: 'settled',

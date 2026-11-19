@@ -24,7 +24,6 @@ import {
 } from './receiving-material.ts'
 import type { ModelReceiverDependencies, ModelReceptionTarget } from './receiving-types.ts'
 
-import { createReceptionOutlet } from './receiving-outlet.ts'
 import { createReceptionMaintenance } from './receiving-maintenance.ts'
 import {
   bindingKey,
@@ -104,7 +103,6 @@ export function createAgentModelReceiver<P>(
       reason,
       reception ? bindingKey(reception.access, reception.target) : null,
     )
-  const outlet = createReceptionOutlet(dependencies, state)
   async function finish(
     reception: Reception<P>,
     query: boolean,
@@ -180,7 +178,6 @@ export function createAgentModelReceiver<P>(
     }
     reception.commit = { kind: 'saved', value }
     state.diagnostics.delete(reception.operation)
-    outlet.enqueue(reception, value)
     return succeed(structuredClone({ key: reception.delivery.key, evidence: value.saved }))
   }
   async function recognise(
@@ -364,8 +361,6 @@ export function createAgentModelReceiver<P>(
           maintenance || current.commit.kind === 'unknown',
           maintenance ? input.signal : undefined,
         )
-        if ('ok' in outcome)
-          outlet.drain(input.access, new Set([bindingKey(input.access, target)]), input.signal)
         return outcome
       } catch (error) {
         current.commit = { kind: 'unknown' }
@@ -409,11 +404,6 @@ export function createAgentModelReceiver<P>(
     retry: input => maintenance.retry(input),
     recover: input => maintenance.recover(input),
   }
-  const maintenance = createReceptionMaintenance(
-    dependencies,
-    state,
-    input => push(input, true),
-    outlet,
-  )
+  const maintenance = createReceptionMaintenance(dependencies, state, input => push(input, true))
   return succeed(receiver)
 }

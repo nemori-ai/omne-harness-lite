@@ -372,7 +372,7 @@ async function supplyAnswerMapping<P>(fixture: RuntimeContextFixture<P>) {
     key: 'suite.value',
     tenant: fixture.tenant,
     producer: { producer: 'answers' },
-    declaration: declaration({ volatility: 'per-request' }),
+    declaration: declaration({ volatility: 'per-read', consumers: ['tool'] }),
     scoped: true,
     supply: () => next(),
   })
@@ -397,7 +397,7 @@ async function supplyAnswerMapping<P>(fixture: RuntimeContextFixture<P>) {
     scope: target,
     tenant: fixture.tenant,
     principal: fixture.principal,
-    consumer: 'model',
+    consumer: 'tool',
     keys: ['suite.value'],
     bindings: [],
     registrationRevision: 1,
@@ -430,6 +430,6 @@ async function supplyAnswerMapping<P>(fixture: RuntimeContextFixture<P>) {
     next = answer
     const r = await reader.snapshot()
     assert.ok(r.kind === 'success', `snapshot: ${r.kind}`)
-    assert.deepEqual(r.value.perRequest[0], { key: 'suite.value', ...expected })
+    assert.deepEqual(r.value.perRead[0], { key: 'suite.value', ...expected })
   }
 }

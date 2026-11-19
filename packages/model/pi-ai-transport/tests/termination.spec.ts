@@ -48,11 +48,24 @@ describe('the termination of a send', () => {
   ] satisfies readonly (readonly [number, PlainCause])[])(
     'HTTP %i fails as %s with the status and nothing else of the response',
     (status, cause) => {
-      expect(terminationOf({ kind: 'http-error', status })).toEqual(
+      expect(terminationOf({ kind: 'http-error', status, fault: null })).toEqual(
         failed(cause, `http-${status}`, String(status)),
       )
     },
   )
+
+  it('an HTTP error the engine recognized fails with the fault the engine gave', () => {
+    const fault = {
+      cause: 'replay-rejected',
+      replayCarried: true,
+      diagnostic: 'replay-signature',
+      upstreamStatus: '400',
+    } as const
+    expect(terminationOf({ kind: 'http-error', status: 400, fault })).toEqual({
+      kind: 'failed',
+      fault,
+    })
+  })
 
   it.each([
     [false, 'connect-failed'],

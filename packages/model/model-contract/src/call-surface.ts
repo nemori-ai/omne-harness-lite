@@ -92,6 +92,8 @@ export type DispatchRecord = Readonly<{
   account: CallAccount | null
   materialization: Readonly<{ receipt: MaterializationReceipt; source: DurableEvidence }> | null
   messages?: readonly MessageId[]
+  /** It carries no reasoning state: it is the resend after a refusal of it, or a later dispatch. */
+  withoutReplay?: 'resend' | 'later'
 }>
 export interface ModelCalls<P> {
   admit(input: Admit<P>): Reply<Admission>

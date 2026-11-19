@@ -68,10 +68,13 @@ describe('the cross-row equalities of the model rows', () => {
     )
   })
 
-  it('3. the OpenAI family of the send stage differs from the preparation row: refused', () => {
+  it('3. a family of the send stage differs from the preparation row: refused, family by family', () => {
     const records = structuredClone(base.records)
     records.sendStage.preparation.openai.margin.percent = '11'
     violating(rows({ 'model-records': records }), 'sendStage.preparation')
+    const claude = structuredClone(base.records)
+    claude.sendStage.preparation.anthropic.limits.maxReasoningText += 1
+    violating(rows({ 'model-records': claude }), 'sendStage.preparation')
     const cited = structuredClone(base.records)
     cited.sendStage.preparation.maxCitedCalls += 1
     violating(rows({ 'model-records': cited }), 'sendStage.preparation')
@@ -129,6 +132,36 @@ describe('the cross-row equalities of the model rows', () => {
     })
     expect(run.result.exitCode).toBe(2)
     expect(run.stderr.join('\n')).toContain('model-records.limits.readIdleMs')
+    expect(run.of('row-state')).toEqual([])
+  })
+
+  it('serve refuses a tree whose Anthropic family differs between the send stage and the preparation row: exit 2', async () => {
+    const records = structuredClone(base.records)
+    records.sendStage.preparation.anthropic.margin.percent = '11'
+    const run = await serveOnce({
+      distribution: {
+        rows: [
+          { id: 'model-profiles', plugin: 'modelProfilesRow', config: base.profiles },
+          { id: 'model-host', plugin: 'modelHostRow', config: base.host },
+          { id: 'model-records', plugin: 'modelRecordsRow', config: records },
+          {
+            id: 'model-request-preparation',
+            plugin: 'modelRequestPreparationRow',
+            config: base.records.sendStage.preparation,
+          },
+        ],
+      },
+      plugins: {
+        stubPlugin,
+        modelProfilesRow,
+        modelHostRow,
+        modelRecordsRow,
+        modelRequestPreparationRow,
+        sessionStorageRow,
+      },
+    })
+    expect(run.result.exitCode).toBe(2)
+    expect(run.stderr.join('\n')).toContain('sendStage.preparation')
     expect(run.of('row-state')).toEqual([])
   })
 })

@@ -6,14 +6,17 @@ import {
 } from '@omne-harness/model-contract/provider-asset'
 import type { ProviderName } from '@omne-harness/model-contract'
 import type { CredentialProviderSource } from '@omne-harness/model-host-local'
-import type { PiRoute } from '@omne-harness/pi-ai-transport'
+import {
+  isEngineEndpoint,
+  type EngineEndpoint,
+  type PiRoute,
+  type PiRouteEndpoint,
+} from '@omne-harness/pi-ai-transport'
 import { OPENROUTER_PROVIDER_BODY_TEXT } from '@omne-harness/pi-ai-transport/chat-completions'
 import type { SecretBindingKey, SecretScope, SettingsHolding } from '@omne-harness/settings'
 import { holdingKey, officialHolding, type OfficialHolding } from './official-holdings.ts'
 
 const RELEASE_PROVIDER_TEXTS: readonly string[] = [OPENROUTER_PROVIDER_BODY_TEXT]
-
-const SENDABLE_PROTOCOL = 'chat-completions'
 
 const BODY_LIMITS = {
   maxBytes: 16_384,
@@ -84,18 +87,25 @@ export function credentialProviders(): ReadonlyMap<ProviderName, CredentialProvi
   )
 }
 
+// An operator address replaces the address of every endpoint of the provider.
 function routeOf(provider: ReleaseProvider, url: string | undefined): PiRoute {
   const { body } = provider
-  if (body.protocol !== SENDABLE_PROTOCOL)
-    throw new Error(
-      `the provider ${body.name} speaks ${body.protocol}, which this release cannot send`,
-    )
+  const endpoints: Partial<Record<EngineEndpoint, PiRouteEndpoint>> = {}
+  for (const endpoint of body.endpoints) {
+    if (!isEngineEndpoint(endpoint.protocol))
+      throw new Error(
+        `the provider ${body.name} speaks ${endpoint.protocol}, which this release cannot send`,
+      )
+    endpoints[endpoint.protocol] = {
+      url: url ?? endpoint.url,
+      endMarker: endpoint.endMarker ?? null,
+    }
+  }
   if (body.credentials.length > 1)
     throw new Error(`the provider ${body.name} declares several credential items and no bearer`)
   const [credential] = body.credentials
   return {
-    url: url ?? body.endpoint.url,
-    endMarker: body.endpoint.endMarker ?? null,
+    endpoints,
     accounting: body.accounting,
     auth: credential === undefined ? null : { kind: 'bearer', item: credential.item },
   }

@@ -167,11 +167,16 @@ function basicBody(record: string): unknown {
   }
 }
 
+// The cases run on the records that stay on chat-completions; the records on the Responses
+// interface have streams captured from the gateway instead (tests/live/capture-records.ts).
+const ASTRA_PRO = 'openai/gpt-6-astra-pro'
+const SOL = 'openai/gpt-5.6-sol'
+
 function basicCase(
   input: Omit<FixtureCase, 'request' | 'body' | 'slot' | 'record'> &
     Partial<Pick<FixtureCase, 'slot' | 'record'>>,
 ): FixtureCase {
-  const record = input.record ?? 'openai/gpt-6-astra'
+  const record = input.record ?? ASTRA_PRO
   return { slot: 'case', ...input, record, request: BASIC, body: basicBody(record) }
 }
 
@@ -283,10 +288,11 @@ function trailingUsage(
   reason: string,
   ending: Readonly<{ kind: 'completed' | 'failed'; fact: object }>,
   id: string,
+  slot: Slot = 'record',
 ): FixtureCase {
   return basicCase({
     id,
-    slot: 'record',
+    slot,
     record,
     source: `${REFUSAL}:232-252 "RF-V4 ${reason} uses actual finish and reads normal trailing usage before DONE"`,
     stream:
@@ -309,7 +315,7 @@ function trailingUsage(
 function brokenTail(
   input: Readonly<{ id: string; label: string; tail: string; facts: readonly object[] }>,
 ): FixtureCase {
-  const record = 'openai/gpt-6-astra'
+  const record = ASTRA_PRO
   return basicCase({
     id: input.id,
     source: `${REFUSAL}:253-286 "RF-V5 ${input.label} keeps delivered text without a successful reply or invented later usage"`,
@@ -328,21 +334,14 @@ const INVALID_REFUSALS: readonly Readonly<{ id: string; value: unknown }>[] = [
   { id: 'object', value: { text: 'private-invalid' } },
 ]
 
-const ASTRA = 'openai/gpt-6-astra'
-
 export const LEGACY_CASES: readonly FixtureCase[] = [
-  encryptedReplay('openai/gpt-5.6-sol'),
-  encryptedReplay('openai/gpt-5.6-terra'),
-  encryptedReplay('openai/gpt-5.6-luna'),
-  encryptedReplay('openai/gpt-6.1-sol'),
-  encryptedReplay('openai/gpt-6.1-terra'),
+  encryptedReplay(SOL),
   basicCase({
     id: 'rf-v1-v2-same-frame-order',
-    slot: 'record',
-    record: ASTRA,
+    record: ASTRA_PRO,
     source: `${REFUSAL}:161-193 "RF-V1/V2 actual whitespace/unicode, frame order and deterministic same-frame order share one text block"`,
     stream:
-      refusal(ASTRA, '拒答🙂') +
+      refusal(ASTRA_PRO, '拒答🙂') +
       sse(choice({ refusal: ' R ', content: 'C' })) +
       sse(choice({ content: 'later', refusal: '\n', reasoning: 'thinking' })) +
       finish(),
@@ -357,16 +356,16 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
       delta(1, 'thinking'),
       seal(0, 'text', '拒答🙂C R later\n'),
       seal(1, 'thinking', 'thinking'),
-      account(ASTRA, NO_COUNTS),
+      account(ASTRA_PRO, NO_COUNTS),
       completed('stop'),
     ],
   }),
   basicCase({
     id: 'rf-v2-tool-order',
     slot: 'record',
-    record: 'openai/gpt-6-astra-pro',
+    record: ASTRA_PRO,
     source: `${REFUSAL}:194-231 "RF-V2 shared text channel keeps existing thinking and tool opening order" (call id added)`,
-    stream: toolOrderStream('openai/gpt-6-astra-pro', true),
+    stream: toolOrderStream(ASTRA_PRO, true),
     facts: [
       ...TOOL_ORDER_FACTS,
       seal(0, 'thinking', 'think'),
@@ -375,23 +374,18 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
         kind: 'object',
         entries: [{ key: 'x', value: { kind: 'number', lexeme: '1' } }],
       }),
-      account('openai/gpt-6-astra-pro', NO_COUNTS),
+      account(ASTRA_PRO, NO_COUNTS),
       completed('tool-suggestions'),
     ],
   }),
   basicCase({
     id: 'rf-v2-tool-without-id',
-    record: 'openai/gpt-6-astra-pro',
+    record: ASTRA_PRO,
     source: `${REFUSAL}:194-231 "RF-V2 shared text channel keeps existing thinking and tool opening order" (sealed input, no call id)`,
-    stream: toolOrderStream('openai/gpt-6-astra-pro', false),
+    stream: toolOrderStream(ASTRA_PRO, false),
     facts: [...TOOL_ORDER_FACTS, failed('upstream-protocol', 'tool-call-without-id')],
   }),
-  trailingUsage(
-    'openai/gpt-6-sol',
-    'stop',
-    { kind: 'completed', fact: completed('stop') },
-    'rf-v4-stop',
-  ),
+  trailingUsage(SOL, 'stop', { kind: 'completed', fact: completed('stop') }, 'rf-v4-stop', 'case'),
   trailingUsage(
     'openai/gpt-6-sol-pro',
     'tool_calls',
@@ -399,10 +393,11 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     'rf-v4-tool-calls',
   ),
   trailingUsage(
-    'openai/gpt-6-luna',
+    SOL,
     'length',
     { kind: 'completed', fact: completed('limit') },
     'rf-v4-length',
+    'case',
   ),
   basicCase({
     id: 'rf-v5-content-filter',
@@ -482,8 +477,8 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     basicCase({
       id: `rf-v1-${label}-refusal`,
       source: `${REFUSAL}:124-135 "RF-V1 ${label} neither opens a block nor passes the first-content gate"`,
-      stream: sse({ ...serving(ASTRA), ...choice(value) }) + finish(),
-      facts: [account(ASTRA, NO_COUNTS), failed('upstream-protocol', 'finish-without-content')],
+      stream: sse({ ...serving(ASTRA_PRO), ...choice(value) }) + finish(),
+      facts: [account(ASTRA_PRO, NO_COUNTS), failed('upstream-protocol', 'finish-without-content')],
     }),
   ),
   ...INVALID_REFUSALS.map(({ id, value }) =>
@@ -492,7 +487,7 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
       source: `${REFUSAL}:136-160 "RF-V1 invalid ${JSON.stringify(value)} rejects before same-frame content and preserves facts"`,
       stream:
         raw(
-          `{"model":"${ASTRA}","provider":"OpenAI","choices":[{"delta":{"content":"must-not-leak","refusal":${JSON.stringify(value)}}}],"usage":${USAGE_TEXT}}`,
+          `{"model":"${ASTRA_PRO}","provider":"OpenAI","choices":[{"delta":{"content":"must-not-leak","refusal":${JSON.stringify(value)}}}],"usage":${USAGE_TEXT}}`,
         ) +
         sse({ choices: [], usage: { prompt_tokens: 999 } }) +
         finish(),
@@ -503,7 +498,7 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     id: 'rf-v5-error-finish',
     label: 'error finish',
     tail: sse(choice({}, 'error')),
-    facts: [account(ASTRA, NO_COUNTS), failed('input-rejected', 'finish-reason-error')],
+    facts: [account(ASTRA_PRO, NO_COUNTS), failed('input-rejected', 'finish-reason-error')],
   }),
   brokenTail({
     id: 'rf-v5-eof',
@@ -529,7 +524,7 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     tail: sse(choice({}, 'stop')) + sse(choice({}, 'length')),
     facts: [
       seal(0, 'text', 'delivered refusal'),
-      account(ASTRA, NO_COUNTS),
+      account(ASTRA_PRO, NO_COUNTS),
       failed('upstream-protocol', 'finish-changed'),
     ],
   }),
@@ -539,7 +534,7 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     tail: sse(choice({}, 'stop')) + sse(choice({ refusal: 'late' })),
     facts: [
       seal(0, 'text', 'delivered refusal'),
-      account(ASTRA, NO_COUNTS),
+      account(ASTRA_PRO, NO_COUNTS),
       failed('upstream-protocol', 'content-after-finish'),
     ],
   }),
@@ -561,12 +556,12 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
   basicCase({
     id: 'rf-v8-reply-text-503',
     source: `${REFUSAL}:321-325 "RF-V8 legal reply text is unchanged by credential policy and diagnostics do not copy it"`,
-    stream: refusal(ASTRA, '503') + finish(),
+    stream: refusal(ASTRA_PRO, '503') + finish(),
     facts: [
       open(0, 'text'),
       delta(0, '503'),
       seal(0, 'text', '503'),
-      account(ASTRA, NO_COUNTS),
+      account(ASTRA_PRO, NO_COUNTS),
       completed('stop'),
     ],
   }),

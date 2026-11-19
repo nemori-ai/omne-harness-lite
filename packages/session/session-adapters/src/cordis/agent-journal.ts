@@ -78,7 +78,7 @@ import {
 import {
   participationAccessFailure,
   participationFailure,
-  type ParticipationMethod,
+  participationMethodOf,
 } from '../participation-mapping.ts'
 import { HistoryFailure, normalizedResult } from '../testing/history.ts'
 import {
@@ -143,6 +143,7 @@ import {
   type Reader,
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
+import { createModelTelling, type ModelReminders } from './model-telling.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -153,6 +154,7 @@ export type SessionLogJournalOptions<P> = Readonly<{
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
   fault?: Fault
   report?: (report: JournalPublicationReport) => void
+  reminders?: ModelReminders<P> | undefined
 }>
 
 export type JournalPublicationReport = Readonly<{
@@ -635,6 +637,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return false
   }
   const generations: GenerationMemory = new Map()
+  const telling = createModelTelling<P, Book<P>>({ ...options, generations, read: snapshotOf })
 
   function bookOf(tenant: TenantId, session: SessionId): Book<P> | null {
     const text = tenantCodec.encode(tenant)
@@ -1162,17 +1165,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
   }
 
-  function participationOf(method: string): ParticipationMethod | null {
-    return method === 'open' ||
-      method === 'attach' ||
-      method === 'submit' ||
-      method === 'tryFinish' ||
-      method === 'commit' ||
-      method === 'recordResult'
-      ? method
-      : null
-  }
-
   function hold(
     book: Book<P>,
     after: CommonRoot,
@@ -1318,6 +1310,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         kind: 'answer',
         value: fail(unavailable(`a ${written.method} changed the Agent records without a batch`)),
       }
+    const told = await telling.beforeStep(book, domain, input, scratch, appended)
+    if (told !== null) return told
     const heads = headsOf(mintOf(book), after.agent.view, appended)
     const execution = appended[0]!.execution
     const operation = storageOperation(
@@ -1401,6 +1395,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           : null,
       journal: { published: book.published === null ? null : String(book.published) },
     })
+    await telling.afterCompaction(book, domain, input, scratch, outcome)
     return settled
   }
 
@@ -1512,7 +1507,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     stop: Parameters<typeof decodeSessionReply>[0],
   ): Settled<T> {
     const reply = decodeSessionReply(stop)
-    const method = participationOf(job.written.method)
+    const method = participationMethodOf(job.written.method)
     switch (reply.kind) {
       case 'stopped': {
         if (method === null || job.agentOperation === null)

@@ -6,7 +6,6 @@ it('the root entry exports the factories and the initial values of the default s
     'DEFAULT_COMPACTION_POLICY',
     'DEFAULT_REPRESENTATION_CONFIG',
     'createAbsentConversionResults',
-    'createContextAccounting',
     'createContextSourceRegistry',
     'createDefaultCompactionPolicy',
     'createDefaultRepresentationPolicy',

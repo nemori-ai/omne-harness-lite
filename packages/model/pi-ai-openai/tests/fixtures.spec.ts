@@ -1,14 +1,16 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
-import { composeFamilies, defineFamily } from '@omne-harness/pi-ai-transport'
+import { composeFamilies, defineFamily, RECORD_FACTS } from '@omne-harness/pi-ai-transport'
+import { checkRecordFixtures, fixtureDirectory } from '@omne-harness/pi-ai-transport/testing'
 import {
-  checkChatCompletionsFixtures,
-  fixtureDirectory,
-} from '@omne-harness/pi-ai-transport/testing'
-import { OPENAI_OWNER } from '@omne-harness/pi-ai-openai'
+  OPENAI_OWNER,
+  OPENAI_RECORDS,
+  type OpenAiRecord,
+  type OpenAiResponsesRecord,
+} from '@omne-harness/pi-ai-openai'
 import {
   CAPTURED_DIRECTORY,
   CASES_DIRECTORY,
@@ -19,6 +21,7 @@ import {
 import { FAMILY, recordNamed } from './support/openai.ts'
 
 const root = fileURLToPath(FIXTURES_ROOT)
+const REPOSITORY = fileURLToPath(new URL('../../../../', import.meta.url))
 const SHOWN = { toHuman: true, toModel: true }
 const rendered = renderedCases()
 
@@ -45,16 +48,16 @@ describe('the fixture files are the case table', () => {
   })
 })
 
-describe('checkChatCompletionsFixtures', () => {
+describe('checkRecordFixtures', () => {
   it('the record fixtures of every record match the engine', async () => {
-    const report = await checkChatCompletionsFixtures(FAMILY, join(root, RECORDS_DIRECTORY))
+    const report = await checkRecordFixtures(FAMILY, join(root, RECORDS_DIRECTORY))
     expect(report.problems).toEqual([])
   })
 
   it.each(
     rendered.filter(item => item.case.slot === 'case').map(item => [item.case.id, item] as const),
   )('case %s matches the engine', async (_id, item) => {
-    const report = await checkChatCompletionsFixtures(
+    const report = await checkRecordFixtures(
       oneRecordFamily(item.case.record),
       join(root, item.root),
     )
@@ -65,6 +68,24 @@ describe('checkChatCompletionsFixtures', () => {
     const ids = rendered.filter(item => item.case.slot === 'case').map(item => item.case.id)
     expect(readdirSync(join(root, CASES_DIRECTORY)).toSorted()).toEqual(ids.toSorted())
   })
+})
+
+describe('the sources of the adaptation facts', () => {
+  const records: readonly OpenAiRecord[] = OPENAI_RECORDS
+  const cited = records.filter((record): record is OpenAiResponsesRecord => 'engine' in record)
+
+  it.each(cited.map(record => [record.name, record] as const))(
+    '%s cites an existing file for every fact',
+    (_name, record) => {
+      for (const fact of RECORD_FACTS) {
+        const source = record.provenance[fact]
+        expect(source.measuredAt, fact).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+        expect(existsSync(join(REPOSITORY, source.evidence)), `${fact}: ${source.evidence}`).toBe(
+          true,
+        )
+      }
+    },
+  )
 })
 
 function dataFrames(stream: string): readonly unknown[] {
@@ -97,7 +118,7 @@ describe('a stream captured from the real gateway: openai/gpt-5.6-sol at medium 
   const sealed = facts.flatMap(fact => (fact.kind === 'block-seal' ? [fact.block] : []))
 
   it('the request encodes to the body that was sent, and the stream decodes to facts.json', async () => {
-    const report = await checkChatCompletionsFixtures(oneRecordFamily(record.name), captured)
+    const report = await checkRecordFixtures(oneRecordFamily(record.name), captured)
     expect(report.problems).toEqual([])
   })
 

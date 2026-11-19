@@ -1,12 +1,7 @@
 import type { LimitMetric, ModelModality, TokenizerDefinition } from '@omne-harness/model-contract'
-import type { ChatCompletionsRecord } from '@omne-harness/pi-ai-transport/chat-completions'
+import type { RecordProvenance } from '@omne-harness/pi-ai-transport'
+import type { MessagesRecord } from '@omne-harness/pi-ai-transport/messages'
 import type { ImageRuleName } from './images.ts'
-import type {
-  CheckRuleName,
-  ReasoningRuleName,
-  ToolSchemaRuleName,
-  UsageRuleName,
-} from './rules.ts'
 
 export type UpstreamData =
   | Readonly<{ kind: 'finite'; amount: string }>
@@ -28,13 +23,6 @@ export type ProfileData = Readonly<{
   evidence: string
 }>
 
-export type RuleNames = Readonly<{
-  reasoning: ReasoningRuleName
-  usage: UsageRuleName
-  toolSchema: ToolSchemaRuleName
-  check: CheckRuleName
-}>
-
 export type MeterData = Readonly<{
   representation: 'anthropic-visible-json/1'
   text: 'claude-legacy-bpe-estimate/1'
@@ -42,9 +30,9 @@ export type MeterData = Readonly<{
   tokenizer: TokenizerDefinition
 }>
 
-export type AnthropicRecord = ChatCompletionsRecord &
+export type AnthropicRecord = MessagesRecord &
   Readonly<{
     profile: ProfileData
-    rules: RuleNames
     meter: MeterData
+    provenance: RecordProvenance
   }>

@@ -148,7 +148,7 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
     catalog: { get: (key: ContextBlockKey) => world.descriptors.get(key) },
     state: (scope: ScopeRef) => world.scopes.get(scope.ref),
     changed(s: ScopeState, key: ContextBlockKey | null) {
-      if (key !== null && world.descriptors.get(key)?.volatility === 'per-request') return
+      if (key !== null && world.descriptors.get(key)?.volatility === 'per-read') return
       s.view++
       for (const listener of world.listeners) {
         try {

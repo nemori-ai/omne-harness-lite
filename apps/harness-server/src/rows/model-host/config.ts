@@ -27,6 +27,7 @@ export const modelHostConfig = z.strictObject({
       delaysMs: z.array(count(0)).min(1),
       jitter: z.number().min(0).max(1),
     }),
+    replayResend: z.strictObject({ max: count(0) }),
   }),
   results: z.strictObject({
     maxConcurrentCalls: count(1),

@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest'
 
 const durable: DurableEvidence = {
   owner: 'holder-suite',
-  record: 'history-head',
+  record: 'history-tip',
   revision: '1',
   digest: 'digest-1',
 }

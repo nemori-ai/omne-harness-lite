@@ -179,6 +179,7 @@ if (SUPPLIER === undefined) throw new Error('durable assembly: request without a
 const RETRY_SETTINGS = {
   adoption: ADOPTION,
   policy: { maxAttempts: 2, maxElapsedMs: 1000, delaysMs: [0], jitter: 0 },
+  replayResend: { max: 1 },
 }
 const HOST_SETTINGS = {
   concurrencyLimit: 8,
@@ -1062,8 +1063,12 @@ export async function durableSubject(
         network: { maxConnections: 2, idleConnectionTimeoutMs: 1_000 },
         routes: {
           'test.invalid': {
-            url: 'https://test.invalid/v1/chat/completions',
-            endMarker: '[DONE]',
+            endpoints: {
+              'chat-completions': {
+                url: 'https://test.invalid/v1/chat/completions',
+                endMarker: '[DONE]',
+              },
+            },
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },
