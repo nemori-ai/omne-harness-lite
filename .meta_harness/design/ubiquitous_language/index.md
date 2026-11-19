@@ -147,6 +147,8 @@
 | [UL-asset-version](terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | 资产版本 | Asset Version | 一个资产某一次发布定下的那份内容，已发布即不可变；已有会话的常驻工具只在采用点跟随同形的新版 |
 | [UL-package-manifest](terms/capabilities-and-composition.md#ul-package-manifest--包的清单--package-manifest) | 包的清单 | Package Manifest | 正文是目录的资产版本所带的文件清单：每个文件的路径、大小、摘要；**不是装配清单** |
 | [UL-package-reader](terms/capabilities-and-composition.md#ul-package-reader--包的读口--package-reader) | 包的读口 | Package Reader | 资产按层、能力标识、版本交出的读取入口：给清单，按路径与摘要读文件；**不给宿主机路径** |
+| [UL-asset-summary](terms/capabilities-and-composition.md#ul-asset-summary--资产简介--asset-summary) | 资产简介 | Asset Summary | 一个资产版本给人看的标题、一句说明与几条事实；类别的算法在发布时算出，随版本不变；**只供显示** |
+| [UL-asset-upload](terms/capabilities-and-composition.md#ul-asset-upload--资产上传--asset-upload) | 资产上传 | Asset Upload | 目录型资产在发布之前分段送到服务端、暂时放着的那份文件；按申报收齐才能提交；**提交之前不是资产，谁也看不到** |
 | [UL-skill-package](terms/capabilities-and-composition.md#ul-skill-package--skill-包--skill-package) | Skill 包 | Skill Package | 技能一份完整内容的形式：以 `SKILL.md` 为根的目录树；**不是身份，不是插件，也不是代码成员包** |
 | [UL-package-snapshot](terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot) | Skill 包快照 | Skill Package Snapshot | Skill 包某一时刻全部条目的不可变清单及其内容摘要；**内容摘要是散列值，不是文字摘要**；读已发布版本时由包的清单封出 |
 | [UL-material-basis](terms/capabilities-and-composition.md#ul-material-basis--skill-材料依据--skill-material-basis) | Skill 材料依据 | Skill Material Basis | 调用方手里指明此前读到哪一份 Skill 材料的值：能力标识、来源层、资产版本（工作区来源可缺省）与 Skill 包快照的内容摘要四项，凭能力标识、来源层与内容摘要确定同一份材料；**不含包的位置，不授予访问，不是采用依据** |
@@ -486,9 +488,7 @@
 | [UL-fit-verdict](terms/record-and-context.md#ul-fit-verdict--装入裁定--fit-verdict) | 装入裁定 | Fit Verdict | 装得下 · 固定部分超限 · 需要压缩 · 限额未知，四选一；**限额未知不是失败** |
 | [UL-representation-choice](terms/record-and-context.md#ul-representation-choice--表示决定--representation-choice) | 表示决定 | Representation Choice | 每个内容块用原件、派生表示、transcript 还是延迟加载的选择；不读字节 |
 | [UL-prompt-contribution](terms/record-and-context.md#ul-prompt-contribution--提示词贡献--prompt-contribution) | 提示词贡献 | Prompt Contribution | 登记进系统提示词组装的一条材料，**只有有序段与变量两类**；弃用 ~~动态事实段~~ |
-| [UL-context-snapshot-reminder](terms/record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder) | 上下文快照提醒 | Context Snapshot Reminder | 完整读取后放进请求的全部稳定块完整值，**只进请求不进日志**，锚定位置 |
-| [UL-snapshot-anchor](terms/record-and-context.md#ul-snapshot-anchor--快照锚点--snapshot-anchor) | 快照锚点 | Snapshot Anchor | 快照提醒在模型可见历史里的固定位置：完整读取时的历史尾部，压缩后在压缩记录之后 |
-| [UL-tail-facts-reminder](terms/record-and-context.md#ul-tail-facts-reminder--尾部易变提醒--tail-facts-reminder) | 尾部易变提醒 | Tail Facts Reminder | 请求**最末**那条只含逐请求变化块的提醒，每次重算，不进历史与快照 |
+| [UL-context-snapshot-reminder](terms/record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder) | 上下文快照提醒 | Context Snapshot Reminder | 持有者写进会话日志的全部可读块完整值，写入之后位置不变 |
 | [UL-compaction-plan](terms/record-and-context.md#ul-compaction-plan--压缩计划--compaction-plan) | 压缩计划 | Compaction Plan | 提供者内部的有界计划，不是 Agent 消费协议 |
 | [UL-compaction-plan-progress](terms/record-and-context.md#ul-compaction-plan-progress--压缩计划进度--compaction-plan-progress) | 压缩计划进度 | Compaction Plan Progress | 提供者保管和恢复的内部计划位置 |
 | [UL-compaction-step-request](terms/record-and-context.md#ul-compaction-step-request--压缩步请求--compaction-step-request) | 压缩步请求 | Compaction Step Request | 提供者内部步骤的请求，不交 Agent 驱动 |

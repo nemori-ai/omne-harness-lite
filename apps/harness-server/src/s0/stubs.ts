@@ -52,7 +52,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'asset-categories': { provides: ['assetCategories'] },
   'tenant-assets': {
-    provides: ['tenantAssets', 'assetPublishing'],
+    provides: ['tenantAssets', 'assetPublishing', 'assetManagement', 'assetChanges'],
     injects: [
       'storage',
       'tenantDomainLookup',
@@ -240,7 +240,13 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentToolReceptionTargets',
       'sessionAdoptedRequests',
     ],
-    injects: ['sessionAccessCheck', 'storage', 'tenantDomainLookup'],
+    injects: [
+      'sessionAccessCheck',
+      'storage',
+      'tenantDomainLookup',
+      'runtimeContext',
+      'runtimeContextReaderEligibility',
+    ],
     group: 'agent-journal',
   },
   'agent-adoptions': { provides: ['agentAdoptions', 'definitionMappings'] },
@@ -270,9 +276,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentCompaction',
       'agentCompactionInputs',
       'agentModelSelection',
-      'agentModelContext',
       'agentMessageHandoff',
-      'agentAccountOutlet',
       'modelRuntime',
       'agentClock',
       'agentHostPrincipal',
@@ -371,16 +375,14 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'execution-command': { injects: ['executionEnvironment'] },
   'execution-host': { injects: ['executionEnvironment'] },
   'request-context': {
-    provides: ['requestContext', 'contextAccountingInbox'],
+    provides: ['requestContext'],
     injects: ['requestContextTrust'],
   },
   'agent-context': {
-    provides: ['agentRequests', 'agentModelContext'],
+    provides: ['agentRequests'],
     injects: [
       'requestContext',
       'contextHolderSources',
-      'runtimeContextReaderEligibility',
-      'runtimeContext',
       'modelRequestPreparation',
       'modelPreparationResources',
       'agentAdoptions',
@@ -398,10 +400,6 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'modelPreparationResources',
       'modelRequestPreparation',
     ],
-  },
-  'agent-account-outlet': {
-    provides: ['agentAccountOutlet'],
-    injects: ['requestContext', 'contextAccountingInbox'],
   },
   'runtime-context': { provides: ['runtimeContext'], injects: ['runtimeContextTrust'] },
   'session-observation': {

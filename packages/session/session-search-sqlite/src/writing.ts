@@ -60,7 +60,6 @@ function writeBatch(
   const top = prepare('SELECT max(id) AS top FROM doc WHERE id >= ? AND id < ?')
   const addDoc = prepare('INSERT INTO doc (id, session, position, at) VALUES (?, ?, ?, ?)')
   const addRow = prepare('INSERT INTO grams (rowid, row) VALUES (?, ?)')
-  // The next serial of a day: one past the largest in the file, then counted on within the batch.
   const serialIn = (base: bigint): bigint => {
     const taken = top.get(base, base + SERIALS)?.['top'] as bigint | null | undefined
     return taken === null || taken === undefined ? 0n : taken - base + 1n
@@ -85,7 +84,7 @@ function writeBatch(
     )
 }
 
-/** Rows and cover in one transaction: either both are there afterwards, or neither. */
+/** Rows and cover in one transaction: both, or neither. */
 export function appendTo(
   context: ReadContext,
   request: StoreAppendRequest,
@@ -166,7 +165,6 @@ export function adopt(
     const earlier = pointerOf(directory)?.generation
     writeJson(currentFile(directory), { generation, extraction: context.extraction })
     rmSync(buildingFile(directory), { force: true })
-    // A search bound to the earlier generation keeps its open file; new ones cannot bind to it.
     if (earlier !== undefined && earlier !== generation) {
       const file = fileOf(directory, earlier)
       context.handles.release(file)
@@ -189,6 +187,6 @@ export function compact(context: ReadContext, tenant: string, pages: number): vo
           .prepared(fileOf(directory, generation), merge, generation === building)
           .run(pages)
       } catch {
-        // Left for a later batch.
+        // Later.
       }
 }

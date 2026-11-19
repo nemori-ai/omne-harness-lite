@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import type { CategoryView } from '@omne-harness/assets'
-import { createAssetsLocal, type AssetsLocal } from '@omne-harness/assets-local'
+import { createAssetsLocal, type AssetsLocal, type UploadPolicy } from '@omne-harness/assets-local'
 import type { DomainRef, SqlMaterialCatalog, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { governanceStorageCombinations } from '../governance/storage-combinations.ts'
 
@@ -11,6 +11,8 @@ export type TenantAssetsStore = Readonly<{
   materials: SqlMaterialCatalog
   packageRoot: string
   categories: Pick<CategoryView, 'lookup'>
+  uploads?: UploadPolicy
+  changed?: (tenant: string) => void
 }>
 
 export function domainRoot(packageRoot: string, domain: DomainRef): string {
@@ -24,12 +26,18 @@ export async function openTenantAssets(
   const combination = governanceStorageCombinations(store.materials).assets
   const registered = await store.storage.registerCombination({ ...domain, ...combination })
   if (registered.kind !== 'registered') throw new Error(`assets combination ${registered.kind}`)
+  const { changed } = store
+  const tenant = domain.scope.kind === 'tenant' ? domain.scope.tenant : undefined
   const assets = createAssetsLocal({
     ...combination,
     domain,
     storage: store.storage,
     categories: store.categories,
     packageRoot: domainRoot(store.packageRoot, domain),
+    ...(store.uploads === undefined ? {} : { uploads: store.uploads }),
+    ...(changed === undefined || tenant === undefined
+      ? {}
+      : { onCommitted: () => changed(tenant) }),
   })
   try {
     await assets.packages.recover()
@@ -80,6 +88,12 @@ export class TenantAssetsHost {
     } catch {
       return undefined
     }
+  }
+
+  /** The local assets opened so far; a tenant still opening is waited for. */
+  async opened(): Promise<AssetsLocal[]> {
+    const all = await Promise.all(this.opening.values())
+    return all.filter(assets => assets !== undefined)
   }
 
   async close(): Promise<void> {

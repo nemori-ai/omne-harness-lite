@@ -11,7 +11,7 @@ import {
   assetsSqlMaterials,
   createAssetsLocal,
   createTenantPublisher,
-  publishedRef,
+  publishedAssetRef,
   tenantLayerSource,
   type AssetsLocal,
   type PackageLocation,
@@ -179,7 +179,7 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
     const made = capabilityId('skill', 'sample-skill')
     if (!made.ok) throw new Error('not a capability identity')
     const capability = made.id
-    const assetRef = publishedRef(capability)
+    const assetRef = publishedAssetRef(capability)
 
     const publishing = createTenantPublishing<Readonly<{ tenant: string }>>({
       acting: {

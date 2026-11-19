@@ -3,12 +3,24 @@ import { copyTree } from './read-body.ts'
 
 export type CategoryDisplay = Readonly<{ title: string; summary: string; creation?: string }>
 
-export type CategoryContribution = Readonly<{ contract: BodyContract; display: CategoryDisplay }>
+/** How the general entry creates an asset of a category: not at all, from a body, or from a directory. */
+export type CreationMode = 'none' | 'data' | 'directory'
 
-export type CategoryListing = Readonly<{ category: string; display: CategoryDisplay }>
+export type CategoryContribution = Readonly<{
+  contract: BodyContract
+  display: CategoryDisplay
+  generalCreation?: 'closed'
+}>
+
+export type CategoryListing = Readonly<{
+  category: string
+  display: CategoryDisplay
+  creation: CreationMode
+}>
 
 export type CategoryView = Readonly<{
   lookup(category: string): BodyContract | undefined
+  describe(category: string): CategoryListing | undefined
   list(): readonly CategoryListing[]
 }>
 
@@ -45,13 +57,21 @@ export function createCategoryPoint(): CategoryPoint {
     lookup(category: string): BodyContract | undefined {
       return entries.get(category)?.contract
     },
+    describe(category: string): CategoryListing | undefined {
+      return entries.get(category)?.listing
+    },
     list(): readonly CategoryListing[] {
       return listed
     },
   })
 }
 
-function admit({ contract, display }: CategoryContribution): Entry {
+function creationOf(contract: BodyContract, general: 'closed' | undefined): CreationMode {
+  if (general === 'closed') return 'none'
+  return contract.layout === undefined ? 'data' : 'directory'
+}
+
+function admit({ contract, display, generalCreation }: CategoryContribution): Entry {
   const category = contract.category
   if (category === '') throw new TypeError('category name is empty')
   if (display.title === '' || display.summary === '' || display.creation === '')
@@ -66,6 +86,7 @@ function admit({ contract, display }: CategoryContribution): Entry {
       display: Object.freeze(
         creation === undefined ? { title, summary } : { title, summary, creation },
       ),
+      creation: creationOf(contract, generalCreation),
     }),
   })
 }

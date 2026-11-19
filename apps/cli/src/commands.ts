@@ -34,6 +34,7 @@ import { openLink, type CallResult, type Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
+import { assetCommand } from './asset-command.ts'
 import { settingCommand } from './setting-command.ts'
 import { calendarCommand } from './calendar-command.ts'
 import { scheduleCommand } from './schedule-command.ts'
@@ -565,6 +566,34 @@ const stopCall: ExistingCommand<Targeted & { kind: 'model' | 'tool'; call: strin
   },
 }
 
+const selectModel: ExistingCommand<Targeted & { model: string }> = {
+  kind: 'existing',
+  name: 'select-model',
+  accepted: ['--session', '--model', '--tenant', '--control-id', serverOption],
+  required: ['--session', '--model'],
+  parse: values => {
+    const target = targeted(values)
+    const model = values.get('--model') ?? ''
+    if (target === undefined || model === '') return undefined
+    return { ...target, model }
+  },
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { owner: tenant, newId }) => {
+    const messageId = newId()
+    const controlId = parsed.controlId ?? newId()
+    return {
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'select-model',
+          { tenant, session: parsed.session, controlId, model: parsed.model },
+          messageId,
+        ),
+      echo: { messageId, controlId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
 export const productionCommands: readonly CommandSpec[] = [
   {
     name: 'register',
@@ -645,6 +674,12 @@ export const productionCommands: readonly CommandSpec[] = [
     run: (args, output, environment) => runSession(stopCall, args, output, environment),
   },
   {
+    name: 'select-model',
+    usage: '--session <id> --model <route>',
+    summary: 'Select the model of a session: the next model request uses it.',
+    run: (args, output, environment) => runSession(selectModel, args, output, environment),
+  },
+  {
     name: 'archive-session',
     usage: '--session <id>',
     summary: 'Archive a session: its run ends and its background calls are withdrawn.',
@@ -684,4 +719,5 @@ export const productionCommands: readonly CommandSpec[] = [
   scheduleCommand,
   notificationCommand,
   settingCommand,
+  assetCommand,
 ]

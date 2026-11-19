@@ -102,8 +102,6 @@ const frame = z.strictObject({
     }),
   ),
   tools: checked(judgeToolDeclarations),
-  snapshotReminder: message.nullable(),
-  tailFacts: message.nullable(),
 })
 const selectedProfile = checked(value => {
   const parsed = readProfileResolution(value)

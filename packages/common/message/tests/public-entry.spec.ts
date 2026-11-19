@@ -43,6 +43,7 @@ it('exports exactly the message runtime names, with no mint function and no part
   expect(Object.keys(root).sort()).toEqual([
     'LOG_MESSAGE_ROLES',
     'REASONING_STATE_PAYLOAD_MAX_LENGTH',
+    'REPLAY_PREFIX_MAX_LENGTH',
     'REPLAY_TAG_MAX_LENGTH',
     'isReplayTag',
     'judgeCompaction',

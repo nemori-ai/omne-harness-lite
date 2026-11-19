@@ -26,6 +26,7 @@ type Name = Exclude<
   | 'search-history'
   | 'background-call'
   | 'list-background-calls'
+  | 'select-model'
   | 'read-permission-mode'
   | 'change-permission-mode'
 >

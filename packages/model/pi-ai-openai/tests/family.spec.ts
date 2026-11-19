@@ -7,10 +7,11 @@ import {
   openAiTokenizerResources,
   type OpenAiRecord,
 } from '@omne-harness/pi-ai-openai'
-import { CONFIG, FAMILY, recordNamed, supplierOf } from './support/openai.ts'
+import { bindingOf, CONFIG, FAMILY, recordNamed, supplierOf } from './support/openai.ts'
 
 const RECORDS: readonly OpenAiRecord[] = OPENAI_RECORDS
 const SOL = recordNamed('openai/gpt-5.6-sol')
+const ASTRA = recordNamed('openai/gpt-6-astra')
 const live = () => new AbortController().signal
 
 describe('createOpenAiFamily', () => {
@@ -46,6 +47,19 @@ describe('acquire', () => {
       })
       await binding.release()
       await expect(binding.release()).resolves.toBeUndefined()
+    },
+  )
+
+  it.each([
+    ['openai/gpt-6-astra', 'responses', 'openai-responses-items-v1'],
+    ['openai/gpt-5.6-sol', 'chat-completions', 'openai-responses-v1'],
+  ] as const)(
+    '%s binds the interface its record names: %s, with its reasoning format',
+    async (name, endpoint, format) => {
+      const binding = await bindingOf(recordNamed(name))
+      expect(binding.endpoint).toBe(endpoint)
+      expect(binding.replayFormat).toBe(format)
+      await binding.release()
     },
   )
 
@@ -157,29 +171,35 @@ it('forwards the signal and propagates tokenizer cleanup failure from binding re
   await expect(acquired.ok.release()).rejects.toThrow('tokenizer-unavailable')
 })
 
-it('releases an acquired tokenizer when the binding constructor rejects its decoder limits', async () => {
-  let releases = 0
-  const family = createOpenAiFamily({
-    ...CONFIG,
-    limits: { ...CONFIG.limits, maxReasoningText: 0 },
-    executor: {
-      acquire(definition, signal) {
-        const acquired = CONFIG.executor.acquire(definition, signal)
-        if ('failure' in acquired) return acquired
-        return {
-          ok: {
-            tokenizer: acquired.ok.tokenizer,
-            async release() {
-              releases += 1
-              return acquired.ok.release()
+it.each([
+  ['chat-completions', SOL],
+  ['Responses', ASTRA],
+] as const)(
+  'releases an acquired tokenizer when the %s binding constructor rejects its decoder limits',
+  async (_engine, record) => {
+    let releases = 0
+    const family = createOpenAiFamily({
+      ...CONFIG,
+      limits: { ...CONFIG.limits, maxReasoningText: 0 },
+      executor: {
+        acquire(definition, signal) {
+          const acquired = CONFIG.executor.acquire(definition, signal)
+          if ('failure' in acquired) return acquired
+          return {
+            ok: {
+              tokenizer: acquired.ok.tokenizer,
+              async release() {
+                releases += 1
+                return acquired.ok.release()
+              },
             },
-          },
-        }
+          }
+        },
       },
-    },
-  })
-  await expect(
-    composeFamilies([family]).acquire(supplierOf(SOL), new AbortController().signal),
-  ).rejects.toThrow(RangeError)
-  expect(releases).toBe(1)
-})
+    })
+    await expect(
+      composeFamilies([family]).acquire(supplierOf(record), new AbortController().signal),
+    ).rejects.toThrow(RangeError)
+    expect(releases).toBe(1)
+  },
+)

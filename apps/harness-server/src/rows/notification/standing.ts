@@ -30,7 +30,7 @@ const descriptor = Object.freeze({
   required: true,
   disclosure: 'plain',
   carriesPrevious: false,
-  volatility: 'per-request',
+  volatility: 'per-read',
   recovery: 'reread',
 } satisfies SuppliedBlockDescriptor<typeof DELIVERY_BLOCKED_KEY, unknown>)
 

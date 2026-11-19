@@ -22,6 +22,7 @@ const table = {
   'retry-run': { identity: 'login', effect: 'commit', limit: 'small' },
   'background-call': { identity: 'login', effect: 'commit', limit: 'small' },
   'list-background-calls': { identity: 'login', effect: 'read', limit: 'small' },
+  'select-model': { identity: 'login', effect: 'commit', limit: 'small' },
   'read-permission-mode': { identity: 'login', effect: 'read', limit: 'small' },
   'change-permission-mode': { identity: 'login', effect: 'commit', limit: 'small' },
 } as const
@@ -47,6 +48,7 @@ const outcomes = {
   'retry-run': ['invalid', 'archived', 'frozen', 'not-found', 'no-change', 'conflict', 'unknown'],
   'background-call': ['invalid', 'conflict', 'unknown'],
   'list-background-calls': ['invalid'],
+  'select-model': ['invalid', 'archived', 'frozen', 'conflict', 'not-found', 'unknown'],
   'read-permission-mode': ['invalid'],
   'change-permission-mode': ['invalid', 'no-change', 'conflict', 'unknown'],
 } as const

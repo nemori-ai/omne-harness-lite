@@ -70,6 +70,26 @@ function producerResult(
       : failure
 }
 
+function admission<P, K extends ContextBlockKey>(
+  world: World<P>,
+  input: ProducerRegistration<K, P>,
+  id: string,
+): Extract<RegisterProducerResult<K>, { kind: 'rejected' }> | undefined {
+  if (!input.declaration) return { kind: 'rejected', reason: 'declaration-missing' }
+  const old = world.producers.get(id),
+    descriptor = world.descriptors.get(input.key)
+  if (descriptor && declarationDigest(descriptor) !== declarationDigest(input.declaration))
+    return { kind: 'rejected', reason: 'declaration-mismatch' }
+  if (old?.active && old.producer.producer !== input.producer.producer)
+    return { kind: 'rejected', reason: 'other-producer' }
+  // The model reads only what the session log holds; a per-read value never gets there.
+  if (input.declaration.volatility === 'per-read' && input.declaration.consumers.includes('model'))
+    return { kind: 'rejected', reason: 'per-read-for-model' }
+  if ((!input.scoped || input.declaration.volatility === 'per-read') && !input.supply)
+    return { kind: 'rejected', reason: 'declaration-missing' }
+  return undefined
+}
+
 export function createSupplier<P>(world: World<P>) {
   function slot(tenant: Producer<P>['tenant'], key: ContextBlockKey): string | undefined {
     const text = tenantText(tenant)
@@ -248,7 +268,7 @@ export function createSupplier<P>(world: World<P>) {
   }
 
   function drivesSupply(producer: Producer<P>): boolean {
-    return !producer.scoped && producer.declaration.volatility !== 'per-request'
+    return !producer.scoped && producer.declaration.volatility !== 'per-read'
   }
 
   async function afterRegistration(s: ScopeState, key: ContextBlockKey) {
@@ -261,22 +281,6 @@ export function createSupplier<P>(world: World<P>) {
     input: ProducerRegistration<K, P>,
   ): ProducerRegistration<K, P> {
     return { ...input, producer: { producer: input.producer.producer } }
-  }
-
-  function admission<K extends ContextBlockKey>(
-    input: ProducerRegistration<K, P>,
-    id: string,
-  ): Extract<RegisterProducerResult<K>, { kind: 'rejected' }> | undefined {
-    if (!input.declaration) return { kind: 'rejected', reason: 'declaration-missing' }
-    const old = world.producers.get(id),
-      descriptor = world.descriptors.get(input.key)
-    if (descriptor && declarationDigest(descriptor) !== declarationDigest(input.declaration))
-      return { kind: 'rejected', reason: 'declaration-mismatch' }
-    if (old?.active && old.producer.producer !== input.producer.producer)
-      return { kind: 'rejected', reason: 'other-producer' }
-    if ((!input.scoped || input.declaration.volatility === 'per-request') && !input.supply)
-      return { kind: 'rejected', reason: 'declaration-missing' }
-    return undefined
   }
 
   async function replaceInScopes(producer: Producer<P>) {
@@ -313,7 +317,7 @@ export function createSupplier<P>(world: World<P>) {
         ? { kind: 'unknown', cause: 'authority' }
         : producerResult(decided)
     if (world.closed) return { kind: 'rejected', reason: 'closed' }
-    const rejected = admission(input, id)
+    const rejected = admission(world, input, id)
     if (rejected) return rejected
     if (!decided.current()) return { kind: 'refused', reason: 'unauthorized' }
     const old = world.producers.get(id)

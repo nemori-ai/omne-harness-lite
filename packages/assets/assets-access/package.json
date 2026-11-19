@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The access plugin of assets/v1: the handlers of the four setting operations over the tenant settings face",
+  "description": "The access plugin of assets/v1: the handlers of the setting, category and asset operations and the observation of asset changes",
   "engines": {
     "node": ">=24"
   },
@@ -32,6 +32,7 @@
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/access-cordis-contract": "workspace:*",
+    "@omne-harness/assets": "workspace:*",
     "@omne-harness/assets-protocol": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*"

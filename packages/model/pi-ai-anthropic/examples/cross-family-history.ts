@@ -2,6 +2,7 @@ import { openTokenizerExecutor } from './support.ts'
 import { type ModelProfile, type Parameter } from '@omne-harness/model-contract'
 import { projectReplay } from '@omne-harness/model-contract/provider'
 import {
+  ANTHROPIC_RECORDS,
   anthropicTokenizerResources,
   createAnthropicFamily,
   officialAnthropicProfiles,
@@ -40,6 +41,12 @@ const LIMITS = {
   maxReasoningText: 1_048_576,
 }
 const margin = { percent: '10', source: exampleAdoption('margin-policy') }
+
+// Whether the model binds its reasoning state to the prefix it was produced on: an Anthropic
+// record states it; the chat-completions records of OpenAI bind nothing.
+function bindingOf(model: string): 'prefix' | 'none' {
+  return ANTHROPIC_RECORDS.find(record => record.route.model === model)?.replay.binding ?? 'none'
+}
 
 const executor = await openTokenizerExecutor([
   openAiTokenizerResources(),
@@ -134,6 +141,9 @@ try {
         formats: new Set(formats.accepts),
         off: false,
         resent: new Set(),
+        system: request.system,
+        tools: request.tools,
+        binding: bindingOf(model),
       })
       const carried: number[] = []
       const omitted: number[] = []
@@ -162,6 +172,7 @@ try {
       const reply = assembleReply(id, result.facts, {
         scope: declarationOf(round.profile).produces,
         format: formats.produces,
+        prefix: projection.prefix,
       })
       producedIn.set(id, number)
       history.push(JSON.parse(JSON.stringify(reply)))

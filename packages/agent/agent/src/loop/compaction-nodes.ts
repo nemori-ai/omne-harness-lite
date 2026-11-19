@@ -282,28 +282,17 @@ async function c4<P>(scope: CompactionNodeScope<P>): Promise<Outcome<Step, Failu
   if ('failure' in conditions) return conditions
   const selected = await scope.select(conditions.ok)
   if ('failure' in selected) return selected
-  const context = await scope.ports.modelContext.read({
-    ...scope.access,
-    advance,
-    position: current.position,
-    recipient: selected.ok.recipient,
-    history: latest.ok.history,
-    adopted: null,
-    transition: required(task.transition, 'transition'),
-  })
-  if ('failure' in context) return context
   const resumed = await scope.ports.requests.resume({
     ...scope.access,
     advance,
     original: originalCompactionOf(scope.checkpoint()),
     transition: required(task.transition, 'transition'),
+    history: latest.ok.history,
     selection: selected.ok,
-    context: context.ok,
   })
   if ('failure' in resumed) return resumed
   current.conditions = conditions.ok
   current.selected = selected.ok
-  current.context = context.ok
   current.preparation = resumed.ok
   if (resumed.ok.kind === 'ready') {
     current.ready = resumed.ok

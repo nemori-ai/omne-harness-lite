@@ -205,20 +205,33 @@ describe('the material table, split by command', () => {
     },
   )
 
-  it('leaves a permission mode change to the access check of its commit without adoption material', async () => {
+  it.each([
+    [
+      'a permission mode change to the access check of its commit',
+      {
+        kind: 'permission-mode',
+        value: 'auto_permission',
+        expectedRevision: '0',
+        authorization: evidence('login-entry'),
+      },
+    ],
+    [
+      'a model selection to the caller that judged the target with Model',
+      {
+        kind: 'model',
+        name: 'anthropic/claude-sonnet-5',
+        basis: evidence('the-profile-the-route-resolved-to'),
+      },
+    ],
+  ] as const)('leaves %s without adoption material', async (_, declaration) => {
     const { asked, prepare } = await assembled({ adoption: async () => succeed([]) })
     const change: SessionCommand = {
       kind: 'change',
       input: {
         tenant: A.tenant,
         session: A.session,
-        operation: operationId('mode-change'),
-        declaration: {
-          kind: 'permission-mode',
-          value: 'auto_permission',
-          expectedRevision: '0',
-          authorization: evidence('login-entry'),
-        },
+        operation: operationId('declaration-change'),
+        declaration,
       },
     }
     expect(await prepare(change, A)).toEqual(succeed([]))

@@ -318,6 +318,11 @@ const resultText = (entry: Entry | undefined): string =>
     .map(block => String(block['text'] ?? ''))
     .join('')
 
+const shown = (blocks: readonly unknown[]) =>
+  blocks.filter(
+    block => (block as { visibility?: { toHuman?: boolean } }).visibility?.toHuman !== false,
+  )
+
 describe('a Tool result on the release tree reaches the Agent', () => {
   it(
     'W3-A carries return schemas through native declarations, Tools.inspect and command help into model requests',
@@ -524,7 +529,8 @@ describe('a Tool result on the release tree reaches the Agent', () => {
         callId: 'call_deliver',
       })
       expect(resultText(entries[3])).toContain('shell=')
-      expect(blocksOf(entries[4])).toMatchObject([{ kind: 'text', text: FINAL }])
+      // What the person sees is the final text; a reply on Responses also keeps a hidden reasoning state.
+      expect(shown(blocksOf(entries[4]))).toMatchObject([{ kind: 'text', text: FINAL }])
       expect(entries[5]?.payload['terminal']).toMatchObject({ outcome: 'completed' })
     },
   )

@@ -22,6 +22,7 @@ import {
   supplierOf,
   textBlock,
   thinkingBlock,
+  thinkingPayload,
   type RequestParts,
 } from './support/anthropic.ts'
 
@@ -196,14 +197,8 @@ describe('measure', () => {
   })
 
   it('has no estimate for a carried signed group and never tokenizes it', async () => {
-    const payload = JSON.stringify([
-      {
-        format: 'anthropic-claude-v1',
-        index: 0,
-        signature: 'fixture-only-signature',
-        text: 'signed thinking',
-        type: 'reasoning.text',
-      },
+    const payload = thinkingPayload([
+      { thinking: 'signed thinking', signature: 'fixture-only-signature' },
     ])
     const { measured, tokenInput } = await planAndMeasure(SONNET, {
       messages: [
@@ -219,7 +214,7 @@ describe('measure', () => {
           {
             replay: {
               scope: 'openrouter/anthropic/claude-sonnet-5',
-              format: 'anthropic-claude-v1',
+              format: 'anthropic-messages-v1',
               at: [2],
             },
           },

@@ -1,0 +1,644 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "**Calculating multiples**\n\nI"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " calculate"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " number"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " positive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " integers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " below"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 100"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " There"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 3"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " while"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " numbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " multiples"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " of"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " both"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "21"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 42"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 63"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " and"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 84"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ")."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Using"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " inclusion"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "-ex"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "clusion"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " principle"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " find"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " exclusive"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " count"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " +"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " -"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 2"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " *"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 4"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " gives"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " me"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " odd"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " numbers"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Now"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " need"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " get"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " so"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " I'll"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " call"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " weather"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " tool"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " for"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "."
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "city"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\":\""
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "L"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "ima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "**Calculating multiples**\n\nI need to calculate the number of positive integers below 100 that are multiples of 3 and 7. There are 33 multiples of 3 and 14 multiples of 7, while 4 numbers are multiples of both (21, 42, 63, and 84). Using the inclusion-exclusion principle, I find that the exclusive count is 33 + 14 - 2 * 4, which gives me 39 odd numbers. Now, I need to get the weather for Lima, so I'll call the weather tool for that."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "call_sdyaKOrxvLdbs4DcqN5eGuQ5",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"item\":{\"encrypted_content\":\"gAAAAABq_faJROIltEBTJ3awB6JXXebjHeXdsqOIk9Dww-LEx-zokiw5Lf0WP8fh88JPMsZWs9N6tdMtN6j69GIQddnnwkbb6HocQHWwno1sHxGju_uZDEj_kLuqin6QCOE5b-O358xZ3P5dtueXs0AjaTtq-SW6IaKrtpWVrczzPsPs-YODxcxwF8hWCK8NsL4cdf1zx-U03rWjCrwV_4HukKLsQPWrX8pHxjpqJZkLjRuMG03XzxUFfH7ZDLSd1de4rVDYZFG3VcJGFyb-t-QOPelsGN6UbsEf0EuU9ryPydsZImRyYV6bXpBUb4CeNuVrC-X-xLv7gtl31H2GCTfbz2nimfaW7XXkqEgxjuhn8Y65fWnt8pbl0frI6nNSzRGQ5Gfd38jeb91-WPf2d-LPpV04hU-Le9ovh3uu7MQ_JEtz7TfMp0ePCkhE7xEu5dMEWSrnfa7DLFOn3r9Hwb5OVfnhr04a8jKy1F_b76CFqUmxv0Ep1nMXwimeOHQQxLlTzYutsj9hir4bePO5otgvxcOgv9SFnyNrF39G0mLRsyu11nTikaKmD5Q6bWzndw40PFkVxDR2fMJGMWavlyCYUCUBBwYLUWv9GvqoTzj6wOu7lh4JN4pvKjB5lgn5zKzoU-57tL0S3QK_xnvhlGP8bur8eGPSlJ4DSZhoRtuBD6qBerMBoyz7Ha3vIMCmaZI6Fr0xnbxF5PaumRloTkhWgHZ9CPqzRwyVz1Ym1zHeMKg9xDuwAFTdqST7abvHyTSiXX_TxHYLQxOpZfUP5EV41tenqG-u8IYfJoQNhFGcFuOyq9D7TNp-enUqIUUbH7-uszoxEndF-iAhkAeetShVVJ24m3-53UYEnwsw1Ck2q4J0xO6g431s2-_u0ChlAP6FZbVwLdfET5Kwd-4lucknckEqtyEvC3Cv5Y2BzG4N64v-5ul0MCBS-rVhqHIWIa1RRlSRot96ahistDj_f-Z066-LhZtDeP8ecKkNUOKfqPVIo2LtdjviUwDElqa0Fgs6H2thH8FuCpn_vZxUwglcAspGuPTh_CevCc8O3TzVGgOi6qhq5qMVRGkw6urkzhomc3ImTAupqoBbK1fMhXHVSvkTXre-qA_zkzqQOaK9a9oldX8s0VIaOv6FgGhigk1FxS8rWmPBNqbEw6iVjEWAE3YLak8qInLROs3c0ejGIjtuQiUhXwy_DoFhs1YfUf_lYNTuWL4tQhPIoccjTiuwW3Uhq-GdnJ9u6p8Cxwmlnd9IgBCCb58CJ18_qAEAH_YR0cLqPspMBmRSyKTttHeURemCQTAmXjWzIh1UVT_gt2P_airDaiEc3OF00vzSGrFFpiiiuf0aHGHWkS3yqTP0dKA_2DavvYsoRKmvsNiqP2VT_Stb1jOBbAymK1Ih06oXqABi-mCevJxvxawlu885KDRkSY3zyIB_7QKLuG47VuS30fY3g58hku-P0ZebsZ05WB3PQ8QvuoxqRr9OFvNgU2IuwiR7FjezVijsmouvNBDIngxB9AXr2Fo4g2xWQL6L4aDU8OmckJWooLp-z6hMQX2VoJ2Nc5iaoBg9HRxn3QqZE3ZUWP9bADjcBaHzFv54FE5AzW8wCmTLtTHG68MHfHS5xu7I6vem1Va-3P_M7BDq8KxZ4-GpDpesQjWg074ZoVI4_2QxYkWCboswapQ-R7h0meZ4RdVp_mMVNT7Ap5FAUBARS3ZLMxIQD7KyAqfTC_CxUUhx4E3U51qJ6-OoCu6elHxYDyOSHZDTc9LTuKN2o03KWpSCTb7vzUzW49ug2gnI3h3v897jq8ReTJ4alFe8QMmvOQ6TgcSld33b6CwlCpHo0y11E50h4M7xNwzrHclDCzxPSpRXSLN2YSPJsLXE9vOBkFsz1DrRwjLEK9xscoF4Bf2nfXWfY4Q4lyME9JFoYY9rXCnpnJsJfVPg-62u6c4WgAeyCWqptqUkv2ZzU0leAhXcl6KUDbG0cdGzRyvin4My2GQaEEejJKaKXNSwb6jRqCo0CeZImpYk0rtPLBFzjOxGyO2YRo6rlQlGPaaDKYqnT4WSSUTLDAIh3yzqhHjQRgs1AngM7bQp7ch8BzEdTnNBkEf4v7OHM9hOEMSAi__SUzKk8sQf53MZVy4KHvQNTY2Ei6vYj7wCRtghJbpzJ9L5MYQfFmFqgcQU1m8ToGygPvavhjHK3spwK2aJSmyEdCKMsxj36xAjjuy9VHNw7bZ9lAKTBhi7JnyM5AOgPnyjJLtQZ45hfmUbIzqs6lvedlToOhUoie2mvkoJ9wxGi9IcJIHdEsiEmNj034rEierDK1iTsPLKALyTbgmhl6Dwlt2mUMcjpWLXwE3QibRPGKoTYOxqNwxvk6dGmC7cSNor.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC02LWx1bmEtMjAyNjA5MjJ8b3BlbmFpIn0\",\"format\":\"openai-responses-v1\",\"id\":\"rs_082a25e68ae44901016afdf6874d5487d1939040ef74416640\",\"summary\":[{\"text\":\"**Calculating multiples**\\n\\nI need to calculate the number of positive integers below 100 that are multiples of 3 and 7. There are 33 multiples of 3 and 14 multiples of 7, while 4 numbers are multiples of both (21, 42, 63, and 84). Using the inclusion-exclusion principle, I find that the exclusive count is 33 + 14 - 2 * 4, which gives me 39 odd numbers. Now, I need to get the weather for Lima, so I'll call the weather tool for that.\",\"type\":\"summary_text\"}],\"type\":\"reasoning\"},\"type\":\"reasoning\"},{\"call_id\":\"call_sdyaKOrxvLdbs4DcqN5eGuQ5\",\"id\":\"fc_tmp_7yye9yk1l43\",\"type\":\"function_call\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "81",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "unknown",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "60",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.0000506",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/OpenAI",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

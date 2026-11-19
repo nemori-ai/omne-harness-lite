@@ -85,22 +85,24 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     compactionTriggerPercent: '80',
     updatedAt: '2026-11-02T00:00:00Z',
   }
-  const preparation = {
-    maxCitedCalls: 8,
-    openai: {
-      limits: {
-        toolArguments: {
-          maxBytes: 65_536,
-          maxDepth: 32,
-          maxItems: 1_024,
-          maxMembers: 256,
-          maxStringLength: 65_536,
-          maxNumberLength: 64,
-        },
-        maxReasoningText: 65_536,
+  const family = {
+    limits: {
+      toolArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 1_024,
+        maxMembers: 256,
+        maxStringLength: 65_536,
+        maxNumberLength: 64,
       },
-      margin: { percent: '10', source: MODEL_TEST_ADOPTION },
+      maxReasoningText: 65_536,
     },
+    margin: { percent: '10', source: MODEL_TEST_ADOPTION },
+  }
+  const preparation = {
+    maxCitedCalls: 1_024,
+    openai: family,
+    anthropic: structuredClone(family),
   }
   const host = {
     host: { concurrencyLimit: 4, wakeCapacity: 64, scanBatchSize: 10, scanIntervalMs: 1000 },
@@ -116,6 +118,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     retry: {
       adoption: profiles.retryPolicy,
       policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [50], jitter: 0 },
+      replayResend: { max: 1 },
     },
     results: {
       maxConcurrentCalls: 4,
@@ -441,7 +444,7 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'request-context',
-        config: { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
+        config: {},
       },
       {
         kind: 'replace',

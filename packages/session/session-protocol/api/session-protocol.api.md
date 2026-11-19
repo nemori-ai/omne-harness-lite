@@ -967,6 +967,36 @@ export declare const sessionProtocol: {
             }>;
             readonly countsAsAccess: true;
         };
+        readonly 'select-model': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly controlId: string;
+                    readonly credential: "available" | "missing" | "unknown";
+                    readonly model: string;
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly reason: "excluded" | "locked" | "modality" | "scope" | "unknown-name" | "withdrawn";
+                }>;
+                readonly archived: import("@omne-harness/public-contract").Codec<{}>;
+                readonly frozen: import("@omne-harness/public-contract").Codec<{}>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{}>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: "login";
+            readonly effect: "commit";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly controlId: string;
+                readonly model: string;
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+        };
     };
     readonly name: "session";
     readonly major: 1;

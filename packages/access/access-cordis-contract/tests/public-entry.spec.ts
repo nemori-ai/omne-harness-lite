@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest'
 import { AccessAssemblyError } from '@omne-harness/access-cordis-contract'
 
-it('exports the assembly error and nothing else at run time', async () => {
+it('exports the assembly error and the change observation and nothing else at run time', async () => {
   const root = (await import('@omne-harness/access-cordis-contract')) as Record<string, unknown>
-  expect(Object.keys(root).sort()).toEqual(['AccessAssemblyError'])
+  expect(Object.keys(root).sort()).toEqual(['AccessAssemblyError', 'createChangeObservation'])
 })
 
 it('names the protocol that is already mounted', () => {

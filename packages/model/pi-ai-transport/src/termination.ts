@@ -6,7 +6,7 @@ import type { SseFailureReason } from './sse.ts'
 export type SendEnd =
   | Readonly<{ kind: 'decoded'; termination: TransportTermination | null }>
   | Readonly<{ kind: 'decoder-fault'; fault: ModelFault }>
-  | Readonly<{ kind: 'http-error'; status: number }>
+  | Readonly<{ kind: 'http-error'; status: number; fault: ModelFault | null }>
   | Readonly<{ kind: 'connect-failed'; timeout: boolean }>
   | Readonly<{ kind: 'body-lost' }>
   | Readonly<{ kind: 'sse-failed'; reason: SseFailureReason }>
@@ -22,7 +22,9 @@ export function terminationOf(end: SendEnd): TransportTermination {
     case 'decoder-fault':
       return { kind: 'failed', fault: end.fault }
     case 'http-error':
-      return failed(causeOfStatus(end.status), `http-${end.status}`, String(end.status))
+      return end.fault === null
+        ? failed(causeOfStatus(end.status), `http-${end.status}`, String(end.status))
+        : { kind: 'failed', fault: end.fault }
     case 'connect-failed':
       return failed(
         'upstream-unavailable',

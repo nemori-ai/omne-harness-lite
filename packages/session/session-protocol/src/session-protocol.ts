@@ -640,6 +640,33 @@ export const sessionProtocol = defineProtocol({
       },
       countsAsAccess: true,
     },
+    'select-model': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, controlId: { rule: text }, model: { rule: text } })),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({
+            controlId: { rule: text },
+            model: { rule: text },
+            credential: { rule: literal('available', 'missing', 'unknown') },
+          }),
+        ),
+        invalid: ruleCodec(
+          object({
+            reason: {
+              rule: literal('unknown-name', 'withdrawn', 'excluded', 'modality', 'locked', 'scope'),
+            },
+          }),
+        ),
+        archived: empty,
+        frozen: empty,
+        'not-found': empty,
+        conflict: empty,
+      },
+      countsAsAccess: true,
+    },
   },
   observations: {
     'observe-session': {

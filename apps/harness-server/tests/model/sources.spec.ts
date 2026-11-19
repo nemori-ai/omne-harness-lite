@@ -19,12 +19,13 @@ const REQUIRED = {
 }
 
 describe('the official send sources', () => {
-  it('name every official OpenAI profile with the adoption the real profiles plugin resolves, and are official', async () => {
+  it('name every official profile of both families with the adoption the real profiles plugin resolves, and are official', async () => {
     const sources = officialSendSources({
       profiles: PROFILES,
       current: () => ({ ok: { authorized: false } }),
     })
-    expect(sources.length).toBeGreaterThan(0)
+    const families = new Set(sources.map(source => source.model.split('/')[0]))
+    expect(families).toEqual(new Set(['openai', 'anthropic']))
     const ctx = new Context()
     await ctx.plugin(ModelProfilesLocalPlugin, { ...PROFILES, updatedAt: '2026-11-02T00:00:00Z' })
     const profiles = ctx.get(modelProfilesKey) as ModelProfiles<unknown>

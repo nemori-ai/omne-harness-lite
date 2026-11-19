@@ -6,7 +6,13 @@ import {
   type RequestPreparation,
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
-import { judgeCompaction, type CompactionContext, type Message } from '@omne-harness/message'
+import { replaySourceCall } from '@omne-harness/model-contract'
+import {
+  judgeCompaction,
+  type CompactionContext,
+  type Message,
+  type MessageId,
+} from '@omne-harness/message'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   chooseRepresentations,
@@ -24,20 +30,9 @@ type Prepare<P> = Parameters<RequestPreparation<P>['prepare']>[0]
 type Need = Extract<AssemblyResult, { kind: 'needs-compaction' }>
 
 function representationOf(candidate: RequestCandidate) {
-  const { layers, assembled, preparation } = candidate
-  const head = layers.historyHead.length
-  const hasSnapshot = layers.snapshotReminder.message !== null
-  const hasTail = layers.tailFacts.message !== null
-  const bodyStart = head + Number(hasSnapshot)
-  const history = [
-    ...assembled.messages.slice(0, head),
-    ...assembled.messages.slice(bodyStart, bodyStart + layers.historyBody.length),
-  ]
-  if (
-    history.length !== preparation.view.messages.length ||
-    assembled.messages.length !== history.length + Number(hasSnapshot) + Number(hasTail)
-  )
-    return null
+  const { assembled, preparation } = candidate
+  const history = assembled.messages
+  if (history.length !== preparation.view.messages.length) return null
   const represented = new Map(
     preparation.view.messages.map((entry, i) => [entry.entry, history[i]]),
   )
@@ -46,8 +41,6 @@ function representationOf(candidate: RequestCandidate) {
     frame: {
       system: assembled.system,
       tools: assembled.tools,
-      snapshotReminder: hasSnapshot ? (assembled.messages[head] ?? null) : null,
-      tailFacts: hasTail ? (assembled.messages.at(-1) ?? null) : null,
     },
   }
 }
@@ -167,6 +160,19 @@ function roundedAmount(check: M.BudgetCheck): bigint {
   return (a.n * m.d + m.n * a.d + d - 1n) / d
 }
 
+/** The calls a request cites: each message it holds names the call that produced it. */
+function citedSources(
+  entries: readonly Readonly<{ message: Message; sourceCall?: M.ModelCallId }>[],
+  present: ReadonlySet<MessageId>,
+): readonly Readonly<{ message: MessageId; call: M.ModelCallId }>[] {
+  return entries.flatMap(entry => {
+    const call = entry.sourceCall ?? replaySourceCall(entry.message)
+    return call !== null && present.has(entry.message.id)
+      ? [{ message: entry.message.id, call }]
+      : []
+  })
+}
+
 export function createCompactionAssessment<P>(
   options: Readonly<{
     inputs: CompactionInputStore<P>
@@ -205,19 +211,9 @@ export function createCompactionAssessment<P>(
     const retained = input.message.retained.flatMap(ref => byRef.get(ref)?.represented ?? [])
     const afterRefs = new Set(window.after.map(entry => entry.ref))
     const after = frozen.history.entries.filter(entry => afterRefs.has(entry.ref))
-    const messages = [
-      ...retained,
-      ...summary.messages,
-      ...after.flatMap(e => e.represented),
-      ...(frozen.frame.snapshotReminder === null ? [] : [frozen.frame.snapshotReminder]),
-      ...(frozen.frame.tailFacts === null ? [] : [frozen.frame.tailFacts]),
-    ]
+    const messages = [...retained, ...summary.messages, ...after.flatMap(e => e.represented)]
     const present = new Set(messages.map(message => message.id))
-    const sources = frozen.history.entries.flatMap(entry =>
-      entry.sourceCall !== undefined && present.has(entry.message.id)
-        ? [{ message: entry.message.id, call: entry.sourceCall }]
-        : [],
-    )
+    const sources = citedSources(frozen.history.entries, present)
     const selection = selectedModel({
       resolution: frozen.target.profile,
       parameters: frozen.target.parameters,

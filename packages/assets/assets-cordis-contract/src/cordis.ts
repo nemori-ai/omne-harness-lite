@@ -4,6 +4,7 @@ import {
   type CategoryContribution,
   type CategoryPoint,
   type CategoryView,
+  type TenantManagement,
   type TenantPublishing,
   type TenantPublishOutcome,
   type TenantPublishRequest,
@@ -13,7 +14,13 @@ import type {
   IndependentSettingsView,
   SettingDefinitions,
 } from '@omne-harness/settings'
-import { assetCategoriesKey, assetPublishingKey, independentSettingsKey } from './index.ts'
+import {
+  assetCategoriesKey,
+  assetChangesKey,
+  assetManagementKey,
+  assetPublishingKey,
+  independentSettingsKey,
+} from './index.ts'
 
 /** @owner packages/assets/assets-cordis-contract */
 export class AssetCategoriesService extends Service {
@@ -24,7 +31,11 @@ export class AssetCategoriesService extends Service {
     super(ctx, AssetCategoriesService.provide)
     const point = createCategoryPoint()
     this.point = point
-    this.view = Object.freeze({ lookup: point.lookup, list: point.list })
+    this.view = Object.freeze({
+      lookup: point.lookup,
+      describe: point.describe,
+      list: point.list,
+    })
   }
 
   contribute(contribution: CategoryContribution): void {
@@ -43,6 +54,35 @@ export class AssetPublishingService extends Service implements TenantPublishing<
 
   publish(request: TenantPublishRequest<unknown>): Promise<TenantPublishOutcome> {
     return this.publishing.publish(request)
+  }
+}
+
+/** @owner packages/assets/assets-cordis-contract */
+export class AssetManagementService extends Service {
+  static readonly provide = assetManagementKey
+  readonly management: TenantManagement<unknown>
+  constructor(ctx: Context, management: TenantManagement<unknown>) {
+    super(ctx, AssetManagementService.provide)
+    this.management = management
+  }
+}
+
+export type AssetChangeListener = Readonly<{ changed(): void; closed(): void }>
+export type AssetChanges = Readonly<{
+  subscribe(tenant: string, listener: AssetChangeListener): () => void
+}>
+
+/** @owner packages/assets/assets-cordis-contract */
+export class AssetChangesService extends Service implements AssetChanges {
+  static readonly provide = assetChangesKey
+  private readonly changes: AssetChanges
+  constructor(ctx: Context, changes: AssetChanges) {
+    super(ctx, AssetChangesService.provide)
+    this.changes = changes
+  }
+
+  subscribe(tenant: string, listener: AssetChangeListener): () => void {
+    return this.changes.subscribe(tenant, listener)
   }
 }
 
@@ -66,6 +106,8 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     assetCategories: AssetCategoriesService
     assetPublishing: AssetPublishingService
+    assetManagement: AssetManagementService
+    assetChanges: AssetChangesService
     independentSettings: IndependentSettingsService
   }
 }

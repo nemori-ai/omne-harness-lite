@@ -30,7 +30,7 @@ function assistant(id: string): Extract<Message, { role: 'assistant' }> {
 }
 
 describe('J14: each group is read count, source, count', () => {
-  it.each(['history', 'context', 'prompt', 'model', 'tools', 'control'] as const)(
+  it.each(['history', 'prompt', 'model', 'tools', 'control'] as const)(
     'a %s group that keeps changing is unavailable, never a half group',
     async group => {
       const f = createAssemblyFixture()
@@ -198,12 +198,12 @@ describe('J48: source calls and continues', () => {
         fixed: evidence,
       },
     })
-    const context = f.sources.values().context
+    const history = f.sources.values().history
     ;(
       f.sources
         .adopted as import('@omne-harness/request-context-contract/testing').MemoryAdoptedSource<string>
     ).set(fact)
-    f.sources.update('context', context)
+    f.sources.update('history', history)
     candidate(await f.operations().assemble(f.call))
     expect(f.preparation.calls().at(-2)?.lineage).toEqual({ continues: callId('fixed') })
     const model = f.sources.values().model
@@ -221,11 +221,11 @@ describe('decimal history sequence', () => {
     for (const bad of ['-1', '01', '1.0', ' 1', '1e3', ''])
       expect('failure' in decodeHistorySequence(bad)).toBe(true)
   })
-  it('an empty history has no rows and no anchor row', async () => {
+  it('an empty history has no rows and no prefix digest', async () => {
     const f = createAssemblyFixture({ rows: [] })
     const result = candidate(await f.operations().assemble(f.call))
-    expect(result.coverage.snapshot.anchor.position).toEqual({ kind: 'empty' })
-    expect(result.coverage.history.anchors).toEqual([])
+    expect(result.coverage.history.prefixDigest).toBeNull()
+    expect(result.layers.history).toEqual([])
   })
 })
 

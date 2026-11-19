@@ -26,6 +26,7 @@ const attempt = {
     execution: { kind: 'known', milliseconds: '99' },
   },
   account,
+  reasoning: 'carried',
 }
 const counted = [{ kind: 'run.started', count: '1' }]
 const run = {
@@ -58,6 +59,7 @@ const run = {
           ...attempt,
           outcome: { kind: 'failed', cause: 'x', upstreamStatus: null },
           account: unknownValue,
+          reasoning: 'not-carried',
         },
       ],
       coverage: 'expired-prefix',
@@ -164,6 +166,19 @@ describe('read-session-diagnostics outcome bodies', () => {
 
   it.each(causes)('round-trips the run cause %j', structured => {
     expectRoundTrip(operation.outcomes.succeeded, withCause(structured))
+  })
+
+  it('takes an attempt without the reasoning member, as a recording made before it, and refuses a value outside the three', () => {
+    const { reasoning: _omitted, ...older } = attempt
+    const withAttempt = (dispatch: unknown) => ({
+      ...page,
+      runs: [{ ...run, modelCalls: [{ ...run.modelCalls[0], dispatches: [dispatch] }] }],
+    })
+    expectRoundTrip(operation.outcomes.succeeded, withAttempt(older))
+    expectRoundTrip(operation.outcomes.succeeded, withAttempt({ ...attempt, reasoning: 'unknown' }))
+    expect(
+      readSample(operation.outcomes.succeeded, withAttempt({ ...attempt, reasoning: 'maybe' })),
+    ).toEqual({ ok: false })
   })
 
   it('round-trips a page of no runs and a run without a terminal', () => {

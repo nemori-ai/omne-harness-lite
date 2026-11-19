@@ -9,7 +9,6 @@ export type ReadContext = Readonly<{
   root: string
   extraction: number
   vocabularyLimit: number
-  /** Which start of the machine this process runs in; see `bootOf`. */
   boot: number
   handles: Handles
 }>
@@ -102,8 +101,8 @@ const MATCH = {
   day: `SELECT ${ROW} FROM grams CROSS JOIN doc d ON d.id = grams.rowid JOIN session s ON s.ordinal = d.session WHERE grams MATCH ? AND grams.rowid >= ? AND grams.rowid < ? AND ${INSIDE}`,
 }
 
-// Days are walked from the newest that has a row of the plan; within a day the rows are put in
-// the order of their times, since a day's rows lie in the file in the order they were written.
+// Days are walked from the newest with a row of the plan; a day's rows lie in the order they
+// were written, so they are put in the order of their times here.
 function rowsOf(
   context: ReadContext,
   handle: Handle,
@@ -146,7 +145,6 @@ function rowsOf(
 
 type CoverRow = StoreCandidates['covered'][number]
 
-/** The covers of a generation that is current or being built. */
 export function coversOf(
   context: ReadContext,
   tenant: string,

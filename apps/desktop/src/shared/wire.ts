@@ -17,6 +17,8 @@ import type { LoginCredentials, LoginResult, LogoutResult } from './host-bridge.
 export const BRIDGE = {
   call: '/bridge/call',
   observe: '/bridge/observe',
+  unobserve: '/bridge/unobserve',
+  events: '/bridge/events',
   login: '/bridge/login',
   logout: '/bridge/logout',
   loginState: '/bridge/login-state',
@@ -155,6 +157,55 @@ export function readObserveEvent(text: string): ObserveEvent {
       return { end: { kind: endKind } }
   }
   return { end: { kind: 'uncertain' } }
+}
+
+/** An observation put on a page's one event stream, under an identifier the page chose. */
+export type Attach = {
+  readonly page: string
+  readonly id: string
+  readonly request: ObserveMessage
+}
+
+export function writeAttach(page: string, id: string, request: string): string {
+  return writeJsonText(object({ page: string(page), id: string(id), request: string(request) }))
+}
+
+export function readAttach(text: string): Attach | undefined {
+  const value = read(text)
+  const page = textOf(member(value, 'page'))
+  const id = textOf(member(value, 'id'))
+  const request = readObserve(textOf(member(value, 'request')) ?? '')
+  return page === undefined || id === undefined || request === undefined
+    ? undefined
+    : { page, id, request }
+}
+
+export type Detach = { readonly page: string; readonly id: string }
+
+export function writeDetach(page: string, id: string): string {
+  return writeJsonText(object({ page: string(page), id: string(id) }))
+}
+
+export function readDetach(text: string): Detach | undefined {
+  const value = read(text)
+  const page = textOf(member(value, 'page'))
+  const id = textOf(member(value, 'id'))
+  return page === undefined || id === undefined ? undefined : { page, id }
+}
+
+export function writePageEvent(id: string, event: ObserveEvent): string {
+  return writeJsonText(object({ id: string(id), event: string(writeObserveEvent(event)) }))
+}
+
+/** One event of one observation on the page's stream; `last` when it says how it ended. */
+export type PageEvent = { readonly id: string; readonly event: string; readonly last: boolean }
+
+export function readPageEvent(text: string): PageEvent | undefined {
+  const value = read(text)
+  const id = textOf(member(value, 'id'))
+  const event = textOf(member(value, 'event'))
+  if (id === undefined || event === undefined) return undefined
+  return { id, event, last: 'end' in readObserveEvent(event) }
 }
 
 export function writeCredentials(credentials: LoginCredentials): string {

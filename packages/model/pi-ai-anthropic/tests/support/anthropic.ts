@@ -13,6 +13,7 @@ import {
 import {
   judgeFixedModelRequest,
   judgeReplayDeclaration,
+  projectReplay,
   type TransportDispatch,
 } from '@omne-harness/model-contract/provider'
 import { composeFamilies, recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
@@ -117,6 +118,22 @@ export function stateBlock(id: string, payload: string, pairs: readonly string[]
   }
 }
 
+/**
+ * The payload of a reasoning state on the Messages interface: the signed thinking blocks of one
+ * reply, each written with its members in key order, as the engine seals them.
+ */
+export function thinkingPayload(
+  blocks: readonly Readonly<{ thinking: string; signature: string }>[],
+): string {
+  return JSON.stringify(
+    blocks.map(block => ({
+      signature: block.signature,
+      thinking: block.thinking,
+      type: 'thinking',
+    })),
+  )
+}
+
 export function callBlock(id: string, callId: string, name = 'lookup'): unknown {
   return {
     kind: 'tool_call',
@@ -205,6 +222,25 @@ export function fixedRequest(record: AnthropicRecord, parts: RequestParts = {}):
   const judged = judgeFixedModelRequest(requestJson(record, parts))
   if (!('ok' in judged)) throw new Error(`test request refused: ${JSON.stringify(judged.failure)}`)
   return judged.ok
+}
+
+/**
+ * The prefix of the request that produced the reply at `index`: the request of the messages before
+ * it, with the same system and tools. A model that binds its reasoning to the prefix carries the
+ * reply's reasoning state back only when its replay mark records this.
+ */
+export function prefixBefore(record: AnthropicRecord, parts: RequestParts, index: number): string {
+  const request = fixedRequest(record, parts)
+  return projectReplay({
+    messages: request.messages.slice(0, index),
+    declaration: request.declarations[0],
+    formats: new Set(record.replay.formats.accepts),
+    off: false,
+    resent: new Set(),
+    system: request.system,
+    tools: request.tools,
+    binding: record.replay.binding,
+  }).prefix
 }
 
 export function encodeInput(

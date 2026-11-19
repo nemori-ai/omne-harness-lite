@@ -4,7 +4,6 @@ import type {
   CompactionInputStore,
   ConsumerRef,
   DurableEvidence,
-  ModelContextRead,
   RequestPreparation,
   RuntimeConditions,
   SelectedModel,
@@ -18,7 +17,6 @@ import {
   decodePassageId,
 } from '@omne-harness/agent-contract'
 import {
-  createAgentModelContext,
   createAgentRequests,
   createContextMaterials,
   absentToolLookup,
@@ -77,14 +75,7 @@ import {
   type MeterScript,
 } from '@omne-harness/request-context-contract/testing'
 import type { ContextHolderParts } from '@omne-harness/request-context-cordis-contract'
-import { createRuntimeContext } from '@omne-harness/runtime-context'
-import type {
-  EligibilityId,
-  ReaderEligibilityResult,
-  ReaderOperations,
-} from '@omne-harness/runtime-context-contract'
-import { createTestAuthorityPorts } from '@omne-harness/runtime-context-contract/testing'
-import { createScriptedReaderEligibility } from '@omne-harness/runtime-context-cordis-contract/testing'
+import type {} from '@omne-harness/runtime-context-contract'
 import { tenantEquals } from '@omne-harness/legal-identity'
 
 export function tenantOf(digit: string): TenantId {
@@ -106,7 +97,7 @@ export const evidence = (record: string): DurableEvidence => ({
   revision: '1',
   digest: `digest-${record}`,
 })
-export const HEAD = evidence('history-head')
+export const HEAD = evidence('history-tip')
 
 export function userMessage(index: number, text: string): Message {
   const id = parseMessageId(`msg_${String(index).padStart(22, 'a')}`)
@@ -241,8 +232,6 @@ export async function createWorld(options: WorldOptions = {}) {
   const access: Access<string> = { principal: 'ada', tenant }
   const counts = {
     resolveHistory: 0,
-    eligibility: 0,
-    bind: 0,
     register: 0,
     assemble: 0,
     resume: 0,
@@ -286,64 +275,6 @@ export async function createWorld(options: WorldOptions = {}) {
             },
           }
         : { kind: 'invalid', field: 'evidence', reason: 'unknown-epoch' }
-    },
-  }
-
-  const ports = createTestAuthorityPorts<string>()
-  const rc = createRuntimeContext<string>({ trust: ports })
-  ports.bind(f.target.scope, tenant)
-  const begun = await rc.beginReplay('holder', {
-    scope: f.target.scope,
-    tenant,
-    through: null,
-    supersedes: null,
-  })
-  if (begun.kind !== 'replaying') throw new Error(`fixture replay: ${begun.kind}`)
-  const ready = await rc.finishReplay('holder', {
-    replay: begun.replay,
-    material: { registrations: [], checkpoints: [], end: null },
-  })
-  if (ready.kind !== 'ready') throw new Error(`fixture replay end: ${ready.kind}`)
-  async function issue(supersedes: EligibilityId | null = null): Promise<EligibilityId> {
-    const issued = await rc.issueEligibility('holder', {
-      supersedes,
-      scope: f.target.scope,
-      consumer: 'model',
-      principal: access.principal,
-      tenant,
-      keys: [],
-      bindings: [],
-      registrationRevision: 0,
-    })
-    if (issued.kind !== 'issued') throw new Error(`fixture eligibility: ${issued.kind}`)
-    return issued.eligibility.id
-  }
-  let held: EligibilityId = await issue()
-  const scriptOf = (result: ReaderEligibilityResult) =>
-    createScriptedReaderEligibility<string>({
-      scopes: [{ scope: f.target.scope, tenant }],
-      answers: [
-        {
-          request: {
-            principal: access.principal,
-            tenant,
-            scope: f.target.scope,
-            consumer: 'model',
-          },
-          result,
-        },
-      ],
-    })
-  type Handed = ReaderEligibilityResult
-  let handoff = scriptOf({ kind: 'current', eligibility: held })
-  let queued: Handed[] = []
-  function answer(result: Handed) {
-    handoff = scriptOf(result)
-  }
-  const runtimeContext: ReaderOperations = {
-    bind: async id => {
-      counts.bind++
-      return rc.bind(id, { consumer: 'model' })
     },
   }
 
@@ -439,7 +370,7 @@ export async function createWorld(options: WorldOptions = {}) {
     },
   }
 
-  const materials = createContextMaterials({ owner, capacity: options.capacity ?? 8 })
+  const materials = createContextMaterials({ owner })
   const requests = createAgentRequests<string>({
     materials,
     parts,
@@ -450,20 +381,6 @@ export async function createWorld(options: WorldOptions = {}) {
     tools: options.tools ?? toolsSourceOf(absentToolLookup),
     compactionInputs,
     ...(options.definitions === undefined ? {} : { definitions: options.definitions }),
-    ...(options.measure === undefined ? {} : { measure: options.measure }),
-  })
-  const reader = createAgentModelContext<string>({
-    materials,
-    parts,
-    eligibility: {
-      current: async request => {
-        counts.eligibility++
-        const next = queued.shift()
-        if (next !== undefined) answer(next)
-        return handoff.current(request)
-      },
-    },
-    runtimeContext,
     ...(options.measure === undefined ? {} : { measure: options.measure }),
   })
 
@@ -491,25 +408,8 @@ export async function createWorld(options: WorldOptions = {}) {
     bindings: [],
   }
 
-  function readInput(overrides: Partial<Parameters<typeof reader.read>[0]> = {}) {
-    return {
-      ...access,
-      advance: authority(),
-      position,
-      recipient: selection.recipient,
-      history: HEAD,
-      adopted: null,
-      transition: null,
-      ...overrides,
-    }
-  }
-  async function read(overrides: Partial<Parameters<typeof reader.read>[0]> = {}) {
-    const result = await reader.read(readInput(overrides))
-    if (!('ok' in result)) throw new Error(`read refused: ${JSON.stringify(result.failure)}`)
-    return result.ok
-  }
   type PrepareInput = Parameters<RequestPreparation<string>['prepare']>[0]
-  function prepareInput(context: ModelContextRead, overrides: Partial<PrepareInput> = {}) {
+  function prepareInput(overrides: Partial<PrepareInput> = {}) {
     const input: PrepareInput = {
       ...access,
       advance: authority(),
@@ -524,7 +424,6 @@ export async function createWorld(options: WorldOptions = {}) {
       },
       conditions,
       selection,
-      context,
       previous: null,
       alterations: [],
       beforeModelCall: null,
@@ -544,9 +443,6 @@ export async function createWorld(options: WorldOptions = {}) {
       candidate: candidate.candidate,
       order: must(decodeCommitOrder('1')),
       committed: evidence('committed'),
-      windowTokens: '1000',
-      accounting: { kind: 'unsettled' },
-      forecast: null,
       continuation: continued
         ? { ...candidate.continuation, call: caller, fixed: evidence('committed') }
         : null,
@@ -570,20 +466,6 @@ export async function createWorld(options: WorldOptions = {}) {
       resolvedTenant = next
     },
     adopt,
-    rc,
-    ports,
-    issue,
-    get held() {
-      return held
-    },
-    hold(id: EligibilityId) {
-      held = id
-      answer({ kind: 'current', eligibility: id })
-    },
-    answer,
-    answerInTurn(results: Handed[]) {
-      queued = [...results]
-    },
     registry,
     candidates,
     registered,
@@ -599,11 +481,8 @@ export async function createWorld(options: WorldOptions = {}) {
     compactionInputs,
     frozen,
     requests,
-    reader,
     selection,
     conditions,
-    readInput,
-    read,
     prepareInput,
     passed,
   }

@@ -403,6 +403,27 @@ it('preserves legal sealed thinking, voice, image and file values without readin
   expect((await f.read()).page.parts).toEqual(parts)
 })
 
+it('settles a sealed reasoning state as the real Model does, whole and without trims', async () => {
+  const f = await setup()
+  const state = judgePart({
+    kind: 'reasoning_state',
+    id: 'rs',
+    visibility: { toHuman: false, toModel: true },
+    payload: 'sealed',
+    pairs: [],
+  })
+  if ('rejected' in state || state.ok.kind !== 'reasoning_state')
+    throw new Error('reasoning state fixture')
+  const parts: ResultPart[] = [{ kind: 'sealed', block: state.ok, trims: [] }]
+  f.settle(parts, 100000)
+  expect((await f.read()).page.parts).toEqual(parts)
+  expect(() =>
+    Reflect.apply(validateParts, undefined, [
+      [{ kind: 'sealed', block: state.ok, trims: [{ removed: '1', reason: 'r' }] }],
+    ]),
+  ).toThrow('invalid sealed result')
+})
+
 it('preserves result validation messages and first-failure priority', () => {
   const partial = { kind: 'partial', content: 'text', value: 'kept', trims: [] }
   const cases = [

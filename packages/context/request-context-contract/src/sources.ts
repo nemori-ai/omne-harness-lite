@@ -29,8 +29,8 @@ export type SourceRead<T> =
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-export type SourceGroupValue<P, K extends GroupName> = K extends 'context'
-  ? Omit<InputGroups<P>['context'], 'adopted'>
+export type SourceGroupValue<P, K extends GroupName> = K extends 'history'
+  ? Omit<InputGroups<P>['history'], 'adopted'>
   : InputGroups<P>[K]
 export interface GroupSource<P, K extends GroupName> {
   readCount(call: AssemblyCall<P>): Promise<SourceRead<GroupToken>>
@@ -57,7 +57,7 @@ export interface ContextReadEligibility<P> {
     input: Readonly<{
       access: Access<P>
       target: ContextTarget
-      operation: 'history' | 'conversions' | 'assembly' | 'accounts'
+      operation: 'history' | 'conversions' | 'assembly'
     }>,
   ): Promise<
     | Readonly<{ kind: 'allowed'; revision: GroupToken }>

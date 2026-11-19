@@ -1,4 +1,4 @@
-import type { ModelConfiguration } from '@omne-harness/model'
+import type { ModelConfiguration, ReplayResend } from '@omne-harness/model'
 import type { Adoption } from '@omne-harness/model-contract'
 import { parseRetryPolicy, type RetryPolicy } from '@omne-harness/retry'
 import { fieldOf, isRecord } from '../fields.ts'
@@ -9,7 +9,7 @@ export type ConfiguredModelHostSettings = Readonly<{
   host: ModelHostSettings
   runtime: ModelConfiguration
   results: ResultPushLimits
-  retry: Readonly<{ adoption: Adoption; policy: RetryPolicy }>
+  retry: Readonly<{ adoption: Adoption; policy: RetryPolicy; replayResend: ReplayResend }>
 }>
 
 type Parsed<T> = Readonly<{ value: T }> | Readonly<{ issues: { message: string }[] }>
@@ -31,6 +31,10 @@ const RESULT_BOUNDS = {
   maxPendingAccountsPerTenant: { minimum: 1, safe: true },
   maxPendingAccounts: { minimum: 1, safe: true },
 } satisfies Record<keyof ResultPushLimits, Bound>
+const REPLAY_RESEND_BOUNDS = { max: { minimum: 0, safe: true } } satisfies Record<
+  keyof ReplayResend,
+  Bound
+>
 
 function parseNumbers<K extends string>(
   value: unknown,
@@ -70,9 +74,21 @@ function parseRetry(value: unknown): Parsed<ConfiguredModelHostSettings['retry']
   const digest = fieldOf(adoption, 'digest')
   if (!named(owner) || !named(name) || !named(revision) || !named(digest))
     return { issues: [{ message: 'retry.adoption must name owner, name, revision and digest' }] }
+  const replayResend = parseNumbers(
+    fieldOf(value, 'replayResend'),
+    'retry.replayResend',
+    REPLAY_RESEND_BOUNDS,
+  )
+  if ('issues' in replayResend) return replayResend
   try {
     const policy = parseRetryPolicy(fieldOf(value, 'policy'))
-    return { value: { adoption: { owner, name, revision, digest }, policy } }
+    return {
+      value: {
+        adoption: { owner, name, revision, digest },
+        policy,
+        replayResend: replayResend.value,
+      },
+    }
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'not a retry policy'
     return { issues: [{ message: `retry.policy: ${reason}` }] }

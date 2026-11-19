@@ -1,11 +1,5 @@
 import type * as M from '@omne-harness/model-contract'
-import type {
-  AssemblyInput,
-  AssemblyFailure,
-  AssemblyUnknown,
-  RequestLayers,
-  FitVerdict,
-} from './values.js'
+import type { AssemblyInput, AssemblyFailure, AssemblyUnknown, FitVerdict } from './values.js'
 import type { StablePreparation } from './preparation.js'
 import type { RepresentationResult } from './representation.js'
 import type { OperationContext } from './operation-context.js'
@@ -20,7 +14,6 @@ export async function measureLayers<P>(
   input: AssemblyInput<P>,
   context: OperationContext<P>,
   prepared: StablePreparation,
-  layers: RequestLayers,
   represented: Extract<RepresentationResult, { kind: 'chosen' }>,
   assembled: M.AssembledModelInput,
   facts: ContinuationFacts,
@@ -38,11 +31,9 @@ export async function measureLayers<P>(
   const whole = await measureCandidate(measure, input.selection, lineage, assembled)
   if (failed(whole)) return whole
   const fixedIds = new Set(input.inputs.entries)
-  const fixedMessages = [
-    ...(layers.snapshotReminder.message === null ? [] : [layers.snapshotReminder.message]),
-    ...prepared.view.messages.filter(r => fixedIds.has(r.entry)).map(r => r.message),
-    ...(layers.tailFacts.message === null ? [] : [layers.tailFacts.message]),
-  ]
+  const fixedMessages = prepared.view.messages
+    .filter(r => fixedIds.has(r.entry))
+    .map(r => r.message)
   const representedIds = new Set(fixedMessages.map(m => m.id))
   const fixedInput = {
     ...assembled,

@@ -12,7 +12,7 @@ export type {
   ReadResult,
   BlockState,
   BlockEntry,
-  PerRequestEntry,
+  PerReadEntry,
   Snapshot,
   ChangeEntry,
   Changes,
@@ -37,6 +37,7 @@ export type {
   RuntimeContextOperations,
 } from './operations.js'
 export type { ContextUpdate, StepBlockMaterial, StepCommit } from './update.js'
+export { renderChangeReminder, renderSnapshotReminder } from './reminder-text.js'
 export type {
   Registration,
   RegistrationChange,

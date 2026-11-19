@@ -54,7 +54,7 @@ describe('acquire', () => {
     const supplier = supplierOf(SONNET)
     for (const adoption of [
       { ...supplier.adoption, name: 'anthropic/claude-sonnet-5-mini' },
-      { ...supplier.adoption, revision: '3' },
+      { ...supplier.adoption, revision: String(Number(SONNET.revision) + 1) },
       { ...supplier.adoption, digest: '0'.repeat(64) },
     ])
       expect(await contributions.acquire({ ...supplier, adoption }, live())).toEqual({

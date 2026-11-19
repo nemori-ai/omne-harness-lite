@@ -188,7 +188,6 @@ export function createMemoryContextSources<P>(
     target: input.target,
     groups: {
       history: source('history'),
-      context: source('context'),
       prompt: source('prompt'),
       model: source('model'),
       tools: source('tools'),

@@ -23,6 +23,7 @@ import {
   OPENAI_OWNER,
   OPENAI_RECORDS,
   openAiTokenizerResources,
+  type OpenAiChatRecord,
   type OpenAiFamilyConfig,
   type OpenAiRecord,
 } from '@omne-harness/pi-ai-openai'
@@ -72,6 +73,12 @@ export function recordNamed(name: string): OpenAiRecord {
   const records: readonly OpenAiRecord[] = OPENAI_RECORDS
   const record = records.find(item => item.name === name)
   if (record === undefined) throw new Error(`no record ${name}`)
+  return record
+}
+
+export function chatRecordNamed(name: string): OpenAiChatRecord {
+  const record = recordNamed(name)
+  if ('engine' in record) throw new Error(`${name} is not a chat-completions record`)
   return record
 }
 

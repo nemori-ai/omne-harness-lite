@@ -8,8 +8,6 @@ import {
   decodeStepId,
   type Access,
   type AgentExecutionId,
-  type AgentAccountHandoff,
-  type AgentAccountOutcome,
   type PendingCall,
   type ReceivedEntry,
 } from '@omne-harness/agent-contract'
@@ -37,8 +35,6 @@ export type ModelReceiverFixture = Readonly<{
   delivery: ModelDelivery
   dependencies: ModelReceiverDependencies<string>
   journal: MemoryAgentJournal<string>
-  sent: AgentAccountHandoff[]
-  outlet(next: AgentAccountOutcome): void
 }>
 export async function assembleModelReceiverFixture(
   tenant: Access<string>['tenant'],
@@ -147,8 +143,6 @@ export async function assembleModelReceiverFixture(
       runtime,
     }),
   )
-  const sent: AgentAccountHandoff[] = []
-  let outcome: AgentAccountOutcome = { kind: 'received' }
   const dependencies: ModelReceiverDependencies<string> = {
     provider: journal.provider,
     targets: journal.targets,
@@ -196,12 +190,6 @@ export async function assembleModelReceiverFixture(
         }
       },
     },
-    outlet: {
-      async deliver(input) {
-        sent.push(input.handoff)
-        return outcome
-      },
-    },
   }
   return {
     durability: 'none' as const,
@@ -210,9 +198,5 @@ export async function assembleModelReceiverFixture(
     delivery,
     dependencies,
     journal,
-    sent,
-    outlet(next: AgentAccountOutcome) {
-      outcome = next
-    },
   }
 }

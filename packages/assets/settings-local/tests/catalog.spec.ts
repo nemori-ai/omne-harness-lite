@@ -1,6 +1,7 @@
 import { afterEach, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import canonicalize from 'canonicalize'
+import type { SettingsTarget } from '@omne-harness/settings'
 import { openCatalogWorld } from './catalog-world.ts'
 import { definition, sibling } from './world.ts'
 const opened: Awaited<ReturnType<typeof openCatalogWorld>>[] = []
@@ -60,6 +61,18 @@ it('aggregates real target state, retains values across declaration unload and d
     }),
   ).toEqual({ kind: 'rejected', reason: 'forbidden' })
 })
+it('reads a target the registry does not name without its provider, and reports a named one whose provider is unloaded', async () => {
+  let named: readonly SettingsTarget[] = []
+  const w = await openCatalogWorld({ registryTargets: () => named })
+  opened.push(w)
+  expect(await w.write(w.principal, w.change)).toMatchObject({ kind: 'committed' })
+  w.registry.releaseContribution(w.registration.registrationId)
+  const read = () => w.service.queries.readCatalog(w.principal, request(w.view))
+  expect(await read()).toMatchObject({ kind: 'catalog', completeness: 'complete' })
+  named = [{ ...w.change.target, scopeRef: `${w.change.target.scopeRef}-other` }, w.change.target]
+  expect(await read()).toMatchObject({ kind: 'catalog', completeness: 'partial' })
+})
+
 it('requires validated runtime selection and rechecks real membership before every read', async () => {
   const w = await open()
   const runtime = { ...w.view, mode: 'runtime', targets: [w.change.target] }

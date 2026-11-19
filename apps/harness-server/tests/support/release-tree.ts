@@ -4,7 +4,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { unpackText } from '@omne-harness/sql-contract/worker'
 import { expect, onTestFailed, onTestFinished } from 'vitest'
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { ListPoolSchema, type PoolItem } from '@omne-harness/human-intervention'
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -54,6 +54,7 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   if (
     modes.permission === undefined &&
     modes.collaboration === undefined &&
+    modes.model === undefined &&
     nonresident.length === 0
   )
     return distribution
@@ -65,6 +66,10 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   if (modes.permission !== undefined)
     coding.modes.permission = modes.permission as typeof coding.modes.permission
   if (modes.collaboration !== undefined) coding.modes.collaboration = modes.collaboration
+  if (modes.model !== undefined) {
+    if (coding.initialModelSelection === undefined) throw new Error('No coding model selection')
+    coding.initialModelSelection.name = modes.model
+  }
   const references = coding.definition['references'] as {
     capability: { name: string }
     resident: boolean
@@ -78,6 +83,8 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
 type ReleaseModes = Readonly<{
   permission?: string
   collaboration?: 'co-work' | 'auto-drive'
+  /** The model a coding session starts on, in place of the distribution's. */
+  model?: string
   /** Release tools the coding Agent reaches only through Tools in this tree. */
   nonresident?: readonly string[]
 }>
@@ -588,6 +595,7 @@ export type ReleaseTreeOptions = Readonly<{
   script: GatewayScript
   permission?: string
   collaboration?: 'co-work' | 'auto-drive'
+  model?: string
   nonresident?: readonly string[]
   audience?: (registrar: string) => HitlAudience
   queueCapacity?: number
@@ -602,11 +610,28 @@ export type ReleaseTreeOptions = Readonly<{
   toolSettings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
   /** Rows left out of the release, together with the operator's values for them. */
   withoutRows?: readonly string[]
+  /** Rows a test adds to the release, each with the row plugin that serves it. */
+  addedRows?: readonly AddedRow[]
+}>
+
+export type AddedRow = Readonly<{
+  id: string
+  plugin: string
+  config: unknown
+  definition: Plugin.Object
 }>
 
 function withoutRows<T>(layered: T, key: 'rows' | 'ops', left: readonly string[] = []): T {
   const list = (layered as Record<string, readonly { id: string }[]>)[key] ?? []
   return { ...layered, [key]: list.filter(entry => !left.includes(entry.id)) }
+}
+
+function withAddedRows(distribution: unknown, added: readonly AddedRow[] = []): unknown {
+  const { rows } = distribution as { rows: readonly object[] }
+  return {
+    ...(distribution as object),
+    rows: [...rows, ...added.map(({ id, plugin, config }) => ({ id, plugin, config }))],
+  }
 }
 
 export async function onReleaseTree(
@@ -710,7 +735,10 @@ async function serveOnce(
       : object,
   )
   const finished = runServe({
-    distribution: withoutRows(releaseDistribution(options), 'rows', options.withoutRows),
+    distribution: withAddedRows(
+      withoutRows(releaseDistribution(options), 'rows', options.withoutRows),
+      options.addedRows,
+    ),
     operator: withoutRows(
       withToolSettings(
         withObservationPolicy(
@@ -739,6 +767,7 @@ async function serveOnce(
     ),
     plugins: {
       ...cordis,
+      ...Object.fromEntries((options.addedRows ?? []).map(row => [row.plugin, row.definition])),
       ...(options.compactionProvider === undefined
         ? {}
         : {

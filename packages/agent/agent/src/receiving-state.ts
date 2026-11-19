@@ -1,10 +1,4 @@
-import type {
-  Access,
-  AgentAccountHandoff,
-  AgentAccountOutcome,
-  AgentOperationId,
-  ReceivedCommitValue,
-} from '@omne-harness/agent-contract'
+import type { Access, AgentOperationId, ReceivedCommitValue } from '@omne-harness/agent-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { ModelDelivery } from '@omne-harness/model-contract'
 import { canonical } from './canonical.ts'
@@ -23,21 +17,11 @@ export type Reception<P> = {
   attachments: number
   commit: CommitState
 }
-export type Outbound<P> = {
-  access: Access<P>
-  target: ModelReceptionTarget
-  binding: string
-  handoff: AgentAccountHandoff
-} & ({ kind: 'pending' } | { kind: 'received' } | { kind: 'blocked'; reason: AgentAccountOutcome })
 export type ModelReceptionDiagnostic = Readonly<{ operation: string; reason: string }>
 type ScopedDiagnostic = { binding: string | null; value: ModelReceptionDiagnostic }
 export class ModelReceiverState<P> {
   readonly receptions = new Map<string, Reception<P>>()
-  readonly outbound = new Map<string, Outbound<P>>()
-  readonly outletActive = new Set<string>()
-  readonly outletTasks = new Map<string, Promise<void>>()
   readonly tasks = new Set<Promise<unknown>>()
-  driver: symbol = Symbol('unassembled')
   readonly active = new Map<string, number>()
   readonly writing = new Set<string>()
   readonly diagnostics = new Map<string, ScopedDiagnostic>()
@@ -45,7 +29,6 @@ export class ModelReceiverState<P> {
 export const createModelReceiverState = <P>() => new ModelReceiverState<P>()
 export type ModelReceiverReport = Readonly<{
   pending: number
-  blocked: number
   diagnostics: readonly ModelReceptionDiagnostic[]
 }>
 export function tenantKey<P>(access: Access<P>) {
@@ -73,14 +56,10 @@ export function receptionReport<P>(
   state: ModelReceiverState<P>,
   scope?: ReadonlySet<string>,
 ): ModelReceiverReport {
-  const outbound = [...state.outbound.values()].filter(item => !scope || scope.has(item.binding))
   return {
-    pending:
-      outbound.filter(item => item.kind === 'pending').length +
-      [...state.receptions.values()].filter(
-        item => item.commit.kind === 'unknown' && (!scope || scope.has(item.binding)),
-      ).length,
-    blocked: outbound.filter(item => item.kind === 'blocked').length,
+    pending: [...state.receptions.values()].filter(
+      item => item.commit.kind === 'unknown' && (!scope || scope.has(item.binding)),
+    ).length,
     diagnostics: structuredClone(
       [...state.diagnostics.values()]
         .filter(item => !scope || (item.binding !== null && scope.has(item.binding)))

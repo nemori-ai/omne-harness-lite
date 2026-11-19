@@ -20,7 +20,6 @@ const REQUIRED = [
   'conditions',
   'requests',
   'selection',
-  'modelContext',
   'handoff',
   'clock',
 ] as const satisfies readonly (keyof AgentDependencies<unknown, ContentBlock>)[]

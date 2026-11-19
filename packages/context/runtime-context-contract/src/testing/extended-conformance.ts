@@ -11,7 +11,13 @@ import {
 } from './fixtures.js'
 import { start, started, type RuntimeContextFixture } from './suite.js'
 import { reduceStep } from '../index.js'
-import type { StatefulBlockDescriptor, ContextUpdate, ScopeRef, CommitInput } from '../index.js'
+import type {
+  StatefulBlockDescriptor,
+  ContextUpdate,
+  ScopeRef,
+  CommitInput,
+  ConsumerClass,
+} from '../index.js'
 export const EXTENDED_OBLIGATIONS = [
   'reissue-cannot-change-reader-consumer',
   'reissue-cannot-change-reader-scope',
@@ -29,7 +35,8 @@ export const EXTENDED_OBLIGATIONS = [
   'translated-block-not-readable-raw',
   'translation-throw-reads-missing',
   'unlisted-binding-refused',
-  'per-request-block-outside-snapshot',
+  'per-read-block-outside-snapshot',
+  'per-read-block-for-model-rejected',
   'optional-need-reads-none',
   'child-scope-shadows-parent',
   'declaration-digest-mismatch-refused',
@@ -54,7 +61,8 @@ const extendedCases = {
   'translated-block-not-readable-raw': translatedBlockNotReadableRaw,
   'translation-throw-reads-missing': translationThrowReadsMissing,
   'unlisted-binding-refused': unlistedBindingRefused,
-  'per-request-block-outside-snapshot': perRequestBlockOutsideSnapshot,
+  'per-read-block-outside-snapshot': perReadBlockOutsideSnapshot,
+  'per-read-block-for-model-rejected': perReadBlockForModelRejected,
   'optional-need-reads-none': optionalNeedReadsNone,
   'child-scope-shadows-parent': childScopeShadowsParent,
   'declaration-digest-mismatch-refused': declarationDigestMismatchRefused,
@@ -94,12 +102,13 @@ async function bindReader<P>(
   s: Setup<P> | Fresh<P>,
   target: ScopeRef,
   keys: readonly ('suite.value' | 'suite.state')[],
+  consumer: ConsumerClass = 'model',
 ) {
   const issued = await s.subject.issueEligibility(s.principal, {
     scope: target,
     tenant: s.tenant,
     principal: s.principal,
-    consumer: 'model',
+    consumer,
     keys,
     bindings: [],
     registrationRevision: 1,
@@ -276,7 +285,7 @@ async function scopeIndependentCallbackAtThreePoints<P>(fixture: RuntimeContextF
   assert.equal(calls, 3)
 }
 
-async function perRequestBlockOutsideSnapshot<P>(fixture: RuntimeContextFixture<P>) {
+async function perReadBlockOutsideSnapshot<P>(fixture: RuntimeContextFixture<P>) {
   const f = await fresh(fixture)
   const target = scope('request')
   await openScope(f.subject, f.ports, f.principal, target, f.tenant)
@@ -285,7 +294,7 @@ async function perRequestBlockOutsideSnapshot<P>(fixture: RuntimeContextFixture<
     key: 'suite.value',
     tenant: f.tenant,
     producer: { producer: 'request' },
-    declaration: declaration({ volatility: 'per-request' }),
+    declaration: declaration({ volatility: 'per-read', consumers: ['tool'] }),
     scoped: true,
     supply: async () => ({ kind: 'value', value: ++calls }),
   })
@@ -306,14 +315,29 @@ async function perRequestBlockOutsideSnapshot<P>(fixture: RuntimeContextFixture<
       required: true,
     },
   })
-  const reader = await bindReader(f, target, ['suite.value'])
+  const reader = await bindReader(f, target, ['suite.value'], 'tool')
   const a = await reader.snapshot(),
     c = await reader.snapshot()
   assert.ok(a.kind === 'success' && c.kind === 'success')
   assert.equal(a.value.blocks.length, 0)
-  assert.equal(a.value.perRequest[0]?.kind, 'value')
+  assert.equal(a.value.perRead[0]?.kind, 'value')
   assert.equal(calls, 2)
   assert.equal(a.value.viewRevision, c.value.viewRevision)
+}
+
+async function perReadBlockForModelRejected<P>(fixture: RuntimeContextFixture<P>) {
+  const f = await fresh(fixture)
+  let calls = 0
+  const p = await f.subject.registerProducer(f.principal, {
+    key: 'suite.value',
+    tenant: f.tenant,
+    producer: { producer: 'request' },
+    declaration: declaration({ volatility: 'per-read', consumers: ['model', 'tool'] }),
+    scoped: true,
+    supply: async () => ({ kind: 'value', value: ++calls }),
+  })
+  assert.deepEqual(p, { kind: 'rejected', reason: 'per-read-for-model' })
+  assert.equal(calls, 0)
 }
 
 async function cursorInvalidatedBelowRetention<P>(fixture: RuntimeContextFixture<P>) {

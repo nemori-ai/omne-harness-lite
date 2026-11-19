@@ -50,6 +50,8 @@ const held = new Promise(resolve => {
 })
 
 let phase = 'walk'
+/** What the host and the model gateway saw, with times; printed when a step fails. */
+const hostLog = []
 const AFTER_RETRY = 'answered after the retry'
 const TOOL_ARGUMENTS = JSON.stringify({ command: 'execute', params: { script: 'echo walk-args' } })
 const ASK_TITLE = 'Which port should the dev server use?'
@@ -119,6 +121,7 @@ const askCall = (index, id, args) => ({
 const final = (body, content) => `${sse([piece(body, content), STOP])}data: [DONE]\n\n`
 
 function answer({ index, body }) {
+  hostLog.push(`${new Date().toISOString()} model request ${index} (phase ${phase})`)
   const reply = { status: 200, contentType: 'text/event-stream' }
   if (phase === 'fail')
     return {
@@ -277,6 +280,8 @@ const HELPERS = `
     if (tab.getAttribute('aria-selected') !== 'true') tab.click()
     await wait('the panel of ' + tab.textContent, () => tab.getAttribute('aria-selected') === 'true' && shownPanel())
     await sleep(50)
+    for (const button of shownPanel().querySelectorAll('.assets-item-title button[aria-expanded=false]')) button.click()
+    await sleep(50)
     return shownPanel()
   }
   const inAssetTabs = async (what, find) => {
@@ -294,17 +299,18 @@ const HELPERS = `
   const shownCard = area => area.querySelector('.hitl-card')
 `
 
-async function walk(browser, origin, proofs) {
+async function walk(browser, origin, proofs, elsewhere) {
   const { send } = browser
   await send('Page.enable')
   await send('Page.navigate', { url: origin })
   let number = 0
   const step = async (name, ...stages) => {
     number += 1
+    hostLog.push(`${new Date().toISOString()} step ${number} ${name}`)
     let result
     for (const stage of stages) {
       if (typeof stage === 'function') {
-        stage()
+        await stage()
         continue
       }
       result = await send('Runtime.evaluate', {
@@ -415,6 +421,111 @@ async function walk(browser, origin, proofs) {
       throw new Error('the asset page is not between the decisions and the settings: ' + JSON.stringify(order))
     return { nav: order, current: document.querySelector('[aria-current=page]').textContent.trim(), tabs }`,
   )
+  await step(
+    '资产的列表与详情',
+    `
+    const listed = await inAssetTabs('a listed asset', panel => panel.querySelector('li.assets-item'))
+    listed.querySelector('.assets-item-title button[aria-expanded=false]')?.click()
+    const item = await wait('its detail', () =>
+      listed.querySelector('.assets-detail') && listed.innerText.includes('现在能不能用') ? listed : undefined)
+    const facts = [...item.querySelectorAll('.assets-item-facts span')].map(span => span.textContent)
+    const standing = [...item.querySelectorAll('.fact-list-row')]
+      .find(row => row.querySelector('dt').textContent === '现在能不能用').querySelector('dd').textContent
+    return { asset: item.getAttribute('aria-label'), facts, standing }`,
+  )
+  let madeElsewhere = Promise.resolve()
+  await step(
+    '别处新建一份技能：页面不用人动就列出它',
+    `
+    const tab = await wait('the skill tab', () => assetTabs().find(item => item.textContent === '技能'))
+    await openTab(tab)
+    if (shownPanel().querySelector('li.assets-item[aria-label="walk-made"]')) throw new Error('walk-made is listed before it is made')
+    return 'watching the skill tab'`,
+    () => {
+      madeElsewhere = elsewhere.createSkill('walk-made').then(
+        () => print('made walk-made outside the page'),
+        failure => print(`making walk-made outside the page failed: ${failure.message}`),
+      )
+    },
+    `
+    const item = await wait('the new skill, without touching the page', () =>
+      shownPanel().querySelector('li.assets-item[aria-label="walk-made"]'))
+    return { listed: item.getAttribute('aria-label'), facts: [...item.querySelectorAll('.assets-item-facts span')].map(span => span.textContent) }`,
+  )
+  await madeElsewhere
+  const skillDirectory = mkdtempSync(join(tmpdir(), 'page-walk-skill-'))
+  writeFileSync(
+    join(skillDirectory, 'SKILL.md'),
+    '---\nname: walk-page\ndescription: Made in the page by the walk.\n---\n\n# walk-page\n',
+  )
+  await step(
+    '在页面里新建一份技能：选目录、提交，列表里出现它',
+    `
+    const tab = await wait('the skill tab', () => assetTabs().find(item => item.textContent === '技能'))
+    await openTab(tab)
+    await press('button', '新建')
+    const form = await wait('the form', () => shownPanel().querySelector('form[aria-label="新建"]'))
+    fill(form.querySelector('input:not([type=file])'), 'walk-page')
+    return 'the form is open'`,
+    async () => {
+      const found = await send('Runtime.evaluate', {
+        expression: `document.querySelector('form[aria-label="新建"] input[type=file]')`,
+      })
+      await send('DOM.setFileInputFiles', {
+        objectId: found.result.objectId,
+        files: [skillDirectory],
+      })
+    },
+    `
+    const form = shownPanel().querySelector('form[aria-label="新建"]')
+    await wait('the file count', () => form.innerText.includes('1 个文件'))
+    await press('form[aria-label="新建"] button', '提交')
+    await wait('the creation', () => form.innerText.includes('已新建 walk-page。'))
+    const item = await wait('the new row', () => shownPanel().querySelector('li.assets-item[aria-label="walk-page"]'))
+    return { created: item.getAttribute('aria-label'), note: form.innerText.split('\\n').filter(line => line.includes('文件')) }`,
+  )
+  await step(
+    '新建的这一份：列表里有它的简介；在详情里禁用、启用、移除',
+    `
+    const item = () => shownPanel().querySelector('li.assets-item[aria-label="walk-page"]')
+    const button = text => [...(item()?.querySelectorAll('button') ?? [])].find(each => each.textContent.trim() === text && !each.disabled)
+    const row = await wait('the row', item)
+    if (!row.innerText.includes('Made in the page by the walk.')) throw new Error('the row shows no summary: ' + row.innerText)
+    row.querySelector('button[aria-expanded="false"]')?.click()
+    ;(await wait('a disable button', () => button('禁用'))).click()
+    await wait('the row to read disabled', () => item()?.innerText.includes('已禁用'))
+    ;(await wait('an enable button', () => button('启用'))).click()
+    await wait('the row to read enabled', () => item()?.innerText.includes('已启用'))
+    ;(await wait('a remove button', () => button('移除'))).click()
+    ;(await wait('the confirmation', () => button('确认移除'))).click()
+    await wait('the row to go', () => item() === null)
+    return { summary: 'Made in the page by the walk.', disabled: true, enabled: true, removed: true }`,
+  )
+  await step(
+    '同名再新建：选同一个目录提交，列表里又有它',
+    `
+    if (shownPanel().querySelector('form[aria-label="新建"]') === null) await press('button', '新建')
+    const form = await wait('the form', () => shownPanel().querySelector('form[aria-label="新建"]'))
+    fill(form.querySelector('input:not([type=file])'), 'walk-page')
+    return 'the form is open'`,
+    async () => {
+      const found = await send('Runtime.evaluate', {
+        expression: `document.querySelector('form[aria-label="新建"] input[type=file]')`,
+      })
+      await send('DOM.setFileInputFiles', {
+        objectId: found.result.objectId,
+        files: [skillDirectory],
+      })
+    },
+    `
+    const form = shownPanel().querySelector('form[aria-label="新建"]')
+    await wait('the file count', () => form.innerText.includes('1 个文件'))
+    await press('form[aria-label="新建"] button', '提交')
+    const item = await wait('the row again', () => shownPanel().querySelector('li.assets-item[aria-label="walk-page"]'))
+    await wait('the creation', () => form.innerText.includes('已新建 walk-page。'))
+    return { again: item.getAttribute('aria-label'), facts: item.innerText.includes('已启用') }`,
+  )
+  rmSync(skillDirectory, { recursive: true, force: true })
   await step(
     '改一项设置，再清除它',
     `
@@ -761,6 +872,42 @@ const CATEGORIES = [
   ['tool', '工具'],
 ]
 
+/** A Skill made by the walk's own login outside the page, while the page is open. */
+async function createSkill(session, name) {
+  const client = protocol =>
+    createClient(
+      domainProtocols.find(item => item.name === protocol),
+      session.transport,
+    )
+  const current = await client('identity')['query-current-tenant']({})
+  const tenant = current.outcome === 'succeeded' ? current.body.tenantId : undefined
+  if (tenant === undefined)
+    throw new Error('query-current-tenant answered ' + JSON.stringify(current))
+  const assets = client('assets')
+  const bytes = new TextEncoder().encode(
+    `---\nname: ${name}\ndescription: Made by the page walk.\n---\n\n# ${name}\n`,
+  )
+  const upload = `walk-${name}`
+  const begun = await assets['begin-asset-upload']({
+    tenant,
+    operation: upload,
+    category: 'skill',
+    name,
+    manifest: [{ path: 'SKILL.md', bytes: bytes.length }],
+  })
+  if (begun.outcome !== 'succeeded') throw new Error('begin-asset-upload answered ' + begun.outcome)
+  const sent = await assets['append-asset-upload']({
+    tenant,
+    upload,
+    path: 'SKILL.md',
+    offset: 0,
+    bytes,
+  })
+  if (sent.outcome !== 'succeeded') throw new Error('append-asset-upload answered ' + sent.outcome)
+  const made = await assets['commit-asset-upload']({ tenant, upload })
+  if (made.outcome !== 'succeeded') throw new Error('commit-asset-upload answered ' + made.outcome)
+}
+
 async function listCategories(session) {
   const assets = domainProtocols.find(protocol => protocol.name === 'assets')
   const answer = await createClient(assets, session.transport)['list-categories']({
@@ -811,22 +958,48 @@ try {
     },
     contracts: [accessProtocol, ...domainProtocols],
   })
+  const timed = {
+    async call(request) {
+      const started = Date.now()
+      const report = await session.transport.call(request)
+      const name = `${request.protocol.name}/v${request.protocol.major} ${request.operation}`
+      hostLog.push(
+        `${new Date().toISOString()} call ${name}: ${report.outcome ?? report.kind} in ${Date.now() - started} ms`,
+      )
+      return report
+    },
+    observe: request => session.transport.observe(request),
+  }
   host = createWebHost({
-    session,
+    session: new Proxy(session, {
+      get: (target, key) => (key === 'transport' ? timed : Reflect.get(target, key)),
+    }),
     pageRoot: new URL('../dist/page/', import.meta.url).pathname,
+    log: line => hostLog.push(`${new Date().toISOString()} ${line}`),
   })
   const hostPort = await host.listen(0)
   print(`host: http://127.0.0.1:${hostPort}/`)
   chrome = await startChrome(profile)
   browser = await devtools(chrome.port)
-  await walk(browser, `http://127.0.0.1:${hostPort}/`, proofs)
+  await walk(browser, `http://127.0.0.1:${hostPort}/`, proofs, {
+    createSkill: name => createSkill(session, name),
+  })
   print(`walk: all steps passed; ${proofs.size} login proof(s) were searched for`)
   await listCategories(session)
   code = 0
 } catch (failure) {
   print(`failed: ${failure instanceof Error ? failure.message : String(failure)}`)
+  if (server !== undefined) writeFileSync(join(shots, 'server-stderr.log'), server.stderr())
   const errors = server?.stderr().slice(-2000) ?? ''
   if (errors !== '') print(`server stderr (tail):\n${errors}`)
+  if (hostLog.length > 0) writeFileSync(join(shots, 'host.log'), `${hostLog.join('\n')}\n`)
+  if (hostLog.length > 0)
+    print(`host log (tail; all of it in host.log):\n${hostLog.slice(-30).join('\n')}`)
+  const startup = server
+    ?.stdout()
+    .split('\n')
+    .find(line => line.includes('"kind":"startup-result"'))
+  if (startup !== undefined) print(`server startup: ${startup.slice(0, 600)}`)
 } finally {
   releaseHeld()
   browser?.close()

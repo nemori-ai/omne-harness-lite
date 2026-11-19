@@ -9,7 +9,7 @@ import { payableAmount } from '@omne-harness/call-account'
 import type { FixedModelRequest } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { createCertificate, startHttpsServer } from './support/https-server.ts'
-import { assembleLocalHost, PLACEHOLDER, ROUTE_PATH } from './support/local-host.ts'
+import { assembleLocalHost, PLACEHOLDER, isGatewayPath } from './support/local-host.ts'
 import { recordRound } from './support/recorder.ts'
 import {
   continuedRequest,
@@ -26,7 +26,7 @@ import { onlyDispatch, openReplay, recordedRequest, replayLabel } from './suppor
 
 const FORMATS: Readonly<Record<FamilyName, string>> = {
   'pi-ai-openai': 'openai-responses-v1',
-  'pi-ai-anthropic': 'anthropic-claude-v1',
+  'pi-ai-anthropic': 'anthropic-messages-v1',
 }
 
 describe('each real recording replays through the assembled local path', () => {
@@ -97,7 +97,7 @@ const syntheticDirectory = (name: RecordCaseName) => join(SYNTHETIC_ROOT, name)
 async function serving(stream: Uint8Array) {
   const certificate = createCertificate()
   const server = await startHttpsServer(certificate, (res, received) => {
-    if (received.path !== ROUTE_PATH) {
+    if (!isGatewayPath(received.path)) {
       res.writeHead(404).end()
       return
     }

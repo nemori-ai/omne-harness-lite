@@ -212,7 +212,7 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
       s.projection++
     },
     changed(s: ScopeState, key: ContextBlockKey | null) {
-      if (key !== null && world.descriptors.get(key)?.volatility === 'per-request') return
+      if (key !== null && world.descriptors.get(key)?.volatility === 'per-read') return
       s.view++
       s.projection++
       if (world.closed || !options.onChange) return

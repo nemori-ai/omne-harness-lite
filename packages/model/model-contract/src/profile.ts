@@ -285,20 +285,38 @@ export type ReplayTreatment = Readonly<{
         thinking: ForeignThinking
       }>
   )
+/** Why a reasoning state was left out; never its payload. */
+export type ReplayOmission =
+  | 'scope'
+  | 'format'
+  | 'resent'
+  | 'no-prefix'
+  | 'prefix-history'
+  | 'prefix-system'
+  | 'prefix-tools'
+  | 'prefix-projection'
 export type ReplayDiagnostic = Readonly<{
   message: MessageId
   scope: string
   format: string
   omittedParts: number
+  reason: ReplayOmission
 }>
+/** Whether the reasoning state of the receiver holds only on the prefix it was produced on. */
+export type ReplayBinding = 'prefix' | 'none'
 export type ReplayProjectionInput = Readonly<{
   messages: readonly Message[]
   declaration: ReplayDeclaration
   formats: ReadonlySet<string>
   off: boolean
   resent: ReadonlySet<MessageId>
+  system: unknown
+  tools: unknown
+  binding: ReplayBinding
 }>
 export type ReplayProjection = Readonly<{
   treatments: readonly ReplayTreatment[]
   diagnostics: readonly ReplayDiagnostic[]
+  /** The prefix of the whole request: a reply produced by it records this in its replay mark. */
+  prefix: string
 }>

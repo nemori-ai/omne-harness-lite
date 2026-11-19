@@ -1,15 +1,16 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
-import type { SettingView } from '@omne-harness/assets-protocol'
+import type { AssetRowView } from '@omne-harness/assets-protocol'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { AttachedEntry, AttachedLayout } from '@omne-harness/shell-contract'
 import { useEffect, type ReactNode } from 'react'
+import { createCategoryNames } from '../src/model/category-names.ts'
 import { AssetsPage, createGovernance, type GovernanceModel } from '../src/index.ts'
+import { assetRow, serveAssetReads } from './fixtures/asset-reads.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { namesOf } from './fixtures/names.ts'
-import { assetOwner, permissionView } from './fixtures/views.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -24,9 +25,6 @@ async function settle(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 0))
   })
 }
-
-const held = (category: string, name: string): SettingView =>
-  permissionView({ owner: assetOwner(category, name) })
 
 const mounted: string[] = []
 
@@ -57,14 +55,34 @@ type Setup = Readonly<{
   show: (entries: readonly AttachedEntry[]) => void
 }>
 
+function serveSettings(fake: FakeClient): void {
+  void (async () => {
+    for (;;)
+      (await fake.next('list-settings')).answer({
+        outcome: 'succeeded',
+        body: { items: [], next: null, completeness: 'complete' },
+      })
+  })()
+}
+
+const categoryItem = ([category, title]: readonly [string, string]) => ({
+  category,
+  title,
+  summary: '',
+  creation: 'none',
+})
+
 async function opened(
-  items: readonly SettingView[],
+  categories: readonly (readonly [string, string])[],
   entries: readonly AttachedEntry[],
+  rows: readonly AssetRowView[] = [],
 ): Promise<Setup> {
   mounted.length = 0
   const fake = createFakeClient()
+  serveSettings(fake)
+  serveAssetReads(fake, rows)
   const governance = createGovernance({ client: fake.client })
-  const names = namesOf({ tool: '工具' })
+  const names = createCategoryNames(fake.client)
   const element = (shown: readonly AttachedEntry[]) => (
     <AssetsPage
       governance={governance}
@@ -74,9 +92,9 @@ async function opened(
     />
   )
   const view = render(element(entries))
-  ;(await fake.next('list-settings')).answer({
+  ;(await fake.next('list-categories')).answer({
     outcome: 'succeeded',
-    body: { items, next: null, completeness: 'complete' },
+    body: { items: categories.map(categoryItem), next: null },
   })
   await settle()
   return { fake, governance, show: shown => view.rerender(element(shown)) }
@@ -93,16 +111,29 @@ const selected = () =>
     .filter(tab => tab.getAttribute('aria-selected') === 'true')
     .map(tab => tab.textContent)
 
-it('A0 列表还在读、也没有贡献的页面：说正在读，不说没有资产', async () => {
+it('A0 类别的列表还在读、也没有贡献的页面：说正在读，不说没有资产', async () => {
   const fake = createFakeClient()
-  render(<AssetsPage governance={createGovernance({ client: fake.client })} tenant={TENANT} />)
-  await fake.next('list-settings')
+  render(
+    <AssetsPage
+      governance={createGovernance({ client: fake.client })}
+      tenant={TENANT}
+      categoryNames={createCategoryNames(fake.client)}
+    />,
+  )
+  await fake.next('list-categories')
   expect(screen.getByText('正在读取资产……')).toBeTruthy()
   expect(screen.queryByText(/还没有可以管的资产/)).toBeNull()
 })
 
-it('A9 只有数据的类别按标识的码元序排，和列表里的先后无关', async () => {
-  await opened([held('c-cat', 'x'), held('a-cat', 'y'), held('b-cat', 'z')], [])
+it('A9 类别按标识的码元序排，和列表里的先后无关', async () => {
+  await opened(
+    [
+      ['c-cat', 'c-cat'],
+      ['a-cat', 'a-cat'],
+      ['b-cat', 'b-cat'],
+    ],
+    [],
+  )
   expect(tabTexts()).toEqual(['a-cat', 'b-cat', 'c-cat'])
   const marked = tabs()
     .getAllByRole('tab')
@@ -112,26 +143,26 @@ it('A9 只有数据的类别按标识的码元序排，和列表里的先后无�
 
 it('A10 换租户：按新租户另读一份，旧租户迟到的答复不算数', async () => {
   const fake = createFakeClient()
+  serveSettings(fake)
   const governance = createGovernance({ client: fake.client })
+  const names = namesOf({ tool: '工具' })
   const other = TENANT.replace('acc_00000000000000000000000001', 'acc_00000000000000000000000002')
-  const view = render(<AssetsPage governance={governance} tenant={TENANT} />)
-  const first = await fake.next('list-settings')
-  view.rerender(<AssetsPage governance={governance} tenant={other} />)
-  const second = await fake.next('list-settings')
+  const view = render(<AssetsPage governance={governance} tenant={TENANT} categoryNames={names} />)
+  const first = await fake.next('list-assets')
+  view.rerender(<AssetsPage governance={governance} tenant={other} categoryNames={names} />)
+  const second = await fake.next('list-assets')
   expect(second.body).toMatchObject({ tenant: readTenantText(other) })
-  first.answer({
+  const page = (row: AssetRowView) => ({
     outcome: 'succeeded',
-    body: { items: [held('tool', 'shell')], next: null, completeness: 'complete' },
+    body: { items: [row], next: null, completeness: 'complete' },
   })
+  first.answer(page(assetRow('tool', 'shell')))
   await settle()
-  expect(screen.queryByRole('tab', { name: '工具' })).toBeNull()
-  expect(screen.queryByRole('tab', { name: 'tool' })).toBeNull()
-  second.answer({
-    outcome: 'succeeded',
-    body: { items: [held('mcp', 'context7')], next: null, completeness: 'complete' },
-  })
+  expect(screen.queryByRole('listitem', { name: 'shell' })).toBeNull()
+  second.answer(page(assetRow('tool', 'files')))
   await settle()
-  expect(tabTexts()).toEqual(['mcp'])
+  expect(screen.getByRole('listitem', { name: 'files' })).toBeTruthy()
+  expect(screen.queryByRole('listitem', { name: 'shell' })).toBeNull()
 })
 
 it('A1 一个页签都没有：写一句说明', async () => {
@@ -140,15 +171,27 @@ it('A1 一个页签都没有：写一句说明', async () => {
   expect(screen.getByText('这一层还没有可以管的资产，也没有类别带来自己的页面。')).toBeTruthy()
 })
 
-it('A2 页签是贡献的页面与数据里的类别的并集：贡献的照外壳排好的次序在前，只有数据的按标识；同名的只有一个页签', async () => {
+it('A2 页签是贡献的页面与类别列表的并集：贡献的照外壳排好的次序在前，其余按标识；同名的只有一个页签', async () => {
   await opened(
-    [held('tool', 'shell'), held('model-provider', 'openai'), held('mcp', 'context7')],
+    [
+      ['tool', '工具'],
+      ['model-provider', 'model-provider'],
+      ['mcp', 'mcp'],
+    ],
     [entry('mcp', 'MCP')],
+    [assetRow('mcp', 'context7')],
   )
   expect(tabTexts()).toEqual(['MCP', 'model-provider', '工具'])
   expect(selected()).toEqual(['MCP'])
   expect(screen.getByText('mcp 自己的页面')).toBeTruthy()
-  expect(screen.queryByRole('heading', { level: 3, name: 'context7' })).toBeNull()
+  expect(screen.queryByRole('listitem', { name: 'context7' })).toBeNull()
+})
+
+it('A2b 一类还没有任何资产时也有页签，页面写这一类还没有资产', async () => {
+  await opened([['skill', '技能']], [])
+  expect(tabTexts()).toEqual(['技能'])
+  await settle()
+  expect(screen.getByText('这一类还没有资产。')).toBeTruthy()
 })
 
 it('A3 放进一项而原来一个都没有：它成为选中的', async () => {
@@ -159,9 +202,11 @@ it('A3 放进一项而原来一个都没有：它成为选中的', async () => {
 })
 
 it('A4 点一个页签：选中它；原来选中的贡献页面藏起来，不卸下', async () => {
-  await opened([held('tool', 'shell')], [entry('mcp', 'MCP')])
+  await opened([['tool', '工具']], [entry('mcp', 'MCP')], [assetRow('tool', 'shell')])
   expect(mounted).toEqual(['+mcp'])
   fireEvent.click(tabs().getByRole('tab', { name: '工具' }))
+  await settle()
+  await settle()
   expect(selected()).toEqual(['工具'])
   expect(screen.getByRole('heading', { level: 3, name: 'shell' })).toBeTruthy()
   const mcpPanel = screen.getByText('mcp 自己的页面').closest('[role=tabpanel]')!
@@ -173,10 +218,7 @@ it('A4 点一个页签：选中它；原来选中的贡献页面藏起来，不�
 })
 
 it('A5 撤下没选中的一项：选中的不变', async () => {
-  const { show } = await opened(
-    [held('tool', 'shell')],
-    [entry('mcp', 'MCP'), entry('skill', 'Skill')],
-  )
+  const { show } = await opened([['tool', '工具']], [entry('mcp', 'MCP'), entry('skill', 'Skill')])
   fireEvent.click(tabs().getByRole('tab', { name: 'Skill' }))
   show([entry('skill', 'Skill')])
   expect(tabTexts()).toEqual(['Skill', '工具'])
@@ -203,19 +245,30 @@ it('A7 点过的页签刚被撤下：这次点击不留下作用，选中的是�
   expect(selected()).toEqual(['MCP'])
 })
 
-it('A8 列表读不出：照实说并给「重试」；贡献的页面照样在', async () => {
+it('A8 类别的列表读不出：照实说并给「重试」；贡献的页面照样在；重试读到了就有页签', async () => {
   mounted.length = 0
   const fake = createFakeClient()
+  serveSettings(fake)
+  serveAssetReads(fake, [])
   render(
     <AssetsPage
       governance={createGovernance({ client: fake.client })}
       tenant={TENANT}
+      categoryNames={createCategoryNames(fake.client)}
       pages={pagesOf([entry('mcp', 'MCP')])}
     />,
   )
-  ;(await fake.next('list-settings')).answer({ outcome: 'unavailable' })
+  ;(await fake.next('list-categories')).answer({ outcome: 'basis-unavailable' })
   await settle()
-  expect(screen.getByRole('button', { name: '重试' })).toBeTruthy()
+  expect(screen.getByRole('alert').textContent).toContain('服务端暂时读不出需要的依据')
   expect(tabTexts()).toEqual(['MCP'])
   expect(screen.getByText('mcp 自己的页面')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: '重试' }))
+  ;(await fake.next('list-categories')).answer({
+    outcome: 'succeeded',
+    body: { items: [categoryItem(['tool', '工具'])], next: null },
+  })
+  await settle()
+  expect(tabTexts()).toEqual(['MCP', '工具'])
+  expect(screen.queryByRole('alert')).toBeNull()
 })
