@@ -467,6 +467,43 @@
 }
 ```
 
+### UL-usage-fact · 用量事实 · Usage Fact
+
+> **中**：一次[发出](#ul-upstream-send--一次发出--upstream-send)或一次[工具执行](#ul-tool-execution--工具执行--tool-execution)给统计看的那一面：
+> 它发生的时刻、属于哪个消费者、用的是哪个模型或工具、怎样收场、它的[调用账目](#ul-call-account--调用账目--call-account)里的用量与费用、各段时长。
+> **只有数与标识，没有请求、回复或参数。**它由产生方保管并交出，统计的一方不另存一份；
+> 调用清理之后它仍在。合计只加其中已知的数，未知的另数笔数。
+>
+> **EN**: The face of one upstream send or one tool execution that statistics read: when it
+> happened, which consumer it belongs to, which model or tool it used, how it ended, the usage
+> and cost from its call account, and its durations. **It holds numbers and identifiers only,
+> never a request, a reply or arguments.** The producer keeps it and hands it out, and the
+> reader keeps no second copy. It stays after the call is cleaned up. A total adds only the
+> known amounts and counts the unknown ones separately.
+
+- **形态**：视图
+- **出处**：[用量与花费 · 看到哪些数](../../product/usage-and-cost/design.md#看到哪些数)（rev 1）
+- **别混**：**不是[调用账目](#ul-call-account--调用账目--call-account)。**账目是一次调用身上的那份账，有修订；用量事实是把账目连同时刻、归属与结局摆成能按范围读的一行，账目变了它跟着变
+- **注意**：会话不是它的一栏。按会话统计靠它带着的消费者引用，与会话给出的执行对上
+
+### UL-context-occupancy · 上下文占比 · Context Occupancy
+
+> **中**：一个会话**最近一次主循环请求**送给模型的全部输入（未缓存的输入、缓存读、缓存写之和），占当时所用模型窗口的比例，并带着自动压缩的位置。
+> 它是**一个读数，不是用量**：不能相加，带着它是哪一次请求、哪个模型的。它不求实时，压缩或换模型之后要到下一次请求才变。
+> 还没有请求时没有这个读数；用量或窗口缺失时它是未知，不是零。
+>
+> **EN**: The share of the model's context window taken by all the input of a session's
+> **latest main-loop request** (uncached input, cache read and cache write together), with the
+> position of automatic compaction. It is **a reading, not usage**: it cannot be summed, and it
+> names the request and the model it comes from. It is not live. After a compaction or a model
+> change it moves only at the next request. Before any request there is no reading, and with
+> usage or window missing it is unknown, never zero.
+
+- **形态**：视图
+- **出处**：[用量与花费 · 这个会话还能装多少](../../product/usage-and-cost/design.md#这个会话还能装多少)（rev 1）
+- **别混**：**不是[装入裁定](record-and-context.md#ul-fit-verdict--装入裁定--fit-verdict)。**裁定是发请求之前对一份候选的判断，决定要不要压缩；上下文占比是事后给人看的读数，不参与任何判断
+- **注意**：它不进给模型看的上下文
+
 ### UL-attachment · 附件 · Attachment
 
 > **中**：一次工具执行**跑完时存进某个存储、不直接进对话**的产出。
