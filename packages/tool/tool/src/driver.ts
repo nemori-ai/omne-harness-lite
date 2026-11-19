@@ -438,8 +438,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     lost: (preparation: PreparationRecord, diagnostic: string) => Promise<StepResult>,
   ): Promise<StepResult | null> => {
     const preparation = recovery.preparations.at(-1)
-    if (preparation === undefined || environmentsPrepared.has(callKey(step.tenant, step.call)))
-      return null
+    if (preparation === undefined) return null
     const found = await preparedEnvironments.reconnect(step, recovery, preparation)
     if ('failure' in found) return { kind: 'failed', failure: found.failure }
     return found.ok.kind === 'lost' ? lost(preparation, found.ok.diagnostic) : null
