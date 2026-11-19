@@ -1,5 +1,7 @@
 import { expectTypeOf, it } from 'vitest'
 import type {
+  ConnectRetryReason,
+  DispatchInstants,
   ModelAttemptDiagnostic,
   ModelDiagnosticCursor,
   ModelDiagnosticId,
@@ -45,6 +47,8 @@ const entry: ModelAttemptDiagnostic = {
 }
 
 it('a moment is a UTC instant or null, and a connect retry names one of two reasons', () => {
+  expectTypeOf<DispatchInstants['firstContent']>().toEqualTypeOf<string | null>()
+  expectTypeOf<ConnectRetryReason>().toEqualTypeOf<'connect-failed' | 'connect-timeout'>()
   // @ts-expect-error a moment the clock could not give is null, never a placeholder number
   const placeholder: ModelAttemptDiagnostic = { ...entry, instants: { ...entry.instants, sent: 0 } }
   // @ts-expect-error a connect retry has one of the two reasons the transport reports

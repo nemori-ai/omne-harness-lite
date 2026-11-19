@@ -334,18 +334,41 @@ describe('the whitelist page of one call', () => {
     expect(backwards?.timing.execution).toEqual({ kind: 'known', milliseconds: '4000' })
   })
 
-  it('makes a stored moment that is not an instant, or a retry reason it does not know, unavailable', async () => {
-    for (const record of [
-      { ...COMPLETED, instants: { ...MOMENTS, sent: 'yesterday' } },
-      { ...COMPLETED, connectRetries: ['dns'] },
-    ]) {
+  it.each([
+    ['moments that are not a record', { instants: 'x' }, 'md_dispatch.record.instants: payload'],
+    [
+      'a moment that is not an instant',
+      { instants: { ...MOMENTS, sent: 'yesterday' } },
+      'md_dispatch.record.instants.sent: value',
+    ],
+    [
+      'a moment that is a number',
+      { instants: { ...MOMENTS, ended: 5 } },
+      'md_dispatch.record.instants.ended: value',
+    ],
+    [
+      'connect retries that are not a list',
+      { connectRetries: 'x' },
+      'md_dispatch.record.connectRetries: payload',
+    ],
+    [
+      'a connect retry of a reason it does not know',
+      { connectRetries: ['dns'] },
+      'md_dispatch.record.connectRetries: value',
+    ],
+  ])(
+    'makes the page unavailable for stored %s, and names the field',
+    async (_name, stored, field) => {
       const f = scene()
       const call = callId('broken')
-      await f.seeded(call, [dispatchOf(0, record as DispatchDocument['record'])])
+      await f.seeded(call, [
+        dispatchOf(0, { ...COMPLETED, ...stored } as DispatchDocument['record']),
+      ])
       const got = await f.diagnostics.list({ ...f.access(A, call), after: null, limit: 10 })
       expect(got).toMatchObject({ failure: { kind: 'unavailable' } })
-    }
-  })
+      expect(JSON.stringify(got)).toContain(field)
+    },
+  )
 
   it('gives the same id for the same call and dispatch across two reads', async () => {
     const f = scene()

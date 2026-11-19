@@ -159,6 +159,12 @@ describe('the moments and the connect retries of a dispatch, read over real proc
         expect(dispatch.timing[span], span).toMatchObject({ kind: 'known' })
       expect(dispatch.timing['execution']?.milliseconds).toBe(String(at(ended) - at(sent)))
       expect(JSON.stringify(run)).not.toContain(REQUEST_ID)
+      const text = await carol(['read-session-diagnostics', '--session', session])
+      expect(text.status, text.stderr).toBe(0)
+      expect(text.stdout).toMatch(
+        /timing: materialize \d+ ms, send to response \d+ ms, send to first content \d+ ms, execution \d+ ms/,
+      )
+      expect(text.stdout).toMatch(/moments: prepared \S+Z, sent \S+Z, response \S+Z/)
     },
   )
 })

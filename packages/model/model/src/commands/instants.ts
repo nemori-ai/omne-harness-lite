@@ -31,7 +31,7 @@ export function keepInstant(
   value: string | null,
 ): void {
   const instants = dispatch.record.instants ?? NO_INSTANTS
-  if (value === null || instants[moment] !== null) return
+  if (instants[moment] !== null) return
   dispatch.record = { ...dispatch.record, instants: { ...instants, [moment]: value } }
 }
 

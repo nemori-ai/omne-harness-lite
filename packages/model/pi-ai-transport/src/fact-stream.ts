@@ -45,6 +45,12 @@ function requestOf(headers: ResponseHeaders, name: string | null): string | null
   return first === undefined || first === '' ? null : first
 }
 
+function* exchangeFacts(input: SendInput, result: ExchangeResult): Generator<TransportFact> {
+  for (const reason of input.connectRetries?.() ?? []) yield { kind: 'connect-retry', reason }
+  if (result.kind === 'ok' || result.kind === 'http-error')
+    yield { kind: 'response', request: requestOf(result.headers, requestHeaderOf(input.route)) }
+}
+
 export function factsOfSend(input: SendInput): AsyncGenerator<TransportFact, void, undefined> {
   const { exchange } = input
   return closeSourceOnEarlyEnd(readSend(input), () => {
@@ -109,7 +115,7 @@ async function* decodeSend(
 ): AsyncGenerator<TransportFact, SendEnd, undefined> {
   const { exchange, decoder, route, limits, replayCarried } = input
   const result = await exchange.result
-  for (const reason of input.connectRetries?.() ?? []) yield { kind: 'connect-retry', reason }
+  yield* exchangeFacts(input, result)
   switch (result.kind) {
     case 'stopped':
       return { kind: 'stopped' }
@@ -118,7 +124,6 @@ async function* decodeSend(
     case 'stalled':
       return STALLED_BEFORE_RESPONSE
     case 'http-error':
-      yield { kind: 'response', request: requestOf(result.headers, requestHeaderOf(route)) }
       return {
         kind: 'http-error',
         status: result.status,
@@ -131,7 +136,6 @@ async function* decodeSend(
       return _exhaustive
     }
   }
-  yield { kind: 'response', request: requestOf(result.headers, requestHeaderOf(route)) }
   beforeBody(input)
   const body = result.body.claim()
   if (body === undefined) throw new Error('the response body of a new exchange was claimed')

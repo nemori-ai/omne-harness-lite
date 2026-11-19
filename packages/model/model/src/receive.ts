@@ -44,7 +44,12 @@ type Stage =
     }
   | { kind: 'next' }
   | { kind: 'open'; input: Open; pending: boolean }
-  | { kind: 'preserve'; input: Preserve; pending: boolean; completion: Completion }
+  | {
+      kind: 'preserve'
+      input: Preserve & Readonly<{ arrivals: readonly (string | null)[] }>
+      pending: boolean
+      completion: Completion
+    }
   | { kind: 'terminal'; evidence: ReceivedTerminal; published: boolean }
   | { kind: 'refused'; refusal: ModelFailure }
   | { kind: 'superseded'; failure: ModelFailure }
@@ -237,7 +242,7 @@ export function createReceiver<P>(input: {
           kind: 'ready',
           window: entry.input.window,
           facts: [...entry.input.facts],
-          arrivals: [...(entry.input.arrivals ?? [])],
+          arrivals: [...entry.input.arrivals],
           completion: entry.completion,
         }
         input.refresh()

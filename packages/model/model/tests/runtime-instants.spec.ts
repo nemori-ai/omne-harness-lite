@@ -131,7 +131,12 @@ it('completes the call when the clock cannot be read, with no moment kept (C2)',
     }
     unbox(await f.provider.runtime.calls.admit(f.admit))
     await f.start(f.admit.call)
-    f.channel(f.admit.call).push([response('gen-1'), open, delta('still answered'), end])
+    const before = f.preserveInputs.length
+    await f.show(f.admit.call, [response('gen-1')])
+    expect(f.preserveInputs.length, 'a lone fact is kept without waiting for the batch delay').toBe(
+      before + 1,
+    )
+    f.channel(f.admit.call).push([open, delta('still answered'), end])
     await settled(f)
     const [record] = await dispatchesOf(f)
     expect(record?.instants).toEqual({
