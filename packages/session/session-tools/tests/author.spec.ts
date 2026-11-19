@@ -230,6 +230,12 @@ describe('the Sessions reads', () => {
       position: 'e-7',
       snippet: { match: 'Q7-PELICAN' },
     })
+    await fixture().run('search', { text: 'Q7-PELICAN' }, sessions)
+    expect(calls.search).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        content: { kind: 'literals', all: ['Q7-PELICAN'], caseSensitive: false },
+      }),
+    )
     await fixture().run(
       'search',
       { regex: 'Q\\d-', case_sensitive: true, sessions: ['ses_b'], from: '2026-11-18T00:00:00Z' },

@@ -70,7 +70,7 @@ const PARSERS = {
   read: z.strictObject({ session, cursor, backward: z.boolean().optional() }),
   search: z
     .strictObject({
-      text: z.array(z.string().min(1)).min(1).max(8).optional(),
+      text: z.union([z.string().min(1), z.array(z.string().min(1)).min(1).max(8)]).optional(),
       regex: z.string().min(1).optional(),
       case_sensitive: z.boolean().optional(),
       sessions: z.array(session).min(1).max(64).optional(),
@@ -114,7 +114,11 @@ const BUILD: { readonly [N in SessionsCommandName]: (params: Params<N>) => Sessi
         content:
           params.text === undefined
             ? { kind: 'regex', pattern: params.regex ?? '', caseSensitive }
-            : { kind: 'literals', all: params.text, caseSensitive },
+            : {
+                kind: 'literals',
+                all: typeof params.text === 'string' ? [params.text] : params.text,
+                caseSensitive,
+              },
         sessions: params.sessions ?? null,
         archived: params.archived ?? 'all',
         from: params.from ?? null,
@@ -164,7 +168,7 @@ export const sessionsCommands: readonly Command[] = [
     name: 'search',
     summary: 'Find messages in the sessions of this user by words or a regular expression.',
     properties: {
-      text: { type: 'array', items: text, minItems: 1, maxItems: 8 },
+      text: { oneOf: [text, { type: 'array', items: text, minItems: 1, maxItems: 8 }] },
       regex: text,
       case_sensitive: { type: 'boolean' },
       sessions: { type: 'array', items: text, minItems: 1, maxItems: 64 },
@@ -177,7 +181,7 @@ export const sessionsCommands: readonly Command[] = [
     },
     required: [],
     descriptions: {
-      text: 'Words that must all appear in one message. Give text or regex, not both.',
+      text: 'A word or phrase, or a list of them that must all appear in one message. Give text or regex, not both.',
       regex: 'A regular expression one message must match.',
       case_sensitive: 'Match case exactly; false when omitted.',
       sessions: 'Search only these sessions; all of them when omitted.',
