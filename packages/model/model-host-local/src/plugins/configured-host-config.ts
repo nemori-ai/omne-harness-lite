@@ -30,6 +30,7 @@ const RESULT_BOUNDS = {
   maxCleanupSteps: { minimum: 1, safe: true },
   maxPendingAccountsPerTenant: { minimum: 1, safe: true },
   maxPendingAccounts: { minimum: 1, safe: true },
+  maxCostMisses: { minimum: 1, safe: true },
 } satisfies Record<Exclude<keyof ResultPushLimits, 'delaysMs'>, Bound>
 const REPLAY_RESEND_BOUNDS = { max: { minimum: 0, safe: true } } satisfies Record<
   keyof ReplayResend,

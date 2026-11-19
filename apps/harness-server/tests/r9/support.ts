@@ -126,6 +126,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       delaysMs: [1000, 5000, 30000],
       maxPendingAccountsPerTenant: 4,
       maxPendingAccounts: 16,
+      maxCostMisses: 5,
     },
   }
   const records = {

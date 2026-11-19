@@ -11,6 +11,8 @@ export type CostLookupInput = Readonly<{
   url: URL
   request: string
   secret: string
+  /** The accounting place of the route; the serving provider's name follows it, as in the stream. */
+  place: string
   costUnit: string
   timeoutMs: number
   maxBodyBytes: number
@@ -34,14 +36,21 @@ function member(value: JsonValue | undefined, key: string): JsonValue | undefine
 }
 
 /** A known `total_cost` is the cost; a generation the upstream does not know, or knows no cost of, missed. */
-export function answerOf(body: string, costUnit: string): CostLookupAnswer {
+export function answerOf(body: string, place: string, costUnit: string): CostLookupAnswer {
   const read = readJsonText(body, { ...JSON_LIMITS, maxBytes: Math.max(body.length * 4, 1) })
   if (read.kind !== 'ok') return unavailable('body-not-json')
-  const total = member(member(read.value, 'data'), 'total_cost')
+  const data = member(read.value, 'data')
+  const total = member(data, 'total_cost')
+  const provider = member(data, 'provider_name')
   if (total === undefined || total.kind === 'null') return { kind: 'missed' }
   const lexeme = total.kind === 'number' ? plainDecimal(total.lexeme) : null
   if (lexeme === null) return unavailable('cost-not-a-number')
-  return { kind: 'found', cost: [{ state: 'known', lexeme, unit: costUnit, source: 'billable' }] }
+  return {
+    kind: 'found',
+    cost: [{ state: 'known', lexeme, unit: costUnit, source: 'billable' }],
+    place:
+      provider?.kind === 'string' && provider.value !== '' ? `${place}/${provider.value}` : place,
+  }
 }
 
 export function lookupGenerationCost(
@@ -87,7 +96,9 @@ export function lookupGenerationCost(
         }
         chunks.push(chunk)
       })
-      res.on('end', () => finish(answerOf(Buffer.concat(chunks).toString('utf8'), input.costUnit)))
+      res.on('end', () =>
+        finish(answerOf(Buffer.concat(chunks).toString('utf8'), input.place, input.costUnit)),
+      )
       res.on('error', () => finish(unavailable('body-read')))
     })
     const abort = () => {

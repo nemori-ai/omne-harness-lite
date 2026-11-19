@@ -49,6 +49,17 @@ export function lateBoundSendBoundary(ctx: Context): ModelSendBoundary<unknown> 
   return Object.freeze(boundary)
 }
 
+/** The cost lookup of the send boundary this tree provides at the moment it is asked. */
+function lateBoundCostLookup(ctx: Context): NonNullable<ModelSendBoundary<unknown>['lookupCost']> {
+  return (input, signal) => {
+    const service: unknown = ctx.get(modelSendBoundaryKey)
+    if (!(service instanceof ModelSendBoundaryService))
+      return Promise.resolve({ kind: 'unavailable', diagnostic: 'send boundary is not provided' })
+    const lookup = (service as ModelSendBoundary<unknown>).lookupCost
+    return lookup?.call(service, input, signal) ?? Promise.resolve({ kind: 'unsupported' })
+  }
+}
+
 type Drain = (signal: AbortSignal) => Promise<ModelHostDrain>
 
 /** The start scan reads every tenant the storage holds, each with its own scan access. */
@@ -119,6 +130,7 @@ function hostPlugin(
           ledger: binding.ledger,
           limits: config.results,
           recovery: startScan(ctx, binding),
+          lookup: lateBoundCostLookup(ctx),
         },
         ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
         provider: ({ host, commands, clock, liveness }) =>

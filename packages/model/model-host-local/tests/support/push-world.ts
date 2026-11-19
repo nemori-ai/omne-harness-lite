@@ -70,6 +70,7 @@ export const LIMITS: ResultPushLimits = {
   maxCleanupSteps: 8,
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
+  maxCostMisses: 3,
   delaysMs: [1000, 5000, 30000],
 }
 const CONFIGURATION: ModelConfiguration = {

@@ -117,6 +117,7 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
       url: new URL('/api/v1/generation', endpoint.url.origin),
       request,
       secret,
+      place: provider.accounting.place,
       costUnit: provider.accounting.costUnit,
       timeoutMs: checked.limits.connectTimeoutMs ?? 30_000,
       maxBodyBytes: checked.limits.maxErrorBodyBytes,

@@ -25,6 +25,7 @@ import type {
   ModelClock,
   ModelCommands,
   ModelHostAuthority,
+  ModelSendBoundary,
 } from '@omne-harness/model-contract/provider'
 import {
   ModelRuntimeService,
@@ -34,6 +35,7 @@ import {
 import { wakingCommands } from './delegated-commands.ts'
 import { createPushAgain } from './push-again.ts'
 import { createCustodyEnd, savedResultOf } from './push-custody.ts'
+import { createCostLookups } from './cost-lookups.ts'
 import {
   awaitsReceiver,
   custodyEnded,
@@ -128,6 +130,8 @@ export type ResultPushLimits = Readonly<{
   maxCleanupSteps: number
   maxPendingAccountsPerTenant: number
   maxPendingAccounts: number
+  /** How many lookups of one dispatch's cost may miss before it is recorded as not found. */
+  maxCostMisses: number
   /** The pauses before a call that still owes work is woken again; the last one repeats. */
   delaysMs: readonly number[]
 }>
@@ -140,6 +144,8 @@ export type ResultPushOptions = Readonly<{
   ledger: ResultPushLedger
   limits: ResultPushLimits
   recovery?: ResultPushRecovery
+  /** Asks the upstream the cost of an earlier dispatch; without it no cost is looked up. */
+  lookup?: NonNullable<ModelSendBoundary<unknown>['lookupCost']>
 }>
 
 export type RuntimeEvent =
@@ -150,6 +156,7 @@ export type RuntimeEvent =
   | Readonly<{ kind: 'freeze-failed'; step: string }>
   | Readonly<{ kind: 'ack-failed'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'abandon-failed'; failure: ModelFailure['kind'] }>
+  | Readonly<{ kind: 'cost-lookup-pending'; reason: string }>
   | Readonly<{ kind: 'cleanup-pending'; reason: string }>
   | Readonly<{ kind: 'late-account-refused'; pending: number }>
   | Readonly<{ kind: 'blocked'; failure: ModelFailure['kind'] }>
@@ -168,6 +175,7 @@ const LIMIT_NAMES = [
   'maxCleanupSteps',
   'maxPendingAccountsPerTenant',
   'maxPendingAccounts',
+  'maxCostMisses',
 ] as const
 
 function checkedLimits(limits: ResultPushLimits): ResultPushLimits {
@@ -304,16 +312,12 @@ export function createRuntimeStage(
       delivering: () => false,
       scanned: () => true,
     }
-  return createResultPush(input, options.ledger, checkedLimits(options.limits), options.recovery)
+  return createResultPush(input, { ...options, limits: checkedLimits(options.limits) })
 }
 
-function createResultPush(
-  input: StageInput,
-  ledger: ResultPushLedger,
-  limits: ResultPushLimits,
-  recovery: ResultPushRecovery | undefined,
-): RuntimeStage {
+function createResultPush(input: StageInput, options: ResultPushOptions): RuntimeStage {
   const { commands, authority, clock, report } = input
+  const { ledger, limits, recovery } = options
   const dirty = new Map<string, Target>()
   const running = new Map<string, Promise<void>>()
   const reservations = new Map<string, string>()
@@ -325,12 +329,12 @@ function createResultPush(
   let scanning: Promise<void> = Promise.resolve()
   const owing = createPushAgain<Target>({ keyOf, paused, wake, delaysMs: limits.delaysMs })
   const custody = createCustodyEnd({
-    commands,
-    maxRedeliveries: limits.maxRedeliveries,
+    ...input,
+    ...limits,
     stopping: stopping.signal,
-    report,
-    mark: (record, failure) => owing.mark(record, failure),
+    mark: owing.mark,
   })
+  const costs = createCostLookups({ ...input, ...options, operation: newOperation })
 
   function wake(target: Target): void {
     const key = keyOf(target)
@@ -386,10 +390,9 @@ function createResultPush(
       if (record.origin === null || !custodyEnded(record.acknowledgement))
         record = await freeze(record, access)
       record = await pushResult(record, access)
-      const ended = await custody.end(record, access)
-      if (ended !== record) record = save(ended)
-      record = await clean(record, access)
+      record = await clean(save(await custody.end(record, access)), access)
       await pushAccounts(record, access)
+      if (await costs.step(target.call, access, recordLateFact, stopping.signal)) owing.mark(target)
     } catch {
       report({ kind: 'work-threw' })
       owing.mark(target)
@@ -865,6 +868,9 @@ export function reportRuntimeEvent(ctx: Context, event: RuntimeEvent): void {
       return
     case 'abandon-failed':
       ctx.logger.warn(`model result push: the abandonment did not complete (${event.failure})`)
+      return
+    case 'cost-lookup-pending':
+      ctx.logger.warn(`model result push: a cost lookup stays pending (${event.reason})`)
       return
     case 'cleanup-pending':
       ctx.logger.warn(`model result push: the cleanup stays pending (${event.reason})`)

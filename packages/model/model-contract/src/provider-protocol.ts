@@ -208,7 +208,7 @@ export type LateDispatchFact =
   | Readonly<{ kind: 'cost-miss'; event: string; final: boolean }>
 /** The upstream's answer to the cost of one request, asked after the fact. Only `missed` counts. */
 export type CostLookupAnswer =
-  | Readonly<{ kind: 'found'; cost: CallAccountReport['cost'] }>
+  | Readonly<{ kind: 'found'; cost: CallAccountReport['cost']; place: string }>
   | Readonly<{ kind: 'missed' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'unsupported' }>
@@ -295,6 +295,11 @@ export type SendResult =
   | Readonly<{ kind: 'unknown'; dispatch: DispatchId; diagnostic: string }>
 export interface ModelSendBoundary<P> {
   send(input: SendDemand<P>, signal: AbortSignal): Promise<SendResult>
+  /** Asks the upstream what an earlier dispatch cost, with the credential layer it was sent with. */
+  lookupCost?(
+    input: CallAccess<P> & Readonly<{ dispatch: DispatchId }>,
+    signal: AbortSignal,
+  ): Promise<CostLookupAnswer>
 }
 export interface ModelRetryPolicy<P> {
   decide(

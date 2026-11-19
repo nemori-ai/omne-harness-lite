@@ -34,6 +34,7 @@ export const modelHostConfig = z.strictObject({
     maxCleanupSteps: count(1),
     maxPendingAccountsPerTenant: count(1),
     maxPendingAccounts: count(1),
+    maxCostMisses: count(1),
     delaysMs: z.array(count(1)).min(1),
   }),
 })

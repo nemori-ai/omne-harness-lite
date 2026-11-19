@@ -116,6 +116,7 @@ const LIMITS = {
   delaysMs: [50, 100, 200],
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
+  maxCostMisses: 3,
 }
 const CONFIGURATION: ModelConfiguration = {
   outputBatchBytes: 1,

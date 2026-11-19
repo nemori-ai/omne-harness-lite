@@ -14,7 +14,14 @@ import {
 // recheck-*.json`): a whole reply, a stream stopped after content, and a request stopped before any
 // provider saw it. The bodies are rebuilt from the recorded fields.
 const WHOLE = { data: { total_cost: 0.0002522, cancelled: false, native_tokens_prompt: 22 } }
-const STOPPED = { data: { total_cost: 9.16e-5, cancelled: true, native_tokens_completion: 179 } }
+const STOPPED = {
+  data: {
+    total_cost: 9.16e-5,
+    cancelled: true,
+    native_tokens_completion: 179,
+    provider_name: 'OpenAI',
+  },
+}
 
 let certificate: Certificate
 let server: HttpsFixture
@@ -43,6 +50,7 @@ function lookup(signal = new AbortController().signal) {
       url: new URL('/api/v1/generation', server.url),
       request: 'gen-17950-abc',
       secret: 'sk-test-secret',
+      place: 'openrouter',
       costUnit: 'openrouter-credit',
       timeoutMs: 5000,
       maxBodyBytes: 65_536,
@@ -60,6 +68,7 @@ describe('the cost lookup of an OpenRouter route', () => {
       cost: [
         { state: 'known', lexeme: '0.0000916', unit: 'openrouter-credit', source: 'billable' },
       ],
+      place: 'openrouter/OpenAI',
     })
     const seen = await pending
     expect(seen.method).toBe('GET')
@@ -67,7 +76,11 @@ describe('the cost lookup of an OpenRouter route', () => {
     expect(seen.headers.authorization).toBe('Bearer sk-test-secret')
     expect(seen.body.byteLength).toBe(0)
     answer = { status: 200, body: JSON.stringify(WHOLE) }
-    expect(await lookup()).toMatchObject({ kind: 'found', cost: [{ lexeme: '0.0002522' }] })
+    expect(await lookup()).toMatchObject({
+      kind: 'found',
+      cost: [{ lexeme: '0.0002522' }],
+      place: 'openrouter',
+    })
   })
 
   it('answers missed for a request the upstream does not know, and for a generation with no cost yet', async () => {
@@ -90,8 +103,10 @@ describe('the cost lookup of an OpenRouter route', () => {
 
 describe('the answer of the generation endpoint', () => {
   it('never turns an unknown cost into zero', () => {
-    expect(answerOf(JSON.stringify({ data: {} }), 'openrouter-credit')).toEqual({ kind: 'missed' })
-    expect(answerOf(JSON.stringify({ data: { total_cost: 'n/a' } }), 'u')).toEqual({
+    expect(answerOf(JSON.stringify({ data: {} }), 'openrouter', 'openrouter-credit')).toEqual({
+      kind: 'missed',
+    })
+    expect(answerOf(JSON.stringify({ data: { total_cost: 'n/a' } }), 'p', 'u')).toEqual({
       kind: 'unavailable',
       diagnostic: 'cost-not-a-number',
     })
