@@ -502,10 +502,6 @@
         "count": 1,
         "longest": 294
       },
-      "packages/session/session-access/src/contribution.ts": {
-        "count": 1,
-        "longest": 173
-      },
       "packages/session/session-adapters/src/cordis/agent-journal-provider.ts": {
         "count": 1,
         "longest": 261
@@ -728,7 +724,7 @@
       },
       "packages/tool/tool/src/driver.ts": {
         "count": 1,
-        "longest": 813
+        "longest": 808
       },
       "packages/tool/tool/src/ledger-body-reads.ts": {
         "count": 1,

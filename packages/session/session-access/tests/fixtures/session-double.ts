@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
+  SavedModelSelection,
   CommitReceipt,
   HistoryPage,
   OperationResolution,
@@ -43,6 +44,7 @@ type FaceMethod =
   | 'readInputFate'
   | 'control'
   | 'readBackgroundCalls'
+  | 'readModelSelection'
 
 export type SessionDoubleRecord = Readonly<{
   method: FaceMethod
@@ -60,6 +62,8 @@ type SessionRecord = {
   readonly tenant: TenantId
   readonly runs: Set<string>
   readonly entries: Readonly<{ id: string; kind: string; payload: unknown }>[]
+  /** The model the session stands at, and the revision of the commit that saved it. */
+  model: { selection: SavedModelSelection; at: SessionRevision } | null
 }
 
 export type SessionDoubleControls = Readonly<{
@@ -208,8 +212,16 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
         session: input.session,
         creation: input.creation,
       })
-      if ('ok' in outcome && !sessions.has(sessionKey(input)))
-        sessions.set(sessionKey(input), { tenant: input.tenant, runs: new Set(), entries: [] })
+      if ('ok' in outcome && !sessions.has(sessionKey(input))) {
+        const initial = input.creation.initialModelSelection
+        const model = initial === undefined ? null : { selection: initial, at: outcome.ok.revision }
+        sessions.set(sessionKey(input), {
+          tenant: input.tenant,
+          runs: new Set(),
+          entries: [],
+          model,
+        })
+      }
       if ('failure' in outcome) return outcome
       return succeed({ receipt: outcome.ok, state: {} as never })
     },
@@ -229,8 +241,16 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     async change(input) {
       record('change', input, input.declaration)
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'change' })
-      if (existing(input) === undefined) return fail({ kind: 'denied', action: 'change' })
-      return commit('change', input.operation, { declaration: input.declaration })
+      const found = existing(input)
+      if (found === undefined) return fail({ kind: 'denied', action: 'change' })
+      const outcome = commit('change', input.operation, { declaration: input.declaration })
+      const { declaration } = input
+      if ('ok' in outcome && declaration.kind === 'model')
+        found.model = {
+          selection: { name: declaration.name, basis: declaration.basis },
+          at: outcome.ok.revision,
+        }
+      return outcome
     },
   }
 
@@ -254,7 +274,17 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     | 'readInputFate'
     | 'control'
     | 'readBackgroundCalls'
+    | 'readModelSelection'
   > = {
+    async readModelSelection(input) {
+      record('readModelSelection', input, {})
+      const refusal = readRefusal(input, 'readModelSelection')
+      if (refusal !== null) return refusal
+      const saved = existing(input)?.model ?? null
+      if (saved === null) return fail({ kind: 'not-ready' })
+      const source = evidence('double/model-selection')
+      return succeed({ selection: saved.selection, revision: saved.at, source })
+    },
     async control(input) {
       record('control', input, input.intent)
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'control' })

@@ -1,6 +1,7 @@
 import { AddIcon, Button, StatusPill } from '@omne-harness/ui-kit'
 import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
 import { useSyncExternalStore } from 'react'
+import type { ModelSelectionStore } from '../model/model-selection.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import {
   sessionName,
@@ -10,30 +11,38 @@ import {
 } from '../model/session-list.ts'
 import { createInFlight } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
+import { useNewSessionModel } from './model-selection.tsx'
 import { formatMoment } from './moment.ts'
 import { NoticeLine } from './notice.tsx'
 import { useSession } from './use-session.ts'
 
 export type SessionListPanelProps = Readonly<{
   workspaces: SessionWorkspaces
+  models: ModelSelectionStore
   scope: string | undefined
   onShow: () => void
 }>
 
-export function SessionListPanel({ workspaces, scope, onShow }: SessionListPanelProps) {
+export function SessionListPanel({ workspaces, models, scope, onShow }: SessionListPanelProps) {
   const handle = useSession(workspaces, scope)
-  if (handle.kind !== 'ready') return <div className="omne-session-sidebar" />
-  return <Panel driver={handle.driver} onShow={onShow} />
+  if (handle.kind !== 'ready' || scope === undefined)
+    return <div className="omne-session-sidebar" />
+  return <Panel driver={handle.driver} models={models} tenant={scope} onShow={onShow} />
 }
 
 function Panel({
   driver,
+  models,
+  tenant,
   onShow,
 }: {
   readonly driver: SessionDriver
+  readonly models: ModelSelectionStore
+  readonly tenant: string
   readonly onShow: () => void
 }) {
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
+  const { model, picker } = useNewSessionModel(models, tenant)
   const current = state.kind === 'open' || state.kind === 'unavailable' ? state.session : null
   return (
     <div className="omne-session-sidebar">
@@ -42,13 +51,14 @@ function Panel({
         size="compact"
         disabled={state.kind === 'creating'}
         onClick={() => {
-          driver.createSession()
+          driver.createSession(model)
           onShow()
         }}
       >
         <AddIcon aria-hidden="true" />
         新建会话
       </Button>
+      {picker}
       <SessionListView
         list={list}
         current={current}

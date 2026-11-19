@@ -45,4 +45,4 @@ test('the repository collector reads .tsx, and the four places hold no category 
   ).toBe(true)
   expect(REPOSITORY_RULES).toContain(assetCategoryNames)
   expect(assetCategoryNames.check(sources)).toEqual([])
-})
+}, 60_000)

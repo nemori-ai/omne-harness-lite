@@ -30,7 +30,7 @@
 
 - **控制边界**：派发者可显式撤回 spawn／delegate 的工作；父 Run 停止不自动停止子会话执行，报告结束派发而不决定子 Run 终态。
 - **形态**：过程
-- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 10）
+- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 11）
 - **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
   「**它带着什么开始干活**」——**一个带副本加交代，一个只带交代**；
   `spawn`/`delegate` 与 `handoff` 只差
@@ -59,7 +59,7 @@
 
 - **形态**：属性
 - **出处**：[元能力：三种派发模式](../../product/meta-capabilities/design.md#三种派发模式) ·
-  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 10）
+  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 11）
 - **别混 ①**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
   [规则一](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)管的是前者，范围更大
 - **别混 ②**：**与 [agent 类型](capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type)不是一回事**——
@@ -98,7 +98,7 @@
 
 - **归档边界**：接收会话归档期间拒绝新的任务消息，告知发送方；既有执行的迟到结果和账不丢失，也不作为新任务入队。
 - **形态**：规则
-- **出处**：[元能力：先说谁能给谁发消息](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 10）
+- **出处**：[元能力：先说谁能给谁发消息](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 11）
 - **注意 ①**：**规则二那三个条件缺一不可**，「**会话仍活跃**」尤其容易被忽略——
   **一个会话已被归档的 agent，不是「暂时联系不上」，是这条通路不存在了**。
   **「活跃」就是「未被归档」**（[现行词义](../index.md)）——
@@ -129,7 +129,7 @@
 > **a report comes once**, messages any number of times.
 
 - **形态**：对象
-- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 10）
+- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 11）
 - **⚠️ 它终结的是这次派发，不是那个会话。**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，
   它的会话不会因此归档，也不据此认定子 Run 终态；后续消息仍须满足[当前通信准入](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
   **不点破这一条，就会被做成「报告一到就把那个会话收掉」——而且不报错**
@@ -188,17 +188,17 @@
 
 > **中**：**一次需要人输入的请求，带齐让人当场就能判断的全部信息与选项。**
 > **「当场」是这个定义的重点**：人**不必回到原来那个会话去翻上下文**，读这张卡片就够了。
-> **来源有三种**：agent 发起、系统发起（放行判断，选项五档固定，内容由系统按实际动作生成）、**[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)发起**（选项集由出卡的拓展件写）；记录里分得出是哪一种、哪一件。
+> **来源有三种**：agent 发起（[问询](#ul-inquiry--问询--inquiry)）、系统发起（放行判断，选项五档固定，卡上系统说的话由系统按实际动作生成，另带[放行详情](#ul-release-detail--放行详情--release-detail)）、**[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)发起**（选项集由出卡的拓展件写）；记录里分得出是哪一种、哪一件。
 >
 > **EN**: **One request for human input, carrying everything a person needs to judge it
 > on the spot** — options included. **"On the spot" is the point**: they should not
 > have to go back to the originating session and read up on the context. **It has three
-> sources**: raised by the agent, by the system (the release judgement, with its fixed five
-> options and content the system generates from the actual action), or **by a loop extension** (whose option set the extension writes); the record
+> sources**: raised by the agent (an inquiry), by the system (the release judgement, with its fixed five
+> options, wording the system generates from the actual action, and a release detail), or **by a loop extension** (whose option set the extension writes); the record
 > tells which source, and which extension.
 
 - **形态**：对象
-- **出处**：[PF-008 §4 决策卡片](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#63-卡片自包含但要留得住溯源的路)（rev 7） · [人在回路：处理系统的放行卡片](../../product/human-intervention/design.md#j-hi03-处理系统的放行卡片)（rev 4）
+- **出处**：[PF-008 §4 决策卡片](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#63-卡片自包含但要留得住溯源的路)（rev 7） · [人在回路：处理系统的放行卡片](../../product/human-intervention/design.md#j-hi03-处理系统的放行卡片)（rev 5）
 - **注意 ①**：**一张卡片只能被答一次**，在会话里答还是在[池子](#ul-decision-pool--决策池--decision-pool)里答**都算数**，
   **答完两处一起消失**——**同一张卡片有两套状态，人就再也不信任这个池子了**
 - **注意 ②**：**「在会话里答」指的是在会话里那张卡片上答，不是发一条消息**。
@@ -206,6 +206,27 @@
 - **注意 ③**：**卡片要让人看出「答了它会解除什么」**——同一个会话可能有好几张卡片悬着，
   **而它们解除的东西不一样**
 - **注意 ④**：**「不回答」是合法答复**
+
+### UL-release-detail · 放行详情 · Release Detail
+
+> **中**：放行卡片上**讲这一次调用具体要做什么**的那一块内容。它由被调用能力的实现方
+> 从这一次调用的生效参数算出，**不由模型写，也不由卡片的系统部分写**。
+> 它有两种形态：**条目**（一列「标签：值」，随卡必有，任何交付面都画得出）与
+> **带种类的值**（可选；种类由实现方定名，只有认识这个种类的界面模块按自己的画法画）。
+>
+> **EN**: The part of a release card that **says what this particular call will do**. The
+> implementer of the called capability computes it from the effective arguments of the call;
+> **neither the model nor the system-written part of the card writes it**. It has two forms:
+> **rows** (a list of label and value pairs, always present, renderable on any delivery
+> surface) and **a typed value** (optional; the implementer names its kind, and only a UI
+> module that knows the kind renders it in its own way).
+
+- **形态**：属性
+- **出处**：[人在回路：处理系统的放行卡片](../../product/human-intervention/design.md#j-hi03-处理系统的放行卡片)（rev 5）
+- **别混**：不是卡片的选项，也不是卡上说明「谁在问、五档各管多大」的那部分——那些由系统生成，每张放行卡片都一样
+- **注意 ①**：**实现方没提供、或这一次给不出时，卡片照常发出**；给不出时卡上写明；详情的毛病不挡问人
+- **注意 ②**：**它在问人的那一刻算一次，随卡片保存**；重看同一张卡片看到的是同一份
+- **注意 ③**：模型给的东西只出现在**值**的位置并原样显示；**标签不出自模型**
 
 ### UL-card-batch · 一批卡片 · Card Batch
 
@@ -277,15 +298,15 @@
 
 - **形态**：过程
 - **出处**：[PF-008 §4 放行判断](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 25）
-- **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于请示没意义
-- **注意 ⑤**：**判的是模型实际要执行的动作**——经 `Tools()` 取用一个工具时，判的是被取用的工具与它的参数，不是 `Tools()` 这次调用（[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 10））
+- **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于不用再问人
+- **注意 ⑤**：**判的是模型实际要执行的动作**——经 `Tools()` 取用一个工具时，判的是被取用的工具与它的参数，不是 `Tools()` 这次调用（[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 11））
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
   而**会话里坐着的那个人，未必是设权限的那个人**
 - **注意 ③**：**拿不准就再问一次**——两个方向的代价不对称：该放的没放只是多问一遍，
   **不该放的放了就是做了没有人批准过的事**
 - **注意 ④**：**它此刻不可用时，顶上的是系统预先声明的[全拒件](agent-runtime-loop.md#ul-extension-unavailability-policy--拓展件不可用处置--extension-unavailability-policy)**——
-  需要判断的动作一律拒绝，不放行、也不出卡问人，agent 读到的是一次否决、原因写明「放行判断此刻不在」；同一动作及判断依据仍有效时不重复生成相同请示，但实际启动仍核当前主体、授权及环境资格；排队期间撤权不得沿用旧批准。重装配后已移除或绑定已变的未发起动作不自动执行，交回 agent 重新判断
+  需要判断的动作一律拒绝，不放行、也不出卡问人，agent 读到的是一次否决、原因写明「放行判断此刻不在」；同一动作及判断依据仍有效时不重复出相同的卡片，但实际启动仍核当前主体、授权及环境资格；排队期间撤权不得沿用旧批准。重装配后已移除或绑定已变的未发起动作不自动执行，交回 agent 重新判断
 
 ### UL-inquiry · 问询 · Inquiry
 
@@ -299,9 +320,11 @@
 > own**. **Several questions may be asked at once.**
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 10）
-- **别混**：与[请示](#ul-approval-request--请示--approval-request)**形状不同**——
-  **问询是开放的，拿到之后接着想；请示是封闭的，拿到之后才动手**
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 11）
+- **别混**：与系统发起的放行卡片**问的不是一类事**——
+  **问询要的是信息或选择，答复交回 agent 接着想；放行卡片问的是许不许，答复交授权的拥有者，不经 agent**。
+  agent 不拿问询向人要授权：人在问询里答的话不产生任何许可
+  （[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 11））
 - **注意 ①**：**自由作答这条路由系统保证，不靠 agent 记得留**——**靠自觉总有忘的时候**
 - **注意 ②**：**一次问全。**打断的代价**与问题多少无关，只与打断次数有关**——
   **挤牙膏式连问是产品缺陷**
@@ -309,25 +332,18 @@
 
 ### UL-approval-request · 请示 · Approval Request
 
-> **中**：agent **就一件要动手的事请人准不准**。选项**固定两个**：同意 / 不同意，
-> **外加自由作答**。它要说清：**做什么 · 为什么 · 影响多大 · 撤不撤得回 · 不准怎么办**。
-> 作用域为这一次或本会话的有效授权追加进[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)；全局表达按当前主体资格落成租户层权限设置值。
+> **中**：**已弃用。**它原指 agent 就一件要动手的事请人准不准。现行规则下 agent 不向人要授权：
+> 一个动作许不许做，由[放行判断](#ul-admission-decision--放行判断--admission-decision)对真正的动作决定；
+> 需要人点头时，由系统出放行卡片。
 >
-> **EN**: The agent **asking leave before doing something**. The options are **fixed at
-> two** — approve or decline — **plus free-form reply**. It must state what will be
-> done, why, how large the impact is, **whether it can be undone**, and what happens if
-> declined. An effective approval scoped to this action or session is appended to the
-> session authorization context. A global expression becomes a tenant-level permission
-> setting only when the actor has the required authority.
+> **EN**: **Retired.** It used to mean the agent asking leave before doing something. Under
+> the current rules the agent does not ask a person for authorization: whether an action may
+> run is decided by the release judgement on the actual action, and when a person's decision
+> is needed the system raises the release card.
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 10）
-- **注意 ①**：**先把事做了再请示，那不叫请示，叫通知**——**人拒绝的时候已经晚了**
-- **注意 ②**：**翻不出裁决就不要翻。**人的回答常常不落在准/驳上（「第二封改改语气再发」）——
-  **替人合成一个裁决等于伪造签字**
-- **注意 ③**：**agent 拿到批准后做的事不能比请示的多**——**人签的是那段文字**
-- **注意 ④**：**要写得出「什么时候不该敲这扇门」**——问得太多，人就会开始不假思索地点同意，
-  **那时这扇门形同虚设，而它看上去还在工作**
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 11）
+- **别混**：agent 主动问人的只有[问询](#ul-inquiry--问询--inquiry)，它不产生许可
 
 ### UL-session-authorization-context · 会话授权上下文 · Session Authorization Context
 
@@ -344,14 +360,14 @@
 > the session's run mode.
 
 - **形态**：对象
-- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 10）
+- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 11）
 - **注意 ①**：**流水里的每一笔是一次[授权表达](#ul-authorization-expression--授权表达--authorization-expression)**，
   **三个维度**——**来源**（结构化：界面上对着条目操作 / **语义化：用嘴说**）、
   **方向**（给出 / 撤回）、**作用域**（这一次 / 本会话 / **全局，即本租户下未来所有会话**）。
   **⚠️ 作用域为「全局」的那一笔不在这份流水里**——
   [具备资格的主体按规则将其写入租户层权限设置](../../product/meta-capabilities/design.md#会话授权上下文)，表达与写入成功分别判断
-- **注意 ②**：**它不挑来源。**卡片上点的「同意」算，
-  [自由作答](#ul-approval-request--请示--approval-request)里写的算，
+- **注意 ②**：**它不挑来源。**放行卡片上点的档位算，
+  放行卡片上自由作答里写的算，
   **agent 压根没问、用户主动说的也算**
 - **注意 ③**：**作用域是用户表达出来的，不是系统替他归的类**——
   系统只负责**准确理解**。**替他作主不允许**；
@@ -385,7 +401,7 @@
 > that the setting is effective.
 
 - **形态**：对象
-- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 10）
+- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 11）
 - **别混**：**不是[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)**——
   那是流水**整份**，这是流水里的**一笔**
 - **注意 ①**：**撤回也是一笔**——**不是把先前那笔擦掉**，是往后再记一笔
@@ -880,7 +896,7 @@
 > **EN**: One entry in one recipient's inbox. It is the record that an accepted notification event left for that recipient. It carries the level, cause and note that were fixed when the event was accepted, and the marks that the recipient put on it. One send leaves at most one notification for one recipient.
 
 - **形态**：对象
-- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 4）
+- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 5）
 - **别混**：不是会话规格里指「提交之后的唤醒」的那个通知；不是运行时 context 给模型的变化提醒；不是[复制通知](circulation-and-entitlement.md#ul-copy-notice--复制通知--copy-notice)。
 - **注意**：它在收件箱里就是已送达。往界面、会话或外面推的结果不改这一点。
 
@@ -892,7 +908,7 @@
 > **EN**: Something that produces notification events and is registered with the notification domain. It declares its name and a set of notification event types. The registration is a fact of the deployment. It is not per tenant, and it gives no principal the right to send.
 
 - **形态**：对象
-- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 4）
+- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 5）
 - **别混**：不是会话的输入来源。输入来源说一条输入是谁送进会话的；通知来源说一件事是哪里发生的。
 - **注意**：系统里的领域、agent、通知自己都可以是通知来源。[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)恢复之后也是一种。
 
@@ -904,7 +920,7 @@
 > **EN**: One kind of occurrence that a notification source declares. There are two kinds. A one-off event is sent by the source. A standing item is published by the source as runtime data and is never sent. The declaration says which recipient kinds can subscribe, whether a recipient can be named, the default level for each recipient kind, and whether the content comes from outside the system.
 
 - **形态**：属性
-- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 4）
+- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 5）
 - **别混**：[连接件事件类型](capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type)是连接件这一种来源的事件类型。
 
 
@@ -915,7 +931,7 @@
 > **EN**: One occurrence of a one-off event that a notification source hands over. Its identity is the tenant, the source and the event id that the source gives. A second send with the same identity returns the first result. It carries the event type, the subject in the source that it is about, the time and the content.
 
 - **形态**：对象
-- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 4）
+- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 5）
 - **别混**：不是内核总线上的事件，也不是会话日志里发生的事。「事件」裸用不是术语，见[冲突 C-11](../conflicts.md)。
 
 
@@ -926,7 +942,7 @@
 > **EN**: Something on a notification source's side that is still open and needs the recipient, for example a card that waits for a decision or a blocked schedule. Only the source decides whether it is open or closed. The source publishes the items that are open now. The notification domain reads them to remind the recipient and does not store them.
 
 - **形态**：视图
-- **出处**：[通知：还开着的事](../../product/notifications/design.md#j-no08)（rev 4）
+- **出处**：[通知：还开着的事](../../product/notifications/design.md#j-no08)（rev 5）
 - **别混**：不是[通知](#ul-notification--通知--notification)。它不进收件箱，收件人不能划掉它；了结它要在来源那里把事办了。
 
 
@@ -937,7 +953,7 @@
 > **EN**: The party that notifications are given to. There are two kinds: a person, which is the tenant itself, or an entrusted agent. To the notification domain an entrusted agent is an opaque reference that only the delivery channel able to reach it understands. A recipient exists within one tenant.
 
 - **形态**：对象
-- **出处**：[通知：agent 订阅一类事件](../../product/notifications/design.md#j-no05)（rev 4）
+- **出处**：[通知：agent 订阅一类事件](../../product/notifications/design.md#j-no05)（rev 5）
 - **注意**：两种收件人用同一套通知订阅、收件箱、强度与节拍。
 
 
@@ -948,7 +964,7 @@
 > **EN**: All notifications of one notification recipient. For a person, the inbox is the "new" section of the panel in the interface.
 
 - **形态**：视图
-- **出处**：[通知：回来之后，在一个面板上看和处置](../../product/notifications/design.md#j-no02)（rev 4）
+- **出处**：[通知：回来之后，在一个面板上看和处置](../../product/notifications/design.md#j-no02)（rev 5）
 - **别混**：不是人工介入规格里「原等待的收件箱」，见冲突 C-88。
 
 
@@ -959,7 +975,7 @@
 > **EN**: The choice that one notification recipient makes for one notification event type within a scope: off, weak or strong. It also carries a note, a term and the basis on which it stands. The scope is everything, a subject equal to a reference, or a subject that starts with a prefix. The most specific scope wins. A subscription of an entrusted agent needs the owner's consent as its basis.
 
 - **形态**：对象
-- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 4）
+- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 5）
 - **别混**：[事件订阅](capabilities-and-composition.md#ul-event-subscription--事件订阅--event-subscription)是连接件持有上的设置，定哪几种外部事件进系统，agent 不在运行时改它。通知订阅定进来之后谁收，agent 可以为自己订。
 - **别混**：[日程订阅](execution-and-outcome.md#ul-schedule-subscription--日程订阅--schedule-subscription)订的是系统提供的定时功能，不是事件。
 
@@ -971,7 +987,7 @@
 > **EN**: The value of a notification subscription, and the value fixed on a notification. Strong: the notification is delivered immediately after it enters the inbox. Weak: it is not delivered by itself and waits for the beat. Off is a subscription value only: no notification is left for this recipient.
 
 - **形态**：属性
-- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 4）
+- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 5）
 - **注意**：来源只给缺省强度，之后归收件人。被点名的收件人选了不收时按弱。
 
 
@@ -982,7 +998,7 @@
 > **EN**: One place where a notification recipient receives deliveries: a delivery channel, an address that the channel understands, the lowest level it takes, and whether it is enabled. One notification is delivered to every enabled destination of the recipient, and each delivery has its own result.
 
 - **形态**：对象
-- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 4）
+- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 5）
 - **别混**：连接件的[投递目标](#ul-inbound-target--投递目标--inbound-target)说外部事件送进哪个会话，见冲突 C-87。
 
 
@@ -993,7 +1009,7 @@
 > **EN**: A way to deliver notifications to a recipient, registered with the notification domain. It declares which addresses it understands and whether it leaves the system. It promises that a repeated delivery with the same identity has no second effect.
 
 - **形态**：对象
-- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 4）
+- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 5）
 
 
 ### UL-delivery-unit · 投递单元 · Delivery Unit
@@ -1003,7 +1019,7 @@
 > **EN**: The unit of one delivery: a set of notifications fixed for one delivery destination. Strong notifications are grouped into units under the minimum interval. A beat groups everything that needs a reminder at that time. The members and content of a unit are fixed when it is formed, and every retry delivers the same unit.
 
 - **形态**：对象
-- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 4）
+- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 5）
 
 
 ### UL-notification-delivered · 通知送达 · Notification Delivered
@@ -1013,7 +1029,7 @@
 > **EN**: A notification is in the recipient's inbox and the recipient can retrieve it at any time. This holds from the moment the notification event is accepted. No delivery result to any destination changes it.
 
 - **形态**：状态
-- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 4）
+- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 5）
 - **别混**：不是已投递、看过或了结；也不是模型与工具的[交付责任解除](execution-and-outcome.md#ul-delivery-release--交付责任解除--delivery-release)。
 
 
@@ -1024,7 +1040,7 @@
 > **EN**: A key that a send can carry. When a new notification with the same recipient, source and key enters the inbox, the earlier ones are marked as superseded by it and cannot be restored. By default the superseding notification is not delivered again.
 
 - **形态**：属性
-- **出处**：[通知：agent 写一条给人看](../../product/notifications/design.md#j-no07)（rev 4）
+- **出处**：[通知：agent 写一条给人看](../../product/notifications/design.md#j-no07)（rev 5）
 
 
 ### UL-notification-beat · 通知节拍 · Notification Beat
@@ -1034,7 +1050,7 @@
 > **EN**: A recurring point in time of one notification recipient. When it comes and the inbox has something that needs a reminder, those notifications are composed into one digest and delivered once. Otherwise nothing happens. The owner sets the interval.
 
 - **形态**：属性
-- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 4）
+- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 5）
 - **别混**：节拍只提醒已有的通知，不带任何工作。定期要 agent 做一件事归日程。
 
 ---

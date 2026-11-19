@@ -46,3 +46,44 @@ describe('select-model', () => {
     expect(readSample(select.outcomes.invalid, { reason: 'other' })).toEqual({ ok: false })
   })
 })
+
+describe('read-model-selection', () => {
+  const read = sessionProtocol.operations['read-model-selection']
+
+  it('is a login read of the small limit that counts as access', () => {
+    expect({
+      identity: read.identity,
+      effect: read.effect,
+      limit: read.limit,
+      counts: read.countsAsAccess,
+    }).toEqual({ identity: 'login', effect: 'read', limit: 'small', counts: true })
+    expect(
+      Object.keys(read.outcomes)
+        .filter(name => !always.includes(name))
+        .sort(),
+    ).toEqual(['invalid'])
+    expect('unknown' in read.outcomes).toBe(false)
+  })
+
+  it('names one session, and answers the route it stands at with the revision read', () => {
+    expectRoundTrip(read.body, { tenant, session })
+    expect(readSample(read.body, { tenant })).toEqual({ ok: false })
+    expect(readSample(read.body, { tenant, session, model })).toEqual({ ok: false })
+    expectRoundTrip(read.outcomes.succeeded, { model, revision: '7' })
+    for (const sample of [{ model: '', revision: '7' }, { model }, { revision: '7' }])
+      expect(readSample(read.outcomes.succeeded, sample)).toEqual({ ok: false })
+  })
+})
+
+describe('create-session with a model', () => {
+  const create = sessionProtocol.operations['create-session']
+
+  it('takes the route of the model the session starts with, or none', () => {
+    const base = { createCallId: 'create', purpose: '' }
+    expectRoundTrip(create.body, base)
+    expectRoundTrip(create.body, { ...base, definition: 'coding', model })
+    expectRoundTrip(create.body, { ...base, model })
+    expect(readSample(create.body, { ...base, model: '' })).toEqual({ ok: false })
+    expect(readSample(create.body, { ...base, model: 7 })).toEqual({ ok: false })
+  })
+})

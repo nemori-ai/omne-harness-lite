@@ -140,13 +140,18 @@ function Foot({
   readonly submit: () => void
 }): JSX.Element {
   const firstMissing = sheet.missing[0]
+  const firstOpen = sheet.open[0]
   return (
     <div className="hitl-area-foot">
       {sheet.running ? (
         <LoadingState label="正在提交……" />
-      ) : firstMissing === undefined ? null : (
+      ) : firstMissing !== undefined ? (
         <Button variant="link" onClick={() => choose(firstMissing)}>
           {`还差 ${sheet.missing.length} 题`}
+        </Button>
+      ) : firstOpen === undefined ? null : (
+        <Button variant="link" onClick={() => choose(firstOpen)}>
+          {`另有 ${sheet.open.length} 张放行卡没答，可以先提交已答的`}
         </Button>
       )}
       <Button className="hitl-area-submit" disabled={!sheet.ready} onClick={submit}>

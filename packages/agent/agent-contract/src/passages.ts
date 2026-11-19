@@ -213,12 +213,13 @@ export interface DecisionCards<P> {
 }
 export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance'
 export type AdmissionDecision =
-  | Readonly<{ kind: 'allow'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'allow'; evidence: DurableEvidence; notice?: string }>
   | Readonly<{
       kind: 'deny'
       category: DenialCategory
       reason: string
       evidence: DurableEvidence
+      notice?: string
     }>
   | Readonly<{ kind: 'need-decision'; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>

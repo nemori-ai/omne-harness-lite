@@ -6,6 +6,7 @@ it('the cordis entry exports the plugin, its measured-plugin factory and the com
     'SessionProvider',
     'createSessionProviderPlugin',
     'createSessionCommitNotifier',
+    'createSessionSearchPlugin',
   ])
 })
 
@@ -15,5 +16,6 @@ it('the published cordis entry has the same exports as the source entry', async 
     'SessionProvider',
     'createSessionProviderPlugin',
     'createSessionCommitNotifier',
+    'createSessionSearchPlugin',
   ])
 })
