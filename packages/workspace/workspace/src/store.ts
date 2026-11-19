@@ -23,11 +23,7 @@ export type Membership = Readonly<{ workspace: WorkspaceRecord; relation: Relati
 /** A membership with the workspace's active instances, read at one moment. */
 export type WorkspaceState = Membership & Readonly<{ instances: readonly InstanceRecord[] }>
 
-/**
- * The repository, in the words of the domain. The facts belong to no single tenant, so every
- * entry names the tenant it is for and returns only what that tenant has a relation with:
- * a workspace of others reads the same as one that does not exist.
- */
+/** The repository, in the words of the domain. */
 export interface WorkspaceStore {
   register(command: RegisterCommand): Promise<StoreAnswer<RegisterResult>>
   associate(command: AssociateCommand): Promise<StoreAnswer<AssociateResult>>

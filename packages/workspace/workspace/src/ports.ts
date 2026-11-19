@@ -11,10 +11,7 @@ export type WorkspaceAction =
   | 'workspace.associate'
   | 'workspace.dissociate'
 
-/**
- * What this group needs to know about the caller. It is asked on every operation and never
- * cached. An answer that cannot be given is `unavailable`, never an allowance or a refusal.
- */
+/** What this group needs to know about the caller. */
 export interface WorkspaceAuthority<P> {
   /** Whether this tenant is a member of its organization now. */
   standing(access: Access<P>): Promise<'member' | 'not-member' | 'unavailable'>

@@ -33,7 +33,6 @@ function parsed<T>(result: { ok: true; value: T } | { ok: false }): T {
   return result.value
 }
 
-/** The n-th tenant of the fakes: an organization and an account of their own. */
 export function fakeTenant(index: number): TenantId {
   return tenant(
     parsed(organizationCodec.parse(`org_${body(index)}`)),
@@ -41,7 +40,7 @@ export function fakeTenant(index: number): TenantId {
   )
 }
 
-/** An access of the n-th tenant. The principal is a plain label; the domain never reads it. */
+/** The principal is a plain label; the domain never reads it. */
 export const fakeAccess = (index: number): Access<string> =>
   access(`principal-${index}`, fakeTenant(index))
 
@@ -63,9 +62,7 @@ type AdmitAnswer = 'allowed' | 'denied' | 'unavailable' | 'throw'
 
 export type FakeAuthority = WorkspaceAuthority<string> &
   Readonly<{
-    /** Decides whether a tenant is a member from now on. The default is `member`. */
     standingIs(rule: (access: Access<string>) => StandingAnswer): void
-    /** Decides what is admitted from now on. The default allows everything. */
     admits(rule: Rule<AdmitAnswer>): void
     asked(): readonly Readonly<{ action: WorkspaceAction; target: string }>[]
   }>
@@ -96,9 +93,8 @@ export function fakeAuthority(): FakeAuthority {
   }
 }
 
-/** One thing in the fake world: which resource it is a copy of, and what can be seen of it now. */
+/** One thing in the fake world: the resource it is a copy of, and what can be seen of it now. */
 export type FakeThing = {
-  /** The types that recognise it, by name. */
   kinds: readonly string[]
   resource: string
   version: string
@@ -107,7 +103,7 @@ export type FakeThing = {
   state: 'present' | 'gone' | 'unreadable' | 'versionless'
 }
 
-/** A world of addresses with nothing physical behind them, for rules that do not depend on a type. */
+/** Addresses with nothing physical behind them, for rules that do not depend on a type. */
 export type FakeWorld = Readonly<{
   things: Map<string, FakeThing>
   put(address: string, thing: Partial<FakeThing>): void

@@ -14,7 +14,6 @@ import {
   type TypeName,
 } from '@omne-harness/workspace-contract'
 
-/** What the directory type keeps about one materialisation. The scope has one root today. */
 export type DirectoryMaterial = Readonly<{
   scope: Readonly<{ root: string }>
   /** The device and inode of the root when it was recognised. */
@@ -29,11 +28,7 @@ const codeOf = (error: unknown): string => String((error as NodeJS.ErrnoExceptio
 
 type Looked = Readonly<{ identity: string }>
 
-/**
- * A look at a path that follows no link: it is a directory, and the path given is its real path.
- * A path that is missing or is something else is a refusal; a path that cannot be looked at is
- * `unavailable`.
- */
+/** Follows no link. Missing is a refusal; a path that cannot be looked at is unavailable. */
 async function look(path: string): Promise<TypeAnswer<Looked>> {
   try {
     const stat = await lstat(path, { bigint: true })
@@ -56,10 +51,6 @@ function materialOf(value: Material): DirectoryMaterial | null {
     : null
 }
 
-/**
- * The filesystem type: a workspace that physically is a directory. It reads the directory's
- * place and identity and nothing inside it.
- */
 export class DirectoryType implements ManagementType {
   readonly name: TypeName = typeName('directory')!
   readonly extends: TypeName | null = null
@@ -76,7 +67,7 @@ export class DirectoryType implements ManagementType {
     return { ok: { material, occupancy: address } }
   }
 
-  /** Nothing says a second directory is the same resource, so a workspace of this type has one instance. */
+  /** Nothing says a second directory is the same resource. */
   admits(existing: readonly Material[], _candidate: Recognised): Admission {
     return existing.length === 0
       ? { kind: 'admitted' }

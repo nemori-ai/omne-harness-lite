@@ -38,11 +38,7 @@ type Taken =
   | Readonly<{ kind: 'taken'; type: ManagementType; recognised: Recognised }>
   | Extract<Answer<never>, { kind: 'not-performed' | 'unavailable' }>
 
-/**
- * Finds the type that takes an address. A named type is asked alone. Otherwise the most
- * specific is asked first and the first that recognises the address takes it; a type that
- * could not look ends the search, because a less specific type must not take what it may own.
- */
+/** Finds the type that takes an address. */
 async function take(types: TypeLookup, address: string, named: TypeName | null): Promise<Taken> {
   const candidates = named === null ? types.specificFirst() : [types.named(named)]
   let refusal: Taken = TYPE_UNKNOWN

@@ -4,10 +4,7 @@ import type { WorkspaceTxn } from '../txn.ts'
 /** What every command with an effect carries: whose it is, its name, and a digest of its input. */
 export type Named = Readonly<{ tenant: string; operation: string; digest: string }>
 
-/**
- * What a script decided. A `done` with `changed: false` is either the facts already being as
- * asked, or the operation having been done before: its first value is returned.
- */
+/** What a script decided. */
 export type ScriptResult<T extends Json> =
   | Readonly<{ kind: 'done'; value: T; changed: boolean }>
   | Readonly<{ kind: 'not-permitted' }>
@@ -17,10 +14,7 @@ export type ScriptResult<T extends Json> =
 /** The facts the caller decided on have changed since it read them. The caller reads and decides again. */
 export type Stale = Readonly<{ kind: 'stale' }>
 
-/**
- * Runs an effect at most once per operation name. The same name with the same input returns
- * what was done the first time; with another input it is a conflict. Only done effects are kept.
- */
+/** Runs an effect at most once per operation name. */
 export function once<T extends Json, R extends ScriptResult<T> | Stale>(
   txn: WorkspaceTxn,
   command: Named,

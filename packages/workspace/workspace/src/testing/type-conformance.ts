@@ -24,33 +24,19 @@ import {
 } from './fakes.ts'
 import { createMemoryStore, type MemoryStore } from './memory-store.ts'
 
-/**
- * What a management type has to supply to be put through the rules every type obeys. The cases
- * below never name a type: they ask the harness for addresses and for changes to the world.
- */
+/** What a type supplies. `copy` is another materialisation of the same resource; `remove` returns the way back. */
 export type TypeHarness = Readonly<{
-  /** Every type to contribute: the subject and the types it extends. */
   types: readonly ManagementType[]
   subject: TypeName
-  /** A new address the subject recognises. Each call is a different resource. */
   fresh(): Promise<string>
-  /** Another materialisation of the resource at this address; null when the type knows no second one. */
   copy(of: string): Promise<string | null>
-  /** Addresses no type may take, one for each way an address can be illegal. */
   illegal(): Promise<readonly string[]>
-  /** A legal address the subject does not recognise; null when it recognises every legal address. */
   unrecognised(): Promise<string | null>
-  /** Makes the resource at this address unreachable and returns the way to put it back. */
   remove(address: string): Promise<() => Promise<void>>
-  /** Puts another resource of the same name where this one was. */
   replace(address: string): Promise<void>
-  /** Makes the version unreadable while the resource stays; false when the type has no version to lose. */
   blind(address: string): Promise<boolean>
-  /** Moves the resource to a new version; false when the type has no versions. */
   advance(address: string): Promise<boolean>
-  /** The root directory and load basis a verification of this address must give now. */
   expected(address: string): Promise<Readonly<{ directory: string; basis: string }>>
-  /** A digest of everything at the address, to show that nothing was written. */
   digest(address: string): Promise<string>
 }>
 
@@ -103,7 +89,7 @@ const scenario = (name: string, run: (world: World) => Promise<void>): TypeConfo
   run: harness => run(worldOf(harness)),
 })
 
-/** The cells of the two tables every management type answers the same way: instances by type, and verifying an attachment. */
+/** The cells every type answers the same way: instances by type, and verifying an attachment. */
 export const typeConformanceCases: readonly TypeConformanceCase[] = [
   scenario(
     'instances: an illegal address is not performed, with a reason, named type or not',
@@ -251,7 +237,7 @@ export const typeConformanceCases: readonly TypeConformanceCase[] = [
       await w.catalog.describe(OWNER, made.workspace)
       assert.equal(await w.harness.digest(address), before)
 
-      // Making a copy is the harness's own change to the world; the digests are taken after it.
+      // The harness makes the copy, so the digests are taken after it.
       const copy = await w.harness.copy(address)
       const digests = async () =>
         Promise.all([address, ...(copy === null ? [] : [copy])].map(w.harness.digest))

@@ -40,14 +40,10 @@ export function workspaceText(workspace: WorkspaceId): string | null {
   return encoded.ok ? encoded.value : null
 }
 
-/** An address is text and not empty. What it means is the type's to say. */
 export const isAddress = (value: unknown): value is string =>
   typeof value === 'string' && value !== ''
 
-/**
- * The first step of every operation: is this tenant still a member, and is the action admitted.
- * A source that fails to answer is `unavailable`; it is never read as yes or as no.
- */
+/** A source that fails to answer is `unavailable`; it is never read as yes or as no. */
 export async function admitted<P>(
   authority: WorkspaceAuthority<P>,
   access: Access<P>,
@@ -89,12 +85,11 @@ export async function inspect(
   }
 }
 
-/** A digest of a value this group built itself, so its members are always written in one order. */
 export function digestOf(value: Json): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex')
 }
 
-/** A commit that did not answer: nothing was written, or it is not known whether anything was. */
+/** Nothing was written, or it is not known whether anything was. */
 export function uncommitted(
   answer: Exclude<StoreAnswer<unknown>, { kind: 'committed' }>,
   operation: OperationId,
@@ -102,10 +97,7 @@ export function uncommitted(
   return answer.kind === 'unknown' ? { kind: 'unknown', operation } : unavailable('store')
 }
 
-/**
- * What a script decided, in the words of the caller. `read` turns the stored value back into
- * the caller's value; `undefined` says the store answered something this group never wrote.
- */
+/** `read` returns undefined when the store answered a value this group never wrote. */
 export function decided<S extends Json, T>(
   result: ScriptResult<S>,
   read: (stored: S) => T | undefined,
