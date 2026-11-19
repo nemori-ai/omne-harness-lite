@@ -19,9 +19,6 @@ import {
   calendarSupplyKey,
 } from '@omne-harness/calendar-cordis-contract/cordis'
 import {
-  calendarEnvironmentItems,
-  calendarEnvironmentSettings,
-  createCalendarSettingsEnvironment,
   createCalendarSqlPersistence,
   createCalendarSqlSupplyStorage,
   createShippedCalendarSeedRegistry,
@@ -34,9 +31,9 @@ import {
 import type { TenantStandingSource } from '@omne-harness/identity'
 import { tenantStandingKey } from '@omne-harness/identity/cordis'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import type { SettingsReadPort } from '@omne-harness/settings'
 import { combinationManifest, manifestDigest, type SqlStorage } from '@omne-harness/sql-contract'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
+import { runtimeContextTenantBlocksKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { epochMillisOf, readSystemInstant } from '../../entry/session-clock.ts'
 import { defineRow } from '../../row.ts'
 import {
@@ -45,6 +42,7 @@ import {
 } from '../governance/independent-settings-service.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { CALENDAR_DOMAIN, CALENDAR_PARTICIPANTS, calendarAuthority } from './authority.ts'
+import { calendarContext } from './context.ts'
 import {
   CALENDAR_OWNER,
   SEED_CONTEXT,
@@ -105,25 +103,6 @@ async function registered(storage: SqlStorage) {
 }
 
 /** A tenant's calendar environment is its own preference target; the reader reads as the tenant. */
-export function environmentOf(independent: TenantIndependentSettingsService) {
-  const settings: SettingsReadPort<string> = {
-    read: async (tenantRef, request) =>
-      (await independent.read(tenantRef, request)) ?? { kind: 'rejected', reason: 'unavailable' },
-  }
-  return createCalendarSettingsEnvironment<string>({
-    settings,
-    async resolve(context) {
-      if (context.owner.kind !== 'tenant') return null
-      return {
-        principal: context.owner.tenantId,
-        owner: context.owner,
-        ...independent.bindingOf(context.owner.tenantId, calendarEnvironmentSettings),
-        timezoneItemId: calendarEnvironmentItems.timezone,
-        calendarItemId: calendarEnvironmentItems.calendar,
-      }
-    },
-  })
-}
 
 /** Reading a calendar takes being a member of the tenant that owns the call. */
 function authorityOf(standing: TenantStandingSource) {
@@ -153,7 +132,12 @@ export const calendarRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [calendarQueryKey, calendarCalculatorKey, calendarSupplyKey],
-    injects: [storageKey, tenantStandingKey, tenantIndependentSettingsKey],
+    injects: [
+      storageKey,
+      tenantStandingKey,
+      tenantIndependentSettingsKey,
+      runtimeContextTenantBlocksKey,
+    ],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },
@@ -193,19 +177,26 @@ export const calendarRow = defineRow({
         .logger('calendar')
         .warn(`calendar seed import answered ${imported.error.code}: ${imported.error.message}`)
     const supplyKey = provideCalendarSupply(ctx, supply, rowConfig)
-    const queries = createCalendarQueries({
-      repository: stores.repository,
-      environment: environmentOf(
-        ctx.get(tenantIndependentSettingsKey) as TenantIndependentSettingsService,
-      ),
-      authority: authorityOf(ctx.get(tenantStandingKey) as TenantStandingSource),
-      clock: { now },
-      catalog: shippedCalendarSupplyPolicies.map(({ calendarId, timezone, semanticBoundary }) => ({
+    const projection = healthProjection(supply)
+    const catalog = shippedCalendarSupplyPolicies.map(
+      ({ calendarId, timezone, semanticBoundary }) => ({
         calendarId: calendarIdSchema.parse(calendarId),
         timezone: timezoneSchema.parse(timezone),
         semanticBoundary,
-      })),
-      healthProjection: healthProjection(supply),
+      }),
+    )
+    const queries = createCalendarQueries({
+      repository: stores.repository,
+      environment: calendarContext(
+        ctx,
+        ctx.get(tenantIndependentSettingsKey) as TenantIndependentSettingsService,
+        projection,
+        catalog.map(entry => entry.calendarId),
+      ),
+      authority: authorityOf(ctx.get(tenantStandingKey) as TenantStandingSource),
+      clock: { now },
+      catalog,
+      healthProjection: projection,
     })
     new Queries(ctx, queries)
     new Calculator(ctx, createCalendarCalculator(queries))
@@ -224,3 +215,5 @@ export const calendarRow = defineRow({
     }
   },
 })
+
+export { environmentOf } from './settings-environment.ts'

@@ -88,7 +88,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   calendar: {
     provides: ['calendarQuery', 'calendarCalculator', 'calendarSupply'],
-    injects: ['storage', 'tenantStanding', 'tenantIndependentSettings'],
+    injects: [
+      'storage',
+      'tenantStanding',
+      'tenantIndependentSettings',
+      'runtimeContextTenantBlocks',
+    ],
     phase: 'composition',
   },
   schedule: {

@@ -38,11 +38,8 @@ export type CalendarShippedSupplyInputs = Readonly<{
   independenceRegistry: readonly SupplyIndependenceRegistration[]
 }>
 
-/**
- * The offline sources answer from the materials the release shipped with, so they agree with the
- * seed; the network sources follow the authorities. Bytes are checked against the shipped digests
- * by the adapters when read.
- */
+// The offline sources answer from the materials the release shipped with, so they agree with the
+// seed; the network sources follow the authorities.
 export function shippedCalendarSupplyInputs(): CalendarShippedSupplyInputs {
   const inputs = inputsSchema.parse(
     JSON.parse(readFileSync(new URL('inputs-2026-11-06.json', SEEDS), 'utf8')),

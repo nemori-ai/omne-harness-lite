@@ -54,6 +54,7 @@
     "@omne-harness/authorization": "workspace:*",
     "@omne-harness/calendar": "workspace:*",
     "@omne-harness/calendar-access": "workspace:*",
+    "@omne-harness/calendar-adapters": "workspace:*",
     "@omne-harness/calendar-contract": "workspace:*",
     "@omne-harness/calendar-cordis-contract": "workspace:*",
     "@omne-harness/calendar-local": "workspace:*",

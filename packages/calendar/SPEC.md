@@ -14,7 +14,7 @@
 | `calendar-protocol`        | 公开协议 `calendar/v1` 的协议契约：目录、生效环境与一次日期计算。纯数据                                               |
 | `calendar-access`          | `calendar/v1` 的接入插件：核对登录与租户、取主体、调日历的服务、映射结果                                              |
 | `calendar-ui`              | 界面模块：桌面侧栏的「日历」页                                                                                        |
-| `calendar-notification`    | 日历作为通知的来源：登记来源 `calendar.supply`，把供应风险块翻译成通知要的「一组持续事项」。只有 `./cordis` 入口；去掉它，日历照常 |
+| `calendar-adapters`        | 邻域的端口由谁来适配：Runtime Context 的两个租户级块（生效环境、供应风险）的声明与读者；给通知的贡献（登记来源 `calendar.supply`，把供应风险块翻译成通知要的「一组持续事项」）。日历里只有它认识邻域的契约；通知的贡献是单独的插件，不装它日历照常 |
 
 依赖只朝契约：`calendar-local` → {`calendar`、`calendar-cordis-contract`、`calendar-contract`、`sql-contract`}；`calendar-tools` → {`calendar-contract`、Tool 的公开作者协议}，不依赖 `calendar` 与 `calendar-local`；`calendar` → `calendar-contract`；`calendar-access` → {`calendar-protocol`、`calendar-cordis-contract`、`calendar-contract`、接入的贡献类型}；`calendar-ui` → {`calendar-protocol`、客户端装配、SDK 的客户端核心、公开契约、`frontend` 这一组}，不依赖日历的任何别的成员。查询应用先核资格，再解析日历与版本，在一份不可变快照里完成计算并带回实际依据。供应应用把来源材料解析、校验之后，经存储的具名参加者把新版本与当前发布事实在一次提交里写入；提交之后的反应经 outbox 交出。查询与供应可以在不同实例里运行，但消费同一份公开契约，不共用进程或数据库作为前提。
 
@@ -43,7 +43,7 @@
 | 查询服务（目录、读取、解析、分类、算术）         | 日程、独立程序、接入插件         | 按明确依据计算并带回实际身份、版本与观察位置 |
 | 计算服务（按调用方生效的日历回答一个日期问题）   | 日程、`calendar-tools`、接入插件 | 选择固定为调用方生效的日历与当前版本，带回实际依据 |
 | 供应服务（种子导入、刷新、健康、恢复）           | 系统管理入口与装配               | 发布新版本、报告健康与未完责任               |
-| 供应风险块 `calendar.supply-risk`                | Runtime Context 的租户级作用域；经 `calendar-notification` 给通知 | 此刻开着的供应风险，每项身份稳定             |
+| 供应风险块 `calendar.supply-risk`                | Runtime Context 的租户级作用域；经 `calendar-adapters` 的通知贡献给通知 | 此刻开着的供应风险，每项身份稳定             |
 | 发行把关函数 `inspectCalendarRelease`            | 发行应用的发行检查               | 按政策与日期判一份发行：通过、警告、阻止     |
 | 服务键 `calendarQuery`、`calendarCalculator`、`calendarSupply` | Cordis 装配        | 唯一的服务定义；提供者继承它                 |
 | 设置声明（时区、生效日历）                       | 设置与应用装配                   | 两项个人设置的定义与默认值                   |
@@ -117,7 +117,7 @@
 ### 供应风险与提醒
 
 - 本组把此刻开着的供应风险发布成租户级块 `calendar.supply-risk`。每份日历至多三项：覆盖到警告线、覆盖到严重线、供应失败。身份是 `calendar.supply/<日历>/<种类>`，同一成因同一身份；警告升到严重是新的一项。分级未知不算开着的风险。任一日历的健康读不到时，整块答未知，不答空。
-- 块的值归本组；谁被提醒、多急归通知的订阅。`calendar-notification` 登记来源 `calendar.supply`（三种事件类型都是持续事项，绑定这个块），并把块翻译成通知的事项形状。本组的其余成员不认识通知。
+- 块的值归本组；谁被提醒、多急归通知的订阅。`calendar-adapters` 的通知贡献登记来源 `calendar.supply`（三种事件类型都是持续事项，绑定这个块），并把块翻译成通知的事项形状。本组的其余成员不认识通知。
 
 ### 与日程的接缝
 
@@ -151,7 +151,7 @@
 ### 设置环境投影
 
 - 本组声明两项个人设置：时区与生效日历，设置项的类别为偏好，不是秘密。本组经设置的贡献口「独立设置」带来这份声明，`calendar-local` 的 `./cordis` 入口导出贡献插件；它是独立设置，不挂在任何资产上。默认值写在声明里，随发行带，用户看得见值来自默认。生效日历的取值是已供应日历的身份，逐值带人读的名字。设置的值与写入归设置；本组只声明并读取。
-- 生效环境经 Runtime Context 的租户级块 `calendar.environment` 读到：块在 `calendar-local` 声明，装配从租户的独立设置供值，查询以协调者的身份读。读到缺项或未知答不可用，不当成「没有生效的日历」。
+- 生效环境经 Runtime Context 的租户级块 `calendar.environment` 读到：块与读者在 `calendar-adapters`，装配从租户的独立设置供值，查询以协调者的身份读。读到缺项或未知答不可用，不当成「没有生效的日历」。
 - 供值一侧从原调用恢复受信主体与已采用的目标映射，一次读取取得时区、日历与修订。缺值保持缺失；部分、错配、非法值与依赖异常答不可用。设置的可读不等于日历的可用，日历的使用权另行判断；适配不发行主体、不改偏好，不为后续 Schedule 写入提供原子当前性。
 
 ### 协议、接入与界面
@@ -192,8 +192,8 @@
 | INV-CA16 | 缓存与投影不成为权威                                                                     | 陈旧缓存掩盖故障或混版             | `queries/application` 用例                                                                                                                          |
 | INV-CA17 | 实例换代只撤自己的贡献并保管业务责任；晚到结果回原操作                                   | 删新实例的资源；丢未完责任         | `calendar-local` 的 `cordis/lifecycle`、`runner/*` 用例                                                                                             |
 | INV-CA18 | 健康与发行条件可观察，按每份日历的政策判；任一严重条件阻发行，未知不报通过               | 带着过期数据发行                   | `supply-application/failures`（未知政策不报健康）、`runtime` 用例；`inspectCalendarRelease` 的全化用例；发行应用的 `calendar-release` 检查用例 |
-| INV-CA20 | 供应风险块的事项身份稳定，同一成因只提醒一次；健康读不到时块答未知，不答空               | 刷屏，或把读不到当成没有风险       | `calendar-local` 的供应风险块用例；`calendar-notification` 的翻译用例                                                                            |
-| INV-CA21 | 生效环境读不到答不可用，不代选日历；点名的版本按原材料回答，读不到明确失败               | 用错日历；拿当前版冒充历史版       | `calendar-local` 的环境块读者用例；`calendar-access` 的点名用例                                                                                   |
+| INV-CA20 | 供应风险块的事项身份稳定，同一成因只提醒一次；健康读不到时块答未知，不答空               | 刷屏，或把读不到当成没有风险       | `calendar-adapters` 的供应风险块与翻译用例                                                                            |
+| INV-CA21 | 生效环境读不到答不可用，不代选日历；点名的版本按原材料回答，读不到明确失败               | 用错日历；拿当前版冒充历史版       | `calendar-adapters` 的环境块读者用例；`calendar-access` 的点名用例                                                                                   |
 | CA-1     | 有界计算终止；找到的序号正确；预算用尽与覆盖不足不伪装成 `null`；足够预算取得已有答案    | 计算挂起或答错                     | 模型 `CalendarTotalization` 的 `SuccessSound`、`AbsenceSound`、`Terminates`、`SufficientFuelComplete`；见 `calendar/verification/formal-mapping.md` |
 | INV-CA19 | 计算服务与工具的选择只取调用方生效的日历与当前版本；调用方不能传入别的选择，解析出的所有者属于调用方的租户 | 同一用户在不同入口得到不同的工作日；跨租户读设置 | `calendar-local` 的计算服务用例；`calendar-tools` 的参数与绑定用例 |
 | CA-2     | 工具结果编码超过上限明确失败，不以裁剪冒充成功                                           | 模型拿到不完整的结果却以为完整     | `calendar-tools` 的 `author` 用例                                                                                                                   |

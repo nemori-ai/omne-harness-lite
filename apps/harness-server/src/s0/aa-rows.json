@@ -131,7 +131,8 @@
       "row": "calendar",
       "names": [
         "storage",
-        "tenantStanding"
+        "tenantStanding",
+        "tenantScopePrincipals"
       ]
     },
     {
