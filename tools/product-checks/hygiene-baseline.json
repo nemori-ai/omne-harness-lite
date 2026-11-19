@@ -584,7 +584,7 @@
       },
       "packages/session/session-contract/src/testing-transactions.ts": {
         "count": 5,
-        "longest": 873
+        "longest": 863
       },
       "packages/session/session-observation/src/observation.ts": {
         "count": 2,

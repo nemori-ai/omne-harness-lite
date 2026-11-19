@@ -712,7 +712,7 @@ describe('reduce: the progress chain in WorkSnapshot.entriesProgress', () => {
 
   it('the same batch applied again recalls the state and leaves the progress', () => {
     const { first, one } = twoBatches()
-    expect(reduce(one, first)).toEqual({ kind: 'reduced', snapshot: one })
+    expect(reduce(one, first)).toEqual({ kind: 'reduced', snapshot: one, settled: [], late: [] })
   })
 
   it('a progress row that does not start at the saved through quarantines', () => {

@@ -730,6 +730,59 @@ export type CallRegistrationView = Readonly<{
 export declare function readCallRegistration(payload: JsonValue): CallRegistrationView | null;
 ```
 
+## 声明文件 `call-settlement.d.ts`
+
+```ts
+import type { SessionCallRecord } from './call-values.ts';
+import type { ConsumptionId, DurableEvidence } from './identity.ts';
+import type { Consumption, ProducedResult, ProducerRef, WorkSnapshot } from './values.ts';
+import type { SessionCallEntryReferences } from './work-entry-values.ts';
+type Draft = {
+    -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
+};
+export type SessionCall = Readonly<{
+    record: SessionCallRecord;
+    consumed: Consumption | null;
+    references: SessionCallEntryReferences | null;
+}>;
+export type SessionLateCallFact = Readonly<{
+    consumption: ConsumptionId;
+    slot: 'association';
+    record: SessionCallRecord;
+}> | Readonly<{
+    consumption: ConsumptionId;
+    slot: 'result';
+    version: string;
+    result: ProducedResult;
+}> | Readonly<{
+    consumption: ConsumptionId;
+    slot: 'custody' | 'completion';
+    version: string;
+    evidence: DurableEvidence;
+}> | Readonly<{
+    consumption: ConsumptionId;
+    slot: 'release';
+    version: string;
+}>;
+export type SessionCallKeys = Readonly<{
+    consumptions: readonly ConsumptionId[];
+    producers: readonly ProducerRef[];
+}>;
+export type SettledCallLookup = (keys: SessionCallKeys) => readonly SessionCall[];
+export declare function callKeysIn(value: unknown): SessionCallKeys;
+export declare function callOf(snapshot: WorkSnapshot, consumption: ConsumptionId): SessionCall | null;
+export declare function callOpen(snapshot: WorkSnapshot, call: SessionCall): boolean;
+export declare function lendCalls(snapshot: WorkSnapshot, lent: readonly SessionCall[]): WorkSnapshot;
+export type CallSettlement = Readonly<{
+    settled: readonly SessionCall[];
+    late: readonly SessionLateCallFact[];
+}>;
+export declare function settleCalls(draft: Draft, lent: readonly SessionCall[]): CallSettlement;
+export declare function callWithLate(call: SessionCall, late: readonly SessionLateCallFact[]): SessionCall;
+export declare function callNamed(call: SessionCall, keys: SessionCallKeys): boolean;
+export {};
+```
+
 ## 声明文件 `call-state.d.ts`
 
 ```ts
@@ -2443,6 +2496,7 @@ import type { GuardCommand, MutationName, SessionCommand } from './ports.ts';
 import type { ConsumptionId, DurableEvidence } from './identity.ts';
 import type { SessionHistoryReads } from './history-values.ts';
 import type { SessionCallWait } from './call-values.ts';
+import type { SessionCall, SessionLateCallFact } from './call-settlement.ts';
 import type { SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionRunLookup } from './control-values.ts';
 import type { SessionEntriesChannel } from './interpretation-values.ts';
 export type AdvanceJudgment = Readonly<{
@@ -2560,6 +2614,8 @@ export type CommittedBatch = Readonly<{
 export type ReduceResult = Readonly<{
     kind: 'reduced';
     snapshot: WorkSnapshot;
+    settled: readonly SessionCall[];
+    late: readonly SessionLateCallFact[];
 }> | Readonly<{
     kind: 'quarantined';
     diagnostic: string;
@@ -3372,14 +3428,15 @@ export {};
 import type { SessionHistoryReads } from './history-values.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { CommittedBatch, ReduceResult } from './judgments.ts';
-export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch, reads?: SessionHistoryReads): ReduceResult;
+import { type SettledCallLookup } from './call-settlement.ts';
+export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch, reads?: SessionHistoryReads, lookup?: SettledCallLookup): ReduceResult;
 ```
 
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f7d1820ff45d1829a32626fa8e4164bd8f6486bebd8e9454cb86cc00a556e624";
-export declare const SESSION_RELEASE_DIGEST = "sha256:f7d1820ff45d1829a32626fa8e4164bd8f6486bebd8e9454cb86cc00a556e624";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:8b66ed9c084fb47e8738aa7d12f2ed9bba9fde86b729881b01a0ebc437ab6d99";
+export declare const SESSION_RELEASE_DIGEST = "sha256:8b66ed9c084fb47e8738aa7d12f2ed9bba9fde86b729881b01a0ebc437ab6d99";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3497,6 +3554,27 @@ export interface ScriptedSessionAccessCheck<P> extends SessionAccessCheck<P> {
 }
 export declare function createScriptedSessionAccessCheck<P>(answers: readonly SessionAccessScript[]): ScriptedSessionAccessCheck<P>;
 export declare function createPolicySessionAccessCheck<P>(policy: (request: SessionAccessRequest<P>) => SessionAccessScript): ScriptedSessionAccessCheck<P>;
+```
+
+## 声明文件 `testing-calls-left.d.ts`
+
+```ts
+import { type SessionCall, type SessionLateCallFact, type SettledCallLookup } from './call-settlement.ts';
+import type { WorkSnapshot } from './values.ts';
+export type CallsLeft = Readonly<{
+    settled: readonly SessionCall[];
+    late: readonly SessionLateCallFact[];
+}>;
+type Held = Readonly<{
+    snapshot: WorkSnapshot;
+    left: CallsLeft;
+}>;
+export declare const lookupOf: (store: Held | undefined) => SettledCallLookup;
+export declare const leftAfter: (store: Held | undefined, reduced: CallsLeft) => CallsLeft;
+export declare const lentFor: <T extends WorkSnapshot | null>(store: Held | undefined, snapshot: T, named: unknown) => T;
+export declare function callIn(store: Held | undefined, consumption: string): SessionCall | null;
+export declare function autoArchiveVerdict(snapshot: WorkSnapshot): "disabled" | "due" | "exempt" | "not-due" | "unavailable";
+export {};
 ```
 
 ## 声明文件 `testing-case.d.ts`
@@ -3788,6 +3866,7 @@ import type { BoundedClose, RoutedInput, RunTerminal, SessionCreation, WorkSnaps
 import type { CommitReceipt, AdmittedMessage, EntryClass, HistoryEntry, PendingReason, SessionFailure } from './faces.ts';
 import type { GuardCommand, MutationName, Mutations, SessionCommand, SessionTransactionPort } from './ports.ts';
 import { type SessionLogObservation } from './projection.ts';
+import type { SessionCall } from './call-settlement.ts';
 import { type MemoryInitializationSource } from './testing-initialization-source.ts';
 import { type ConformanceCase } from './testing-case.ts';
 export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> {
@@ -3795,6 +3874,7 @@ export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> 
     readonly commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>;
     readonly controls: Readonly<{
         entriesOf(tenant: TenantId, session: SessionId): readonly HistoryEntry[];
+        callOf(tenant: TenantId, session: SessionId, consumption: string): SessionCall | null;
         decisionOf(tenant: TenantId, session: SessionId, operation: SessionOperationId): DurableEvidence | null;
     }>;
 }
