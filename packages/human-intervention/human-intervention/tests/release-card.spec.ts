@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { CardSchema, QuestionSchema, SubmitReplySchema, decideReply } from '../src/index.ts'
+import {
+  CardSchema,
+  HITL_RELEASE_DETAIL_MAX_BYTES,
+  QuestionSchema,
+  SubmitReplySchema,
+  decideReply,
+} from '../src/index.ts'
 
 const cardRef = { request: { tenantRef: 'tenant-a', requestId: 'request-a' }, cardId: 'card-a' }
 const release = {
@@ -100,6 +106,27 @@ describe('what the tool said the call would do, kept on the release card', () =>
     ['an unknown state', { state: 'partial', rows }],
   ])('refuses a detail with %s', (_name, detail) => {
     expect(takes(detail)).toBe(false)
+  })
+
+  it('takes a typed value and a whole detail exactly at their bounds', () => {
+    expect(takes({ state: 'given', rows, typed: { kind: 'k@1', value: 'x'.repeat(16_384) } })).toBe(
+      true,
+    )
+    const wide = Array.from({ length: 24 }, () => ({
+      label: 'l',
+      value: Array.from({ length: 12 }, () => 'i'.repeat(55)),
+    }))
+    const withValue = (value: string) => ({
+      state: 'given',
+      rows: wide,
+      typed: { kind: 'k@1', value },
+    })
+    const room =
+      HITL_RELEASE_DETAIL_MAX_BYTES - new TextEncoder().encode(JSON.stringify(withValue(''))).length
+    expect(room).toBeGreaterThan(0)
+    expect(room).toBeLessThanOrEqual(16_384)
+    expect(takes(withValue('x'.repeat(room)))).toBe(true)
+    expect(takes(withValue('x'.repeat(room + 1)))).toBe(false)
   })
 
   it('refuses a detail larger than the card keeps, whatever its parts', () => {
