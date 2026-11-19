@@ -138,6 +138,24 @@ it('starts nothing for a call that has no working directory unless the call name
   expect(await run(author, 'execute', { terminal, script: 'pwd' }, bare)).toContain('/given')
 })
 
+it('creates a terminal with the merged environment and the geometry the call names, whole or not at all', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const sized = { env: { A: 'override' }, columns: 100, rows: 30 }
+  await run(author, 'create_session', sized, fixture.environment)
+  expect(fixture.creates.at(-1)).toMatchObject({
+    env: { A: 'override', BASE: 'yes' },
+    geometry: { columns: 100, rows: 30 },
+  })
+  await run(author, 'create_session', {}, fixture.environment)
+  expect(fixture.creates.at(-1)).toMatchObject({ env: { A: 'base', BASE: 'yes' } })
+  expect(fixture.creates.at(-1)).not.toHaveProperty('geometry')
+  expect(await run(author, 'create_session', { rows: 30 }, fixture.environment)).toBe(
+    'rejected reason=invalidInput columns and rows must be supplied together',
+  )
+  expect(fixture.creates).toHaveLength(2)
+})
+
 it('retains terminal cwd through the fixture and never falls back for invalid or closed references', async () => {
   const fixture = shellFixture()
   const author = value(createShellAuthor(fixture.config))
