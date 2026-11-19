@@ -59,17 +59,27 @@ function tailPoint(value: unknown): boolean {
   return point(value, 'through') && count(given['at']) && digits(given['position'])
 }
 
+const cover = (item: unknown): boolean =>
+  Array.isArray(item) && text(item[0]) && digits(item[1]) && count(item[2])
+const orNull =
+  (check: (value: unknown) => boolean) =>
+  (value: unknown): boolean =>
+    value === null || check(value)
+
+const FIELDS: Readonly<Record<keyof SearchCursor, (value: unknown) => boolean>> = {
+  query: text,
+  generation: count,
+  frozen: value => Array.isArray(value) && value.every(cover),
+  tail: orNull(tailPoint),
+  before: orNull(digits),
+  last: orNull(value => point(value, 'position')),
+}
+const KEYS = Object.keys(FIELDS) as (keyof SearchCursor)[]
+
 /** Reads a cursor that came back from outside. Null: not one this search wrote. */
 export function parseCursor(value: unknown): SearchCursor | null {
   if (typeof value !== 'object' || value === null) return null
-  const { query, generation, frozen, tail, before, last } = value as Record<string, unknown>
-  if (!text(query) || !count(generation) || !Array.isArray(frozen)) return null
-  const covers = frozen.every(
-    item => Array.isArray(item) && text(item[0]) && digits(item[1]) && count(item[2]),
-  )
-  if (!covers) return null
-  if (tail !== null && !tailPoint(tail)) return null
-  if (before !== null && !digits(before)) return null
-  if (last !== null && !point(last, 'position')) return null
-  return { query, generation, frozen, tail, before, last } as SearchCursor
+  const given = value as Record<string, unknown>
+  if (!KEYS.every(key => FIELDS[key](given[key]))) return null
+  return Object.fromEntries(KEYS.map(key => [key, given[key]])) as SearchCursor
 }

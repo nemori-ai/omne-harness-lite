@@ -44,6 +44,18 @@ function queryOf(body: Body<'search-history'>): SearchQuery {
   }
 }
 
+type Searched = Awaited<ReturnType<NonNullable<ReturnType<SearchPorts['searching']>>['search']>>
+type Failed = Extract<Searched, { failure: unknown }>['failure']
+
+function refusalOf(failure: Failed): Answer<'search-history'> {
+  if (failure.kind === 'unavailable') return UNAVAILABLE
+  if (failure.kind === 'invalid') {
+    const field = failure.field === 'pageSize' ? 'limit' : failure.field
+    return { outcome: 'invalid', body: { field, reason: failure.reason } }
+  }
+  return failure.kind === 'limited' ? { outcome: 'limited', body: {} } : { outcome: 'denied' }
+}
+
 export async function searchHistory(
   ports: SearchPorts,
   login: LoginIdentity,
@@ -59,15 +71,7 @@ export async function searchHistory(
     search.search({ ...asked, pageSize: body.limit ?? DEFAULT_PAGE }),
   )
   if (result === 'basis-unavailable') return UNAVAILABLE
-  if ('failure' in result) {
-    const { failure } = result
-    if (failure.kind === 'unavailable') return UNAVAILABLE
-    if (failure.kind === 'invalid') {
-      const field = failure.field === 'pageSize' ? 'limit' : failure.field
-      return { outcome: 'invalid', body: { field, reason: failure.reason } }
-    }
-    return failure.kind === 'limited' ? { outcome: 'limited', body: {} } : { outcome: 'denied' }
-  }
+  if ('failure' in result) return refusalOf(result.failure)
   const hits = []
   for (const hit of result.ok.hits) {
     const at = instantOf(hit.at)

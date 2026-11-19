@@ -150,6 +150,53 @@ type SessionCommand<Parsed> =
   | ExistingCommand<Parsed>
   | TenantCommand<Parsed>
 
+type Login = Exclude<ReturnType<typeof loadLogin>, { kind: 'exit' }>
+type Prepared =
+  | Readonly<{ built: Built; owners: ReadonlyMap<string, string> }>
+  | Readonly<{ exit: ExitCode }>
+const NO_OWNERS: ReadonlyMap<string, string> = new Map()
+
+function prepare<Parsed>(
+  command: SessionCommand<Parsed>,
+  parsed: Parsed,
+  login: Login,
+  context: Readonly<{ newId: () => string }>,
+  output: CliOutput,
+): Prepared {
+  const { directory, tenant: loginTenant } = login
+  if (command.kind === 'creating') {
+    // The records are read before anything is sent, so a damaged file stops the command before a
+    // session exists that the file cannot take.
+    const records = readSessionOwners(directory)
+    if (records.kind === 'failure') return { exit: localFailure(output, records.message) }
+    return { built: command.build(parsed, { ...context, loginTenant }), owners: records.owners }
+  }
+  if (command.kind === 'tenant') {
+    const tenant = command.tenant(parsed) ?? loginTenant
+    return { built: command.build(parsed, { ...context, tenant }), owners: NO_OWNERS }
+  }
+  const { session, tenant: given } = command.target(parsed)
+  const resolved = resolveOwner(command.name, session, given, directory, output)
+  if (resolved.kind === 'exit') return { exit: resolved.code }
+  return { built: command.build(parsed, { ...context, owner: resolved.owner }), owners: NO_OWNERS }
+}
+
+function recordCreated(
+  name: string,
+  session: string,
+  owners: ReadonlyMap<string, string>,
+  login: Login,
+  output: CliOutput,
+): ExitCode | null {
+  const owner = encodeTenantText(login.tenant)
+  const saved = writeSessionOwners(login.directory, new Map(owners).set(session, owner))
+  if (saved.kind === 'written') return null
+  const reason = saved.code === undefined ? '' : `: ${saved.code}`
+  output.stderr(`omne ${name}: cannot write session records ${saved.path}${reason}
+`)
+  return 1
+}
+
 async function runSession<Parsed>(
   command: SessionCommand<Parsed>,
   args: readonly string[],
@@ -165,27 +212,10 @@ async function runSession<Parsed>(
 
   const loaded = loadLogin(read.values, output, environment)
   if (loaded.kind === 'exit') return loaded.code
-  const { directory, link, tenant: loginTenant } = loaded
-
-  const context = { newId: environment.services.newId }
-  let built: Built
-  let owners: ReadonlyMap<string, string> = new Map()
-  if (command.kind === 'creating') {
-    // The records are read before anything is sent, so a damaged file stops the command before a
-    // session exists that the file cannot take.
-    const records = readSessionOwners(directory)
-    if (records.kind === 'failure') return localFailure(output, records.message)
-    owners = records.owners
-    built = command.build(parsed, { ...context, loginTenant })
-  } else if (command.kind === 'tenant') {
-    built = command.build(parsed, { ...context, tenant: command.tenant(parsed) ?? loginTenant })
-  } else {
-    const { session, tenant: given } = command.target(parsed)
-    const resolved = resolveOwner(name, session, given, directory, output)
-    if (resolved.kind === 'exit') return resolved.code
-    built = command.build(parsed, { ...context, owner: resolved.owner })
-  }
-  const result = await built.send(link)
+  const prepared = prepare(command, parsed, loaded, { newId: environment.services.newId }, output)
+  if ('exit' in prepared) return prepared.exit
+  const { built, owners } = prepared
+  const result = await built.send(loaded.link)
   if (result === undefined) return usageError(output, unrecognized(name))
   const code = report(name, result, built.echo, output)
   const note = built.note?.() ?? null
@@ -195,15 +225,7 @@ async function runSession<Parsed>(
   const session =
     result.kind === 'response' && result.outcome === 'succeeded' ? text(result.body, 'session') : ''
   if (session === '') return code
-  const saved = writeSessionOwners(
-    directory,
-    new Map(owners).set(session, encodeTenantText(loginTenant)),
-  )
-  if (saved.kind === 'written') return code
-  const reason = saved.code === undefined ? '' : `: ${saved.code}`
-  output.stderr(`omne ${name}: cannot write session records ${saved.path}${reason}
-`)
-  return 1
+  return recordCreated(name, session, owners, loaded, output) ?? code
 }
 
 const createSession: CreatingCommand<{

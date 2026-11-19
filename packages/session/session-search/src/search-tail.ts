@@ -1,6 +1,7 @@
-import type { SessionRevision } from '@omne-harness/session-contract'
+import type { SessionId, SessionRevision } from '@omne-harness/session-contract'
 import type { FrozenCover, TailPoint } from './cursor.ts'
 import type { SearchHit } from './hit.ts'
+import type { Judged } from './log-port.ts'
 import { inWindow, spentOut, type Run } from './search-run.ts'
 
 // The part of the logs the index had not reached when the search began is read here, entry by
@@ -30,6 +31,71 @@ function startOf(frozen: readonly FrozenCover[], from: 'start' | TailPoint): [nu
   return [index, { through, at, carried: at, position: BigInt(from.position) }]
 }
 
+type Tails = {
+  readonly run: Run
+  readonly frozen: readonly FrozenCover[]
+  readonly found: Found[]
+  index: number
+  scan: Scan
+  reads: number
+}
+
+function endOf(tails: Tails, spent: boolean): TailEnd {
+  const { frozen, found, run, scan, index } = tails
+  // Newest first within the page: the scan went in log order, so it is turned round first.
+  found.reverse().sort((left, right) => right.when - left.when)
+  for (const { hit } of found) run.hits.push(hit)
+  if (index === frozen.length) return { kind: 'done' }
+  const position = String(scan.position) as TailPoint['position']
+  const resume = { session: frozen[index]![0], through: scan.through, at: scan.at, position }
+  return { kind: 'stopped', spent, resume, left: frozen.length - index }
+}
+
+function takeEntries(tails: Tails, session: SessionId, entries: readonly Judged[]): boolean {
+  const { scan, found } = tails
+  const { query, pageSize } = tails.run.input
+  let revision = scan.through
+  for (const judged of entries) {
+    if (judged.revision !== revision) {
+      // A new commit begins: what came before it is wholly read.
+      scan.through = String(BigInt(judged.revision) - 1n) as SessionRevision
+      scan.at = scan.carried
+      revision = judged.revision
+    }
+    // An entry with no recorded time counts at the last recorded time before it.
+    if (judged.at !== null) scan.carried = judged.at
+    if (BigInt(judged.position) <= scan.position) continue
+    scan.position = BigInt(judged.position)
+    const match = inWindow(query.window, scan.carried) ? judged.match : null
+    if (match === null) continue
+    const when = scan.carried === 0 ? null : scan.carried
+    const { kind, snippet } = match
+    const hit = { session, position: judged.position, kind, at: when, snippet }
+    found.push({ hit, when: scan.carried })
+    if (found.length >= pageSize) return true
+  }
+  return false
+}
+
+async function scanSession(tails: Tails, session: SessionId): Promise<TailEnd | null> {
+  const { run, scan } = tails
+  const { tenant, query, limits } = run.input
+  for (let exhausted = false; !exhausted;) {
+    // Asked after a read, never before the first: a page always gets somewhere.
+    if (tails.reads > 0 && spentOut(run)) return endOf(tails, true)
+    tails.reads += 1
+    const range = { tenant, session, after: scan.through, maxBytes: limits.tailPageBytes }
+    const page = await run.deps.log.judge({ ...range, spec: query.spec })
+    if ('failure' in page) return { kind: 'unavailable' }
+    run.spent.bytes += page.ok.bytes
+    if (takeEntries(tails, session, page.ok.entries)) return endOf(tails, false)
+    scan.through = page.ok.through
+    scan.at = scan.carried
+    exhausted = page.ok.exhausted
+  }
+  return null
+}
+
 export async function scanTails(
   run: Run,
   frozen: readonly FrozenCover[],
@@ -37,59 +103,13 @@ export async function scanTails(
 ): Promise<TailEnd> {
   const start = startOf(frozen, from)
   if (start === null) return { kind: 'stale' }
-  const { deps, input } = run
-  const found: Found[] = []
-  let [index, scan] = start
-  let reads = 0
-  const end = (spent: boolean): TailEnd => {
-    // Newest first within the page: the scan went in log order, so it is turned round first.
-    found.reverse().sort((left, right) => right.when - left.when)
-    for (const { hit } of found) run.hits.push(hit)
-    if (index === frozen.length) return { kind: 'done' }
-    const position = String(scan.position) as TailPoint['position']
-    const resume = { session: frozen[index]![0], through: scan.through, at: scan.at, position }
-    return { kind: 'stopped', spent, resume, left: frozen.length - index }
+  const tails: Tails = { run, frozen, found: [], index: start[0], scan: start[1], reads: 0 }
+  while (tails.index < frozen.length) {
+    const end = await scanSession(tails, frozen[tails.index]![0])
+    if (end !== null) return end
+    tails.index += 1
+    const next = frozen[tails.index]
+    if (next !== undefined) tails.scan = scanFrom(next)
   }
-  while (index < frozen.length) {
-    const session = frozen[index]![0]
-    for (let exhausted = false; !exhausted;) {
-      // Asked after a read, never before the first: a page always gets somewhere.
-      if (reads > 0 && spentOut(run)) return end(true)
-      reads += 1
-      const after = scan.through
-      const maxBytes = input.limits.tailPageBytes
-      const { tenant, query } = input
-      const page = await deps.log.judge({ tenant, session, after, maxBytes, spec: query.spec })
-      if ('failure' in page) return { kind: 'unavailable' }
-      run.spent.bytes += page.ok.bytes
-      let revision = scan.through
-      for (const judged of page.ok.entries) {
-        const { at } = judged
-        if (judged.revision !== revision) {
-          // A new commit begins: what came before it is wholly read.
-          scan.through = String(BigInt(judged.revision) - 1n) as SessionRevision
-          scan.at = scan.carried
-          revision = judged.revision
-        }
-        // An entry with no recorded time counts at the last recorded time before it.
-        if (at !== null) scan.carried = at
-        if (BigInt(judged.position) <= scan.position) continue
-        scan.position = BigInt(judged.position)
-        const match = inWindow(query.window, scan.carried) ? judged.match : null
-        if (match === null) continue
-        const when = scan.carried === 0 ? null : scan.carried
-        const { kind, snippet } = match
-        const hit = { session, position: judged.position, kind, at: when, snippet }
-        found.push({ hit, when: scan.carried })
-        if (found.length >= input.pageSize) return end(false)
-      }
-      scan.through = page.ok.through
-      scan.at = scan.carried
-      exhausted = page.ok.exhausted
-    }
-    index += 1
-    const next = frozen[index]
-    if (next !== undefined) scan = scanFrom(next)
-  }
-  return end(false)
+  return endOf(tails, false)
 }

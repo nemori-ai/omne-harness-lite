@@ -74,6 +74,20 @@ describe('what a page reads again', () => {
     expect(w.log.reads.entries).toBe(tails)
   })
 
+  it('remembers what the index gave last when only the index moved since the page before', async () => {
+    const w = settled()
+    const generation = w.index.ready()
+    await w.followAll(generation)
+    w.log.commit(S1, [said('a late needle')], 3000)
+    await w.page(NEEDLE)
+    // The follower catches up: the covers move and the logs stand still.
+    await w.followAll(generation)
+    await w.page(NEEDLE)
+    const covers = w.index.reads.covers
+    await w.page(NEEDLE)
+    expect(w.index.reads.covers).toBe(covers)
+  })
+
   it('sees a session archived since, though nothing was written to its log', async () => {
     const w = settled()
     await w.followAll(w.index.ready())
@@ -97,6 +111,9 @@ describe('what a page reads again', () => {
     const page = await w.page(NEEDLE)
     expect(page.complete).toBe(true)
     expect(keysOf([page]).sort()).toEqual([`${S1}#1`, `${S2}#1`])
+    expect(w.index.reads.covers).toBe(2)
+    // The new generation is what is remembered now: the next page reads no covers.
+    await w.page(NEEDLE)
     expect(w.index.reads.covers).toBe(2)
   })
 

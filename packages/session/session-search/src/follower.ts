@@ -56,6 +56,35 @@ async function* pagesOf(
   }
 }
 
+type Lagging = Behind & Readonly<{ cover: Cover }>
+const NO_COVER: Cover = { through: '0' as SessionRevision, at: 0 }
+const short = (cover: Cover, tail: SessionRevision): boolean => BigInt(cover.through) < BigInt(tail)
+
+async function appendPages(
+  deps: Ports,
+  at: Readonly<{ tenant: TenantId; generation: number }>,
+  behind: readonly Lagging[],
+  limits: FollowLimits,
+): Promise<Readonly<{ steps: number; reached: ReadonlyMap<SessionId, Cover> }> | null> {
+  const reached = new Map(behind.map(({ session, cover }) => [session, cover]))
+  const pages = pagesOf(deps.log, at.tenant, behind, limits)
+  const ask = (steps: number) => (steps < limits.maxSteps ? pages.next() : null)
+  let steps = 0
+  for (let next = ask(steps); next !== null;) {
+    const read = await next
+    if (read.done === true) break
+    if (read.value === null) return null
+    steps += 1
+    next = ask(steps)
+    const { session, page } = read.value
+    const cover = reached.get(session) ?? NO_COVER
+    const step = await appendPage(deps, { ...at, session, cover }, page)
+    if ('failure' in step) return null
+    reached.set(session, step.ok)
+  }
+  return { steps, reached }
+}
+
 export async function followTenant(
   deps: Ports,
   tenant: TenantId,
@@ -68,30 +97,14 @@ export async function followTenant(
   const { generation, building } = target.ok
   const covers = await deps.index.covers(tenant, generation)
   if ('failure' in covers) return fail('unavailable')
-  const none: Cover = { through: '0' as SessionRevision, at: 0 }
-  const reached = new Map<SessionId, Cover>()
-  const behind = listed.ok.flatMap(({ session, tail }) => {
-    const cover = covers.ok.get(session) ?? none
-    return BigInt(cover.through) < BigInt(tail) ? [{ session, tail, cover }] : []
-  })
-  for (const { session, cover } of behind) reached.set(session, cover)
-  const pages = pagesOf(deps.log, tenant, behind, limits)
-  let steps = 0
-  let next = steps < limits.maxSteps ? pages.next() : null
-  while (next !== null) {
-    const read = await next
-    if (read.done === true) break
-    if (read.value === null) return fail('unavailable')
-    steps += 1
-    next = steps < limits.maxSteps ? pages.next() : null
-    const { session, page } = read.value
-    const cover = reached.get(session) ?? none
-    const step = await appendPage(deps, { tenant, generation, session, cover }, page)
-    if ('failure' in step) return fail('unavailable')
-    reached.set(session, step.ok)
-  }
-  const left = behind.filter(item => BigInt(reached.get(item.session)!.through) < BigInt(item.tail))
-  if (!building || left.length > 0) return succeed({ behind: left.length, steps, adopted: false })
+  const behind = listed.ok
+    .map(({ session, tail }) => ({ session, tail, cover: covers.ok.get(session) ?? NO_COVER }))
+    .filter(item => short(item.cover, item.tail))
+  const done = await appendPages(deps, { tenant, generation }, behind, limits)
+  if (done === null) return fail('unavailable')
+  const { steps, reached } = done
+  const left = behind.filter(item => short(reached.get(item.session)!, item.tail)).length
+  if (!building || left > 0) return succeed({ behind: left, steps, adopted: false })
   const adopted = await deps.index.adopt(tenant, generation)
   return 'failure' in adopted ? fail('unavailable') : succeed({ behind: 0, steps, adopted: true })
 }

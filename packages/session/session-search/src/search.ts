@@ -57,45 +57,70 @@ async function headsNow(
   return 'failure' in listed ? null : { heads: headsOf(listed.ok), sessions: listed.ok }
 }
 
-// Covers and first candidates in one index read, the log heads after: a sound cover is behind them.
+type Indexed = Readonly<{
+  index: NonNullable<Opened['index']>
+  covered: Remembered['covered']
+}>
+
+const staleFor = (cursor: SearchCursor | null, generation: number | null, digest: string) =>
+  cursor !== null && (cursor.generation !== generation || cursor.query !== digest)
+
+async function firstCandidates(
+  deps: SearchDeps,
+  input: SearchInput,
+  generation: number,
+  known: Remembered | undefined,
+): Promise<Outcome<Indexed, SearchFailure>> {
+  const { cursor } = input
+  const ask = candidatesAsk(input, generation, cursor?.before ?? null, known?.stamp ?? null)
+  const found = await deps.index.candidates(ask)
+  if ('failure' in found) {
+    const gone = found.failure === 'generation-gone' && cursor !== null
+    return fail(gone ? 'cursor-stale' : 'unavailable')
+  }
+  const covered = found.ok.covered ?? known?.covered
+  if (covered === undefined) return fail('unavailable')
+  return succeed({ index: { generation, stamp: found.ok.stamp, rows: found.ok.rows }, covered })
+}
+
+function lagOf(
+  known: Remembered | undefined,
+  covered: Remembered['covered'] | undefined,
+  sessions: readonly LoggedSession[],
+) {
+  const same = known !== undefined && covered === known.covered && sessions === known.sessions
+  return same ? known.behind : behindOf(sessions, covered)
+}
+
+// The index is read first and the log heads after: a sound cover is behind them.
 async function open(deps: SearchDeps, input: SearchInput): Promise<Outcome<Opened, SearchFailure>> {
-  const { cursor, tenant } = input
+  const { tenant } = input
   const state = await deps.index.state(tenant)
   if (state.kind === 'broken') return fail('index-broken')
   const generation = state.kind === 'absent' ? null : state.generation
-  if (cursor !== null && (cursor.generation !== generation || cursor.query !== input.digest))
-    return fail('cursor-stale')
+  if (staleFor(input.cursor, generation, input.digest)) return fail('cursor-stale')
   const held = deps.memo?.get(tenant)
   const known = held?.generation === generation ? held : undefined
-  let index: Opened['index'] = null
-  let covered: Remembered['covered'] | undefined
-  if (generation !== null) {
-    const ask = candidatesAsk(input, generation, cursor?.before ?? null, known?.stamp ?? null)
-    const found = await deps.index.candidates(ask)
-    if ('failure' in found) {
-      const gone = found.failure === 'generation-gone' && cursor !== null
-      return fail(gone ? 'cursor-stale' : 'unavailable')
-    }
-    covered = found.ok.covered ?? known?.covered
-    if (covered === undefined) return fail('unavailable')
-    index = { generation, stamp: found.ok.stamp, rows: found.ok.rows }
-  }
+  const indexed = generation === null ? null : await firstCandidates(deps, input, generation, known)
+  if (indexed !== null && 'failure' in indexed) return indexed
   const logs = await headsNow(deps, tenant, held)
   if (logs === null) return fail('unavailable')
-  const { heads, sessions } = logs
-  const same = known !== undefined && covered === known.covered && sessions === known.sessions
-  const behind = same ? known.behind : behindOf(sessions, covered)
-  if (index !== null && covered !== undefined)
+  const found = indexed?.ok
+  const behind = lagOf(known, found?.covered, logs.sessions)
+  if (found !== undefined) {
+    const { heads, sessions } = logs
+    const { generation: at, stamp } = found.index
     deps.memo?.set(tenant, {
-      generation: index.generation,
-      stamp: index.stamp,
-      covered,
+      generation: at,
+      stamp,
+      covered: found.covered,
       heads,
       sessions,
       behind,
     })
+  }
   if (behind === 'broken') return fail('index-broken')
-  return succeed({ state, index, sessions, behind })
+  return succeed({ state, index: found?.index ?? null, sessions: logs.sessions, behind })
 }
 
 type Ends =
@@ -144,6 +169,22 @@ function pageOf(run: Run, opened: Opened, frozen: readonly FrozenCover[], ends: 
   return onward({ tail: null, before: walk.before, last: walk.last }, walk.spent, short)
 }
 
+const runOf = (deps: SearchDeps, input: SearchInput, inScope: Run['inScope']): Run => ({
+  deps,
+  input,
+  hits: [],
+  seen: new Set(),
+  spent: { bytes: 0 },
+  started: deps.now(),
+  inScope,
+})
+
+function tailsOf(run: Run, frozen: readonly FrozenCover[]): TailEnd | Promise<TailEnd> {
+  const { cursor } = run.input
+  const from = cursor === null ? (frozen.length > 0 ? 'start' : null) : cursor.tail
+  return from === null ? { kind: 'done' } : scanTails(run, frozen, from)
+}
+
 export async function searchHistory(
   deps: SearchDeps,
   input: SearchInput,
@@ -153,26 +194,22 @@ export async function searchHistory(
   const { index, sessions } = opened.ok
   const { cursor } = input
   const inScope = scopeOf(input.query, sessions)
-  const run: Run = {
-    deps,
-    input,
-    hits: [],
-    seen: new Set(),
-    spent: { bytes: 0 },
-    started: deps.now(),
-    inScope,
-  }
+  const run = runOf(deps, input, inScope)
   const frozen = cursor?.frozen ?? opened.ok.behind.filter(([session]) => inScope(session))
-  const from = cursor === null ? (frozen.length > 0 ? 'start' : null) : cursor.tail
-  const tail: TailEnd = from === null ? { kind: 'done' } : await scanTails(run, frozen, from)
+  const tail = await tailsOf(run, frozen)
   if (tail.kind === 'unavailable') return fail('unavailable')
   if (tail.kind === 'stale') return fail('cursor-stale')
   if (tail.kind === 'stopped') return succeed(pageOf(run, opened.ok, frozen, { tail }))
   // The tails are through, and a page they had filled would have stopped in them: the walk goes on.
   if (index === null) return succeed(pageOf(run, opened.ok, frozen, THROUGH))
   const { generation, stamp, rows: first } = index
-  const last = cursor?.last ?? null
-  const walk = await walkIndex(run, { generation, stamp, first, frozen, last })
+  const walk = await walkIndex(run, {
+    generation,
+    stamp,
+    first,
+    frozen,
+    last: cursor?.last ?? null,
+  })
   if (walk.kind === 'unavailable') return fail('unavailable')
   if (walk.kind === 'stale') return fail(cursor === null ? 'unavailable' : 'cursor-stale')
   return succeed(pageOf(run, opened.ok, frozen, { tail, walk }))

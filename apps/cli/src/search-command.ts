@@ -49,6 +49,20 @@ function contentOf(values: Option): Body['content'] | undefined {
   return all.length === 0 ? undefined : { kind: 'literals', all, caseSensitive }
 }
 
+type Lists = Readonly<{
+  kinds: readonly string[] | undefined
+  sessions: readonly string[] | undefined
+}>
+
+function refused({ kinds, sessions }: Lists, archived: string, limit: string | undefined): boolean {
+  return (
+    kinds?.some(kind => !Object.hasOwn(KINDS, kind)) === true ||
+    sessions?.some(session => session === '') === true ||
+    !Object.hasOwn(ARCHIVED, archived) ||
+    (limit !== undefined && !/^[1-9][0-9]*$/.test(limit))
+  )
+}
+
 function queryOf(values: Option): Query | undefined {
   const content = contentOf(values)
   const from = instantOption(values, '--since')
@@ -58,10 +72,7 @@ function queryOf(values: Option): Query | undefined {
   const archived = values.get('--archived') ?? 'all'
   const limit = values.get('--limit')
   if (content === undefined || from === undefined || to === undefined) return undefined
-  if (kinds?.some(kind => !Object.hasOwn(KINDS, kind)) === true) return undefined
-  if (sessions?.some(session => session === '') === true) return undefined
-  if (!Object.hasOwn(ARCHIVED, archived)) return undefined
-  if (limit !== undefined && !/^[1-9][0-9]*$/.test(limit)) return undefined
+  if (refused({ kinds, sessions }, archived, limit)) return undefined
   return {
     content,
     from,
@@ -168,29 +179,50 @@ function statusOf(reading: Reading, output: CliOutput): ExitCode {
   return 0
 }
 
+const OPTIONS = {
+  accepted: [
+    '--text',
+    '--words',
+    '--regex',
+    '--sessions',
+    '--archived',
+    '--kinds',
+    '--since',
+    '--before',
+    '--limit',
+    '--cursor',
+    '--tenant',
+    serverOption,
+  ],
+  required: [],
+  switches: ['--case-sensitive', '--any-visibility', '--all', '--json'],
+}
+
+// What goes to standard output: the hits as lines, or the whole answer as one JSON line.
+function shownOf(reading: Reading, json: boolean, request: unknown): string {
+  const { hits, last, stopped } = reading
+  if (!json) return hits.map(renderHit).join('')
+  const body = {
+    hits,
+    next: last?.next ?? null,
+    complete: stopped === null && last?.complete === true,
+    incomplete: last?.incomplete ?? null,
+  }
+  const answered =
+    stopped === null ? 'succeeded' : stopped.kind === 'response' ? stopped.outcome : null
+  const said =
+    answered === null
+      ? { result: stopped?.kind, body, request }
+      : { result: 'response', outcome: answered, body, request }
+  return `${JSON.stringify(said)}\n`
+}
+
 export async function runSearch(
   args: readonly string[],
   output: CliOutput,
   environment: CommandEnvironment,
 ): Promise<ExitCode> {
-  const options = readOptions(args, {
-    accepted: [
-      '--text',
-      '--words',
-      '--regex',
-      '--sessions',
-      '--archived',
-      '--kinds',
-      '--since',
-      '--before',
-      '--limit',
-      '--cursor',
-      '--tenant',
-      serverOption,
-    ],
-    required: [],
-    switches: ['--case-sensitive', '--any-visibility', '--all', '--json'],
-  })
+  const options = readOptions(args, OPTIONS)
   if (options.kind === 'unrecognized') return usageError(output, unrecognized(name))
   if (options.kind === 'missing') return usageError(output, missingOption(name, options.option))
   const { values } = options
@@ -203,27 +235,13 @@ export async function runSearch(
   const tenant = given ?? loaded.tenant
   const { newId } = environment.services
   const first = newId()
-  const cursor = values.get('--cursor') ?? null
-  const asked = { tenant, query, cursor, all: values.has('--all') }
+  const asked = { tenant, query, cursor: values.get('--cursor') ?? null, all: values.has('--all') }
   const reading = await read(loaded.link, asked, { first, newId })
   if (reading === undefined) return usageError(output, unrecognized(name))
 
-  const { hits, last, stopped } = reading
   const request = { messageId: first, tenant: encodeTenantText(tenant) }
-  const outcome =
-    stopped === null ? 'succeeded' : stopped.kind === 'response' ? stopped.outcome : null
-  const body = {
-    hits,
-    next: last?.next ?? null,
-    complete: stopped === null && last?.complete === true,
-    incomplete: last?.incomplete ?? null,
-  }
   try {
-    output.stdout(
-      values.has('--json')
-        ? `${JSON.stringify(outcome === null ? { result: stopped?.kind, body, request } : { result: 'response', outcome, body, request })}\n`
-        : hits.map(renderHit).join(''),
-    )
+    output.stdout(shownOf(reading, values.has('--json'), request))
   } catch {
     output.stderr(`omne ${name}: cannot write standard output\n`)
     return 1

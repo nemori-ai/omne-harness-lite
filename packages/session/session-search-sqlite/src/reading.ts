@@ -112,6 +112,56 @@ const shownRow = (row: Found): StoreCandidates['rows'][number] => ({
   position: String(row['position']),
 })
 
+type Bounds = Readonly<{ low: bigint; high: bigint; beforeAt: bigint; beforeId: bigint }>
+
+function boundsOf(request: StoreCandidateRequest): Bounds {
+  const before = request.before === null ? null : BigInt(request.before)
+  const beforeAt = before === null ? FOREVER : before / SERIALS
+  const beforeId = before === null ? 0n : dayOf(beforeAt) * SERIALS + (before % SERIALS)
+  const low = BigInt(request.window.from ?? 0)
+  const high = request.window.to === null ? FOREVER : BigInt(request.window.to)
+  return { low, high, beforeAt, beforeId }
+}
+
+function inside({ low, high, beforeAt, beforeId }: Bounds, row: Found): boolean {
+  const [at, id] = [row['at'] as bigint, row['id'] as bigint]
+  return at >= low && at <= high && (at < beforeAt || (at === beforeAt && id < beforeId))
+}
+
+function newestFirst(left: Found, right: Found): number {
+  const [a, b] = [left['at'] as bigint, right['at'] as bigint]
+  if (a !== b) return a > b ? -1 : 1
+  return (left['id'] as bigint) > (right['id'] as bigint) ? -1 : 1
+}
+
+type Asked = readonly [sql: typeof WALK, narrowed: readonly string[]]
+
+function askedOf(
+  context: ReadContext,
+  handle: Handle,
+  request: StoreCandidateRequest,
+  scope: Scope,
+): Asked | null {
+  const { handles, vocabularyLimit: limit } = context
+  const expand = (prefix: string): readonly string[] =>
+    handles
+      .statement(handle, 'SELECT term FROM vocab WHERE term >= ? AND term < ? LIMIT ?')
+      .all(prefix, `${prefix}\u{10ffff}`, limit + 1)
+      .map(row => String(row['term']))
+  const match = matchOf(request.plan, scope, { expand, limit })
+  if (match === null) return null
+  return match === ALL ? [WALK, []] : [MATCH, [match]]
+}
+
+// Of the newest row numbers: the day they were cut short in, if any, and the whole days above it.
+function cutOf(ids: readonly bigint[], want: number, floor: bigint) {
+  const last = ids.at(-1)
+  if (last === undefined) return null
+  const open = ids.length > want && last >= floor ? last - (last % SERIALS) : null
+  const whole = ids.filter(id => id >= floor && (open === null || id >= open + SERIALS))
+  return { open, whole }
+}
+
 // The plan is asked once for the newest row numbers. Days lie in the order of time, a day's rows
 // as written: whole days are ordered here, a day cut short is read in full by itself.
 function rowsOf(
@@ -120,54 +170,34 @@ function rowsOf(
   request: StoreCandidateRequest,
   scope: Scope,
 ): StoreCandidates['rows'] {
-  const { handles, vocabularyLimit: limit } = context
-  const expand = (prefix: string): readonly string[] =>
-    handles
-      .statement(handle, 'SELECT term FROM vocab WHERE term >= ? AND term < ? LIMIT ?')
-      .all(prefix, `${prefix}\u{10ffff}`, limit + 1)
-      .map(row => String(row['term']))
-  const match = matchOf(request.plan, scope, { expand, limit })
-  if (match === null) return []
-  const [sql, narrowed] = match === ALL ? [WALK, []] : [MATCH, [match]]
-  const before = request.before === null ? null : BigInt(request.before)
-  const beforeAt = before === null ? FOREVER : before / SERIALS
-  const beforeId = before === null ? 0n : dayOf(beforeAt) * SERIALS + (before % SERIALS)
-  const low = BigInt(request.window.from ?? 0)
-  const high = request.window.to === null ? FOREVER : BigInt(request.window.to)
-  const inside = (row: Found): boolean => {
-    const [at, id] = [row['at'] as bigint, row['id'] as bigint]
-    return at >= low && at <= high && (at < beforeAt || (at === beforeAt && id < beforeId))
-  }
-  const newestFirst = (left: Found, right: Found): number => {
-    const [a, b] = [left['at'] as bigint, right['at'] as bigint]
-    if (a !== b) return a > b ? -1 : 1
-    return (left['id'] as bigint) > (right['id'] as bigint) ? -1 : 1
-  }
-  const one = handles.statement(handle, ONE)
+  const asked = askedOf(context, handle, request, scope)
+  if (asked === null) return []
+  const [sql, narrowed] = asked
+  const statement = (text: string) => context.handles.statement(handle, text)
+  const bounds = boundsOf(request)
+  const { low, high, beforeAt, beforeId } = bounds
   const floor = dayOf(low) * SERIALS
   const rows: StoreCandidates['rows'][number][] = []
   let ceiling = (dayOf(high < beforeAt ? high : beforeAt) + 1n) * SERIALS
   while (rows.length < request.limit) {
     const want = request.limit - rows.length
-    const ids = handles
-      .statement(handle, sql.top)
-      .all(...narrowed, ceiling, want + 1)
-      .map(row => row['id'] as bigint)
-    const last = ids.at(-1)
-    if (last === undefined) break
-    const open = ids.length > want && last >= floor ? last - (last % SERIALS) : null
-    const whole = ids.filter(id => id >= floor && (open === null || id >= open + SERIALS))
-    const found: Found[] = []
-    for (const id of whole) {
-      const row = one.get(id)
-      if (row !== undefined && inside(row)) found.push(row)
-    }
+    const top = statement(sql.top).all(...narrowed, ceiling, want + 1)
+    const cut = cutOf(
+      top.map(row => row['id'] as bigint),
+      want,
+      floor,
+    )
+    if (cut === null) break
+    const found = cut.whole.flatMap((id): Found[] => {
+      const row = statement(ONE).get(id)
+      return row !== undefined && inside(bounds, row) ? [row] : []
+    })
     for (const row of found.sort(newestFirst)) rows.push(shownRow(row))
+    const { open } = cut
     if (open === null) break
     const left = request.limit - rows.length
     const args = [...narrowed, open, open + SERIALS, low, high, beforeAt, beforeAt, beforeId, left]
-    if (left > 0)
-      for (const row of handles.statement(handle, sql.day).all(...args)) rows.push(shownRow(row))
+    if (left > 0) for (const row of statement(sql.day).all(...args)) rows.push(shownRow(row))
     ceiling = open
   }
   return rows

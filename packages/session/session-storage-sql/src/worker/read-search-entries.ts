@@ -103,10 +103,31 @@ function firstPast(port: ReadPort, scope: readonly [string, string], after: bigi
 const sizeOf = (rows: readonly Row[]): number =>
   rows.reduce((sum, row) => sum + Number(row['bytes']), 0)
 
+const validRange = (input: Range): boolean =>
+  named(input.session) &&
+  strings(input.kinds, MAX_KINDS) &&
+  input.kinds.length > 0 &&
+  Number.isInteger(input.maxBytes) &&
+  input.maxBytes >= 1
+
+// How many of the rows fit the page: at least one, then as many as the bytes asked for allow.
+function fitting(
+  rows: readonly Row[],
+  maxBytes: number,
+): Readonly<{ taken: number; bytes: number }> {
+  let taken = 0
+  let bytes = 0
+  while (taken < rows.length && taken < PAGE_ROWS) {
+    const size = Number(rows[taken]!['bytes'])
+    if (taken > 0 && bytes + size > maxBytes) break
+    bytes += size
+    taken += 1
+  }
+  return { taken, bytes }
+}
+
 function range(port: ReadPort, input: Range) {
-  if (!named(input.session) || !strings(input.kinds, MAX_KINDS) || input.kinds.length === 0)
-    throw new Error('invalid input')
-  if (!Number.isInteger(input.maxBytes) || input.maxBytes < 1) throw new Error('invalid input')
+  if (!validRange(input)) throw new Error('invalid input')
   const scope = [input.tenant, input.session] as const
   const show = showing(port, input.tenant, input.as)
   const journal = oneRow(
@@ -126,14 +147,7 @@ function range(port: ReadPort, input: Range) {
       ORDER BY position LIMIT ?`,
     [...scope, start, ...input.kinds, BigInt(PAGE_ROWS + 1)],
   )
-  let taken = 0
-  let bytes = 0
-  while (taken < rows.length && taken < PAGE_ROWS) {
-    const size = Number(rows[taken]!['bytes'])
-    if (taken > 0 && bytes + size > input.maxBytes) break
-    bytes += size
-    taken += 1
-  }
+  const { taken, bytes } = fitting(rows, input.maxBytes)
   if (taken === rows.length)
     return {
       kind: 'page',
