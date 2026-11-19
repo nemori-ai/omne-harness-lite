@@ -296,8 +296,24 @@ export function settlementFailure(
 ): ModelFailure | null {
   if (encodedBytes(termination) > MAX_TERMINATION_BYTES)
     return invalid('termination', 'encoded-byte-limit')
-  if (executionFailed(termination) || policyUnavailable(call, termination)) return null
+  if (
+    executionFailed(termination) ||
+    policyUnavailable(call, termination) ||
+    runtimeLost(call, termination)
+  )
+    return null
   return settlementPendingFailure(call) ?? settlementActualFailure(call, termination)
+}
+/** The transport of the last dispatch is gone before it ended; only a materialized one can have gone out. */
+export function runtimeLost(call: CallDocument, termination: Termination): boolean {
+  const latest = call.dispatches.at(-1)
+  return (
+    termination.kind === 'failed' &&
+    termination.fault.cause === 'runtime-lost' &&
+    latest !== undefined &&
+    latest.logicalTerminal === null &&
+    latest.record.materialization !== null
+  )
 }
 function policyUnavailable(call: CallDocument, termination: Termination): boolean {
   return (

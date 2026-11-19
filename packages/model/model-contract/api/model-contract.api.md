@@ -2264,6 +2264,7 @@ export type RecoveryRecord = Readonly<{
     retry: RetryDecision | null;
     retryPosition: RetryPosition | null;
     retrySource?: DurableEvidence | null;
+    logicalTerminal: Termination | null;
     unresolved: readonly ModelOperationId[];
     tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[];
 }>;

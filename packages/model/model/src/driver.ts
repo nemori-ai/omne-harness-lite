@@ -3,6 +3,7 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   decodeDispatchId,
   decodeOutputCursor,
+  type DispatchRecord,
   type ModelFailure,
   type Termination,
   type Reply,
@@ -63,6 +64,14 @@ type Activity<P> = {
   spent: Receiver<P>[]
 }
 
+const RUNTIME_LOST: Termination = {
+  kind: 'failed',
+  fault: {
+    cause: 'runtime-lost',
+    diagnostic: 'transport-gone-with-its-process',
+    upstreamStatus: null,
+  },
+}
 const blocked = (diagnostic: string) => ({
   failure: { kind: 'unavailable', dependency: 'model-runtime', diagnostic } as const,
 })
@@ -397,6 +406,7 @@ export function createModelDriver<P>(
     if (!active && recovery.ok.state.phase === 'settled') return { ok: null }
     const records = await commands.dispatches(input)
     if ('failure' in records) return records
+    const fresh = active === undefined
     if (!active || active.view.handle.instance !== input.instance) {
       const published = await publishActivity(
         key,
@@ -407,6 +417,11 @@ export function createModelDriver<P>(
       )
       if ('failure' in published) return published
       active = published.ok
+      const latest = records.ok.at(-1)
+      if (fresh && latest !== undefined && recovery.ok.state.phase !== 'settled') {
+        const resumed = await resumeStage(active, input, execution, recovery.ok, latest)
+        if ('failure' in resumed) return resumed
+      }
     }
     if (recovery.ok.state.phase === 'settled') ended(input)
     if (active.stage.kind === 'idle') {
@@ -414,6 +429,46 @@ export function createModelDriver<P>(
       beginActivity(active, execution, recovery.ok)
     }
     return { ok: { active, recovery: recovery.ok } }
+  }
+  // A process that never drove the call takes it up from its last dispatch: one the store holds
+  // ended is concluded; one that may have gone out lost its transport; one never materialized is sent.
+  async function resumeStage(
+    active: Activity<P>,
+    input: ModelDriveInput<P>,
+    execution: ExecutionRef,
+    recovery: Recovery<P>,
+    latest: DispatchRecord,
+  ): Reply<void> {
+    const ending = recovery.logicalTerminal
+    if (ending !== null || latest.materialization !== null) {
+      active.stage = {
+        kind: 'finish',
+        execution,
+        receiver: null,
+        termination: ending ?? RUNTIME_LOST,
+        driveFailure: null,
+        resolved: ending === null,
+        settlement: { kind: 'ready' },
+      }
+      return { ok: undefined }
+    }
+    const request = await commands.loadRequest(input)
+    if ('failure' in request) return request
+    active.stage = {
+      kind: 'send',
+      demand: {
+        principal: input.principal,
+        tenant: input.tenant,
+        call: input.call,
+        execution,
+        dispatch: latest.dispatch,
+        request: request.ok,
+        supplier: latest.supplier,
+        consumer: recovery.state.consumer,
+        initiator: recovery.initiator,
+      },
+    }
+    return { ok: undefined }
   }
   async function prepareDispatch(
     active: Activity<P>,

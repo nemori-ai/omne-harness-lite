@@ -216,7 +216,7 @@ it('dispatch plans and retry facts keep the policy position and the decision apa
   void [plan, retry, pending, decided, noSource]
 })
 
-it('RecoveryRecord holds the original request, the actor and the open work', () => {
+it('RecoveryRecord holds the original request, the actor, the held ending and the open work', () => {
   const record: RecoveryRecord = {
     state,
     request: requestHead(request),
@@ -225,9 +225,11 @@ it('RecoveryRecord holds the original request, the actor and the open work', () 
     execution: null,
     retry: null,
     retryPosition: null,
+    logicalTerminal: null,
     unresolved: [],
     tasks: ['execute', 'cleanup'],
   }
+  expectTypeOf<RecoveryRecord['logicalTerminal']>().toEqualTypeOf<Termination | null>()
   // @ts-expect-error an unlisted task
   const task: RecoveryRecord['tasks'] = ['restart']
   void [record, task]

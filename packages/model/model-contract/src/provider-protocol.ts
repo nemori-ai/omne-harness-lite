@@ -196,6 +196,8 @@ export type RecoveryRecord = Readonly<{
   retry: RetryDecision | null
   retryPosition: RetryPosition | null
   retrySource?: DurableEvidence | null
+  /** The ending the store holds the latest dispatch to; a settlement carries it. Null before one. */
+  logicalTerminal: Termination | null
   unresolved: readonly ModelOperationId[]
   tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[]
 }>

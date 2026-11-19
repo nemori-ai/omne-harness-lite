@@ -391,6 +391,14 @@ export function mergeReceiveWindow(
   if (call.state.phase === 'running')
     call.state = { ...call.state, firstContent: dispatch.record.firstContent }
 }
+/** The last dispatch ends with the loss of its transport; its open windows close unproven. */
+export function loseLatest(call: CallDocument, termination: Termination): void {
+  const latest = call.dispatches.at(-1)
+  if (latest === undefined) return
+  latest.logicalTerminal = structuredClone(termination)
+  latest.record = { ...latest.record, terminal: structuredClone(termination) }
+  abandonReceiveWindows(call)
+}
 export function abandonReceiveWindows(call: CallDocument): void {
   for (const dispatch of call.dispatches)
     for (const [window, state] of dispatch.windows)

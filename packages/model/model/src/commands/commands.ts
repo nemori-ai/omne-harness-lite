@@ -56,6 +56,7 @@ import {
   retryable,
   retryChoiceFailure,
   executionFailed,
+  runtimeLost,
   settlementFailure,
   tasks,
   unresolved,
@@ -69,6 +70,7 @@ import {
   recordSendState,
   lateTerminal,
   abandonReceiveWindows,
+  loseLatest,
   mergeReceiveWindow,
   reduceFacts,
   releaseMaterial,
@@ -315,6 +317,7 @@ export function callCommands<P>(
                 }
               const legality = settlementFailure(call, input.termination)
               if (legality) return { failure: legality }
+              if (runtimeLost(call, input.termination)) loseLatest(call, input.termination)
               if (executionFailed(input.termination)) abandonReceiveWindows(call)
               const settlement = settlementOf(call, input, resultVersion())
               if (encodedBytes(settlement) > MAX_SETTLEMENT_BYTES)
@@ -394,6 +397,7 @@ export function recoveryCommands<P>(
               retry: structuredClone(call.retry),
               retryPosition: structuredClone(call.retryPosition),
               retrySource: structuredClone(call.retrySource),
+              logicalTerminal: structuredClone(call.dispatches.at(-1)?.logicalTerminal ?? null),
               unresolved: pending,
               tasks: tasks(call, pending),
             },
