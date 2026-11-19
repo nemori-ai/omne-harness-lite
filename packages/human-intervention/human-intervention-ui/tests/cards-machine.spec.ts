@@ -17,7 +17,7 @@ import {
   type ReplyAnswer,
   type State,
 } from '../src/model/cards-machine.ts'
-import { approvalItem, page, questionItem } from './fixtures/cards.ts'
+import { approvalItem, page, questionItem, releaseItem } from './fixtures/cards.ts'
 
 const run = (state: State, ...events: Event[]) =>
   events.reduce<{ state: State; effects: readonly Effect[] }>(
@@ -664,6 +664,44 @@ describe('一组的作答', () => {
     expect(sheet.ready).toBe(false)
     expect(sheet.missing).toEqual([KA, KC])
     expect(step(half, { kind: 'submit-group', group: SESSION, planned: PLAN }).state).toBe(half)
+  })
+
+  it('G2a 放行卡可以只答一张：答了的那张交出去，没答的留着', () => {
+    const [ra, rb, rc] = [
+      releaseItem('release-a'),
+      releaseItem('release-b'),
+      releaseItem('release-c'),
+    ]
+    const [ka, kb, kc] = [ra, rb, rc].map(item => keyOf(item.card.ref)) as [string, string, string]
+    const pick: Draft = { choice: { kind: 'option', optionId: 'deny-once' }, text: '' }
+    const none = listed([ra, rb, rc])
+    expect(sheetOf(none, SESSION)).toMatchObject({ ready: false, missing: [], open: [ka, kb, kc] })
+    expect(submittable(none, SESSION)).toEqual([])
+    const one = step(none, { kind: 'draft', key: kb, draft: pick }).state
+    expect(sheetOf(one, SESSION)).toMatchObject({ ready: true, missing: [], open: [ka, kc] })
+    expect(submittable(one, SESSION)).toEqual([kb])
+    const sent = step(one, {
+      kind: 'submit-group',
+      group: SESSION,
+      planned: [{ key: kb, replyId: 'r-b' }],
+    })
+    expect(sentKeys(sent.effects)).toEqual([kb])
+    expect(step(one, { kind: 'submit-group', group: SESSION, planned: PLAN }).state).toBe(one)
+  })
+
+  it('G2b 放行卡和问答卡在一组：问答卡没答不能提交，放行卡没答不挡', () => {
+    const release = releaseItem('release-a')
+    const kr = keyOf(release.card.ref)
+    const mixed = listed([A, release])
+    const releaseOnly = step(mixed, {
+      kind: 'draft',
+      key: kr,
+      draft: { choice: { kind: 'option', optionId: 'deny-once' }, text: '' },
+    }).state
+    expect(sheetOf(releaseOnly, SESSION)).toMatchObject({ ready: false, missing: [KA], open: [] })
+    const questionOnly = step(mixed, { kind: 'draft', key: KA, draft: PICK_MAIN }).state
+    expect(sheetOf(questionOnly, SESSION)).toMatchObject({ ready: true, missing: [], open: [kr] })
+    expect(submittable(questionOnly, SESSION)).toEqual([KA])
   })
 
   it('G3 三题一次交：依次发出，前一题有了结局才发下一题；全记下后这一组什么都不剩', () => {
