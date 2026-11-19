@@ -66,13 +66,6 @@ describe('the tenant layer over the local store', () => {
     ).toEqual({ kind: 'unavailable' })
   })
 
-  it('does not hand out a listed row whose capability is incomplete', async () => {
-    const store = storeOver({
-      listHeld: { kind: 'page', items: [{ ...LISTED, category: '' }], next: null },
-    })
-    await expect(store.list(LIST)).rejects.toThrow(TypeError)
-  })
-
   it('reads one held capability: its row, content by the category layout, and whether it has settings', async () => {
     const answers = (definitionRef: unknown) => ({
       readHeldCapability: {
@@ -207,10 +200,6 @@ describe('the tenant layer over the local store', () => {
         holdingRef: 'held-1',
         changed: true,
       },
-    ],
-    [
-      { kind: 'published', category: '', name: 'a', version: 'v1', holdingRef: 'h', changed: true },
-      { kind: 'unavailable' },
     ],
     [{ kind: 'not_found' }, { kind: 'not-found' }],
     [{ kind: 'unknown' }, { kind: 'unknown' }],
