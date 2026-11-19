@@ -6,6 +6,9 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `AbandonBasis` · `result.d.ts`
+- `AbandonInput` · `result.d.ts`
+- `AbandonReceipt` · `result.d.ts`
 - `Access` · 包 `@omne-harness/legal-identity`
 - `AckInput` · `result.d.ts`
 - `AckReceipt` · `result.d.ts`
@@ -19,14 +22,19 @@
 - `CallAccess` · `root.d.ts`
 - `CallContact` · `result.d.ts`
 - `CallState` · `result.d.ts`
+- `CleanupStage` · `result.d.ts`
+- `ConnectRetryReason` · `call-surface.d.ts`
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ContextLimits` · `profile.d.ts`
+- `ContextWindow` · `root.d.ts`
 - `ControlState` · `result.d.ts`
 - `ConversionResult` · `conversion.d.ts`
 - `ConvertedContent` · `conversion.d.ts`
+- `CostLookupState` · `cost-lookup.d.ts`
 - `CredentialLayer` · `root.d.ts`
 - `CustodyState` · `result.d.ts`
 - `DispatchId` · `root.d.ts`
+- `DispatchInstants` · `call-surface.d.ts`
 - `DispatchProgress` · `result.d.ts`
 - `DispatchRecord` · `call-surface.d.ts`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
@@ -62,6 +70,10 @@
 - `ModelDiagnostics` · `diagnostics.d.ts`
 - `ModelDiagnosticsPage` · `diagnostics.d.ts`
 - `ModelDirectory` · `call-surface.d.ts`
+- `ModelDispatchFact` · `dispatch-facts.d.ts`
+- `ModelDispatchFacts` · `dispatch-facts.d.ts`
+- `ModelDispatchFactsPage` · `dispatch-facts.d.ts`
+- `ModelDispatchFactsQuery` · `dispatch-facts.d.ts`
 - `ModelDuration` · `diagnostics.d.ts`
 - `ModelFailure` · `result.d.ts`
 - `ModelFault` · `result.d.ts`
@@ -137,8 +149,10 @@
 - `TransportFailure` · `provider-protocol.d.ts`
 - `UpstreamLimit` · `profile.d.ts`
 - `VisibleBlock` · `call-surface.d.ts`
+- `accountUndelivered` · `cost-lookup.d.ts`
 - `applyModelStreamDelta` · `model-stream-values.d.ts`
 - `compareOutputCursors` · `identity-values.d.ts`
+- `costLookupOf` · `cost-lookup.d.ts`
 - `decodeDispatchId` · `identity-values.d.ts`
 - `decodeModelCallId` · `identity-values.d.ts`
 - `decodeModelDiagnosticCursor` · `identity-values.d.ts`
@@ -204,6 +218,7 @@
 - `ConversionReply` · `conversion.d.ts`
 - `ConverterKey` · `conversion.d.ts`
 - `ConverterLookup` · `conversion.d.ts`
+- `CostLookupAnswer` · `provider-protocol.d.ts`
 - `CredentialFailure` · `credential.d.ts`
 - `CredentialItemState` · `credential.d.ts`
 - `CredentialLayerQuery` · `credential.d.ts`
@@ -430,6 +445,14 @@ export type ReadStart = Readonly<{
         kind: 'acknowledged';
     }>;
 }>;
+export type DispatchInstants = Readonly<{
+    prepared: string | null;
+    sent: string | null;
+    responseStarted: string | null;
+    firstContent: string | null;
+    ended: string | null;
+}>;
+export type ConnectRetryReason = 'connect-failed' | 'connect-timeout';
 export type DispatchRecord = Readonly<{
     dispatch: DispatchId;
     supplier: Supplier;
@@ -444,6 +467,14 @@ export type DispatchRecord = Readonly<{
     }> | null;
     messages?: readonly MessageId[];
     withoutReplay?: 'resend' | 'later';
+    instants?: DispatchInstants;
+    request?: string;
+    connectRetries?: readonly ConnectRetryReason[];
+    lookup?: Readonly<{
+        misses: number;
+        exhausted: boolean;
+    }>;
+    lateDelivered?: string;
 }>;
 export interface ModelCalls<P> {
     admit(input: Admit<P>): Reply<Admission>;
@@ -1087,6 +1118,15 @@ export interface ModelMessageConversion<P> {
 }
 ```
 
+## 声明文件 `cost-lookup.d.ts`
+
+```ts
+import type { DispatchRecord } from './call-surface.ts';
+export type CostLookupState = 'not-needed' | 'pending' | 'found' | 'not-found' | 'no-request-id';
+export declare function accountUndelivered(record: DispatchRecord): boolean;
+export declare function costLookupOf(record: DispatchRecord): CostLookupState;
+```
+
 ## 声明文件 `credential-values.d.ts`
 
 ```ts
@@ -1149,6 +1189,7 @@ export type CredentialPort<P = unknown> = {
 ```ts
 import type { Adoption, CallAccess, DispatchId, Identity, ModelCallId, Revision } from './root.ts';
 import type { DurableEvidence, ModelFault, Reply } from './result.ts';
+import type { ConnectRetryReason, DispatchInstants } from './call-surface.ts';
 export type ModelDiagnosticId = Identity<'ModelDiagnosticId'>;
 export type ModelDiagnosticCursor = Identity<'ModelDiagnosticCursor'>;
 export type ModelDuration = Readonly<{
@@ -1177,11 +1218,14 @@ export type ModelAttemptDiagnostic = Readonly<{
         cause: ModelFault['cause'];
         upstreamStatus: string | null;
     }>;
+    instants: DispatchInstants;
     timing: Readonly<{
         materialize: ModelDuration;
+        sendToResponse: ModelDuration;
         sendToFirstContent: ModelDuration;
         execution: ModelDuration;
     }>;
+    connectRetries: readonly ConnectRetryReason[];
 }>;
 export type ModelDiagnosticsPage = Readonly<{
     entries: readonly ModelAttemptDiagnostic[];
@@ -1195,6 +1239,62 @@ export interface ModelDiagnostics<P> {
         after: ModelDiagnosticCursor | null;
         limit: number;
     }>): Reply<ModelDiagnosticsPage>;
+}
+```
+
+## 声明文件 `dispatch-facts.d.ts`
+
+```ts
+import type { Access, Adoption, ConsumerRef, ContextWindow, DispatchId, ModelCallId, Supplier } from './root.ts';
+import type { CallAccount } from '@omne-harness/call-account';
+import type { ModelFault, Reply } from './result.ts';
+import type { DispatchInstants } from './call-surface.ts';
+import type { CostLookupState } from './cost-lookup.ts';
+export type ModelDispatchFact = Readonly<{
+    call: ModelCallId;
+    dispatch: DispatchId;
+    consumer: ConsumerRef;
+    profile: Adoption;
+    supplier: Supplier;
+    contextWindow: ContextWindow | null;
+    instants: DispatchInstants;
+    send: 'not-sent' | 'sent' | 'unknown';
+    outcome: Readonly<{
+        kind: 'pending';
+    }> | Readonly<{
+        kind: 'completed';
+        reason: 'stop' | 'limit' | 'tool-suggestions';
+    }> | Readonly<{
+        kind: 'interrupted';
+    }> | Readonly<{
+        kind: 'failed';
+        cause: ModelFault['cause'];
+        upstreamStatus: string | null;
+    }>;
+    connectRetries: number;
+    account: CallAccount | null;
+    costLookup: CostLookupState;
+}>;
+export type ModelDispatchFactsQuery = Readonly<{
+    range: Readonly<{
+        from: string;
+        to: string;
+    }> | null;
+    consumer: Readonly<{
+        owner: string;
+        works: readonly string[];
+    }> | null;
+    order: 'ascending' | 'descending';
+    after: string | null;
+    limit: number;
+}>;
+export type ModelDispatchFactsPage = Readonly<{
+    entries: readonly ModelDispatchFact[];
+    undated: number;
+    next: string | null;
+}>;
+export interface ModelDispatchFacts<P> {
+    list(input: Access<P> & ModelDispatchFactsQuery): Reply<ModelDispatchFactsPage>;
 }
 ```
 
@@ -1274,9 +1374,10 @@ export declare function compareOutputCursors(left: OutputCursor, right: OutputCu
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { Access, Admit, Adoption, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
+export type { Access, Admit, Adoption, CallAccess, ConsumerRef, ContextWindow, DispatchId, FixedModelRequest, Identity, ModelCallId, ModelIdentityKey, ModelIdentityRejection, ModelInstanceId, ModelOperationId, ModelReferenceAccess, Mutation, OutputCursor, Parameter, CredentialLayer, ProviderName, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration, } from './root.ts';
 export type * from './result.ts';
 export { faultIsTransient } from './result.ts';
+export { accountUndelivered, costLookupOf, type CostLookupState } from './cost-lookup.ts';
 export type * from './result-delivery-values.ts';
 export type * from './result-delivery.ts';
 export type * from './result-delivery-judge.ts';
@@ -1287,6 +1388,7 @@ export { diffModelStream, applyModelStreamDelta } from './model-stream-values.ts
 export { encodeModelOutputV1, decodeModelOutputV1, projectModelOutputV1, } from './model-output-v1.ts';
 export type { ModelOutputV1, ModelOutputV1Snapshot, ModelOutputV1Delta, ModelOutputV1Failure, } from './model-output-v1.ts';
 export type * from './call-surface.ts';
+export type * from './dispatch-facts.ts';
 export type { MaterializationReceipt, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
 export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
 export type { ConversionResult, ConvertedContent } from './conversion.ts';
@@ -1997,8 +2099,8 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import type { ContentReference } from '@omne-harness/content-block';
 import type { MessageId } from '@omne-harness/message';
 import type { Access, Adoption, ActorRef, Admit, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, FixedRequestHead, ModelCallId, ModelInstanceId, ModelOperationId, ProviderName, Mutation, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration } from './root.ts';
-import type { AckInput, AckReceipt, Admission, CallState, ControlState, CustodyState, DurableEvidence, ModelFailure, ModelBlock, ModelFault, Lookup, Reply, Settlement, Termination } from './result.ts';
-import type { DispatchRecord, GrowingContentKind, LiveRoute, ModelHandle, ModelRuntime, ReadState, ReadStart, Snapshot } from './call-surface.ts';
+import type { AbandonInput, AbandonReceipt, AckInput, AckReceipt, Admission, CallState, ControlState, CustodyState, DurableEvidence, ModelFailure, ModelBlock, ModelFault, Lookup, Reply, Settlement, Termination } from './result.ts';
+import type { ConnectRetryReason, DispatchRecord, GrowingContentKind, LiveRoute, ModelHandle, ModelRuntime, ReadState, ReadStart, Snapshot } from './call-surface.ts';
 import type { CallAccount } from '@omne-harness/call-account';
 import type { ReplayOmission } from './profile.ts';
 export type TransportFailure = Extract<ModelFailure, {
@@ -2085,6 +2187,12 @@ export type TransportFact = Readonly<{
 }> | Readonly<{
     kind: 'diagnostic';
     value: ProviderDiagnostic;
+}> | Readonly<{
+    kind: 'response';
+    request: string | null;
+}> | Readonly<{
+    kind: 'connect-retry';
+    reason: ConnectRetryReason;
 }> | Readonly<{
     kind: 'ended';
     termination: TransportTermination;
@@ -2181,6 +2289,7 @@ export type RecoveryRecord = Readonly<{
     retry: RetryDecision | null;
     retryPosition: RetryPosition | null;
     retrySource?: DurableEvidence | null;
+    logicalTerminal: Termination | null;
     unresolved: readonly ModelOperationId[];
     tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[];
 }>;
@@ -2192,6 +2301,22 @@ export type LateDispatchFact = Readonly<{
     kind: 'terminal';
     event: string;
     actual: Termination;
+}> | Readonly<{
+    kind: 'cost-miss';
+    event: string;
+    final: boolean;
+}>;
+export type CostLookupAnswer = Readonly<{
+    kind: 'found';
+    cost: CallAccountReport['cost'];
+    place: string;
+}> | Readonly<{
+    kind: 'missed';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}> | Readonly<{
+    kind: 'unsupported';
 }>;
 export interface ModelCommands<P> {
     admit(input: Admit<P>): Reply<Admission>;
@@ -2233,6 +2358,7 @@ export interface ModelCommands<P> {
         dispatch: DispatchId;
         window: string;
         facts: readonly TransportFact[];
+        arrivals?: readonly (string | null)[];
     }>): Reply<Snapshot>;
     recordLateFact(input: Access<P> & Readonly<{
         call: ModelCallId;
@@ -2267,6 +2393,13 @@ export interface ModelCommands<P> {
         read: ReadId;
     }>): Reply<ReadState>;
     handoff(input: AckInput<P>): Reply<AckReceipt>;
+    abandon(input: AbandonInput<P>): Reply<AbandonReceipt>;
+    confirmAccount(input: CallAccess<P> & Readonly<{
+        operation: ModelOperationId;
+        dispatch: DispatchId;
+        revision: string;
+        receipt: DurableEvidence;
+    }>): Reply<Revision>;
     advanceCleanup(input: ExecutionRef & Readonly<{
         operation: ModelOperationId;
     }>): Reply<CustodyState>;
@@ -2299,6 +2432,9 @@ export type SendResult = Readonly<{
 }>;
 export interface ModelSendBoundary<P> {
     send(input: SendDemand<P>, signal: AbortSignal): Promise<SendResult>;
+    lookupCost?(input: CallAccess<P> & Readonly<{
+        dispatch: DispatchId;
+    }>, signal: AbortSignal): Promise<CostLookupAnswer>;
 }
 export interface ModelRetryPolicy<P> {
     decide(input: CallAccess<P> & Readonly<{
@@ -2350,7 +2486,7 @@ export interface ModelProvider<P> {
 
 ```ts
 export type { ActorRef, FixedRequestHead } from '../root.ts';
-export type { CallAccountReport, CommitQuery, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, ModelMediaLease, ModelMediaReader, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
+export type { CallAccountReport, CommitQuery, CostLookupAnswer, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, ModelMediaLease, ModelMediaReader, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
 export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayBinding, ReplayDiagnostic, ReplayOmission, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
 export type { ConversionFailure, ConversionReply, ConverterKey, ConverterLookup, ModelConverter, ModelConverterCatalog, ModelMessageConversion, } from '../conversion.ts';
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts';
@@ -2653,13 +2789,28 @@ export type Settlement = Readonly<{
     source: DurableEvidence;
     replay?: SettledReplay;
 }>;
+export type CleanupStage = 'pending' | 'running' | 'blocked' | 'released';
+export type AbandonBasis = Readonly<{
+    kind: 'refused';
+    refusal: 'denied' | 'invalid' | 'conflict';
+}> | Readonly<{
+    kind: 'unreadable';
+    reason: string;
+}>;
 export type CustodyState = Readonly<{
     kind: 'producer';
 }> | Readonly<{
     kind: 'acknowledged';
     operation: ModelOperationId;
     receipt: DurableEvidence;
-    cleanup: 'pending' | 'running' | 'blocked' | 'released';
+    cleanup: CleanupStage;
+    diagnostic: string | null;
+}> | Readonly<{
+    kind: 'abandoned';
+    operation: ModelOperationId;
+    basis: AbandonBasis;
+    record: DurableEvidence;
+    cleanup: CleanupStage;
     diagnostic: string | null;
 }>;
 export type DispatchProgress = Readonly<{
@@ -2738,6 +2889,17 @@ export type AckReceipt = Readonly<{
     result: ResultVersion;
     custody: Extract<CustodyState, {
         kind: 'acknowledged';
+    }>;
+}>;
+export type AbandonInput<P> = Mutation<P> & Readonly<{
+    result: ResultVersion;
+    basis: AbandonBasis;
+}>;
+export type AbandonReceipt = Readonly<{
+    call: ModelCallId;
+    result: ResultVersion;
+    custody: Extract<CustodyState, {
+        kind: 'abandoned';
     }>;
 }>;
 ```
@@ -2833,8 +2995,13 @@ export type Supplier = Readonly<{
     model: string;
     credential: CredentialLayer;
 }>;
+export type ContextWindow = Readonly<{
+    tokens: string;
+    compactionTriggerPercent: string;
+}>;
 export type FixedModelRequest = Readonly<{
     profile: Adoption;
+    contextWindow?: ContextWindow;
     suppliers: readonly [
         Supplier,
         ...Supplier[]

@@ -67,6 +67,7 @@ import {
 import {
   callHandler,
   createSqlModelCommands,
+  dispatchFactsMigration,
   modelMigration,
   pendingHandler,
   requestHandler,
@@ -194,6 +195,8 @@ const PUSH_LIMITS: ResultPushLimits = {
   maxCleanupSteps: 8,
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
+  maxCostMisses: 3,
+  delaysMs: [1000, 5000, 30000],
 }
 const CONFIGURATION: ModelConfiguration = {
   outputBatchBytes: 1024,
@@ -202,7 +205,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 const CORE_LIMITS = {
   scanPageCalls: 2,
@@ -343,6 +345,7 @@ function sqliteStorage(): SqlStorage {
     if (found !== undefined) return found
     const db = new DatabaseSync(':memory:')
     modelMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
+    dispatchFactsMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
     const domain = { db, receipts: new Map<string, Receipt>() }
     domains.set(name, domain)
     return domain
@@ -708,6 +711,8 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']

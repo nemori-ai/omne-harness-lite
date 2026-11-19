@@ -70,6 +70,8 @@ export const LIMITS: ResultPushLimits = {
   maxCleanupSteps: 8,
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
+  maxCostMisses: 3,
+  delaysMs: [1000, 5000, 30000],
 }
 const CONFIGURATION: ModelConfiguration = {
   outputBatchBytes: 1,
@@ -78,7 +80,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 4096,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 
 const request: FixedModelRequest = {
@@ -414,6 +415,8 @@ export function world(
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']

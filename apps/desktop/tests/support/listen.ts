@@ -1,4 +1,4 @@
-import type { WebHost } from '../../src/web-host/server.ts'
+import type { Standalone } from '../../src/standalone/server.ts'
 
 export const FETCH_BAD_PORTS = new Set([
   1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79, 87, 95, 101, 102,
@@ -9,8 +9,8 @@ export const FETCH_BAD_PORTS = new Set([
 ])
 
 export async function listenFetchable(
-  make: () => WebHost,
-): Promise<{ readonly host: WebHost; readonly port: number }> {
+  make: () => Standalone,
+): Promise<{ readonly host: Standalone; readonly port: number }> {
   for (;;) {
     const host = make()
     const port = await host.listen(0)

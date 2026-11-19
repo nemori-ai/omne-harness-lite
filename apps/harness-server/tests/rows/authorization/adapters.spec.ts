@@ -654,14 +654,47 @@ describe('sessionAccessCheck: the steps before the dependencies (policy draft §
     expect(w.reached()).toBe(0)
   })
 
-  it('lets the login principal of the tenant list its sessions, and denies a work principal and another tenant', async () => {
+  it('lets the login and a work principal of the tenant list its sessions, and denies another tenant', async () => {
     const w = world()
     expect((await w.session.check(list(w.login()))).kind).toBe('allowed')
     expect(w.seen.admissions.at(-1)?.target).toMatchObject({ owner: 'session', kind: 'tenant' })
+    expect((await w.session.check(list(w.work()))).kind).toBe('allowed')
     const reached = w.reached()
-    expect(await w.session.check(list(w.work()))).toEqual({ kind: 'denied' })
     expect(await w.session.check(list(w.login(B), B, A))).toEqual({ kind: 'denied' })
     expect(await w.session.check(list(w.login(B), A))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(list(w.work(OWN, B), A))).toEqual({ kind: 'denied' })
+    expect(w.reached()).toBe(reached)
+  })
+
+  it('lets a work principal read the history of another session of its tenant, and nothing else of it', async () => {
+    const w = world()
+    for (const operation of ['history.begin', 'history.next'])
+      expect((await w.session.check(read(w.work(OTHER), operation))).kind).toBe('allowed')
+    expect(w.seen.admissions.at(-1)?.target).toEqual({
+      owner: 'session',
+      kind: 'session',
+      key: OWN,
+    })
+    const reached = w.reached()
+    for (const operation of [
+      'readWork',
+      'readPending',
+      'readWaitingCalls',
+      'readInputFate',
+      'readBackgroundCalls',
+      'resolveBackgroundCall',
+      'history.since',
+      'history.readModelView',
+      'history.readCompactionContext',
+      'queryOperation',
+    ])
+      expect(await w.session.check(read(w.work(OTHER), operation)), operation).toEqual({
+        kind: 'denied',
+      })
+    expect(await w.session.check(mutate(w.work(OTHER), 'claim'))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(read(w.work(OTHER, B), 'history.begin'))).toEqual({
+      kind: 'denied',
+    })
     expect(w.reached()).toBe(reached)
   })
 

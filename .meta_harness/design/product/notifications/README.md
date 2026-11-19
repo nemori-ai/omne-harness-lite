@@ -2,7 +2,7 @@
 id: PD-notifications
 title: 通知
 status: draft
-revision: 5
+revision: 6
 relations:
   supersedes: []
   depends-on: []

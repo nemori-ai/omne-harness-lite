@@ -19,7 +19,7 @@ export function localOptions(world: World): ScheduleLocalOptions {
     worker: { maxConcurrent: 1, maxQueued: 2 },
     management: world.dependencies,
     prediction: {
-      calendar: { list: unused, get: unused, effective: unused, resolve: unused },
+      calendar: { list: unused, get: unused, effective: unused, resolve: unused, health: unused },
       environment: { observe: unused },
       basisGuards: { prepare: async () => ({ kind: 'ok', value: { guardRef: 'basis:guard' } }) },
       monotonicClock: { now: () => performance.now() },

@@ -9,6 +9,7 @@ import {
   type ToastStore,
 } from '@omne-harness/shell-contract'
 
+export const LOGIN_EXPIRED_TEXT = '登录已经失效，请重新登录。'
 export const LOGOUT_UNKNOWN_TEXT = '本机已经退出。服务端是否已注销这次登录，没有得到确认。'
 
 type Listeners<T> = {
@@ -120,13 +121,18 @@ export const DESKTOP_TOASTS: ToastConfig = { visible: 3, durationMs: 6000, sched
 
 export function createShellState(
   inner: ShellLogin,
-  options: Readonly<{ toasts?: ToastConfig }> = {},
+  options: Readonly<{
+    toasts?: ToastConfig
+    /** A line for the login gate from outside the shell, such as "the login expired". */
+    notices?: (show: (text: string) => void) => () => void
+  }> = {},
 ): ShellState {
   const slots = createSlotStore()
   const toasts = createToastStore(options.toasts ?? DESKTOP_TOASTS)
   const scopeCell = cell<string | undefined>(undefined)
   const notice = cell<string | undefined>(undefined)
   const page = pageChoice(slots)
+  const stopNotices = options.notices?.(text => notice.set(text))
   const stopLogin = inner.subscribe(state => {
     if (state !== 'signed-in') scopeCell.set(undefined)
   })
@@ -139,6 +145,7 @@ export function createShellState(
     notice: { get: notice.get, subscribe: notice.subscribe },
     dispose() {
       stopLogin()
+      stopNotices?.()
       page.dispose()
     },
   }

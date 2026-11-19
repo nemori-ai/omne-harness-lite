@@ -275,6 +275,9 @@ catalogs:
     happy-dom:
       specifier: 21.0.4
       version: 21.0.4
+    hono:
+      specifier: 4.13.19
+      version: 4.13.19
     immutable:
       specifier: 5.1.9
       version: 5.1.9
@@ -517,6 +520,9 @@ importers:
       eventsource-parser:
         specifier: 'catalog:'
         version: 3.1.1
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.19
       react:
         specifier: 'catalog:'
         version: 19.3.0
@@ -605,6 +611,9 @@ importers:
       '@omne-harness/calendar-access':
         specifier: workspace:*
         version: link:../../packages/calendar/calendar-access
+      '@omne-harness/calendar-adapters':
+        specifier: workspace:*
+        version: link:../../packages/calendar/calendar-adapters
       '@omne-harness/calendar-contract':
         specifier: workspace:*
         version: link:../../packages/calendar/calendar-contract
@@ -806,12 +815,18 @@ importers:
       '@omne-harness/session-observation':
         specifier: workspace:*
         version: link:../../packages/session/session-observation
+      '@omne-harness/session-search':
+        specifier: workspace:*
+        version: link:../../packages/session/session-search
       '@omne-harness/session-search-sqlite':
         specifier: workspace:*
         version: link:../../packages/session/session-search-sqlite
       '@omne-harness/session-storage-sql':
         specifier: workspace:*
         version: link:../../packages/session/session-storage-sql
+      '@omne-harness/session-tools':
+        specifier: workspace:*
+        version: link:../../packages/session/session-tools
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../../packages/assets/settings
@@ -912,9 +927,6 @@ importers:
       '@omne-harness/session-protocol':
         specifier: workspace:*
         version: link:../../packages/session/session-protocol
-      '@omne-harness/session-search':
-        specifier: workspace:*
-        version: link:../../packages/session/session-search
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1650,6 +1662,40 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/calendar/calendar-adapters:
+    dependencies:
+      '@omne-harness/calendar':
+        specifier: workspace:*
+        version: link:../calendar
+      '@omne-harness/calendar-contract':
+        specifier: workspace:*
+        version: link:../calendar-contract
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/notification-contract':
+        specifier: workspace:*
+        version: link:../../notification/notification-contract
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -4818,6 +4864,34 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/session/session-tools:
+    dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/tool':
+        specifier: workspace:*
+        version: link:../../tool/tool
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -9607,8 +9681,8 @@ packages:
   hastscript@9.0.3:
     resolution: {integrity: sha512-1ALZXSmCGmW3h8AMz4R4+QKSKFi7sNgXLVwmwB8FYVtl1CwQ3WDkSAEY/d5tp1g/vbQgq2s1WlHgfO3jbw1TsA==}
 
-  hono@4.13.16:
-    resolution: {integrity: sha512-AOLOEhvrV+iH92xXCnFr/5+3KjPKcI3xP63XJtX5spAnkznPdHijlIsUTpi7/9EhWqrTCekw5c5zh1K+YsVw7A==}
+  hono@4.13.19:
+    resolution: {integrity: sha512-KmXvQAXwcAHV+muzbIwoJ23niEB5nMoDVr9WcRkU8mvjUECm/1+7v4Jgp7P7a+H6MLFrh+vXrGonGrGS+RQfkA==}
     engines: {node: '>=16.9.0'}
 
   html-escaper@2.0.2:
@@ -11740,9 +11814,9 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@hono/node-server@2.1.6(hono@4.13.16)':
+  '@hono/node-server@2.1.6(hono@4.13.19)':
     dependencies:
-      hono: 4.13.16
+      hono: 4.13.19
 
   '@iconify/types@2.0.0': {}
 
@@ -12037,9 +12111,9 @@ snapshots:
 
   '@modelcontextprotocol/node@2.1.2(@modelcontextprotocol/server@2.4.0)':
     dependencies:
-      '@hono/node-server': 2.1.6(hono@4.13.16)
+      '@hono/node-server': 2.1.6(hono@4.13.19)
       '@modelcontextprotocol/server': 2.4.0
-      hono: 4.13.16
+      hono: 4.13.19
 
   '@modelcontextprotocol/server-everything@2.1.0(supports-color@7.2.0)':
     dependencies:
@@ -15082,7 +15156,7 @@ snapshots:
       property-information: 7.2.0
       space-separated-tokens: 2.0.2
 
-  hono@4.13.16: {}
+  hono@4.13.19: {}
 
   html-escaper@2.0.2: {}
 

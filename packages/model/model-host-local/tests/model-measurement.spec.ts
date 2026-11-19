@@ -75,6 +75,10 @@ const PROFILE: ModelProfile = {
 }
 const judged = judgeFixedModelRequest({
   profile: ADOPTION,
+  contextWindow: {
+    tokens: PROFILE.definition.context.window.provided,
+    compactionTriggerPercent: PROFILE.definition.context.compactionTriggerPercent,
+  },
   suppliers: [supplier],
   fallback: false,
   retryPolicy: ADOPTION,

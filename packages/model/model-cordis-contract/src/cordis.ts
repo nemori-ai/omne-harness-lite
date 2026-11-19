@@ -4,6 +4,7 @@ import type {
   ConsumerRef,
   ModelCallId,
   ModelDiagnostics,
+  ModelDispatchFacts,
   ModelPreparationResources,
   ModelResultReceiver,
   ModelRuntime,
@@ -159,6 +160,8 @@ export abstract class ModelCommandsService<P> extends Service implements ModelCo
   abstract readonly nextRead: ModelCommands<P>['nextRead']
   abstract readonly endRead: ModelCommands<P>['endRead']
   abstract readonly handoff: ModelCommands<P>['handoff']
+  abstract readonly abandon: ModelCommands<P>['abandon']
+  abstract readonly confirmAccount: ModelCommands<P>['confirmAccount']
   abstract readonly advanceCleanup: ModelCommands<P>['advanceCleanup']
   abstract readonly query: ModelCommands<P>['query']
   abstract readonly dispatches: ModelCommands<P>['dispatches']
@@ -358,9 +361,25 @@ export abstract class ModelDiagnosticsService<P> extends Service implements Mode
 }
 export const modelDiagnosticsKey = ModelDiagnosticsService.provide
 
+/** @owner packages/model/model-cordis-contract */
+export abstract class ModelDispatchFactsService<P>
+  extends Service
+  implements ModelDispatchFacts<P>
+{
+  static readonly provide = 'modelDispatchFacts'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelDispatchFactsService.provide)
+  }
+
+  abstract readonly list: ModelDispatchFacts<P>['list']
+}
+export const modelDispatchFactsKey = ModelDispatchFactsService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     modelDiagnostics: ModelDiagnosticsService<unknown>
+    modelDispatchFacts: ModelDispatchFactsService<unknown>
     modelRuntime: ModelRuntimeService<unknown>
     modelCommands: ModelCommandsService<unknown>
     modelSendBoundary: ModelSendBoundaryService<unknown>

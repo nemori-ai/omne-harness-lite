@@ -1,7 +1,7 @@
 import type { SessionAccessOperation } from '@omne-harness/session-contract'
 import { cell, row, type DeclarationKind, type PolicyRow } from './cells.ts'
 
-const { member, matrix, deny } = cell
+const { member, tenantRead, matrix, deny } = cell
 
 const OUTSIDE_MATRIX = '矩阵外（AU-12 第 2 步）'
 const NO_SOURCE = '无放行出处'
@@ -242,12 +242,14 @@ export const SESSION_POLICY = Object.freeze({
   ),
   'history.begin': row(
     member('SW:297、299 J-SW09，PC:631 观察的日志读取，PC「结果」表 `read-history`，SS:651'),
-    member('SS:651，SCC reader「Request Context 的历史源对接插件」，DA4 §4.1'),
+    tenantRead(
+      'SS:651，SCC reader「Request Context 的历史源对接插件」，DA4 §4.1；工具 `Sessions` 读同租户别的会话，发行应用规格「授权」，#1427 C9',
+    ),
     deny(NO_SYSTEM_READ),
   ),
   'history.next': row(
     member('SW:299 每页核对当前资格，PC「结果」表 `read-history`，SS:652'),
-    member('SS:652，SCC reader，DA4 §4.1'),
+    tenantRead('SS:652，SCC reader，DA4 §4.1；工具 `Sessions` 续读同租户别的会话，#1427 C9'),
     deny(NO_SYSTEM_READ),
   ),
   'history.since': row(
@@ -272,7 +274,7 @@ export const SESSION_POLICY = Object.freeze({
   ),
   'directory.list': row(
     member('RFC-0015 §8「列出会话」：登录的人按租户成员放行，不看租户角色。目标为租户分支'),
-    deny('RFC-0015 §8「列出会话」：工作主体拒绝'),
+    member('工具 `Sessions` 列同租户的会话，发行应用规格「授权」，#1427 C9。目标为租户分支'),
     deny(NO_SYSTEM_READ),
   ),
   references: row(

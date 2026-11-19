@@ -476,6 +476,7 @@ export function createModelRuntimeLocalPlugin(
             host.retireRoute(target)
             provider.released?.(target)
           },
+          schedule: target => void host.schedule(target),
         },
         options.results,
       )
@@ -486,7 +487,7 @@ export function createModelRuntimeLocalPlugin(
         liveness: {
           holds: target =>
             host.drives(target) ? 'drive' : stage.delivering(target) ? 'push' : null,
-          lostContact: call => options.lostContact?.(call) ?? null,
+          lostContact: call => (stage.scanned(call) ? (options.lostContact?.(call) ?? null) : null),
         },
       })
       // The order is the guarantee: the host binds first, and only after the bind returns is the

@@ -276,10 +276,11 @@ function intent(failure: unknown, conclusion: unknown = { kind: 'fail', cause: e
   } as unknown as FinishIntent
 }
 
-const settledCall = (call: string): Outcome<Lookup, never> =>
+const settledCall = (call: string, attempts?: unknown): Outcome<Lookup, never> =>
   succeed({
     kind: 'found',
     state: {
+      ...(attempts === undefined ? {} : { attempts }),
       call,
       revision: '1',
       consumer: { owner: 'agent', id: 'x' },
@@ -294,6 +295,21 @@ const settledCall = (call: string): Outcome<Lookup, never> =>
       },
     },
   } as never)
+
+const NO_MOMENTS = {
+  prepared: null,
+  sent: null,
+  responseStarted: null,
+  firstContent: null,
+  ended: null,
+}
+const UNKNOWN_MOMENTS = {
+  prepared: { kind: 'unknown' },
+  sent: { kind: 'unknown' },
+  responseStarted: { kind: 'unknown' },
+  firstContent: { kind: 'unknown' },
+  ended: { kind: 'unknown' },
+}
 
 const dispatchPage = (
   outcome: unknown,
@@ -310,11 +326,14 @@ const dispatchPage = (
         send: 'sent',
         firstContent: 'none-proven',
         outcome,
+        instants: NO_MOMENTS,
         timing: {
           materialize: { kind: 'unknown' },
+          sendToResponse: { kind: 'unknown' },
           sendToFirstContent: { kind: 'unknown' },
           execution: { kind: 'unknown' },
         },
+        connectRetries: [],
       },
     ],
     next: null,
@@ -412,11 +431,14 @@ const attemptsPage = (dispatches: readonly string[]): Outcome<ModelDiagnosticsPa
       send: 'sent',
       firstContent: 'none-proven',
       outcome: { kind: 'pending' },
+      instants: NO_MOMENTS,
       timing: {
         materialize: { kind: 'unknown' },
+        sendToResponse: { kind: 'unknown' },
         sendToFirstContent: { kind: 'unknown' },
         execution: { kind: 'unknown' },
       },
+      connectRetries: [],
     })),
     next: null,
     snapshot: evidence('snap'),
@@ -550,11 +572,14 @@ describe('the Run skeleton and the call branches', () => {
             send: 'sent',
             firstContent: 'none-proven',
             outcome: { kind: 'completed', reason: 'stop' },
+            instants: UNKNOWN_MOMENTS,
             timing: {
               materialize: { kind: 'unknown' },
+              sendToResponse: { kind: 'unknown' },
               sendToFirstContent: { kind: 'unknown' },
               execution: { kind: 'unknown' },
             },
+            connectRetries: [],
             account: {
               kind: 'account',
               usage: [{ name: 'input_tokens', unit: 'token', state: 'known', lexeme: '120' }],
@@ -1303,6 +1328,7 @@ describe('the values the owners give', () => {
   it('reads a dispatch page with more pages as a truncated gap and keeps the known timing', async () => {
     const timing = {
       materialize: { kind: 'known', milliseconds: '12' },
+      sendToResponse: { kind: 'known', milliseconds: '300' },
       sendToFirstContent: { kind: 'unknown' },
       execution: { kind: 'known', milliseconds: '1500' },
     }
@@ -1317,7 +1343,9 @@ describe('the values the owners give', () => {
           send: 'sent',
           firstContent: 'observed',
           outcome: { kind: 'completed', reason: 'stop' },
+          instants: { ...NO_MOMENTS, sent: '2026-11-19T08:00:00.000Z' },
           timing,
+          connectRetries: ['connect-timeout'],
         },
       ],
       next: 'more',
@@ -1331,9 +1359,49 @@ describe('the values the owners give', () => {
       ports: { ...model },
     })
     expect(page.runs[0]!.modelCalls[0]!.dispatches).toEqual([
-      expect.objectContaining({ dispatch: 'd1', send: 'sent', firstContent: 'observed', timing }),
+      expect.objectContaining({
+        dispatch: 'd1',
+        send: 'sent',
+        firstContent: 'observed',
+        instants: {
+          ...UNKNOWN_MOMENTS,
+          sent: { kind: 'known', instant: '2026-11-19T08:00:00.000Z' },
+        },
+        timing,
+        connectRetries: ['connect-timeout'],
+      }),
     ])
     expect(page.gaps).toEqual([{ source: 'model', subject: 'm1', reason: 'truncated' }])
+  })
+
+  it('carries the dispatch progress of the call as Model keeps it, and leaves it out where Model keeps none', async () => {
+    const fault = {
+      cause: 'upstream-unavailable',
+      diagnostic: 'SECRET-FAULT',
+      upstreamStatus: '504',
+    }
+    const attempts = { allowed: 2, made: 2, last: fault, notBefore: null }
+    const model = modelDouble(
+      { m1: settledCall('c1', attempts), m2: settledCall('c2') },
+      { c1: attemptsPage(['d1', 'd2']), c2: attemptsPage(['d3']) },
+    )
+    const page = await project({
+      entries: [started('e1', 'r1'), bound('e2', 'model', 'm1'), bound('e3', 'model', 'm2')],
+      ports: { ...model },
+    })
+    const [first, second] = page.runs[0]!.modelCalls
+    expect(first?.call).toEqual({
+      kind: 'found',
+      call: 'c1',
+      phase: 'settled',
+      progress: {
+        allowed: '2',
+        made: '2',
+        last: { cause: 'upstream-unavailable', upstreamStatus: '504' },
+      },
+    })
+    expect(second?.call).toEqual({ kind: 'found', call: 'c2', phase: 'settled' })
+    expect(JSON.stringify(page)).not.toContain('SECRET-FAULT')
   })
 
   it('lists no attempts when only the inspect port is present: the call resolves, the dispatches are an unsupported gap', async () => {

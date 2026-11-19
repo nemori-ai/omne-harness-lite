@@ -79,9 +79,8 @@
       "packages/execution/execution-environment/src/registry.ts": 1046,
       "packages/identity/identity/src/testing/governance-contract.ts": 2224,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
-      "packages/model/model-host-local/src/plugins/runtime.ts": 1001,
-      "packages/model/model-storage-sql/src/commit.ts": 1127,
-      "packages/model/model/src/commands/commands.ts": 1110,
+      "packages/model/model-storage-sql/src/commit.ts": 1109,
+      "packages/model/model/src/commands/commands.ts": 1054,
       "packages/session/session-adapters/src/cordis/agent-journal.ts": 1768,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
@@ -100,7 +99,7 @@
     "functions": {
       "apps/harness-server/src/model/qualification.ts": {
         "count": 1,
-        "longest": 185
+        "longest": 178
       },
       "apps/harness-server/src/rows/agent-cards/provider.ts": {
         "count": 1,
@@ -456,19 +455,19 @@
       },
       "packages/model/model-host-local/src/plugins/runtime.ts": {
         "count": 1,
-        "longest": 645
+        "longest": 529
       },
       "packages/model/model-storage-sql/src/commit.ts": {
         "count": 1,
         "longest": 298
       },
       "packages/model/model/src/commands/commands.ts": {
-        "count": 3,
-        "longest": 435
+        "count": 2,
+        "longest": 411
       },
       "packages/model/model/src/commands/initial.ts": {
         "count": 1,
-        "longest": 188
+        "longest": 162
       },
       "packages/model/model/src/commands/observation.ts": {
         "count": 1,
@@ -476,7 +475,7 @@
       },
       "packages/model/model/src/driver.ts": {
         "count": 1,
-        "longest": 593
+        "longest": 578
       },
       "packages/model/model/src/observation.ts": {
         "count": 1,
@@ -484,7 +483,7 @@
       },
       "packages/model/model/src/receive.ts": {
         "count": 1,
-        "longest": 343
+        "longest": 341
       },
       "packages/model/model/src/send/attempt.ts": {
         "count": 1,

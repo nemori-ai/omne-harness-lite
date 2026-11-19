@@ -23,7 +23,8 @@ export type ModelConfiguration = Readonly<{
   observerCheckIntervalMs: number
   readIdleMs: number
   resultPageTargetBytes: number
-  cleanupRetryMs: number
+  /** @deprecated Read by nothing; give no value. */
+  cleanupRetryMs?: number
 }>
 export type ModelDependencies<P> = Readonly<{
   commands: ModelCommands<P>
@@ -60,6 +61,8 @@ const METHODS = {
     'nextRead',
     'endRead',
     'handoff',
+    'abandon',
+    'confirmAccount',
     'advanceCleanup',
     'query',
     'dispatches',
@@ -95,7 +98,6 @@ function validateConfiguration(configuration: unknown): void {
     resultPageTargetBytes: 1,
     readIdleMs: 1,
     outputBatchDelayMs: 0,
-    cleanupRetryMs: 0,
   }
   for (const [field, lower] of Object.entries(fields)) {
     const value = configuration[field]

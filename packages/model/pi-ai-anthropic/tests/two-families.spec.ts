@@ -210,7 +210,10 @@ describe('the record fixtures of both families through one composed transport', 
       try {
         const before = server.requests.length
         const facts = await send(built, fixture.request)
-        expect(JSON.parse(JSON.stringify(facts))).toEqual(fixture.facts)
+        expect(JSON.parse(JSON.stringify(facts))).toEqual([
+          { kind: 'response', request: null },
+          ...(fixture.facts as readonly unknown[]),
+        ])
         expect(facts.filter(fact => fact.kind === 'ended')).toHaveLength(1)
         expect(built.sends()).toBe(1)
         const received = server.requests.slice(before)

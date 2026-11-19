@@ -84,6 +84,7 @@ const residentNames = [
   'Calendar',
   'Schedules',
   'Notifications',
+  'Sessions',
   'Skills',
 ]
 const releaseDistribution = JSON.parse(

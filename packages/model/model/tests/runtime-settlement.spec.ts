@@ -487,8 +487,9 @@ it('binds a real interrupted receipt to the control confirmed by its original pr
   }
 })
 
-it('does not recover an original terminal from mutable dispatch history in a new runtime', async () => {
+it('settles from a new runtime with the ending the store holds, not with the dispatch history', async () => {
   let fail = true
+  let rewritten = false
   const f = runtimeFixture(batching, commands => ({
     ...commands,
     settle: input =>
@@ -497,10 +498,24 @@ it('does not recover an original terminal from mutable dispatch history in a new
             failure: { kind: 'unavailable', dependency: 'settle-test', diagnostic: 'offline' },
           })
         : commands.settle(input),
+    dispatches: async input => {
+      const records = await commands.dispatches(input)
+      if (!rewritten || 'failure' in records) return records
+      return {
+        ok: records.ok.map(record => ({
+          ...record,
+          terminal: {
+            kind: 'failed',
+            fault: { cause: 'upstream-unavailable', diagnostic: 'history', upstreamStatus: null },
+          } as const,
+        })),
+      }
+    },
   }))
   try {
     await finish(f, answer)
     fail = false
+    rewritten = true
     const successor = createModelRuntime(f.dependencies, configuration)
     unbox(
       await successor.driver.drive(
@@ -513,7 +528,8 @@ it('does not recover an original terminal from mutable dispatch history in a new
         new AbortController().signal,
       ),
     )
-    expect((await inspect(f)).phase).not.toBe('settled')
+    expect((await settlement(f)).termination).toEqual(completed)
+    expect(JSON.stringify(await savedParts(f))).toContain('kept')
     expect(f.channel(f.admit.call).starts).toBe(1)
     expect(await f.drive()).toMatchObject({ failure: { kind: 'stale-instance' } })
   } finally {
