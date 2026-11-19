@@ -32,6 +32,7 @@ import {
 } from '@omne-harness/model-contract/provider'
 import type { CredentialSelection } from '../send.ts'
 import { arrivalsFit, keepInstant } from './instants.ts'
+import { executionFailed, runtimeLost } from './judge.ts'
 import {
   checkedActor,
   decimal,
@@ -391,13 +392,15 @@ export function mergeReceiveWindow(
   if (call.state.phase === 'running')
     call.state = { ...call.state, firstContent: dispatch.record.firstContent }
 }
-/** The last dispatch ends with the loss of its transport; its open windows close unproven. */
-export function loseLatest(call: CallDocument, termination: Termination): void {
+// What a settlement closes: a lost transport ends the last dispatch with the loss; a lost
+// transport or a failed execution leaves the open windows unproven.
+export function closeForSettlement(call: CallDocument, termination: Termination): void {
   const latest = call.dispatches.at(-1)
-  if (latest === undefined) return
-  latest.logicalTerminal = structuredClone(termination)
-  latest.record = { ...latest.record, terminal: structuredClone(termination) }
-  abandonReceiveWindows(call)
+  if (latest !== undefined && runtimeLost(call, termination)) {
+    latest.logicalTerminal = structuredClone(termination)
+    latest.record = { ...latest.record, terminal: structuredClone(termination) }
+  }
+  if (runtimeLost(call, termination) || executionFailed(termination)) abandonReceiveWindows(call)
 }
 export function abandonReceiveWindows(call: CallDocument): void {
   for (const dispatch of call.dispatches)

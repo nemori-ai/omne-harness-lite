@@ -6,7 +6,7 @@ import type { AddressInfo, Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect } from 'vitest'
-import { interfacePath, renderReply } from '../../fixtures/gateway-wire.ts'
+import { interfacePath, renderReply, streamTranslator } from '../../fixtures/gateway-wire.ts'
 import { bodyOf, type CliRun } from '../../r9/support.ts'
 
 export const GATEWAY_PATH = '/api/v1/chat/completions'
@@ -22,7 +22,14 @@ export type GatewayReply = Readonly<{
   body: string
   headers?: Readonly<Record<string, string>>
 }>
-export type ScenarioAnswer = GatewayReply | Readonly<{ kind: 'hold' }>
+/**
+ * `partial` writes the head and the first frames of a streamed success, then one more frame every
+ * `everyMs` while the connection lasts: an answer still being generated, never finished.
+ */
+export type ScenarioAnswer =
+  | GatewayReply
+  | Readonly<{ kind: 'hold' }>
+  | Readonly<{ kind: 'partial'; body: string; more: string; everyMs: number }>
 
 export const answer504: GatewayReply = Object.freeze({
   kind: 'answer',
@@ -100,6 +107,14 @@ export async function startScenarioGateway(script: ScenarioScript): Promise<Scen
           body,
         )
         const reply = script({ index, body })
+        if (reply.kind === 'partial') {
+          const translate = streamTranslator(spoken) ?? ((part: string) => part)
+          response.writeHead(200, { 'content-type': 'text/event-stream' })
+          response.write(translate(reply.body))
+          const timer = setInterval(() => response.write(translate(reply.more)), reply.everyMs)
+          response.on('close', () => clearInterval(timer))
+          return
+        }
         if (reply.kind === 'hold') {
           held.set(response, spoken)
           response.on('close', () => held.delete(response))

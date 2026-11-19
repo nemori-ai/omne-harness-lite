@@ -20,6 +20,7 @@ import type {
 import { createSqlModelRecordsPlugin } from '@omne-harness/model-storage-sql/cordis'
 import {
   createModelInitialRun,
+  type ModelInitialRunAdopt,
   type ModelCommandsEvidence,
   type ModelInitialExecution,
 } from '@omne-harness/model/commands'
@@ -93,7 +94,10 @@ function recordsManifestDigest(): string {
   return manifest.digest
 }
 
-function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
+/** `adopt` is the assembly's evidence that no other process holds a call this run has no record of. */
+export type ModelRecordsRowInput = Readonly<{ adopt?: ModelInitialRunAdopt }>
+
+function mountRecords(ctx: Context, config: ModelRecordsConfig, input: ModelRecordsRowInput): void {
   const requestDisclosure = toolResultDisclosureOf(ctx)
   const port = modelRecordsPortOf(ctx)
   if (port === undefined)
@@ -112,6 +116,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
   const initialRun = createModelInitialRun<unknown>({
     limits: config.app.initial,
     checkOriginRead: target => port.checkOriginRead(target),
+    ...(input.adopt === undefined ? {} : { adopt: input.adopt }),
   })
   const { sendStage } = config.app
   const sendCredential: { port: CredentialPort | undefined } = { port: undefined }
@@ -225,23 +230,31 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
   })
 }
 
-const recordsPlugin: Plugin.Object = {
+const recordsPlugin = (input: ModelRecordsRowInput): Plugin.Object => ({
   name: 'model-records',
   inject: [...INJECT],
   Config: modelRecordsConfig,
   apply(ctx: Context, config: ModelRecordsConfig) {
-    mountRecords(ctx, config)
+    mountRecords(ctx, config, input)
   },
-}
-
-export const modelRecordsRow = defineRow({
-  row: 'model-records',
-  implementation: 'real',
-  manifest: {
-    provides: [modelCommandsKey, modelSendBoundaryKey, modelDiagnosticsKey, modelDispatchFactsKey],
-    injects: [...INJECT],
-    sameProviderGroup: 'model-records',
-  },
-  lifecycle: { kind: 'none' },
-  plugin: recordsPlugin,
 })
+
+export const createModelRecordsRow = (input: ModelRecordsRowInput = {}) =>
+  defineRow({
+    row: 'model-records',
+    implementation: 'real',
+    manifest: {
+      provides: [
+        modelCommandsKey,
+        modelSendBoundaryKey,
+        modelDiagnosticsKey,
+        modelDispatchFactsKey,
+      ],
+      injects: [...INJECT],
+      sameProviderGroup: 'model-records',
+    },
+    lifecycle: { kind: 'none' },
+    plugin: recordsPlugin(input),
+  })
+
+export const modelRecordsRow = createModelRecordsRow()

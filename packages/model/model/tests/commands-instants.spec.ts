@@ -4,6 +4,7 @@ import {
   type DispatchId,
   type DispatchRecord,
   type ModelOperationId,
+  type Termination,
 } from '@omne-harness/model-contract'
 import type { TransportFact, WriteContext } from '@omne-harness/model-contract/provider'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
@@ -75,7 +76,9 @@ async function prepared() {
       facts,
       ...(arrivals === undefined ? {} : { arrivals: arrivals as readonly (string | null)[] }),
     })
-  return { f, record, send, materialize, deliver }
+  const settle = async (termination: Termination) =>
+    commands.settle({ ...(await write()), termination })
+  return { f, record, send, materialize, deliver, settle }
 }
 
 async function started() {
@@ -159,5 +162,29 @@ describe('the send state and its moment', () => {
       failure: { kind: 'invalid', field: 'dispatch', reason: 'not-materialized' },
     })
     expect((await fresh.record())?.instants?.sent).toBeNull()
+  })
+})
+
+describe('a settlement for the transport of the last dispatch lost with its process', () => {
+  const lost: Termination = {
+    kind: 'failed',
+    fault: { cause: 'runtime-lost', diagnostic: 'transport-gone', upstreamStatus: null },
+  }
+
+  it('is refused while the last dispatch was never materialized: nothing of it can have gone out', async () => {
+    const p = await prepared()
+    expect(await p.settle(lost)).toMatchObject({
+      failure: { kind: 'invalid', field: 'termination' },
+    })
+    expect((await p.record())?.terminal).toBeNull()
+  })
+
+  it('ends a materialized dispatch with the loss in the same write, its open window closed unproven', async () => {
+    const p = await prepared()
+    await p.materialize()
+    expect(await p.settle(lost)).toHaveProperty('ok')
+    const record = await p.record()
+    expect(record?.terminal).toEqual(lost)
+    expect(record?.firstContent).not.toBe('none-proven')
   })
 })

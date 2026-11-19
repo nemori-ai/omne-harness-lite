@@ -11,6 +11,7 @@ export function createModelCommandsCore<P>(
 export { modelCommands } from './commands.ts'
 export { drivable } from './execution-write.ts'
 export { createModelInitialRun } from './initial.ts'
+export type { ModelInitialRunAdopt, ModelInitialRunOptions } from './initial.ts'
 export { createModelInitialExecution } from './initial-execution.ts'
 export type {
   InitialTarget,

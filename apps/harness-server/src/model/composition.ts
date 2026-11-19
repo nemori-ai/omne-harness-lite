@@ -103,6 +103,26 @@ type Attached = ModelRecordsAttachment &
     end(): void
   }>
 
+function scanAccessOf(
+  attachedNow: () => Attached | undefined,
+  issue: ModelScanIssue | undefined,
+  current: () => boolean,
+  tenant: TenantId,
+): Outcome<Access<unknown>, ModelFailure> {
+  const live = attachedNow()
+  if (live === undefined) return fail(unavailable('records-not-attached'))
+  if (issue === undefined) return fail(unavailable('scan-issuer-not-installed'))
+  const issued = issue(tenant)
+  if ('failure' in issued) return fail(unavailable('scan-principal-refused'))
+  live.qualification.captureScan({
+    principal: issued.ok,
+    tenant,
+    actor: SCAN_ACTOR,
+    current: () => current() && attachedNow() === live,
+  })
+  return succeed({ principal: issued.ok, tenant })
+}
+
 export function createModelRunComposition(): ModelRunComposition {
   const grants = new Map<string, number>()
   const readers = new WeakMap<Context, () => boolean>()
@@ -178,20 +198,7 @@ export function createModelRunComposition(): ModelRunComposition {
     return Object.freeze({
       executionChannel,
       ledger,
-      scanAccess: (tenant: TenantId) => {
-        const live = attached
-        if (live === undefined) return fail(unavailable('records-not-attached'))
-        if (scanIssue === undefined) return fail(unavailable('scan-issuer-not-installed'))
-        const issued = scanIssue(tenant)
-        if ('failure' in issued) return fail(unavailable('scan-principal-refused'))
-        live.qualification.captureScan({
-          principal: issued.ok,
-          tenant,
-          actor: SCAN_ACTOR,
-          current: () => current() && attached === live,
-        })
-        return succeed({ principal: issued.ok, tenant })
-      },
+      scanAccess: (tenant: TenantId) => scanAccessOf(() => attached, scanIssue, current, tenant),
       releaseExecution: async () => {
         const bound = attached
         if (bound === undefined) return
@@ -262,8 +269,6 @@ export function createModelRunComposition(): ModelRunComposition {
     attached: () => attached,
     executionChannel,
     hostCurrent: () => hostCurrent,
-    useScanIssue: issue => {
-      scanIssue = issue
-    },
+    useScanIssue: issue => void (scanIssue = issue),
   })
 }

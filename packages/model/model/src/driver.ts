@@ -144,6 +144,63 @@ function keyOf<P>(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
   const tenant = tenantCodec.encode(input.tenant)
   return tenant.ok ? JSON.stringify([tenant.value, input.call]) : null
 }
+// A process that never drove the call takes it up from its last dispatch: one the store holds
+// ended is concluded; one that may have gone out lost its transport; one never materialized is sent.
+async function resumedStage<P>(
+  commands: ModelCommands<P>,
+  input: ModelDriveInput<P>,
+  execution: ExecutionRef,
+  recovery: Recovery<P>,
+  latest: DispatchRecord,
+): Reply<Stage<P>> {
+  const ending = recovery.logicalTerminal
+  if (ending !== null || latest.materialization !== null)
+    return {
+      ok: {
+        kind: 'finish',
+        execution,
+        receiver: null,
+        termination: ending ?? RUNTIME_LOST,
+        driveFailure: null,
+        resolved: ending === null,
+        settlement: { kind: 'ready' },
+      },
+    }
+  const request = await commands.loadRequest(input)
+  if ('failure' in request) return request
+  return {
+    ok: {
+      kind: 'send',
+      demand: {
+        principal: input.principal,
+        tenant: input.tenant,
+        call: input.call,
+        execution,
+        dispatch: latest.dispatch,
+        request: request.ok,
+        supplier: latest.supplier,
+        consumer: recovery.state.consumer,
+        initiator: recovery.initiator,
+      },
+    },
+  }
+}
+async function notSentTerminal<P>(
+  commands: ModelCommands<P>,
+  demand: SendDemand<P>,
+): Reply<Termination | null> {
+  try {
+    const records = await commands.dispatches(demand)
+    if ('failure' in records) return records
+    const record = records.ok.find(item => item.dispatch === demand.dispatch)
+    return {
+      ok:
+        record?.send === 'not-sent' && record.terminal?.kind === 'failed' ? record.terminal : null,
+    }
+  } catch {
+    return blocked('dispatch-record-unconfirmed')
+  }
+}
 export function createModelDriver<P>(
   commands: ModelCommands<P>,
   instances: ModelInstanceHost<P>,
@@ -419,8 +476,9 @@ export function createModelDriver<P>(
       active = published.ok
       const latest = records.ok.at(-1)
       if (fresh && latest !== undefined && recovery.ok.state.phase !== 'settled') {
-        const resumed = await resumeStage(active, input, execution, recovery.ok, latest)
+        const resumed = await resumedStage(commands, input, execution, recovery.ok, latest)
         if ('failure' in resumed) return resumed
+        active.stage = resumed.ok
       }
     }
     if (recovery.ok.state.phase === 'settled') ended(input)
@@ -429,46 +487,6 @@ export function createModelDriver<P>(
       beginActivity(active, execution, recovery.ok)
     }
     return { ok: { active, recovery: recovery.ok } }
-  }
-  // A process that never drove the call takes it up from its last dispatch: one the store holds
-  // ended is concluded; one that may have gone out lost its transport; one never materialized is sent.
-  async function resumeStage(
-    active: Activity<P>,
-    input: ModelDriveInput<P>,
-    execution: ExecutionRef,
-    recovery: Recovery<P>,
-    latest: DispatchRecord,
-  ): Reply<void> {
-    const ending = recovery.logicalTerminal
-    if (ending !== null || latest.materialization !== null) {
-      active.stage = {
-        kind: 'finish',
-        execution,
-        receiver: null,
-        termination: ending ?? RUNTIME_LOST,
-        driveFailure: null,
-        resolved: ending === null,
-        settlement: { kind: 'ready' },
-      }
-      return { ok: undefined }
-    }
-    const request = await commands.loadRequest(input)
-    if ('failure' in request) return request
-    active.stage = {
-      kind: 'send',
-      demand: {
-        principal: input.principal,
-        tenant: input.tenant,
-        call: input.call,
-        execution,
-        dispatch: latest.dispatch,
-        request: request.ok,
-        supplier: latest.supplier,
-        consumer: recovery.state.consumer,
-        initiator: recovery.initiator,
-      },
-    }
-    return { ok: undefined }
   }
   async function prepareDispatch(
     active: Activity<P>,
@@ -535,27 +553,12 @@ export function createModelDriver<P>(
         return { ok: undefined }
     }
   }
-  async function notSentTerminal(demand: SendDemand<P>): Reply<Termination | null> {
-    try {
-      const records = await commands.dispatches(demand)
-      if ('failure' in records) return records
-      const record = records.ok.find(item => item.dispatch === demand.dispatch)
-      return {
-        ok:
-          record?.send === 'not-sent' && record.terminal?.kind === 'failed'
-            ? record.terminal
-            : null,
-      }
-    } catch {
-      return blocked('dispatch-record-unconfirmed')
-    }
-  }
   async function settleNotSent(
     active: Activity<P>,
     entry: Extract<Stage<P>, { kind: 'not-sent' }>,
     input: ModelDriveInput<P>,
   ): Reply<void> {
-    const terminal = await notSentTerminal(entry.demand)
+    const terminal = await notSentTerminal(commands, entry.demand)
     if ('failure' in terminal) return terminal
     const ending = (termination: Termination, driveFailure: ModelFailure | null): Stage<P> => ({
       kind: 'finish',

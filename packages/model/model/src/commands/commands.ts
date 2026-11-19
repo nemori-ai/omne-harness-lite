@@ -55,8 +55,6 @@ import {
   receiptBinds,
   retryable,
   retryChoiceFailure,
-  executionFailed,
-  runtimeLost,
   settlementFailure,
   tasks,
   unresolved,
@@ -69,8 +67,7 @@ import {
   expireReads,
   recordSendState,
   lateTerminal,
-  abandonReceiveWindows,
-  loseLatest,
+  closeForSettlement,
   mergeReceiveWindow,
   reduceFacts,
   releaseMaterial,
@@ -317,8 +314,7 @@ export function callCommands<P>(
                 }
               const legality = settlementFailure(call, input.termination)
               if (legality) return { failure: legality }
-              if (runtimeLost(call, input.termination)) loseLatest(call, input.termination)
-              if (executionFailed(input.termination)) abandonReceiveWindows(call)
+              closeForSettlement(call, input.termination)
               const settlement = settlementOf(call, input, resultVersion())
               if (encodedBytes(settlement) > MAX_SETTLEMENT_BYTES)
                 return { failure: invalid('settlement', 'encoded-byte-limit') }

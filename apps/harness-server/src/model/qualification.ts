@@ -62,6 +62,13 @@ type Capture =
   | Readonly<{ kind: 'refused'; refusal: Refusal }>
 
 type Held = { capture: Capture; holds: number }
+/** The entry's own captures last until withdrawn, and only the withdrawal of this one removes it. */
+function hold(held: WeakMap<object, Held>, principal: object, capture: Capture): () => void {
+  held.set(principal, { capture, holds: 1 })
+  return () => {
+    if (held.get(principal)?.capture === capture) held.delete(principal)
+  }
+}
 const byEntry = (capture: Capture | undefined): boolean =>
   capture?.kind === 'host' || capture?.kind === 'scan'
 
@@ -221,32 +228,10 @@ export function createModelQualification(
     }
   }
 
-  const captureHost: ModelQualification['captureHost'] = given => {
-    const capture: Capture = {
-      kind: 'host',
-      tenant: given.tenant,
-      call: given.call,
-      actor: given.actor,
-      current: given.current,
-    }
-    held.set(given.principal, { capture, holds: 1 })
-    return () => {
-      if (held.get(given.principal)?.capture === capture) held.delete(given.principal)
-    }
-  }
-
-  const captureScan: ModelQualification['captureScan'] = given => {
-    const capture: Capture = {
-      kind: 'scan',
-      tenant: given.tenant,
-      actor: given.actor,
-      current: given.current,
-    }
-    held.set(given.principal, { capture, holds: 1 })
-    return () => {
-      if (held.get(given.principal)?.capture === capture) held.delete(given.principal)
-    }
-  }
+  const captureHost: ModelQualification['captureHost'] = ({ principal, ...given }) =>
+    hold(held, principal, { kind: 'host', ...given })
+  const captureScan: ModelQualification['captureScan'] = ({ principal, ...given }) =>
+    hold(held, principal, { kind: 'scan', ...given })
 
   const recordHostBinding: ModelQualification['recordHostBinding'] = binding => {
     for (const [key, bound] of bindings) if (!bound.current()) bindings.delete(key)

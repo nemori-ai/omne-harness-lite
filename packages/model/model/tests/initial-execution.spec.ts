@@ -6,6 +6,7 @@ import {
   createModelObservationStorage,
   modelCommands,
 } from '../src/commands/index.ts'
+import type { ModelInitialRunAdopt } from '../src/commands/index.ts'
 import { MemoryState } from '../src/testing/state.ts'
 import { fixture, instance, op, unbox, callId } from './memory-fixture.ts'
 
@@ -37,6 +38,82 @@ function assembly(maxRecords = 8) {
   initial = createModelInitialExecution({ run, core })
   return { f, run, memory, core, initial, commands: modelCommands(core) }
 }
+
+/** A later process over the same records: a new run, core and execution, as after a restart. */
+function laterProcess(
+  f: ReturnType<typeof fixture>,
+  memory: MemoryState<ReturnType<typeof fixture>['principal']>,
+  adopt?: ModelInitialRunAdopt,
+  name = 'later',
+) {
+  const run = createModelInitialRun<typeof f.principal>({
+    limits: { maxRecords: 8, maxBindings: 2, maxCallsPerBinding: 2 },
+    checkOriginRead: () => ({ ok: undefined }),
+    ...(adopt === undefined ? {} : { adopt }),
+  })
+  const bridge = createModelObservationStorage({
+    storage: memory,
+    authority: f.options.authority,
+    initialRun: run,
+    report: () => {},
+  })
+  let initial: ReturnType<typeof createModelInitialExecution<typeof f.principal>>
+  const core = createModelCommandsCore(
+    {
+      ...f.options,
+      initialRun: run,
+      evidence: f.options.evidence.map(e => ({
+        ...e,
+        continuity: input => initial.continuity(input),
+      })),
+    },
+    bridge.storage,
+  )
+  initial = createModelInitialExecution({ run, core })
+  return unbox(initial.openHost({ instance: instance(name) }))
+}
+
+it('takes over a call an earlier process claimed only with the evidence that nobody holds it', async () => {
+  const { f, memory, initial, commands } = assembly()
+  unbox(await commands.admit(f.admit))
+  const access = { tenant: f.tenant, principal: f.principal, call: f.admit.call }
+  const first = unbox(initial.openHost({ instance: instance('earlier') }))
+  const earlier = unbox(await first.commands.claim(unbox(await first.prepare(access))))
+  const missing = { failure: { diagnostic: 'initial-record-missing' } }
+  expect(await laterProcess(f, memory).prepare(access)).toMatchObject(missing)
+  expect(await laterProcess(f, memory, () => null).prepare(access)).toMatchObject(missing)
+  const asked: unknown[] = []
+  const held = { owner: 'test', record: 'state-lock', revision: '1', digest: 'held' }
+  const later = laterProcess(f, memory, target => {
+    asked.push(target)
+    return held
+  })
+  const prepared = unbox(await later.prepare(access))
+  expect(asked).toEqual([{ tenant: f.tenant, call: f.admit.call }])
+  expect(prepared.instance).toBe(instance('later'))
+  const execution = unbox(await later.commands.claim(prepared))
+  expect(execution.instance).toBe(instance('later'))
+  expect(BigInt(execution.generation)).toBeGreaterThan(BigInt(earlier.generation))
+  expect(unbox(await later.prepare(access))).toEqual(prepared)
+  expect(await first.prepare(access)).toMatchObject({
+    failure: { diagnostic: 'successor-unavailable' },
+  })
+})
+
+it('refuses the claim of a second taker once the first took the call over', async () => {
+  const { f, memory, initial, commands } = assembly()
+  unbox(await commands.admit(f.admit))
+  const access = { tenant: f.tenant, principal: f.principal, call: f.admit.call }
+  const earlier = unbox(initial.openHost({ instance: instance('earlier') }))
+  unbox(await earlier.commands.claim(unbox(await earlier.prepare(access))))
+  const held = () => ({ owner: 'test', record: 'state-lock', revision: '1', digest: 'held' })
+  const one = laterProcess(f, memory, held, 'one')
+  const two = laterProcess(f, memory, held, 'two')
+  const first = unbox(await one.prepare(access))
+  const second = unbox(await two.prepare(access))
+  unbox(await one.commands.claim(first))
+  expect(await two.commands.claim(second)).toMatchObject({ failure: {} })
+})
 
 it('a confirmed new admit supplies a narrow origin and one stable private claim, even after body release', async () => {
   const { f, memory, core, initial, commands } = assembly()

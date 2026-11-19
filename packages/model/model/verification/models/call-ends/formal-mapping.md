@@ -91,8 +91,8 @@
 | 略去再发的决定（`Decide` 的略去分支）与名额用完 | `src/retry-policy.ts` 的 `resendOrStop`；`src/commands/judge.ts` 的 `retryChoiceFailure` 只在定位的那次发出以 `replay-rejected` 失败、供应商相同、此前没有略去过时收这个决定，普通名额只数不是再发的发出 | `tests/retry-policy.spec.ts`、`tests/runtime-retry.spec.ts` |
 | 立即再发（`Resend`） | `src/after-dispatch.ts` 对这个决定不等时刻；准备派发时把派发记录标为 `resend` | `tests/runtime-retry.spec.ts`；`model-host-local` 的 `tests/replay-resend.spec.ts` 在组装好的本地路径上跑通 |
 | 再发之后不带推理状态（`ResendCarriesNone`） | 派发记录的 `withoutReplay`；发送边界 `src/send/attempt.ts` 按它把带回放标记的回复全部交给传输略去 | `tests/runtime-retry.spec.ts` 核每次发出给传输的略去名单 |
-| 崩溃与启动扫描（`Crash`、`Scan`） | `model-host-local` 的 `src/plugins/runtime.ts`：启动时按租户扫描，叫醒每个有待办的调用 | `model-host-local` 的启动扫描用例；发行应用的重启用例 |
-| 失联收场（`RuntimeLost`） | `src/driver.ts`：已发出而传输不在的发出记 `runtime-lost` 的失败终止，开着的接收窗口按未证明闭合 | `tests/runtime-restart.spec.ts` |
+| 崩溃与启动扫描（`Crash`、`Scan`） | `model-host-local` 的 `src/plugins/runtime.ts`：启动时按租户扫描，没收场的经宿主的 `schedule` 叫醒驱动，已收场的重新交回；发行应用 `src/rows/model-host/index.ts` 的 `startScan` 给扫描来源，`src/rows/model-records/index.ts` 让本运行凭状态锁接手上一个进程的调用（`createModelInitialRun` 的 `adopt`） | `model-host-local` 的 `tests/runtime-push.spec.ts`（重启后驱动没收场的、只受理就死掉的）；`tests/initial-execution.spec.ts` 的接手；发行应用的 `tests/rows/model-host/restart.spec.ts` |
+| 失联收场（`RuntimeLost`） | `src/driver.ts` 的 `resumeStage`：本进程第一次驱动、最后一次发出物化过而没结束的，以 `runtime-lost` 收场，不再发；`src/commands/judge.ts` 的 `runtimeLost` 与 `src/commands/state.ts` 的 `loseLatest`：这一次收场同时给这次发出记终止、开着的窗口按未证明闭合 | `tests/runtime-restart.spec.ts`；发行应用的 `tests/rows/model-host/restart.spec.ts` |
 
 ## 6. 模型不覆盖的
 
