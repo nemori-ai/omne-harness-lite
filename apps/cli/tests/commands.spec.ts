@@ -571,6 +571,53 @@ describe('session commands', () => {
     })
   })
 
+  it('the three reads of a session send the session, the page and the input the sender named', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    const first = await cli(['read-pending', '--session', sessionId])
+    expect(first.stderr).toBe('')
+    expect(service.seen.at(-1)?.path).toBe('/api/session/v1/read-pending')
+    expect(service.seen.at(-1)?.body).toEqual({
+      tenant: tenantText,
+      session: sessionId,
+      after: null,
+      limit: 50,
+    })
+    await cli(['read-pending', '--session', sessionId, '--after', '17', '--limit', '3'])
+    expect(service.seen.at(-1)?.body).toEqual({
+      tenant: tenantText,
+      session: sessionId,
+      after: '17',
+      limit: 3,
+    })
+    await cli(['read-waiting-calls', '--session', sessionId])
+    expect(service.seen.at(-1)?.path).toBe('/api/session/v1/read-waiting-calls')
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, session: sessionId })
+    await cli(['read-input-fate', '--session', sessionId, '--input-id', 'input-1'])
+    expect(service.seen.at(-1)?.path).toBe('/api/session/v1/read-input-fate')
+    expect(service.seen.at(-1)?.body).toEqual({
+      tenant: tenantText,
+      session: sessionId,
+      inputId: 'input-1',
+    })
+  })
+
+  it('the reads refuse a limit that is not a page limit and a fate without its input, and send nothing', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    const before = service.seen.length
+    for (const args of [
+      ['read-pending', '--session', sessionId, '--limit', '0'],
+      ['read-pending', '--session', sessionId, '--limit', 'many'],
+      ['read-pending', '--session', sessionId, '--after', 'x'],
+      ['read-input-fate', '--session', sessionId],
+    ]) {
+      const bad = await cli(args)
+      expect(bad.code, args.join(' ')).toBe(2)
+    }
+    expect(service.seen).toHaveLength(before)
+  })
+
   it('change-permission-mode refuses a mode outside the three and sends nothing', async () => {
     const service = await serve()
     await loginOwningSession(service)

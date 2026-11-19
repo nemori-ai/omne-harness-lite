@@ -32,3 +32,7 @@ export const FAST_VITEST_CONFIG = fileURLToPath(
 )
 
 export const slugOf = (member: string): string => member.replaceAll('/', '__')
+
+// Builds go through the root entry that leaves in `dist/` only what the cache holds for a
+// restored task: a reading or a mutation run that loads a stale file measures another layout.
+export const EXACT_BUILD = ['exec', 'node', 'scripts/turbo-exact.mjs', 'run', 'build'] as const

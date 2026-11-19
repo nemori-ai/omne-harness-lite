@@ -188,6 +188,62 @@ const waiting = object({
   },
 })
 
+const position = { kind: 'revision' } as const
+const run = { rule: text } as const
+const pendingInput = object({
+  input: { rule: text },
+  position: { rule: position },
+  source: { rule: object({ name: { rule: text }, label: { rule: text } }) },
+  role: { rule: literal('user', 'system_reminder') },
+  wakes: { rule: boolean },
+  preview: { rule: anyText },
+})
+const readPending = object({
+  ...target,
+  after: { rule: nullable(position) },
+  limit: { rule: { kind: 'page-limit' } },
+})
+const pendingPage = object({
+  inputs: { rule: { kind: 'array', item: pendingInput } },
+  next: { rule: nullable(position) },
+})
+const waitingCalls = object({
+  calls: {
+    rule: {
+      kind: 'array',
+      item: object({
+        card: { rule: terminalSource },
+        action: { rule: nullable(text) },
+        passage: { rule: text },
+        position: { rule: text },
+        run: { rule: nullable(text) },
+      }),
+    },
+  },
+})
+const inputFate = object({
+  fate: {
+    rule: {
+      kind: 'one-of',
+      rules: [
+        object({ kind: { rule: literal('pending') }, returnedFrom: { rule: nullable(text) } }),
+        object({ kind: { rule: literal('taken') }, run }),
+        object({
+          kind: { rule: literal('answered') },
+          run,
+          terminal: { rule: literal('active', 'completed', 'failed', 'cancelled') },
+        }),
+        object({
+          kind: { rule: literal('settled') },
+          by: { rule: literal('cancelled', 'archived', 'frozen') },
+          run: { rule: nullable(text) },
+        }),
+        object({ kind: { rule: literal('refused') }, reason: { rule: anyText } }),
+      ],
+    },
+  },
+})
+
 const modelOutput = { rule: literal('model-output-v1') } as const
 const projected = <const K extends string>(kind: K) =>
   object({ kind: { rule: literal(kind) }, projection: modelOutput, value: { rule: json } })
@@ -326,6 +382,30 @@ export const sessionProtocol = defineProtocol({
       limit: 'small',
       body: ruleCodec(object(target)),
       outcomes: { succeeded: ruleCodec(waiting), invalid: empty },
+      countsAsAccess: true,
+    },
+    'read-pending': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(readPending),
+      outcomes: { succeeded: ruleCodec(pendingPage), invalid: empty },
+      countsAsAccess: true,
+    },
+    'read-waiting-calls': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: { succeeded: ruleCodec(waitingCalls), invalid: empty },
+      countsAsAccess: true,
+    },
+    'read-input-fate': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, inputId: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(inputFate), invalid: empty },
       countsAsAccess: true,
     },
     'list-sessions': {

@@ -8,7 +8,7 @@ import { decideControl } from './decide-management.ts'
 import { invalid, rejected } from './decision-support.ts'
 import type { DecideReads } from './judgments.ts'
 import { decideRetryRun } from './decide-retry.ts'
-import { backgroundRecordOf, stopReminderEntries } from './background-outcome.ts'
+import { backgroundRecordOf, withStopReminder } from './background-outcome.ts'
 import { equalValue } from './session-validation.ts'
 
 const REASON_MAX_CHARS = 500
@@ -149,10 +149,11 @@ export function decideStopCall(
   const value = { kind: 'stop-call', producer, initiator, reason } as const
   const decision = decideControl(snapshot, { kind: 'control', value }, operation, reads)
   if (decision.kind !== 'entries' || placed === null || initiator !== 'user') return decision
-  const reminder = stopReminderEntries(snapshot, placed, { initiator, reason, operation })
-  return {
-    ...decision,
-    entries: [...decision.entries, ...reminder.entries],
-    admitted: [...(decision.admitted ?? []), reminder.input],
-  }
+  return withStopReminder(
+    decision,
+    snapshot,
+    placed,
+    { initiator, reason, operation },
+    reads.intake,
+  )
 }

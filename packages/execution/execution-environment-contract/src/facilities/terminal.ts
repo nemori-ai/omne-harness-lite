@@ -32,7 +32,7 @@ export interface TerminalFacility<P> {
       readonly cwd: string
       readonly env: Readonly<Record<string, string>>
       readonly geometry?: { readonly columns: number; readonly rows: number }
-      readonly retain?: 'session'
+      readonly retain?: 'scope'
     },
   ): Promise<FacilityResult<{ readonly terminal: TerminalRef }>>
   execute(

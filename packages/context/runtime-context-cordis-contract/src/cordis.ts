@@ -1,5 +1,8 @@
-import { type Context, Service } from '@deepseek-ai/cordis'
+import { type Context, type Plugin, Service } from '@deepseek-ai/cordis'
 import type {
+  StaticContribution,
+  StaticRegistration,
+  StaticScopeHolder,
   ConsumerClass,
   ContextBlockKey,
   ReaderEligibilityHandoff,
@@ -8,6 +11,7 @@ import type {
   ScopeRef,
   ViewRevision,
 } from '@omne-harness/runtime-context-contract'
+import { createStaticRegistry } from './tenant-blocks.ts'
 
 type Operation<P, O extends keyof RuntimeContextOperations<P>> = {
   args: Parameters<RuntimeContextOperations<P>[O]>
@@ -94,6 +98,67 @@ export abstract class RuntimeContextReaderEligibilityService<P = unknown>
   ): ReturnType<ReaderEligibilityHandoff<P>['current']>
 }
 export const runtimeContextReaderEligibilityKey = RuntimeContextReaderEligibilityService.provide
+
+/**
+ * The registration surface `runtime-context.tenant-blocks`: the owner of a block contributes its
+ * declaration, a reader contributes its need bindings. The holder of the tenant-level scope takes
+ * the content at each ensure. A contribution grants nothing: no tenant, no eligibility.
+ * @owner packages/context/runtime-context-contract
+ */
+export class RuntimeContextTenantBlocksService extends Service {
+  static readonly provide = 'runtimeContextTenantBlocks'
+  private readonly registry = createStaticRegistry()
+  constructor(ctx: Context) {
+    super(ctx, RuntimeContextTenantBlocksService.provide)
+  }
+
+  /** Registration is an effect of the caller's fiber (IC-13). Another declaration of a key throws. */
+  register(contribution: StaticContribution): void {
+    this.ctx.effect(
+      () => this.registry.register(contribution),
+      'runtimeContextTenantBlocks.register',
+    )
+  }
+
+  current(): StaticRegistration {
+    return this.registry.current()
+  }
+}
+export const runtimeContextTenantBlocksKey = RuntimeContextTenantBlocksService.provide
+
+export const runtimeContextTenantBlocksPlugin: Plugin.Object = {
+  name: 'runtime-context-tenant-blocks',
+  apply(ctx: Context) {
+    new RuntimeContextTenantBlocksService(ctx)
+  },
+}
+
+/**
+ * The holder of the tenant-level scope: the only source of its registrations and of the reader
+ * eligibilities in it (CX-45). The key is a delivery path, not access control.
+ * @owner packages/context/runtime-context-contract
+ */
+export abstract class RuntimeContextTenantScopeService<P = unknown>
+  extends Service
+  implements StaticScopeHolder<P>
+{
+  static readonly provide = 'runtimeContextTenantScope'
+  constructor(ctx: Context) {
+    super(ctx, RuntimeContextTenantScopeService.provide)
+  }
+  abstract scopeOf(...args: Parameters<StaticScopeHolder<P>['scopeOf']>): ScopeRef
+  abstract ensure(
+    ...args: Parameters<StaticScopeHolder<P>['ensure']>
+  ): ReturnType<StaticScopeHolder<P>['ensure']>
+  abstract issue(
+    ...args: Parameters<StaticScopeHolder<P>['issue']>
+  ): ReturnType<StaticScopeHolder<P>['issue']>
+  abstract read(
+    ...args: Parameters<StaticScopeHolder<P>['read']>
+  ): ReturnType<StaticScopeHolder<P>['read']>
+}
+export const runtimeContextTenantScopeKey = RuntimeContextTenantScopeService.provide
+
 // oxlint-disable-next-line typescript/prefer-as-const -- A fixed exported type preserves the computed augmentation during instrumented declaration emit.
 export const runtimeContextScopeKey: 'scope' = 'scope'
 export type RuntimeContextChangedPayload = Readonly<{ scope: ScopeRef; revision: ViewRevision }>
@@ -103,6 +168,8 @@ declare module '@deepseek-ai/cordis' {
     runtimeContext: RuntimeContextService<unknown>
     runtimeContextTrust: RuntimeContextTrustService<unknown>
     runtimeContextReaderEligibility: RuntimeContextReaderEligibilityService<unknown>
+    runtimeContextTenantBlocks: RuntimeContextTenantBlocksService
+    runtimeContextTenantScope: RuntimeContextTenantScopeService<unknown>
     [runtimeContextScopeKey]?: ScopeRef
   }
   interface Events {

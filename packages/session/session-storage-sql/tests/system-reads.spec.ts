@@ -1,3 +1,8 @@
+import {
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
+} from '@omne-harness/session-contract/testing'
 import { describe, expect, it } from 'vitest'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type { TenantDomainAccess } from '@omne-harness/sql-contract'
@@ -172,8 +177,10 @@ describe('a tenant domain directory that cannot be read', () => {
     return createSessionStorage<string>({
       storage: a.provider.storage,
       domains,
-      accessCheck: a.accessCheck,
+      accessCheck: withMemberSubject(a.accessCheck),
       cursorSigning: a.signing,
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
     })
   }

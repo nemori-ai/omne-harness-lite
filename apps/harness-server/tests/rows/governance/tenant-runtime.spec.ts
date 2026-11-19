@@ -43,6 +43,7 @@ import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createAssetsLocal, createTenantPublisher } from '@omne-harness/assets-local'
 import { createToolAssetCategory } from '../../../src/rows/governance/tool-assets.ts'
 import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
+import { GOVERNANCE_PROJECTION_READ } from '../../../src/rows/governance/storage-materials.ts'
 import { calendarEnvironmentSettings } from '@omne-harness/calendar-local'
 import { scheduleAgentAuthoringSettings } from '@omne-harness/schedule-local'
 
@@ -979,6 +980,67 @@ it.each([false, true])(
     expect(after).toEqual(before)
   },
 )
+
+// The projection read of the catalog answers as scripted; every other read goes to the store.
+async function scriptedCatalogReads() {
+  const { w, prepare } = await installedWorld()
+  const base = w.options.storage
+  type Read = Awaited<ReturnType<typeof base.read>>
+  const script: { next: ((requestKey: string) => Read) | null } = { next: null }
+  const storage: typeof base = {
+    database: base.database,
+    registerCombination: input => base.registerCombination(input),
+    commit: (input, options) => base.commit(input, options),
+    query: identity => base.query(identity),
+    read: (input, options) =>
+      script.next !== null && input.handler === GOVERNANCE_PROJECTION_READ
+        ? Promise.resolve(script.next(input.requestKey))
+        : base.read(input, options),
+  }
+  // A new assembly for each attempt, as the host of the tenant makes one after a failure.
+  const open = async () => {
+    const opened = await prepare(undefined, undefined, storage).open()
+    if (opened.kind === 'created') cleanup.push(opened.close)
+    else if ('close' in opened) await opened.close()
+    return opened
+  }
+  return { script, open }
+}
+
+it('names the closed reason of a storage read that kept the tenant governance from opening, not its diagnostic', async () => {
+  const { script, open } = await scriptedCatalogReads()
+  script.next = requestKey => ({
+    kind: 'unavailable',
+    requestKey,
+    reason: 'read_timeout',
+    diagnostic: 'the reader ran 5000 ms on SELECT secret FROM somewhere',
+  })
+  const opened = await open()
+  expect(opened).toMatchObject({
+    kind: 'unavailable',
+    phase: 'installation',
+    reason: 'tool installation catalog (read_timeout)',
+  })
+  expect(JSON.stringify(opened)).not.toContain('SELECT')
+})
+
+it('does not name the reason of an earlier failure once a read came back', async () => {
+  const { script, open } = await scriptedCatalogReads()
+  script.next = requestKey => ({
+    kind: 'unavailable',
+    requestKey,
+    reason: 'queue_timeout',
+    diagnostic: null,
+  })
+  expect(await open()).toMatchObject({ reason: 'tool installation catalog (queue_timeout)' })
+  // The store answers now; the projection itself gives no catalog, which is no storage reason.
+  script.next = requestKey => ({
+    kind: 'read',
+    requestKey,
+    output: { kind: 'stopped', participant: 'suite', reply: null },
+  })
+  expect(await open()).toMatchObject({ kind: 'unavailable', reason: 'tool installation catalog' })
+})
 
 it('retains and retries close responsibility for an unavailable installation', async () => {
   const w = await world()

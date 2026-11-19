@@ -30,6 +30,16 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
+  'session-input-sources': { provides: ['sessionInputSources'] },
+  'runtime-context-tenant-scope': {
+    provides: ['runtimeContextTenantBlocks', 'runtimeContextTenantScope'],
+    injects: ['runtimeContext'],
+  },
+  'session-intake-budget': {
+    provides: [],
+    injects: ['runtimeContextTenantBlocks', 'tenantIndependentSettings'],
+    phase: 'composition',
+  },
   'asset-categories': { provides: ['assetCategories'] },
   'tenant-assets': {
     provides: ['tenantAssets', 'assetPublishing', 'assetManagement', 'assetChanges'],
@@ -86,6 +96,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'notificationSources',
       'notificationChannels',
       'notificationChanges',
+      'notificationStanding',
     ],
     injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
     phase: 'composition',
@@ -184,7 +195,9 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'session',
     ],
   },
-  'session-call-control': { provides: ['sessionCallControl', 'sessionCallStates'] },
+  'session-call-control': {
+    provides: ['sessionCallControl', 'sessionCallStates', 'sessionDerivedInputs'],
+  },
   'session-ad15': {
     provides: ['sessionScopeRelease'],
     injects: ['executionEnvironment', 'session'],

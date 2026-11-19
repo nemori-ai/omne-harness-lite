@@ -1214,7 +1214,7 @@
 > **EN**: The capability that lets a recipient know about something that has happened. A source hands over an event. The notification domain uses the recipient's notification subscriptions to decide who gets it and how urgently, puts it in the recipient's inbox, and then delivers it to the recipient's destinations. A recipient is a person or an entrusted agent.
 
 - **形态**：总称
-- **出处**：[通知：产品需求](../../product/notifications/design.md#产品需求描述)（rev 3）
+- **出处**：[通知：产品需求](../../product/notifications/design.md#产品需求描述)（rev 4）
 - **别混**：不是成果上报、普通会话回复或复制通知邀约本身。要一个人做决定归人在回路；交出一份要验收的工作归日程与作业。
 
 

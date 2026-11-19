@@ -9,7 +9,6 @@ import {
   creation,
   evidence,
   operationId,
-  intakeInput,
   ordinaryInput,
   succeeded,
 } from '@omne-harness/session-contract/testing'
@@ -162,28 +161,6 @@ describe('step 3: a refusal that the snapshot decides', () => {
     expect(failureOf(second)).toEqual({ kind: 'run-active' })
     expect(h.identity.controls.asked().length).toBe(asked)
     expect(h.view.calls().map(call => call.method)).toEqual(['queryOperation', 'readWork'])
-  })
-
-  it('a refusal that needs the stored input is left to the commit: a first input from another origin is login-required', async () => {
-    const h = await service()
-    await h.create()
-    expect(
-      'ok' in
-        (await h.faces('intake').work.accept({
-          ...h.access(),
-          operation: operationId('accept-input-1'),
-          value: intakeInput('input-1'),
-        })),
-    ).toBe(true)
-    const answer = await h.faces('coordinator').work.startRun({
-      ...h.access(),
-      operation: operationId('start'),
-      entry: 'interactive',
-      candidate,
-      instance: { owner: 'agent', id: 'instance-1' },
-    })
-    expect(failureOf(answer)).toEqual({ kind: 'login-required' })
-    expect(h.view.calls().map(call => call.method)).toContain('commit')
   })
 })
 

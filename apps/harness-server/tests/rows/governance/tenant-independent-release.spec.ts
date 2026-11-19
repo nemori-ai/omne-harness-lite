@@ -51,6 +51,11 @@ it('a login principal lists the independent settings with their defaults apart f
           expect.any(String),
           { value: { kind: 'set', value: 'auto' }, source: 'default' },
         ],
+        [
+          'session/intake/pending-limit',
+          '输入排队',
+          { value: { kind: 'set', value: 64 }, source: 'default' },
+        ],
       ])
       for (const value of listed.items)
         expect(value).toMatchObject({

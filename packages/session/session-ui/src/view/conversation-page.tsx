@@ -30,6 +30,8 @@ export type ConversationPageProps = Readonly<{
   side: (session: string) => ReactNode
   /** Actions on the open session in its heading, such as archiving it. */
   heading?: (session: string) => ReactNode
+  /** What the open session still holds, read again at each log position. */
+  work?: (session: string, revision: string | null) => ReactNode
 }>
 
 export function ConversationPage({
@@ -38,6 +40,7 @@ export function ConversationPage({
   dock,
   side,
   heading = () => null,
+  work = () => null,
 }: ConversationPageProps) {
   const handle = useSession(workspaces, scope)
   switch (handle.kind) {
@@ -52,18 +55,23 @@ export function ConversationPage({
         </div>
       )
     case 'ready':
-      return <Page driver={handle.driver} dock={dock} side={side} heading={heading} />
+      return <Page driver={handle.driver} dock={dock} side={side} heading={heading} work={work} />
   }
 }
+
+type Parts = Readonly<{
+  dock: (session: string) => ReactNode
+  work: (session: string, revision: string | null) => ReactNode
+}>
 
 function Page({
   driver,
   dock,
   side,
   heading,
-}: {
+  work,
+}: Parts & {
   readonly driver: SessionDriver
-  readonly dock: (session: string) => ReactNode
   readonly side: (session: string) => ReactNode
   readonly heading: (session: string) => ReactNode
 }) {
@@ -82,7 +90,7 @@ function Page({
       </header>
       <div className="omne-session-body">
         <div className="omne-session-main">
-          <Body state={state} driver={driver} dock={dock} />
+          <Body state={state} driver={driver} dock={dock} work={work} />
         </div>
         {state.kind === 'open' ? side(state.session) : null}
       </div>
@@ -143,11 +151,8 @@ function Body({
   state,
   driver,
   dock,
-}: {
-  readonly state: State
-  readonly driver: SessionDriver
-  readonly dock: (session: string) => ReactNode
-}) {
+  work,
+}: Parts & { readonly state: State; readonly driver: SessionDriver }) {
   switch (state.kind) {
     case 'none':
       return (
@@ -188,7 +193,9 @@ function Body({
         </>
       )
     case 'open':
-      return <OpenSession key={state.session} state={state} driver={driver} dock={dock} />
+      return (
+        <OpenSession key={state.session} state={state} driver={driver} dock={dock} work={work} />
+      )
   }
 }
 
@@ -196,11 +203,8 @@ function OpenSession({
   state,
   driver,
   dock,
-}: {
-  readonly state: Open
-  readonly driver: SessionDriver
-  readonly dock: (session: string) => ReactNode
-}) {
+  work,
+}: Parts & { readonly state: Open; readonly driver: SessionDriver }) {
   return (
     <>
       {state.notice === null ? null : <NoticeLine notice={state.notice} />}
@@ -213,6 +217,7 @@ function OpenSession({
         waiting={state.waiting}
         driver={driver}
       />
+      {work(state.session, state.revision)}
       <div className="omne-session-dock">{dock(state.session)}</div>
       <Composer state={state} driver={driver} />
     </>

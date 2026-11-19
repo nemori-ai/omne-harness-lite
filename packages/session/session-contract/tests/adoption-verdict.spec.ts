@@ -7,12 +7,7 @@ import type {
   SessionCommand,
 } from '@omne-harness/session-contract'
 import { decide } from '@omne-harness/session-contract'
-import {
-  evidence,
-  operationId,
-  ordinaryInput,
-  refused,
-} from '@omne-harness/session-contract/testing'
+import { evidence, operationId, refused } from '@omne-harness/session-contract/testing'
 import { open, scene } from './scene.ts'
 
 const verdict: FreezeVerdict = { cause: 'tool-shape-lost', evidence: evidence('tool/lost') }
@@ -41,8 +36,7 @@ describe('the freeze verdict of the adoption material', () => {
         residentAdoption,
       },
     })
-    const first = snapshot.pending[0]!
-    const login = { ...reads, firstInput: { input: first, origin: ordinaryInput('first').origin } }
+    const login = reads
     expect(decide(snapshot, command({ ...empty, verdict }), [], null, login)).toEqual({
       kind: 'rejected',
       failure: { kind: 'frozen', verdict },

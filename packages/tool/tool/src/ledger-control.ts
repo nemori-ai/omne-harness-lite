@@ -119,7 +119,7 @@ const WITHDRAWN_RUNNING =
   'The call was withdrawn from the foreground. Its execution was asked to stop; a result it still produces is kept as a late version.'
 const ENDED_BEFORE_START = 'The call was ended before it started. It did not run.'
 const LIMIT_PASSED =
-  'The foreground time limit of the call passed. Its execution was asked to stop; a result it still produces is kept as a late version.'
+  'The call was interrupted at its foreground time limit. Its execution was asked to stop; a result it still produces is kept as a late version.'
 
 function withdrawnBy(intent: ToolControl): boolean {
   return (

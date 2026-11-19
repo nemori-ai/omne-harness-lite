@@ -10,7 +10,7 @@ import {
   writeFileSync,
   writeSync,
 } from 'node:fs'
-import { isAbsolute, join, relative } from 'node:path'
+import { join, relative } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
 import {
   VITEST_ARCHIVE_ENTRY,
@@ -30,6 +30,8 @@ import {
   buildArgs,
   checkMemberTurboConfigs,
   compileEnv,
+  exactOutputs,
+  summaryFileIn,
   TIER_TASKS,
   TURBO_BIN,
   turboTestCommand,
@@ -345,8 +347,6 @@ interface TurboSummary {
   }[]
 }
 
-const SUMMARY_LINE = /^\s*Summary:\s+(\S.*\.json)\s*$/mu
-
 const isNumber = (value: unknown): value is number => typeof value === 'number'
 
 function summaryTask(value: unknown): TurboSummary['tasks'][number] | undefined {
@@ -365,22 +365,21 @@ function takeSummary(
   runDir: string,
   name: string,
 ): { readonly summary: TurboSummary } | { readonly missing: string } {
-  const match = SUMMARY_LINE.exec(output)
-  if (match?.[1] === undefined) return { missing: 'turbo 的输出里没有 Summary 行' }
-  const source = isAbsolute(match[1]) ? match[1] : join(root, match[1])
+  const source = summaryFileIn(root, output)
+  if (source === undefined) return { missing: 'turbo 的输出里没有 Summary 行' }
   if (!existsSync(source)) return { missing: `turbo 说的摘要文件不存在：${source}` }
   const target = join(runDir, name)
   copyFileSync(source, target)
   rmSync(source, { force: true })
+  let parsed: { tasks?: unknown }
   try {
-    const parsed = JSON.parse(readFileSync(target, 'utf8')) as { tasks?: unknown }
-    if (!Array.isArray(parsed.tasks)) return { missing: `摘要里没有 tasks：${target}` }
-    return {
-      summary: { tasks: parsed.tasks.map(summaryTask).filter(task => task !== undefined) },
-    }
+    parsed = JSON.parse(readFileSync(target, 'utf8')) as { tasks?: unknown }
   } catch {
     return { missing: `摘要不是 JSON：${target}` }
   }
+  if (!Array.isArray(parsed.tasks)) return { missing: `摘要里没有 tasks：${target}` }
+  exactOutputs(root, target)
+  return { summary: { tasks: parsed.tasks.map(summaryTask).filter(task => task !== undefined) } }
 }
 
 function memberLogs(output: string, names: readonly string[], task: string): Map<string, string[]> {

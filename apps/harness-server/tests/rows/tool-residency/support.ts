@@ -22,7 +22,7 @@ import {
   succeeded,
 } from '@omne-harness/session-contract/testing'
 import { SessionProvider } from '@omne-harness/session-cordis/cordis'
-import { residentToolFacts, type ResidentReferencesPage } from '@omne-harness/tool-contract'
+import { residentToolFacts } from '@omne-harness/tool-contract'
 import type { ToolBindingKey, ToolShape } from '@omne-harness/tool-contract/provider'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import type { ResidentKeyRoundTripFixture } from '@omne-harness/tool-cordis-contract/testing'
@@ -173,6 +173,7 @@ function factsOf(at: ToolBindingKey, first: ToolShape) {
   return facts.ok
 }
 
+// A page as the Session answers `references`: the bridge under test turns it into the Tool's shape.
 export function emptyPage() {
-  return { sessions: [], next: null } satisfies ResidentReferencesPage
+  return { sessions: [], next: null }
 }

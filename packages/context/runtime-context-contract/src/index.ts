@@ -52,6 +52,16 @@ export type {
 } from './reader-eligibility.js'
 export type { Necessity, ContextNeed, Translation, NeedBinding, NeedBindingRef } from './need.js'
 export type {
+  StaticBlock,
+  StaticRegistration,
+  StaticScopeFailure,
+  StaticReaderRequest,
+  StaticReaderGrant,
+  StaticRead,
+  StaticScopeHolder,
+  StaticContribution,
+} from './static-scope.js'
+export type {
   BlockDescriptorBase,
   SuppliedBlockDescriptor,
   StatefulBlockDescriptor,

@@ -83,14 +83,14 @@
       "packages/model/model-storage-sql/src/commit.ts": 1127,
       "packages/model/model/src/commands/commands.ts": 1148,
       "packages/session/session-adapters/src/cordis/agent-journal.ts": 1779,
-      "packages/session/session-adapters/src/cordis/context-holder.ts": 1168,
+      "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
       "packages/session/session-adapters/src/testing/factory.ts": 1260,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1263,
       "packages/session/session-adapters/src/testing/journal.ts": 4190,
-      "packages/session/session-adapters/src/testing/session.ts": 1232,
-      "packages/session/session-contract/src/testing-transactions.ts": 2535,
-      "packages/session/session-storage-sql/src/worker/participant.ts": 1164,
+      "packages/session/session-adapters/src/testing/session.ts": 1221,
+      "packages/session/session-contract/src/testing-transactions.ts": 2523,
+      "packages/session/session-storage-sql/src/worker/participant.ts": 1139,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
       "packages/tool/tool-host-local/src/start-coordinator.ts": 1055,
@@ -264,7 +264,7 @@
       },
       "packages/context/runtime-context/src/reader.ts": {
         "count": 2,
-        "longest": 480
+        "longest": 459
       },
       "packages/context/runtime-context/src/replay.ts": {
         "count": 1,
@@ -560,7 +560,7 @@
       },
       "packages/session/session-adapters/src/testing/session.ts": {
         "count": 2,
-        "longest": 898
+        "longest": 896
       },
       "packages/session/session-contract/src/projection.ts": {
         "count": 1,
@@ -584,7 +584,7 @@
       },
       "packages/session/session-contract/src/testing-transactions.ts": {
         "count": 5,
-        "longest": 873
+        "longest": 850
       },
       "packages/session/session-observation/src/observation.ts": {
         "count": 2,

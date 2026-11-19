@@ -11,6 +11,7 @@ import type { NotificationChannels, NotificationSources } from '@omne-harness/no
 import {
   NotificationCatalogService,
   NotificationChangesService,
+  NotificationStandingService,
   NotificationChannelsService,
   NotificationDestinationsService,
   NotificationInboxService,
@@ -88,22 +89,28 @@ class LocalCatalog extends NotificationCatalogService {
 }
 
 class LocalSources extends NotificationSourcesService {
-  readonly register: NotificationSources['register']
   readonly lookup: NotificationSources['lookup']
+  private readonly registry: NotificationSources
   constructor(ctx: Context, registry: NotificationSources) {
     super(ctx)
-    this.register = registry.register
+    this.registry = registry
     this.lookup = registry.lookup
+  }
+  protected contribute(declaration: Parameters<NotificationSources['register']>[0]) {
+    return this.registry.register(declaration)
   }
 }
 
 class LocalChannels extends NotificationChannelsService {
-  readonly register: NotificationChannels['register']
   readonly lookup: NotificationChannels['lookup']
+  private readonly registry: NotificationChannels
   constructor(ctx: Context, registry: NotificationChannels) {
     super(ctx)
-    this.register = registry.register
+    this.registry = registry
     this.lookup = registry.lookup
+  }
+  protected contribute(channel: Parameters<NotificationChannels['register']>[0]) {
+    return this.registry.register(channel)
   }
 }
 
@@ -112,6 +119,14 @@ class LocalChanges extends NotificationChangesService {
   constructor(ctx: Context, feed: NotificationChangeFeed) {
     super(ctx)
     this.subscribe = feed.subscribe
+  }
+}
+
+class LocalStanding extends NotificationStandingService {
+  readonly blocked: NotificationStandingService['blocked']
+  constructor(ctx: Context, blocked: NotificationStandingService['blocked']) {
+    super(ctx)
+    this.blocked = blocked
   }
 }
 
@@ -134,6 +149,7 @@ export function createNotificationLocalPlugin() {
           ctx.plugin(LocalSources, application.sources),
           ctx.plugin(LocalChannels, application.channels),
           ctx.plugin(LocalChanges, application.changes),
+          ctx.plugin(LocalStanding, application.blocked),
         ]
         ctx.effect(() => () => application.close(), 'notification-local-drain')
         await Promise.all(bound.map(fiber => fiber.await()))

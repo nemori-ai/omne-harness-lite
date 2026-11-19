@@ -182,7 +182,7 @@ async function executeShell(
         return 'rejected reason=invalidInput columns and rows must be supplied together'
       return confirmation(
         await environment.terminal.create({
-          retain: 'session',
+          retain: 'scope',
           cwd: args.optionalText('cwd') ?? config.text('cwd'),
           env: { ...config.env('env'), ...args.env('env') },
           ...(args.has('columns')

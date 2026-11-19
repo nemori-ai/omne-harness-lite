@@ -5,6 +5,7 @@ import type { ToolDecisionBridge } from '@omne-harness/tool-contract/provider'
 import {
   answerCard,
   historyOf,
+  onReleaseTree,
   onReleaseTreeRuns,
   pollUntil,
   toolCalls,
@@ -182,6 +183,46 @@ describe('a waiting Ask goes on after the service restarts on the same state', (
         },
       ])
       expect(exits).toEqual([0, 0])
+    },
+  )
+})
+
+describe('a waiting Ask goes on in the same process when the wake-up after the answer found nothing', () => {
+  it(
+    'the answer holds in HITL, the one wake-up ran before the Tool could see it, and the call still resumes once without a restart',
+    { timeout: 300_000 },
+    async () => {
+      const exit = await onReleaseTree(options, async world => {
+        const real = world.hitl.bridge
+        if (real === null) throw new Error('no decision owner')
+        let hidden = 0
+        withBridge(world, {
+          async inspect(input) {
+            const seen = await real.inspect(input)
+            if (!('ok' in seen) || seen.ok.decision === null) return seen
+            hidden += 1
+            return { ok: { ...seen.ok, decision: null } }
+          },
+        })
+        const session = await parkedAsk(world)
+        await answerCard(world, session, 'Use 8081')
+        // The wake-up of this answer drove the call once, and the call saw no decision.
+        await pollUntil(
+          'the run the wake-up started',
+          () => hidden,
+          count => count >= 1,
+        )
+        expect(askOf(world)).toMatchObject({ phase: 'suspended' })
+        expect(await world.cards({ sessionRef: session, states: ['decided'] })).toHaveLength(1)
+        // No further answer will come and nobody wakes the call again on its behalf.
+        world.hitl.bridge = real
+        const since = Date.now()
+        await resumedOnce(world, session)
+        // The periodic scan of the tenant comes every 60 s; the Agent asking after its call comes sooner.
+        expect(Date.now() - since).toBeLessThan(90_000)
+        await endedOnce(world, session)
+      })
+      expect(exit).toBe(0)
     },
   )
 })

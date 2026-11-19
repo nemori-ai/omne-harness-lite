@@ -378,6 +378,74 @@ const readPermissionMode: ExistingCommand<ModeTarget> = {
   },
 }
 
+const POSITION = /^(0|[1-9][0-9]*)$/u
+const DEFAULT_PENDING_LIMIT = 50
+
+type PendingTarget = ModeTarget & { after: string | null; limit: number }
+
+function pendingTarget(values: Option): PendingTarget | undefined {
+  const target = modeTarget(values)
+  const after = values.get('--after') ?? null
+  const limit = Number(values.get('--limit') ?? DEFAULT_PENDING_LIMIT)
+  if (target === undefined || !Number.isInteger(limit) || limit < 1) return undefined
+  if (after !== null && !POSITION.test(after)) return undefined
+  return { ...target, after, limit }
+}
+
+const readPending: ExistingCommand<PendingTarget> = {
+  kind: 'existing',
+  name: 'read-pending',
+  accepted: ['--session', '--tenant', '--after', '--limit', serverOption],
+  required: ['--session'],
+  parse: pendingTarget,
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: ({ session, after, limit }, { owner: tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link =>
+        link.call(sessionProtocol, 'read-pending', { tenant, session, after, limit }, messageId),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
+const readWaitingCalls: ExistingCommand<ModeTarget> = {
+  kind: 'existing',
+  name: 'read-waiting-calls',
+  accepted: ['--session', '--tenant', serverOption],
+  required: ['--session'],
+  parse: modeTarget,
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: ({ session }, { owner: tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link =>
+        link.call(sessionProtocol, 'read-waiting-calls', { tenant, session }, messageId),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
+const readInputFate: ExistingCommand<ModeTarget & { inputId: string }> = {
+  kind: 'existing',
+  name: 'read-input-fate',
+  accepted: ['--session', '--tenant', '--input-id', serverOption],
+  required: ['--session', '--input-id'],
+  parse: values => {
+    const target = modeTarget(values)
+    return target === undefined ? undefined : { ...target, inputId: values.get('--input-id') ?? '' }
+  },
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: ({ session, inputId }, { owner: tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link =>
+        link.call(sessionProtocol, 'read-input-fate', { tenant, session, inputId }, messageId),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
 // The change names the revision it was read at, so a change made meanwhile answers conflict.
 const changePermissionMode: ExistingCommand<
   ModeTarget & { mode: PermissionModeName; expectedRevision: string }
@@ -556,6 +624,24 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id>',
     summary: 'Read the diagnostics of the runs of a session.',
     run: runReadSessionDiagnostics,
+  },
+  {
+    name: 'read-pending',
+    usage: '--session <id> [--after <position>] [--limit <n>]',
+    summary: 'List the inputs a session accepted that no run took yet, the oldest first.',
+    run: (args, output, environment) => runSession(readPending, args, output, environment),
+  },
+  {
+    name: 'read-waiting-calls',
+    usage: '--session <id>',
+    summary: 'List the calls of a session that wait for a person to answer a card.',
+    run: (args, output, environment) => runSession(readWaitingCalls, args, output, environment),
+  },
+  {
+    name: 'read-input-fate',
+    usage: '--session <id> --input-id <id>',
+    summary: 'Read where one input is now: pending, taken, answered, settled or refused.',
+    run: (args, output, environment) => runSession(readInputFate, args, output, environment),
   },
   {
     name: 'cancel-run',

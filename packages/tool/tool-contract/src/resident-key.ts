@@ -15,9 +15,9 @@ export type ResidentKeyFailure = Readonly<{
 }>
 
 export type ResidentReferencesPage = Readonly<{
-  sessions: readonly Readonly<{
+  references: readonly Readonly<{
     tenant: TenantId
-    session: string
+    holder: string
     capability: string
     shape: JsonValue
   }>[]
@@ -283,15 +283,15 @@ export function projectResidentReferences(
   page: ResidentReferencesPage,
 ): Outcome<ResidentHolderPage, ResidentKeyFailure> {
   const input: unknown = page
-  if (!isRecord(input) || !Array.isArray(input['sessions'])) return refuse('sessions', 'type')
+  if (!isRecord(input) || !Array.isArray(input['references'])) return refuse('references', 'type')
   const next = input['next']
   if (next !== null && typeof next !== 'string') return refuse('next', 'type')
   const items: Readonly<{ holder: string; tenant: TenantId; shape: ToolShape }>[] = []
-  for (const [index, reference] of page.sessions.entries()) {
-    const shape = readShape(reference.shape, `sessions[${index}].shape`)
+  for (const [index, reference] of page.references.entries()) {
+    const shape = readShape(reference.shape, `references[${index}].shape`)
     if ('failure' in shape) return shape
     items.push(
-      Object.freeze({ holder: reference.session, tenant: reference.tenant, shape: shape.ok }),
+      Object.freeze({ holder: reference.holder, tenant: reference.tenant, shape: shape.ok }),
     )
   }
   return succeed(Object.freeze({ items: Object.freeze(items), next: page.next }))

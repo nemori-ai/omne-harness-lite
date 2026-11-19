@@ -27,7 +27,7 @@ export function retainedPeer() {
       ): FacilityResult<never> => ({ kind: 'rejected', requestId, reason })
       const facility: TerminalFacility<unknown> = {
         async create(request) {
-          if (request.retain !== 'session' || input.retention === undefined)
+          if (request.retain !== 'scope' || input.retention === undefined)
             return refuse(request.requestId, 'unsupported')
           const { retain: _retain, ...ordinary } = request
           const created = await terminal.facility.create(ordinary)

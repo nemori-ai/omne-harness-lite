@@ -7,6 +7,8 @@ import {
   IconButton,
   InlineNotice,
   LoadingState,
+  ToastItem,
+  ToastStack,
   type ResolvedTheme,
   type ThemeChoice,
 } from '@omne-harness/ui-kit'
@@ -241,6 +243,7 @@ function Workspace(props: {
 }) {
   const pages = useSlot(props.state.slots, 'pages')
   const shown = useWatched(props.state.page)
+  const focus = useWatched(props.state.page.focus)
   const scope = useWatched(props.state.scope)
   return (
     <div className="app-shell">
@@ -256,11 +259,47 @@ function Workspace(props: {
             data-page={page.id}
             hidden={page.id !== shown}
           >
-            <Item scope={scope} render={() => page.render({ scope })} />
+            <Item
+              scope={scope}
+              render={() =>
+                page.render(focus?.page === page.id ? { scope, subject: focus.subject } : { scope })
+              }
+            />
           </section>
         ))}
       </main>
     </div>
+  )
+}
+
+/** The toasts modules handed over; an action goes to its page and closes the toast. */
+function Toasts(props: { state: ShellState }) {
+  const { toasts, page } = props.state
+  const shown = useSyncExternalStore(toasts.subscribe, toasts.shown)
+  return (
+    <ToastStack label="提示">
+      {shown.map(({ key, toast }) => {
+        const { action } = toast
+        return (
+          <ToastItem
+            key={key}
+            tone={toast.tone}
+            title={toast.title}
+            {...(toast.body !== undefined && { body: toast.body })}
+            {...(action !== undefined && {
+              action: {
+                label: action.label,
+                onClick: () => {
+                  page.choose(action.page, action.subject)
+                  toasts.dismiss(key)
+                },
+              },
+            })}
+            onDismiss={() => toasts.dismiss(key)}
+          />
+        )
+      })}
+    </ToastStack>
   )
 }
 
@@ -287,6 +326,7 @@ export function Shell(props: ShellProps) {
           missing={missing}
         />
       )}
+      <Toasts state={props.state} />
     </AppTooltipProvider>
   )
 }
