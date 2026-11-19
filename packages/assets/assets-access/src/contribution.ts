@@ -8,8 +8,12 @@ import type {
 import type { AssetsProtocol } from '@omne-harness/assets-protocol'
 import type { JsonValue } from '@omne-harness/json-text'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { createAssetOperations } from './asset-operations.ts'
+import { createAssetsObservation } from './observe-assets.ts'
 import type {
   CategoriesPort,
+  ChangesPort,
+  ManagementPort,
   ReadRefusal,
   SettingInput,
   SettingJson,
@@ -22,6 +26,8 @@ import type {
 export type AssetsContributionInput = Readonly<{
   settings: () => TenantSettingsPort | undefined
   categories: () => CategoriesPort | undefined
+  management: () => ManagementPort | undefined
+  changes: () => ChangesPort | undefined
   principals: TargetTenantPrincipals
 }>
 
@@ -315,16 +321,20 @@ export function createAssetsContribution(
         return {
           outcome: 'succeeded',
           body: {
-            items: page.map(({ category, display }) => ({
+            items: page.map(({ category, display, creation }) => ({
               category,
               title: display.title,
               summary: display.summary,
+              creation,
             })),
             next: rest.length > page.length ? (page.at(-1)?.category ?? null) : null,
           },
         }
       },
+      ...createAssetOperations(input),
     },
-    observations: {},
+    observations: {
+      'observe-assets': createAssetsObservation(input),
+    },
   }
 }

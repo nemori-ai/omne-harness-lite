@@ -2,6 +2,7 @@ import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import { json, withinBudget } from './encoding.ts'
 import { mutate } from './mutations.ts'
 import { capture } from './projection.ts'
+import { readDomain } from './records.ts'
 import { PARTICIPANT, PROTOCOL, workerCommandSchema } from './schema.ts'
 export default {
   participant: PARTICIPANT,
@@ -15,7 +16,8 @@ export default {
     if (command.kind === 'capturePublication')
       return capture(port, command.binding, command.excluded, true)
     const result = mutate(port, command.binding)
-    const response = json({ binding: command.binding, result })
+    const domainRevision = readDomain(port)?.revision ?? 0
+    const response = json({ binding: command.binding, result, domainRevision })
     return result.kind === 'committed'
       ? { kind: 'participated', response }
       : { kind: 'conflict', basis: response }

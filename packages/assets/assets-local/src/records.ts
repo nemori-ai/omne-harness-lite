@@ -7,8 +7,10 @@ import {
   domainSchema,
   holdingSchema,
   revisionSchema,
+  summarySchema,
   versionSchema,
   type Holding,
+  type Summary,
   type Version,
 } from './schema.ts'
 import { canonical, digest, equal, scopeRef, withinBudget } from './encoding.ts'
@@ -60,6 +62,28 @@ export function readVersion(
     throw new TypeError('Misbound version record')
   validateDeclaration(result)
   return result
+}
+const summaryRecordSchema = z.strictObject({
+  domain: domainSchema,
+  assetRef: z.string(),
+  version: z.string(),
+  summary: summarySchema,
+})
+/** The asset summary stored with a version, or `null` when its category gave none. */
+export function readSummary(
+  port: ReadPort,
+  domain: DomainRef,
+  assetRef: string,
+  version: string,
+): Summary | null {
+  const row = port.execute('SELECT record FROM al_summaries WHERE version_key = ? LIMIT 1', [
+    canonical([domain, assetRef, version]),
+  ]).rows[0]
+  if (!row) return null
+  const record = decode(summaryRecordSchema, row[0])
+  if (!equal(record.domain, domain) || record.assetRef !== assetRef || record.version !== version)
+    throw new TypeError('Misbound summary record')
+  return record.summary
 }
 export function validateDeclaration(version: Pick<Version, 'declaration'>) {
   if (version.declaration.kind === 'none') return

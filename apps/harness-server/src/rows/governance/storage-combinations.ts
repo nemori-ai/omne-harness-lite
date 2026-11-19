@@ -19,6 +19,7 @@ import { TARGET_SNAPSHOT } from './target-snapshot.ts'
 import { PERMISSION_BASIS, PERMISSION_BASIS_GUARD } from './permission-basis.ts'
 import { sessionPermissionBasisProducer } from './session-permission-basis.ts'
 import { tenantSettingsCurrentParticipant } from './tenant-settings-current.ts'
+import { heldSettingsCurrentParticipant } from './held-settings-current.ts'
 
 const publications = [
   'assets.settings',
@@ -70,6 +71,12 @@ const permissionWrite = (mode: 'clear' | 'unmapped' | 'mapped') => [
 const settingsWriteRead = [...snapshot, 'governance.metadata-plan', 'governance.activation'].filter(
   value => !SETTINGS_RECOVERY_PARTICIPANTS.includes(value),
 )
+const heldRead = [
+  'assets.settings',
+  'settings.targets',
+  'settings.target-projection',
+  'settings.value-projection',
+]
 const definitionProjection = [
   'governance.definition-projection',
   'governance.activation',
@@ -114,6 +121,17 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
       tenantSettingsCurrentParticipant('commit'),
     ],
     tenantSettingsRecovery: [...SETTINGS_RECOVERY_PARTICIPANTS],
+    heldSettingsSnapshot: [...heldRead, ...SETTINGS_RECOVERY_PARTICIPANTS],
+    heldSettingsReady: [
+      ...heldRead,
+      ...SETTINGS_READY_PARTICIPANTS,
+      heldSettingsCurrentParticipant('ready'),
+    ],
+    heldSettingsCommit: [
+      ...heldRead,
+      ...SETTINGS_COMMIT_PARTICIPANTS,
+      heldSettingsCurrentParticipant('commit'),
+    ],
     independentTargets: [
       ...SETTINGS_RECOVERY_PARTICIPANTS.filter(name => name !== 'settings.source-finalization'),
       'settings.source-snapshot',
@@ -165,6 +183,9 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     tenantSettingsReady: build('tenantSettingsReady'),
     tenantSettingsCommit: build('tenantSettingsCommit'),
     tenantSettingsRecovery: build('tenantSettingsRecovery'),
+    heldSettingsSnapshot: build('heldSettingsSnapshot'),
+    heldSettingsReady: build('heldSettingsReady'),
+    heldSettingsCommit: build('heldSettingsCommit'),
     independentTargets: build('independentTargets'),
     independentCapture: build('independentCapture'),
     independentReady: build('independentReady'),

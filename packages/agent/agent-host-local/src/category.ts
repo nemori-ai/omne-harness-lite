@@ -3,5 +3,9 @@ import { agentBodyContract, agentDefinitionCategoryDisplay } from '@omne-harness
 
 export const agentDefinitionCategoryPlugin = categoryContributionPlugin(
   'agent-definition-category',
-  { contract: agentBodyContract(), display: agentDefinitionCategoryDisplay },
+  {
+    contract: agentBodyContract(),
+    display: agentDefinitionCategoryDisplay,
+    generalCreation: 'closed',
+  },
 )

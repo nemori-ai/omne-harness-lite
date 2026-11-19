@@ -18,6 +18,7 @@ type LeafValues = {
   readonly string: string
   readonly session: string
   readonly 'page-bytes': string
+  readonly bytes: Uint8Array
   readonly revision: string
   readonly boolean: boolean
   readonly null: null

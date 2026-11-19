@@ -7,6 +7,7 @@ import type {
   SettingsProjectionBinding,
   StandalonePublicationProjection,
 } from '@omne-harness/settings-local'
+import { TOOL_GOVERNANCE_OWNER } from '../../entry/tool-permission-release.ts'
 import type { GovernancePublication } from './current-publications.ts'
 
 const equal = (a: unknown, b: unknown) => canonicalText(a) === canonicalText(b)
@@ -118,9 +119,22 @@ function matchTarget(
   return released === undefined ? undefined : targetEvidence(view, publication, released)
 }
 
-/** Governance owns only targets whose definition carries a governance item; preferences are not its. */
+/** Of the independent targets, governance owns those whose definition carries a governance item. */
 function governed(view: SettingsOwnerProjection['views'][number]): boolean {
   return view.definition.items.some(item => item.category === 'governance')
+}
+
+/** Of the asset targets, governance owns those the tool release published, whatever their items. */
+function releasedAssets(input: Parameters<typeof currentGovernanceTargets>[0]) {
+  const owned: SettingsOwnerProjection['views'][number][] = []
+  for (const view of input.assets.views) {
+    const publication = only(
+      input.assetPublications.views.filter(p => equal(p.target, view.target)),
+    )
+    if (publication === undefined) return undefined
+    if (publication.publicationRef.source === TOOL_GOVERNANCE_OWNER) owned.push(view)
+  }
+  return owned
 }
 
 export function currentGovernanceCatalog(input: Parameters<typeof currentGovernanceTargets>[0]) {
@@ -131,8 +145,9 @@ export function currentGovernanceCatalog(input: Parameters<typeof currentGoverna
     input.standalonePublications,
   ]
   if (sources.some(source => !equal(source.binding, input.capture))) return undefined
-  const standalone = input.standalone.views.filter(governed)
-  const all = [...input.assets.views, ...standalone]
+  const assets = releasedAssets(input)
+  if (assets === undefined) return undefined
+  const all = [...assets, ...input.standalone.views.filter(governed)]
   const targets: GovernanceAdoptionCurrent['targets'] = []
   const unavailableOwners = new Set<string>()
   const seen = new Set<string>()
@@ -144,15 +159,11 @@ export function currentGovernanceCatalog(input: Parameters<typeof currentGoverna
     if (found === undefined) unavailableOwners.add(unavailableOwner(input, view))
     else targets.push(found)
   }
-  const standalonePublications = input.standalonePublications.views.filter(publication =>
-    standalone.some(view => equal(view.target, publication.target)),
-  )
-  if (
-    input.assetPublications.views.filter(view => view.definitionRef !== null).length +
-      standalonePublications.length !==
-    all.length
-  )
-    return undefined
+  const publications = [
+    ...input.assetPublications.views.filter(view => view.definitionRef !== null),
+    ...input.standalonePublications.views,
+  ].filter(publication => all.some(view => equal(view.target, publication.target)))
+  if (publications.length !== all.length) return undefined
   return { targets, unavailableOwners: [...unavailableOwners].sort() }
 }
 

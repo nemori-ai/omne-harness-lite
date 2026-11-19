@@ -21,16 +21,19 @@ it('five domains contribute into one extension point, each with the name it decl
     categoryContributionPlugin('tool-category', {
       contract: toolBodyContract(),
       display: toolCategoryDisplay,
+      generalCreation: 'closed',
     }),
   )
   expect(
-    root.assetCategories.view.list().map(listing => [listing.category, listing.display.title]),
+    root.assetCategories.view
+      .list()
+      .map(listing => [listing.category, listing.display.title, listing.creation]),
   ).toEqual([
-    ['AgentDefinition', '智能体'],
-    ['mcp', 'MCP'],
-    ['model-provider', '模型供应商'],
-    ['skill', '技能'],
-    ['tool', '工具'],
+    ['AgentDefinition', '智能体', 'none'],
+    ['mcp', 'MCP', 'data'],
+    ['model-provider', '模型供应商', 'none'],
+    ['skill', '技能', 'directory'],
+    ['tool', '工具', 'none'],
   ])
   for (const listing of root.assetCategories.view.list())
     expect(root.assetCategories.view.lookup(listing.category)?.category).toBe(listing.category)

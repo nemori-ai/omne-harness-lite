@@ -187,8 +187,70 @@ function governanceAnswer(operation: string, body: Record<string, unknown>): Ans
     case 'clear-setting':
       return succeeded({ revision: String(Number(settingRevision) + 1) })
     default:
+      return assetAnswer(operation, body)
+  }
+}
+
+export const assetRow = {
+  category: 'skill',
+  name: 'review',
+  version: `sha256:${'0'.repeat(64)}`,
+  selection: 'follow',
+  enabled: true,
+  holding: 'held-1',
+  origin: 'customized',
+  summary: { title: 'Review', description: 'Reviews a change.', facts: [] },
+}
+export const assetPartBytes = 4
+
+function assetAnswer(operation: string, body: Record<string, unknown>): Answer | undefined {
+  const succeeded = (answer: unknown): Answer => ({ outcome: 'succeeded', body: answer })
+  switch (operation) {
+    case 'list-categories':
+      return succeeded({
+        items: [
+          { category: 'skill', title: '技能', summary: '目录。', creation: 'directory' },
+          { category: 'tool', title: '工具', summary: '函数。', creation: 'none' },
+        ],
+        next: null,
+      })
+    case 'list-assets':
+      return succeeded({ items: [assetRow], next: null, completeness: 'complete' })
+    case 'describe-asset':
+      return succeeded({
+        item: assetRow,
+        revision: 2,
+        content: { kind: 'directory', entries: [{ path: 'SKILL.md', bytes: 9 }] },
+        standing: { kind: 'selected' },
+        settings: false,
+      })
+    case 'create-asset':
+    case 'commit-asset-upload':
+      return succeeded({ version: assetRow.version, holding: 'held-1', changed: true })
+    case 'begin-asset-upload': {
+      const manifest = body['manifest'] as { path: string }[]
+      return succeeded({
+        partBytes: assetPartBytes,
+        received: manifest.map(({ path }) => ({ path, bytes: 0 })),
+      })
+    }
+    case 'append-asset-upload': {
+      const sent = Buffer.from(String(body['bytes']), 'base64').length
+      return succeeded({ received: Number(body['offset']) + sent })
+    }
+    case 'set-asset-enabled':
+    case 'remove-asset':
+      return succeeded({})
+    case 'query-asset-operation':
+      return { outcome: 'not-committed', body: {} }
+    default:
       return undefined
   }
+}
+
+/** An observation answer: the frames, then an end with this reason. */
+export function streamAnswer(frames: readonly unknown[], end: string): Answer {
+  return { outcome: 'stream', body: { frames, end } }
 }
 
 const PATH = /^\/api\/[^/]+\/v1\/([^/]+)$/
@@ -237,6 +299,14 @@ async function listenFakeService(answer: (seen: Seen) => Answer): Promise<FakeSe
       }
       seen.push(item)
       const reply = answer(item)
+      if (reply.outcome === 'stream') {
+        const { frames, end } = reply.body as { frames: unknown[]; end: string }
+        response.writeHead(200, { 'content-type': 'text/event-stream' })
+        for (const frame of frames)
+          response.write(`data: ${JSON.stringify({ kind: 'frame', frame })}\n\n`)
+        response.end(`data: ${JSON.stringify({ kind: 'ended', reason: end })}\n\n`)
+        return
+      }
       response.writeHead(statusOf[reply.outcome] ?? 200, {
         'content-type': 'application/json; charset=utf-8',
       })
