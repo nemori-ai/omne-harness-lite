@@ -47,7 +47,7 @@
 | [UL-affiliation-request](terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request) | 隶属请求 | Affiliation Request | 发给另一个组织的建立隶属邀约，**接受即填上上级组织属性、不产生租户**；**与邀请是两种对象，只是过期规则相同** |
 | [UL-tenant](terms/subjects-and-ownership.md#ul-tenant--租户--tenant) | 租户 | Tenant | (组织, 账号) 这一组合，归属与隔离的单位 |
 | [UL-tenant-workspace-relation](terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation) | 租户—工作区关系 | Tenant–Workspace Relation | 记录租户对工作区的关系；Host 区分治理所有者与参与者，登记外部仓库仅有参与者 |
-| [UL-workspace-super-administrator](terms/subjects-and-ownership.md#ul-workspace-super-administrator--工作区超级管理员--workspace-super-administrator) | 工作区超级管理员 | Workspace Super Administrator | Omne Host 托管工作区创建者授予某租户的超管角色，具有该工作区销毁资格 |
+| [UL-workspace-super-administrator](terms/subjects-and-ownership.md#ul-workspace-super-administrator--工作区超级管理员--workspace-super-administrator) | 工作区超级管理员 | Workspace Super Administrator | 治理所有者授予某参与者租户的工作区超管角色；可授予参与、移除参与者、销毁，不能转授 |
 | [UL-membership-standing](terms/subjects-and-ownership.md#ul-membership-standing--成员资格效力--membership-standing) | 成员资格效力 | Membership Standing | 这个租户此刻算不算数，**只有有效/无效两个取值**；**「目标范围不可用」不是第三个取值，那是失败** |
 | [UL-current-standing](terms/subjects-and-ownership.md#ul-current-standing--当前资格--current-standing) | 当前资格 | Current Standing | 对一个租户在读取那一刻的成员资格效力、租户角色与具名资格的一次读数；**一次读数不是许可**，读不到是失败 |
 | [UL-current-tenant-identity](terms/subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity) | 当前租户身份 | Current Tenant Identity | 登录状态上的一项选择，**创建那一刻被捕获，之后切换不影响已创建的** |

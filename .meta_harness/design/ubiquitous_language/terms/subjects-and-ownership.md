@@ -267,13 +267,13 @@
 
 ### UL-workspace-super-administrator · 工作区超级管理员 · Workspace Super Administrator
 
-> **中**：由一个工作区的治理所有者明确授予该工作区超管级别权限的参与者租户。它是该租户相对于此工作区的授权角色，具有授予其他租户参与、解除参与者的关系、销毁该工作区以及退出自身参与关系的资格；它不能解除另一个超管的关系；退出后失去该工作区的授权。它不是组织超级管理员身份，也不因获授权限而变更工作区的治理归属。创建者自身具有销毁资格，不要求先给自己授予此角色。仅创建者可以授予或撤回该角色，工作区超管不能转授；撤回角色保留参与关系，其余权限依已有授权。
+> **中**：由一个工作区的治理所有者明确授予该工作区超管级别权限的参与者租户。它是该租户相对于此工作区的授权角色，具有授予其他租户参与、解除参与者的关系、销毁该工作区以及退出自身参与关系的资格；它不能解除另一个超管的关系；退出后失去该工作区的授权。它不是组织超级管理员身份，也不因获授权限而变更工作区的治理归属。治理所有者自身具有销毁资格，不要求先给自己授予此角色。只有治理所有者可以授予或撤回该角色，工作区超管不能转授；撤回角色保留参与关系，其余权限依已有授权。
 
-> **EN**: A participant tenant that the governance owner of a workspace explicitly grants super-administrator privileges for that workspace. This workspace-scoped authorization role permits granting participation to other tenants, removal of participant relations, destruction of that workspace, and withdrawal of its own participation. It does not permit removal of the relation of another super administrator. Withdrawal ends its authorization for that workspace. It is distinct from an organization super administrator and does not change the workspace's governance ownership. The creator may destroy the workspace without a separate self-grant. Only the creator may grant or revoke this role; its holder cannot delegate it. Revocation preserves the participation relation and other independently granted permissions.
+> **EN**: A participant tenant that the governance owner of a workspace explicitly grants super-administrator privileges for that workspace. This workspace-scoped authorization role permits granting participation to other tenants, removal of participant relations, destruction of that workspace, and withdrawal of its own participation. It does not permit removal of the relation of another super administrator. Withdrawal ends its authorization for that workspace. It is distinct from an organization super administrator and does not change the workspace's governance ownership. The governance owner may destroy the workspace without a separate self-grant. Only the governance owner may grant or revoke this role; its holder cannot delegate it. Revocation preserves the participation relation and other independently granted permissions.
 
 - **形态**：属性
 - **出处**：[PF-020 治理关系解除与中心销毁](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#治理关系解除与中心销毁)（rev 22）
-- **边界**：不能单独删除仍存在的工作区的唯一治理所有者关系；本版不提供所有权移交。仅创建者授予和撤回，工作区超管不可转授；其余管理能力沿既有授权，不因名称推定全平台权限。
+- **边界**：不能单独删除仍存在的工作区的唯一治理所有者关系；本版不提供所有权移交。只有治理所有者授予和撤回，工作区超管不可转授；其余管理能力沿既有授权，不因名称推定全平台权限。
 - **出处补充**：[工作区：J-WS07](../../product/workspaces/design.md#j-ws07-分别管理参与关系与工作区超管授权)（rev 6）
 - **适用范围**：上述角色与唯一所有者保护适用于有治理所有者的工作区：Omne Host 托管的，和租户在所在节点上登记目录得到的。登记外部仓库的首次参与者不因此取得授予此角色、移除他人关系或销毁外部资源的特权。
 
