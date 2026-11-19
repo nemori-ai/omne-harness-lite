@@ -381,6 +381,10 @@ describe('what the switch stands on', () => {
   })
 
   it('says a service is absent, or did not answer, and never says switched', async () => {
+    expect([SWITCH_ABSENT, SWITCH_SILENT]).toEqual([
+      'a service the switch needs is absent',
+      'a service the switch needs did not answer',
+    ])
     const w = await world()
     const made = await w.register(ALICE, '/repo')
     const workspace = text(made.workspace)

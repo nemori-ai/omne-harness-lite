@@ -254,5 +254,9 @@ describe('a SwitchWorkspace call', () => {
       'too-large reason=the result has 232 bytes, more than 64',
     )
     expect(await fixture(16).run({ none: true }, long)).toBe('too-large')
+    // The sentence itself is kept when it is exactly as large as the bound.
+    expect(await fixture(55).run({ none: true }, long)).toBe(
+      'too-large reason=the result has 232 bytes, more than 55',
+    )
   })
 })
