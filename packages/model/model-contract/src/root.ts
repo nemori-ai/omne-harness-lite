@@ -67,8 +67,11 @@ export type Supplier = Readonly<{
   model: string
   credential: CredentialLayer
 }>
+/** The context window of the profile a request was prepared on, as the profile said then. */
+export type ContextWindow = Readonly<{ tokens: string; compactionTriggerPercent: string }>
 export type FixedModelRequest = Readonly<{
   profile: Adoption
+  contextWindow?: ContextWindow
   suppliers: readonly [Supplier, ...Supplier[]]
   fallback: boolean
   retryPolicy: Adoption

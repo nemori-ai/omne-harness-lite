@@ -74,6 +74,14 @@ export declare const sessionDiagnosticsProtocol: {
                                 readonly call: string;
                                 readonly kind: "found";
                                 readonly phase: "accepted" | "retry-decision" | "running" | "settled";
+                                readonly progress?: {
+                                    readonly allowed: string;
+                                    readonly last: {
+                                        readonly cause: string;
+                                        readonly upstreamStatus: string | null;
+                                    } | null;
+                                    readonly made: string;
+                                };
                             };
                             readonly coverage: "complete-through-snapshot" | "expired-prefix" | "unknown";
                             readonly dispatches: readonly {
@@ -108,8 +116,41 @@ export declare const sessionDiagnosticsProtocol: {
                                     readonly owner: string;
                                     readonly revision: string;
                                 };
+                                readonly connectRetries?: readonly ("connect-failed" | "connect-timeout")[];
                                 readonly dispatch: string;
                                 readonly firstContent: "none-proven" | "observed" | "uncertain";
+                                readonly instants?: {
+                                    readonly ended: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly instant: string;
+                                        readonly kind: "known";
+                                    };
+                                    readonly firstContent: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly instant: string;
+                                        readonly kind: "known";
+                                    };
+                                    readonly prepared: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly instant: string;
+                                        readonly kind: "known";
+                                    };
+                                    readonly responseStarted: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly instant: string;
+                                        readonly kind: "known";
+                                    };
+                                    readonly sent: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly instant: string;
+                                        readonly kind: "known";
+                                    };
+                                };
                                 readonly outcome: {
                                     readonly kind: "pending";
                                 } | {
@@ -139,6 +180,12 @@ export declare const sessionDiagnosticsProtocol: {
                                         readonly milliseconds: string;
                                     };
                                     readonly sendToFirstContent: {
+                                        readonly kind: "unknown";
+                                    } | {
+                                        readonly kind: "known";
+                                        readonly milliseconds: string;
+                                    };
+                                    readonly sendToResponse?: {
                                         readonly kind: "unknown";
                                     } | {
                                         readonly kind: "known";

@@ -69,6 +69,8 @@ function kindsOf(facts: readonly TransportFact[]): readonly KindRun[] {
         break
       case 'account':
       case 'diagnostic':
+      case 'response':
+      case 'connect-retry':
       case 'ended':
         break
       default: {

@@ -108,7 +108,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 
 export function decoded<T>(outcome: { ok: T } | { failure: unknown }): T {

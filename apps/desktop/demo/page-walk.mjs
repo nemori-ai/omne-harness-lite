@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { startModelGateway } from '../../harness-server/tests/fixtures/model-gateway.ts'
@@ -12,13 +13,14 @@ import {
 } from '../../harness-server/tests/r9/support.ts'
 import { accessProtocol } from '@omne-harness/public-contract'
 import { createClient } from '@omne-harness/sdk/core'
-import { httpServer, memoryCredentialStore, openLoginSession } from '../dist/main-core/index.js'
+import { createForwarding } from '../dist/forwarding/app.js'
+import { createForwardingRules, httpServer } from '../dist/forwarding/rules.js'
 import { domainProtocols } from '../dist/shared/protocols.js'
-import { createWebHost } from '../dist/web-host/server.js'
+import { createStandalone } from '../dist/standalone/server.js'
 
 const USAGE = `usage: node apps/desktop/demo/page-walk.mjs [--shots <dir>]
 
-Starts a server on a fresh state directory, the local host and a headless Chromium, then walks the page.
+Starts a server on a fresh state directory, the standalone forwarding process and a headless Chromium, then walks the page.
 Needs \`pnpm run build\` in apps/desktop and apps/harness-server first. The Chromium is the newest
 chrome-headless-shell under ~/.cache/ms-playwright, or OMNE_WALK_CHROME.`
 
@@ -948,37 +950,52 @@ try {
   })
   print(`server: 127.0.0.1:${port}, state ${scratch.stateRoot}`)
   const proofs = new Set()
-  const store = memoryCredentialStore()
-  const session = await openLoginSession({
+  const inner = createForwardingRules({
     connect: httpServer(`http://127.0.0.1:${port}`),
-    store: {
-      read: () => store.read(),
-      write: login => {
-        proofs.add(login.proof)
-        return store.write(login)
-      },
-      erase: () => store.erase(),
-    },
     contracts: [accessProtocol, ...domainProtocols],
   })
-  const timed = {
-    async call(request) {
+  // The forwarding layer keeps no login; the walk keeps the last one the page got, to search the
+  // page for its proof and to act as the same login outside the page.
+  let lastLogin
+  const rules = {
+    ...inner,
+    async login(credentials) {
+      const answer = await inner.login(credentials)
+      if (answer.result === 'signed-in') {
+        lastLogin = answer.login
+        proofs.add(answer.login.proof)
+      }
+      return answer
+    },
+    async call(request, login) {
       const started = Date.now()
-      const report = await session.transport.call(request)
+      const report = await inner.call(request, login)
       const name = `${request.protocol.name}/v${request.protocol.major} ${request.operation}`
       hostLog.push(
         `${new Date().toISOString()} call ${name}: ${report.outcome ?? report.kind} in ${Date.now() - started} ms`,
       )
       return report
     },
-    observe: request => session.transport.observe(request),
   }
-  host = createWebHost({
-    session: new Proxy(session, {
-      get: (target, key) => (key === 'transport' ? timed : Reflect.get(target, key)),
+  const session = {
+    transport: {
+      call: request => inner.call(request, lastLogin),
+      observe: request => inner.observe(request, lastLogin),
+    },
+  }
+  const pageRoot = new URL('../dist/page/', import.meta.url).pathname
+  const log = line => hostLog.push(`${new Date().toISOString()} ${line}`)
+  host = createStandalone({
+    forwarding: createForwarding({
+      rules,
+      readPageFile: segments =>
+        readFile(join(pageRoot, ...segments)).then(
+          content => new Uint8Array(content),
+          () => undefined,
+        ),
+      log,
     }),
-    pageRoot: new URL('../dist/page/', import.meta.url).pathname,
-    log: line => hostLog.push(`${new Date().toISOString()} ${line}`),
+    log,
   })
   const hostPort = await host.listen(0)
   print(`host: http://127.0.0.1:${hostPort}/`)

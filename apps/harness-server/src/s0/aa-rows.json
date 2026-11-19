@@ -15,6 +15,7 @@
     "calendar",
     "schedule",
     "notification",
+    "calendar-notification",
     "session-provider",
     "session-ad02",
     "session-ad03",
@@ -131,7 +132,8 @@
       "row": "calendar",
       "names": [
         "storage",
-        "tenantStanding"
+        "tenantStanding",
+        "tenantScopePrincipals"
       ]
     },
     {
@@ -307,6 +309,12 @@
         "settingsSecretItems",
         "principalVerifier",
         "tenantStanding"
+      ]
+    },
+    {
+      "row": "model-host",
+      "names": [
+        "tenantDomainScannerPrincipal"
       ]
     },
     {

@@ -138,7 +138,7 @@ it.each(['unavailable', 'backpressured'] as const)(
   },
 )
 
-it('leaves a result that was refused or given up to its caller', async () => {
+it('leaves a result whose receipt did not match to its caller, and keeps pushing one whose outcome stays unknown', async () => {
   const refused = await started()
   refused.scripted.state.next = ['foreign-key']
   const unknown = await started()
@@ -152,11 +152,15 @@ it('leaves a result that was refused or given up to its caller', async () => {
   )
   await until(
     () => unknown.w.record('one')?.result?.standing.status === 'unknown',
-    'the given-up push',
+    'the unknown outcome',
   )
   await vi.advanceTimersByTimeAsync(120000)
   expect(refused.scripted.pushes).toHaveLength(1)
-  expect(unknown.scripted.pushes).toHaveLength(1 + LIMITS.maxRedeliveries)
+  expect(await refused.w.custody('one')).toEqual({ kind: 'producer' })
+  expect(unknown.scripted.pushes.length).toBeGreaterThan(1 + LIMITS.maxRedeliveries)
+  for (const delivery of unknown.scripted.pushes)
+    expect(delivery).toEqual(unknown.scripted.pushes[0])
+  expect(await unknown.w.custody('one')).toEqual({ kind: 'producer' })
 })
 
 it('acknowledges in the same life once the consumer evidence is back', async () => {

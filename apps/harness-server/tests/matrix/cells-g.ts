@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { UNSCRIPTED_REPLY, gate } from '../support/matrix/provider-stub.ts'
+import { gate } from '../support/matrix/provider-stub.ts'
 import type { ProtocolDriver } from '../support/matrix/protocol-driver.ts'
 import type { SessionLog } from '../support/matrix/session-log.ts'
 import {
@@ -8,7 +8,7 @@ import {
   idleHealth,
   bystander,
   bystanderUnchanged,
-  interruptedCallNotResent,
+  interruptedCallNotSentAgain,
   sameHistory,
   shellCommand,
   signedIn,
@@ -296,11 +296,11 @@ export const gCells: readonly Cell[] = [
       await tools.env.start()
       const log = await tools.waitLog(session, 'run terminal after restart', settled, RECOVERY_MS)
       tools.check(
-        'o3 the run ends truthfully after the restart: a new call completes it',
-        log?.terminals[0] === 'completed' && log.assistants.at(-1) === UNSCRIPTED_REPLY,
+        'o3 the run ends truthfully after the restart: the interrupted call failed as lost, no reply made up',
+        log?.terminals[0] === 'failed' && log.assistants.length === 0,
         JSON.stringify([log?.terminals, log?.assistants]),
       )
-      interruptedCallNotResent(tools, before)
+      interruptedCallNotSentAgain(tools, before)
     },
   },
   {

@@ -20,6 +20,7 @@ export abstract class CalendarQueryService extends Service implements CalendarQu
   abstract readonly get: CalendarQueries['get']
   abstract readonly effective: CalendarQueries['effective']
   abstract readonly resolve: CalendarQueries['resolve']
+  abstract readonly health: CalendarQueries['health']
 }
 export const calendarQueryKey = CalendarQueryService.provide
 

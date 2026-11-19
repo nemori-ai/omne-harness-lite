@@ -109,13 +109,26 @@ export type Settlement = Readonly<{
   source: DurableEvidence
   replay?: SettledReplay
 }>
+export type CleanupStage = 'pending' | 'running' | 'blocked' | 'released'
+/** Why no consumer will ever save a settled result: its receiver refused it, or it cannot be read. */
+export type AbandonBasis =
+  | Readonly<{ kind: 'refused'; refusal: 'denied' | 'invalid' | 'conflict' }>
+  | Readonly<{ kind: 'unreadable'; reason: string }>
 export type CustodyState =
   | Readonly<{ kind: 'producer' }>
   | Readonly<{
       kind: 'acknowledged'
       operation: ModelOperationId
       receipt: DurableEvidence
-      cleanup: 'pending' | 'running' | 'blocked' | 'released'
+      cleanup: CleanupStage
+      diagnostic: string | null
+    }>
+  | Readonly<{
+      kind: 'abandoned'
+      operation: ModelOperationId
+      basis: AbandonBasis
+      record: DurableEvidence
+      cleanup: CleanupStage
       diagnostic: string | null
     }>
 // How far the real dispatches of one call got: how many the fixed request allows, how many were
@@ -180,4 +193,14 @@ export type AckReceipt = Readonly<{
   call: ModelCallId
   result: ResultVersion
   custody: Extract<CustodyState, { kind: 'acknowledged' }>
+}>
+export type AbandonInput<P> = Mutation<P> &
+  Readonly<{
+    result: ResultVersion
+    basis: AbandonBasis
+  }>
+export type AbandonReceipt = Readonly<{
+  call: ModelCallId
+  result: ResultVersion
+  custody: Extract<CustodyState, { kind: 'abandoned' }>
 }>

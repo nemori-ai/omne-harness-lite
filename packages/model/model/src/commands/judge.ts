@@ -6,7 +6,7 @@ import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import { isReplayTag, REPLAY_PREFIX_MAX_LENGTH } from '@omne-harness/message'
 import { parseInstant } from '@omne-harness/utc-instant'
 import type { Outcome } from '@omne-harness/operation-result'
-import { decodeRevision } from '@omne-harness/model-contract'
+import { accountUndelivered, costLookupOf, decodeRevision } from '@omne-harness/model-contract'
 import type {
   MaterializationReceipt,
   ModelBlock,
@@ -99,9 +99,16 @@ function producerTasks(call: CallDocument): RecoveryTask[] {
 }
 export function tasks(call: CallDocument, pending: readonly ModelOperationId[]): RecoveryTask[] {
   const result = call.state.custody.kind === 'producer' ? producerTasks(call) : []
-  if (call.state.custody.kind === 'acknowledged' && call.state.custody.cleanup !== 'released')
+  if (call.state.custody.kind !== 'producer' && call.state.custody.cleanup !== 'released')
     result.push('cleanup')
-  if (pending.length > 0 || call.dispatches.some(d => d.record.send === 'unknown'))
+  if (
+    pending.length > 0 ||
+    call.dispatches.some(
+      d => d.record.send === 'unknown' || costLookupOf(d.record) === 'pending',
+    ) ||
+    (call.state.custody.kind !== 'abandoned' &&
+      call.dispatches.some(d => accountUndelivered(d.record)))
+  )
     result.push('account')
   return result
 }
@@ -296,8 +303,24 @@ export function settlementFailure(
 ): ModelFailure | null {
   if (encodedBytes(termination) > MAX_TERMINATION_BYTES)
     return invalid('termination', 'encoded-byte-limit')
-  if (executionFailed(termination) || policyUnavailable(call, termination)) return null
+  if (
+    executionFailed(termination) ||
+    policyUnavailable(call, termination) ||
+    runtimeLost(call, termination)
+  )
+    return null
   return settlementPendingFailure(call) ?? settlementActualFailure(call, termination)
+}
+/** The transport of the last dispatch is gone before it ended; only a materialized one can have gone out. */
+export function runtimeLost(call: CallDocument, termination: Termination): boolean {
+  const latest = call.dispatches.at(-1)
+  return (
+    termination.kind === 'failed' &&
+    termination.fault.cause === 'runtime-lost' &&
+    latest !== undefined &&
+    latest.logicalTerminal === null &&
+    latest.record.materialization !== null
+  )
 }
 function policyUnavailable(call: CallDocument, termination: Termination): boolean {
   return (

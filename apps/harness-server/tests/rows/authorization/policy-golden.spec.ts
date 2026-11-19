@@ -18,6 +18,8 @@ const M = 'member'
 const NOT_MEMBER_ROW: Golden = [D, D, D]
 const WORK_ONLY: Golden = [D, M, D]
 const BOTH: Golden = [M, M, D]
+// A work principal may read another session of its own tenant here, and only here (#1427 C9).
+const TENANT_READ: Golden = [M, 'member reach tenant', D]
 
 const SESSION_GOLDEN = {
   accept: ['member [routed ordinary|card-decision]', 'member [routed business]', D],
@@ -68,13 +70,13 @@ const SESSION_GOLDEN = {
   queryControlOperation: BOTH,
   loadRecovery: WORK_ONLY,
   inspectIdle: WORK_ONLY,
-  'history.begin': BOTH,
-  'history.next': BOTH,
+  'history.begin': TENANT_READ,
+  'history.next': TENANT_READ,
   'history.since': BOTH,
   'history.readModelView': WORK_ONLY,
   'history.readCompactionContext': WORK_ONLY,
   pending: [D, M, 'matrix pending-sessions'],
-  'directory.list': [M, D, D],
+  'directory.list': BOTH,
   references: [D, D, 'matrix resident-references'],
   releasedScopes: [D, D, 'matrix released-scopes'],
 } as const satisfies Readonly<Record<SessionAccessOperation, Golden>>
@@ -118,7 +120,10 @@ function describeCell(cell: PolicyCell): string {
       return 'deny'
     case 'member':
     case 'matrix': {
-      const head = cell.verdict === 'member' ? 'member' : `matrix ${cell.purpose}`
+      const head =
+        cell.verdict === 'member'
+          ? `member${cell.reach === undefined ? '' : ` reach ${cell.reach}`}`
+          : `matrix ${cell.purpose}`
       if (cell.when === undefined) return head
       const kinds: readonly string[] = cell.when.kinds
       return `${head} [${cell.when.kind} ${kinds.join('|')}]`

@@ -2,6 +2,7 @@ export type { ActorRef, FixedRequestHead } from '../root.ts'
 export type {
   CallAccountReport,
   CommitQuery,
+  CostLookupAnswer,
   DispatchPlan,
   ExecutionRef,
   IndependentModelFact,

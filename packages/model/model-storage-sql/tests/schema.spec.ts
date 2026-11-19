@@ -6,7 +6,13 @@ import {
   type QueryRows,
   type SqlValue,
 } from '@omne-harness/sql-contract/worker'
-import { MIGRATION, TABLES, modelMigration } from '@omne-harness/model-storage-sql'
+import {
+  FACT_MIGRATION,
+  MIGRATION,
+  TABLES,
+  dispatchFactsMigration,
+  modelMigration,
+} from '@omne-harness/model-storage-sql'
 
 function portOf(db: DatabaseSync): MigrationPort {
   return {
@@ -96,6 +102,61 @@ describe('migration 001-model-records', () => {
     expect(modelMigration.verify(portOf(db))).toEqual({
       kind: 'failed',
       diagnostic: 'missing tables: md_part',
+    })
+  })
+})
+
+describe('migration 002-dispatch-facts', () => {
+  function withFacts(): DatabaseSync {
+    const db = migrated()
+    dispatchFactsMigration.up(portOf(db))
+    return db
+  }
+
+  it('is owned by the model participant and comes after the records', () => {
+    expect(FACT_MIGRATION).toEqual({ owner: 'model', id: '002-dispatch-facts' })
+    expect({ owner: dispatchFactsMigration.owner, id: dispatchFactsMigration.id }).toEqual(
+      FACT_MIGRATION,
+    )
+  })
+
+  it('creates md_dispatch_fact STRICT, with only the moment, the profile and the window nullable, its check and both indexes', () => {
+    const db = withFacts()
+    const table = db
+      .prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'md_dispatch_fact'")
+      .get() as { sql: string }
+    expect(table.sql).toMatch(/\)\s*STRICT$/)
+    const info = db.prepare('PRAGMA table_info(md_dispatch_fact)').all() as TableInfo[]
+    expect(info.filter(column => Number(column.notnull) === 0).map(column => column.name)).toEqual([
+      'prepared',
+      'profile',
+      'context_window',
+    ])
+    const indexes = db
+      .prepare(
+        "SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'md_dispatch_fact' AND sql IS NOT NULL ORDER BY name",
+      )
+      .all() as { name: string }[]
+    expect(indexes.map(index => index.name)).toEqual([
+      'md_dispatch_fact_consumer_idx',
+      'md_dispatch_fact_prepared_idx',
+    ])
+    const insert = db.prepare(
+      'INSERT INTO md_dispatch_fact (tenant, call, seq, dispatch, prepared, consumer_owner, consumer_work, profile, context_window, fact) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    expect(() =>
+      insert.run('t', 'c', -1, 'd', null, 'o', 'w', null, null, packText('{}')),
+    ).toThrow()
+    insert.run('t', 'c', 0, 'd', null, 'o', 'w', null, null, packText('{}'))
+  })
+
+  it('verifies the table and names it when it is missing', () => {
+    const db = withFacts()
+    expect(dispatchFactsMigration.verify(portOf(db))).toEqual({ kind: 'verified' })
+    db.exec('DROP TABLE md_dispatch_fact')
+    expect(dispatchFactsMigration.verify(portOf(db))).toEqual({
+      kind: 'failed',
+      diagnostic: 'missing tables: md_dispatch_fact',
     })
   })
 })

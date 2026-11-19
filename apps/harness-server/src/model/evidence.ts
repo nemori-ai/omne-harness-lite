@@ -12,6 +12,7 @@ import type {
   ModelReceiveEvidenceReader,
 } from '@omne-harness/model-host-local'
 import { verifyRetryDecision } from '@omne-harness/model'
+import { COST_LOOKUP_OWNER } from '@omne-harness/model-host-local'
 import type { ModelCommandsEvidence, ModelInitialExecution } from '@omne-harness/model/commands'
 import { fail } from '@omne-harness/operation-result'
 import { DEFAULT_COMPACTION_CONSUMER } from '@omne-harness/context-compaction'
@@ -48,7 +49,12 @@ export function createModelEvidence(
     receive: given =>
       sources.receive()?.prove(given) ??
       unavailable('model-receive-evidence', 'receive-window-unproven'),
-    lateFact: () => unavailable('model-late-fact-evidence', 'no-supplier-record-source'),
+    lateFact: given =>
+      given.source.owner === COST_LOOKUP_OWNER &&
+      given.upstreamRequest !== null &&
+      given.source.record === given.upstreamRequest
+        ? { ok: given.source }
+        : unavailable('model-late-fact-evidence', 'no-supplier-record-source'),
     retry: given => verifyRetryDecision(given),
     handoff: given => {
       if (given.consumer.owner === DEFAULT_COMPACTION_CONSUMER)

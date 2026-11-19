@@ -28,6 +28,7 @@ import {
 import {
   MODEL_SEND,
   type CallAccountReport,
+  type CostLookupAnswer,
   type ModelCommands,
   type ModelDriveInput,
   type TransportFact,
@@ -45,8 +46,10 @@ import {
   createModelRuntimeLocalPlugin,
   type ResultPushLedger,
   type ResultPushLimits,
+  type ResultPushOptions,
   type ResultPushRecovery,
 } from '../src/cordis.ts'
+import { COST_LOOKUP_OWNER } from '../src/plugins/cost-lookups.ts'
 import { providerName } from './support/credentials.ts'
 
 function unbox<T>(decoded: { ok: T } | { failure: unknown }): T {
@@ -70,6 +73,8 @@ const LIMITS: ResultPushLimits = {
   maxCleanupSteps: 8,
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
+  maxCostMisses: 3,
+  delaysMs: [1000, 5000, 30000],
 }
 const CONFIGURATION: ModelConfiguration = {
   outputBatchBytes: 1,
@@ -78,7 +83,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 4096,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 
 const request: FixedModelRequest = {
@@ -147,7 +151,14 @@ function scriptedReceiver() {
   const saved = new Map<string, { delivery: ModelDelivery; receipt: ModelSavedReceipt }>()
   const state = {
     missing: null as Conjunct | null,
-    next: [] as ('unknown' | 'unavailable' | 'backpressured' | 'foreign-key' | 'foreign-owner')[],
+    next: [] as (
+      | 'unknown'
+      | 'unavailable'
+      | 'backpressured'
+      | 'denied'
+      | 'foreign-key'
+      | 'foreign-owner'
+    )[],
     refuseAccounts: false,
   }
   const evidenceOf = (delivery: ModelDelivery): DurableEvidence => ({
@@ -161,6 +172,7 @@ function scriptedReceiver() {
       pushes.push(delivery)
       const scripted = state.next.shift()
       if (scripted === 'unknown') return { failure: { kind: 'outcome-unknown' } }
+      if (scripted === 'denied') return { failure: { kind: 'denied' } }
       if (scripted === 'unavailable')
         return { failure: { kind: 'unavailable', dependency: 'responsibility' } }
       if (scripted === 'backpressured')
@@ -209,8 +221,9 @@ type Hooks = {
   handoff?(): 'lost' | 'pass'
   advanceCleanup?(): 'fail' | 'pass'
   dispatches?(): Promise<void> | void
-  scanPending?(): 'unavailable' | 'denied' | 'pass'
+  scanPending?(): 'unavailable' | 'denied' | 'pass' | Promise<void>
   loadRecovery?(): 'unavailable' | 'pass'
+  settle?(): 'unavailable' | 'pass'
 }
 
 function world(
@@ -220,6 +233,9 @@ function world(
     custodyEvidence?: 'verified' | 'unavailable'
     share?: number
     recovery?: ResultPushRecovery
+    lostContact?: boolean
+    answer?: readonly Exclude<TransportFact, { kind: 'ended' }>[]
+    lookup?: ResultPushOptions['lookup']
   }> = {},
 ) {
   let ledger = input.ledger ?? createMemoryResultPushLedger()
@@ -260,7 +276,7 @@ function world(
           },
         }),
         lateFact: given =>
-          given.source.owner === 'supplier'
+          given.source.owner === 'supplier' || given.source.owner === COST_LOOKUP_OWNER
             ? { ok: given.source }
             : { failure: { kind: 'invalid', field: 'source', reason: 'untrusted' } },
         retry: () => ({
@@ -326,6 +342,10 @@ function world(
       memory.controls.commands.reveal({ ...ack, result: 'committed' })
       return reply
     },
+    settle: async input =>
+      hooks.settle?.() === 'unavailable'
+        ? { failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'settle-down' } }
+        : raw.settle(input),
     advanceCleanup: async step =>
       hooks.advanceCleanup?.() === 'fail'
         ? { failure: { kind: 'unavailable', dependency: 'cleanup', diagnostic: 'synthetic' } }
@@ -335,7 +355,7 @@ function world(
       return raw.dispatches(input)
     },
     scanPending: async input => {
-      const answer = hooks.scanPending?.()
+      const answer = await hooks.scanPending?.()
       if (answer === 'unavailable')
         return {
           failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'queue_timeout' },
@@ -356,7 +376,7 @@ function world(
           representation: demand.request.representation,
           payloadDigest: 'a'.repeat(64),
         },
-        facts: ANSWER,
+        facts: input.answer ?? ANSWER,
         ending: { kind: 'terminated', termination: ENDING },
         rejection: null,
       })
@@ -416,6 +436,8 @@ function world(
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -437,15 +459,25 @@ function world(
             retry: memory.dependencies.retry,
             instances: given.host,
             clock: given.clock,
+            liveness: given.liveness,
           },
           CONFIGURATION,
         )
       },
       qualifyObservation: async () => ({ ok: undefined }),
+      ...(input.lostContact === true && {
+        lostContact: (call: string) => ({
+          owner: 'test',
+          record: 'state-lock',
+          revision: '1',
+          digest: `call:${call}`,
+        }),
+      }),
       results: {
         ledger,
         limits: input.limits ?? LIMITS,
         ...(input.recovery !== undefined && { recovery: input.recovery }),
+        ...(input.lookup !== undefined && { lookup: input.lookup }),
       },
     })
   let Plugin = pluginClass()
@@ -504,6 +536,9 @@ function world(
         request,
         consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
       })
+    },
+    access(name: string) {
+      return { principal: PRINCIPAL, tenant: TENANT, call: callOf(name) }
     },
     async custody(name: string) {
       const lookup = unbox(
@@ -706,6 +741,68 @@ it.each(['unavailable', 'backpressured'] as const)(
     expect(await w.custody('one')).toEqual({ kind: 'producer' })
   },
 )
+
+it('records an abandonment when the receiver refuses the result for good, cleans it up and gives the share back (C8)', async () => {
+  const w = world({ share: 1 })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  scripted.state.next = ['denied']
+  await w.register(scripted.receiver)
+  const admitted = await w.admit('first')
+
+  await until(() => w.record('first')?.cleanup === 'released', 'the abandonment and its cleanup')
+  const custody = await w.custody('first')
+  expect(custody).toMatchObject({
+    kind: 'abandoned',
+    basis: { kind: 'refused', refusal: 'denied' },
+    cleanup: 'released',
+  })
+  expect(scripted.pushes).toHaveLength(1)
+  expect(w.handoffs).toEqual([])
+  const contact = await w.ctx.modelRuntime.calls.contact({
+    principal: PRINCIPAL,
+    tenant: TENANT,
+    reference: admitted.reference,
+  })
+  expect(contact).toEqual({
+    ok: { kind: 'lost', evidence: custody.kind === 'abandoned' ? custody.record : null },
+  })
+  expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
+})
+
+it('keeps producer custody when the outcome stays unknown through the round, and waits the configured interval before pushing again (C8, C9)', async () => {
+  const w = world({ limits: { ...LIMITS, maxRedeliveries: 0, delaysMs: [60_000] } })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  scripted.state.next = ['unknown']
+  await w.register(scripted.receiver)
+  await w.admit('one')
+
+  await until(() => w.record('one')?.result?.standing.status === 'unknown', 'the unknown outcome')
+  await new Promise(resolve => setTimeout(resolve, 1500))
+  expect(scripted.pushes).toHaveLength(1)
+  expect(await w.custody('one')).toEqual({ kind: 'producer' })
+})
+
+it('pushes an unknown result again with the same key after the configured interval and acknowledges it once saved (C8, C9)', async () => {
+  const w = world({ limits: { ...LIMITS, maxRedeliveries: 0, delaysMs: [5] } })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  scripted.state.next = ['unknown']
+  await w.register(scripted.receiver)
+  await w.admit('one')
+
+  await until(
+    () => w.record('one')?.acknowledgement === 'acknowledged',
+    'the ACK after a second push',
+  )
+  const [first, second] = scripted.pushes
+  expect(scripted.pushes).toHaveLength(2)
+  expect(second).toEqual(first)
+})
 
 it('recognises an unknown ACK through the original operation and input', async () => {
   const w = world()
@@ -1061,6 +1158,129 @@ it('pushes again after a restart that lost the ledger, acknowledges, and gives t
   expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
 })
 
+it('cleans up after a restart that lost the ledger a result the last process abandoned, without pushing it again (C8)', async () => {
+  const w = world({ share: 1, recovery: SCAN_TENANT })
+  await w.services()
+  w.hooks.advanceCleanup = () => 'fail'
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  scripted.state.next = ['denied']
+  await w.register(scripted.receiver)
+  await w.admit('first')
+  await until(
+    () => w.messages.some(text => text.includes('cleanup stays pending')),
+    'the abandonment and the failed cleanup',
+  )
+  expect(await w.custody('first')).toMatchObject({ kind: 'abandoned', cleanup: 'pending' })
+
+  await first.dispose()
+  w.restart()
+  w.hooks.advanceCleanup = () => 'pass'
+  await w.load()
+  await until(() => w.record('first')?.cleanup === 'released', 'the cleanup of the successor')
+  expect(w.record('first')?.acknowledgement).toBe('abandoned')
+  expect(scripted.pushes).toHaveLength(1)
+  expect(w.handoffs).toEqual([])
+  expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
+})
+
+it('looks a cost the stream did not carry up again on later wakes, and records it late once found (C14)', async () => {
+  const answers: CostLookupAnswer[] = [
+    { kind: 'missed' },
+    { kind: 'unavailable', diagnostic: 'status-502' },
+    {
+      kind: 'found',
+      cost: [
+        { state: 'known', lexeme: '0.0000916', unit: 'openrouter-credit', source: 'billable' },
+      ],
+      place: 'openrouter',
+    },
+  ]
+  const asked: unknown[] = []
+  const w = world({
+    limits: { ...LIMITS, delaysMs: [5, 5, 5] },
+    answer: [{ kind: 'response', request: 'gen-push-1' }, ...ANSWER.slice(0, 2)],
+    lookup: input => {
+      asked.push(input)
+      return Promise.resolve(answers.shift() ?? { kind: 'missed' })
+    },
+  })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(
+    async () => (await w.dispatches('one'))[0]?.account?.receipt === 'late',
+    'the cost found on the third wake',
+  )
+  expect(asked).toHaveLength(3)
+  expect((await w.dispatches('one'))[0]).toMatchObject({
+    lookup: { misses: 1, exhausted: false },
+    account: { cost: [{ lexeme: '0.0000916' }] },
+  })
+  expect(
+    w.warnings.some(text => text.includes('cost lookup stays pending (unavailable status-502)')),
+  ).toBe(true)
+})
+
+it('delivers after a restart a late account the last process accepted and did not deliver, confirms it, and only then cleans up (C15)', async () => {
+  const w = world({ recovery: SCAN_TENANT })
+  await w.services()
+  w.hooks.advanceCleanup = () => 'fail'
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.record('one')?.acknowledgement === 'acknowledged', 'the ACK')
+  scripted.state.refuseAccounts = true
+  expect(await w.late('one', '2')).toMatchObject({ ok: { recovered: false } })
+  await until(
+    () => w.record('one')?.accounts.some(held => held.standing.status === 'waiting') === true,
+    'the late account waiting for its receiver',
+  )
+  expect((await w.dispatches('one'))[0]?.lateDelivered).toBeUndefined()
+
+  await first.dispose()
+  w.restart()
+  scripted.state.refuseAccounts = false
+  w.hooks.advanceCleanup = () => 'pass'
+  const before = scripted.pushes.length
+  await w.load()
+  await until(
+    async () => (await w.dispatches('one'))[0]?.lateDelivered === '2',
+    'the late account delivered again and confirmed',
+  )
+  const again = scripted.pushes.slice(before)
+  expect(again.some(push => push.kind === 'account' && push.key.revision === '2')).toBe(true)
+  await until(() => w.record('one')?.cleanup === 'released', 'the cleanup once delivered')
+})
+
+it('drives after a restart a call the last process left unsettled, then pushes and gives the share back', async () => {
+  const w = world({ share: 1, recovery: SCAN_TENANT })
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  w.hooks.settle = () => 'unavailable'
+  await w.admit('first')
+  await until(
+    async () => unbox(await w.raw.dispatches(w.access('first')))[0]?.terminal != null,
+    'the dispatch ended and the settle refused',
+  )
+  await first.dispose()
+  w.restart()
+  w.hooks.settle = () => 'pass'
+  await w.load()
+  await until(() => w.record('first')?.cleanup === 'released', 'the drive, push, ACK and cleanup')
+  expect(scripted.pushes).toHaveLength(1)
+  expect(await w.custody('first')).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
+  expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
+})
+
 it('wakes nothing on a later restart once the call is acknowledged and cleaned', async () => {
   const w = world({ recovery: SCAN_TENANT })
   await w.services()
@@ -1135,7 +1355,63 @@ it('says so when the start scan cannot run, and the call stays with the producer
   expect(await w.custody('one')).toEqual({ kind: 'producer' })
 })
 
-it('leaves a call that is not settled to its own settle', async () => {
+it('answers the contact of a call the start scan has not reached as unknown, never as lost (C7)', async () => {
+  const w = world({ recovery: SCAN_TENANT, lostContact: true })
+  await w.services()
+  const first = w.load()
+  await first
+  w.hooks.settle = () => 'unavailable'
+  const admitted = await w.admit('first')
+  await until(
+    async () => unbox(await w.raw.dispatches(w.access('first')))[0]?.terminal != null,
+    'the dispatch ended and the settle refused',
+  )
+  await first.dispose()
+  w.restart()
+  let scan = () => {}
+  w.hooks.scanPending = () => new Promise<void>(resolve => (scan = resolve))
+  await w.load()
+  const contact = () =>
+    w.ctx.modelRuntime.calls.contact({
+      principal: PRINCIPAL,
+      tenant: TENANT,
+      reference: admitted.reference,
+    })
+  expect(await contact()).toEqual({ ok: { kind: 'unknown' } })
+  w.hooks.settle = () => 'pass'
+  w.hooks.scanPending = () => 'pass'
+  scan()
+  await until(async () => {
+    const answer = await contact()
+    return 'ok' in answer && answer.ok.kind !== 'unknown'
+  }, 'an answer once the scan reached the call')
+  expect(await contact()).not.toEqual({ ok: { kind: 'unknown' } })
+})
+
+it('answers lost at once, on a host without a start scan, for a call no drive holds', async () => {
+  const w = world({ lostContact: true })
+  await w.services()
+  const admitted = unbox(
+    await w.raw.admit({
+      principal: PRINCIPAL,
+      tenant: TENANT,
+      call: callOf('left'),
+      operation: op('admit-left'),
+      request,
+      consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
+    }),
+  )
+  await w.load()
+  expect(
+    await w.ctx.modelRuntime.calls.contact({
+      principal: PRINCIPAL,
+      tenant: TENANT,
+      reference: admitted.reference,
+    }),
+  ).toMatchObject({ ok: { kind: 'lost' } })
+})
+
+it('drives a call that was only admitted when the last process died, once, to its settle', async () => {
   const w = world({ recovery: SCAN_TENANT })
   await w.services()
   unbox(
@@ -1150,10 +1426,16 @@ it('leaves a call that is not settled to its own settle', async () => {
   )
   await w.load()
   await until(
-    () => w.messages.some(text => text.includes('start scan woke 0 owed calls')),
+    () => w.messages.some(text => text.includes('start scan woke 1 owed calls')),
     'the start scan',
   )
-  expect(w.record('running')).toBeUndefined()
+  await until(async () => {
+    const found = unbox(
+      await w.raw.recall({ ...w.access('running'), admission: op('admit-running') }),
+    )
+    return found.kind === 'found' && found.state.phase === 'settled'
+  }, 'the drive the scan woke')
+  expect(unbox(await w.raw.dispatches(w.access('running')))).toHaveLength(1)
 })
 
 afterEach(() => {

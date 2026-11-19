@@ -126,6 +126,9 @@ export const calendarHealthSchema = z
   .readonly()
 export type CalendarHealth = z.infer<typeof calendarHealthSchema>
 export const calendarHealthResultSchema = calendarQueryResultSchema(calendarHealthSchema)
+export const calendarHealthListResultSchema = calendarQueryResultSchema(
+  z.array(calendarHealthSchema).readonly(),
+)
 
 export const calendarTransportEvidenceSchema = z
   .strictObject({

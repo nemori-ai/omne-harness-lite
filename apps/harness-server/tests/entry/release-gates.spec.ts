@@ -43,6 +43,7 @@ const EXPECTED: Readonly<
     ['send', 'ask', ['send']],
     ['subscribe', 'auto', ['subscribe']],
   ],
+  Sessions: [['invoke', 'auto', ['help', 'list', 'search', 'show', 'read']]],
 }
 const sorted = (names: readonly string[]) => [...names].sort()
 

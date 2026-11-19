@@ -22,6 +22,7 @@ const CONSTRUCTION: Readonly<Record<string, unknown>> = {
   Calendar: { resultMaxBytes: 16 },
   Schedules: { resultMaxBytes: 64 },
   Notifications: { resultMaxBytes: 64 },
+  Sessions: { resultMaxBytes: 4096 },
 }
 
 function definitionOf(release: Trusted, entry: ToolReleaseManifest['entries'][number]) {

@@ -25,7 +25,13 @@ import type {
   SessionAccessDecision,
   SessionAccessRequest,
 } from '@omne-harness/session-contract'
-import { resolveCell, type BranchInput, type ResolvedCell, type SystemPurpose } from './cells.ts'
+import {
+  readsAcrossTenant,
+  resolveCell,
+  type BranchInput,
+  type ResolvedCell,
+  type SystemPurpose,
+} from './cells.ts'
 import { AGENT_POLICY } from './agent-policy.ts'
 import { SESSION_POLICY } from './session-policy.ts'
 import {
@@ -369,6 +375,17 @@ function qualifiedWrite(
   }
 }
 
+function reachesTarget(
+  who: NonNullable<ReturnType<typeof classify>>,
+  target: SessionAccessRequest<unknown>['target'],
+  operation: keyof typeof SESSION_POLICY,
+): boolean {
+  if (who.column !== 'work' || target.kind !== 'session') return true
+  return (
+    who.principal.work.work === target.session || readsAcrossTenant(SESSION_POLICY[operation].work)
+  )
+}
+
 function planSession(input: SessionAccessRequest<unknown>): Plan {
   const { access, operation, target } = input
   if (typeof operation !== 'string' || !Object.hasOwn(SESSION_POLICY, operation)) return DENIED
@@ -381,13 +398,7 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
     return DENIED
 
   const who = classify(access.principal)
-  if (who === null || !actsFor(who, tenant)) return DENIED
-  if (
-    who.column === 'work' &&
-    target.kind === 'session' &&
-    who.principal.work.work !== target.session
-  )
-    return DENIED
+  if (who === null || !actsFor(who, tenant) || !reachesTarget(who, target, operation)) return DENIED
 
   const cell = resolveCell(SESSION_POLICY[operation][who.column], facts.branch)
   const planned = planCell(cell, who, {

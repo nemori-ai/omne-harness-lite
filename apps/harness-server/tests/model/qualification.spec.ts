@@ -18,6 +18,7 @@ import {
   COMPACTION_COMPONENT,
   COMPACTION_WORK_OWNER,
   MODEL_HOST_COMPONENT,
+  MODEL_SCAN_OWNER,
   MODEL_WORK_OWNER,
 } from '../../src/model/principals.ts'
 import { ACTOR_OWNER, createModelQualification } from '../../src/model/qualification.ts'
@@ -98,6 +99,60 @@ const ALL_ACTIONS = [
   'observe',
   'send',
 ] as const satisfies readonly CommandAction[]
+
+it('lets the start scan the entry captured read recovery records of its tenant, and nothing else', async () => {
+  const s = scene()
+  const hostActor = okOf(
+    s.authority.issuer.issueSystem({ component: MODEL_HOST_COMPONENT }),
+    'actor',
+  )
+  const issue = (tenant = TENANT) =>
+    okOf(
+      s.authority.issuer.issueActingForTenant({
+        actor: hostActor,
+        tenant,
+        work: { owner: MODEL_SCAN_OWNER, work: 'start-scan' },
+      }),
+      'scan principal',
+    )
+  const scan = issue()
+  const actor = { owner: MODEL_HOST_COMPONENT, subject: MODEL_SCAN_OWNER, revision: '1' }
+  expect(s.authorize('recovery', scan)).toMatchObject({ failure: { kind: 'unavailable' } })
+  const unqualified = await s.qualification.qualify({ principal: scan, tenant: TENANT }, s.alive)
+  expect(s.authorize('recovery', scan)).toEqual({ failure: { kind: 'denied', action: 'recovery' } })
+  unqualified()
+  const withdraw = s.qualification.captureScan({
+    principal: scan,
+    tenant: TENANT,
+    actor,
+    current: s.alive,
+  })
+  expect(s.authorize('recovery', scan)).toEqual({ ok: actor })
+  expect(s.authorize('recovery', scan, okOf(decodeModelCallId('mcall_another'), 'call'))).toEqual({
+    ok: actor,
+  })
+  expect(
+    s.qualification.authority.authorize({
+      action: 'recovery',
+      access: { principal: scan, tenant: TENANT },
+      resource: { kind: 'tenant' },
+    }),
+  ).toEqual({ ok: actor })
+  for (const action of ALL_ACTIONS.filter(action => action !== 'recovery'))
+    expect(s.authorize(action, scan), action).toEqual({ failure: { kind: 'denied', action } })
+  const elsewhere = issue(fixtureTenant('b'))
+  s.qualification.captureScan({
+    principal: elsewhere,
+    tenant: fixtureTenant('b'),
+    actor,
+    current: s.alive,
+  })
+  expect(s.authorize('recovery', elsewhere)).toEqual({
+    failure: { kind: 'denied', action: 'recovery' },
+  })
+  withdraw()
+  expect(s.authorize('recovery', scan)).toMatchObject({ failure: { kind: 'unavailable' } })
+})
 
 it('qualifies the independently issued summary worker without granting Model host authority', async () => {
   const s = scene()

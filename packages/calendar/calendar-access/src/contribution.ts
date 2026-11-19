@@ -1,13 +1,17 @@
 import type { AccessContribution, BodyOf } from '@omne-harness/access-cordis-contract'
 import {
+  calendarIdSchema,
   calendarQuerySchema,
+  calendarVersionIdSchema,
   type CalendarDomainError,
+  type CalendarHealth,
   type CalendarInfo,
   type CalendarQuestion,
   type CalendarResolution,
 } from '@omne-harness/calendar-contract'
 import type { CalendarProtocol } from '@omne-harness/calendar-protocol'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { parseInstant, type Instant } from '@omne-harness/utc-instant'
 import type { CalendarFaces, CalendarPrincipals } from './ports.ts'
 
 export type CalendarContributionInput = Readonly<{
@@ -108,6 +112,47 @@ function calendarOf(info: CalendarInfo) {
   }
 }
 
+function instantOf(text: string): Instant {
+  const parsed = parseInstant(text)
+  if (!parsed.ok) throw new TypeError('calendar-access: the domain kept an invalid instant')
+  return parsed.value
+}
+/** Null: nothing named, the effective calendar answers. Undefined: a version without its calendar, or bad text. */
+function namedBasis(body: Readonly<{ calendar?: string; version?: string }>) {
+  if (body.calendar === undefined) return body.version === undefined ? null : undefined
+  const calendarId = calendarIdSchema.safeParse(body.calendar)
+  const versionId = calendarVersionIdSchema.safeParse(body.version)
+  if (!calendarId.success || (body.version !== undefined && !versionId.success)) return undefined
+  return {
+    selection: { kind: 'explicit', calendarId: calendarId.data },
+    version: versionId.success
+      ? ({ kind: 'pinned', versionId: versionId.data } as const)
+      : ({ kind: 'latest' } as const),
+  } as const
+}
+function healthOf(item: CalendarHealth) {
+  const left = item.remainingCoverageDays
+  return {
+    calendar: String(item.calendarId),
+    queryAvailability: item.queryAvailability,
+    supply: item.supply,
+    horizon: item.horizon,
+    coverageStart: item.coverageStart,
+    coverageEnd: item.coverageEnd,
+    knowledgeAsOf: item.knowledgeAsOf === null ? null : instantOf(item.knowledgeAsOf),
+    remainingCoverageDays: left === null ? null : Math.max(0, left),
+    consecutiveFailures: item.consecutiveFailures,
+    lastSuccess: item.lastSuccess === null ? null : instantOf(item.lastSuccess),
+    pendingRuns: item.pendingRuns,
+    sources: item.sources.map(({ sourceId, observation, consecutiveFailures }) => ({
+      source: String(sourceId),
+      observation: observation.kind,
+      reason: observation.reason,
+      consecutiveFailures,
+    })),
+    reasons: [...item.reasons],
+  }
+}
 function resultOf({ result }: CalendarResolution) {
   switch (result.kind) {
     case 'day': {
@@ -169,6 +214,19 @@ export function createCalendarContribution(
     return { outcome: 'succeeded', body: { calendars: listed.value.items.map(calendarOf) } }
   }
 
+  const readSupplyHealth: Handlers['read-supply-health'] = async (call, body) => {
+    const ready = await prepare(call.principal, body.tenant)
+    if (ready.outcome !== null) return ready
+    const health = await read(async () => {
+      const answered = await ready.faces.queries.health(ready.context)
+      return answered.kind === 'ok'
+        ? { kind: 'ok' as const, calendars: answered.value.map(healthOf) }
+        : answered
+    })
+    if (health === undefined) return UNAVAILABLE
+    if (health.kind === 'error') return fixedRefusal(health.error)
+    return { outcome: 'succeeded', body: { calendars: health.calendars } }
+  }
   const readEnvironment: Handlers['read-environment'] = async (call, body) => {
     const ready = await prepare(call.principal, body.tenant)
     if (ready.outcome !== null) return ready
@@ -192,7 +250,13 @@ export function createCalendarContribution(
     if (ready.outcome !== null) return ready
     const question = questionOf(body.question)
     if (question === undefined) return { outcome: 'invalid', body: { reason: 'input' } } as const
-    const answered = await read(() => ready.faces.calculator.answer(ready.context, question))
+    const named = namedBasis(body)
+    if (named === undefined) return { outcome: 'invalid', body: { reason: 'input' } } as const
+    const answered = await read(() =>
+      named === null
+        ? ready.faces.calculator.answer(ready.context, question)
+        : ready.faces.queries.resolve(ready.context, { ...named, query: question }),
+    )
     if (answered === undefined) return UNAVAILABLE
     if (answered.kind === 'error') return answerRefusal(answered.error)
     const { calendarId, versionId, coverageStart, coverageEnd } = answered.value
@@ -212,6 +276,7 @@ export function createCalendarContribution(
     operations: {
       'list-calendars': listCalendars,
       'read-environment': readEnvironment,
+      'read-supply-health': readSupplyHealth,
       answer,
     },
     observations: {},

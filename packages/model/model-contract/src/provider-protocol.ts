@@ -24,6 +24,8 @@ import type {
   ToolDeclaration,
 } from './root.ts'
 import type {
+  AbandonInput,
+  AbandonReceipt,
   AckInput,
   AckReceipt,
   Admission,
@@ -40,6 +42,7 @@ import type {
   Termination,
 } from './result.ts'
 import type {
+  ConnectRetryReason,
   DispatchRecord,
   GrowingContentKind,
   LiveRoute,
@@ -109,6 +112,8 @@ export type TransportFact =
   | Readonly<{ kind: 'trim'; index: string; removed: string; reason: string }>
   | Readonly<{ kind: 'account'; event: string; value: CallAccountReport }>
   | Readonly<{ kind: 'diagnostic'; value: ProviderDiagnostic }>
+  | Readonly<{ kind: 'response'; request: string | null }>
+  | Readonly<{ kind: 'connect-retry'; reason: ConnectRetryReason }>
   | Readonly<{ kind: 'ended'; termination: TransportTermination }>
 export type IndependentModelFact =
   | TransportFact
@@ -192,12 +197,20 @@ export type RecoveryRecord = Readonly<{
   retry: RetryDecision | null
   retryPosition: RetryPosition | null
   retrySource?: DurableEvidence | null
+  /** The ending the store holds the latest dispatch to; a settlement carries it. Null before one. */
+  logicalTerminal: Termination | null
   unresolved: readonly ModelOperationId[]
   tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[]
 }>
 export type LateDispatchFact =
   | Readonly<{ kind: 'account'; event: string; value: CallAccountReport }>
   | Readonly<{ kind: 'terminal'; event: string; actual: Termination }>
+  | Readonly<{ kind: 'cost-miss'; event: string; final: boolean }>
+export type CostLookupAnswer =
+  | Readonly<{ kind: 'found'; cost: CallAccountReport['cost']; place: string }>
+  | Readonly<{ kind: 'missed' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  | Readonly<{ kind: 'unsupported' }>
 export interface ModelCommands<P> {
   admit(input: Admit<P>): Reply<Admission>
   recall(input: CallAccess<P> & Readonly<{ admission: ModelOperationId }>): Reply<Lookup>
@@ -228,7 +241,13 @@ export interface ModelCommands<P> {
   ): Reply<Revision>
   preserve(
     input: WriteContext &
-      Readonly<{ dispatch: DispatchId; window: string; facts: readonly TransportFact[] }>,
+      Readonly<{
+        dispatch: DispatchId
+        window: string
+        facts: readonly TransportFact[]
+        /** When each fact reached Model, aligned with `facts`; null where the clock could not be read. */
+        arrivals?: readonly (string | null)[]
+      }>,
   ): Reply<Snapshot>
   recordLateFact(
     input: Access<P> &
@@ -251,6 +270,16 @@ export interface ModelCommands<P> {
   nextRead(input: CallAccess<P> & Readonly<{ read: ReadId; after: string }>): Reply<ReadState>
   endRead(input: CallAccess<P> & Readonly<{ read: ReadId }>): Reply<ReadState>
   handoff(input: AckInput<P>): Reply<AckReceipt>
+  abandon(input: AbandonInput<P>): Reply<AbandonReceipt>
+  confirmAccount(
+    input: CallAccess<P> &
+      Readonly<{
+        operation: ModelOperationId
+        dispatch: DispatchId
+        revision: string
+        receipt: DurableEvidence
+      }>,
+  ): Reply<Revision>
   advanceCleanup(
     input: ExecutionRef & Readonly<{ operation: ModelOperationId }>,
   ): Reply<CustodyState>
@@ -274,6 +303,10 @@ export type SendResult =
   | Readonly<{ kind: 'unknown'; dispatch: DispatchId; diagnostic: string }>
 export interface ModelSendBoundary<P> {
   send(input: SendDemand<P>, signal: AbortSignal): Promise<SendResult>
+  lookupCost?(
+    input: CallAccess<P> & Readonly<{ dispatch: DispatchId }>,
+    signal: AbortSignal,
+  ): Promise<CostLookupAnswer>
 }
 export interface ModelRetryPolicy<P> {
   decide(

@@ -83,7 +83,7 @@ export function harness(patch: Partial<SchedulePredictionDependencies> = {}) {
         return { kind: 'completed', value: enumerateScheduleRecurrence(request) }
       },
     },
-    calendar: { list: unused, get: unused, effective: unused, resolve: unused },
+    calendar: { list: unused, get: unused, effective: unused, resolve: unused, health: unused },
     environment: { observe: unused },
     basisGuards: { prepare: unused },
     monotonicClock: { now: () => 0 },
@@ -143,6 +143,7 @@ export function calendarFixture(
   const queries: CalendarQueries = {
     list: unused,
     effective: unused,
+    health: unused,
     async get(_context, request) {
       gets.push(request)
       return calendarGetResultSchema.parse({

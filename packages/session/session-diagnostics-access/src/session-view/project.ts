@@ -1,6 +1,8 @@
 import type { FinishIntent } from '@omne-harness/agent-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
+  DispatchInstants,
+  DispatchProgress,
   DispatchRecord,
   Lookup,
   ModelAttemptDiagnostic,
@@ -346,6 +348,34 @@ const millisecondsOf = (
     ? { kind: 'known', milliseconds: duration.milliseconds }
     : { kind: 'unknown' }
 
+type SessionInstants = NonNullable<SessionModelAttemptDiagnostic['instants']>
+
+const instantOf = (instant: string | null): SessionInstants['sent'] =>
+  instant === null ? { kind: 'unknown' } : { kind: 'known', instant }
+
+function instantsOf(instants: DispatchInstants): SessionInstants {
+  return {
+    prepared: instantOf(instants.prepared),
+    sent: instantOf(instants.sent),
+    responseStarted: instantOf(instants.responseStarted),
+    firstContent: instantOf(instants.firstContent),
+    ended: instantOf(instants.ended),
+  }
+}
+
+type SessionProgress = NonNullable<
+  Extract<SessionModelCallDiagnostic['call'], { kind: 'found' }>['progress']
+>
+
+const progressOf = (progress: DispatchProgress): SessionProgress => ({
+  allowed: String(progress.allowed),
+  made: String(progress.made),
+  last:
+    progress.last === null
+      ? null
+      : { cause: progress.last.cause, upstreamStatus: progress.last.upstreamStatus },
+})
+
 type DispatchAccounts = (dispatch: string) => SessionModelAttemptDiagnostic['account']
 
 function dispatchAccountsOf(
@@ -408,11 +438,14 @@ function attemptOf(
       outcome.kind === 'failed'
         ? { kind: 'failed', cause: outcome.cause, upstreamStatus: outcome.upstreamStatus }
         : outcome,
+    instants: instantsOf(attempt.instants),
     timing: {
       materialize: millisecondsOf(attempt.timing.materialize),
+      sendToResponse: millisecondsOf(attempt.timing.sendToResponse),
       sendToFirstContent: millisecondsOf(attempt.timing.sendToFirstContent),
       execution: millisecondsOf(attempt.timing.execution),
     },
+    connectRetries: [...attempt.connectRetries],
     account: accounts(attempt.dispatch),
     reasoning: reasoning(attempt.dispatch),
   }
@@ -469,7 +502,12 @@ function modelCallOf(
   return {
     value: {
       ...base,
-      call: { kind: 'found', call: state.call, phase: state.phase },
+      call: {
+        kind: 'found',
+        call: state.call,
+        phase: state.phase,
+        ...(state.attempts === undefined ? {} : { progress: progressOf(state.attempts) }),
+      },
       ...attempts.value,
     },
     gaps: attempts.gaps,

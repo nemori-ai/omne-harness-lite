@@ -97,6 +97,7 @@ export function sendStagePluginOver<P>(
     static readonly Config = modelSendStageConfigSchema
 
     readonly send: ModelSendBoundary<P>['send']
+    readonly lookupCost: NonNullable<ModelSendBoundary<P>['lookupCost']>
 
     constructor(ctx: Context, settings: ModelSendStageSettings) {
       super(ctx)
@@ -139,6 +140,8 @@ export function sendStagePluginOver<P>(
         throw error
       }
       this.send = (demand, signal) => local.send.send(demand, signal)
+      this.lookupCost = (input, signal) =>
+        local.send.lookupCost?.(input, signal) ?? Promise.resolve({ kind: 'unsupported' })
       ctx.fiber.effect(() => async () => {
         credentials.withdraw()
         withdrawEvidence(ctx, withdrawals)

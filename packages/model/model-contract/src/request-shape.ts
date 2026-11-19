@@ -393,9 +393,11 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
       'source',
     ],
     field,
-    ['replay'],
+    ['replay', 'contextWindow'],
   )
   if ('failure' in record) return record
+  const window = contextWindowOf(record.ok, field)
+  if ('failure' in window) return window
   const routing = requestRouting(record.ok, field)
   if ('failure' in routing) return routing
   const content = requestContent(record.ok, field)
@@ -404,7 +406,22 @@ export function requestShape(value: unknown, field: string): Checked<FixedModelR
   if ('failure' in provenance) return provenance
   const replay = requestReplay(record.ok, field, routing.ok.suppliers)
   if ('failure' in replay) return replay
-  return succeed({ ...routing.ok, ...content.ok, ...replay.ok, ...provenance.ok })
+  return succeed({ ...routing.ok, ...window.ok, ...content.ok, ...replay.ok, ...provenance.ok })
+}
+function contextWindowOf(
+  input: Record<string, unknown>,
+  field: string,
+): Checked<Pick<FixedModelRequest, 'contextWindow'>> {
+  if (!Object.hasOwn(input, 'contextWindow')) return succeed({})
+  const at = `${field}/contextWindow`
+  const record = closed(input.contextWindow, ['tokens', 'compactionTriggerPercent'], at)
+  if ('failure' in record) return record
+  const tokens = integer(record.ok.tokens, `${at}/tokens`, true)
+  if ('failure' in tokens) return tokens
+  const percent = record.ok.compactionTriggerPercent
+  if (typeof percent !== 'string' || !/^(?:[1-9][0-9]?|100)$/u.test(percent))
+    return rejected(`${at}/compactionTriggerPercent`, 'value')
+  return succeed({ contextWindow: { tokens: tokens.ok, compactionTriggerPercent: percent } })
 }
 export function consumerShape(value: unknown): Checked<ConsumerRef> {
   const record = closed(value, ['owner', 'work', 'position', 'purpose'], '/consumer')

@@ -9,6 +9,7 @@ const count = { kind: 'count' } as const
 const positive = { kind: 'positive-integer' } as const
 const boolean = { kind: 'boolean' } as const
 const nothing = { kind: 'null' } as const
+const instant = { kind: 'instant' } as const
 
 const object = <const F extends Fields>(fields: F) => ({ kind: 'object', fields }) as const
 const literal = <const V extends readonly string[]>(...values: V) =>
@@ -83,6 +84,31 @@ const answer = object({
   result: { rule: result },
 })
 
+/** A source's latest observation; a failed one says why, in the source adapter's words. */
+const sourceStanding = object({
+  source: { rule: text },
+  observation: { rule: literal('changed', 'unchanged', 'failed') },
+  reason: { rule: nullable(text) },
+  consecutiveFailures: { rule: count },
+})
+
+/** One calendar's supply, as the domain's health reports it. Days left count to the end of coverage; past it, zero. */
+const health = object({
+  calendar: { rule: text },
+  queryAvailability: { rule: literal('available', 'missing', 'unavailable') },
+  supply: { rule: literal('ok', 'failed', 'pending', 'unknown') },
+  horizon: { rule: literal('ok', 'warning', 'critical', 'unknown') },
+  coverageStart: { rule: nullable(date) },
+  coverageEnd: { rule: nullable(date) },
+  knowledgeAsOf: { rule: nullable(instant) },
+  remainingCoverageDays: { rule: nullable(count) },
+  consecutiveFailures: { rule: count },
+  lastSuccess: { rule: nullable(instant) },
+  pendingRuns: { rule: count },
+  sources: { rule: array(sourceStanding) },
+  reasons: { rule: array(text) },
+})
+
 const read = { identity: 'login', effect: 'read', limit: 'small', countsAsAccess: true } as const
 
 export const calendarProtocol = defineProtocol({
@@ -102,9 +128,22 @@ export const calendarProtocol = defineProtocol({
         unsupported: ruleCodec(object({ reason: { rule: literal('environment') } })),
       },
     },
+    'read-supply-health': {
+      ...read,
+      body: ruleCodec(ofTenant),
+      outcomes: { succeeded: ruleCodec(object({ calendars: { rule: array(health) } })) },
+    },
     answer: {
       ...read,
-      body: ruleCodec(object({ tenant: { rule: tenant }, question: { rule: question } })),
+      // Neither named: the tenant's effective calendar at its current version. A version names one of a calendar's.
+      body: ruleCodec(
+        object({
+          tenant: { rule: tenant },
+          question: { rule: question },
+          calendar: { rule: text, optional: true },
+          version: { rule: text, optional: true },
+        }),
+      ),
       outcomes: {
         succeeded: ruleCodec(answer),
         invalid: ruleCodec(object({ reason: { rule: literal('input', 'timezone') } })),
