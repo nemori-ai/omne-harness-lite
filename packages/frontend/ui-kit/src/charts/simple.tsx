@@ -4,6 +4,22 @@ import { ChartFrame, markClass, Unknown, type ChartFormat } from './frame.tsx'
 
 export type SharePart = Readonly<{ key: string; label: string; value: number | null }>
 
+type Segment = SharePart & Readonly<{ value: number; index: number; x: number; width: number }>
+
+function segmentsOf(parts: readonly SharePart[]): readonly Segment[] {
+  const counted = parts.flatMap((part, index) =>
+    typeof part.value === 'number' && part.value > 0 ? [{ ...part, value: part.value, index }] : [],
+  )
+  const total = counted.reduce((sum, part) => sum + part.value, 0)
+  let x = 0
+  return counted.map(part => {
+    const width = (part.value / total) * 100
+    const segment = { ...part, x, width }
+    x += width
+    return segment
+  })
+}
+
 export function ShareBar({
   label,
   parts,
@@ -13,16 +29,14 @@ export function ShareBar({
   readonly parts: readonly SharePart[]
   readonly format?: ChartFormat
 }): React.JSX.Element {
-  const counted = parts.filter((part): part is SharePart & { value: number } => {
-    return typeof part.value === 'number' && part.value > 0
-  })
-  const total = counted.reduce((sum, part) => sum + part.value, 0)
+  const segments = segmentsOf(parts)
+  const total = segments.reduce((sum, segment) => sum + segment.value, 0)
   const unknown = parts.filter(part => part.value === null).length
-  let at = 0
+  const share = (value: number) => formatPercent(value / total)
   return (
     <ChartFrame
       label={label}
-      state={total > 0 ? 'drawn' : parts.length === 0 || unknown === 0 ? 'empty' : 'unknown'}
+      state={total > 0 ? 'drawn' : unknown === 0 ? 'empty' : 'unknown'}
       className="omne-share"
       table={
         <table>
@@ -31,13 +45,7 @@ export function ShareBar({
               <tr key={part.key}>
                 <th scope="row">{part.label}</th>
                 <td>{part.value === null ? <Unknown /> : format(part.value)}</td>
-                <td>
-                  {part.value === null || total === 0 ? (
-                    <Unknown />
-                  ) : (
-                    formatPercent(part.value / total)
-                  )}
-                </td>
+                <td>{part.value === null || total === 0 ? <Unknown /> : share(part.value)}</td>
               </tr>
             ))}
           </tbody>
@@ -45,35 +53,29 @@ export function ShareBar({
       }
     >
       <svg className="omne-share-bar" viewBox="0 0 100 8" preserveAspectRatio="none" role="list">
-        {counted.map(part => {
-          const width = (part.value / total) * 100
-          const x = at
-          at += width
-          const index = parts.indexOf(part)
-          return (
-            <rect
-              key={part.key}
-              role="listitem"
-              tabIndex={0}
-              aria-label={`${part.label} ${format(part.value)}（${formatPercent(part.value / total)}）`}
-              className={markClass(index)}
-              fill="currentColor"
-              x={x}
-              y={0}
-              width={width}
-              height={8}
-            />
-          )
-        })}
+        {segments.map(segment => (
+          <rect
+            key={segment.key}
+            role="listitem"
+            tabIndex={0}
+            aria-label={`${segment.label} ${format(segment.value)}（${share(segment.value)}）`}
+            className={markClass(segment.index)}
+            fill="currentColor"
+            x={segment.x}
+            y={0}
+            width={segment.width}
+            height={8}
+          />
+        ))}
       </svg>
       <ul className="omne-share-legend">
-        {counted.map(part => (
-          <li key={part.key}>
+        {segments.map(segment => (
+          <li key={segment.key}>
             <span
-              className={cn('omne-chart-swatch', markClass(parts.indexOf(part)))}
+              className={cn('omne-chart-swatch', markClass(segment.index))}
               aria-hidden="true"
             />
-            {part.label}
+            {segment.label}
           </li>
         ))}
         {unknown > 0 && <li className="omne-share-unknown">未知 {unknown} 项</li>}
