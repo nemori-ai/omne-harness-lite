@@ -45,6 +45,11 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['runtimeContextTenantBlocks', 'runtimeContextTenantScope'],
     injects: ['runtimeContext'],
   },
+  'calendar-notification': {
+    provides: [],
+    injects: [],
+    phase: 'composition',
+  },
   'session-intake-budget': {
     provides: [],
     injects: ['runtimeContextTenantBlocks', 'tenantIndependentSettings'],
@@ -87,7 +92,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'composition',
   },
   calendar: {
-    provides: ['calendarQuery', 'calendarCalculator'],
+    provides: ['calendarQuery', 'calendarCalculator', 'calendarSupply'],
     injects: ['storage', 'tenantStanding', 'tenantIndependentSettings'],
     phase: 'composition',
   },
@@ -301,7 +306,13 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'modelStreamReferences',
       'modelStreamObservation',
     ],
-    injects: ['modelCommands', 'modelClock', 'modelHostAuthority'],
+    injects: [
+      'modelCommands',
+      'modelClock',
+      'modelHostAuthority',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+    ],
     phase: 'business',
   },
   'model-instances': { provides: ['modelInstances'], injects: ['modelPublicationAuthority'] },
@@ -316,7 +327,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'secret-custody': { provides: ['settingsSecretCustody'] },
   settings: { provides: ['settingsSecretItems'], injects: ['settingsSecretCustody'] },
   'model-records': {
-    provides: ['modelCommands', 'modelSendBoundary', 'modelDiagnostics'],
+    provides: ['modelCommands', 'modelSendBoundary', 'modelDiagnostics', 'modelDispatchFacts'],
     injects: ['storage', 'tenantDomainLookup', 'modelClock', 'principalVerifier', 'tenantStanding'],
     group: 'model-records',
   },

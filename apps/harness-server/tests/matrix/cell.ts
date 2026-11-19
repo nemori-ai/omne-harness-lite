@@ -154,11 +154,11 @@ export function eachInputTakenOnce(tools: CellTools, log: SessionLog | null): vo
   )
 }
 
-export function interruptedCallNotResent(tools: CellTools, before: number): void {
+export function interruptedCallNotSentAgain(tools: CellTools, before: number): void {
   const later = tools.stub.arrivals().slice(before)
   tools.check(
-    'o6 the interrupted call was not sent twice: one new call after the restart',
-    later.length === 1 && later[0]?.step === 'unscripted',
+    'o6 the interrupted call was not sent again: no request after the restart',
+    later.length === 0,
     `${String(before)} before, [${later.map(arrival => arrival.step).join(',')}] after`,
   )
 }

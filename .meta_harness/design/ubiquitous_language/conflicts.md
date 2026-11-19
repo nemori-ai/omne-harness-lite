@@ -571,6 +571,10 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 
 同名不同义，两处都是本系统自己的设计。会话的包组规格用「通知」「通知者」指提交之后的唤醒；人工介入的包组规格用「原等待的收件箱」指决定交到原等待的交接位置。它们不是[通知](terms/interaction-and-dispatch.md#ul-notification--通知--notification)与[收件箱](terms/interaction-and-dispatch.md#ul-notification-inbox--收件箱--notification-inbox)。处置：这两个词裸用时指通知领域的对象；会话与人工介入的规格各自改用「叫醒」与别的名字，由它们的维护者在下一次修订时改，改完本项闭合。改名会牵到源码里的名字，不在通知的落盘里做。
 
+2026-11-19 闭合：会话规格与引用它的架构、领域正文把提交之后的唤醒改称「提交叫醒」「叫醒者」「叫醒总线」；人工介入规格把「原等待的收件箱」改称「原等待的答复箱」。源码里的名字（如 `notifier`、`inbox`）没有改，它们不进正文，不影响这两个词裸用时指通知领域的对象。
+
+- **状态**：已闭合。
+
 ### C-89：入站到达与输入受理的范围
 
 定义打架，本系统自己的两处。[UL-inbound-arrival](terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) 的定义出自封存的 PF-014，把卡片答复与控制指令也算作被受理的到达。会话的[产品正文](../product/sessions-and-work/design.md#提交输入后知道系统是否已经接下工作)与[包组规格](../../../packages/session/SPEC.md#受理与输入)把输入受理只留给会成为会话消息的到达：卡片答复回等待的拥有者，控制指令是对一个操作的请求，都不取得待处理资格。产品负责人 2026-11-17 裁定取后一种，并定输入受理的英文名为 Intake。词条上已加注意；它的定义与出处、[UL-control-command](terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) 与 [UL-queue-jump](terms/interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump) 的父词条还没有照此改写。闭合条件：这三条词条的定义改写并把出处指到现行的会话产品正文。

@@ -11,7 +11,6 @@ import {
 } from '../../../src/local/operator-defaults.ts'
 import { captureShellEnvironment } from '../../../src/local/settings.ts'
 import {
-  bodyOf,
   distributionPath,
   freePort,
   killTree,
@@ -30,10 +29,14 @@ import {
 import { readFileSync } from 'node:fs'
 import {
   answer504,
+  createSession,
   diagnosticsBodyOf,
   modelCallsOf,
+  registerAndLogin,
+  sendInput,
   startScenarioGateway,
   structuredCauseOf,
+  until,
   untilRunEnded,
   type Cli,
   type ScenarioGateway,
@@ -64,33 +67,6 @@ const PROJECTED_KINDS = [
 ]
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
-async function until(ready: () => boolean, what: string, ms: number): Promise<void> {
-  const deadline = Date.now() + ms
-  while (!ready()) {
-    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`)
-    await sleep(50)
-  }
-}
-
-async function registerAndLogin(cli: Cli, who: string, credential: string): Promise<void> {
-  for (const step of [
-    await cli(['register', '--login-identifier', who], credential),
-    await cli(['login', '--login-identifier', who], credential),
-  ])
-    expect(step.status, step.stderr).toBe(0)
-}
-
-async function createSession(cli: Cli): Promise<string> {
-  const created = await cli(['create-session', '--definition', 'assistant'])
-  expect(created.status, created.stderr).toBe(0)
-  return String(bodyOf(created)['session'])
-}
-
-async function sendInput(cli: Cli, session: string, text: string): Promise<void> {
-  const sent = await cli(['send-input', '--session', session, '--text', text])
-  expect(sent.status, sent.stderr).toBe(0)
-}
 
 describe('session diagnostics over real processes: the two smoke failures', () => {
   let scratch: Scratch

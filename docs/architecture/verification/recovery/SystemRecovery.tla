@@ -3,7 +3,7 @@ EXTENDS Naturals, FiniteSets
 
 CONSTANTS StepCap, MaxCrashes, MaxInputs, MaxRuns, MaxModelCalls, MaxToolCalls, CrashKinds,
           AskOnTakeover, NoticeCalleeGone, FailureCompletes, DropTakenOnFail,
-          CapInMemory, RerunStarted
+          CapInMemory, RerunStarted, LostBeforeScan
 
 ASSUME CrashKinds \subseteq {"all", "agent", "session", "model", "tool"}
 
@@ -17,19 +17,24 @@ VARIABLES
   runStatus, runCount, mcall, tcall, next, issued, lastMain, inputs, nudge,
   started, effects,
   crashes,
-  agentLive, waitM, waitT, modelLive, modelHeld, toolLive, toolHeld, toolRan, memIssued
+  agentLive, waitM, waitT, modelLive, modelHeld, modelDue, toolLive, toolHeld, toolRan, memIssued
 
 sessionLog == <<runStatus, runCount, mcall, tcall, next, issued, lastMain, inputs, nudge>>
 world == <<started, effects>>
 callerLive == <<agentLive, waitM, waitT, memIssued>>
-modelRuntime == <<modelLive, modelHeld>>
+modelRuntime == <<modelLive, modelHeld, modelDue>>
 toolRuntime == <<toolLive, toolHeld, toolRan>>
 vars == <<sessionLog, world, crashes, callerLive, modelRuntime, toolRuntime>>
 
 OpenM == {c \in MIds : mcall[c] = "open"}
 OpenT == {t \in TIds : tcall[t] = "open"}
 NoOpenCall == OpenM = {} /\ OpenT = {}
-HoldsM(c) == c \in modelLive \/ modelHeld[c] # "none"
+(* Model keeps its calls and results in its store: after a crash a call that was running waits
+   for the scan of the next start (modelDue), and a settled result is still held. *)
+HoldsM(c) == c \in modelLive \/ modelHeld[c] # "none" \/ c \in modelDue
+(* That one question, asked of Model: a call nobody holds is lost. Before the scan of the start
+   reached a call Model cannot say; with the negative control it answers lost all the same. *)
+AnswersLostM(c) == ~HoldsM(c) \/ (LostBeforeScan /\ c \in modelDue)
 HoldsT(t) == t \in toolLive \/ t \in toolHeld
 
 TypeOK ==
@@ -49,6 +54,7 @@ TypeOK ==
   /\ waitM \subseteq MIds /\ waitT \subseteq TIds
   /\ modelLive \subseteq MIds
   /\ modelHeld \in [MIds -> {"none"} \cup ModelOutcomes]
+  /\ modelDue \subseteq MIds
   /\ toolLive \subseteq TIds /\ toolHeld \subseteq TIds /\ toolRan \subseteq TIds
   /\ memIssued \in 0..MaxModelCalls
 
@@ -60,7 +66,7 @@ Init ==
   /\ started = {} /\ effects = [t \in TIds |-> 0]
   /\ crashes = 0
   /\ agentLive = FALSE /\ waitM = {} /\ waitT = {} /\ memIssued = 0
-  /\ modelLive = {} /\ modelHeld = [c \in MIds |-> "none"]
+  /\ modelLive = {} /\ modelHeld = [c \in MIds |-> "none"] /\ modelDue = {}
   /\ toolLive = {} /\ toolHeld = {} /\ toolRan = {}
 
 (* The caller counts the main model requests of a Run in its log. A Run issues at most
@@ -104,7 +110,7 @@ OpenRun ==
   /\ nudge' = FALSE
   /\ started' = {} /\ effects' = [t \in TIds |-> 0]
   /\ agentLive' = TRUE /\ waitM' = {} /\ waitT' = {} /\ memIssued' = 0
-  /\ modelLive' = {} /\ modelHeld' = [c \in MIds |-> "none"]
+  /\ modelLive' = {} /\ modelHeld' = [c \in MIds |-> "none"] /\ modelDue' = {}
   /\ toolLive' = {} /\ toolHeld' = {} /\ toolRan' = {}
   /\ UNCHANGED crashes
 
@@ -128,7 +134,7 @@ TakeoverModelStillHeld(c) ==
 
 TakeoverModelLost(c) ==
   /\ AskOnTakeover
-  /\ runStatus = "open" /\ ~agentLive /\ c \in OpenM /\ ~HoldsM(c)
+  /\ runStatus = "open" /\ ~agentLive /\ c \in OpenM /\ AnswersLostM(c)
   /\ agentLive' = TRUE /\ waitM' = {} /\ waitT' = {} /\ memIssued' = 0
   /\ mcall' = [mcall EXCEPT ![c] = "lost"]
   /\ lastMain' = "fail" /\ next' = "model"
@@ -166,7 +172,7 @@ Takeover ==
 
 ModelGone(c) ==
   /\ NoticeCalleeGone
-  /\ agentLive /\ c \in waitM /\ mcall[c] = "open" /\ ~HoldsM(c)
+  /\ agentLive /\ c \in waitM /\ mcall[c] = "open" /\ AnswersLostM(c)
   /\ waitM' = {}
   /\ mcall' = [mcall EXCEPT ![c] = "lost"]
   /\ lastMain' = "fail" /\ next' = "model"
@@ -203,7 +209,7 @@ IssueModel(c) ==
   /\ inputs' = [i \in Inputs |-> IF inputs[i] = "pending" THEN "taken" ELSE inputs[i]]
   /\ modelLive' = modelLive \cup {c} /\ waitM' = {c}
   /\ UNCHANGED <<runStatus, runCount, tcall, lastMain, nudge>>
-  /\ UNCHANGED <<world, crashes, agentLive, waitT, modelHeld, toolRuntime>>
+  /\ UNCHANGED <<world, crashes, agentLive, waitT, modelHeld, modelDue, toolRuntime>>
 
 (* The step cap is reached: the Run fails. *)
 StepLimit ==
@@ -218,7 +224,7 @@ ModelFinish(c, outcome) ==
   /\ outcome = "toolreq" => \E t \in TIds : tcall[t] = "absent"
   /\ modelLive' = modelLive \ {c}
   /\ modelHeld' = [modelHeld EXCEPT ![c] = outcome]
-  /\ UNCHANGED <<sessionLog, world, crashes, callerLive, toolRuntime>>
+  /\ UNCHANGED <<sessionLog, world, crashes, callerLive, modelDue, toolRuntime>>
 
 AnswerTaken == [i \in Inputs |-> IF inputs[i] = "taken" THEN "answered" ELSE inputs[i]]
 
@@ -229,7 +235,7 @@ CollectModelOk(c) ==
   /\ inputs' = AnswerTaken
   /\ modelHeld' = [modelHeld EXCEPT ![c] = "none"] /\ waitM' = {}
   /\ UNCHANGED <<runStatus, runCount, tcall, issued, nudge>>
-  /\ UNCHANGED <<world, crashes, agentLive, waitT, memIssued, modelLive, toolRuntime>>
+  /\ UNCHANGED <<world, crashes, agentLive, waitT, memIssued, modelLive, modelDue, toolRuntime>>
 
 CollectModelToolRequest(c) ==
   /\ agentLive /\ c \in waitM /\ mcall[c] = "open" /\ modelHeld[c] = "toolreq"
@@ -238,7 +244,7 @@ CollectModelToolRequest(c) ==
   /\ inputs' = AnswerTaken
   /\ modelHeld' = [modelHeld EXCEPT ![c] = "none"] /\ waitM' = {}
   /\ UNCHANGED <<runStatus, runCount, tcall, issued, nudge>>
-  /\ UNCHANGED <<world, crashes, agentLive, waitT, memIssued, modelLive, toolRuntime>>
+  /\ UNCHANGED <<world, crashes, agentLive, waitT, memIssued, modelLive, modelDue, toolRuntime>>
 
 CollectModelTransient(c) ==
   /\ agentLive /\ c \in waitM /\ mcall[c] = "open" /\ modelHeld[c] = "temp"
@@ -246,7 +252,7 @@ CollectModelTransient(c) ==
   /\ modelHeld' = [modelHeld EXCEPT ![c] = "none"] /\ waitM' = {}
   /\ lastMain' = "fail" /\ next' = IF FailureCompletes THEN "finish" ELSE "fail"
   /\ UNCHANGED <<runStatus, runCount, tcall, issued, inputs, nudge>>
-  /\ UNCHANGED <<world, crashes, agentLive, waitT, memIssued, modelLive, toolRuntime>>
+  /\ UNCHANGED <<world, crashes, agentLive, waitT, memIssued, modelLive, modelDue, toolRuntime>>
 
 CollectModelPermanent(c) ==
   /\ agentLive /\ c \in waitM /\ mcall[c] = "open" /\ modelHeld[c] = "perm"
@@ -254,7 +260,7 @@ CollectModelPermanent(c) ==
   /\ lastMain' = "fail" /\ next' = "fail"
   /\ modelHeld' = [modelHeld EXCEPT ![c] = "none"] /\ waitM' = {}
   /\ UNCHANGED <<runStatus, runCount, tcall, issued, inputs, nudge>>
-  /\ UNCHANGED <<world, crashes, agentLive, waitT, memIssued, modelLive, toolRuntime>>
+  /\ UNCHANGED <<world, crashes, agentLive, waitT, memIssued, modelLive, modelDue, toolRuntime>>
 
 CollectModel ==
   \E c \in MIds :
@@ -316,7 +322,13 @@ LoseCaller ==
   /\ agentLive' = FALSE /\ waitM' = {} /\ waitT' = {} /\ memIssued' = 0
 
 LoseModel ==
-  /\ modelLive' = {} /\ modelHeld' = [c \in MIds |-> "none"]
+  /\ modelLive' = {} /\ modelDue' = modelDue \cup modelLive /\ UNCHANGED modelHeld
+
+(* The scan of the next start wakes the calls the store still owes; they go on running. *)
+ModelScan ==
+  /\ modelDue # {}
+  /\ modelLive' = modelLive \cup modelDue /\ modelDue' = {}
+  /\ UNCHANGED <<sessionLog, world, crashes, callerLive, modelHeld, toolRuntime>>
 
 LoseTool ==
   /\ toolLive' = {} /\ toolHeld' = {} /\ toolRan' = {}
@@ -356,7 +368,7 @@ Crash == CrashAll \/ CrashAgent \/ CrashSession \/ CrashModel \/ CrashTool
 Human == (\E i \in Inputs : AcceptInput(i)) \/ Retry \/ Cancel
 
 System ==
-  \/ OpenRun \/ Takeover \/ CalleeGone
+  \/ OpenRun \/ Takeover \/ CalleeGone \/ ModelScan
   \/ (\E c \in MIds : IssueModel(c)) \/ StepLimit
   \/ (\E c \in MIds, o \in ModelOutcomes : ModelFinish(c, o))
   \/ CollectModel

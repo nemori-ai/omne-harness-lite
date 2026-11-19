@@ -6,7 +6,7 @@ import { beginAttempt, initialAttempts, recordRetryDecision } from '../src/comma
 import type { CallDocument } from '../src/commands/types.ts'
 import { createDefaultRetryPolicy, verifyRetryDecision } from '../src/retry-policy.ts'
 import { eventually, runtimeFixture } from './runtime-fixture.ts'
-import { adoption, op, proof, request, unbox } from './memory-fixture.ts'
+import { adoption, instance, op, proof, request, unbox } from './memory-fixture.ts'
 import { invocationReference } from './reference-input.ts'
 
 type F = ReturnType<typeof runtimeFixture>
@@ -191,6 +191,44 @@ describe('a dispatch that failed before any content reaches the retry policy', (
       expect(asked).toHaveLength(1)
       expect(f.channel(f.admit.call)).toMatchObject({ starts: 2, closes: 2 })
     } finally {
+      await f.dispose()
+    }
+  })
+
+  it('after a restart before the policy was asked, the new process asks it and sends once more', async () => {
+    let hold = true
+    const held: (() => void)[] = []
+    const { f, asked } = world(input => again(input), {
+      wrap: commands => ({
+        ...commands,
+        prepareRetry: input =>
+          hold
+            ? new Promise(resolve =>
+                held.push(() =>
+                  resolve({
+                    failure: {
+                      kind: 'unavailable',
+                      dependency: 'test',
+                      diagnostic: 'process died',
+                    },
+                  } as never),
+                ),
+              )
+            : commands.prepareRetry(input),
+      }),
+    })
+    try {
+      unbox(await f.provider.runtime.calls.admit(f.admit))
+      await f.start(f.admit.call)
+      f.channel(f.admit.call).push([failed503, ...answer])
+      await eventually(() => held.length === 1)
+      hold = false
+      expect(await f.restart(f.admit.call, instance('after-restart'))).toEqual({ ok: undefined })
+      expect(await termination(f)).toEqual({ kind: 'completed', reason: 'stop' })
+      expect(asked).toHaveLength(1)
+      expect(starts(f)).toBe(2)
+    } finally {
+      for (const release of held) release()
       await f.dispose()
     }
   })

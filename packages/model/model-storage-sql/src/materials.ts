@@ -21,6 +21,12 @@ import {
   REQUEST_READ_MAX_OUTPUT_BYTES,
   REQUEST_READ_MAX_ROWS,
 } from './reads.ts'
+import {
+  DISPATCH_FACTS_HANDLER,
+  DISPATCH_FACTS_READ_MAX_OUTPUT_BYTES,
+  DISPATCH_FACTS_READ_MAX_ROWS,
+} from './dispatch-facts.ts'
+import { DISPATCH_FACT, FACT_MIGRATION } from './fact-schema.ts'
 import { MIGRATION, MODEL_PARTICIPANT, MODEL_TABLES, PROTOCOL, TABLES } from './schema.ts'
 
 export const PENDING_READ_MAX_OUTPUT_BYTES = 1 << 20
@@ -36,6 +42,7 @@ function module(name: string): Readonly<{ moduleUrl: string; digest: string }> {
 }
 
 const migrationRef = Object.freeze({ owner: MIGRATION.owner, id: MIGRATION.id })
+const factMigrationRef = Object.freeze({ owner: FACT_MIGRATION.owner, id: FACT_MIGRATION.id })
 
 type Handler = Readonly<{
   handler: string
@@ -43,6 +50,7 @@ type Handler = Readonly<{
   tables: readonly string[]
   rows: number
   bytes: number
+  migrations?: readonly Readonly<{ owner: string; id: string }>[]
 }>
 
 const HANDLERS: readonly Handler[] = [
@@ -74,6 +82,14 @@ const HANDLERS: readonly Handler[] = [
     rows: DIAGNOSTICS_READ_MAX_ROWS,
     bytes: DIAGNOSTICS_READ_MAX_OUTPUT_BYTES,
   },
+  {
+    handler: DISPATCH_FACTS_HANDLER,
+    file: 'handler-dispatch-facts',
+    tables: [DISPATCH_FACT.name],
+    rows: DISPATCH_FACTS_READ_MAX_ROWS,
+    bytes: DISPATCH_FACTS_READ_MAX_OUTPUT_BYTES,
+    migrations: [migrationRef, factMigrationRef],
+  },
 ]
 
 export type ModelStorageMaterials = Readonly<{
@@ -85,6 +101,7 @@ export type ModelStorageMaterials = Readonly<{
 export function modelStorageMaterials(): ModelStorageMaterials {
   const participant = module('commit')
   const migration = module('schema')
+  const factMigration = module('fact-schema')
   return {
     participants: [
       {
@@ -92,7 +109,7 @@ export function modelStorageMaterials(): ModelStorageMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: MODEL_TABLES,
+        ownedTables: [...MODEL_TABLES, DISPATCH_FACT.name],
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -102,6 +119,12 @@ export function modelStorageMaterials(): ModelStorageMaterials {
     ],
     migrations: [
       { ...migrationRef, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
+      {
+        ...factMigrationRef,
+        moduleUrl: factMigration.moduleUrl,
+        checksum: factMigration.digest,
+        requires: [migrationRef],
+      },
     ],
     readHandlers: HANDLERS.map(item => {
       const file = module(item.file)
@@ -112,7 +135,7 @@ export function modelStorageMaterials(): ModelStorageMaterials {
         codeDigest: file.digest,
         ordering: 'snapshot',
         readTables: item.tables,
-        requiresMigrations: [migrationRef],
+        requiresMigrations: item.migrations ?? [migrationRef],
         maxOutputBytes: item.bytes,
         maxRowsRead: item.rows,
       }

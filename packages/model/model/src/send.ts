@@ -7,6 +7,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import { SendLifetime } from './send/lifetime.ts'
 import { createAttemptRunner, refused, unavailable, type SendAttempt } from './send/attempt.ts'
 import type { ModelSendBoundaryOptions } from './send/types.ts'
+import { createCostLookup } from './send/cost-lookup.ts'
 export type {
   CredentialSelection,
   ModelSendBoundaryOptions,
@@ -64,6 +65,7 @@ export function createModelSendBoundary<P>(
     diagnostic,
   })
   return {
+    lookupCost: createCostLookup(options),
     async send(demand, signal) {
       let input: SendDemand<P>
       try {

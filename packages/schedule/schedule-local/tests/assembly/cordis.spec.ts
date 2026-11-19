@@ -39,6 +39,9 @@ class FixtureCalendar extends CalendarQueryService {
   readonly effective = async (): Promise<never> => {
     throw new Error('Unexpected calendar effective')
   }
+  readonly health = async (): Promise<never> => {
+    throw new Error('Unexpected calendar health')
+  }
   readonly resolve = async (): Promise<never> => {
     throw new Error('Unexpected calendar resolve')
   }

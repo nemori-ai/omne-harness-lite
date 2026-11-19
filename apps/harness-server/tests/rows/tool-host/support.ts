@@ -85,6 +85,7 @@ export const TEST_CONSTRUCTION = Object.freeze({
   Calendar: { resultMaxBytes: 4096 },
   Schedules: { resultMaxBytes: 4096 },
   Notifications: { resultMaxBytes: 4096 },
+  Sessions: { resultMaxBytes: 4096 },
 })
 
 export function tree(value: unknown): JsonValue {

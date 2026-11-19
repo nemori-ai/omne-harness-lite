@@ -59,6 +59,7 @@ function queries() {
     get: vi.fn<CalendarQueries['get']>().mockResolvedValue(error),
     effective: vi.fn<CalendarQueries['effective']>().mockResolvedValue(error),
     resolve: vi.fn<CalendarQueries['resolve']>().mockResolvedValue(error),
+    health: vi.fn<CalendarQueries['health']>().mockResolvedValue(error),
   }
 }
 

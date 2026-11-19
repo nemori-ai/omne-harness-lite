@@ -94,6 +94,8 @@ export function applyFact(table: FillTable, fact: TransportFact): boolean {
     }
     case 'account':
     case 'diagnostic':
+    case 'response':
+    case 'connect-retry':
     case 'ended':
       return true
   }

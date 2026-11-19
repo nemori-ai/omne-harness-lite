@@ -63,7 +63,6 @@ const shell = createModelRuntime(assembled.dependencies, {
   observerCheckIntervalMs: 25,
   readIdleMs: 1000,
   resultPageTargetBytes: 128,
-  cleanupRetryMs: 0,
 })
 assert.deepEqual(await shell.quiesce(), { ok: { pending: '0', running: '0' } })
 const decodedCall = decodeModelCallId('mcall_installed')
@@ -223,7 +222,6 @@ const provider = createModelRuntime(runtimeDependencies.dependencies, {
   observerCheckIntervalMs: 25,
   readIdleMs: 1000,
   resultPageTargetBytes: 128,
-  cleanupRetryMs: 0,
 })
 const admission = {
   tenant: owner,

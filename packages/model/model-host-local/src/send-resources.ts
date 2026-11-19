@@ -217,6 +217,15 @@ export function sendResourcesOver<P>(
         throw error
       }
     },
+    async lookupCost({ supplier, request, secrets }, signal) {
+      if (closing !== undefined) return { kind: 'unavailable', diagnostic: 'send-resources-closed' }
+      const pi = createTransport({ ...transportBase, credential: { read: () => secrets } })
+      try {
+        return await pi.lookupCost(supplier, request, signal)
+      } finally {
+        await pi.close()
+      }
+    },
     close() {
       closing ??= closeAll()
       return closing

@@ -8,9 +8,23 @@ export function definite(failure: ModelFailure): boolean {
   return failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable'
 }
 
-export function pauseAfter(failures: number): number {
-  if (failures === 0) return 1000
-  return failures === 1 ? 5000 : 30000
+/** A table of pauses: at least one, each an integer of at least 1 millisecond. */
+export function isDelayTable(value: unknown): value is readonly number[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(delay => Number.isSafeInteger(delay) && delay >= 1)
+  )
+}
+
+/** The pause before the next try after `failures` in a row: the next delay of the table, then its last. */
+export function delayAfter(delaysMs: readonly number[], failures: number): number {
+  return delaysMs[Math.min(failures, delaysMs.length - 1)] ?? 0
+}
+
+/** Custody ended either way: acknowledged by a consumer, or abandoned after a refusal. */
+export function custodyEnded(acknowledgement: string): boolean {
+  return acknowledgement === 'acknowledged' || acknowledgement === 'abandoned'
 }
 
 type Held = Readonly<{ standing: Readonly<{ status: string; reason?: string }> }>
@@ -28,7 +42,7 @@ export function due({ standing: { status } }: Held): boolean {
 
 export function unfinished(record: PushProgress): boolean {
   return (
-    record.acknowledgement !== 'acknowledged' ||
+    !custodyEnded(record.acknowledgement) ||
     record.cleanup !== 'released' ||
     record.accounts.some(due)
   )
@@ -37,12 +51,13 @@ export function unfinished(record: PushProgress): boolean {
 function retried({ standing }: Held): boolean {
   return (
     standing.status === 'pending' ||
+    standing.status === 'unknown' ||
     (standing.status === 'waiting' && standing.reason !== 'no-receiver')
   )
 }
 
 export function workLeft(record: PushProgress): boolean {
-  if (record.acknowledgement === 'acknowledged')
+  if (custodyEnded(record.acknowledgement))
     return record.cleanup !== 'released' || record.accounts.some(retried)
   const held = record.result
   return held !== null && (held.standing.status === 'saved' || retried(held))
@@ -58,5 +73,5 @@ export function awaitsReceiver(
   resolve: (owner: string) => ModelResultReceiver<unknown> | null,
 ): boolean {
   if (record?.origin === undefined || record.origin === null) return false
-  return record.acknowledgement !== 'acknowledged' && resolve(record.origin.consumer.owner) === null
+  return !custodyEnded(record.acknowledgement) && resolve(record.origin.consumer.owner) === null
 }

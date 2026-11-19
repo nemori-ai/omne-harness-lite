@@ -71,6 +71,11 @@
       "config": {}
     },
     {
+      "id": "calendar-notification",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "stubPlugin",
       "config": {}

@@ -9,6 +9,7 @@ import type {
   Supplier,
 } from '@omne-harness/model-contract'
 import type { FixedRequestHead } from '@omne-harness/model-contract/provider'
+import { NO_INSTANTS } from './instants.ts'
 import type { CallDocument, DispatchDocument } from './types.ts'
 
 export function initialAttempts(
@@ -33,6 +34,7 @@ export function beginDispatch(
   call: CallDocument,
   input: Readonly<{ dispatch: DispatchId; supplier: Supplier; operation: ModelOperationId }>,
   messages: NonNullable<DispatchRecord['messages']>,
+  prepared: string | null,
 ): void {
   const withoutReplay = withoutReplayOf(call)
   call.dispatches.push({
@@ -47,6 +49,8 @@ export function beginDispatch(
       materialization: null,
       messages: [...messages],
       ...(withoutReplay === undefined ? {} : { withoutReplay }),
+      instants: { ...NO_INSTANTS, prepared },
+      connectRetries: [],
     },
     logicalTerminal: null,
     windows: new Map(),

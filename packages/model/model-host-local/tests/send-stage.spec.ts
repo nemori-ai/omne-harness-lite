@@ -71,7 +71,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
 
 function tenantOf(suffix: string) {
@@ -182,6 +181,8 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -218,6 +219,7 @@ function observing() {
     const observed: Observed = { config, reads: [] }
     transports.push(observed)
     return {
+      lookupCost: () => Promise.resolve({ kind: 'unsupported' as const }),
       transport: {
         async prepare(request, supplier) {
           return {
@@ -582,7 +584,7 @@ describe('the plugin and its dependencies', () => {
     expect(ctx.modelSendBoundary).toBeInstanceOf(ModelSendBoundaryService)
     expect(
       Object.keys(ctx.modelSendBoundary).filter(key => key !== 'ctx' && key !== 'name'),
-    ).toEqual(['send'])
+    ).toEqual(['send', 'lookupCost'])
     expect(watch.events).toEqual(['network', 'resources'])
 
     await fiber.dispose()

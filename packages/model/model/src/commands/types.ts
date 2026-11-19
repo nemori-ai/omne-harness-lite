@@ -97,6 +97,8 @@ export interface ModelCommandsEvidence {
       Readonly<{
         dispatch: string
         supplier: Supplier
+        /** The upstream's id of this dispatch's request, when its response header gave one. */
+        upstreamRequest: string | null
         source: DurableEvidence
         fact: LateDispatchFact
       }>,
@@ -173,6 +175,8 @@ export const MODEL_WRITE_METHODS = [
   'control',
   'acquireRead',
   'handoff',
+  'abandon',
+  'confirmAccount',
   'advanceCleanup',
 ] as const
 export type ModelWriteMethod = (typeof MODEL_WRITE_METHODS)[number]
@@ -196,7 +200,7 @@ export type Receipt =
   | Readonly<{ kind: 'preserve'; cursor: OutputCursor }>
   | Readonly<{ kind: 'late'; revision: Revision }>
   | Readonly<{ kind: 'read'; read: ReadId | null }>
-  | Readonly<{ kind: 'control' | 'handoff' | 'cleanup' }>
+  | Readonly<{ kind: 'control' | 'handoff' | 'abandon' | 'cleanup' }>
 export type BindingBase = Readonly<{
   call: ModelCallId
   method: ModelWriteMethod
