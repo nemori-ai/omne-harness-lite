@@ -32,6 +32,7 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
           'Files',
           'Notifications',
           'Schedules',
+          'Sessions',
           'Shell',
           'Skills',
           'TodoItems',
