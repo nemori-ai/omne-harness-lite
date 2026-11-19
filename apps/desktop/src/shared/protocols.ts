@@ -8,6 +8,7 @@ import type { ProtocolContract } from '@omne-harness/public-contract'
 import { scheduleProtocol } from '@omne-harness/schedule-protocol'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import { toolProtocol } from '@omne-harness/tool-protocol'
+import { usageProtocol } from '@omne-harness/usage-protocol'
 
 export const domainProtocols: readonly ProtocolContract[] = [
   identityProtocol,
@@ -19,4 +20,5 @@ export const domainProtocols: readonly ProtocolContract[] = [
   calendarProtocol,
   notificationProtocol,
   modelProtocol,
+  usageProtocol,
 ]

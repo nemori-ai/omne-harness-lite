@@ -23,12 +23,19 @@ import {
   sessionCallDetail,
   sessionDock,
   sessionModelChoicesKey,
+  sessionSide,
+  sessionStatus,
   sessionUiModule,
 } from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
 import { createToolUiModule } from '@omne-harness/tool-ui/cordis'
+import { storedLayouts } from '@omne-harness/usage-ui'
+import { createUsageUiModule } from '@omne-harness/usage-ui/cordis'
+import '@omne-harness/usage-ui/usage-ui.css'
 import { domainProtocols } from '../shared/protocols.ts'
 import { handOver } from './hand-over.ts'
+
+export const USAGE_REFRESH_MS = 60_000
 
 export type Assembly = Readonly<{
   protocols: readonly ProtocolContract[]
@@ -49,5 +56,11 @@ export const assembly: Assembly = {
     createToolUiModule({ callDetail: sessionCallDetail }),
     modelUiModule,
     handOver(sessionModelChoicesKey, modelChoicesKey),
+    createUsageUiModule({
+      sessionSide,
+      sessionStatus,
+      store: storedLayouts(() => window.localStorage),
+      refreshMs: USAGE_REFRESH_MS,
+    }),
   ],
 }

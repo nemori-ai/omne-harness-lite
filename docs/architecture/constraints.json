@@ -788,6 +788,14 @@
       "source": "packages/usage/SPEC.md"
     },
     {
+      "id": "packages/usage/usage-ui",
+      "paths": ["packages/usage/usage-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["usage"],
+      "status": "candidate",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
       "id": "packages/usage/usage-access",
       "paths": ["packages/usage/usage-access/src/**"],
       "layer": "unknown",
@@ -1231,7 +1239,8 @@
         "packages/usage/usage-adapters",
         "packages/usage/usage-contract",
         "packages/usage/usage-cordis-contract",
-        "packages/usage/usage-protocol"
+        "packages/usage/usage-protocol",
+        "packages/usage/usage-ui"
       ],
       "source": "packages/usage/SPEC.md"
     },
