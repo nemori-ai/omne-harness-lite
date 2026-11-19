@@ -50,7 +50,7 @@ function dataOf(series: readonly ChartSeries[], rows: readonly ChartRow[]): Datu
   })
 }
 
-type TooltipItem = Readonly<{ dataKey?: unknown; value?: unknown }>
+type TooltipItem = Readonly<{ payload?: unknown }>
 
 function TooltipBody({
   active,
@@ -65,18 +65,18 @@ function TooltipBody({
   readonly series: readonly ChartSeries[]
   readonly format: ChartFormat
 }): React.JSX.Element | null {
-  if (active !== true || payload === undefined || payload.length === 0) return null
+  const datum = payload?.[0]?.payload as Datum | undefined
+  if (active !== true || datum === undefined) return null
   return (
     <div className="omne-chart-tooltip">
       <p>{String(label)}</p>
       <ul>
-        {payload.map(item => {
-          const index = Number(String(item.dataKey).slice(1))
+        {series.map((item, index) => {
+          const value = datum[keyOf(index)]
           return (
-            <li key={String(item.dataKey)}>
+            <li key={item.key}>
               <span className={`omne-chart-swatch ${markClass(index)}`} aria-hidden="true" />
-              {series[index]?.label}：
-              {typeof item.value === 'number' ? format(item.value) : <Unknown />}
+              {item.label}：{typeof value === 'number' ? format(value) : <Unknown />}
             </li>
           )
         })}

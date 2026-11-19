@@ -1,3 +1,4 @@
+// @module-tag source-text
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { expect, it } from 'vitest'

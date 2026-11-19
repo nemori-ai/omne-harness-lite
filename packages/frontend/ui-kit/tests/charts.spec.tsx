@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   AreaChart,
@@ -91,6 +91,28 @@ describe.each([
       colorsOf(container).filter(value => /#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i.test(value)),
     ).toEqual([])
     expect(document.querySelectorAll('style, link[rel="stylesheet"]').length).toBe(before)
+  })
+
+  it('walks the data points by keyboard, each shown with its series and formatted values', async () => {
+    const { container } = render(<Chart label="按天的 token" series={series} rows={rows} />)
+    await settle()
+    const svg = container.querySelector('svg.recharts-surface') as SVGElement
+    await act(async () => {
+      fireEvent.focus(svg)
+      fireEvent.keyDown(svg, { key: 'ArrowRight' })
+      await settle()
+    })
+    const tip = () => container.querySelector('.omne-chart-tooltip')
+    expect(tip()?.textContent).toMatch(/^11-1[89]/)
+    for (let step = 0; step < 2 && !tip()?.textContent?.startsWith('11-19'); step += 1)
+      await act(async () => {
+        fireEvent.keyDown(svg, { key: 'ArrowRight' })
+        await settle()
+      })
+    expect(tip()?.textContent).toContain('11-19')
+    expect(tip()?.textContent).toContain('输出：45')
+    expect(tip()?.textContent).toContain(`输入：${UNKNOWN_TEXT}`)
+    expect(tip()?.querySelector('[aria-label="未知"]')).not.toBeNull()
   })
 
   it('gives the same data as a table, with an unknown cell written as unknown', async () => {

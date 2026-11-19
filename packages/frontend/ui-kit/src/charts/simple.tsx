@@ -141,6 +141,23 @@ export function ReadingMeter({
   )
 }
 
+function runsOf(values: readonly (number | null)[], low: number, span: number): string[] {
+  const step = values.length > 1 ? 100 / (values.length - 1) : 0
+  const runs: string[] = []
+  let current = ''
+  values.forEach((value, index) => {
+    if (value === null) {
+      if (current !== '') runs.push(current)
+      current = ''
+      return
+    }
+    const point = `${(index * step).toFixed(2)},${(20 - ((value - low) / span) * 20).toFixed(2)}`
+    current = current === '' ? `M${point}` : `${current}L${point}`
+  })
+  if (current !== '') runs.push(current)
+  return runs.map(run => (run.includes('L') ? run : `${run}h0.01`))
+}
+
 export function Sparkline({
   label,
   values,
@@ -162,19 +179,6 @@ export function Sparkline({
     )
   const low = Math.min(...known)
   const span = Math.max(...known) - low || 1
-  const step = values.length > 1 ? 100 / (values.length - 1) : 0
-  const runs: string[] = []
-  let current = ''
-  values.forEach((value, index) => {
-    if (value === null) {
-      if (current !== '') runs.push(current)
-      current = ''
-      return
-    }
-    const point = `${(index * step).toFixed(2)},${(20 - ((value - low) / span) * 20).toFixed(2)}`
-    current = current === '' ? `M${point}` : `${current}L${point}`
-  })
-  if (current !== '') runs.push(current)
   const summary = values.map(value => (value === null ? '未知' : formatNumber(value))).join('、')
   return (
     <svg
@@ -184,13 +188,8 @@ export function Sparkline({
       aria-label={`${label}：${summary}`}
       data-state="drawn"
     >
-      {runs.map(run => (
-        <path
-          key={run}
-          d={run.includes('L') ? run : `${run}h0.01`}
-          fill="none"
-          stroke="currentColor"
-        />
+      {runsOf(values, low, span).map(run => (
+        <path key={run} d={run} fill="none" stroke="currentColor" />
       ))}
     </svg>
   )
