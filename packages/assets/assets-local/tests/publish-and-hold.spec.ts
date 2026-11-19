@@ -1,9 +1,12 @@
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { DomainRef } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import migration from '../src/migration.ts'
 import { mutate } from '../src/mutations.ts'
-import { readHolding, readVersion, selectedVersion } from '../src/records.ts'
+import reads from '../src/read.ts'
+import { canonical } from '../src/encoding.ts'
+import { readHolding, readSummary, readVersion, selectedVersion } from '../src/records.ts'
 import { mutationSchema, type Mutation } from '../src/schema.ts'
 
 const databases: DatabaseSync[] = []
@@ -62,6 +65,7 @@ function publishAndHold(
     source: 'test',
     body: { kind: 'string', value: version },
     declaration: { kind: 'none' },
+    summary: null,
     holding: {
       holdingRef: overrides.holdingRef ?? REF,
       scopeRef: overrides.scopeRef ?? 'tenant-a',
@@ -86,6 +90,58 @@ const selected = (port: ParticipantPort) => {
   const holding = held(port)
   return holding === null ? null : (selectedVersion(port, holding)?.version.version ?? null)
 }
+
+describe('the asset summary is written with its version', () => {
+  const summary = {
+    title: 'A note',
+    description: 'One sentence.',
+    facts: [{ name: 'n', text: 't' }],
+  }
+  const withSummary = (operationId: string, version: string) =>
+    mutationSchema.parse({ ...publishAndHold(operationId, version), summary })
+
+  it('a version with a summary stores it under the version; one without stores none', () => {
+    const port = open()
+    run(port, withSummary('p1', 'v1'))
+    run(port, at(1, publishAndHold('p2', 'v2')))
+    expect(readSummary(port, domain, REF, 'v1')).toEqual(summary)
+    expect(readSummary(port, domain, REF, 'v2')).toBeNull()
+  })
+
+  it('a version written before keeps its summary when the same version comes again', () => {
+    const port = open()
+    run(port, publishAndHold('p1', 'v1'))
+    expect(run(port, at(1, withSummary('p2', 'v1')))).toMatchObject({ changed: false })
+    expect(readSummary(port, domain, REF, 'v1')).toBeNull()
+  })
+
+  it('a summary rejected with its version is not written', () => {
+    const port = open()
+    expect(run(port, at(7, withSummary('p1', 'v1')))).toEqual({
+      kind: 'rejected',
+      reason: 'revision_conflict',
+    })
+    expect(readSummary(port, domain, REF, 'v1')).toBeNull()
+  })
+
+  it('a summary record bound to another version is refused when read', () => {
+    const port = open()
+    run(port, withSummary('p1', 'v1'))
+    for (const bound of [
+      { domain, assetRef: 'note/other', version: 'v1', summary },
+      { domain, assetRef: REF, version: 'v9', summary },
+      {
+        domain: { ...domain, transactionDomain: 'assets.other' },
+        assetRef: REF,
+        version: 'v1',
+        summary,
+      },
+    ]) {
+      port.execute('UPDATE al_summaries SET record = ?', [canonical(bound)])
+      expect(() => readSummary(port, domain, REF, 'v1')).toThrow('Misbound summary record')
+    }
+  })
+})
 
 describe('publishAndHold: the version and the holding in one participant call', () => {
   it('持有不在：写版本，新建持有并跟随', () => {
@@ -242,5 +298,25 @@ describe('publishAndHold: the version and the holding in one participant call', 
       reason: 'revision_conflict',
     })
     expect(selected(port)).toBe('v1')
+  })
+})
+
+describe('the domain revision as the read handler answers it', () => {
+  const asked = (port: ParticipantPort, scope: DomainRef = domain) =>
+    reads.read({ kind: 'domain', domain: scope, lookup: null }, port as never)
+
+  it('is 0 before anything is written, then follows every change, and another domain is refused', () => {
+    const port = open()
+    expect(asked(port)).toEqual({ kind: 'read', output: { kind: 'domain', revision: 0 } })
+    run(port, publishAndHold('p1', 'v1'))
+    const after = asked(port)
+    expect(
+      after.kind === 'read' && (after.output as { revision: number }).revision,
+    ).toBeGreaterThan(0)
+    const other = { ...domain, scope: { kind: 'tenant', tenant: 'tenant-b' } } as const
+    expect(asked(port, other)).toEqual({
+      kind: 'read',
+      output: { kind: 'rejected', reason: 'forbidden' },
+    })
   })
 })

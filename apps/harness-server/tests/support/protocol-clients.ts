@@ -1,3 +1,4 @@
+import { assetsProtocol } from '@omne-harness/assets-protocol'
 import { humanInterventionProtocol } from '@omne-harness/human-intervention-protocol'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -19,6 +20,7 @@ export type ProtocolClients = Readonly<{
   session: ClientOf<typeof sessionProtocol>
   humanIntervention: ClientOf<typeof humanInterventionProtocol>
   sessionDiagnostics: ClientOf<typeof sessionDiagnosticsProtocol>
+  assets: ClientOf<typeof assetsProtocol>
 }>
 
 type SendBody = Parameters<ClientOf<typeof sessionProtocol>['send-input']>[0]
@@ -33,6 +35,7 @@ export function clientsOver(
     session: createClient(sessionProtocol, transport, settings.session),
     humanIntervention: createClient(humanInterventionProtocol, transport),
     sessionDiagnostics: createClient(sessionDiagnosticsProtocol, transport),
+    assets: createClient(assetsProtocol, transport),
   }
 }
 

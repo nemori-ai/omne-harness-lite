@@ -123,8 +123,11 @@ function listed(
     name,
     assetRef: `${category}/${name}`,
     version: extra.version ?? '1',
+    holdingRef: `holding-${category}-${name}`,
     selection: extra.selection ?? 'follow',
     enabled: extra.enabled ?? true,
+    origin: 'official',
+    summary: null,
   }
 }
 

@@ -72,7 +72,28 @@ export function skillBodyContract(): BodyContract {
         return id.id
       })
     },
+    summarize(body, context) {
+      const decision = judge(body, context)
+      if (!decision.ok) throw new TypeError(`skill body failed judgment: ${decision.rejected}`)
+      const tools = toolRefs(body) ?? []
+      return {
+        title: stringField(body, 'name') ?? '',
+        description: stringField(body, 'description') ?? '',
+        facts: [
+          { name: '文件', text: `${fileCount(body)} 个` },
+          {
+            name: '依赖',
+            text: tools.length === 0 ? '无' : tools.map(tool => tool.name).join('、'),
+          },
+        ],
+      }
+    },
   }
+}
+
+function fileCount(body: JsonValue): number {
+  const entries = field(field(body, 'manifest'), 'entries')
+  return entries?.kind === 'array' ? entries.items.length : 0
 }
 
 function judge(body: unknown, context?: { capabilityName?: string }): Judgment {

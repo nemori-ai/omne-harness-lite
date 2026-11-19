@@ -157,7 +157,7 @@ const publish = (w: World, files: Readonly<Record<string, string>>, operationId:
     capability: report,
     from: memory(files),
     operationId,
-    holding: { sources: ownerSources('tenant'), grants },
+    holding: { holdingRef: REF, sources: ownerSources('tenant'), grants },
   })
 
 function stagingOf(root: string): string[] {
@@ -770,7 +770,7 @@ describe('a directory that does not pass is rejected and nothing is written', ()
       capability,
       from: memory(FIRST),
       operationId: 'publish-1',
-      holding: { sources: ownerSources('tenant'), grants },
+      holding: { holdingRef: REF, sources: ownerSources('tenant'), grants },
     })
     expect(result).toEqual({ kind: 'rejected', rejection })
     expect(readdirSync(w.packageRoot)).toEqual([])
