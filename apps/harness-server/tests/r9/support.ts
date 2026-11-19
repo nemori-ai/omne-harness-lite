@@ -365,6 +365,19 @@ export const NOTIFICATION_POLICY = {
   recipients: { person: { channel: 'in-app', minLevel: 'weak' }, agent: null },
 }
 
+// Calendar sources point at a closed loopback port, so a test service never reaches the real
+// authorities; a test that needs the sources serves them itself.
+export const CLOSED_CALENDAR_SOURCES: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(
+    [
+      'https://raw.githubusercontent.com',
+      'https://www8.cao.go.jp',
+      'https://www.opm.gov',
+      'https://www.federalregister.gov',
+    ].map(origin => [origin, 'http://127.0.0.1:1']),
+  ),
+)
+
 export function operatorLayer(options: {
   storageRoot: string
   port: number
@@ -397,6 +410,7 @@ export function operatorLayer(options: {
         },
       },
       { kind: 'replace', id: 'secret-custody', config: { path: seedTestVault(model.vault) } },
+      { kind: 'replace', id: 'calendar', config: { sourceTestOrigins: CLOSED_CALENDAR_SOURCES } },
       { kind: 'replace', id: 'model-tokenizers', config: model.tokenizers },
       { kind: 'replace', id: 'model-profiles', config: model.profiles },
       { kind: 'replace', id: 'model-request-preparation', config: model.preparation },

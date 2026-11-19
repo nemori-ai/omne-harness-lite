@@ -87,7 +87,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'composition',
   },
   calendar: {
-    provides: ['calendarQuery', 'calendarCalculator'],
+    provides: ['calendarQuery', 'calendarCalculator', 'calendarSupply'],
     injects: ['storage', 'tenantStanding', 'tenantIndependentSettings'],
     phase: 'composition',
   },
