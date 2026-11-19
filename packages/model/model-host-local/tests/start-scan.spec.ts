@@ -66,6 +66,47 @@ function scan(stuckOnB: boolean) {
   return { started, scheduled, woken }
 }
 
+const running = { ok: { state: { phase: 'running' } } }
+const released = {
+  failure: { kind: 'invalid', field: 'call', reason: 'recovery-material-released' },
+}
+const unavailable = { failure: { kind: 'unavailable', dependency: 'storage' } }
+const denied = { failure: { kind: 'denied' } }
+
+/** A scan of tenant A whose calls answer their loads in turn; a pause before a second read is granted. */
+function loading(
+  answers: Map<ModelCallId, readonly object[]>,
+  onLoad = () => {},
+  stopping = new AbortController().signal,
+) {
+  const scheduled: string[] = []
+  const loads: string[] = []
+  const reports: object[] = []
+  const commands = {
+    scanPending: () => Promise.resolve({ ok: { calls: [...answers.keys()], next: null } }),
+    loadRecovery: (input: { call: ModelCallId }) => {
+      const turn = loads.filter(call => call === input.call).length
+      loads.push(input.call)
+      onLoad()
+      return Promise.resolve(answers.get(input.call)?.[turn])
+    },
+  } as unknown as ModelCommands<unknown>
+  let pauses = 0
+  const started = createStartScan(
+    {
+      commands,
+      paused: () => Promise.resolve((pauses += 1) === 1),
+      size: 10,
+      stopping,
+      report: event => reports.push(event),
+      wake: () => {},
+      schedule: target => scheduled.push(target.call),
+    },
+    { scopes: () => Promise.resolve({ ok: [{ principal: 'scanner', tenant: A }] }) },
+  )
+  return { started, scheduled, loads, reports }
+}
+
 describe('the start scan', () => {
   it('counts nothing as looked at before it ran, and every call once it read all tenants', async () => {
     const s = scan(false)
@@ -85,6 +126,51 @@ describe('the start scan', () => {
     expect(s.started.scanned(callOf('running'))).toBe(true)
     expect(s.started.scanned(callOf('settled'))).toBe(true)
     expect(s.started.scanned(callOf('admitted-later'))).toBe(false)
+  })
+
+  it('takes a call whose material was released as looked at and wakes nothing for it', async () => {
+    const s = loading(new Map([[callOf('released'), [released]]]))
+    await s.started.run()
+    expect(s.scheduled).toEqual([])
+    expect(s.loads).toEqual([callOf('released')])
+    expect(s.reports).toEqual([{ kind: 'recovered', woken: 0 }])
+  })
+
+  it('reads the tenant again when a call cannot be loaded for now, and gives up on a refused one', async () => {
+    const s = loading(
+      new Map([
+        [callOf('flaky'), [unavailable, running]],
+        [callOf('refused'), [denied, denied]],
+      ]),
+    )
+    await s.started.run()
+    expect(s.scheduled).toEqual([callOf('flaky')])
+    expect(s.reports).toContainEqual({
+      kind: 'recovery-failed',
+      step: 'load',
+      failure: 'unavailable',
+      again: true,
+    })
+    expect(s.reports).toContainEqual({
+      kind: 'recovery-failed',
+      step: 'load',
+      failure: 'denied',
+      again: false,
+    })
+  })
+
+  it('stops waking calls once the host is stopping', async () => {
+    const stopping = new AbortController()
+    const s = loading(
+      new Map([
+        [callOf('first'), [running]],
+        [callOf('second'), [running]],
+      ]),
+      () => stopping.abort(),
+      stopping.signal,
+    )
+    await s.started.run()
+    expect(s.loads).toEqual([callOf('first')])
   })
 
   it('counts every call as looked at when there is nothing to scan', () => {

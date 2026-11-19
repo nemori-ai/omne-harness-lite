@@ -421,7 +421,7 @@ export function createModelDriver<P>(
     input: ModelDriveInput<P>,
     execution: ExecutionRef,
     recovery: Recovery<P>,
-    hasDispatches: boolean,
+    records: readonly DispatchRecord[],
   ): Reply<Activity<P>> {
     const view = createObservation({
       access: input,
@@ -431,7 +431,7 @@ export function createModelDriver<P>(
       bufferBytes: configuration.observerBufferBytes,
       checkIntervalMs: configuration.observerCheckIntervalMs,
       initial:
-        !hasDispatches && !recovery.unresolved.length
+        records.length === 0 && !recovery.unresolved.length
           ? {
               call: input.call,
               cursor: generated(decodeOutputCursor('0')),
@@ -446,10 +446,16 @@ export function createModelDriver<P>(
       claim: input,
       view,
       publication: published.ok,
-      stage: hasDispatches ? { kind: 'done' } : { kind: 'idle' },
+      stage: records.length > 0 ? { kind: 'done' } : { kind: 'idle' },
       spent: [],
     }
     activities.set(key, active)
+    const latest = records.at(-1)
+    if (latest !== undefined && recovery.state.phase !== 'settled') {
+      const resumed = await resumedStage(commands, input, execution, recovery, latest)
+      if ('failure' in resumed) return resumed
+      active.stage = resumed.ok
+    }
     return { ok: active }
   }
   async function restoreActivity(
@@ -464,21 +470,9 @@ export function createModelDriver<P>(
     const records = await commands.dispatches(input)
     if ('failure' in records) return records
     if (!active || active.view.handle.instance !== input.instance) {
-      const published = await publishActivity(
-        key,
-        input,
-        execution,
-        recovery.ok,
-        records.ok.length > 0,
-      )
+      const published = await publishActivity(key, input, execution, recovery.ok, records.ok)
       if ('failure' in published) return published
       active = published.ok
-      const latest = records.ok.at(-1)
-      if (latest !== undefined && recovery.ok.state.phase !== 'settled') {
-        const resumed = await resumedStage(commands, input, execution, recovery.ok, latest)
-        if ('failure' in resumed) return resumed
-        active.stage = resumed.ok
-      }
     }
     if (recovery.ok.state.phase === 'settled') ended(input)
     if (active.stage.kind === 'idle') {
