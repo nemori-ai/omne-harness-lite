@@ -16,7 +16,14 @@ import {
 import {
   createModelRuntimeLocalPlugin,
   type ModelHostDrain,
+  type ResultPushRecovery,
 } from '@omne-harness/model-host-local/cordis'
+import { tenantCodec, type Access } from '@omne-harness/legal-identity'
+import { fail, succeed } from '@omne-harness/operation-result'
+import type { TenantDomains } from '@omne-harness/sql-contract'
+import { tenantDomainsKey } from '@omne-harness/sql-contract/cordis'
+import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
+import type { ModelHostBinding } from '../../model/composition.ts'
 import { qualifyingCommands } from '../../model/commands-qualifying.ts'
 import { modelHostPortOf } from '../../model/ports.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
@@ -44,6 +51,34 @@ export function lateBoundSendBoundary(ctx: Context): ModelSendBoundary<unknown> 
 
 type Drain = (signal: AbortSignal) => Promise<ModelHostDrain>
 
+/** The start scan reads every tenant the storage holds, each with its own scan access. */
+function startScan(ctx: Context, binding: ModelHostBinding): ResultPushRecovery {
+  return {
+    async scopes() {
+      const directory = ctx.get(tenantDomainsKey) as TenantDomains<unknown>
+      const listed = await directory.enumerate({
+        principal: ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY),
+      })
+      if (listed.kind === 'denied') return fail({ kind: 'denied', action: 'tenant-domains' })
+      if (listed.kind === 'unavailable')
+        return fail({
+          kind: 'unavailable',
+          dependency: tenantDomainsKey,
+          diagnostic: listed.diagnostic,
+        })
+      const scopes: Access<unknown>[] = []
+      for (const entry of listed.entries) {
+        const tenant = tenantCodec.parse(entry.tenant)
+        if (!tenant.ok) continue
+        const access = binding.scanAccess(tenant.value)
+        if ('failure' in access) return access
+        scopes.push(access.ok)
+      }
+      return succeed(scopes)
+    },
+  }
+}
+
 export type ModelHostRowInput = Readonly<{
   lostContact?: (instance: string) => DurableEvidence | null
 }>
@@ -55,7 +90,13 @@ function hostPlugin(
 ): Plugin.Object {
   return {
     name: 'model-host',
-    inject: [modelCommandsKey, modelClockKey, modelHostAuthorityKey],
+    inject: [
+      modelCommandsKey,
+      modelClockKey,
+      modelHostAuthorityKey,
+      tenantDomainsKey,
+      TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
+    ],
     apply(ctx: Context) {
       const port = modelHostPortOf(ctx)
       if (port === undefined)
@@ -74,7 +115,11 @@ function hostPlugin(
         releaseExecution: binding.releaseExecution,
         qualifyObservation: access => binding.qualifyObservation(access),
         observation: observation.ok,
-        results: { ledger: binding.ledger, limits: config.results },
+        results: {
+          ledger: binding.ledger,
+          limits: config.results,
+          recovery: startScan(ctx, binding),
+        },
         ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
         provider: ({ host, commands, clock, liveness }) =>
           createModelRuntime(
@@ -158,7 +203,13 @@ export function createModelHostRow(input: ModelHostRowInput = {}) {
         modelStreamReferencesKey,
         modelStreamObservationKey,
       ],
-      injects: [modelCommandsKey, modelClockKey, modelHostAuthorityKey],
+      injects: [
+        modelCommandsKey,
+        modelClockKey,
+        modelHostAuthorityKey,
+        tenantDomainsKey,
+        TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
+      ],
       sameProviderGroup: null,
     },
     lifecycle: { kind: 'body', phase: 'business' },

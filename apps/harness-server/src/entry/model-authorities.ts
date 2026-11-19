@@ -34,9 +34,10 @@ import {
   createModelRunComposition,
   type ModelRecordsAttachment,
   type ModelRunComposition,
+  type ModelScanIssue,
 } from '../model/composition.ts'
 import { registerModelRowPorts } from '../model/ports.ts'
-import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../model/principals.ts'
+import { MODEL_HOST_COMPONENT, MODEL_SCAN_OWNER, MODEL_WORK_OWNER } from '../model/principals.ts'
 import { ACTOR_OWNER, readSubject } from '../model/qualification.ts'
 import { sameTenant } from '../model/tenant-call.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
@@ -220,6 +221,22 @@ function modelWorkIssuerOf(env: EntryEnv): ModelWorkIssue | undefined {
     })
 }
 
+function modelScanIssuerOf(env: EntryEnv): ModelScanIssue | undefined {
+  const issuer: PrincipalIssuer | undefined = env
+    .readTrusted(principalIssuerKey)
+    .get(principalIssuerKey)
+  if (issuer === undefined) return undefined
+  const actor = issuer.issueSystem({ component: MODEL_HOST_COMPONENT })
+  if ('failure' in actor) return undefined
+  const system: SystemPrincipal = actor.ok
+  return tenant =>
+    issuer.issueActingForTenant({
+      actor: system,
+      tenant,
+      work: { owner: MODEL_SCAN_OWNER, work: 'start-scan' },
+    })
+}
+
 const COMPOSITION = Symbol('harness-server/model-run-composition')
 
 export const modelPublicationAuthority: EntryObjectModule = {
@@ -248,6 +265,7 @@ export const modelHostAuthority: EntryObjectModule = {
       host: composition.host,
       readers: composition.readers,
     })
+    composition.useScanIssue(modelScanIssuerOf(env))
     const issue = modelWorkIssuerOf(env)
     if (issue === undefined)
       scope

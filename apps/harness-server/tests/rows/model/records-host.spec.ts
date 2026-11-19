@@ -1,4 +1,5 @@
 import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
+import { tenantDomainScannerPrincipal } from '../../../src/entry/tenant-domain-scanner.ts'
 import { LOCAL_TOKENIZERS } from '../../../src/local/operator-defaults.ts'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -184,6 +185,7 @@ const entryObjects = [
   modelClock,
   modelHostAuthority,
   identityClock,
+  tenantDomainScannerPrincipal,
 ]
 
 describe('the model-records and model-host rows', () => {

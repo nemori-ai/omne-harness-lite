@@ -235,6 +235,7 @@ export function createSendMirror(
     },
     held: () => inner.held(),
     readBody: (tenant, call) => inner.readBody(tenant, call),
+    ...(inner.pending === undefined ? {} : { pending: inner.pending.bind(inner) }),
     commit(tenant: string, write: CommandWrite) {
       const status = inner.commit(tenant, write)
       if (pass !== null) pass.staged = { tenant, call: write.binding.call, document: write.call }

@@ -650,6 +650,17 @@ describe('tenants', () => {
   })
 })
 
+describe('the start scan through the mirror', () => {
+  it('lists the calls of a tenant that have work, with the storage that reads them', async () => {
+    const subject = sqlAssembly()
+    await drive(subject, callId('waiting'), 'admitted')
+    const access = { principal, tenant: TENANT }
+    expect(await subject.commands.scanPending({ ...access, after: null, limit: 2 })).toEqual({
+      ok: { calls: [callId('waiting')], next: null },
+    })
+  })
+})
+
 describe('claims', () => {
   it('drops a claim once the send record is mirrored, so the bound frees', async () => {
     const subject = sqlAssembly({ maxClaims: 1 })
