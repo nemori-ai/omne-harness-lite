@@ -15,7 +15,7 @@ import type { ToolFinalEnvelope, ToolTask } from '@omne-harness/tool-contract/pr
 import { invalid } from './boundary.ts'
 import { mintEvidence, resultVersion, sameFactValue } from './evidence.ts'
 import { instantAfter } from './instant.ts'
-import { measuredDuration, settlementAccount } from './ledger-account.ts'
+import { measuredDuration, settlementAccount, usageEndingOf } from './ledger-account.ts'
 import {
   firstResultWrites,
   operationRecord,
@@ -271,7 +271,7 @@ export function decidePreserveResult<B extends ContentBlock>(
     ...settlementAccount(
       snapshot,
       call,
-      state.ok.phase === 'settled' ? state.ok.terminal : final.terminal,
+      usageEndingOf(state.ok, final.terminal),
       measuredDuration(call.startedAt, settledAt),
       mint,
     ),

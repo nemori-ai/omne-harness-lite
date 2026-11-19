@@ -1,4 +1,4 @@
-import type { ToolTerminal } from '@omne-harness/tool-contract'
+import type { ToolState, ToolTerminal } from '@omne-harness/tool-contract'
 import type { ToolInstant } from '@omne-harness/tool-contract/provider'
 import { LEDGER_OWNER, mintEvidence } from './evidence.ts'
 import { put, type Mint, type Snapshot } from './ledger-decider.ts'
@@ -17,6 +17,10 @@ export function measuredDuration(
   if (!Number.isSafeInteger(milliseconds) || milliseconds < 0) return null
   return `PT${Math.floor(milliseconds / 1000)}.${String(milliseconds % 1000).padStart(3, '0')}S`
 }
+
+/** The ending a usage row keeps: the settled call's, which a late result does not change. */
+export const usageEndingOf = (state: ToolState, final: ToolTerminal): ToolTerminal =>
+  state.phase === 'settled' ? state.terminal : final
 
 // The account of a real execution and its usage row, written in the commit that settles it:
 // revision 1 when the call has none, else the next revision of the same account, marked late.

@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { decodeToolInstant } from '@omne-harness/tool-contract/provider'
-import { measuredDuration, settlementAccount, SETTLEMENT_EVENT } from '../src/ledger-account.ts'
-import type { ToolTerminal } from '@omne-harness/tool-contract'
+import {
+  measuredDuration,
+  settlementAccount,
+  SETTLEMENT_EVENT,
+  usageEndingOf,
+} from '../src/ledger-account.ts'
+import type { ToolState, ToolTerminal } from '@omne-harness/tool-contract'
 import type { Snapshot } from '../src/ledger-decider.ts'
 import type { CallRecord } from '../src/ledger-store.ts'
 import { INITIAL_REVISION } from '../src/evidence.ts'
@@ -129,5 +134,14 @@ describe('the account a settlement writes (C14)', () => {
     ok(await f.preserve())
     const records = await f.records()
     expect(records.filter(record => record.kind === 'account')).toHaveLength(1)
+  })
+})
+
+describe('the ending a usage row keeps', () => {
+  it('is the terminal of the settled call, which a late result of another kind does not change', () => {
+    const settled = { phase: 'settled', terminal: { kind: 'no-response' } } as unknown as ToolState
+    expect(usageEndingOf(settled, { kind: 'completed' })).toEqual({ kind: 'no-response' })
+    const same = { phase: 'settled', terminal: { kind: 'completed' } } as unknown as ToolState
+    expect(usageEndingOf(same, { kind: 'completed' })).toEqual({ kind: 'completed' })
   })
 })

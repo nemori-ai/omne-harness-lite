@@ -195,3 +195,112 @@ describe('how a call ended, as its usage keeps it', () => {
     ])
   })
 })
+
+describe('the edges of the usage read', () => {
+  const calls = (page: Awaited<ReturnType<Awaited<ReturnType<typeof accountsOver>>['list']>>) =>
+    'ok' in page ? page.ok.entries.map(item => item.call) : page
+  const nextOf = (page: Awaited<ReturnType<Awaited<ReturnType<typeof accountsOver>>['list']>>) => {
+    if (!('ok' in page) || page.ok.next === null) throw new Error('a page with more')
+    return page.ok.next
+  }
+
+  it('takes the facts under any work of the scope and none after the end of the range', async () => {
+    const r = await accountsOver([
+      [tenantA, fact('one', T(1), 'exec-1')],
+      [tenantA, fact('two', T(2), 'exec-2/step')],
+      [tenantA, fact('after', T(4), 'exec-1')],
+    ])
+    expect(
+      calls(await r.list({ consumer: { owner: 'agent', works: ['exec-1', 'exec-2'] } })),
+    ).toEqual([callId('one'), callId('two'), callId('after')])
+    expect(calls(await r.list({ range: { from: T(1), to: T(3) } }))).toEqual([
+      callId('one'),
+      callId('two'),
+    ])
+  })
+
+  it('orders the calls of one moment by call either way and pages between them', async () => {
+    const r = await accountsOver([
+      [tenantA, fact('b', T(1))],
+      [tenantA, fact('c', T(1))],
+      [tenantA, fact('a', T(1))],
+    ])
+    const first = await r.list({ limit: 1 })
+    expect(calls(first)).toEqual([callId('a')])
+    const second = await r.list({ limit: 1, after: nextOf(first) })
+    expect(calls(second)).toEqual([callId('b')])
+    expect(calls(await r.list({ limit: 1, after: nextOf(second) }))).toEqual([callId('c')])
+    expect(calls(await r.list({ order: 'descending' }))).toEqual([
+      callId('c'),
+      callId('b'),
+      callId('a'),
+    ])
+  })
+
+  it('says there is no more when a page holds exactly the rest, and resumes after its last entry', async () => {
+    const r = await accountsOver([
+      [tenantA, fact('a', T(1))],
+      [tenantA, fact('b', T(2))],
+      [tenantA, fact('c', T(3))],
+      [tenantA, fact('d', T(4))],
+    ])
+    expect(await r.list({ limit: 4 })).toMatchObject({ ok: { next: null } })
+    const first = await r.list({ limit: 3 })
+    expect(calls(await r.list({ limit: 3, after: nextOf(first) }))).toEqual([callId('d')])
+  })
+
+  it('accepts the edges of the limits and refuses an empty work among others or a bad end', async () => {
+    const r = await accountsOver([[tenantA, fact('a', T(1))]])
+    for (const limit of [1, 500])
+      expect(await r.list({ limit }), String(limit)).toMatchObject({ ok: {} })
+    const works = Array.from({ length: 64 }, (_, at) => `w${String(at)}`)
+    expect(await r.list({ consumer: { owner: 'agent', works } })).toMatchObject({ ok: {} })
+    expect(await r.list({ consumer: { owner: 'agent', works: ['w', ''] } })).toEqual({
+      failure: { kind: 'invalid', field: 'consumer', reason: 'shape' },
+    })
+    expect(await r.list({ range: { from: T(1), to: 'tomorrow' } })).toEqual({
+      failure: { kind: 'invalid', field: 'range', reason: 'instant' },
+    })
+  })
+
+  it('refuses a cursor without its version mark or with a position of the wrong kind', async () => {
+    const r = await accountsOver([
+      [tenantA, fact('a', T(1))],
+      [tenantA, fact('b', T(2))],
+    ])
+    const next = nextOf(await r.list({ limit: 1 }))
+    expect(next.startsWith('tu1.')).toBe(true)
+    const [query, start, call] = JSON.parse(
+      Buffer.from(next.slice('tu1.'.length), 'base64url').toString('utf8'),
+    ) as [unknown, unknown, unknown]
+    const sealed = (body: unknown) =>
+      `tu1.${Buffer.from(JSON.stringify(body)).toString('base64url')}`
+    expect(calls(await r.list({ after: sealed([query, start, call]) }))).toEqual([callId('b')])
+    for (const forged of [
+      next.slice('tu1.'.length),
+      sealed([query, 5, call]),
+      sealed([query, start, 5]),
+    ])
+      expect(await r.list({ after: forged }), forged).toEqual({
+        failure: { kind: 'invalid', field: 'after', reason: 'cursor' },
+      })
+  })
+
+  it('answers unavailable, naming the ledger, when the store cannot read', async () => {
+    const accounts = createToolAccounts(
+      { usage: () => Promise.resolve({ kind: 'unavailable', diagnostic: 'disk' }) },
+      { qualify: () => Promise.resolve({ kind: 'allowed' }) },
+    )
+    expect(
+      await accounts.list({
+        principal: principalA,
+        tenant: tenantA,
+        range: null,
+        consumer: null,
+        order: 'ascending',
+        after: null,
+        limit: 1,
+      }),
+    ).toEqual({ failure: { kind: 'unavailable', dependency: 'tool-ledger', diagnostic: 'disk' } })
+  })
+})

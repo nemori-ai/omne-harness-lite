@@ -24,6 +24,29 @@ function factsOf(rows: readonly unknown[]): readonly ToolUsageFact[] | null {
   return facts
 }
 
+function inputOf(tenant: string, query: LedgerUsageQuery): UsageReadInput {
+  return {
+    tenant,
+    from: query.range?.from ?? null,
+    to: query.range?.to ?? null,
+    owner: query.consumer?.owner ?? null,
+    works: query.consumer?.works ?? [],
+    order: query.order,
+    afterStart: query.after?.start ?? null,
+    afterCall: query.after?.call ?? null,
+    limit: query.limit,
+  }
+}
+
+function pageOf(output: JsonValue, limit: number): LedgerUsageRead {
+  const undated = isObject(output) ? output['undated'] : undefined
+  const rows = isObject(output) ? output['facts'] : undefined
+  const facts = Array.isArray(rows) ? factsOf(rows) : null
+  if (typeof undated !== 'number' || facts === null)
+    return unavailable('usage read: the rows do not hold a usage page')
+  return { kind: 'page', facts: facts.slice(0, limit), undated, more: facts.length > limit }
+}
+
 export function usageReadOver(
   options: SqlToolStorageOptions,
 ): (query: LedgerUsageQuery) => Promise<LedgerUsageRead> {
@@ -36,42 +59,19 @@ export function usageReadOver(
       if (found.kind !== 'ready') return unavailable(`tenant domain lookup: ${found.diagnostic}`)
       if (found.domain.scope.kind !== 'tenant' || found.domain.scope.tenant !== tenant)
         return unavailable('the tenant domain directory answered another scope')
-      const input: UsageReadInput = {
-        tenant,
-        from: query.range?.from ?? null,
-        to: query.range?.to ?? null,
-        owner: query.consumer?.owner ?? null,
-        works: query.consumer?.works ?? [],
-        order: query.order,
-        afterStart: query.after?.start ?? null,
-        afterCall: query.after?.call ?? null,
-        limit: query.limit,
-      }
       const answer = await options.storage.read({
         domain: found.domain,
         handler: USAGE_READ_HANDLER,
         protocol: PROTOCOL,
         requestKey: randomUUID(),
-        input,
+        input: inputOf(tenant, query),
       })
-      if (answer.kind !== 'read')
-        return unavailable(
-          answer.kind === 'cancelled'
-            ? 'usage read: cancelled'
-            : `usage read: ${answer.reason} ${answer.diagnostic ?? ''}`.trimEnd(),
-        )
-      const output = answer.output
-      const undated = isObject(output) ? output['undated'] : undefined
-      const rows = isObject(output) ? output['facts'] : undefined
-      const facts = Array.isArray(rows) ? factsOf(rows) : null
-      if (typeof undated !== 'number' || facts === null)
-        return unavailable('usage read: the rows do not hold a usage page')
-      return {
-        kind: 'page',
-        facts: facts.slice(0, query.limit),
-        undated,
-        more: facts.length > query.limit,
-      }
+      if (answer.kind === 'read') return pageOf(answer.output, query.limit)
+      return unavailable(
+        answer.kind === 'cancelled'
+          ? 'usage read: cancelled'
+          : `usage read: ${answer.reason} ${answer.diagnostic ?? ''}`.trimEnd(),
+      )
     } catch {
       return unavailable('usage read: the storage threw')
     }
