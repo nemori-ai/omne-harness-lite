@@ -33,6 +33,7 @@ const document = (text: string, kind = 'u'): IndexDocument => ({
 })
 const item = (position: number, text: string, at: number | null = 1000 + position) => ({
   position: String(position),
+  revision: String(position),
   at,
   document: document(text),
 })
@@ -308,8 +309,8 @@ describe('the candidates of a plan', () => {
       session: 's1',
       through: '2',
       documents: [
-        { position: '1', at: 1, document: document('needle', 'u') },
-        { position: '2', at: 2, document: document('needle', 'a') },
+        { position: '1', revision: '1', at: 1, document: document('needle', 'u') },
+        { position: '2', revision: '2', at: 2, document: document('needle', 'a') },
       ],
     })
     const plan: GramPlan = { kind: 'and', of: [gram('nee'), gram('\u0002ka')] }
@@ -379,6 +380,32 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
     const answer = found(store, ask(generation, gram('nee')))
     expect(answer.rows.map(row => row.position)).toEqual(['4', '2', '1'])
     expect(answer.covered).toEqual([{ session: 's1', position: '5' }])
+  })
+
+  it('counts the cover in commits: entries of one commit share a revision, and are skipped together', () => {
+    const store = storeOf(rootOf())
+    const generation = ready(store)
+    const entry = (position: number, revision: number) => ({
+      ...item(position, 'needle'),
+      revision: String(revision),
+    })
+    store.append({
+      tenant: TENANT,
+      generation,
+      session: 's1',
+      through: '1',
+      documents: [entry(1, 1), entry(2, 1)],
+    })
+    store.append({
+      tenant: TENANT,
+      generation,
+      session: 's1',
+      through: '2',
+      documents: [entry(1, 1), entry(2, 1), entry(3, 2), entry(4, 2)],
+    })
+    const answer = found(store, ask(generation, gram('nee')))
+    expect(answer.rows.map(row => row.position)).toEqual(['4', '3', '2', '1'])
+    expect(answer.covered).toEqual([{ session: 's1', position: '2' }])
   })
 
   it('moves the cover of a batch without documents: the entries it read had nothing to search', () => {

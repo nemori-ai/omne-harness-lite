@@ -24,6 +24,7 @@ describe('public entries', () => {
       'SESSION_PARTICIPANT',
       'createSessionPrincipalBindings',
       'createSessionScopeOwners',
+      'createSessionSearchLog',
       'createSessionStorage',
       'createSessionStoragePair',
       'registerSessionNotifier',

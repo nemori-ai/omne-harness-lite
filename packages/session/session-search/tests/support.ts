@@ -13,6 +13,17 @@ export const LIMITS: QueryLimits = {
 
 export type TestBlock = Readonly<{ text: string; toModel?: boolean; kind?: string }>
 
+/** Plain data as the JSON tree a log entry carries its payload in. */
+export function tree(plain: unknown): HistoryEntry['payload'] {
+  if (plain === null || plain === undefined) return { kind: 'null' }
+  if (typeof plain === 'string') return { kind: 'string', value: plain }
+  if (typeof plain === 'boolean') return { kind: 'boolean', value: plain }
+  if (typeof plain === 'number') return { kind: 'number', lexeme: String(plain) }
+  if (Array.isArray(plain)) return { kind: 'array', items: plain.map(tree) }
+  const entries = Object.entries(plain as Record<string, unknown>)
+  return { kind: 'object', entries: entries.map(([key, value]) => ({ key, value: tree(value) })) }
+}
+
 let serial = 0
 
 /** A log entry as the history read gives it; only what the search reads is filled in. */
@@ -33,7 +44,7 @@ export function entryOf(kind: string, blocks: readonly TestBlock[], id?: string)
     revision: String(serial),
     kind,
     schema: { name: 'test', revision: '1' },
-    payload: { message },
+    payload: tree({ message }),
     origin: { owner: 'test', via: null, source: { owner: 'test', record: 'r', revision: '1' } },
   } as unknown as HistoryEntry
 }

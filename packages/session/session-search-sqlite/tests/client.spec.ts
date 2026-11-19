@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { EntryId, SessionId } from '@omne-harness/session-contract'
+import type { EntryId, SessionId, SessionRevision } from '@omne-harness/session-contract'
 import { testingTenant } from '@omne-harness/session-contract/testing'
 import type { GramPlan, IndexDocument } from '@omne-harness/session-search'
 import { createSqliteHistoryIndex, type SqliteHistoryIndex } from '../src/index.ts'
@@ -18,6 +18,7 @@ const gram = (text: string): GramPlan => ({ kind: 'gram', gram: text })
 const document = (text: string): IndexDocument => ({ visibility: 'model', text, markers: [] })
 const at = (position: number, text: string) => ({
   position: String(position) as EntryId,
+  revision: String(position) as SessionRevision,
   at: 1000 + position,
   document: document(text),
 })
@@ -56,7 +57,7 @@ describe('the history index through its two threads', () => {
       building: 1,
       progress: { indexed: 0, total: 2 },
     })
-    const batch = { tenant: TENANT, generation: 1, session: S1, through: '3' as EntryId }
+    const batch = { tenant: TENANT, generation: 1, session: S1, through: '3' as SessionRevision }
     expect(
       await index.append({ ...batch, documents: [at(1, 'needle one'), at(3, 'needle three')] }),
     ).toEqual({ ok: null })
@@ -83,7 +84,7 @@ describe('the history index through its two threads', () => {
       tenant: TENANT,
       generation: 1,
       session: S1,
-      through: '1' as EntryId,
+      through: '1' as SessionRevision,
       documents: [at(1, 'needle')],
     })
     expect(await index.state(OTHER)).toEqual({ kind: 'absent' })
@@ -100,7 +101,7 @@ describe('the history index through its two threads', () => {
         tenant: TENANT,
         generation: 4,
         session: S1,
-        through: '1' as EntryId,
+        through: '1' as SessionRevision,
         documents: [],
       }),
     ).toEqual({ failure: 'generation-gone' })
@@ -115,7 +116,7 @@ describe('the history index through its two threads', () => {
       tenant: TENANT,
       generation: 1,
       session: S1,
-      through: '1' as EntryId,
+      through: '1' as SessionRevision,
       documents: [at(1, 'needle')],
     })
     await index.close()
@@ -133,7 +134,7 @@ describe('a process killed between the rows of a batch and its cover (SH-2)', ()
     const script = `
       import { createStore } from ${JSON.stringify(store)}
       const store = createStore({ root: ${JSON.stringify(root)}, extraction: 1, readOnly: false, vocabularyLimit: 8 })
-      const doc = (position) => ({ position: String(position), at: 1000 + position, document: { visibility: 'model', text: 'needle', markers: [] } })
+      const doc = (position) => ({ position: String(position), revision: String(position), at: 1000 + position, document: { visibility: 'model', text: 'needle', markers: [] } })
       const { generation } = store.beginRebuild('t', 0)
       store.adopt('t', generation)
       store.append({ tenant: 't', generation, session: 's', through: '1', documents: [doc(1)] })
@@ -169,6 +170,7 @@ describe('a process killed between the rows of a batch and its cover (SH-2)', ()
         through: '3',
         documents: [2, 3].map(position => ({
           position: String(position),
+          revision: String(position),
           at: 1000 + position,
           document: document('needle'),
         })),

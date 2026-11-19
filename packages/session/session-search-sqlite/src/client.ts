@@ -1,7 +1,7 @@
 import { Worker } from 'node:worker_threads'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { EntryId, SessionId } from '@omne-harness/session-contract'
+import type { EntryId, SessionId, SessionRevision } from '@omne-harness/session-contract'
 import {
   EXTRACTION_VERSION,
   type Candidates,
@@ -78,7 +78,9 @@ const isFailure = (answer: unknown): answer is StoreFailure => typeof answer ===
 
 function candidatesOf(found: StoreCandidates): Candidates {
   return {
-    covered: new Map(found.covered.map(row => [row.session as SessionId, row.position as EntryId])),
+    covered: new Map(
+      found.covered.map(row => [row.session as SessionId, row.position as SessionRevision]),
+    ),
     rows: found.rows.map(row => ({
       doc: row.doc,
       session: row.session as SessionId,

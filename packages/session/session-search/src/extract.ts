@@ -50,26 +50,26 @@ export type IndexDocument = Readonly<{
 type Block = Readonly<{ text: string; toModel: boolean }>
 type Searchable = Readonly<{ kind: SearchableKind; blocks: readonly Block[] }>
 
-function record(value: unknown): Readonly<Record<string, unknown>> | null {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Readonly<Record<string, unknown>>)
-    : null
+type Tree = HistoryEntry['payload']
+
+function member(tree: Tree | undefined, key: string): Tree | undefined {
+  if (tree?.kind !== 'object') return undefined
+  return tree.entries.find(entry => entry.key === key)?.value
 }
 
-function blockOf(value: unknown): Block | null {
-  const block = record(value)
-  if (block === null) return null
-  const text = typeof block['text'] === 'string' ? block['text'] : block['transcript']
-  if (typeof text !== 'string' || text === '') return null
-  return { text, toModel: record(block['visibility'])?.['toModel'] === true }
+function blockOf(tree: Tree): Block | null {
+  const stated = member(tree, 'text') ?? member(tree, 'transcript')
+  if (stated?.kind !== 'string' || stated.value === '') return null
+  const toModel = member(member(tree, 'visibility'), 'toModel')
+  return { text: stated.value, toModel: toModel?.kind === 'boolean' && toModel.value }
 }
 
-// The one rule: which text of an entry can be searched. The index and the verification read it.
+// The one rule of what can be searched, read off the JSON tree an entry carries its payload in.
 function searchableOf(entry: HistoryEntry): Searchable | null {
   if (!isSearchableKind(entry.kind)) return null
-  const blocks = record(record(entry.payload)?.['message'])?.['blocks']
-  if (!Array.isArray(blocks)) return null
-  const found = blocks.map(blockOf).filter(block => block !== null)
+  const blocks = member(member(entry.payload, 'message'), 'blocks')
+  if (blocks?.kind !== 'array') return null
+  const found = blocks.items.map(blockOf).filter(block => block !== null)
   return found.length === 0 ? null : { kind: entry.kind, blocks: found }
 }
 

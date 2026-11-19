@@ -24,8 +24,16 @@ export type {
   HistoryIndex,
   IndexFailure,
   IndexState,
+  IndexedEntry,
   Progress,
 } from './index-port.ts'
+export type {
+  EntryPage,
+  HistoryLogReader,
+  LogPoint,
+  LoggedEntry,
+  LoggedSession,
+} from './log-port.ts'
 export { SNIPPET_CONTEXT, SNIPPET_MATCH, snippetOf, type SearchHit, type Snippet } from './hit.ts'
 export { ANY, planAdmits, type GramPlan, type PlanLimits } from './plan.ts'
 export {

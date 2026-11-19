@@ -18,7 +18,12 @@ export type StoreAppendRequest = Readonly<{
   generation: number
   session: string
   through: string
-  documents: readonly Readonly<{ position: string; at: number | null; document: IndexDocument }>[]
+  documents: readonly Readonly<{
+    position: string
+    revision: string
+    at: number | null
+    document: IndexDocument
+  }>[]
 }>
 /** Testing only: called inside an append, after the rows and before the cover. */
 export type AppendFaults = Readonly<{ afterRows?: () => void }>
@@ -55,9 +60,9 @@ function writeBatch(
   const addDoc = prepare('INSERT INTO doc (id, session, position) VALUES (?, ?, ?)')
   const addRow = prepare('INSERT INTO grams (rowid, row) VALUES (?, ?)')
   for (const item of request.documents) {
+    // At or behind the cover: this commit was written before. Writing it again would double it.
+    if (BigInt(item.revision) <= covered) continue
     const position = BigInt(item.position)
-    // At or behind the cover: this batch was written before. Writing it again would double it.
-    if (position <= covered) continue
     if (item.at !== null) lastAt = BigInt(item.at)
     const base = lastAt * SERIALS
     const taken = serials.get(base) ?? (top.get(base, base + SERIALS)?.['top'] as bigint | null)

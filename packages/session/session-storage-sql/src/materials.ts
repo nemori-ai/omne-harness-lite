@@ -265,6 +265,20 @@ export const HANDLERS: readonly Handler[] = [
   },
   { handler: 'session.pending', file: 'read-pending', tables: ['sl_pending_idx'] },
   {
+    handler: 'session.search-sessions',
+    file: 'read-search-sessions',
+    tables: ['sl_journal', 'sl_session_list'],
+    migrations: [...factMigrations, sessionListMigrationRef],
+    maxRowsRead: 40_010,
+  },
+  {
+    handler: 'session.search-entries',
+    file: 'read-search-entries',
+    tables: ['sl_journal', 'sl_entry', 'sl_blob', 'sl_commit_time'],
+    migrations: [...factMigrations, sessionListMigrationRef],
+    maxRowsRead: 4000,
+  },
+  {
     handler: 'session.list',
     file: 'read-session-list',
     tables: ['sl_session_list'],

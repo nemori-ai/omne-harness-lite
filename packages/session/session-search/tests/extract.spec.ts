@@ -10,7 +10,7 @@ import {
   searchableKindOf,
   visibilityMarker,
 } from '../src/index.ts'
-import { ALPHABET, entryOf, random, randomText } from './support.ts'
+import { ALPHABET, entryOf, random, randomText, tree } from './support.ts'
 
 const indexed = (block: string): string =>
   ['\u0002', '\u0003', '\u0004'].reduce(
@@ -64,23 +64,34 @@ describe('the searchable text of a log entry', () => {
 
   it('reads nothing out of a payload that is not a message with blocks', () => {
     const entry = entryOf('message.user', [{ text: 'hello' }])
-    for (const payload of [null, 'text', [], {}, { message: null }, { message: { blocks: 'x' } }])
-      expect(documentsOf({ ...entry, payload } as never)).toEqual([])
-    for (const payload of [
+    const of = (plain: unknown) => ({ ...entry, payload: tree(plain) })
+    for (const plain of [null, 'text', [], {}, { message: null }, { message: { blocks: 'x' } }])
+      expect(documentsOf(of(plain))).toEqual([])
+    for (const plain of [
       [{ message: { blocks: [{ text: 'x' }] } }],
       { message: [{ blocks: [{ text: 'x' }] }] },
     ])
-      expect(documentsOf({ ...entry, payload } as never)).toEqual([])
-    const arrayBlock = {
+      expect(documentsOf(of(plain))).toEqual([])
+    const arrayBlock = of({
       message: { blocks: [[{ text: 'x' }], { text: 'kept', visibility: [true] }] },
-    }
-    expect(blocksOf({ ...entry, payload: arrayBlock } as never, 'any')).toEqual(['kept'])
-    expect(blocksOf({ ...entry, payload: arrayBlock } as never, 'only')).toEqual([])
-    const odd = {
+    })
+    expect(blocksOf(arrayBlock, 'any')).toEqual(['kept'])
+    expect(blocksOf(arrayBlock, 'only')).toEqual([])
+    const odd = of({
       message: { blocks: [null, 7, { text: 9 }, { text: '' }, { transcript: 'said' }] },
-    }
-    expect(blocksOf({ ...entry, payload: odd } as never, 'any')).toEqual(['said'])
-    expect(blocksOf({ ...entry, payload: odd } as never, 'only')).toEqual([])
+    })
+    expect(blocksOf(odd, 'any')).toEqual(['said'])
+    expect(blocksOf(odd, 'only')).toEqual([])
+  })
+
+  it('reads the payload as the JSON tree the log stores, not as plain data', () => {
+    const entry = entryOf('message.user', [{ text: 'hello' }])
+    const plain = { message: { blocks: [{ text: 'plain', visibility: { toModel: true } }] } }
+    expect(documentsOf({ ...entry, payload: plain } as never)).toEqual([])
+    expect(blocksOf({ ...entry, payload: tree(plain) }, 'only')).toEqual(['plain'])
+    const stated = { message: { blocks: [{ text: 'x', visibility: { toModel: 'yes' } }] } }
+    expect(blocksOf({ ...entry, payload: tree(stated) }, 'only')).toEqual([])
+    expect(blocksOf({ ...entry, payload: tree(stated) }, 'any')).toEqual(['x'])
   })
 
   it('splits an entry by what the model can read: at most one document of each', () => {

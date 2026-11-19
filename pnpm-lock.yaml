@@ -4685,6 +4685,9 @@ importers:
       '@omne-harness/session-cordis-contract':
         specifier: workspace:*
         version: link:../session-cordis-contract
+      '@omne-harness/session-search':
+        specifier: workspace:*
+        version: link:../session-search
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract
