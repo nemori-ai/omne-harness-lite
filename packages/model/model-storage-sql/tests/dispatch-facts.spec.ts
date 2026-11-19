@@ -484,6 +484,10 @@ describe('what the read face refuses, and what it answers when it cannot read', 
     expect(
       await listOn(s, { authority: { authorize: () => ({ failure: down }) as never } }),
     ).toEqual({ failure: down })
+    const elsewhere = { failure: { kind: 'denied', action: 'tenant' } } as never
+    expect(await listOn(s, { authority: { authorize: () => elsewhere } })).toEqual({
+      failure: { kind: 'denied', action: 'read-account' },
+    })
   })
 
   it('answers an unregistered tenant domain with an empty page, and a lookup that fails as unavailable', async () => {
@@ -513,7 +517,7 @@ describe('what the read face refuses, and what it answers when it cannot read', 
     expect(await listOn(s, answering(s, output))).toEqual({ failure: unavailable(diagnostic) })
   })
 
-  it('answers unavailable for a stored row whose position is not a moment and a row', async () => {
+  it('answers unavailable for a stored row whose position or window is not what the table holds', async () => {
     const s = scene()
     const row = {
       rid: 1,
@@ -526,12 +530,13 @@ describe('what the read face refuses, and what it answers when it cannot read', 
     }
     const page = (raw: object) => ({ undated: 0, rows: [raw] })
     expect(unbox(await listOn(s, answering(s, page(row)))).entries).toHaveLength(1)
-    for (const damaged of [
-      { ...row, prepared: 5 },
-      { ...row, rid: 'x' },
-    ])
+    for (const [damaged, field] of [
+      [{ ...row, prepared: 5 }, `position of ${textOf(A)}`],
+      [{ ...row, rid: 'x' }, `position of ${textOf(A)}`],
+      [{ ...row, context_window: 5 }, 'context_window'],
+    ] as const)
       expect(await listOn(s, answering(s, page(damaged)))).toEqual({
-        failure: unavailable(`stored dispatch fact position of ${textOf(A)}`),
+        failure: unavailable(`stored dispatch fact ${field}`),
       })
   })
 
