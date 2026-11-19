@@ -160,7 +160,12 @@ describe('the slot of a command carries the describe function it was given', () 
 })
 
 describe('the conformance check of a describe function', () => {
-  const input = { principal: 'p', tenant: {} as never, arguments: { title: 'T' } }
+  const input = {
+    principal: 'p',
+    tenant: {} as never,
+    arguments: { title: 'T' },
+    signal: new AbortController().signal,
+  }
 
   it('passes a function that reads only, and answers the same each time', async () => {
     const state = { writes: 0 }
