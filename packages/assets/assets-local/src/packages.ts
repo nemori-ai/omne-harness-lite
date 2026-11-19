@@ -62,7 +62,7 @@ export type PackageRecovery = Readonly<{
   mismatched: readonly CapabilityId[]
 }>
 
-export type PackageHolding = Omit<AssetsPublishAndHold['holding'], 'holdingRef' | 'scopeRef'>
+export type PackageHolding = Omit<AssetsPublishAndHold['holding'], 'scopeRef'>
 
 export interface PublishedPackages {
   publish(input: {
@@ -106,7 +106,7 @@ function versionOfDirectory(name: string): string | undefined {
   return hex === undefined ? undefined : `sha256:${hex}`
 }
 
-export function publishedRef(capability: CapabilityId): string {
+export function publishedAssetRef(capability: CapabilityId): string {
   return `${capability.category}/${capability.name}`
 }
 
@@ -133,7 +133,9 @@ function isSafePath(path: string): boolean {
   return path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
 }
 
-function pathRejection(manifest: PackageManifest): PackageRejection | undefined {
+type Declared = Readonly<{ entries: readonly Readonly<{ path: string; bytes: number }>[] }>
+
+function pathRejection(manifest: Declared): PackageRejection | undefined {
   const paths = new Set<string>()
   for (const entry of manifest.entries) {
     if (!isSafePath(entry.path) || paths.has(entry.path))
@@ -150,7 +152,7 @@ function pathRejection(manifest: PackageManifest): PackageRejection | undefined 
 }
 
 function limitRejection(
-  manifest: PackageManifest,
+  manifest: Declared,
   limits: PackageLayout['limits'],
 ): PackageRejection | undefined {
   if (manifest.entries.length > limits.files) return { kind: 'limit-exceeded', limit: 'files' }
@@ -159,6 +161,14 @@ function limitRejection(
   const total = manifest.entries.reduce((sum, entry) => sum + entry.bytes, 0)
   if (total > limits.totalBytes) return { kind: 'limit-exceeded', limit: 'totalBytes' }
   return undefined
+}
+
+/** The path rules and the category limits a package is held to, judged on its file list alone. */
+export function declarationRejection(
+  declared: Declared,
+  limits: PackageLayout['limits'],
+): PackageRejection | undefined {
+  return pathRejection(declared) ?? limitRejection(declared, limits)
 }
 
 const text = (value: string): JsonValue => ({ kind: 'string', value })
@@ -191,7 +201,7 @@ function field(value: JsonValue | undefined, key: string): JsonValue | undefined
     : undefined
 }
 
-function manifestOf(body: JsonValue): PackageManifest | undefined {
+export function manifestOf(body: JsonValue): PackageManifest | undefined {
   const items = field(field(body, 'manifest'), 'entries')
   if (items?.kind !== 'array') return undefined
   const entries = items.items.map(entryOf)
@@ -345,7 +355,7 @@ function packagePublisher(
     const listed = await from.manifest()
     if (!('ok' in listed)) return fail({ kind: 'source-failed', failure: listed.failure })
     const manifest = listed.ok
-    const invalid = pathRejection(manifest) ?? limitRejection(manifest, layout.limits)
+    const invalid = declarationRejection(manifest, layout.limits)
     if (invalid !== undefined) return fail(invalid)
     const inspected = await layout.inspect(from)
     if (!('ok' in inspected)) return inspected
@@ -385,7 +395,7 @@ function packagePublisher(
     const prepared = await validate(request)
     if (!('ok' in prepared)) return rejected(prepared.failure)
     const { capability, operationId } = request
-    const ref = publishedRef(capability)
+    const ref = publishedAssetRef(capability)
     const revision = await records.readAssetRevision(ref)
     if (!('ok' in revision)) return rejected({ kind: 'record-rejected', reason: revision.failure })
     const failed = await swapIn(prepared.ok, request)
@@ -396,7 +406,7 @@ function packagePublisher(
       assetRef: ref,
       expectedRevision: revision.ok,
       pinned: pinBody({ identity: capability, version, source: SOURCE, body }),
-      holding: { holdingRef: ref, scopeRef: holdingScope, ...request.holding },
+      holding: { scopeRef: holdingScope, ...request.holding },
     })
     if (recorded.kind === 'unknown') return { kind: 'unknown', operationId }
     if (recorded.kind === 'rejected') return recordRejected(recorded.reason)
@@ -488,7 +498,7 @@ function packageRecovery(shared: Shared): () => Promise<PackageRecovery> {
     const version = versionOfDirectory(dir)
     const id = capabilityId(category, name)
     if (version === undefined || !id.ok) return undefined
-    const record = await records.readVersionRecord(publishedRef(id.id), version)
+    const record = await records.readVersionRecord(publishedAssetRef(id.id), version)
     if (!('ok' in record)) throw new Error(record.failure)
     return record.ok === undefined ? id.id : undefined
   }

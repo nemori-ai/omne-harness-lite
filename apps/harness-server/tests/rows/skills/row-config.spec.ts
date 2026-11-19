@@ -26,12 +26,19 @@ describe('the skills row configuration', () => {
 })
 
 describe('the tenant-assets row configuration', () => {
-  it('takes a package root, and nothing else', () => {
+  it('takes a package root and the upload policy, with defaults for the policy, and nothing else', () => {
     expect(tenantAssetsRowConfig.parse({ packageRoot: '/state/assets' })).toEqual({
       packageRoot: '/state/assets',
+      uploads: { idleSeconds: 3600, maxOpen: 8, partBytes: 524_288 },
     })
+    expect(
+      tenantAssetsRowConfig.parse({ packageRoot: '/a', uploads: { idleSeconds: 60, maxOpen: 1 } }),
+    ).toEqual({ packageRoot: '/a', uploads: { idleSeconds: 60, maxOpen: 1, partBytes: 524_288 } })
     expect(tenantAssetsRowConfig.safeParse({ packageRoot: '' }).success).toBe(false)
     expect(tenantAssetsRowConfig.safeParse({}).success).toBe(false)
     expect(tenantAssetsRowConfig.safeParse({ packageRoot: '/a', cache: true }).success).toBe(false)
+    expect(
+      tenantAssetsRowConfig.safeParse({ packageRoot: '/a', uploads: { maxOpen: 0 } }).success,
+    ).toBe(false)
   })
 })

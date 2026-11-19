@@ -11,6 +11,7 @@ export type LeafKind =
   | 'plain-date'
   | 'session'
   | 'page-bytes'
+  | 'bytes'
   | 'revision'
   | 'positive-integer'
   | 'count'

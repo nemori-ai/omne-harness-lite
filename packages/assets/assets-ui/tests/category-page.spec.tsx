@@ -6,6 +6,7 @@ import { AssetsPage, createGovernance } from '../src/index.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { namesOf } from './fixtures/names.ts'
+import { assetsOf, categoriesOf, serveAssetReads } from './fixtures/asset-reads.ts'
 import { ordinaryView, permissionView, secretView } from './fixtures/views.ts'
 
 const TENANT =
@@ -33,27 +34,45 @@ async function answer(
   return call
 }
 
+/** Opens the detail of every asset listed in the shown tab: a setting shows only in its detail. */
+async function openListed(): Promise<void> {
+  await settle()
+  await settle()
+  for (const button of screen.queryAllByRole('button', { expanded: false })) fireEvent.click(button)
+  await settle()
+}
+
+function page(fake: FakeClient, items: readonly SettingView[], names = {}) {
+  const rows = assetsOf(items)
+  serveAssetReads(fake, rows)
+  return (
+    <AssetsPage
+      governance={createGovernance({ client: fake.client })}
+      tenant={TENANT}
+      categoryNames={namesOf(categoriesOf(rows, names))}
+    />
+  )
+}
+
 async function listed(
   items: readonly SettingView[] = [permissionView()],
   names: Readonly<Record<string, string>> = {},
 ): Promise<FakeClient> {
   const fake = createFakeClient()
-  render(
-    <AssetsPage
-      governance={createGovernance({ client: fake.client })}
-      tenant={TENANT}
-      categoryNames={namesOf(names)}
-    />,
-  )
+  render(page(fake, items, names))
   await answer(fake, 'list-settings', {
     outcome: 'succeeded',
     body: { items, next: null, completeness: 'complete' },
   })
+  await openListed()
   return fake
 }
 
 const row = (title: string) => screen.getByRole('heading', { name: title }).closest('li')!
-const showTab = (label: string) => fireEvent.click(screen.getByRole('tab', { name: label }))
+async function showTab(label: string): Promise<void> {
+  fireEvent.click(screen.getByRole('tab', { name: label }))
+  await openListed()
+}
 
 it('P1 列出后每项显示说明、生效的值、来源、能不能改；不能改的写明原因', async () => {
   await listed([
@@ -61,7 +80,7 @@ it('P1 列出后每项显示说明、生效的值、来源、能不能改；不�
     ordinaryView(),
     secretView(),
   ])
-  showTab('tool')
+  await showTab('tool')
   const permission = within(row('调用权限'))
   expect(permission.getByText('Shell 工具每次调用要不要人批准。')).toBeTruthy()
   expect(permission.getByText('生效的值').nextElementSibling?.textContent).toBe('询问')
@@ -78,7 +97,7 @@ it('P1 列出后每项显示说明、生效的值、来源、能不能改；不�
   expect(ordinary.getByText('来源').nextElementSibling?.textContent).toBe('默认')
   expect(ordinary.queryByRole('button', { name: '清除' })).toBeNull()
 
-  showTab('model')
+  await showTab('model')
   const secret = within(row('模型供应商的密钥'))
   expect(secret.getByText('能不能改').nextElementSibling?.textContent).toBe(
     '不能改：这一层不能配这一项',
@@ -174,7 +193,7 @@ it('P5 结果未知：不发新的一次，原样再送同一次认回；认回�
 
 it('P6 列表读失败如实显示并给「重试」', async () => {
   const fake = createFakeClient()
-  render(<AssetsPage governance={createGovernance({ client: fake.client })} tenant={TENANT} />)
+  render(page(fake, [permissionView()]))
   await answer(fake, 'list-settings', { outcome: 'denied' })
   expect(screen.getByRole('alert').textContent).toContain('没有权限，或登录已失效。')
   fireEvent.click(screen.getByRole('button', { name: '重试' }))
@@ -182,6 +201,7 @@ it('P6 列表读失败如实显示并给「重试」', async () => {
     outcome: 'succeeded',
     body: { items: [permissionView()], next: null, completeness: 'partial' },
   })
+  await openListed()
   expect(screen.getByRole('heading', { name: '调用权限' })).toBeTruthy()
   expect(screen.getByText(/列表不全/)).toBeTruthy()
 })
@@ -197,18 +217,19 @@ it('P7 租户读不懂时不发任何调用', () => {
 
 it('P9 外壳重新渲染而租户没变：不重读整张列表', async () => {
   const fake = createFakeClient()
-  const governance = createGovernance({ client: fake.client })
-  const view = render(<AssetsPage governance={governance} tenant={TENANT} />)
+  const element = page(fake, [permissionView()])
+  const view = render(element)
   await answer(fake, 'list-settings', {
     outcome: 'succeeded',
     body: { items: [permissionView()], next: null, completeness: 'complete' },
   })
-  const reads = () => fake.calls.filter(call => call.operation === 'list-settings').length
-  expect(reads()).toBe(1)
+  const reads = (operation: string) =>
+    fake.calls.filter(call => call.operation === operation).length
+  expect([reads('list-settings'), reads('list-assets')]).toEqual([1, 1])
 
-  view.rerender(<AssetsPage governance={governance} tenant={TENANT} />)
+  view.rerender(element)
   await settle()
-  expect(reads()).toBe(1)
+  expect([reads('list-settings'), reads('list-assets')]).toEqual([1, 1])
 })
 
 it('P10 一个类别一个页签，次序按类别的标识；默认选中第一个；挑一个只画这一类的项，别的类别的项不渲染', async () => {
@@ -219,7 +240,7 @@ it('P10 一个类别一个页签，次序按类别的标识；默认选中第一
     '模型供应商的密钥',
   ])
 
-  showTab('工具')
+  await showTab('工具')
   expect(screen.getAllByRole('heading', { level: 4 }).map(heading => heading.textContent)).toEqual([
     '调用权限',
     '一次读取的上限',
@@ -228,59 +249,48 @@ it('P10 一个类别一个页签，次序按类别的标识；默认选中第一
   expect(tabs.getByRole('tab', { name: '模型' }).getAttribute('aria-selected')).toBe('false')
 })
 
-it('P12 名字表里没有的类别显示它的标识；这一类的标题同样', async () => {
+it('P12 页签上的字与这一类的标题取类别列表给的名字', async () => {
   await listed([permissionView(), secretView()], { tool: '工具' })
   const tabs = within(screen.getByRole('tablist', { name: '资产的类别' }))
   expect(tabs.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['model', '工具'])
-  showTab('model')
+  await showTab('model')
   expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('model')
-  showTab('工具')
+  await showTab('工具')
   expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('工具')
 })
 
-it('P13 同一份资产的设置项排在一块，块的标题是资产的名字，块的次序取资产第一次出现的次序', async () => {
+const settingTitles = (item: HTMLElement) =>
+  within(item)
+    .queryAllByRole('heading', { level: 4 })
+    .map(heading => heading.textContent)
+const assetItem = (name: string) => screen.getByRole('listitem', { name })
+
+it('P13 列表照资产列表的次序，一行一份；一份资产的设置项只在它的详情里', async () => {
   const second = permissionView({
     item: 'second-permission',
     declaration: { ...permissionView().declaration, title: '第二项权限' },
   })
   await listed([permissionView(), ordinaryView(), second], { tool: '工具' })
-  expect(screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual([
+  const list = within(screen.getByRole('list', { name: '工具的资产' }))
+  expect(list.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual([
     'shell',
     'files',
   ])
-  const shell = screen.getByRole('heading', { level: 3, name: 'shell' }).closest('section')!
-  expect(
-    within(shell)
-      .getAllByRole('heading', { level: 4 })
-      .map(heading => heading.textContent),
-  ).toEqual(['调用权限', '第二项权限'])
-  const files = screen.getByRole('heading', { level: 3, name: 'files' }).closest('section')!
-  expect(
-    within(files)
-      .getAllByRole('heading', { level: 4 })
-      .map(heading => heading.textContent),
-  ).toEqual(['一次读取的上限'])
+  expect(settingTitles(assetItem('shell'))).toEqual(['调用权限', '第二项权限'])
+  expect(settingTitles(assetItem('files'))).toEqual(['一次读取的上限'])
+  fireEvent.click(screen.getByRole('button', { name: 'files', expanded: true }))
+  await settle()
+  expect(settingTitles(assetItem('files'))).toEqual([])
 })
 
-it('P14 名字相同而类别不同的两份资产在各自的页签里，各是一块，各带自己的类别名', async () => {
+it('P14 名字相同而类别不同的两份资产在各自的页签里，各带自己的设置项', async () => {
   const sameName = secretView({ owner: { kind: 'asset', category: 'model', name: 'shell' } })
   await listed([permissionView(), sameName], { tool: '工具', model: '模型' })
-  const block = () => {
-    const blocks = screen
-      .getAllByRole('heading', { level: 3, name: 'shell' })
-      .map(heading => heading.closest('section')!)
-    expect(blocks).toHaveLength(1)
-    return blocks[0]!
-  }
-  const headings = (section: HTMLElement) =>
-    within(section)
-      .getAllByRole('heading', { level: 4 })
-      .map(heading => heading.textContent)
-  expect(block().querySelector('.assets-holding-category')?.textContent).toBe('模型')
-  expect(headings(block())).toEqual(['模型供应商的密钥'])
-  showTab('工具')
-  expect(block().querySelector('.assets-holding-category')?.textContent).toBe('工具')
-  expect(headings(block())).toEqual(['调用权限'])
+  expect(screen.getAllByRole('listitem', { name: 'shell' })).toHaveLength(1)
+  expect(settingTitles(assetItem('shell'))).toEqual(['模型供应商的密钥'])
+  await showTab('工具')
+  expect(screen.getAllByRole('listitem', { name: 'shell' })).toHaveLength(1)
+  expect(settingTitles(assetItem('shell'))).toEqual(['调用权限'])
 })
 
 it('P11 没有本层的值时清除不可用；秘密项不显示值', async () => {

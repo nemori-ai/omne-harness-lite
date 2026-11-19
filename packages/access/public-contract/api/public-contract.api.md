@@ -358,6 +358,7 @@ type LeafValues = {
     readonly string: string;
     readonly session: string;
     readonly 'page-bytes': string;
+    readonly bytes: Uint8Array;
     readonly revision: string;
     readonly boolean: boolean;
     readonly null: null;
@@ -412,7 +413,7 @@ export {};
 ## 声明文件 `rule.d.ts`
 
 ```ts
-export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'plain-date' | 'session' | 'page-bytes' | 'revision' | 'positive-integer' | 'count' | 'page-limit' | 'parameters' | 'json' | 'user-message';
+export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'plain-date' | 'session' | 'page-bytes' | 'bytes' | 'revision' | 'positive-integer' | 'count' | 'page-limit' | 'parameters' | 'json' | 'user-message';
 export type Rule = {
     readonly kind: LeafKind;
 } | {

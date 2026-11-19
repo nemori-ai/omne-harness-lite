@@ -17,10 +17,13 @@ import {
   readHostProtocols,
   readLoginState,
   readObserveEvent,
+  readPageEvent,
   readReport,
   readResult,
+  writeAttach,
   writeCall,
   writeCredentials,
+  writeDetach,
   writeObserve,
 } from '../shared/wire.ts'
 import { sseData } from './sse.ts'
@@ -42,7 +45,53 @@ const retryDelayMs = (attempt: number): number => Math.min(200 * 2 ** attempt, 5
 const refusedBeforeForwarding = (response: Response): boolean =>
   response.status >= 400 && response.status < 500
 
-export function httpHostChannel(origin: string): HostChannel {
+/** The page's one event stream to its web host: each observation on it ends as not known when it breaks. */
+function pageStream(address: string, page: string) {
+  const queues = new Map<string, EventQueue>()
+  let opened: Promise<void> | undefined
+
+  async function pump(response: Response): Promise<void> {
+    try {
+      for await (const data of sseData(response)) {
+        const event = readPageEvent(data)
+        const queue = event === undefined ? undefined : queues.get(event.id)
+        if (event === undefined || queue === undefined) continue
+        if (event.last) queues.delete(event.id)
+        queue.push(event.event)
+      }
+    } catch {}
+    opened = undefined
+    for (const queue of queues.values()) queue.end()
+    queues.clear()
+  }
+
+  async function open(): Promise<void> {
+    const response = await fetch(`${address}?page=${encodeURIComponent(page)}`, {
+      cache: 'no-store',
+    })
+    if (!response.ok) throw new Error('the host refused the event stream')
+    void pump(response)
+  }
+
+  return {
+    page,
+    async attach(id: string, queue: EventQueue): Promise<void> {
+      opened ??= open().catch((error: unknown) => {
+        opened = undefined
+        throw error
+      })
+      await opened
+      queues.set(id, queue)
+    },
+    /** True when the observation was still on the stream, so the host may still be sending it. */
+    detach: (id: string): boolean => queues.delete(id),
+  }
+}
+
+export function httpHostChannel(
+  origin: string,
+  newId: () => string = () => crypto.randomUUID(),
+): HostChannel {
   const url = (path: string): string => new URL(path, origin).toString()
 
   async function post(path: string, body: string, signal?: AbortSignal): Promise<Response> {
@@ -62,13 +111,31 @@ export function httpHostChannel(origin: string): HostChannel {
     throw new Error('the host failed')
   }
 
+  const stream = pageStream(url(BRIDGE.events), newId())
+
   return {
     call: (request, signal) => answer(BRIDGE.call, request, signal),
     async observe(request, signal) {
-      const response = await post(BRIDGE.observe, request, signal)
-      if (response.ok) return { stream: sseData(response) }
-      if (refusedBeforeForwarding(response)) return { refused: true }
-      throw new Error('the host failed')
+      const id = newId()
+      const queue = eventQueue(signal)
+      await stream.attach(id, queue)
+      let response: Response
+      try {
+        response = await post(BRIDGE.observe, writeAttach(stream.page, id, request), signal)
+      } catch (error) {
+        stream.detach(id)
+        throw error
+      }
+      if (!response.ok) {
+        stream.detach(id)
+        if (refusedBeforeForwarding(response)) return { refused: true }
+        throw new Error('the host failed')
+      }
+      queue.onEnd(() => {
+        if (stream.detach(id))
+          void post(BRIDGE.unobserve, writeDetach(stream.page, id)).catch(() => undefined)
+      })
+      return { stream: queue.stream }
     },
     login: credentials => answer(BRIDGE.login, credentials),
     logout: () => answer(BRIDGE.logout, '{}'),
@@ -81,6 +148,7 @@ export function httpHostChannel(origin: string): HostChannel {
 
 type EventQueue = {
   readonly push: (item: string) => void
+  readonly end: () => void
   readonly onEnd: (callback: () => void) => void
   readonly stream: ObserveStream & AsyncIterable<string>
 }
@@ -128,6 +196,7 @@ function eventQueue(signal: AbortSignal): EventQueue {
         resolve({ done: false, value: item })
       }
     },
+    end,
     onEnd(callback) {
       if (ended) callback()
       else endings.push(callback)

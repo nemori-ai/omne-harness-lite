@@ -605,6 +605,43 @@
 - **注意**：它不给路径，这一条不变。「这份目录加载到本机之后在哪」是另一件事：单机装配下它是一个事实，`Skills` 把它告诉 agent，供 Shell 使用
 - **注意**：Skill 这一侧声明的需要是 [Skill 包来源](grounding-and-isolation.md#ul-package-source--skill-包来源--skill-package-source)。已发布版本由包的读口经适配担任 Skill 包来源
 
+### UL-asset-summary · 资产简介 · Asset Summary
+
+> **中**：**一个[资产版本](#ul-asset-version--资产版本--asset-version)给人看的那几样：一个标题，一句说明，若干条「名字加文本」的事实。**
+> 它由这一类资产自己的算法从这个版本的内容算出，在发布时定下，随这个版本不变。
+> 它只供显示：里面的文本只当文本，不是内容本身，也不参与求值、采用与授权。
+> 一类资产没有交这个算法时，这一类的版本没有资产简介，界面只显示资产的名字。
+>
+> **EN**: **What one asset version shows to a person: a title, one sentence of description, and
+> some facts, each a name with a text.** The algorithm of the asset category computes it from the
+> content of that version. It is fixed when the version is published and does not change. It is
+> for display only: its texts are shown as text, it is not the content, and it has no part in
+> evaluation, adoption or authorization. When a category supplies no algorithm, its versions have
+> no asset summary and the interface shows only the name of the asset.
+
+- **形态**：属性
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 3）
+- **别混**：不是类别的显示声明：那是一类资产的名字与说明，这一条说的是一份资产的一个版本。不是[包的清单](#ul-package-manifest--包的清单--package-manifest)：清单列文件，简介是给人看的摘要
+
+### UL-asset-upload · 资产上传 · Asset Upload
+
+> **中**：**一个内容是目录的资产，在被发布之前由客户端分段送到服务端、暂时放着的那一份文件。**
+> 它由一个租户的一次新建操作开始，开始时申报要送的每个文件的路径与大小；文件按申报收齐之后，才能提交成一个[资产版本](#ul-asset-version--资产版本--asset-version)。
+> 提交之前它不是资产：列出、读取、求值都看不到它，别的租户也看不到它。
+> 提交成功、放置过久或被清理之后它就不在了；不在了只需要重新送，不丢任何已发布的事实。
+>
+> **EN**: **The files of a directory-content asset that a client sends to the server in parts and
+> that wait there before publication.** One create operation of one tenant starts it and declares
+> the path and size of each file to send. Only after all declared files have arrived can it be
+> committed as an asset version. Before the commit it is not an asset: listing, reading and
+> evaluation do not see it, and other tenants do not see it. It ceases to exist after a
+> successful commit, after it stays idle too long, or after a cleanup. Losing it only means
+> sending the files again; no published fact is lost.
+
+- **形态**：对象
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 3） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
+- **别混**：不是[资产版本](#ul-asset-version--资产版本--asset-version)，也不是草稿：它没有版本线，不能被持有或选用。不是发布流程内部的暂存：那是发布自己换入之前的落脚处
+
 ### UL-skill-package · Skill 包 · Skill Package
 
 > **中**：一个[技能](#ul-skill--技能--skill)的一份完整内容所取的形式：以 `SKILL.md` 为根的一棵目录树。

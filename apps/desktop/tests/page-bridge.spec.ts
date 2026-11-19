@@ -1,10 +1,12 @@
+import { createServer, type ServerResponse } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { sessionProtocol } from '@omne-harness/session-protocol'
 import { accessProtocol } from '@omne-harness/public-contract'
 import { createClient } from '@omne-harness/sdk/core'
 import { memoryCredentialStore, openLoginSession } from '../src/main-core/index.ts'
-import { createWebHost } from '../src/web-host/server.ts'
+import { createWebHost, type WebHost } from '../src/web-host/server.ts'
 import { listenFetchable } from './support/listen.ts'
 import {
   connectPageBridge,
@@ -13,7 +15,12 @@ import {
   type PageBridge,
 } from '../src/page/bridge.ts'
 import type { HostChannel } from '../src/shared/host-bridge.ts'
-import { missingAtHost, readHostProtocols, writeLoginState } from '../src/shared/wire.ts'
+import {
+  missingAtHost,
+  readHostProtocols,
+  writeLoginState,
+  writePageEvent,
+} from '../src/shared/wire.ts'
 import { serviceOf, startClientTree, type ClientTree } from '../src/page/tree.ts'
 import { omneHostOver } from './support/ipc.ts'
 import { PROOF_SENTINEL, answered, fakeServer, settle, value } from './support/fake-server.ts'
@@ -147,6 +154,211 @@ describe.each<Carrier>(['http', 'ipc'])('页面的桥对着真的宿主，经 %s
     await until(() => services.get('identity') !== undefined)
     await settle()
     expect(services.get('session')).toBeUndefined()
+  })
+})
+
+describe('网页宿主的通道：一页的观察走同一条事件流', () => {
+  async function opened() {
+    const server = fakeServer()
+    let aborted = 0
+    server.stream('session/v1 observe-session', async function* (request) {
+      yield value({ kind: 'state' })
+      await new Promise(resolve => request.signal.addEventListener('abort', resolve))
+      aborted += 1
+      return { kind: 'aborted' }
+    })
+    const session = await openLoginSession({
+      connect: server.connect,
+      store: memoryCredentialStore(),
+      contracts: [accessProtocol, identityProtocol, sessionProtocol],
+    })
+    const { host, port } = await listenFetchable(() => createWebHost({ session }))
+    const opens: string[] = []
+    const fetching = globalThis.fetch
+    globalThis.fetch = (input, init) => {
+      opens.push(new URL(String(input)).pathname)
+      return fetching(input, init)
+    }
+    cleanups.push(() => {
+      globalThis.fetch = fetching
+    })
+    const bridge = await connectPageBridge(httpHostChannel(`http://127.0.0.1:${port}`))
+    cleanups.push(() => bridge.close())
+    const observe = (signal: AbortSignal) =>
+      bridge.transport.observe({
+        protocol: { name: 'session', major: 1 },
+        observation: 'observe-session',
+        messageId: 'm',
+        open: value({}),
+        signal,
+      })
+    return { host, opens, observe, aborted: () => aborted }
+  }
+
+  it('八条观察只开一条事件流，各自收到自己的帧；停一条，宿主那一头只停它', async () => {
+    const { host, opens, observe, aborted } = await opened()
+    cleanups.push(() => host.close())
+    const controllers = Array.from({ length: 8 }, () => new AbortController())
+    const streams = controllers.map(controller => observe(controller.signal))
+    for (const frames of streams)
+      expect(await frames.next()).toEqual({ done: false, value: value({ kind: 'state' }) })
+    expect(opens.filter(path => path === '/bridge/events')).toHaveLength(1)
+    controllers[3]!.abort()
+    expect(await streams[3]!.next()).toEqual({ done: true, value: { kind: 'aborted' } })
+    await until(() => aborted() === 1)
+  })
+
+  it('事件流断了：上面的观察都答不确定；下一条观察重新开一条', async () => {
+    const { host, opens, observe } = await opened()
+    const first = observe(new AbortController().signal)
+    expect((await first.next()).done).toBe(false)
+    await host.close()
+    expect(await first.next()).toEqual({ done: true, value: { kind: 'uncertain' } })
+    expect(opens.filter(path => path === '/bridge/events')).toHaveLength(1)
+    const second = observe(new AbortController().signal)
+    expect(await second.next()).toEqual({ done: true, value: { kind: 'uncertain' } })
+    expect(opens.filter(path => path === '/bridge/events')).toHaveLength(2)
+  })
+})
+
+/** A web host the test scripts: it can refuse the event stream, hold an attach, and write any event. */
+function scriptedHost() {
+  const seen: string[] = []
+  const streams: ServerResponse[] = []
+  const attached: string[] = []
+  let refuseEvents = 0
+  let attachStatus = 200
+  let held: Promise<void> = Promise.resolve()
+  const server = createServer((request, response) => {
+    void (async () => {
+      const path = new URL(request.url ?? '/', 'http://host').pathname
+      let body = ''
+      for await (const chunk of request as AsyncIterable<Buffer>) body += chunk.toString('utf8')
+      seen.push(`${request.method} ${path}`)
+      if (path === '/bridge/events') {
+        if (refuseEvents > 0) {
+          refuseEvents -= 1
+          return void response.writeHead(400).end('no')
+        }
+        response.writeHead(200, { 'content-type': 'text/event-stream' })
+        response.flushHeaders()
+        return void streams.push(response)
+      }
+      if (path === '/bridge/observe') {
+        attached.push(String((JSON.parse(body) as { id: string }).id))
+        await held
+        return void response.writeHead(attachStatus).end('{}')
+      }
+      response.writeHead(200, { 'content-type': 'application/json' }).end('{}')
+    })()
+  })
+  const host: WebHost = {
+    listen: port =>
+      new Promise(resolve =>
+        server.listen(port, '127.0.0.1', () => resolve((server.address() as AddressInfo).port)),
+      ),
+    close: () =>
+      new Promise(resolve => {
+        for (const stream of streams) stream.destroy()
+        server.close(() => resolve())
+      }),
+  }
+  return {
+    host,
+    seen,
+    attached,
+    refuseEvents: (count: number) => void (refuseEvents = count),
+    answerAttach: (status: number) => void (attachStatus = status),
+    holdAttach: () => {
+      let release = () => {}
+      held = new Promise(resolve => (release = resolve))
+      return release
+    },
+    write: (data: string) => void streams.at(-1)?.write(`data: ${data}\n\n`),
+    drop: () => void streams.at(-1)?.end(),
+  }
+}
+
+describe('网页宿主的通道：页面这一头怎样读事件流', () => {
+  const REQUEST = '{"observe":"anything"}'
+
+  async function channelOver() {
+    const fake = scriptedHost()
+    const { host, port } = await listenFetchable(() => fake.host)
+    cleanups.push(() => host.close())
+    let next = 0
+    const channel = httpHostChannel(`http://127.0.0.1:${port}`, () => `id-${next++}`)
+    const unobserved = () => fake.seen.filter(line => line === 'POST /bridge/unobserve').length
+    return { fake, channel, unobserved }
+  }
+
+  const settle = () => new Promise(resolve => setTimeout(resolve, 50))
+
+  it('宿主拒了事件流：这条观察不发出；下一条观察重新开流', async () => {
+    const { fake, channel } = await channelOver()
+    fake.refuseEvents(1)
+    await expect(channel.observe(REQUEST, new AbortController().signal)).rejects.toThrow()
+    expect(fake.attached).toEqual([])
+    expect('stream' in (await channel.observe(REQUEST, new AbortController().signal))).toBe(true)
+    expect(fake.seen.filter(line => line === 'GET /bridge/events')).toHaveLength(2)
+    expect(fake.attached).toEqual(['id-2'])
+  })
+
+  it('读不出的事件与别的观察的事件略过；自己结束的观察不再叫宿主停；事件流不走缓存', async () => {
+    const { fake, channel, unobserved } = await channelOver()
+    const caches: (RequestCache | undefined)[] = []
+    const fetching = globalThis.fetch
+    globalThis.fetch = (input, init) => {
+      if (new URL(String(input)).pathname === '/bridge/events') caches.push(init?.cache)
+      return fetching(input, init)
+    }
+    cleanups.push(() => {
+      globalThis.fetch = fetching
+    })
+    const opening = await channel.observe(REQUEST, new AbortController().signal)
+    if (!('stream' in opening)) throw new Error('refused')
+    fake.write('not json')
+    fake.write(writePageEvent('someone-else', { frame: value({ n: 0 }) }))
+    fake.write(writePageEvent('id-1', { frame: value({ n: 1 }) }))
+    fake.write(writePageEvent('id-1', { end: { kind: 'ended', reason: 'refresh-exhausted' } }))
+    expect(await opening.stream.next()).toEqual({
+      done: false,
+      value: '{"kind":"frame","frame":{"n":1}}',
+    })
+    expect((await opening.stream.next()).value).toContain('"end"')
+    await opening.stream.return?.()
+    await settle()
+    expect(unobserved()).toBe(0)
+    expect(caches).toEqual(['no-store'])
+  })
+
+  it('宿主答 409：观察算没发出，不再叫宿主停', async () => {
+    const { fake, channel, unobserved } = await channelOver()
+    fake.answerAttach(409)
+    expect(await channel.observe(REQUEST, new AbortController().signal)).toEqual({ refused: true })
+    await settle()
+    expect(unobserved()).toBe(0)
+  })
+
+  it('宿主答 5xx：观察可能已经发出，不当作被拒', async () => {
+    const { fake, channel } = await channelOver()
+    fake.answerAttach(500)
+    await expect(channel.observe(REQUEST, new AbortController().signal)).rejects.toThrow()
+  })
+
+  it('事件流断在一次挂接的途中：这条观察已经结束，不再叫宿主停', async () => {
+    const { fake, channel, unobserved } = await channelOver()
+    const release = fake.holdAttach()
+    const opening = channel.observe(REQUEST, new AbortController().signal)
+    await until(() => fake.attached.length === 1)
+    fake.drop()
+    await settle()
+    release()
+    const opened = await opening
+    if (!('stream' in opened)) throw new Error('refused')
+    expect(await opened.stream.next()).toEqual({ done: true, value: undefined })
+    await settle()
+    expect(unobserved()).toBe(0)
   })
 })
 

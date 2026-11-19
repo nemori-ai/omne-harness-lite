@@ -1,4 +1,5 @@
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
+import type { CategoryView, TenantManagement } from '@omne-harness/assets'
 import type { TenantId } from '@omne-harness/legal-identity'
 
 export interface TargetTenantPrincipals {
@@ -107,11 +108,13 @@ type ItemInput = Readonly<{
 }>
 type WriteInput = ItemInput & Readonly<{ operation: string; expectedRevision: string }>
 
-export interface CategoriesPort {
-  list(): readonly Readonly<{
-    category: string
-    display: Readonly<{ title: string; summary: string }>
-  }>[]
+export type CategoriesPort = Pick<CategoryView, 'list' | 'describe' | 'lookup'>
+
+export type ManagementPort = TenantManagement<Principal>
+
+export type ChangeListener = Readonly<{ changed(): void; closed(): void }>
+export interface ChangesPort {
+  subscribe(tenant: string, listener: ChangeListener): () => void
 }
 
 export interface TenantSettingsPort {

@@ -42,7 +42,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'asset-categories': { provides: ['assetCategories'] },
   'tenant-assets': {
-    provides: ['tenantAssets', 'assetPublishing'],
+    provides: ['tenantAssets', 'assetPublishing', 'assetManagement', 'assetChanges'],
     injects: [
       'storage',
       'tenantDomainLookup',

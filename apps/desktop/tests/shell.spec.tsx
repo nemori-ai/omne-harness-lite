@@ -1014,6 +1014,51 @@ describe('资产页：类别带来自己的页面（MCP）', () => {
           outcome: 'succeeded',
           body: { items, next: null, completeness: 'complete' },
         }),
+        'list-categories': async () => ({
+          outcome: 'succeeded',
+          body: {
+            items: [{ category: 'mcp', title: 'mcp', summary: '', creation: 'none' }],
+            next: null,
+          },
+        }),
+        'describe-category': async () => ({
+          outcome: 'succeeded',
+          body: {
+            category: 'mcp',
+            title: 'mcp',
+            summary: '',
+            hint: null,
+            creation: { kind: 'none' },
+          },
+        }),
+        'list-assets': async () => ({
+          outcome: 'succeeded',
+          body: {
+            items: [
+              {
+                category: CONTEXT7.category,
+                name: CONTEXT7.name,
+                version: 'sha256:00',
+                selection: 'follow',
+                enabled: true,
+                holding: 'held-context7',
+                origin: 'customized',
+                summary: null,
+              },
+            ],
+            next: null,
+            completeness: 'complete',
+          },
+        }),
+        observe: {
+          'observe-assets': async function* (_open: unknown, options: { signal: AbortSignal }) {
+            yield { kind: 'changed' }
+            await new Promise(resolve =>
+              options.signal.addEventListener('abort', resolve, { once: true }),
+            )
+            return { kind: 'aborted' }
+          },
+        },
       }),
   }
   const mcpUiModule = createMcpUiModule({

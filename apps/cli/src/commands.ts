@@ -32,6 +32,7 @@ import { openLink, type CallResult, type Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
+import { assetCommand } from './asset-command.ts'
 import { settingCommand } from './setting-command.ts'
 import { calendarCommand } from './calendar-command.ts'
 import { scheduleCommand } from './schedule-command.ts'
@@ -728,4 +729,5 @@ export const productionCommands: readonly CommandSpec[] = [
   scheduleCommand,
   notificationCommand,
   settingCommand,
+  assetCommand,
 ]

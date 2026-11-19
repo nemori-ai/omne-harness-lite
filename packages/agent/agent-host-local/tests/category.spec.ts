@@ -10,7 +10,7 @@ it('contributes the agent definition category with its own name and withdraws it
   const fiber = root.plugin(agentDefinitionCategoryPlugin)
   await fiber.await()
   expect(root.assetCategories.view.list()).toEqual([
-    { category: 'AgentDefinition', display: agentDefinitionCategoryDisplay },
+    { category: 'AgentDefinition', display: agentDefinitionCategoryDisplay, creation: 'none' },
   ])
   await fiber.dispose()
   expect(root.assetCategories.view.list()).toEqual([])

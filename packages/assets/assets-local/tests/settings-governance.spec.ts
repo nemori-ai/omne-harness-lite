@@ -1,3 +1,4 @@
+import type { SettingsTarget } from '@omne-harness/settings'
 import { ownerSources } from './sources.ts'
 import { afterEach, expect, it } from 'vitest'
 import { lookupOf } from './lookup.ts'
@@ -11,12 +12,15 @@ import {
 } from '../src/index.ts'
 import { categories, pinned, definition, definitionRef } from './world.ts'
 const opened: Awaited<ReturnType<typeof open>>[] = []
-async function open() {
+/** `registry`: the target's definition comes from the settings registry, as a release tool's does. */
+async function open(options: { registry?: boolean } = {}) {
+  let registryTargets: readonly SettingsTarget[] = []
   const w = await openCatalogWorld({
     assets: {
       materials: assetsSqlMaterials(),
       command: binding => assetsSettingsProjectionCommand(binding, { excluded: [] }),
     },
+    registryTargets: () => registryTargets,
   })
   const assets = createAssetsLocal({ ...w.terminalOptions, categories })
   expect(
@@ -44,6 +48,7 @@ async function open() {
     }),
   ).toMatchObject({ kind: 'committed' })
   w.registry.registerContribution(definition())
+  if (options.registry === true) registryTargets = [target]
   return {
     ...w,
     assets,
@@ -171,8 +176,30 @@ it('refuses a holding that does not exist and the same reference under another p
       }),
     ).toEqual({ kind: 'rejected', reason: 'forbidden' })
 })
-it('changes the actual selected asset definition and requires explicit re-adoption', async () => {
+it('a target whose definition the holding stored needs no registration: a new version needs re-adoption at once', async () => {
   const w = await open()
+  opened.push(w)
+  const command = {
+    ...w.change,
+    operationId: 'asset-change',
+    target: w.target,
+    definitionRef: definitionRef(),
+  }
+  expect(await w.write(w.principal, command)).toMatchObject({ kind: 'committed' })
+  expect(
+    await w.assets.publish({
+      operationId: 'v2',
+      assetRef: 'asset-1',
+      pinned: pinned('2', true),
+      expectedRevision: 1,
+    }),
+  ).toMatchObject({ kind: 'committed' })
+  expect(await w.service.queries.evaluate(w.principal, { ...w.view, targets: [w.target] })).toEqual(
+    { kind: 'rejected', reason: 'definition_changed' },
+  )
+})
+it('changes the actual selected asset definition and requires explicit re-adoption', async () => {
+  const w = await open({ registry: true })
   opened.push(w)
   const command = {
     ...w.change,

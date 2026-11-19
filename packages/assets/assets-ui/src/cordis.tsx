@@ -57,7 +57,12 @@ export const assetsUiModule = defineUiModule<Record<string, ClientOf<AssetsProto
 })
 
 export { assetGovernanceKey, type AssetGovernance, type CategoryView } from './governance-port.ts'
-export type { CategoryGovernance, CategorySnapshot } from './model/governance.ts'
+export type {
+  AssetEntry,
+  CategoryAssets,
+  CategoryGovernance,
+  CategorySnapshot,
+} from './model/governance.ts'
 export type { Holding } from './model/holdings.ts'
 export {
   ASSETS_CATEGORY,

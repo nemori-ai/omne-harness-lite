@@ -71,6 +71,12 @@ function setup(
   const categories = createCategoryPoint()
   categories.contribute({ contract: contract('note', false), display })
   categories.contribute({ contract: contract('bundle', true), display })
+  categories.contribute({ contract: contract('tool', false), display, generalCreation: 'closed' })
+  categories.contribute({
+    contract: contract('closed-bundle', true),
+    display,
+    generalCreation: 'closed',
+  })
   const asked: string[] = []
   const published: string[] = []
   const answer: TenantPublishOutcome = options.answer ?? {
@@ -161,6 +167,23 @@ describe('the publish service: the cells of table three', () => {
     expect(published).toEqual([])
   })
 
+  it('类别声明了不经通用入口新建：invalid、creation-closed，不论内容是哪一种，不调本机资产', async () => {
+    const { publishing, published } = setup()
+    expect(await publishing.publish(request({ capability: id('tool', 'a') }))).toEqual({
+      kind: 'invalid',
+      reason: 'creation-closed',
+    })
+    expect(
+      await publishing.publish(
+        request({
+          capability: id('closed-bundle', 'a'),
+          content: { kind: 'directory', from: reader },
+        }),
+      ),
+    ).toEqual({ kind: 'invalid', reason: 'creation-closed' })
+    expect(published).toEqual([])
+  })
+
   it('这个租户的本机资产取不到：unavailable', async () => {
     for (const publisherOf of [
       async () => undefined,
@@ -191,7 +214,6 @@ describe('the publish service: the cells of table three', () => {
     [{ kind: 'published', version: 'sha256:1', holdingRef: 'note/a', changed: false }],
     [{ kind: 'conflict' }],
     [{ kind: 'operation-conflict' }],
-    [{ kind: 'removed' }],
     [{ kind: 'invalid', reason: 'invalid-input' }],
     [{ kind: 'unknown', operationId: 'publish-1' }],
   ] as const)('本机资产的结局原样交出：%o', async answer => {
@@ -232,8 +254,9 @@ describe('the display of a category says how to make one', () => {
       {
         category: 'bundle',
         display: { ...display, creation: 'A directory with a README at its root.' },
+        creation: 'directory',
       },
-      { category: 'note', display },
+      { category: 'note', display, creation: 'data' },
     ])
     expect(() =>
       categories.contribute({

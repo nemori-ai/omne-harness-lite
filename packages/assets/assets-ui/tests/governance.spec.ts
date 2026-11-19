@@ -3,6 +3,7 @@ import { readTenantText, type TenantId } from '@omne-harness/public-contract'
 import { createGovernance } from '../src/model/governance.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { permissionView, secretView, SHELL_ASSET } from './fixtures/views.ts'
+import type { AssetEntry, CategorySnapshot } from '../src/model/governance.ts'
 
 const TENANT_TEXT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -203,5 +204,172 @@ describe('the governance port: one write, by the table of one submission', () =>
     write.answer({ outcome: 'unknown' })
     await settle()
     expect(JSON.stringify(mcp.getSnapshot())).not.toContain('sk-very-secret')
+  })
+})
+
+describe('the governance port: the assets of a category, and changes made elsewhere', () => {
+  const count = (fake: ReturnType<typeof createFakeClient>, operation: string) =>
+    fake.calls.filter(call => call.operation === operation).length
+
+  const assetRow = (name: string, category = 'tool') => ({
+    category,
+    name,
+    version: 'sha256:00',
+    selection: 'follow',
+    enabled: true,
+    holding: `held-${name}`,
+    origin: 'customized',
+    summary: null,
+  })
+  const assetsIn = (view: { getSnapshot: () => CategorySnapshot }) => {
+    const snapshot = view.getSnapshot()
+    if (snapshot.kind !== 'read') throw new Error(`snapshot is ${snapshot.kind}`)
+    return snapshot.assets
+  }
+  const entriesIn = (view: { getSnapshot: () => CategorySnapshot }): readonly AssetEntry[] => {
+    const assets = assetsIn(view)
+    return assets.kind === 'read' ? assets.entries : []
+  }
+  const CREATION = { kind: 'data', schema: { type: 'object' } }
+
+  async function read(
+    fake: ReturnType<typeof createFakeClient>,
+    settings: readonly unknown[],
+    assets: readonly unknown[],
+  ) {
+    ;(await fake.next('list-settings')).answer(page(settings))
+    ;(await fake.next('list-assets')).answer(page(assets))
+    await settle()
+  }
+
+  it('the snapshot lists the assets of the category, each with its own settings, and how it creates one', async () => {
+    const { fake, governance } = setup()
+    const tool = governance.open(TENANT, 'tool')
+    ;(await fake.next('describe-category')).answer({
+      outcome: 'succeeded',
+      body: { category: 'tool', title: '工具', summary: '', hint: null, creation: CREATION },
+    })
+    await read(fake, [SHELL_VIEW, MCP_VIEW], [assetRow('files'), assetRow('shell')])
+    const snapshot = tool.getSnapshot()
+    expect(snapshot).toMatchObject({ kind: 'read', creation: CREATION })
+    expect(assetsIn(tool)).toMatchObject({ kind: 'read', partial: false })
+    expect(entriesIn(tool).map(entry => [entry.row.name, entry.settings.length])).toEqual([
+      ['files', 0],
+      ['shell', 1],
+    ])
+  })
+
+  it('the join: a listed asset without settings is there with none; settings whose asset is not listed are not', async () => {
+    const { fake, governance } = setup()
+    const tool = governance.open(TENANT, 'tool')
+    await read(fake, [SHELL_VIEW], [assetRow('files')])
+    expect(assetsIn(tool)).toEqual({
+      kind: 'read',
+      partial: false,
+      entries: [{ row: assetRow('files'), settings: [], detail: null, action: { kind: 'none' } }],
+    })
+  })
+
+  it('settings read but assets not yet: the assets are reading; assets unreadable: said with the reason', async () => {
+    const { fake, governance } = setup()
+    const tool = governance.open(TENANT, 'tool')
+    ;(await fake.next('list-settings')).answer(page([SHELL_VIEW]))
+    await settle()
+    expect(assetsIn(tool)).toEqual({ kind: 'reading' })
+    ;(await fake.next('list-assets')).answer({ outcome: 'denied' })
+    await settle()
+    expect(assetsIn(tool)).toEqual({
+      kind: 'unreadable',
+      notice: { kind: 'refused', text: '没有权限，或登录已失效。' },
+    })
+    tool.read()
+    await settle()
+    expect(count(fake, 'list-assets')).toBe(2)
+    expect(count(fake, 'list-settings')).toBe(1)
+  })
+
+  it('two views of one category share one reading of its assets and one snapshot of them', async () => {
+    const { fake, governance } = setup()
+    const first = governance.open(TENANT, 'skill')
+    const second = governance.open(TENANT, 'skill')
+    await read(fake, [], [])
+    expect(fake.calls.find(call => call.operation === 'list-assets')?.body).toEqual({
+      tenant: TENANT,
+      category: 'skill',
+      after: null,
+      limit: 100,
+    })
+    expect(count(fake, 'list-assets')).toBe(1)
+    expect(count(fake, 'describe-category')).toBe(1)
+    expect(assetsIn(first)).toEqual(assetsIn(second))
+  })
+
+  it('an asset change tells subscribers once and gives a new snapshot, then the same one while nothing changes', async () => {
+    const { fake, governance } = setup()
+    const tool = governance.open(TENANT, 'tool')
+    let told = 0
+    tool.subscribe(() => told++)
+    ;(await fake.next('list-settings')).answer(page([]))
+    await settle()
+    const before = tool.getSnapshot()
+    told = 0
+    ;(await fake.next('list-assets')).answer(page([assetRow('files')]))
+    await settle()
+    expect(told).toBe(1)
+    expect(tool.getSnapshot()).not.toBe(before)
+    expect(tool.getSnapshot()).toBe(tool.getSnapshot())
+  })
+
+  it('opening and changing an asset show in its entry', async () => {
+    const { fake, governance } = setup()
+    const tool = governance.open(TENANT, 'tool')
+    await read(fake, [], [assetRow('files')])
+    tool.openAsset('files')
+    tool.setEnabled('files', false)
+    expect((await fake.next('set-asset-enabled')).body).toMatchObject({
+      holding: 'held-files',
+      enabled: false,
+    })
+    expect(entriesIn(tool)[0]).toMatchObject({
+      detail: { kind: 'reading' },
+      action: { kind: 'submitting' },
+    })
+  })
+
+  it('the opening frame and every later one read the settings and the assets again', async () => {
+    const { fake, governance } = setup()
+    governance.open(TENANT, 'skill')
+    await read(fake, [], [])
+    const stream = await fake.nextStream()
+    expect(stream.open).toEqual({ tenant: TENANT })
+    stream.frame()
+    await settle()
+    expect(count(fake, 'list-settings')).toBe(2)
+    expect(count(fake, 'list-assets')).toBe(2)
+    for (let frame = 0; frame < 5; frame += 1) stream.frame()
+    await settle()
+    expect(count(fake, 'list-settings')).toBe(2)
+    expect(count(fake, 'list-assets')).toBe(2)
+    await read(fake, [], [])
+    await settle()
+    expect(count(fake, 'list-settings')).toBe(3)
+    expect(count(fake, 'list-assets')).toBe(3)
+  })
+
+  it('the view of all categories reads no assets and says so', async () => {
+    const { fake, governance } = setup()
+    const all = governance.openAll(TENANT)
+    ;(await fake.next('list-settings')).answer(page([SHELL_VIEW]))
+    await settle()
+    expect(count(fake, 'list-assets')).toBe(0)
+    expect(assetsIn(all)).toMatchObject({ kind: 'unreadable' })
+  })
+
+  it('once the last view closes, the observation of the tenant is closed', async () => {
+    const { fake, governance } = setup()
+    const skill = governance.open(TENANT, 'skill')
+    const stream = await fake.nextStream()
+    skill.close()
+    expect(stream.signal.aborted).toBe(true)
   })
 })
