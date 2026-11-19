@@ -584,8 +584,9 @@ it('rejects each incomplete dependency without invoking any dependency method', 
     }),
   }
   for (const [name, port] of Object.entries(dependencies)) {
+    // `lookupCost` is optional on the send boundary and the runtime never calls it.
     for (const method of Object.keys(port).filter(
-      key => typeof Reflect.get(port, key) === 'function',
+      key => typeof Reflect.get(port, key) === 'function' && key !== 'lookupCost',
     )) {
       for (const replacement of [undefined, null, 1]) {
         const broken = { ...dependencies, [name]: { ...port, [method]: replacement } }

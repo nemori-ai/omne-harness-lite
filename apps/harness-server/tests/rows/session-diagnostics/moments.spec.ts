@@ -47,6 +47,14 @@ const answerText = (body: string): GatewayReply => ({
   ]),
 })
 
+/** The answer to a cost lookup: the upstream has no cost for the request. */
+const lookupMissed: GatewayReply = {
+  kind: 'answer',
+  status: 404,
+  contentType: 'application/json',
+  body: '{"error":{"message":"Generation not found","code":404}}',
+}
+
 type Moment = Readonly<{ kind: 'known'; instant: string } | { kind: 'unknown' }>
 type Dispatch = Readonly<{
   instants: Readonly<
@@ -74,6 +82,7 @@ describe('the moments and the connect retries of a dispatch, read over real proc
     scratch = newScratch('diagnostics-moments-')
     const port = await freePort()
     gateway = await startScenarioGateway(request => {
+      if (request.method === 'GET') return lookupMissed
       if (request.body.includes(RETRIED_TEXT) && retriedIndex === -1) {
         retriedIndex = request.index
         return answer504
