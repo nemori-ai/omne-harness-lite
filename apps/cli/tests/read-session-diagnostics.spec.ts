@@ -352,6 +352,57 @@ describe('read-session-diagnostics', () => {
       expect(lines).toContain('        connect retries: 1 (connect-failed)')
     })
 
+    it('shows no retries as zero, several in order, a last failure without a status, and an unknown span to the response', async () => {
+      const lost = run({
+        modelCalls: [
+          modelCall({
+            call: {
+              kind: 'found',
+              call: 'call-4',
+              phase: 'settled',
+              progress: {
+                allowed: '2',
+                made: '1',
+                last: { cause: 'runtime-lost', upstreamStatus: null },
+              },
+            },
+            dispatches: [
+              dispatch({ dispatch: 'd-4', send: 'sent', connectRetries: [] }),
+              dispatch({
+                dispatch: 'd-5',
+                send: 'sent',
+                connectRetries: ['connect-failed', 'connect-timeout'],
+              }),
+            ],
+          }),
+          modelCall({
+            call: {
+              kind: 'found',
+              call: 'call-5',
+              phase: 'settled',
+              progress: { allowed: '2', made: '1', last: null },
+            },
+          }),
+        ],
+      })
+      const service = await serve(diagnosticsService([page([lost], null)]))
+      await loginOwningSession(service)
+      const result = await cli([name, '--session', sessionId])
+      expect(result.code).toBe(0)
+      const lines = result.stdout.split('\n')
+      expect(lines.find(line => line.includes('call call-4'))).toContain(
+        'call call-4 (settled, sent 1 of 2 allowed, last failure runtime-lost)',
+      )
+      expect(lines.find(line => line.includes('call call-5'))).toContain(
+        'call call-5 (settled, sent 1 of 2 allowed)',
+      )
+      expect(lines).toContain('        connect retries: 0')
+      expect(lines).toContain('        connect retries: 2 (connect-failed, connect-timeout)')
+      const timings = lines.filter(line => line.includes('timing:'))
+      expect(timings).toHaveLength(3)
+      expect(timings.every(line => line.includes('send to response unknown'))).toBe(true)
+    })
+
     it('shows the reason of each failed run, the dispatches with timing and account, and the gaps', async () => {
       const service = await serve(diagnosticsService([page([refused, noReply], null, gaps)]))
       await loginOwningSession(service)
