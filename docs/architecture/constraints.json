@@ -75,6 +75,11 @@
       "id": "notification",
       "label": "订阅、通知与推送",
       "source": "docs/domains/boundaries.md#责任地图"
+    },
+    {
+      "id": "usage",
+      "label": "用量与花费",
+      "source": "docs/domains/usage-and-cost/README.md"
     }
   ],
   "roles": [
@@ -743,6 +748,30 @@
       "source": "packages/notification/SPEC.md"
     },
     {
+      "id": "packages/usage/usage-contract",
+      "paths": ["packages/usage/usage-contract/src/**"],
+      "layer": "contract",
+      "domains": ["usage"],
+      "status": "adopted",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
+      "id": "packages/usage/usage-cordis-contract",
+      "paths": ["packages/usage/usage-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["usage"],
+      "status": "candidate",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
+      "id": "packages/usage/usage",
+      "paths": ["packages/usage/usage/src/**"],
+      "layer": "unknown",
+      "domains": ["usage"],
+      "status": "candidate",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
       "id": "packages/notification/notification-protocol",
       "paths": ["packages/notification/notification-protocol/src/**"],
       "layer": "contract",
@@ -1142,6 +1171,42 @@
         "packages/notification/notification-ui"
       ],
       "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-CORE-USAGE",
+      "from": [
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/model/pi-ai-transport",
+        "packages/tool/tool-access",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-ui"
+      ],
+      "to": [
+        "packages/usage/usage",
+        "packages/usage/usage-contract",
+        "packages/usage/usage-cordis-contract"
+      ],
+      "source": "packages/usage/SPEC.md"
     },
     {
       "id": "DIR-NOTIFICATION-OUTWARD",
