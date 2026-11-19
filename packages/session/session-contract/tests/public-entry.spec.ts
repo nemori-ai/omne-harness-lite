@@ -23,6 +23,8 @@ it('exports exactly the declared root runtime surface', () => {
     'backgroundInputId',
     'batchCallKeys',
     'batchEvidence',
+    'bindingOf',
+    'boundCall',
     'budgetTermsOf',
     'callKeysIn',
     'callKeysOutside',

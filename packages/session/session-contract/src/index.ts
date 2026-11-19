@@ -275,10 +275,13 @@ export type {
 export { uninterpretedCalls } from './uninterpreted-calls.ts'
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
 export {
+  bindingOf,
+  boundCall,
   callKeysIn,
   callKeysOutside,
   callWithLate,
   lendCalls,
+  type SessionCallBinding,
   type SessionCall,
   type SessionCallKeys,
   type SessionLateCallFact,

@@ -1,17 +1,21 @@
 // What the memory transactions keep of the calls that left the work snapshot, and how they lend them back.
+import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  bindingOf,
+  boundCall,
   callKeysIn,
   callNamed,
   callOf,
   callWithLate,
   lendCalls,
   type SessionCall,
+  type SessionCallBinding,
   type SessionLateCallFact,
   type SettledCallLookup,
 } from './call-settlement.ts'
 import type { ConsumptionId } from './identity.ts'
 import { judgeIdle } from './judgments.ts'
-import type { WorkSnapshot } from './values.ts'
+import type { ProducerRef, WorkSnapshot } from './values.ts'
 
 export type CallsLeft = Readonly<{
   settled: readonly SessionCall[]
@@ -67,3 +71,20 @@ export function autoArchiveVerdict(snapshot: WorkSnapshot) {
         }
   return judgeIdle(snapshot, { observation, policy: snapshot.autoArchive, coverage: idle }).kind
 }
+
+function bindingIn(store: Held, producer: ProducerRef): SessionCallBinding | null {
+  const [gone] = lookupOf(store)({ consumptions: [], producers: [producer] })
+  return boundCall(store.snapshot, producer) ?? (gone === undefined ? null : bindingOf(gone))
+}
+
+export const bindingFor = <F>(
+  store: Outcome<Held, F>,
+  producer: ProducerRef,
+): Outcome<SessionCallBinding | null, F> =>
+  'failure' in store ? store : succeed(bindingIn(store.ok, producer))
+
+export const callAt = (
+  stores: ReadonlyMap<string, Held>,
+  key: Outcome<string, unknown>,
+  consumption: string,
+): SessionCall | null => ('failure' in key ? null : callIn(stores.get(key.ok), consumption))

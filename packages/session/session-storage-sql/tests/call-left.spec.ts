@@ -115,7 +115,21 @@ async function scene() {
     expect(reads('session.work', from)).toBe(0)
     expect(canonicalText(encodeValue(held))).toBe(canonicalText(encodeValue(await whole())))
   }
-  return { a, read, whole, bind, consumption, preserve, process, release, rows, reads, folded }
+  const call = (producer = binding.producer) => a.port.readCall({ ...access, producer })
+  return {
+    a,
+    read,
+    whole,
+    bind,
+    consumption,
+    preserve,
+    process,
+    release,
+    rows,
+    reads,
+    folded,
+    call,
+  }
 }
 
 const holds = (snapshot: WorkSnapshot, consumption: string): boolean =>
@@ -178,5 +192,17 @@ describe('the cache follows the store through a call that leaves', () => {
     await s.folded(() => s.release('release'))
     expect(s.reads('session.calls-left', from)).toBe(1)
     await s.folded(() => s.bind('bind-again'))
+  })
+})
+
+describe('the binding of a producer, asked from the store', () => {
+  it('is the same while the call is in the snapshot and after it left; another producer has none', async () => {
+    const s = await scene()
+    const bound = { consumption: s.consumption, binding }
+    expect(ok(await s.call())).toEqual(bound)
+    ok(await s.process('process'))
+    expect(holds(await s.read(), s.consumption)).toBe(false)
+    expect(ok(await s.call())).toEqual(bound)
+    expect(ok(await s.call({ kind: 'tool', call: 'never-bound' }))).toBeNull()
   })
 })

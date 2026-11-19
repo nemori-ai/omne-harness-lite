@@ -2,7 +2,13 @@
 import type { SessionCallRecord } from './call-values.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
 import { digestOf } from './operations.ts'
-import type { Consumption, ProducedResult, ProducerRef, WorkSnapshot } from './values.ts'
+import type {
+  CallBinding,
+  Consumption,
+  ProducedResult,
+  ProducerRef,
+  WorkSnapshot,
+} from './values.ts'
 import type { SessionCallEntryReferences } from './work-entry-values.ts'
 import { unsettled } from './work-entry-state.ts'
 
@@ -246,4 +252,20 @@ export function callKeysOutside(snapshot: WorkSnapshot, keys: SessionCallKeys): 
     consumptions: keys.consumptions.filter(id => !answers({ consumptions: [id], producers: [] })),
     producers: keys.producers.filter(item => !answers({ consumptions: [], producers: [item] })),
   }
+}
+
+export type SessionCallBinding = Readonly<{ consumption: ConsumptionId; binding: CallBinding }>
+
+export function bindingOf(call: SessionCall): SessionCallBinding | null {
+  const { registration, consumption } = call.record
+  return registration.kind === 'associated' ? { consumption, binding: registration.binding } : null
+}
+
+export function boundCall(
+  snapshot: WorkSnapshot,
+  producer: ProducerRef,
+): SessionCallBinding | null {
+  const named = digestOf({ kind: producer.kind, call: producer.call })
+  const found = snapshot.consumptions.find(item => digestOf(item.binding.producer) === named)
+  return found === undefined ? null : { consumption: found.id, binding: found.binding }
 }

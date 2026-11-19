@@ -67,6 +67,7 @@ export function facadeOf(h: Harness): SessionTransactionPort<string> {
     }) as SessionTransactionPort<string>['commit'],
     readWork: input => coordinator.work.readWork(input),
     readCurrentScope: input => coordinator.work.readCurrentScope(input),
+    readCall: input => coordinator.work.readCall(input),
     readInput: input => coordinator.work.readInput(input),
     queryOperation: input => coordinator.work.queryOperation(input),
     readModelSelection: input => intake.work.readModelSelection(input),

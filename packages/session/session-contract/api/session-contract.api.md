@@ -180,6 +180,7 @@
 - `SessionBatchRecord` · `history-values.d.ts`
 - `SessionBlockDeclaration` · `ports.d.ts`
 - `SessionCall` · `call-settlement.d.ts`
+- `SessionCallBinding` · `call-settlement.d.ts`
 - `SessionCallControl` · `ports.d.ts`
 - `SessionCallEntryReferences` · `work-entry-values.d.ts`
 - `SessionCallKeys` · `call-settlement.d.ts`
@@ -299,6 +300,8 @@
 - `backgroundInputId` · `background-outcome.d.ts`
 - `batchCallKeys` · `reduce.d.ts`
 - `batchEvidence` · `batch-evidence.d.ts`
+- `bindingOf` · `call-settlement.d.ts`
+- `boundCall` · `call-settlement.d.ts`
 - `budgetTermsOf` · `input-sources.d.ts`
 - `callKeysIn` · `call-settlement.d.ts`
 - `callKeysOutside` · `call-settlement.d.ts`
@@ -803,7 +806,7 @@ export declare function readCallRegistration(payload: JsonValue): CallRegistrati
 ```ts
 import type { SessionCallRecord } from './call-values.ts';
 import type { ConsumptionId, DurableEvidence } from './identity.ts';
-import type { Consumption, ProducedResult, ProducerRef, WorkSnapshot } from './values.ts';
+import type { CallBinding, Consumption, ProducedResult, ProducerRef, WorkSnapshot } from './values.ts';
 import type { SessionCallEntryReferences } from './work-entry-values.ts';
 type Draft = {
     -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
@@ -849,6 +852,12 @@ export declare function settleCalls(draft: Draft, lent: readonly SessionCall[]):
 export declare function callWithLate(call: SessionCall, late: readonly SessionLateCallFact[]): SessionCall;
 export declare function callNamed(call: SessionCall, keys: SessionCallKeys): boolean;
 export declare function callKeysOutside(snapshot: WorkSnapshot, keys: SessionCallKeys): SessionCallKeys;
+export type SessionCallBinding = Readonly<{
+    consumption: ConsumptionId;
+    binding: CallBinding;
+}>;
+export declare function bindingOf(call: SessionCall): SessionCallBinding | null;
+export declare function boundCall(snapshot: WorkSnapshot, producer: ProducerRef): SessionCallBinding | null;
 export {};
 ```
 
@@ -1603,6 +1612,7 @@ export declare function expandHistoryEntries(rows: readonly HistoryEntry[], crea
 import type { BackgroundCallResolution, BackgroundCallView } from './background-calls.ts';
 import type { ArchiveCollapse } from './call-control.ts';
 import type { ContextScopeBinding } from './values.ts';
+import type { SessionCallBinding } from './call-settlement.ts';
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
@@ -1740,6 +1750,9 @@ export interface SessionWork<P> {
     resolveBackgroundCall(input: SessionAccess<P> & Readonly<{
         id: string;
     }>): Reply<BackgroundCallResolution>;
+    readCall(input: SessionAccess<P> & Readonly<{
+        producer: ProducerRef;
+    }>): Reply<SessionCallBinding | null>;
     readInput(input: SessionAccess<P> & Readonly<{
         input: InputId;
     }>): Reply<Extract<RoutedInput, {
@@ -2345,7 +2358,7 @@ export type { InitializationRequirement } from './initialization-requirements.ts
 export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, InputAdmissionMember, ExecutionHistoryBoundary, SessionFactBoundary, SessionBatchRecord, SessionAttemptRecord, SessionTakenRecord, SessionHistoryReads, SessionInputScope, InputAdmissionPage, SessionInputAdmission, SessionExecutionPrefix, SessionPrefixFact, SessionUninterpretedCall, } from './history-values.ts';
 export { uninterpretedCalls } from './uninterpreted-calls.ts';
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
-export { callKeysIn, callKeysOutside, callWithLate, lendCalls, type SessionCall, type SessionCallKeys, type SessionLateCallFact, type SettledCallLookup, } from './call-settlement.ts';
+export { bindingOf, boundCall, callKeysIn, callKeysOutside, callWithLate, lendCalls, type SessionCallBinding, type SessionCall, type SessionCallKeys, type SessionLateCallFact, type SettledCallLookup, } from './call-settlement.ts';
 export { readCallRegistration } from './call-registration.ts';
 export type { CallRegistrationView } from './call-registration.ts';
 export { readRunBoundary } from './run-boundary.ts';
@@ -3281,6 +3294,7 @@ export type SessionPermissionWriteQualification = Readonly<{
 
 ```ts
 import type { ContextScopeBinding } from './values.ts';
+import type { SessionCallBinding } from './call-settlement.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { Outcome } from '@omne-harness/operation-result';
@@ -3507,6 +3521,9 @@ export interface SessionTransactionPort<P> {
     }>): ReturnType<Mutations[K]>;
     readWork(input: SessionAccess<P>): Reply<WorkSnapshot>;
     readCurrentScope(input: SessionAccess<P>): Reply<ContextScopeBinding | null>;
+    readCall(input: SessionAccess<P> & Readonly<{
+        producer: ProducerRef;
+    }>): Reply<SessionCallBinding | null>;
     readInput(input: SessionAccess<P> & Readonly<{
         input: InputId;
     }>): Reply<Extract<RoutedInput, {
@@ -3750,8 +3767,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:bfa66f0c55e91c92dca667db8654f1d8c22917c90428f77943e1e9b934d1d446";
-export declare const SESSION_RELEASE_DIGEST = "sha256:bfa66f0c55e91c92dca667db8654f1d8c22917c90428f77943e1e9b934d1d446";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:9d018c4c60fdebc4c9fe7e37668eacc79bb1e8cc28550fdc993aa77ab0912492";
+export declare const SESSION_RELEASE_DIGEST = "sha256:9d018c4c60fdebc4c9fe7e37668eacc79bb1e8cc28550fdc993aa77ab0912492";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3896,8 +3913,9 @@ export declare function withMemberSubject<P>(check: SessionAccessCheck<P>): Sess
 ## 声明文件 `testing-calls-left.d.ts`
 
 ```ts
-import { type SessionCall, type SessionLateCallFact, type SettledCallLookup } from './call-settlement.ts';
-import type { WorkSnapshot } from './values.ts';
+import { type Outcome } from '@omne-harness/operation-result';
+import { type SessionCall, type SessionCallBinding, type SessionLateCallFact, type SettledCallLookup } from './call-settlement.ts';
+import type { ProducerRef, WorkSnapshot } from './values.ts';
 export type CallsLeft = Readonly<{
     settled: readonly SessionCall[];
     late: readonly SessionLateCallFact[];
@@ -3911,6 +3929,8 @@ export declare const leftAfter: (store: Held | undefined, reduced: CallsLeft) =>
 export declare const lentFor: <T extends WorkSnapshot | null>(store: Held | undefined, snapshot: T, named: unknown) => T;
 export declare function callIn(store: Held | undefined, consumption: string): SessionCall | null;
 export declare function autoArchiveVerdict(snapshot: WorkSnapshot): "disabled" | "due" | "exempt" | "not-due" | "unavailable";
+export declare const bindingFor: <F>(store: Outcome<Held, F>, producer: ProducerRef) => Outcome<SessionCallBinding | null, F>;
+export declare const callAt: (stores: ReadonlyMap<string, Held>, key: Outcome<string, unknown>, consumption: string) => SessionCall | null;
 export {};
 ```
 

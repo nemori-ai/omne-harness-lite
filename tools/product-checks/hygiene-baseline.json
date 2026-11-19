@@ -85,11 +85,11 @@
       "packages/session/session-adapters/src/cordis/agent-journal.ts": 1779,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
-      "packages/session/session-adapters/src/testing/factory.ts": 1260,
+      "packages/session/session-adapters/src/testing/factory.ts": 1259,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1263,
       "packages/session/session-adapters/src/testing/journal.ts": 4190,
       "packages/session/session-adapters/src/testing/session.ts": 1221,
-      "packages/session/session-contract/src/testing-transactions.ts": 2523,
+      "packages/session/session-contract/src/testing-transactions.ts": 2516,
       "packages/session/session-storage-sql/src/worker/participant.ts": 1119,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
@@ -540,7 +540,7 @@
       },
       "packages/session/session-adapters/src/testing/factory.ts": {
         "count": 3,
-        "longest": 1129
+        "longest": 1128
       },
       "packages/session/session-adapters/src/testing/journal-finishing.ts": {
         "count": 1,

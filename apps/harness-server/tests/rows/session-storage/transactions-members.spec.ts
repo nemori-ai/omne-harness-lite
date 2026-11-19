@@ -32,6 +32,7 @@ const MEMBERS: Readonly<Record<keyof SessionTransactionPort<unknown>, 'function'
   commit: 'function',
   readWork: 'function',
   readCurrentScope: 'function',
+  readCall: 'function',
   readInput: 'function',
   queryOperation: 'function',
   readModelSelection: 'function',

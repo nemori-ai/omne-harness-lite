@@ -183,6 +183,7 @@
 - `SessionBatchRecord` · 包 `@omne-harness/session-contract`
 - `SessionBlockDeclaration` · 包 `@omne-harness/session-contract`
 - `SessionCall` · 包 `@omne-harness/session-contract`
+- `SessionCallBinding` · 包 `@omne-harness/session-contract`
 - `SessionCallControl` · 包 `@omne-harness/session-contract`
 - `SessionCallEntryReferences` · 包 `@omne-harness/session-contract`
 - `SessionCallKeys` · 包 `@omne-harness/session-contract`
@@ -310,6 +311,8 @@
 - `backgroundInputId` · 包 `@omne-harness/session-contract`
 - `batchCallKeys` · 包 `@omne-harness/session-contract`
 - `batchEvidence` · 包 `@omne-harness/session-contract`
+- `bindingOf` · 包 `@omne-harness/session-contract`
+- `boundCall` · 包 `@omne-harness/session-contract`
 - `budgetTermsOf` · 包 `@omne-harness/session-contract`
 - `callKeysIn` · 包 `@omne-harness/session-contract`
 - `callKeysOutside` · 包 `@omne-harness/session-contract`
@@ -569,6 +572,7 @@ export declare abstract class SessionTransactionPortService<P = unknown> extends
     abstract readonly commit: SessionTransactionPort<P>['commit'];
     abstract readonly readWork: SessionTransactionPort<P>['readWork'];
     abstract readonly readCurrentScope: SessionTransactionPort<P>['readCurrentScope'];
+    abstract readonly readCall: SessionTransactionPort<P>['readCall'];
     abstract readonly readInput: SessionTransactionPort<P>['readInput'];
     abstract readonly queryOperation: SessionTransactionPort<P>['queryOperation'];
     abstract readonly queryControlOperation: SessionTransactionPort<P>['queryControlOperation'];
