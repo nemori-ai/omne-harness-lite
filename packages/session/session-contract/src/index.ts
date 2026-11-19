@@ -193,7 +193,7 @@ export {
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
 export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts'
-export { runCancelledBy } from './decision-support.ts'
+export { cancellationDriveOf, runCancelledBy } from './decision-support.ts'
 export { batchEvidence } from './batch-evidence.ts'
 export {
   EMPTY_AUTHORIZATIONS,

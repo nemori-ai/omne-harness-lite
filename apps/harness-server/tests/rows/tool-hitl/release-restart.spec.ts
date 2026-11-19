@@ -152,6 +152,49 @@ describe('a waiting Ask goes on after the service restarts on the same state', (
   )
 
   it(
+    'a stop that finds a cancelled execution still finishing leaves it to the restart, where it ends',
+    { timeout: 300_000 },
+    async () => {
+      let session = ''
+      const exits = await onReleaseTreeRuns(options, [
+        async world => {
+          withBridge(world, {
+            ensure: async () =>
+              fail({ kind: 'unavailable', dependency: 'tool-decisions', diagnostic: 'held' }),
+          })
+          session = await world.startSession('start: ask')
+          await pollUntil(
+            'the Ask to suspend with its wait opening',
+            () => askOf(world),
+            row => row?.phase === 'suspended' && row.waits.some(wait => wait.phase === 'opening'),
+          )
+          const started = (await historyOf(world, session)).find(e => e.kind === 'run.started')
+          const cancelled = await world.cli([
+            'cancel-run',
+            '--session',
+            session,
+            '--run',
+            String(started?.payload['run']),
+            '--urgency',
+            'force',
+          ])
+          expect(cancelled.status, cancelled.stderr).toBe(0)
+          await endedOnce(world, session)
+        },
+        async world => {
+          await pollUntil(
+            'the cancelled execution to end',
+            async () =>
+              (await world.cli(['read-session-diagnostics', '--session', session])).stdout,
+            text => text.includes('reason: no-failure cancelled'),
+          )
+        },
+      ])
+      expect(exits[1]).toBe(0)
+    },
+  )
+
+  it(
     'a registration that did not land before the stop lands once after the restart: one card, and the answer resumes the call',
     { timeout: 300_000 },
     async () => {

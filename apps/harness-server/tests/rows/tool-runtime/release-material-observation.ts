@@ -5,6 +5,8 @@ import { unpackText } from '@omne-harness/sql-contract/worker'
 import type { LedgerRecord } from '@omne-harness/tool'
 
 export type ObservedResult = Readonly<{
+  /** The call and the result version: one result keeps this for as long as its row lives. */
+  key: string
   delivery: string
   original: 'none' | 'offloaded'
   content: readonly unknown[]
@@ -28,6 +30,7 @@ export function observeToolResults(storageRoot: string): readonly ObservedResult
           record.kind === 'result'
             ? [
                 {
+                  key: `${String(record.result.call)}/${String(record.result.result)}`,
                   delivery: record.result.delivery.kind,
                   original: record.result.value.original.kind,
                   content: record.result.value.content,
@@ -45,8 +48,8 @@ export function observeToolResults(storageRoot: string): readonly ObservedResult
       db.close()
     }
   }
-  if (found.length !== 1 || found[0] === undefined) throw new Error('expected one Tool database')
-  return found[0]
+  if (found.length > 1) throw new Error('expected one Tool database')
+  return found[0] ?? []
 }
 
 export function resultsReleased(results: readonly ObservedResult[], offloaded: 0 | 1): boolean {
@@ -62,4 +65,28 @@ export function resultsReleased(results: readonly ObservedResult[], offloaded: 0
           : JSON.stringify(result.content) === JSON.stringify(result.summary)),
     )
   )
+}
+
+/**
+ * Every result that was seen released, from the start of the watch on. A released result is
+ * reclaimed after the grace of the deployment, so a look after the turn cannot count them.
+ */
+export function watchReleasedResults(storageRoot: string, everyMs = 500) {
+  const seen = new Map<string, ObservedResult>()
+  const look = () => {
+    try {
+      for (const result of observeToolResults(storageRoot))
+        if (result.delivery === 'released') seen.set(result.key, result)
+    } catch {
+      // The store is not there yet, or a writer holds it: the next look reads it.
+    }
+  }
+  const timer = setInterval(look, everyMs)
+  return {
+    seen: (): readonly ObservedResult[] => {
+      look()
+      return [...seen.values()]
+    },
+    stop: () => clearInterval(timer),
+  }
 }
