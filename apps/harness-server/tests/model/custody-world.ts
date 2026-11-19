@@ -42,6 +42,7 @@ import {
   type ConsumerRef,
   type FixedModelRequest,
   type ModelCallId,
+  type ModelResultReceiver,
 } from '@omne-harness/model-contract'
 import {
   MODEL_SEND,
@@ -112,7 +113,7 @@ const LIMITS = {
   maxConcurrentCalls: 4,
   maxRedeliveries: 2,
   maxCleanupSteps: 8,
-  delaysMs: [1000, 5000, 30000],
+  delaysMs: [50, 100, 200],
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
 }
@@ -494,18 +495,27 @@ function modelRecords(custody: { open: boolean; view?: Context }) {
     },
   })
   const raw = memory.dependencies.commands
+  /** Knobs of the hard cases: a cleanup that fails until turned off; pushes answered unknown after the receiver saved. */
+  const faults = { cleanupFails: false, unknownAfterSave: 0 }
   const commands: ModelCommands<unknown> = {
     ...raw,
     handoff: async ack => {
       handoffs.push(ack.operation)
       return raw.handoff(ack)
     },
+    advanceCleanup: input =>
+      faults.cleanupFails
+        ? Promise.resolve({
+            failure: { kind: 'unavailable', dependency: 'model-records', diagnostic: 'test' },
+          })
+        : raw.advanceCleanup(input),
   }
   return {
     memory,
     raw,
     commands,
     handoffs,
+    faults,
     ledger: createMemoryResultPushLedger(),
   }
 }
@@ -616,35 +626,56 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
   const host = root.plugin(Host, { ...SETTINGS })
   await host
   fibers.push(host)
-  const receiver = ok(
-    createAgentModelReceiver<unknown>(
-      {
-        provider: {
-          journal: t.service<Provider['journal']>(agentJournalKey),
-          entries: t.service<Provider['entries']>(agentJournalEntriesKey),
-          materials: t.service<Provider['materials']>(agentMaterialsKey),
-          received: t.service<NonNullable<Provider['received']>>(agentReceivedCommitsKey),
+  const agentReceiver = () =>
+    ok(
+      createAgentModelReceiver<unknown>(
+        {
+          provider: {
+            journal: t.service<Provider['journal']>(agentJournalKey),
+            entries: t.service<Provider['entries']>(agentJournalEntriesKey),
+            materials: t.service<Provider['materials']>(agentMaterialsKey),
+            received: t.service<NonNullable<Provider['received']>>(agentReceivedCommitsKey),
+          },
+          access: {
+            check: async () => ({ kind: 'allowed', evidence: evidence('agent-access') }),
+          },
+          targets: t.service<ModelReceptionTargets<unknown>>(agentModelReceptionTargetsKey),
+          models: root.get(modelRuntimeKey)!.calls,
+          capacity: () => ({ records: 10, bytes: 1_000_000, attachments: 10, inFlight: 4 }),
         },
-        access: {
-          check: async () => ({ kind: 'allowed', evidence: evidence('agent-access') }),
-        },
-        targets: t.service<ModelReceptionTargets<unknown>>(agentModelReceptionTargetsKey),
-        models: root.get(modelRuntimeKey)!.calls,
-        capacity: () => ({ records: 10, bytes: 1_000_000, attachments: 10, inFlight: 4 }),
-      },
-      createModelReceiverState<unknown>(),
-    ),
-  )
-  const registrar = root.plugin({
-    name: 'agent-receiver-registration',
-    inject: [modelRuntimeKey],
-    apply: (inner: Context) => {
-      inner.modelRuntime.registerResultReceiver(AGENT, receiver)
+        createModelReceiverState<unknown>(),
+      ),
+    )
+  // The Agent receiver as registered: it saves first, then answers unknown as many times as asked.
+  const answering = (inner: ModelResultReceiver<unknown>): ModelResultReceiver<unknown> => ({
+    async push(input) {
+      const reply = await inner.push(input)
+      if (!('ok' in reply) || records.faults.unknownAfterSave === 0) return reply
+      records.faults.unknownAfterSave -= 1
+      return { failure: { kind: 'outcome-unknown' } }
     },
   })
-  await registrar
-  fibers.push(registrar)
+  const register = async () => {
+    const receiver = answering(agentReceiver())
+    const fiber = root.plugin({
+      name: 'agent-receiver-registration',
+      inject: [modelRuntimeKey],
+      apply: (inner: Context) => {
+        inner.modelRuntime.registerResultReceiver(AGENT, receiver)
+      },
+    })
+    await fiber
+    return fiber
+  }
+  let registrar: Fiber | null = await register()
   return {
+    async dropReceiver() {
+      await registrar?.dispose()
+      registrar = null
+    },
+    async addReceiver() {
+      registrar = await register()
+    },
     admit(access: SessionAccess<string>, execution: AgentExecutionId, name: string) {
       return root.get(modelRuntimeKey)!.calls.admit({
         principal: PRINCIPAL,
@@ -656,6 +687,7 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
       })
     },
     async stop() {
+      await registrar?.dispose()
       for (const fiber of fibers.reverse()) await fiber.dispose()
     },
   }
@@ -702,6 +734,8 @@ export async function custodyWorld(names: readonly string[], open = true) {
     records,
     custody,
     admit: (name: string) => host.admit(access, execution, name),
+    dropReceiver: () => host.dropReceiver(),
+    addReceiver: () => host.addReceiver(),
     async acknowledge(name: string, operation: string, custody: DurableEvidence) {
       const found = ok(
         await records.raw.recall({
@@ -720,6 +754,33 @@ export async function custodyWorld(names: readonly string[], open = true) {
         operation: modelOp(operation),
         result: found.state.settlement.version,
         evidence: { kind: 'retained', custody },
+      })
+    },
+    async beginRead(name: string, operation: string) {
+      const found = ok(
+        await records.raw.recall({
+          principal: PRINCIPAL,
+          tenant: access.tenant,
+          call: callOf(name),
+          admission: modelOp(`admit-${name}`),
+        }),
+      )
+      if (found.kind !== 'found' || found.state.phase !== 'settled')
+        throw new Error(`call ${name} is not settled`)
+      return records.commands.acquireRead({
+        principal: PRINCIPAL,
+        tenant: access.tenant,
+        call: callOf(name),
+        operation: modelOp(operation),
+        result: found.state.settlement.version,
+      })
+    },
+    endRead(name: string, read: Parameters<ModelCommands<unknown>['endRead']>[0]['read']) {
+      return records.commands.endRead({
+        principal: PRINCIPAL,
+        tenant: access.tenant,
+        call: callOf(name),
+        read,
       })
     },
     tree: (): LoadedTree => t.tree,
