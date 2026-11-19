@@ -305,6 +305,25 @@ describe('what the start policy asks and answers', () => {
     },
   )
 
+  it('hands a start the permission let through as a carrier a release that names no grant', async () => {
+    const carried: Decision = {
+      kind: 'allow',
+      evidence,
+      condition: null,
+      release: { by: 'carrier', grant: null },
+    }
+    const w = await asking(carried)
+    try {
+      expect(await w.qualify()).toStrictEqual({
+        kind: 'allowed',
+        condition: null,
+        release: { by: 'carrier', grant: null },
+      })
+    } finally {
+      await w.world.close()
+    }
+  })
+
   it('hands an ungated start the release that names no gate, without asking the permission', async () => {
     const w = await asking(allow, undefined, () => ({
       resolve: async () => ({ ok: { kind: 'own', gate: { kind: 'ungated' } } }),

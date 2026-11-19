@@ -301,6 +301,15 @@ describe('the grant a release names', () => {
     })
   })
 
+  it('names the tenant layer when the session layer is there but sets nothing', async () => {
+    const w = world()
+    const evaluation = withSession(w, { pick: null, allowedSet: null })
+    expect(await createCurrentToolPermission(w.ports).check(w.input)).toMatchObject({
+      kind: 'allow',
+      release: { by: 'verdict', grant: { layer: 'tenant', revision: digestOf(evaluation) } },
+    })
+  })
+
   it.each([
     ['picks the value', { pick: 'auto', allowedSet: null }],
     ['only bounds the values', { pick: null, allowedSet: ['auto', 'ask'] }],
