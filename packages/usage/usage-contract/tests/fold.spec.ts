@@ -66,11 +66,8 @@ function additive(measures: UsageMeasures): Map<string, bigint> {
     put(`${kind}:unknown`, sum.unknown)
     put(`${kind}:provisional`, sum.provisional)
   }
-  for (const cost of measures.cost) {
-    put(`cost:${cost.unit}:known`, hundredths(cost.known))
-    put(`cost:${cost.unit}:unknown`, cost.unknown)
-    put(`cost:${cost.unit}:provisional`, cost.provisional)
-  }
+  for (const cost of measures.cost.sums) put(`cost:${cost.unit}:known`, hundredths(cost.known))
+  put('cost:unknown', measures.cost.unknown)
   put('duration:known', hundredths(measures.duration.total.known))
   put('duration:unknown', measures.duration.total.unknown)
   return out
@@ -135,28 +132,33 @@ describe('folding usage facts, for seeded random facts (C19)', () => {
     }
   })
 
-  it('keeps costs of different units apart and never adds them', () => {
+  it('keeps costs of different units apart, never adds them, and counts the unknown apart', () => {
     for (let seed = 1; seed <= CASES; seed += 1) {
       const { inRange, result } = scenario(seed)
-      const costs = inRange.flatMap(fact => (fact.cost === null ? [] : [fact.cost]))
-      const units = [...new Set(costs.map(cost => cost.unit))].sort()
+      const known = inRange.flatMap(fact => (fact.cost?.state === 'known' ? [fact.cost] : []))
+      const units = [...new Set(known.map(cost => cost.unit))].sort()
       expect(
-        result.total.cost.map(cost => cost.unit),
+        result.total.cost.sums.map(cost => cost.unit),
         `seed ${seed}`,
       ).toEqual(units)
-      for (const entry of result.total.cost) {
-        const own = costs.filter(cost => cost.unit === entry.unit)
+      for (const entry of result.total.cost.sums)
         expect(hundredths(entry.known), `seed ${seed} ${entry.unit}`).toBe(
-          own.reduce(
-            (sum, cost) => sum + (cost.state === 'known' ? hundredths(cost.lexeme) : 0n),
-            0n,
-          ),
+          known
+            .filter(cost => cost.unit === entry.unit)
+            .reduce((sum, cost) => sum + hundredths(cost.lexeme), 0n),
         )
-        expect(entry.unknown).toBe(own.filter(cost => cost.state === 'unknown').length)
-      }
-      expect(result.coverage.costUnknown).toBe(
-        costs.filter(cost => cost.state === 'unknown').length,
-      )
+      const unknown = inRange.filter(fact => fact.cost?.state === 'unknown').length
+      expect(result.total.cost.unknown, `seed ${seed}`).toBe(unknown)
+      expect(result.coverage.costUnknown, `seed ${seed}`).toBe(unknown)
+    }
+  })
+
+  it('counts the first unit of a call as the call and the later ones as its retries', () => {
+    for (let seed = 1; seed <= CASES; seed += 1) {
+      const { inRange, result } = scenario(seed)
+      const calls = new Set(inRange.map(fact => `${fact.subject.kind}:${fact.subject.id}`)).size
+      expect(result.total.calls, `seed ${seed}`).toBe(calls)
+      expect(result.total.retried, `seed ${seed}`).toBe(inRange.length - calls)
     }
   })
 
@@ -215,7 +217,6 @@ describe('folding, on cases written out', () => {
     ...base,
     usage: [],
     cost: null,
-    retried: false,
     outcome: 'completed',
     cause: null,
     ...changes,
@@ -267,12 +268,13 @@ describe('folding, on cases written out', () => {
   })
 
   it('counts a retried unit as a unit but not as another call, and failures by cause', () => {
+    const call = (id: string) => ({ kind: 'model_call' as const, id })
     const result = fold(
       [
-        fact({ at: at(1) }),
-        fact({ at: at(1), retried: true, outcome: 'failed', cause: 'network' }),
-        fact({ at: at(2), outcome: 'failed', cause: null }),
-        fact({ at: at(3), outcome: 'interrupted' }),
+        fact({ at: at(1), subject: call('c-1'), unit: 'u-2' }),
+        fact({ at: at(1), subject: call('c-1'), unit: 'u-1', outcome: 'failed', cause: 'network' }),
+        fact({ at: at(2), subject: call('c-2'), unit: 'u-3', outcome: 'failed', cause: null }),
+        fact({ at: at(3), subject: call('c-3'), unit: 'u-4', outcome: 'interrupted' }),
       ],
       checked('UTC', 'none', []),
       { sources: [], undated: 0 },
@@ -293,7 +295,6 @@ describe('the measures that the random facts do not pin down', () => {
     ...base,
     usage: [],
     cost: null,
-    retried: false,
     outcome: 'completed',
     cause: null,
     durations: { toResponse: null, toFirstContent: null, total: null, generation: null },

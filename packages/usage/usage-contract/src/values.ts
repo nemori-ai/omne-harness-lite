@@ -1,10 +1,15 @@
-import type { Amount, SubjectKind, UsageItem } from '@omne-harness/call-account'
+import type { SubjectKind, UsageItem } from '@omne-harness/call-account'
 import type { ConsumerRef } from '@omne-harness/exchange-refs'
 
 /** ISO-8601 in UTC with milliseconds. */
 export type UsageInstant = string
 
-/** One unit of a producer (a real dispatch, a tool call); `cost` is what is payable, if any. */
+/** What a unit is payable: known in a unit, unknown with no unit to put it in. */
+export type UsageCost =
+  | Readonly<{ state: 'known'; lexeme: string; unit: string }>
+  | Readonly<{ state: 'unknown' }>
+
+/** One unit of a producer (a real dispatch, a tool call); `cost` is null when nothing is payable. */
 export type UsageFact = Readonly<{
   source: string
   subject: Readonly<{ kind: SubjectKind; id: string }>
@@ -20,14 +25,13 @@ export type UsageFact = Readonly<{
   outcome: 'pending' | 'completed' | 'interrupted' | 'failed'
   cause: string | null
   usage: readonly UsageItem[]
-  cost: Amount | null
+  cost: UsageCost | null
   durations: Readonly<{
     toResponse: number | null
     toFirstContent: number | null
     total: number | null
     generation: number | null
   }>
-  retried: boolean
   connectRetries: number
   window: string | null
 }>
@@ -68,7 +72,7 @@ export type UsageMeasures = Readonly<{
   interrupted: number
   failed: readonly Readonly<{ cause: string | null; count: number }>[]
   tokens: Readonly<Record<TokenKind, UsageSum>>
-  cost: readonly Readonly<UsageSum & { unit: string }>[]
+  cost: Readonly<{ sums: readonly Readonly<{ unit: string; known: string }>[]; unknown: number }>
   duration: Readonly<{
     total: UsageSum
     toFirstContent: UsageDistribution

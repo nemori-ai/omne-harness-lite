@@ -1,4 +1,5 @@
 import type { Amount, UsageItem } from '@omne-harness/call-account'
+import type { UsageCost } from '@omne-harness/usage-contract'
 import { TOKEN_KINDS, type UsageFact } from '@omne-harness/usage-contract'
 
 /** mulberry32: the same seed gives the same facts, so a failing case can be replayed. */
@@ -41,6 +42,11 @@ function amount(pick: Pick, unit: string, places: number): Amount {
   return state === 'known' ? { state, lexeme, unit } : { state, lexeme, unit }
 }
 
+function cost(pick: Pick): UsageCost {
+  const value = amount(pick, pick.one(['USD', 'credit']), 2)
+  return value.state === 'known' ? value : { state: 'unknown' }
+}
+
 /** A fact with random numbers; its instant falls in [from, to] or is missing. */
 export function randomFact(pick: Pick, index: number, from: number, to: number): UsageFact {
   const source = pick.one(['model', 'tool'])
@@ -53,7 +59,10 @@ export function randomFact(pick: Pick, index: number, from: number, to: number):
   const at = pick.chance(0.1) ? null : pick.chance(0.05) ? to : pick.int(from, to - 1)
   return {
     source,
-    subject: { kind: source === 'model' ? 'model_call' : 'tool_execution', id: `call-${index}` },
+    subject: {
+      kind: source === 'model' ? 'model_call' : 'tool_execution',
+      id: source === 'model' ? `call-${pick.int(0, 20)}` : `call-${index}`,
+    },
     unit: `unit-${index}`,
     at: at === null ? null : new Date(at).toISOString(),
     consumer: {
@@ -71,9 +80,8 @@ export function randomFact(pick: Pick, index: number, from: number, to: number):
     outcome,
     cause: outcome === 'failed' ? pick.one(['network', 'upstream', null]) : null,
     usage: source === 'model' ? usage : [],
-    cost: pick.chance(0.2) ? null : amount(pick, pick.one(['USD', 'credit']), 2),
+    cost: pick.chance(0.2) ? null : cost(pick),
     durations: { toResponse: ms(), toFirstContent: ms(), total: ms(), generation: ms() },
-    retried: pick.chance(0.2),
     connectRetries: pick.int(0, 2),
     window: null,
   }

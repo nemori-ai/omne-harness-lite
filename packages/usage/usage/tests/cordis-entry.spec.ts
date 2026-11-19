@@ -27,7 +27,7 @@ const empty: UsageSource<unknown> = {
 
 class FixedScope extends UsageSessionScopeService<unknown> {
   readonly resolve: UsageSessionScopeService<unknown>['resolve'] = () =>
-    Promise.resolve({ ok: { kind: 'found', consumer: { owner: 'agent', works: ['exec-1'] } } })
+    Promise.resolve({ ok: { kind: 'found', consumers: [{ owner: 'agent', works: ['exec-1'] }] } })
 }
 
 describe('the usage entry for Cordis', () => {

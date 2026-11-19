@@ -20,8 +20,9 @@ type Value = Readonly<{ state: Amount['state']; value: Decimal | null }>
 /** A fact with its amounts read once, so that every cell it lands in adds the same numbers. */
 type Parsed = Readonly<{
   fact: UsageFact
+  retry: boolean
   tokens: Readonly<Partial<Record<TokenKind, Value>>>
-  cost: (Value & Readonly<{ unit: string }>) | null
+  cost: Readonly<{ unit: string; value: Decimal }> | 'unknown' | null
 }>
 
 const zero = (): Sum => ({ known: ZERO, unknown: 0, provisional: 0 })
@@ -30,17 +31,39 @@ const valueOf = (amount: Amount): Value => ({
   value: amount.state === 'unknown' ? null : decimalOf(amount.lexeme),
 })
 
-function parse(fact: UsageFact): Parsed {
+function parse(fact: UsageFact, retry: boolean): Parsed {
   const tokens: Partial<Record<TokenKind, Value>> = {}
   for (const kind of TOKEN_KINDS) {
     const item = fact.usage.find(entry => entry.name === kind)
     if (item !== undefined) tokens[kind] = valueOf(item)
   }
+  const cost = fact.cost
   return {
     fact,
+    retry,
     tokens,
-    cost: fact.cost === null ? null : { ...valueOf(fact.cost), unit: fact.cost.unit },
+    cost:
+      cost === null || cost.state === 'unknown'
+        ? (cost?.state ?? null)
+        : { unit: cost.unit, value: decimalOf(cost.lexeme) },
   }
+}
+
+/** The units after the first of their call, by instant and then by unit, are its retries. */
+function retriesOf(placed: readonly Readonly<{ fact: UsageFact; at: number }>[]): Set<UsageFact> {
+  const first = new Map<string, Readonly<{ fact: UsageFact; at: number }>>()
+  for (const item of placed) {
+    const call = `${item.fact.subject.kind}:${item.fact.subject.id}`
+    const held = first.get(call)
+    if (
+      held === undefined ||
+      item.at < held.at ||
+      (item.at === held.at && item.fact.unit < held.fact.unit)
+    )
+      first.set(call, item)
+  }
+  const firsts = new Set([...first.values()].map(item => item.fact))
+  return new Set(placed.filter(item => !firsts.has(item.fact)).map(item => item.fact))
 }
 
 function add(sum: Sum, amount: Value): void {
@@ -76,7 +99,7 @@ class Cell {
     TokenKind,
     Sum
   >
-  private readonly costs = new Map<string, Sum>()
+  private readonly costs = new Map<string, Decimal>()
   private readonly total = zero()
   private readonly firsts: number[] = []
   private readonly wholes: number[] = []
@@ -85,8 +108,8 @@ class Cell {
   private speed = { output: ZERO, ms: 0 }
   readonly excluded = { cacheHit: 0, reasoningShare: 0, outputPerSecond: 0 }
 
-  add({ fact, tokens, cost }: Parsed): void {
-    if (fact.retried) this.retried += 1
+  add({ fact, retry, tokens, cost }: Parsed): void {
+    if (retry) this.retried += 1
     else this.calls += 1
     if (fact.outcome === 'interrupted') this.interrupted += 1
     if (fact.outcome === 'failed')
@@ -95,12 +118,9 @@ class Cell {
       const value = tokens[kind]
       if (value !== undefined) add(this.tokens[kind], value)
     }
-    if (cost !== null) {
-      const sum = this.costs.get(cost.unit) ?? zero()
-      add(sum, cost)
-      this.costs.set(cost.unit, sum)
-      if (cost.state === 'unknown') this.costUnknown += 1
-    }
+    if (cost === 'unknown') this.costUnknown += 1
+    else if (cost !== null)
+      this.costs.set(cost.unit, plus(this.costs.get(cost.unit) ?? ZERO, cost.value))
     const { total, toFirstContent, generation } = fact.durations
     if (total === null) this.total.unknown += 1
     else {
@@ -150,9 +170,12 @@ class Cell {
       tokens: Object.fromEntries(
         TOKEN_KINDS.map(kind => [kind, sumText(this.tokens[kind])]),
       ) as UsageMeasures['tokens'],
-      cost: [...this.costs]
-        .map(([unit, sum]) => ({ ...sumText(sum), unit }))
-        .sort((a, b) => (a.unit < b.unit ? -1 : 1)),
+      cost: {
+        sums: [...this.costs]
+          .map(([unit, sum]) => ({ unit, known: lexemeOf(sum) }))
+          .sort((a, b) => (a.unit < b.unit ? -1 : 1)),
+        unknown: this.costUnknown,
+      },
       duration: {
         total: sumText(this.total),
         toFirstContent: distribution(this.firsts),
@@ -170,8 +193,13 @@ class Cell {
 }
 
 export function measure(facts: readonly UsageFact[]): UsageMeasures {
+  const placed = facts.map(fact => ({
+    fact,
+    at: fact.at === null ? Infinity : Date.parse(fact.at),
+  }))
+  const retries = retriesOf(placed)
   const cell = new Cell()
-  for (const fact of facts) cell.add(parse(fact))
+  for (const fact of facts) cell.add(parse(fact, retries.has(fact)))
   return cell.measures()
 }
 
@@ -228,11 +256,14 @@ export function fold(
   const whole = new Cell()
   const groups: Groups = new Map()
   const buckets = edges.map(() => ({ total: new Cell(), groups: new Map() as Groups }))
-  let earliest = Infinity
-  for (const fact of facts) {
+  const placed = facts.flatMap(fact => {
     const at = fact.at === null ? NaN : Date.parse(fact.at)
-    if (!(at >= from && at < to)) continue
-    const parsed = parse(fact)
+    return at >= from && at < to ? [{ fact, at }] : []
+  })
+  const retries = retriesOf(placed)
+  let earliest = Infinity
+  for (const { fact, at } of placed) {
+    const parsed = parse(fact, retries.has(fact))
     const bucket = buckets[bucketOf(edges, at)]
     whole.add(parsed)
     bucket?.total.add(parsed)

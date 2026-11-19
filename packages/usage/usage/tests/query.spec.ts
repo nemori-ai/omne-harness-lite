@@ -28,7 +28,6 @@ function fact(source: string, unit: string, at: string | null, work = 'exec-1'):
     usage: [],
     cost: null,
     durations: { toResponse: null, toFirstContent: null, total: null, generation: null },
-    retried: false,
     connectRetries: 0,
     window: null,
   }
@@ -184,7 +183,7 @@ describe('a usage query over the registered sources (C22)', () => {
       fact('model', `${work}-u`, null, work),
     ])
     const model = source('model', facts, { limits: { page: 3, works: 2 } })
-    const scope = scopeOf({ ok: { kind: 'found', consumer: { owner: 'agent', works } } })
+    const scope = scopeOf({ ok: { kind: 'found', consumers: [{ owner: 'agent', works }] } })
     const answer = await usageOver([model.self], scope.scope, {
       page: 10,
       pages: 50,
@@ -199,6 +198,38 @@ describe('a usage query over the registered sources (C22)', () => {
       [['exec-5'], null, 3],
     ])
     expect(scope.asked).toEqual([{ principal, tenant, session: 's-1' }])
+  })
+
+  it('reads each consumer scope of a session, owner by owner, and counts what falls under any of them', async () => {
+    const facts = [
+      fact('model', 'main', hour(1), 'exec-1/step-1'),
+      {
+        ...fact('model', 'summary', hour(2), '{"task":"compaction/k"}'),
+        consumer: {
+          owner: 'compactor',
+          work: '{"task":"compaction/k"}',
+          position: '1',
+          purpose: 'summary',
+        },
+      },
+      fact('model', 'other', hour(3), 'exec-9'),
+    ]
+    const model = source('model', facts)
+    const scope = scopeOf({
+      ok: {
+        kind: 'found',
+        consumers: [
+          { owner: 'agent', works: ['exec-1'] },
+          { owner: 'compactor', works: ['{"task":"compaction/k"}'] },
+        ],
+      },
+    })
+    expect(
+      await usageOver([model.self], scope.scope).query(
+        query({ scope: { kind: 'session', session: 's-1' } }),
+      ),
+    ).toMatchObject({ ok: { total: { units: 2 } } })
+    expect(model.asked.map(item => item.consumer?.owner)).toEqual(['agent', 'compactor'])
   })
 
   it('answers too-large when a query needs more pages than the limit, and reads exactly the limit otherwise', async () => {
@@ -259,7 +290,7 @@ describe('a usage query of a session', () => {
 
   it('reads no source for a session with no execution yet, and names the sources it would have read', async () => {
     const model = source('model', [fact('model', 'm1', hour(1))])
-    const scope = scopeOf({ ok: { kind: 'found', consumer: { owner: 'agent', works: [] } } })
+    const scope = scopeOf({ ok: { kind: 'found', consumers: [] } })
     expect(await usageOver([model.self], scope.scope).query(session)).toMatchObject({
       ok: { total: { units: 0 }, coverage: { sources: ['model'] } },
     })

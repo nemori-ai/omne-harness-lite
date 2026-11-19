@@ -49,13 +49,14 @@ export interface UsageSource<P> {
   ): Promise<Outcome<UsageSourcePage, UsagePortFailure>>
 }
 
-/** A session as a consumer scope: its executions. A session of another tenant is absent. */
+/** A session as consumer scopes, one per owner of its work. A session of another tenant is absent. */
 export interface UsageSessionScope<P> {
   resolve(
     input: Access<P> & Readonly<{ session: string }>,
   ): Promise<
     Outcome<
-      Readonly<{ kind: 'found'; consumer: UsageConsumer }> | Readonly<{ kind: 'absent' }>,
+      | Readonly<{ kind: 'found'; consumers: readonly UsageConsumer[] }>
+      | Readonly<{ kind: 'absent' }>,
       UsagePortFailure
     >
   >

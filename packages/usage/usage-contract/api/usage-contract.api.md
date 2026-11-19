@@ -16,6 +16,7 @@
 - `UsageBucketResult` · `values.d.ts`
 - `UsageCell` · `values.d.ts`
 - `UsageConsumer` · `values.d.ts`
+- `UsageCost` · `values.d.ts`
 - `UsageCoverage` · `values.d.ts`
 - `UsageDependency` · `ports.d.ts`
 - `UsageDimension` · `values.d.ts`
@@ -91,7 +92,7 @@ export declare function fold(facts: readonly UsageFact[], query: CheckedUsageQue
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { TOKEN_KINDS, USAGE_BUCKETS, USAGE_DIMENSIONS, type TokenKind, type UsageBucket, type UsageBucketResult, type UsageCell, type UsageConsumer, type UsageCoverage, type UsageDimension, type UsageDistribution, type UsageFact, type UsageInstant, type UsageMeasures, type UsageQuery, type UsageRatio, type UsageResult, type UsageScope, type UsageSum, } from './values.ts';
+export { TOKEN_KINDS, USAGE_BUCKETS, USAGE_DIMENSIONS, type TokenKind, type UsageBucket, type UsageBucketResult, type UsageCell, type UsageConsumer, type UsageCost, type UsageCoverage, type UsageDimension, type UsageDistribution, type UsageFact, type UsageInstant, type UsageMeasures, type UsageQuery, type UsageRatio, type UsageResult, type UsageScope, type UsageSum, } from './values.ts';
 export type { Usage, UsageDependency, UsageFailure, UsagePortFailure, UsageReply, UsageSessionScope, UsageSource, UsageSourcePage, } from './ports.ts';
 export { checkUsageQuery, edgesOf, type CheckedUsageQuery, type UsageEdge } from './check.ts';
 export { addLexemes } from './decimal.ts';
@@ -164,7 +165,7 @@ export interface UsageSessionScope<P> {
         session: string;
     }>): Promise<Outcome<Readonly<{
         kind: 'found';
-        consumer: UsageConsumer;
+        consumers: readonly UsageConsumer[];
     }> | Readonly<{
         kind: 'absent';
     }>, UsagePortFailure>>;
@@ -177,9 +178,16 @@ export interface Usage<P> {
 ## 声明文件 `values.d.ts`
 
 ```ts
-import type { Amount, SubjectKind, UsageItem } from '@omne-harness/call-account';
+import type { SubjectKind, UsageItem } from '@omne-harness/call-account';
 import type { ConsumerRef } from '@omne-harness/exchange-refs';
 export type UsageInstant = string;
+export type UsageCost = Readonly<{
+    state: 'known';
+    lexeme: string;
+    unit: string;
+}> | Readonly<{
+    state: 'unknown';
+}>;
 export type UsageFact = Readonly<{
     source: string;
     subject: Readonly<{
@@ -198,14 +206,13 @@ export type UsageFact = Readonly<{
     outcome: 'pending' | 'completed' | 'interrupted' | 'failed';
     cause: string | null;
     usage: readonly UsageItem[];
-    cost: Amount | null;
+    cost: UsageCost | null;
     durations: Readonly<{
         toResponse: number | null;
         toFirstContent: number | null;
         total: number | null;
         generation: number | null;
     }>;
-    retried: boolean;
     connectRetries: number;
     window: string | null;
 }>;
@@ -281,9 +288,13 @@ export type UsageMeasures = Readonly<{
         count: number;
     }>[];
     tokens: Readonly<Record<TokenKind, UsageSum>>;
-    cost: readonly Readonly<UsageSum & {
-        unit: string;
-    }>[];
+    cost: Readonly<{
+        sums: readonly Readonly<{
+            unit: string;
+            known: string;
+        }>[];
+        unknown: number;
+    }>;
     duration: Readonly<{
         total: UsageSum;
         toFirstContent: UsageDistribution;

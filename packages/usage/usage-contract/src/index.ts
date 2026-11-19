@@ -7,6 +7,7 @@ export {
   type UsageBucketResult,
   type UsageCell,
   type UsageConsumer,
+  type UsageCost,
   type UsageCoverage,
   type UsageDimension,
   type UsageDistribution,

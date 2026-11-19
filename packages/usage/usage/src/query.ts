@@ -35,7 +35,7 @@ const failureOf = (dependency: UsageDependency, failure: UsagePortFailure): Usag
 async function consumerOf<P>(
   deps: UsageDeps<P>,
   input: Access<P> & UsageQuery,
-): Promise<Outcome<UsageConsumer | null, UsageFailure>> {
+): Promise<Outcome<readonly UsageConsumer[] | null, UsageFailure>> {
   if (input.scope.kind !== 'session') return succeed(null)
   const dependency: UsageDependency = { kind: 'session-scope' }
   const scope = deps.sessionScope()
@@ -49,23 +49,28 @@ async function consumerOf<P>(
     })
     if ('failure' in answer) return fail(failureOf(dependency, answer.failure))
     if (answer.ok.kind === 'absent') return fail({ kind: 'not-found', what: 'session' })
-    return succeed(answer.ok.consumer)
+    return succeed(answer.ok.consumers)
   } catch {
     return fail({ kind: 'unavailable', dependency, diagnostic: 'the session scope threw' })
   }
 }
 
-function chunks(consumer: UsageConsumer | null, size: number): readonly (UsageConsumer | null)[] {
-  if (consumer === null) return [null]
+function chunks(
+  consumers: readonly UsageConsumer[] | null,
+  size: number,
+): readonly (UsageConsumer | null)[] {
+  if (consumers === null) return [null]
   const parts: UsageConsumer[] = []
-  for (let at = 0; at < consumer.works.length; at += size)
-    parts.push({ owner: consumer.owner, works: consumer.works.slice(at, at + size) })
+  for (const { owner, works } of consumers)
+    for (let at = 0; at < works.length; at += size)
+      parts.push({ owner, works: works.slice(at, at + size) })
   return parts
 }
 
 async function readSource<P>(
   source: UsageSource<P>,
-  request: Access<P> & Readonly<{ range: UsageQuery['range']; consumer: UsageConsumer | null }>,
+  request: Access<P> &
+    Readonly<{ range: UsageQuery['range']; consumers: readonly UsageConsumer[] | null }>,
   budget: { pages: number },
   page: number,
 ): Promise<Outcome<Read, UsageFailure>> {
@@ -73,7 +78,8 @@ async function readSource<P>(
   const limit = Math.min(page, source.limits.page)
   const facts: UsageFact[] = []
   let undated = 0
-  for (const consumer of chunks(request.consumer, source.limits.works)) {
+  const { consumers, ...access } = request
+  for (const consumer of chunks(consumers, source.limits.works)) {
     let after: string | null = null
     let first = true
     while (first || after !== null) {
@@ -81,7 +87,7 @@ async function readSource<P>(
       budget.pages -= 1
       let answer: Awaited<ReturnType<UsageSource<P>['list']>>
       try {
-        answer = await source.list({ ...request, consumer, after, limit })
+        answer = await source.list({ ...access, consumer, after, limit })
       } catch {
         return fail({ kind: 'unavailable', dependency, diagnostic: 'the source threw' })
       }
@@ -108,15 +114,15 @@ export function createUsage<P>(deps: UsageDeps<P>): Usage<P> {
     async query(input) {
       const checked = checkUsageQuery(input, { buckets: limits.buckets })
       if ('failure' in checked) return checked
-      const consumer = await consumerOf(deps, input)
-      if ('failure' in consumer) return consumer
+      const consumers = await consumerOf(deps, input)
+      if ('failure' in consumers) return consumers
       const sources = deps.sources()
       const names = sources.map(source => source.name).sort()
       const request = {
         principal: input.principal,
         tenant: input.tenant,
         range: input.range,
-        consumer: consumer.ok,
+        consumers: consumers.ok,
       }
       const budget = { pages: limits.pages }
       const facts: UsageFact[] = []
