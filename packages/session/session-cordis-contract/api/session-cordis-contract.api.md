@@ -182,8 +182,10 @@
 - `SessionAuthorization` · 包 `@omne-harness/session-contract`
 - `SessionBatchRecord` · 包 `@omne-harness/session-contract`
 - `SessionBlockDeclaration` · 包 `@omne-harness/session-contract`
+- `SessionCall` · 包 `@omne-harness/session-contract`
 - `SessionCallControl` · 包 `@omne-harness/session-contract`
 - `SessionCallEntryReferences` · 包 `@omne-harness/session-contract`
+- `SessionCallKeys` · 包 `@omne-harness/session-contract`
 - `SessionCallLookup` · 包 `@omne-harness/session-contract`
 - `SessionCallRecord` · 包 `@omne-harness/session-contract`
 - `SessionCallRegistration` · 包 `@omne-harness/session-contract`
@@ -241,6 +243,7 @@
 - `SessionIntakeBudget` · 包 `@omne-harness/session-contract`
 - `SessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `SessionInternalPrincipals` · 包 `@omne-harness/session-contract`
+- `SessionLateCallFact` · 包 `@omne-harness/session-contract`
 - `SessionListItem` · 包 `@omne-harness/session-contract`
 - `SessionListPage` · 包 `@omne-harness/session-contract`
 - `SessionLogCommitObservation` · 包 `@omne-harness/session-contract`
@@ -277,6 +280,7 @@
 - `SessionWork` · 包 `@omne-harness/session-contract`
 - `SessionWorkEntryIndex` · 包 `@omne-harness/session-contract`
 - `SessionWorkPrincipals` · 包 `@omne-harness/session-contract`
+- `SettledCallLookup` · 包 `@omne-harness/session-contract`
 - `SourceAdmission` · 包 `@omne-harness/session-contract`
 - `SourceRefusal` · 包 `@omne-harness/session-contract`
 - `SourceRequest` · 包 `@omne-harness/session-contract`
@@ -304,13 +308,18 @@
 - `backgroundCallView` · 包 `@omne-harness/session-contract`
 - `backgroundCalls` · 包 `@omne-harness/session-contract`
 - `backgroundInputId` · 包 `@omne-harness/session-contract`
+- `batchCallKeys` · 包 `@omne-harness/session-contract`
 - `batchEvidence` · 包 `@omne-harness/session-contract`
 - `budgetTermsOf` · 包 `@omne-harness/session-contract`
+- `callKeysIn` · 包 `@omne-harness/session-contract`
+- `callKeysOutside` · 包 `@omne-harness/session-contract`
+- `callWithLate` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
 - `commandInput` · 包 `@omne-harness/session-contract`
 - `commitWithinBudget` · 包 `@omne-harness/session-contract`
 - `compactionCallChangeOf` · 包 `@omne-harness/session-contract`
 - `compactionContextForView` · 包 `@omne-harness/session-contract`
+- `consumptionIdOf` · 包 `@omne-harness/session-contract`
 - `contextScopeOf` · 包 `@omne-harness/session-contract`
 - `contextScopesOf` · 包 `@omne-harness/session-contract`
 - `controlAnswer` · 包 `@omne-harness/session-contract`
@@ -344,6 +353,7 @@
 - `judgeRunStart` · 包 `@omne-harness/session-contract`
 - `judgeSessionIntake` · 包 `@omne-harness/session-contract`
 - `judgeWaiting` · 包 `@omne-harness/session-contract`
+- `lendCalls` · 包 `@omne-harness/session-contract`
 - `mutationAccessRequest` · 包 `@omne-harness/session-contract`
 - `onceAuthorizationOf` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`

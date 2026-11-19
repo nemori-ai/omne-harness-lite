@@ -235,3 +235,15 @@ export function callNamed(call: SessionCall, keys: SessionCallKeys): boolean {
   const named = digestOf(producer)
   return keys.producers.some(item => digestOf({ kind: item.kind, call: item.call }) === named)
 }
+
+export function callKeysOutside(snapshot: WorkSnapshot, keys: SessionCallKeys): SessionCallKeys {
+  const held = (snapshot.callRegistrations ?? []).map(record =>
+    callOf(snapshot, record.consumption),
+  )
+  const answers = (key: SessionCallKeys): boolean =>
+    held.some(call => call !== null && callNamed(call, key))
+  return {
+    consumptions: keys.consumptions.filter(id => !answers({ consumptions: [id], producers: [] })),
+    producers: keys.producers.filter(item => !answers({ consumptions: [], producers: [item] })),
+  }
+}

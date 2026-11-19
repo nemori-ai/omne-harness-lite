@@ -9,6 +9,8 @@ import {
 import { runCompactionCommand } from './compaction-command.ts'
 import { writePermissionCurrent } from './permission-current.ts'
 import { writeCompactionIndex } from './compaction-index.ts'
+import { callsLeft, lentTo, writeCallsLeft, type CallsLeft } from './call-left.ts'
+import { pendingReasons } from './pending-reasons.ts'
 import { readSessionBasis } from './session-basis.ts'
 import { SESSION_COMMIT_PROTOCOL, type SessionCommitBasis } from '../commit-basis.ts'
 import type { SessionPermissionChangeBasis } from '@omne-harness/session-contract'
@@ -17,6 +19,7 @@ import {
   controlAnswer,
   sessionIntakeLimits,
   type SessionIntakeLimits,
+  consumptionIdOf,
   decide,
   judgeIdle,
   reduce,
@@ -33,7 +36,6 @@ import {
   type SessionCommand,
   type SessionFailure,
   type WorkSnapshot,
-  runStartInputs,
 } from '@omne-harness/session-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
@@ -150,7 +152,6 @@ export const parsedSnapshots = new ParsedSnapshots()
 
 type Decision = ReturnType<typeof decide>
 type Reads = Parameters<typeof decide>[4]
-type PendingReason = string
 
 const isControl = (command: SessionCommand): boolean =>
   command.kind === 'cancelRun' || command.kind === 'stopCall'
@@ -202,26 +203,6 @@ const stopped = (failure: SessionFailure): ParticipantReply => ({
   kind: 'conflict',
   basis: { failure: encodeValue(failure) },
 })
-
-function pendingReasons(snapshot: WorkSnapshot | null): readonly PendingReason[] {
-  if (snapshot === null) return []
-  const reasons: PendingReason[] = []
-  if (snapshot.tasks.some(task => task.kind === 'initialization')) reasons.push('initialization')
-  if (snapshot.unresolved.length > 0) reasons.push('unresolved')
-  if (snapshot.controls.some(control => control.state === 'propagating')) reasons.push('controls')
-  if (snapshot.tasks.length > 0) reasons.push('tasks')
-  if (runStartInputs(snapshot).length > 0) reasons.push('inputs')
-  if (snapshot.run.kind === 'active') reasons.push('run')
-  else if (
-    snapshot.lifecycle !== 'archived' &&
-    snapshot.autoArchive?.kind === 'enabled' &&
-    !(snapshot.relation?.kind === 'main' && snapshot.relation.resident)
-  )
-    reasons.push('idle-armed')
-  if (snapshot.consumptions.some(item => item.results.some(result => result.release === 'pending')))
-    reasons.push('release')
-  return reasons
-}
 
 function mint(record: string, content: unknown): DurableEvidence {
   return { owner: OWNER, record, revision: '1', digest: `sha256:${sha256(canonicalText(content))}` }
@@ -298,14 +279,7 @@ export function resultOf(
     case 'completeExternalConsumption':
       return receipt.source
     case 'bindExternalCall':
-      return {
-        receipt,
-        consumption: snapshot.consumptions.find(
-          item =>
-            canonicalText(encodeValue(item.binding)) ===
-            canonicalText(encodeValue(command.input.binding)),
-        )?.id,
-      }
+      return { receipt, consumption: consumptionIdOf(command.input.binding) }
     case 'control':
     case 'interrupt':
       return { receipt, ...controlAnswer(snapshot, command) }
@@ -452,6 +426,7 @@ function writeBatch(
     receipt: CommitReceipt
     seq: bigint
     at: string | null
+    left: CallsLeft
   }>,
 ): Written | ParticipantReply {
   const { tenant, session, revision, previous, snapshot, entries, receipt } = batch
@@ -463,6 +438,7 @@ function writeBatch(
   const covered = BigInt(revision)
   const stored = writeState(port, { tenant, session, covered }, previous, snapshot)
   parsedSnapshots.wrote(tenant, session, covered, stored)
+  writeCallsLeft(port, { tenant, session }, covered, batch.left)
   writeCompactionIndex(port, { tenant, session, previous, snapshot, entries })
   writePermissionCurrent(port, { tenant, session }, previous, snapshot, entries)
   maintainDerived(port, tenant, session, previous, snapshot)
@@ -716,6 +692,7 @@ function publishCommand(
     batch.prepared,
     { revision, entries } as never,
     batch.history === null ? undefined : batch.history.reads,
+    callsLeft(port, { tenant, session }),
   )
   if (reduced.kind === 'quarantined')
     return definite('quarantined', `reduce quarantined: ${reduced.diagnostic}`)
@@ -733,6 +710,7 @@ function publishCommand(
     receipt,
     seq,
     at: received.at,
+    left: reduced,
   })
   if (written.kind !== 'written') return written
   const { epoch, bytes, batch: committed } = written
@@ -845,7 +823,8 @@ function runCommand(
   const { previous } = start
   const prepared =
     history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
-  const decision: Decision = decide(prepared, command, guards, recordOf(command, start), {
+  const lent = lentTo(port, start, prepared, command)
+  const decision: Decision = decide(lent, command, guards, recordOf(command, start), {
     ...reads,
     ...(permissionChange === undefined ? {} : { permissionChange }),
     intakeLimits,
@@ -877,6 +856,7 @@ function publishSameLog(
     receipt,
     seq: journal.seq,
     at,
+    left: batch.left,
   })
   if (written.kind !== 'written') return written
   const { epoch, bytes, batch: committed } = written

@@ -29,10 +29,12 @@ import { sameInitializationValue } from './initialization-plan.ts'
 import { adoption, InitializationInvalid } from './initialization-parse.ts'
 import {
   callKeysIn,
+  callKeysOutside,
   callOf,
   lendCalls,
   settleCalls,
   type SessionCall,
+  type SessionCallKeys,
   type SettledCallLookup,
 } from './call-settlement.ts'
 
@@ -509,6 +511,22 @@ function lentTo(
 ): readonly SessionCall[] {
   if (held === null || lookup === undefined) return []
   return lookup(callKeysIn(entries)).filter(call => callOf(held, call.record.consumption) === null)
+}
+
+/** The calls a batch names that the snapshot does not hold; null when the batch does not decode. */
+export function batchCallKeys(
+  previous: WorkSnapshot,
+  batch: CommittedBatch,
+): SessionCallKeys | null {
+  const entries: SessionEntry[] = []
+  for (const decoded of decodeEntries(
+    batch.entries,
+    previous.initialization?.initialAdoption ?? null,
+  )) {
+    if (!('ok' in decoded)) return null
+    entries.push(decoded.ok)
+  }
+  return callKeysOutside(previous, callKeysIn(entries))
 }
 
 /** `lookup` answers the calls that left the snapshot. Without it no call leaves: nobody would keep it. */

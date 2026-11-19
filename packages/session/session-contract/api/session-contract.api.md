@@ -179,8 +179,10 @@
 - `SessionAuthorization` · `authorizations.d.ts`
 - `SessionBatchRecord` · `history-values.d.ts`
 - `SessionBlockDeclaration` · `ports.d.ts`
+- `SessionCall` · `call-settlement.d.ts`
 - `SessionCallControl` · `ports.d.ts`
 - `SessionCallEntryReferences` · `work-entry-values.d.ts`
+- `SessionCallKeys` · `call-settlement.d.ts`
 - `SessionCallLookup` · `control-values.d.ts`
 - `SessionCallRecord` · `call-values.d.ts`
 - `SessionCallRegistration` · `call-values.d.ts`
@@ -234,6 +236,7 @@
 - `SessionIntakeBudget` · `input-sources.d.ts`
 - `SessionIntakeLimits` · `intake.d.ts`
 - `SessionInternalPrincipals` · `ports.d.ts`
+- `SessionLateCallFact` · `call-settlement.d.ts`
 - `SessionListItem` · `faces.d.ts`
 - `SessionListPage` · `faces.d.ts`
 - `SessionLogCommitObservation` · `interpretation-values.d.ts`
@@ -267,6 +270,7 @@
 - `SessionWork` · `faces.d.ts`
 - `SessionWorkEntryIndex` · `work-entry-values.d.ts`
 - `SessionWorkPrincipals` · `ports.d.ts`
+- `SettledCallLookup` · `call-settlement.d.ts`
 - `SourceAdmission` · `input-sources.d.ts`
 - `SourceRefusal` · `input-sources.d.ts`
 - `SourceRequest` · `source-requests.d.ts`
@@ -293,13 +297,18 @@
 - `backgroundCallView` · `background-calls.d.ts`
 - `backgroundCalls` · `call-control.d.ts`
 - `backgroundInputId` · `background-outcome.d.ts`
+- `batchCallKeys` · `reduce.d.ts`
 - `batchEvidence` · `batch-evidence.d.ts`
 - `budgetTermsOf` · `input-sources.d.ts`
+- `callKeysIn` · `call-settlement.d.ts`
+- `callKeysOutside` · `call-settlement.d.ts`
+- `callWithLate` · `call-settlement.d.ts`
 - `commandDigest` · `decide.d.ts`
 - `commandInput` · `input-sources.d.ts`
 - `commitWithinBudget` · `input-sources.d.ts`
 - `compactionCallChangeOf` · `work-entry-state.d.ts`
 - `compactionContextForView` · `model-view.d.ts`
+- `consumptionIdOf` · `decide-results.d.ts`
 - `contextScopeOf` · `context-scopes.d.ts`
 - `contextScopesOf` · `context-scopes.d.ts`
 - `controlAnswer` · `call-control.d.ts`
@@ -333,6 +342,7 @@
 - `judgeRunStart` · `judgments.d.ts`
 - `judgeSessionIntake` · `intake.d.ts`
 - `judgeWaiting` · `judgments.d.ts`
+- `lendCalls` · `call-settlement.d.ts`
 - `mutationAccessRequest` · `access.d.ts`
 - `onceAuthorizationOf` · `authorizations.d.ts`
 - `openWork` · `judgments.d.ts`
@@ -838,6 +848,7 @@ export type CallSettlement = Readonly<{
 export declare function settleCalls(draft: Draft, lent: readonly SessionCall[]): CallSettlement;
 export declare function callWithLate(call: SessionCall, late: readonly SessionLateCallFact[]): SessionCall;
 export declare function callNamed(call: SessionCall, keys: SessionCallKeys): boolean;
+export declare function callKeysOutside(snapshot: WorkSnapshot, keys: SessionCallKeys): SessionCallKeys;
 export {};
 ```
 
@@ -2314,7 +2325,8 @@ export { decide, commandDigest } from './decide.ts';
 export { runCancelledBy } from './decision-support.ts';
 export { batchEvidence } from './batch-evidence.ts';
 export { EMPTY_AUTHORIZATIONS, incompleteAuthorization, onceAuthorizationOf, reduceAuthorizations, retireOnce, type AuthorizationConsumer, type AuthorizationContext, type AuthorizationExpression, type AuthorizationScope, type OnceAuthorization, type SessionAuthorization, } from './authorizations.ts';
-export { reduce } from './reduce.ts';
+export { batchCallKeys, reduce } from './reduce.ts';
+export { consumptionIdOf } from './decide-results.ts';
 export { decideCompactionCommit, projectCompactionCommit, type CompactionCommitState, } from './compaction-commit.ts';
 export { expandHistoryEntries } from './entries.ts';
 export { CONTEXT_SCOPE_KINDS, contextScopeOf, contextScopesOf, type SessionContextScope, } from './context-scopes.ts';
@@ -2333,6 +2345,7 @@ export type { InitializationRequirement } from './initialization-requirements.ts
 export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, InputAdmissionMember, ExecutionHistoryBoundary, SessionFactBoundary, SessionBatchRecord, SessionAttemptRecord, SessionTakenRecord, SessionHistoryReads, SessionInputScope, InputAdmissionPage, SessionInputAdmission, SessionExecutionPrefix, SessionPrefixFact, SessionUninterpretedCall, } from './history-values.ts';
 export { uninterpretedCalls } from './uninterpreted-calls.ts';
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
+export { callKeysIn, callKeysOutside, callWithLate, lendCalls, type SessionCall, type SessionCallKeys, type SessionLateCallFact, type SettledCallLookup, } from './call-settlement.ts';
 export { readCallRegistration } from './call-registration.ts';
 export type { CallRegistrationView } from './call-registration.ts';
 export { readRunBoundary } from './run-boundary.ts';
@@ -3729,15 +3742,16 @@ export {};
 import type { SessionHistoryReads } from './history-values.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { CommittedBatch, ReduceResult } from './judgments.ts';
-import { type SettledCallLookup } from './call-settlement.ts';
+import { type SessionCallKeys, type SettledCallLookup } from './call-settlement.ts';
+export declare function batchCallKeys(previous: WorkSnapshot, batch: CommittedBatch): SessionCallKeys | null;
 export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch, reads?: SessionHistoryReads, lookup?: SettledCallLookup): ReduceResult;
 ```
 
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:c694884c7750e5fee62fdbddf66cb08fcbdff06cd190a02ed9cdb4a4035bb8c0";
-export declare const SESSION_RELEASE_DIGEST = "sha256:c694884c7750e5fee62fdbddf66cb08fcbdff06cd190a02ed9cdb4a4035bb8c0";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:bfa66f0c55e91c92dca667db8654f1d8c22917c90428f77943e1e9b934d1d446";
+export declare const SESSION_RELEASE_DIGEST = "sha256:bfa66f0c55e91c92dca667db8654f1d8c22917c90428f77943e1e9b934d1d446";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
