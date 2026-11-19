@@ -772,6 +772,14 @@
       "source": "packages/usage/SPEC.md"
     },
     {
+      "id": "packages/usage/usage-adapters",
+      "paths": ["packages/usage/usage-adapters/src/**"],
+      "layer": "unknown",
+      "domains": ["usage"],
+      "status": "candidate",
+      "source": "packages/usage/SPEC.md"
+    },
+    {
       "id": "packages/notification/notification-protocol",
       "paths": ["packages/notification/notification-protocol/src/**"],
       "layer": "contract",
@@ -1203,6 +1211,7 @@
       ],
       "to": [
         "packages/usage/usage",
+        "packages/usage/usage-adapters",
         "packages/usage/usage-contract",
         "packages/usage/usage-cordis-contract"
       ],
