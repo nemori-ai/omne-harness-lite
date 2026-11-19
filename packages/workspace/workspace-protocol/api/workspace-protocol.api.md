@@ -342,6 +342,98 @@ export declare const workspaceProtocol: {
                 readonly workspace: string;
             }>;
         };
+        readonly associate: {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly instance: string;
+                }>;
+                readonly 'no-change': import("@omne-harness/public-contract").Codec<{
+                    readonly instance: string;
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly reason: string;
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'commit';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly address: string;
+                readonly operation: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+                readonly workspace: string;
+            }>;
+        };
+        readonly 'query-associate': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly instance: string;
+                }>;
+                readonly 'not-committed': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'read';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly address: string;
+                readonly operation: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+                readonly workspace: string;
+            }>;
+        };
+        readonly dissociate: {
+            readonly outcomes: {
+                succeeded: import("@omne-harness/public-contract").Codec<{}>;
+                'no-change': import("@omne-harness/public-contract").Codec<{}>;
+                invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly reason: string;
+                }>;
+                conflict: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            identity: 'login';
+            effect: 'commit';
+            limit: 'small';
+            countsAsAccess: true;
+            body: import("@omne-harness/public-contract").Codec<{
+                readonly instance: string;
+                readonly operation: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+                readonly workspace: string;
+            }>;
+        };
+        readonly 'query-dissociate': {
+            readonly outcomes: {
+                succeeded: import("@omne-harness/public-contract").Codec<{}>;
+                'not-committed': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            identity: 'login';
+            effect: 'read';
+            limit: 'small';
+            countsAsAccess: true;
+            body: import("@omne-harness/public-contract").Codec<{
+                readonly instance: string;
+                readonly operation: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+                readonly workspace: string;
+            }>;
+        };
         readonly 'grant-participation': {
             readonly outcomes: {
                 succeeded: import("@omne-harness/public-contract").Codec<{}>;

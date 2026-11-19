@@ -6,7 +6,7 @@ const { operations, observations } = workspaceProtocol
 const ON_TARGET = ['grant-participation', 'grant-admin', 'revoke-admin', 'remove'] as const
 const ON_SELF = ['leave', 'destroy'] as const
 const CHANGES = [...ON_TARGET, ...ON_SELF]
-const COMMITS: readonly string[] = ['register', ...CHANGES]
+const COMMITS: readonly string[] = ['register', 'associate', 'dissociate', ...CHANGES]
 const READS = ['list', 'describe', ...COMMITS.map(name => `query-${name}`)]
 const workspace = 'wsp_00000000000000000000000001'
 const instance = 'wsi_00000000000000000000000001'
@@ -14,7 +14,7 @@ const registered = { workspace, instance, type: 'directory' }
 const registration = { tenant, operation: 'op-1', address: '/Users/me/projects/blog' }
 
 describe('workspace/v1', () => {
-  it('is workspace major 1: two reads, seven commits, a query for each commit, and no observation', () => {
+  it('is workspace major 1: two reads, nine commits, a query for each commit, and no observation', () => {
     expect([workspaceProtocol.name, workspaceProtocol.major]).toEqual(['workspace', 1])
     expect(Object.keys(operations).sort()).toEqual([...READS, ...COMMITS].sort())
     expect(Object.keys(observations)).toEqual([])
@@ -165,5 +165,35 @@ describe('changing who takes part, leaving and destroying', () => {
       expectRoundTrip(query['not-committed'], {})
       expect(Object.keys(query)).not.toContain('invalid')
     }
+  })
+})
+
+describe('associating and dissociating an instance', () => {
+  const named = { tenant, operation: 'op-3', workspace }
+  const associating = { ...named, address: '/work/feature' }
+  const dissociating = { ...named, instance: 'wsi_00000000000000000000000002' }
+
+  it('an association names the workspace and an address, and answers the instance; its query takes the same body', () => {
+    for (const name of ['associate', 'query-associate'] as const) {
+      expectRoundTrip(operations[name].body, associating)
+      for (const bad of [named, { ...associating, address: 7 }, { ...associating, instance: 'x' }])
+        expect([name, bad, readSample(operations[name].body, bad).ok]).toEqual([name, bad, false])
+      expectRoundTrip(operations[name].outcomes.succeeded, { instance: dissociating.instance })
+      expect(readSample(operations[name].outcomes.succeeded, {}).ok).toBe(false)
+    }
+    expectRoundTrip(operations.associate.outcomes['no-change'], { instance: dissociating.instance })
+    expectRoundTrip(operations.associate.outcomes.invalid, { reason: 'not-the-same-resource' })
+    expectRoundTrip(operations.associate.outcomes.conflict, {})
+    expectRoundTrip(operations['query-associate'].outcomes['not-committed'], {})
+  })
+
+  it('a dissociation names the workspace and the instance, and answers nothing', () => {
+    for (const name of ['dissociate', 'query-dissociate'] as const) {
+      expectRoundTrip(operations[name].body, dissociating)
+      for (const bad of [named, { ...dissociating, address: '/a' }])
+        expect([name, bad, readSample(operations[name].body, bad).ok]).toEqual([name, bad, false])
+      expectRoundTrip(operations[name].outcomes.succeeded, {})
+    }
+    expectRoundTrip(operations.dissociate.outcomes.invalid, { reason: 'not-found' })
   })
 })

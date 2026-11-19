@@ -73,7 +73,12 @@ export function world() {
   const types = createManagementTypes()
   types.contribute(things.type('plain'))
   const deps = { authority, store, types, minting: fakeMinting(), node: 'node-1' }
-  const real: WorkspaceFaces = { governance: createGovernance(deps), catalog: createCatalog(deps) }
+  const instances = createInstances(deps)
+  const real: WorkspaceFaces = {
+    governance: createGovernance(deps),
+    instances,
+    catalog: createCatalog(deps),
+  }
   const state = {
     login: 'acting' as LoginAnswer,
     faces: real as WorkspaceFaces | undefined,
@@ -104,11 +109,12 @@ export function world() {
 
   return {
     things,
+    types,
     store,
     authority,
     state,
     real,
-    instances: createInstances(deps),
+    instances,
     principal,
     contribution,
     call,

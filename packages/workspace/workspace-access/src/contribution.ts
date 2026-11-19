@@ -11,7 +11,9 @@ import {
   operationId,
   typeName,
   type Answer,
+  type InstanceId,
   type InstanceView,
+  type Json,
   type OperationId,
   type OperationKind,
   type RegisteredWorkspace,
@@ -113,6 +115,56 @@ function committed<T, B>(answer: Answer<T>, body: (value: T) => B) {
   }
 }
 
+/** The commit and the query of a change, each over the first three steps. */
+function changeHandlers(input: WorkspaceContributionInput) {
+  /** A change names its workspace and itself. A text that is no workspace identity is no workspace. */
+  const changed =
+    <B extends ChangeBody, T, R>(
+      run: (
+        faces: WorkspaceFaces,
+        caller: Access<unknown>,
+        named: Named,
+        body: B,
+      ) => Promise<Answer<T>>,
+      answered: (value: T) => R,
+    ) =>
+    async (call: { principal: Login }, body: B) => {
+      const ready = await prepare(input, call.principal, body.tenant)
+      if (ready.outcome !== null) return ready
+      const operation = operationId(body.operation)
+      if (operation === null) return invalid('invalid-request')
+      const workspace = workspaceCodec.parse(body.workspace)
+      if (!workspace.ok) return DENIED
+      try {
+        const named = { operation, workspace: workspace.value }
+        return committed(await run(ready.faces, ready.caller, named, body), answered)
+      } catch {
+        return UNKNOWN
+      }
+    }
+
+  const queried =
+    <R>(kind: OperationKind, answered: (value: Json) => R) =>
+    async (call: { principal: Login }, body: ChangeBody) => {
+      const ready = await prepare(input, call.principal, body.tenant)
+      if (ready.outcome !== null) return ready
+      const operation = operationId(body.operation)
+      if (operation === null) return NOT_COMMITTED
+      try {
+        const view = await ready.faces.governance.operation(ready.caller, operation)
+        if (view.kind === 'not-permitted') return DENIED
+        if (view.kind === 'unavailable') return UNAVAILABLE
+        const done = view.kind === 'recorded' && view.operation === kind
+        return done
+          ? ({ outcome: 'succeeded', body: answered(view.value) } as const)
+          : NOT_COMMITTED
+      } catch {
+        return UNAVAILABLE
+      }
+    }
+  return { changed, queried }
+}
+
 export function createWorkspaceContribution(
   input: WorkspaceContributionInput,
 ): Omit<AccessContribution<WorkspaceProtocol>, 'protocol'> {
@@ -180,49 +232,29 @@ export function createWorkspaceContribution(
     }
   }
 
-  /** A change names its workspace and itself. A text that is no workspace identity is no workspace. */
-  const changed =
-    (
-      run: (faces: WorkspaceFaces, caller: Access<unknown>, named: Named) => Promise<Answer<null>>,
-    ) =>
-    async (call: { principal: Login }, body: ChangeBody) => {
-      const ready = await prepare(input, call.principal, body.tenant)
-      if (ready.outcome !== null) return ready
-      const operation = operationId(body.operation)
-      if (operation === null) return invalid('invalid-request')
-      const workspace = workspaceCodec.parse(body.workspace)
-      if (!workspace.ok) return DENIED
-      try {
-        const named = { operation, workspace: workspace.value }
-        return committed(await run(ready.faces, ready.caller, named), () => ({}))
-      } catch {
-        return UNKNOWN
-      }
-    }
-
-  const queried = (kind: OperationKind) => async (call: { principal: Login }, body: ChangeBody) => {
-    const ready = await prepare(input, call.principal, body.tenant)
-    if (ready.outcome !== null) return ready
-    const operation = operationId(body.operation)
-    if (operation === null) return NOT_COMMITTED
-    try {
-      const view = await ready.faces.governance.operation(ready.caller, operation)
-      if (view.kind === 'not-permitted') return DENIED
-      if (view.kind === 'unavailable') return UNAVAILABLE
-      const done = view.kind === 'recorded' && view.operation === kind
-      return done ? ({ outcome: 'succeeded', body: {} } as const) : NOT_COMMITTED
-    } catch {
-      return UNAVAILABLE
-    }
-  }
+  const { changed, queried } = changeHandlers(input)
+  const nothing = () => ({})
+  const instanceOfValue = (value: Json) => ({ instance: (value as { instance: string }).instance })
 
   const onTarget = (method: 'grantParticipation' | 'grantAdmin' | 'revokeAdmin' | 'remove') =>
-    ((call, body) =>
-      changed((faces, caller, named) =>
+    changed(
+      (faces, caller, named, body: ChangeBody & { target: TenantId }) =>
         faces.governance[method](caller, { ...named, target: body.target }),
-      )(call, body)) satisfies Handlers['remove']
+      nothing,
+    )
   const onSelf = (method: 'leave' | 'destroy') =>
-    changed((faces, caller, named) => faces.governance[method](caller, named))
+    changed((faces, caller, named) => faces.governance[method](caller, named), nothing)
+  const associate = changed(
+    (faces, caller, named, body: ChangeBody & { address: string }) =>
+      faces.instances.associate(caller, { ...named, address: body.address }),
+    ({ instance }) => ({ instance: instance as string }),
+  )
+  /** An instance text that is none is refused by the domain as an instance that is not there. */
+  const dissociate = changed(
+    (faces, caller, named, body: ChangeBody & { instance: string }) =>
+      faces.instances.dissociate(caller, { ...named, instance: body.instance as InstanceId }),
+    nothing,
+  )
 
   return {
     operations: {
@@ -230,18 +262,22 @@ export function createWorkspaceContribution(
       'query-register': queryRegister,
       list,
       describe,
+      associate,
+      'query-associate': queried('associate', instanceOfValue),
+      dissociate,
+      'query-dissociate': queried('dissociate', nothing),
       'grant-participation': onTarget('grantParticipation'),
-      'query-grant-participation': queried('grant-participation'),
+      'query-grant-participation': queried('grant-participation', nothing),
       'grant-admin': onTarget('grantAdmin'),
-      'query-grant-admin': queried('grant-admin'),
+      'query-grant-admin': queried('grant-admin', nothing),
       'revoke-admin': onTarget('revokeAdmin'),
-      'query-revoke-admin': queried('revoke-admin'),
+      'query-revoke-admin': queried('revoke-admin', nothing),
       remove: onTarget('remove'),
-      'query-remove': queried('remove'),
+      'query-remove': queried('remove', nothing),
       leave: onSelf('leave'),
-      'query-leave': queried('leave'),
+      'query-leave': queried('leave', nothing),
       destroy: onSelf('destroy'),
-      'query-destroy': queried('destroy'),
+      'query-destroy': queried('destroy', nothing),
     },
     observations: {},
   }

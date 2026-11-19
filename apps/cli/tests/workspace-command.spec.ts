@@ -257,6 +257,70 @@ describe('omne workspace: who takes part, leaving and destroying', () => {
   })
 })
 
+describe('omne workspace associate and dissociate', () => {
+  const INSTANCE = 'wsi_00000000000000000000000002'
+  const associated: Answer = { outcome: 'succeeded', body: { instance: INSTANCE } }
+  const none: Answer = { outcome: 'succeeded', body: {} }
+
+  it('associate sends the workspace and the real path of the directory, and reports the instance', async () => {
+    const service = await serve({ associate: associated })
+    const real = join(root, 'feature')
+    mkdirSync(real)
+    symlinkSync(real, join(root, 'link'))
+    const result = await cli(['workspace', 'associate', WORKSPACE, join(root, 'link')])
+    expect([result.code, result.stderr]).toEqual([0, ''])
+    const [call] = sent(service, 'associate')
+    expect(call?.body).toEqual({
+      tenant: tenantText,
+      operation: call?.body['operation'],
+      workspace: WORKSPACE,
+      address: real,
+    })
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      outcome: 'succeeded',
+      body: { instance: INSTANCE },
+      request: { operation: call?.body['operation'] },
+    })
+  })
+
+  it('dissociate sends the workspace and the instance as they were given', async () => {
+    const service = await serve({ dissociate: none })
+    expect((await cli(['workspace', 'dissociate', WORKSPACE, INSTANCE])).code).toBe(0)
+    expect(sent(service, 'dissociate')[0]?.body).toEqual({
+      tenant: tenantText,
+      operation: expect.any(String),
+      workspace: WORKSPACE,
+      instance: INSTANCE,
+    })
+  })
+
+  it('resumed, each asks its own query first and commits only what was not committed', async () => {
+    const service = await serve({ 'query-associate': associated, associate: associated })
+    const resumed = ['workspace', 'associate', WORKSPACE, '/work/feature', '--resume', 'op-9']
+    expect((await cli(resumed)).code).toBe(0)
+    expect(sent(service, 'query-associate')[0]?.body).toMatchObject({ operation: 'op-9' })
+    expect(sent(service, 'associate')).toEqual([])
+    const open = await serve({
+      'query-dissociate': { outcome: 'not-committed', body: {} },
+      dissociate: none,
+    })
+    expect(
+      (await cli(['workspace', 'dissociate', WORKSPACE, INSTANCE, '--resume', 'op-8'])).code,
+    ).toBe(0)
+    expect(sent(open, 'dissociate')[0]?.body).toMatchObject({ operation: 'op-8' })
+  })
+
+  it('a refusal carries its reason and exits 3', async () => {
+    await serve({ associate: { outcome: 'invalid', body: { reason: 'not-the-same-resource' } } })
+    const result = await cli(['workspace', 'associate', WORKSPACE, '/work/other'])
+    expect(result.code).toBe(3)
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      outcome: 'invalid',
+      body: { reason: 'not-the-same-resource' },
+    })
+  })
+})
+
 describe('what omne workspace refuses before it sends anything', () => {
   it.each([
     [['register']],
@@ -266,7 +330,10 @@ describe('what omne workspace refuses before it sends anything', () => {
     [['list', 'extra']],
     [['show']],
     [['show', WORKSPACE, '--type', 'git']],
-    [['associate', WORKSPACE, '/a']],
+    [['associate', WORKSPACE]],
+    [['associate', WORKSPACE, '/a', '--type', 'git']],
+    [['dissociate', WORKSPACE]],
+    [['dissociate', WORKSPACE, 'wsi_1', '--yes']],
     [['constructor']],
     [['grant', WORKSPACE]],
     [['grant', WORKSPACE, 'nobody']],
@@ -293,7 +360,7 @@ describe('what omne workspace refuses before it sends anything', () => {
 
   it('names the subcommand that was not recognized', async () => {
     await serve()
-    expect((await cli(['workspace', 'associate'])).stderr).toBe(commandUnrecognized('workspace'))
+    expect((await cli(['workspace', 'attach'])).stderr).toBe(commandUnrecognized('workspace'))
     expect((await cli(['workspace', 'register', '--type', 'git'])).stderr).toBe(
       commandUnrecognized('workspace register'),
     )

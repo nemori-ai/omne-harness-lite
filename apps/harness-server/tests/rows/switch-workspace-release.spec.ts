@@ -244,3 +244,50 @@ describe('the agent of a session moves the session with SwitchWorkspace', () => 
     },
   )
 })
+
+describe('a person adds and takes away an instance from the command line', () => {
+  it(
+    'associates another working copy, works in it, and dissociates it: the directory and what is in it stay',
+    { tags: ['slow'], timeout: 360_000 },
+    async () => {
+      const base = realpathSync(mkdtempSync(join(tmpdir(), 'associate-')))
+      const [blog, feature, plain] = [
+        repository(base, 'blog'),
+        join(base, 'feature'),
+        join(base, 'plain'),
+      ]
+      git(blog, 'worktree', 'add', '-q', '-b', 'feature', feature)
+      mkdirSync(plain)
+      const exitCode = await onReleaseTree(options, async tree => {
+        const at = await registered(tree, blog)
+        const refused = await tree.cli(['workspace', 'associate', at.workspace, plain])
+        expect(refused.status).toBe(3)
+        expect(JSON.parse(refused.stdout)).toMatchObject({
+          outcome: 'invalid',
+          body: { reason: 'not-a-working-copy' },
+        })
+        const made = await ok(tree, ['workspace', 'associate', at.workspace, feature])
+        const instance = String(made.body['instance'])
+        const { operation } = (made as unknown as { request: { operation: string } }).request
+        const again = ['workspace', 'associate', at.workspace, feature, '--resume', operation]
+        expect((await ok(tree, again)).body).toEqual({ instance })
+        expect((await instancesOf(tree, at.workspace)).map(each => each.address).sort()).toEqual([
+          blog,
+          feature,
+        ])
+        const session = await sessionIn(tree, { workspace: at.workspace, instance })
+        await ran(tree, session, 1, plan([write('in-feature.txt', 'f')]))
+        expect(read(join(feature, 'in-feature.txt'))).toBe('f')
+
+        await ok(tree, ['workspace', 'dissociate', at.workspace, instance])
+        expect((await instancesOf(tree, at.workspace)).map(each => each.address)).toEqual([blog])
+        expect(read(join(feature, 'in-feature.txt'))).toBe('f')
+        // The session that selected the instance is told, and its calls run nowhere.
+        const after = await ran(tree, session, 2, plan([write('late.txt', 'l')]))
+        expect(after.answers.join('\n')).toContain('cannot be used now')
+        expect(existsSync(join(feature, 'late.txt'))).toBe(false)
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+})

@@ -1,5 +1,9 @@
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
-import type { WorkspaceCatalog, WorkspaceGovernance } from '@omne-harness/workspace-contract'
+import type {
+  WorkspaceCatalog,
+  WorkspaceGovernance,
+  WorkspaceInstances,
+} from '@omne-harness/workspace-contract'
 
 /** The application decides whether this login acts for the tenant; the plugin cannot read a login. */
 export interface WorkspacePrincipals {
@@ -12,5 +16,6 @@ export interface WorkspacePrincipals {
 /** Taken at each call; absent while the workspace row is not there. */
 export type WorkspaceFaces = Readonly<{
   governance: WorkspaceGovernance<unknown>
+  instances: Pick<WorkspaceInstances<unknown>, 'associate' | 'dissociate'>
   catalog: WorkspaceCatalog<unknown>
 }>

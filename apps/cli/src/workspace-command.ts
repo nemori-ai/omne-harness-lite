@@ -35,6 +35,8 @@ const ACTIONS: Readonly<Record<string, Action>> = {
   register: { words: 1, options: ['--type', '--resume'] },
   list: { words: 0, options: [] },
   show: { words: 1, options: [] },
+  associate: ON_TENANT,
+  dissociate: ON_TENANT,
   grant: ON_TENANT,
   'grant-admin': ON_TENANT,
   'revoke-admin': ON_TENANT,
@@ -146,6 +148,13 @@ const ACT: Readonly<Record<string, (ready: Ready) => Promise<ExitCode> | ExitCod
       (ready: Ready) => onTenant(ready, call),
     ]),
   ),
+  associate: ready =>
+    commit(ready, 'associate', {
+      workspace: ready.words[0],
+      address: addressOf(ready.words[1] ?? ''),
+    }),
+  dissociate: ready =>
+    commit(ready, 'dissociate', { workspace: ready.words[0], instance: ready.words[1] }),
   leave: ready => commit(ready, 'leave', { workspace: ready.words[0] }),
   destroy,
 }
@@ -175,8 +184,9 @@ async function runWorkspace(
 
 export const workspaceCommand: CommandSpec = {
   name: 'workspace',
-  usage: 'register|list|show|grant|grant-admin|revoke-admin|remove|leave|destroy',
+  usage:
+    'register|list|show|associate|dissociate|grant|grant-admin|revoke-admin|remove|leave|destroy',
   summary:
-    'Register a directory of the server as a workspace without touching what is in it (register <directory>, --type <type>), list your workspaces or show one (show <workspace>); let another tenant take part or end that (grant, grant-admin, revoke-admin, remove <workspace> <tenant>), leave one, or destroy one with --yes: the directories stay. A commit takes --resume <operation>.',
+    'Register a directory of the server as a workspace without touching what is in it (register <directory>, --type <type>), list your workspaces or show one (show <workspace>); make one more directory of the same resource an instance or end that (associate <workspace> <directory>, dissociate <workspace> <instance>); let another tenant take part or end that (grant, grant-admin, revoke-admin, remove <workspace> <tenant>), leave one, or destroy one with --yes: the directories stay. A commit takes --resume <operation>.',
   run: runWorkspace,
 }

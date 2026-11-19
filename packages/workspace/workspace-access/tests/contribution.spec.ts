@@ -18,6 +18,10 @@ const SAMPLES: Record<Name, Record<string, unknown>> = {
   'query-register': register,
   list: {},
   describe: { workspace: WORKSPACE },
+  associate: { ...ending, address: '/b' },
+  'query-associate': { ...ending, address: '/b' },
+  dissociate: { ...ending, instance: INSTANCE },
+  'query-dissociate': { ...ending, instance: INSTANCE },
   ...Object.fromEntries(
     ON_TARGET.flatMap(name => [name, `query-${name}`]).map(name => [name, onOther]),
   ),
@@ -165,7 +169,7 @@ describe('registering', () => {
     const governance = Object.fromEntries(
       Object.keys(w.real.governance).map(name => [name, down]),
     ) as never
-    w.state.faces = { governance, catalog: { list: down, describe: down } }
+    w.state.faces = { ...w.real, governance, catalog: { list: down, describe: down } }
     for (const name of ['register', ...CHANGES] as const)
       expect(await w.call(name, SAMPLES[name])).toEqual({ outcome: 'unknown' })
     for (const name of CHANGES)
@@ -326,5 +330,86 @@ describe('changing who takes part, leaving and destroying', () => {
     expect(await w.call('grant-participation', onTenant('c1'))).toEqual({ outcome: 'unknown' })
     w.store.fail('none')
     expect(await w.call('query-grant-participation', onTenant('c1'))).toEqual(DONE)
+  })
+})
+
+describe('associating and dissociating an instance', () => {
+  const SECOND = 'wsi_00000000000000000000000002'
+  const NOT_COMMITTED = { outcome: 'not-committed', body: {} }
+  const associating = { operation: 'a1', workspace: WORKSPACE, address: '/b' }
+  const dissociating = { operation: 'd1', workspace: WORKSPACE, instance: SECOND }
+
+  async function owned() {
+    const w = world()
+    const copies = w.things.type('versioned', { extends: 'plain', copies: true })
+    w.types.contribute(copies)
+    for (const address of ['/a', '/b'])
+      w.things.put(address, { kinds: ['plain', 'versioned'], resource: 'repo' })
+    w.things.put('/c', { kinds: ['plain', 'versioned'], resource: 'other' })
+    await w.call('register', register)
+    return w
+  }
+
+  it('an association answers the instance, then nothing changed; a dissociation ends it; each query says what was committed', async () => {
+    const w = await owned()
+    expect(await w.call('query-associate', associating)).toEqual(NOT_COMMITTED)
+    expect(await w.call('associate', associating)).toEqual({
+      outcome: 'succeeded',
+      body: { instance: SECOND },
+    })
+    expect(await w.call('associate', associating)).toEqual({
+      outcome: 'no-change',
+      body: { instance: SECOND },
+    })
+    expect(await w.call('query-associate', associating)).toEqual({
+      outcome: 'succeeded',
+      body: { instance: SECOND },
+    })
+    expect(await w.call('query-dissociate', dissociating)).toEqual(NOT_COMMITTED)
+    expect(await w.call('dissociate', dissociating)).toEqual({ outcome: 'succeeded', body: {} })
+    expect(await w.call('dissociate', dissociating)).toEqual({ outcome: 'no-change', body: {} })
+    expect(await w.call('query-dissociate', dissociating)).toEqual({
+      outcome: 'succeeded',
+      body: {},
+    })
+    const described = (await w.call('describe', { workspace: WORKSPACE })) as {
+      body: { instances: readonly unknown[] }
+    }
+    expect(described.body.instances).toHaveLength(1)
+    // The name of an association is not the name of a dissociation.
+    expect(await w.call('query-dissociate', { ...dissociating, operation: 'a1' })).toEqual(
+      NOT_COMMITTED,
+    )
+  })
+
+  it('answers what the domain refused, and denies a text that is no workspace or a tenant with no relation', async () => {
+    const w = await owned()
+    expect(await w.call('associate', { ...associating, address: '/c' })).toEqual({
+      outcome: 'invalid',
+      body: { reason: 'not-the-same-resource' },
+    })
+    expect(await w.call('associate', { ...associating, operation: 'a b' })).toMatchObject({
+      outcome: 'invalid',
+    })
+    for (const body of [{ ...associating, workspace: 'nope' }, associating])
+      expect(await w.call('associate', body, body === associating ? OTHER : TENANT)).toEqual({
+        outcome: 'denied',
+      })
+    expect(await w.call('dissociate', { ...dissociating, instance: 'nope' })).toEqual({
+      outcome: 'denied',
+    })
+    expect(await w.call('dissociate', dissociating, OTHER)).toEqual({ outcome: 'denied' })
+  })
+
+  it('a domain that throws is unknown for the commit; the query then says it was not committed', async () => {
+    const w = await owned()
+    const down = async () => {
+      throw new Error('down')
+    }
+    w.state.faces = { ...w.real, instances: { associate: down, dissociate: down } }
+    expect(await w.call('associate', associating)).toEqual({ outcome: 'unknown' })
+    expect(await w.call('dissociate', dissociating)).toEqual({ outcome: 'unknown' })
+    w.state.faces = w.real
+    expect(await w.call('query-associate', associating)).toEqual(NOT_COMMITTED)
   })
 })
