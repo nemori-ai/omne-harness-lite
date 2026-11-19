@@ -160,7 +160,7 @@ function fixture() {
       reserve,
     })
   const create = async (f: HostTerminals) =>
-    value(await f.facility.create({ ...request, cwd: '/tmp', env: {}, retain: 'session' })).terminal
+    value(await f.facility.create({ ...request, cwd: '/tmp', env: {}, retain: 'scope' })).terminal
   const finish = (id: string) =>
     results.get(id)?.resolve({
       kind: 'completed',
@@ -309,7 +309,7 @@ it('enumerates a starting shell and prevents its late start after scope closure'
   const released = new AbortController()
   if (normal.retention === undefined) throw new Error('retention fixture')
   const a = f.facade({ ...normal, retention: { ...normal.retention, released: released.signal } })
-  const creating = a.facility.create({ ...request, cwd: '/tmp', env: {}, retain: 'session' })
+  const creating = a.facility.create({ ...request, cwd: '/tmp', env: {}, retain: 'scope' })
   expect(f.index.resources(scope('session'))).toHaveLength(1)
   released.abort()
   wait.resolve()
@@ -357,12 +357,12 @@ it('requires a retention binding and counts unresolved reservations against expl
   expect(
     await f
       .facade(ordinaryInput)
-      .facility.create({ ...request, cwd: '/tmp', env: {}, retain: 'session' }),
+      .facility.create({ ...request, cwd: '/tmp', env: {}, retain: 'scope' }),
   ).toMatchObject({ reason: 'unsupported' })
   const a = f.facade(input(), 1)
   await f.create(a)
   expect(
-    await a.facility.create({ ...request, cwd: '/tmp', env: {}, retain: 'session' }),
+    await a.facility.create({ ...request, cwd: '/tmp', env: {}, retain: 'scope' }),
   ).toMatchObject({ reason: 'busy' })
 })
 
@@ -475,7 +475,7 @@ it.each(['throw', 'unavailable'] as const)(
     })
     try {
       expect(
-        await terminals.facility.create({ ...request, cwd: '/tmp', env: {}, retain: 'session' }),
+        await terminals.facility.create({ ...request, cwd: '/tmp', env: {}, retain: 'scope' }),
       ).toMatchObject({ kind: 'unknown' })
       expect([...durable.values()]).toEqual([resource])
       terminals.seal()

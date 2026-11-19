@@ -29,6 +29,7 @@ export const EXTENDED_OBLIGATIONS = [
   'translated-block-not-readable-raw',
   'translation-throw-reads-missing',
   'unlisted-binding-refused',
+  'per-request-block-outside-snapshot',
   'optional-need-reads-none',
   'child-scope-shadows-parent',
   'declaration-digest-mismatch-refused',
@@ -53,6 +54,7 @@ const extendedCases = {
   'translated-block-not-readable-raw': translatedBlockNotReadableRaw,
   'translation-throw-reads-missing': translationThrowReadsMissing,
   'unlisted-binding-refused': unlistedBindingRefused,
+  'per-request-block-outside-snapshot': perRequestBlockOutsideSnapshot,
   'optional-need-reads-none': optionalNeedReadsNone,
   'child-scope-shadows-parent': childScopeShadowsParent,
   'declaration-digest-mismatch-refused': declarationDigestMismatchRefused,
@@ -272,6 +274,46 @@ async function scopeIndependentCallbackAtThreePoints<P>(fixture: RuntimeContextF
   })
   assert.ok(replacement.kind === 'registered')
   assert.equal(calls, 3)
+}
+
+async function perRequestBlockOutsideSnapshot<P>(fixture: RuntimeContextFixture<P>) {
+  const f = await fresh(fixture)
+  const target = scope('request')
+  await openScope(f.subject, f.ports, f.principal, target, f.tenant)
+  let calls = 0
+  const p = await f.subject.registerProducer(f.principal, {
+    key: 'suite.value',
+    tenant: f.tenant,
+    producer: { producer: 'request' },
+    declaration: declaration({ volatility: 'per-request' }),
+    scoped: true,
+    supply: async () => ({ kind: 'value', value: ++calls }),
+  })
+  assert.ok(p.kind === 'registered')
+  await f.subject.applyCommit(f.principal, {
+    kind: 'registration',
+    commit: { commit: 'request' },
+    after: null,
+    change: {
+      kind: 'add',
+      creating: true,
+      scope: target,
+      tenant: f.tenant,
+      key: 'suite.value',
+      basedOn: 0,
+      bindings: [],
+      parameters: undefined,
+      required: true,
+    },
+  })
+  const reader = await bindReader(f, target, ['suite.value'])
+  const a = await reader.snapshot(),
+    c = await reader.snapshot()
+  assert.ok(a.kind === 'success' && c.kind === 'success')
+  assert.equal(a.value.blocks.length, 0)
+  assert.equal(a.value.perRequest[0]?.kind, 'value')
+  assert.equal(calls, 2)
+  assert.equal(a.value.viewRevision, c.value.viewRevision)
 }
 
 async function cursorInvalidatedBelowRetention<P>(fixture: RuntimeContextFixture<P>) {

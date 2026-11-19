@@ -101,7 +101,7 @@ it('retains terminal cwd through the fixture and never falls back for invalid or
   const author = value(createShellAuthor(fixture.config))
   const terminal = { id: 'session', generation: '1' }
   expect(await run(author, 'create_session', {}, fixture.environment)).toContain('"id":"session"')
-  expect(fixture.creates[0]).toMatchObject({ retain: 'session' })
+  expect(fixture.creates[0]).toMatchObject({ retain: 'scope' })
   await run(author, 'execute', { terminal, script: 'cd /next' }, fixture.environment)
   expect(await run(author, 'execute', { terminal, script: 'pwd' }, fixture.environment)).toContain(
     '/next',

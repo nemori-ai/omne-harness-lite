@@ -44,6 +44,7 @@ export function boundAccessCheck<P>(checked: SessionCheckedAccess<P>): SessionAc
               ...(checked.writeQualification === undefined
                 ? {}
                 : { writeQualification: checked.writeQualification }),
+              ...(checked.subject === undefined ? {} : { subject: checked.subject }),
             }
           : { kind: 'denied' },
       ),

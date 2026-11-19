@@ -7,6 +7,7 @@ import type {
   ShellLogin,
   ShellSlots,
   SlotName,
+  ToastBoard,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
@@ -32,8 +33,8 @@ export class DesktopShell extends ShellService implements ShellSlots {
     return this.state.slots.subscribe(slot, listener)
   }
 
-  navigate(pageId: string): void {
-    this.state.page.choose(pageId)
+  navigate(pageId: string, subject?: string): void {
+    this.state.page.choose(pageId, subject)
   }
 
   attached(anchor: string, subject: string): ReactNode {
@@ -57,6 +58,10 @@ export class DesktopShell extends ShellService implements ShellSlots {
 
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
     return this.state.slots.place(slot, item)
+  }
+
+  protected override toasts(): ToastBoard {
+    return this.state.toasts
   }
 }
 

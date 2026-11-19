@@ -18,7 +18,7 @@ export type MemoryToolResidencyReader = Readonly<{
   reader: ToolResidencyReader
   set(
     key: ToolBindingKey,
-    holders: readonly Readonly<{ tenant: TenantId; session: string; shape: ToolShape }>[],
+    holders: readonly Readonly<{ tenant: TenantId; holder: string; shape: ToolShape }>[],
   ): void
   interrupt(diagnostic?: string): void
   restore(): void
@@ -35,7 +35,7 @@ export function createMemoryToolResidencyReader(
   if (!Number.isSafeInteger(pageSize) || pageSize < 1)
     throw new RangeError(`pageSize must be a positive safe integer, got ${String(pageSize)}`)
   const outer = input.source
-  const store = new Map<string, ResidentReferencesPage['sessions']>()
+  const store = new Map<string, ResidentReferencesPage['references']>()
   const cursors = new Map<string, Readonly<{ key: string; offset: number }>>()
   let interrupted: string | null = null
 
@@ -46,14 +46,14 @@ export function createMemoryToolResidencyReader(
       if (cursor === undefined || cursor.key !== key) return fail({ kind: 'cursor' })
       offset = cursor.offset
     }
-    const sessions = store.get(key) ?? []
+    const references = store.get(key) ?? []
     const end = offset + limit
     let next: string | null = null
-    if (end < sessions.length) {
+    if (end < references.length) {
       next = `cursor-${cursors.size + 1}`
       cursors.set(next, { key, offset: end })
     }
-    return succeed({ sessions: sessions.slice(offset, end), next })
+    return succeed({ references: references.slice(offset, end), next })
   }
   const source = outer ?? builtIn
 
@@ -84,20 +84,20 @@ export function createMemoryToolResidencyReader(
     reader,
     set(key, holders) {
       if (outer !== undefined) throw new Error('set is only available on the built-in source')
-      const sessions = holders.map(holder => {
-        const facts = residentToolFacts(key, holder.shape)
+      const references = holders.map(item => {
+        const facts = residentToolFacts(key, item.shape)
         if ('failure' in facts)
           throw new TypeError(`cannot store: ${facts.failure.field} ${facts.failure.reason}`)
         return {
-          tenant: holder.tenant,
-          session: holder.session,
+          tenant: item.tenant,
+          holder: item.holder,
           capability: facts.ok.capability,
           shape: facts.ok.shape,
         }
       })
       const text = encodeResidentKey(key)
       if ('failure' in text) throw new TypeError(`cannot store: ${text.failure.field}`)
-      store.set(text.ok, Object.freeze(sessions))
+      store.set(text.ok, Object.freeze(references))
     },
     interrupt(diagnostic = 'interrupted') {
       interrupted = diagnostic

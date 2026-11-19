@@ -43,6 +43,7 @@ import type {
   BackgroundDisposition,
 } from './values.ts'
 import type { EntryClass, HistoryEntry } from './faces.ts'
+import type { AdmittedSource } from './input-sources.ts'
 import type { EncodedEntry } from './judgments.ts'
 import type {
   InitialAdoption,
@@ -63,7 +64,7 @@ import type { AuthorizationExpression } from './authorizations.ts'
 export const SESSION_INTERPRETER: Adoption = Object.freeze({
   owner: '@omne-harness/session-contract',
   name: 'session-log',
-  revision: '4',
+  revision: '5',
   digest: SESSION_RELEASE_DIGEST,
 })
 
@@ -143,8 +144,8 @@ export type SessionEntry =
       destination: 'current-run' | 'next-run'
       run: RunId | null
       origin: DurableEvidence
-      /** Absent: the input can start a Run. */
-      wakes?: false
+      /** The values this admission fixed; every later judgment reads them, never the declaration. */
+      source: AdmittedSource
     }>
   | Readonly<{
       kind: 'intake.handed-over'

@@ -9,6 +9,9 @@ const table = {
   'query-send-input': { identity: 'login', effect: 'read', limit: 'small' },
   'read-history': { identity: 'login', effect: 'read', limit: 'small' },
   'read-waiting': { identity: 'login', effect: 'read', limit: 'small' },
+  'read-pending': { identity: 'login', effect: 'read', limit: 'small' },
+  'read-waiting-calls': { identity: 'login', effect: 'read', limit: 'small' },
+  'read-input-fate': { identity: 'login', effect: 'read', limit: 'small' },
   'list-sessions': { identity: 'login', effect: 'read', limit: 'small' },
   'list-archived-sessions': { identity: 'login', effect: 'read', limit: 'small' },
   'archive-session': { identity: 'login', effect: 'commit', limit: 'small' },
@@ -31,6 +34,9 @@ const outcomes = {
   'query-send-input': ['not-committed', 'unknown'],
   'read-history': ['invalid'],
   'read-waiting': ['invalid'],
+  'read-pending': ['invalid'],
+  'read-waiting-calls': ['invalid'],
+  'read-input-fate': ['invalid'],
   'list-sessions': ['invalid'],
   'list-archived-sessions': ['invalid'],
   'archive-session': ['invalid', 'conflict', 'unknown'],
@@ -49,7 +55,7 @@ const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
 const operations = sessionProtocol.operations
 
 describe('session/v1', () => {
-  it('is session major 1 with exactly the nineteen operations and one observation', () => {
+  it('is session major 1 with exactly the twenty-two operations and one observation', () => {
     expect(sessionProtocol.name).toBe('session')
     expect(sessionProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())

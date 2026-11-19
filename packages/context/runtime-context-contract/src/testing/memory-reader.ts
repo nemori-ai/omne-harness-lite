@@ -12,28 +12,21 @@ import type {
   NeedValue,
   NeedBinding,
   BlockEntry,
+  PerRequestEntry,
   MissingItem,
   SourceEvidence,
-  MissingCause,
   Snapshot,
   BindResult,
   ReadRefusalReason,
   UnknownCause,
 } from '../index.js'
 import { validate } from '../validation.js'
-
-type BlockRead = Readonly<{ key: ContextBlockKey }> &
-  (
-    | Readonly<{ kind: 'value'; value: unknown; evidence: SourceEvidence }>
-    | Readonly<{ kind: 'none' }>
-    | Readonly<{ kind: 'missing'; cause: MissingCause }>
-    | Readonly<{ kind: 'unknown'; cause: UnknownCause }>
-  )
 import {
   isFailure,
   type Authorized,
   type Descriptor,
   type ScopeState,
+  type Stored,
   type World,
 } from './memory-world.js'
 import type { Supplier, SupplyOutcome } from './memory-producer.js'
@@ -93,6 +86,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     e: Eligibility<P>,
   ) {
     let stored = found.s.values.get(key)
+    if (d.volatility === 'per-request') return { found, stored }
     let parent = found.s.scope.parent
     while (!stored?.present && parent) {
       const candidate = world.registration(parent, key)
@@ -109,7 +103,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     key: ContextBlockKey,
     d: Descriptor,
     outcome: SupplyOutcome,
-  ): BlockRead | Refusal | null {
+  ): PerRequestEntry | Refusal | null {
     switch (outcome.kind) {
       case 'refused':
         return { kind: 'refused', reason: 'unauthorized' }
@@ -126,11 +120,40 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     }
   }
 
+  async function perRequest(
+    key: ContextBlockKey,
+    d: Descriptor,
+    source: ScopeState,
+  ): Promise<{ entry: PerRequestEntry | Refusal } | { stored: Stored }> {
+    const producer = supplier.producerFor(source, key)
+    if (!producer || !supplier.isCurrent(producer) || !producer.supply)
+      return {
+        entry: d.required
+          ? { key, kind: 'missing', cause: 'producer-withdrawn' }
+          : { key, kind: 'none' },
+      }
+    const outcome = await supplier.supplyOnce(producer, source, false)
+    if (outcome.kind === 'value')
+      return {
+        stored: {
+          value: outcome.value,
+          revision: source.values.get(key)?.revision ?? 0,
+          generation: outcome.generation,
+          present: true,
+        },
+      }
+    if (outcome.kind === 'stale')
+      return { entry: { key, kind: 'missing', cause: 'producer-withdrawn' } }
+    return {
+      entry: fromOutcome(key, d, outcome) ?? { key, kind: 'unknown', cause: 'source-unknown' },
+    }
+  }
+
   async function refresh(
     found: Found,
     key: ContextBlockKey,
     d: Descriptor,
-  ): Promise<BlockRead | Refusal | null> {
+  ): Promise<PerRequestEntry | Refusal | null> {
     const s = found.s
     if (s.needsSupply.get(key) !== s.replayEpoch) return null
     const producer = supplier.producerFor(s, key)
@@ -140,21 +163,29 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return fromOutcome(key, d, outcome)
   }
 
-  async function readBlock(e: Eligibility<P>, key: ContextBlockKey): Promise<BlockRead | Refusal> {
+  async function readBlock(
+    e: Eligibility<P>,
+    key: ContextBlockKey,
+  ): Promise<PerRequestEntry | Refusal> {
     let found = world.registration(e.scope, key)
     const d = world.descriptors.get(key)
     if (!found || !d || world.incompatible.has(found.s.scope.ref + '\0' + key))
       return { key, kind: 'missing', cause: 'no-value' }
     if (!tenantEquals(found.s.tenant, e.tenant)) return { key, kind: 'missing', cause: 'no-value' }
-    if (d.kind === 'supplied') {
+    if (d.kind === 'supplied' && d.volatility !== 'per-request') {
       const refreshed = await refresh(found, key, d)
       if (refreshed) return refreshed
     }
     const inherited = await inheritedValue(found, key, d, e)
     found = inherited.found
-    const stored = inherited.stored
+    let stored = inherited.stored
     if (stored?.refused) return { kind: 'refused', reason: 'unauthorized' }
     if (stored?.unknown) return { key, kind: 'unknown', cause: 'source-unknown' }
+    if (d.volatility === 'per-request') {
+      const supplied = await perRequest(key, d, found.s)
+      if ('entry' in supplied) return supplied.entry
+      stored = supplied.stored
+    }
     if (!stored?.present)
       return d.required
         ? { key, kind: 'missing', cause: stored?.cause ?? 'no-value' }
@@ -210,7 +241,8 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
       if (checked.kind !== 'checked') return checked
       const { e, s } = checked
       const blocks: BlockEntry[] = [],
-        missing: MissingItem[] = []
+        missing: MissingItem[] = [],
+        perRequestEntries: PerRequestEntry[] = []
       for (const key of e.keys) {
         if (!allowed(e, key)) return { kind: 'refused', reason: 'unauthorized' }
         if (!world.registration(e.scope, key))
@@ -224,6 +256,10 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
         const item = await readBlock(e, key),
           d = world.descriptors.get(key)
         if (item.kind === 'refused') return item
+        if (d?.volatility === 'per-request') {
+          perRequestEntries.push(item)
+          continue
+        }
         if (item.kind === 'unknown') return { kind: 'unknown', cause: item.cause }
         if (item.kind === 'missing') {
           missing.push({
@@ -257,6 +293,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
         cursor,
         blocks,
         missing,
+        perRequest: perRequestEntries,
       }
       const result = disclose(checked, value)
       if ('kind' in result) return result
@@ -374,6 +411,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
           cursor: next.value.cursor,
           entries: next.value.blocks.filter(b => prior.get(b.key)?.revision !== b.revision),
           missing: next.value.missing,
+          perRequest: next.value.perRequest,
         },
       }
     }

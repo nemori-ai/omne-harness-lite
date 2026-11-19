@@ -13,7 +13,9 @@ import type {
 it('preserves the adopted constructive type boundaries', () => {
   expectTypeOf<'current' extends keyof ChangeMaterial ? true : false>().toEqualTypeOf<false>()
   expectTypeOf<Extract<RegistrationChange, { kind: 'add' }>['creating']>().toEqualTypeOf<boolean>()
-  expectTypeOf<Extract<ProducerRegistration, { scoped: false }>['supply']>().not.toBeUndefined()
+  expectTypeOf<
+    Extract<ProducerRegistration, { declaration: { volatility: 'per-request' } }>['supply']
+  >().not.toBeUndefined()
   expectTypeOf<Extract<RegistrationChange, { kind: 'update' }>>().not.toHaveProperty('required')
 })
 it('carries the principal, the tenant and the closed supply answers (J41)', () => {

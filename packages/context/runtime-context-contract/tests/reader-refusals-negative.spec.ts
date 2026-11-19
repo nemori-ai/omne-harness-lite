@@ -109,6 +109,7 @@ for (const name of [
                   cursor: { cursor: 'incorrect-success' },
                   blocks: [],
                   missing: [{ key: 'suite.value', cause: 'no-value', revision: null }],
+                  perRequest: [],
                 },
               }
             },

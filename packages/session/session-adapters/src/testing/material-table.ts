@@ -7,11 +7,11 @@ import { canonical } from './canonical.ts'
 
 export type Stored = {
   tenant: string
-  execution: AgentExecutionId | null
+  execution: AgentExecutionId
   value: Material<ContentBlock>
 }
 
-const contentKey = (tenant: string, execution: AgentExecutionId | null, content: string) =>
+const contentKey = (tenant: string, execution: AgentExecutionId, content: string) =>
   JSON.stringify([tenant, execution, createHash('sha256').update(content).digest('hex')])
 
 // The materials kept in a session, by source. One with the same tenant, execution and content is found by its
@@ -32,11 +32,7 @@ export class MaterialTable implements Map<string, Stored> {
     return fork
   }
 
-  sameContent(
-    tenant: string,
-    execution: AgentExecutionId | null,
-    content: string,
-  ): string | undefined {
+  sameContent(tenant: string, execution: AgentExecutionId, content: string): string | undefined {
     return this.#byContent.get(contentKey(tenant, execution, content))?.[0]
   }
 

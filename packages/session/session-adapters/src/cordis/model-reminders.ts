@@ -99,6 +99,7 @@ function applied(previous: Snapshot, changes: Changes): Snapshot {
     cursor: changes.cursor,
     blocks: [...blocks.values()],
     missing: changes.missing,
+    perRequest: changes.perRequest,
   }
 }
 

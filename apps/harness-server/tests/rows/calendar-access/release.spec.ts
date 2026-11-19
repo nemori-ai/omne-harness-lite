@@ -70,7 +70,11 @@ describe('calendar and calendar-access rows', () => {
         const groups = new Set(
           listedItems.map(item => `${item.owner.providerId}/${item.owner.definitionId}`),
         )
-        expect([...groups].sort()).toEqual(['calendar/environment', 'schedule/agent-authoring'])
+        expect([...groups].sort()).toEqual([
+          'calendar/environment',
+          'schedule/agent-authoring',
+          'session/intake',
+        ])
         const environment = ['--independent', 'calendar/environment', 'timezone']
         const set = await tree.cli(['setting', 'set', ...environment, '--value', '"Europe/Paris"'])
         expect(set.status, set.stderr).toBe(0)

@@ -45,7 +45,7 @@ import type {
 } from './ports.ts'
 import { changePermissionMode, readPermissionMode } from './permission-mode.ts'
 import { readHistory } from './read-history.ts'
-import { readWaiting } from './read-waiting.ts'
+import { sessionReadOperations } from './intake-reads.ts'
 import type { RequestDrain } from './request-drain.ts'
 import { interruptInput, querySendInput, sendInput } from './send-input.ts'
 
@@ -252,7 +252,7 @@ export function createSessionContribution(
       'interrupt-input': (call, body) => interruptInput(sending, call.principal, body),
       'query-send-input': (call, body) => querySendInput(sending, call.principal, body),
       'read-history': (call, body) => readHistory({ admit, settings }, call.principal, body),
-      'read-waiting': (call, body) => readWaiting(held, call.principal, body),
+      ...sessionReadOperations(held),
       'cancel-run': (call, body) => cancelRun(held, call.principal, body),
       'stop-call': (call, body) => stopCall(held, call.principal, body),
       'select-model': (call, body) => selectModel(held, call.principal, body),

@@ -10,7 +10,12 @@ export function diffForReminder(input: DiffInput): readonly ChangeMaterial[] {
   const entries = 'blocks' in input.next ? input.next.blocks : input.next.entries
   return entries.flatMap(entry => {
     const descriptor = input.descriptors.get(entry.key)
-    if (!descriptor || !descriptor.consumers.includes('model')) return []
+    if (
+      !descriptor ||
+      descriptor.volatility === 'per-request' ||
+      !descriptor.consumers.includes('model')
+    )
+      return []
     const previous = before.get(entry.key)
     if (previous && entry.revision <= previous.revision) return []
     const material: ChangeMaterial = {

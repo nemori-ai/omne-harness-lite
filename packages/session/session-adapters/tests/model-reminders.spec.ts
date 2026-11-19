@@ -39,6 +39,7 @@ function snapshotOf(view: number, blocks: readonly BlockEntry[]): SnapshotResult
       cursor: { cursor: `c${view}` },
       blocks,
       missing: [],
+      perRequest: [],
     },
   }
 }
@@ -53,6 +54,7 @@ function changesOf(from: number, to: number, entries: readonly BlockEntry[]): Ch
       cursor: { cursor: `c${to}` },
       entries: entries.map(({ volatility: _volatility, ...entry }) => entry),
       missing: [],
+      perRequest: [],
     },
   }
 }

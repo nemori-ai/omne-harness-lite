@@ -116,7 +116,7 @@
 - `RetainedStreamTail` · `facilities/command.d.ts`
 - `RetainedTerminalLedger` · `ports.d.ts`
 - `Retirement` · `environment.d.ts`
-- `SessionTerminalRetention` · `ports.d.ts`
+- `ScopeTerminalRetention` · `ports.d.ts`
 - `TerminalFacility` · `facilities/terminal.d.ts`
 - `TerminalInformation` · `facilities/terminal.d.ts`
 - `TerminalRef` · `facilities/terminal.d.ts`
@@ -349,7 +349,7 @@ import type { FacilityDescriptor, FacilityKey } from './facility.ts';
 import type { RetainedProcessInformation } from './facilities/command.ts';
 import type { Access, AcquisitionRef, OriginRef } from './identity.ts';
 import type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationFailed, EnvironmentLease, InstanceIdentity, LookupUnknown, OriginalAcquisition, Pending, Placement, ProviderIdentity, RecoveryInspection, Rejected, UnknownAcquisition } from './lease.ts';
-import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger, SessionTerminalRetention } from './ports.ts';
+import type { FacilityGuard, ManagedResource, RecoveryAccess, ResourceLedger, ScopeTerminalRetention } from './ports.ts';
 import type { EnvironmentRequirement, IsolationClaim } from './requirement.ts';
 export type PlatformFacts = Readonly<{
     os: string;
@@ -371,7 +371,7 @@ export type ProviderAcquireInput = Readonly<{
     placement: Placement;
     tenant: TenantId;
     ledger: ResourceLedger;
-    retention?: SessionTerminalRetention & {
+    retention?: ScopeTerminalRetention & {
         readonly released: AbortSignal;
     };
 }>;
@@ -528,7 +528,7 @@ export type AcquireInput<P> = Readonly<{
     placement: Placement;
     ledger: ResourceLedger;
     guard: FacilityGuard<P>;
-    retention?: SessionTerminalRetention;
+    retention?: ScopeTerminalRetention;
 }>;
 export type EnvironmentAction = Readonly<{
     kind: 'resolve';
@@ -901,7 +901,7 @@ export interface TerminalFacility<P> {
             readonly columns: number;
             readonly rows: number;
         };
-        readonly retain?: 'session';
+        readonly retain?: 'scope';
     }): Promise<FacilityResult<{
         readonly terminal: TerminalRef;
     }>>;
@@ -999,7 +999,7 @@ export type { BetweenSegments, CommandFacility, CommandOutcome, CommandRetention
 export { terminalFacility } from './facilities/terminal.ts';
 export type { TerminalFacility, TerminalInformation, TerminalRef, TerminalRetention, TerminalRetentionOperation, } from './facilities/terminal.ts';
 export { createRecoveryAccess } from './ports.ts';
-export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedProcessLedger, RetainedTerminalLedger, SessionTerminalRetention, } from './ports.ts';
+export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedProcessLedger, RetainedTerminalLedger, ScopeTerminalRetention, } from './ports.ts';
 export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationCleanup, AllocationFailed, LookupUnknown, OriginalAcquisition, OriginalInspection, RecoveryInspection, UnknownAcquisition, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';
 export type { AcquireInput, AcquisitionListing, AcquisitionSettlement, EnvironmentAction, EnvironmentAuthority, EnvironmentDescription, EnvironmentProvider, ProviderAcquisitionStatus, ProviderQuota, QuotaAnswer, ExecutionEnvironment, OwnedRecovery, PlacementInput, PlatformFacts, ProviderAcquireInput, ProviderAcquisition, ProviderFacts, ProviderRegistrations, RecoveryListing, ResourceRecovery, ResourcesRecovery, Retirement, UnsupportedRecovery, } from './environment.ts';
 export { environmentNeedAdoption, environmentNeedSchema } from './need-declaration.ts';
@@ -1381,7 +1381,7 @@ export type RetainedTerminalLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'p
 export type RetainedProcessLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'adopt' | 'stopped'> & {
     ended?(key: string): Promise<'confirmed' | 'none' | 'unavailable'>;
 };
-export type SessionTerminalRetention = Readonly<{
+export type ScopeTerminalRetention = Readonly<{
     scope: ScopeRef;
     ledger: RetainedTerminalLedger;
     processes?: RetainedProcessLedger;

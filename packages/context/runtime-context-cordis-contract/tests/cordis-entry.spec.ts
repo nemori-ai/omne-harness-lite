@@ -42,7 +42,7 @@ const descriptor: SuppliedBlockDescriptor<'probe.value', unknown> & { volatility
   recovery: 'reread',
 }
 
-it('exports only the abstract Services, their unique keys and scope metadata key', async () => {
+it('exports the Services, their unique keys, the scope metadata key and the plugin of the tenant blocks point', async () => {
   expect(
     Object.keys(await import('@omne-harness/runtime-context-cordis-contract/cordis')).sort(),
   ).toEqual(
@@ -54,6 +54,11 @@ it('exports only the abstract Services, their unique keys and scope metadata key
       'runtimeContextTrustKey',
       'runtimeContextReaderEligibilityKey',
       'runtimeContextScopeKey',
+      'RuntimeContextTenantBlocksService',
+      'runtimeContextTenantBlocksKey',
+      'runtimeContextTenantBlocksPlugin',
+      'RuntimeContextTenantScopeService',
+      'runtimeContextTenantScopeKey',
     ].sort(),
   )
   expect(runtimeContextKey).toBe(RuntimeContextService.provide)

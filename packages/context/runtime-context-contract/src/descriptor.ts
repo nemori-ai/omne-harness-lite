@@ -9,7 +9,7 @@ export interface BlockDescriptorBase<K extends ContextBlockKey, V> {
   readonly required: boolean
   readonly disclosure: 'plain' | 'eligibility-checked'
   readonly carriesPrevious: boolean
-  readonly volatility: 'stable' | 'per-step'
+  readonly volatility: 'stable' | 'per-step' | 'per-request'
   readonly parameterSchema?: StandardSchemaV1<unknown, unknown>
 }
 

@@ -264,6 +264,11 @@
               "pending": false
             },
             {
+              "name": "PerRequestEntry",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "Snapshot",
               "kind": "type",
               "pending": false
@@ -686,6 +691,51 @@
             {
               "name": "renderChangeReminder",
               "kind": "value",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "静态作用域",
+          "names": [
+            {
+              "name": "StaticBlock",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StaticRegistration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StaticContribution",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StaticScopeFailure",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StaticReaderRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StaticReaderGrant",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StaticScopeHolder",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StaticRead",
+              "kind": "type",
               "pending": false
             }
           ]

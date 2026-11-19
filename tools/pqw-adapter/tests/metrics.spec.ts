@@ -6,6 +6,7 @@ import {
   coverageArgs,
   measureMember,
   metricsArgs,
+  ranRecords,
   metricsSummary,
   SUMMARY_LIMIT,
   tiersOf,
@@ -44,7 +45,8 @@ it('uses the omne coverage flags with an lcov reporter', () => {
 it('builds each changed member together with its dependencies', () => {
   expect(buildArgs(['@omne-harness/a', '@omne-harness/b'])).toEqual([
     'exec',
-    'turbo',
+    'node',
+    'scripts/turbo-exact.mjs',
     'run',
     'build',
     '--output-logs=errors-only',
@@ -113,7 +115,7 @@ it('runs each tier in the member directory, hands every written lcov to one metr
     ['node', '/repo'],
   ])
   expect(valueOf(calls[2]?.args ?? [], '--lcov')).toBe(
-    `${out}/tools__t/fast/lcov.info,${out}/tools__t/slow/lcov.info`,
+    `${out}/tools__t/fast/lcov.ran.info,${out}/tools__t/slow/lcov.ran.info`,
   )
   expect(reading).toEqual({
     member: 'tools/t',
@@ -122,6 +124,62 @@ it('runs each tier in the member directory, hands every written lcov to one metr
     untested: false,
     result: pqwResult,
   })
+})
+
+const record = (file: string, lines: readonly number[], branches: readonly string[] = []) =>
+  [
+    'TN:',
+    `SF:${file}`,
+    ...lines.map((hits, at) => `DA:${String(at + 1)},${String(hits)}`),
+    ...branches.map(branch => `BRDA:${branch}`),
+    'end_of_record',
+    '',
+  ].join('\n')
+
+it('a tier that never ran a file says nothing about it: its record stays out when another tier ran the file', () => {
+  const ranInFast = record('src/a.ts', [3, 1], ['1,0,0,1', '1,0,1,2'])
+  const idleInSlow = record('src/a.ts', [0, 0], ['1,0,0,0', '1,7,0,0', '1,7,1,0'])
+  const onlyInSlow = record('src/b.ts', [0, 4])
+  expect(ranRecords([ranInFast, idleInSlow + onlyInSlow])).toEqual([ranInFast, onlyInSlow])
+  // The order of the tiers does not matter: the tier that ran the file is the one that is kept.
+  expect(ranRecords([idleInSlow + onlyInSlow, ranInFast])).toEqual([onlyInSlow, ranInFast])
+})
+
+it('a file no tier ran keeps one record, so it still reads as not covered', () => {
+  const idle = record('src/c.ts', [0, 0])
+  expect(ranRecords([idle, idle])).toEqual([idle, ''])
+  expect(ranRecords([idle])).toEqual([idle])
+})
+
+it('a file every tier ran keeps all its records, and a file without lines keeps them too', () => {
+  const fast = record('src/d.ts', [1, 0])
+  const slow = record('src/d.ts', [0, 2])
+  const typesOnly = record('src/types.ts', [])
+  expect(ranRecords([fast + typesOnly, slow + typesOnly])).toEqual([fast + typesOnly, slow])
+})
+
+it('hands metrics.mjs the records of the tiers that ran each file', async () => {
+  const out = scratch()
+  const { calls, exec } = recorder(command => {
+    if (command.command === 'pnpm') {
+      const dir =
+        (command.args.find(a => a.startsWith('--coverage.reportsDirectory=')) ?? '').split(
+          '=',
+        )[1] ?? ''
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(
+        join(dir, 'lcov.info'),
+        record('src/a.ts', command.args.includes('slow') ? [0, 0] : [2, 1]),
+      )
+      return {}
+    }
+    writeJson(valueOf(command.args, '--json') ?? '', pqwResult)
+    return {}
+  })
+  await measureMember(changedMember('tools/t'), context(out, exec, true))
+  const [fast, slow] = (valueOf(calls[2]?.args ?? [], '--lcov') ?? '').split(',')
+  expect(readFileSync(fast ?? '', 'utf8')).toBe(record('src/a.ts', [2, 1]))
+  expect(readFileSync(slow ?? '', 'utf8')).toBe('')
 })
 
 it('skips coverage for a member without tests and reports a failed metrics.mjs call instead of a reading', async () => {

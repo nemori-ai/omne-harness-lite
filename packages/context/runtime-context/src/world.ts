@@ -150,7 +150,7 @@ export interface World<P> {
   diagnose(event: RuntimeContextDiagnostic): void
   state(scope: ScopeRef): ScopeState | undefined
   touch(s: ScopeState): void
-  changed(s: ScopeState): void
+  changed(s: ScopeState, key: ContextBlockKey | null): void
   put(
     s: ScopeState,
     key: ContextBlockKey,
@@ -211,7 +211,8 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
     touch(s: ScopeState) {
       s.projection++
     },
-    changed(s: ScopeState) {
+    changed(s: ScopeState, key: ContextBlockKey | null) {
+      if (key !== null && world.descriptors.get(key)?.volatility === 'per-request') return
       s.view++
       s.projection++
       if (world.closed || !options.onChange) return
@@ -229,7 +230,7 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
         present,
         cause,
       })
-      world.changed(s)
+      world.changed(s, key)
     },
     declare(key: ContextBlockKey, declaration: Descriptor) {
       if (world.descriptors.get(key) === declaration) return

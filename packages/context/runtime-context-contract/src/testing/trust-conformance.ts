@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { NotApplicable, type ConformanceCase } from './case.js'
-import { declaration, scope, setup } from './fixtures.js'
+import { declaration, scope, openScope, setup } from './fixtures.js'
 import { createMemoryRuntimeContext } from './memory.js'
 import { createTestAuthorityPorts } from './ports.js'
 import {
@@ -255,22 +255,20 @@ async function asyncNotificationPendingRevoked<P>(_fixture: Fixture<P>): Promise
   throw new NotApplicable('synchronous revocation source (known gap #677)')
 }
 
-// The first read after a replay asks the source again. When the trust basis of that read changes
-// while the source answers, that read is refused; a later read is answered again.
 async function staleDuringRead<P>(fixture: Fixture<P>, control: keyof RuntimeContextTrustControls) {
   const t = build(fixture)
   try {
     const target = scope('trust-late')
-    t.ports.bind(target, fixture.tenant)
+    await openScope(t.subject, t.ports, fixture.principal, target, fixture.tenant)
     let release: (answer: SupplyAnswer<unknown>) => void = () => undefined
     let calls = 0
-    let hold = false
+    let hold = true
     const registered = await t.subject.registerProducer(fixture.principal, {
       key: 'suite.value',
       tenant: fixture.tenant,
       producer: { producer: 'late' },
-      declaration: declaration(),
-      scoped: false,
+      declaration: declaration({ volatility: 'per-request' }),
+      scoped: true,
       supply: () => {
         calls++
         if (!hold) return Promise.resolve({ kind: 'value', value: 1 })
@@ -280,38 +278,23 @@ async function staleDuringRead<P>(fixture: Fixture<P>, control: keyof RuntimeCon
       },
     })
     assert.ok(registered.kind === 'registered')
-    const begun = await t.subject.beginReplay(fixture.principal, {
-      scope: target,
-      tenant: fixture.tenant,
-      through: null,
-      supersedes: null,
-    })
-    assert.ok(begun.kind === 'replaying', `beginReplay: ${begun.kind}`)
-    hold = true
-    const ready = await t.subject.finishReplay(fixture.principal, {
-      replay: begun.replay,
-      material: {
-        registrations: [
-          {
-            commit: { commit: 'late' },
-            change: {
-              kind: 'add',
-              creating: true,
-              scope: target,
-              tenant: fixture.tenant,
-              key: 'suite.value',
-              basedOn: 0,
-              required: true,
-              bindings: [],
-              parameters: undefined,
-            },
-          },
-        ],
-        checkpoints: [],
-        end: null,
+    const commit = await t.subject.applyCommit(fixture.principal, {
+      kind: 'registration',
+      commit: { commit: 'late' },
+      after: null,
+      change: {
+        kind: 'add',
+        creating: true,
+        scope: target,
+        tenant: fixture.tenant,
+        key: 'suite.value',
+        basedOn: 0,
+        required: true,
+        bindings: [],
+        parameters: undefined,
       },
     })
-    assert.ok(ready.kind === 'ready', `finishReplay: ${ready.kind}`)
+    assert.equal(commit.kind, 'applied')
     const issued = await t.subject.issueEligibility(fixture.principal, {
       scope: target,
       tenant: fixture.tenant,
@@ -325,15 +308,17 @@ async function staleDuringRead<P>(fixture: Fixture<P>, control: keyof RuntimeCon
     assert.ok(issued.kind === 'issued')
     const bound = await t.subject.bind(issued.eligibility.id)
     assert.ok(bound.kind === 'bound')
-    const before = calls
     const reading = bound.reader.snapshot()
-    while (calls === before) await new Promise(resolve => setImmediate(resolve))
+    while (calls === 0) await new Promise(resolve => setImmediate(resolve))
     t.controls[control]()
     hold = false
     release({ kind: 'value', value: 5 })
     assert.deepEqual(await reading, { kind: 'refused', reason: 'unauthorized' })
     const later = await bound.reader.snapshot()
     assert.ok(later.kind === 'success', `later snapshot: ${later.kind}`)
+    const entry = later.value.perRequest[0]
+    assert.ok(entry?.kind === 'value')
+    assert.equal(entry.value, 1)
   } finally {
     await t.subject.close()
   }

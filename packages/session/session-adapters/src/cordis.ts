@@ -105,3 +105,22 @@ export {
   type ModelReminders,
   type PreparedReminders,
 } from './cordis/model-reminders.ts'
+export {
+  BACKGROUND_CALLS_COMPONENT,
+  BACKGROUND_OUTCOME_SOURCE,
+  BACKGROUND_STOP_SOURCE,
+  createBackgroundDerivedInputs,
+} from './cordis/background-sources.ts'
+export {
+  createIntakeBudgetReader,
+  sessionIntakeBudgetBlock,
+  sessionIntakeBudgetDescriptor,
+  type IntakeBudgetReaderDeps,
+  type SessionIntakeBudgetValue,
+} from './cordis/intake-budget.ts'
+export {
+  pendingLimitOf,
+  sessionIntakeItems,
+  sessionIntakeSettings,
+  sessionIntakeSettingsPlugin,
+} from './intake-settings.ts'

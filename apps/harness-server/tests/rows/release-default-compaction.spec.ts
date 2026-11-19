@@ -1,8 +1,7 @@
 // @module-tag slow
 import { expect, it } from 'vitest'
-import { onReleaseTree, pollUntil, type ReleaseTree } from '../support/release-tree.ts'
-import { readHistoryFrom, readHistoryPage, type HistoryEntry } from '../support/protocol-clients.ts'
-import { savedTenant } from '../r9/support.ts'
+import { historyOf, onReleaseTree, pollUntil } from '../support/release-tree.ts'
+import type { HistoryEntry } from '../support/protocol-clients.ts'
 import { observeCompactionFailures } from '../support/compaction-observation.ts'
 import { liveCompactionSummary } from '../support/live-compaction-summary.ts'
 import { decodeCompactionOutcome } from '@omne-harness/agent-contract'
@@ -18,19 +17,6 @@ const FIRST =
   'memo '.repeat(12_000)
 const sse = (events: readonly unknown[]) =>
   `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
-
-async function allHistory(world: ReleaseTree, session: string): Promise<readonly HistoryEntry[]> {
-  const tenant = savedTenant(world.home)
-  let page = await readHistoryPage(world.clients, tenant, session)
-  const entries: HistoryEntry[] = []
-  for (;;) {
-    if (page.outcome !== 'succeeded') throw new Error(`history read: ${page.outcome}`)
-    entries.push(...page.body.entries)
-    if (page.body.exhausted) return entries
-    if (page.body.next === null) throw new Error('a partial history page has no cursor')
-    page = await readHistoryFrom(world.clients, tenant, session, page.body.next)
-  }
-}
 
 it(
   'runs the default provider through Model and resumes the same Run after its summary',
@@ -107,7 +93,7 @@ it(
         const observation = await pollUntil(
           'default compaction and Run completion',
           async () => {
-            history = await allHistory(world, session)
+            history = await historyOf(world, session)
             return {
               kinds: history.map(entry => entry.kind),
               main: main.length,

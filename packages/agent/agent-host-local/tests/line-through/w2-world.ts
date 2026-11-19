@@ -151,6 +151,8 @@ export type ToolStep = Readonly<{
   hold?: Promise<unknown>
   /** The call moves to the background: its placeholder is pushed first, its result after `hold`. */
   background?: true
+  /** After this, the call pushes one more result version, marked late. */
+  late?: Promise<unknown>
 }>
 export type ToolScript = (index: number, request: ToolInvokeRequest) => ToolStep
 
@@ -338,6 +340,7 @@ export async function openW2World(options: W2Options) {
   const modelCalls: string[] = []
   const receivedFailures: unknown[] = []
   const toolPushes: Promise<unknown>[] = []
+  const toolLatePushes: Promise<unknown>[] = []
   let recorder: StageRecorder | null = null
 
   let roundsComplete = 0
@@ -717,6 +720,17 @@ export async function openW2World(options: W2Options) {
       counters.receive('tool')
       afterSave()
     }
+    if (step.late !== undefined)
+      toolLatePushes.push(
+        step.late.then(() =>
+          pushed({
+            ...delivery,
+            key: { ...delivery.key, result: ok(decodeToolResultVersion(`late-w2-${index}`)) },
+            delivery: ok(decodeToolDeliveryId(`late-delivery-w2-${index}`)),
+            relation: 'late',
+          }),
+        ),
+      )
     const actualEnd = performance.now()
     recorder?.stub({
       kind: 'tool',
@@ -891,6 +905,7 @@ export async function openW2World(options: W2Options) {
     modelCalls,
     receivedFailures,
     toolPushes,
+    toolLatePushes,
     toolReceiver,
     toolState,
     execution,

@@ -12,6 +12,7 @@ export type {
   ReadResult,
   BlockState,
   BlockEntry,
+  PerRequestEntry,
   Snapshot,
   ChangeEntry,
   Changes,
@@ -51,6 +52,16 @@ export type {
   ReaderEligibilityHandoff,
 } from './reader-eligibility.js'
 export type { Necessity, ContextNeed, Translation, NeedBinding, NeedBindingRef } from './need.js'
+export type {
+  StaticBlock,
+  StaticRegistration,
+  StaticScopeFailure,
+  StaticReaderRequest,
+  StaticReaderGrant,
+  StaticRead,
+  StaticScopeHolder,
+  StaticContribution,
+} from './static-scope.js'
 export type {
   BlockDescriptorBase,
   SuppliedBlockDescriptor,

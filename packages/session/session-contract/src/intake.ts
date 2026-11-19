@@ -41,13 +41,9 @@ export function judgeSessionIntake(
 }
 
 export function pendingIntakeCount(
-  snapshot: Pick<WorkSnapshot, 'pending' | 'handed' | 'backgroundInputs' | 'quietInputs'>,
+  snapshot: Pick<WorkSnapshot, 'pending' | 'handed' | 'uncountedInputs'>,
 ): number {
-  const uncounted = new Set([
-    ...snapshot.handed,
-    ...(snapshot.backgroundInputs ?? []),
-    ...(snapshot.quietInputs ?? []),
-  ])
+  const uncounted = new Set([...snapshot.handed, ...(snapshot.uncountedInputs ?? [])])
   return snapshot.pending.reduce((count, input) => count + Number(!uncounted.has(input)), 0)
 }
 

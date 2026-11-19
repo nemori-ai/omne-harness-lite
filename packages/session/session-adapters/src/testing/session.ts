@@ -1,3 +1,4 @@
+import { admittedGuards, derivedTerms } from './intake.ts'
 import { commandScope, runStartInputs } from './frontier.ts'
 import { compactionContextForView } from '@omne-harness/session-contract'
 import type { ToolRelease } from './result-release.ts'
@@ -28,8 +29,6 @@ import type {
   SessionId,
   SessionOperationId,
   SessionRevision,
-  RoutedInput,
-  InputId,
   WorkSnapshot,
   CommitReceipt,
   HistoryEntry,
@@ -282,14 +281,6 @@ const mint = (record: string, content: unknown): DurableEvidence => ({
   digest: `sha256:${digestOf(content)}`,
 })
 
-function firstInputOf(
-  inputs: ReadonlyMap<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>,
-  first: InputId | undefined,
-) {
-  const stored = first === undefined ? undefined : inputs.get(first)
-  return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
-}
-
 function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
   const history = snapshot.executions?.find(item => item.run === run)
   const current =
@@ -428,7 +419,7 @@ export function createSessionTransactions<P>(
       store === undefined
         ? null
         : { ...store.snapshot, ...(material === undefined ? {} : { historyIndex: material.index }) }
-    const decision = decide(prepared, command, input.guards, null, {
+    const decision = decide(prepared, command, admittedGuards(command, input.guards), null, {
       ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
       ...(material === undefined ? {} : { history: material.reads }),
       compaction:
@@ -443,9 +434,6 @@ export function createSessionTransactions<P>(
         : {}),
       ...(command.kind === 'stopCall' && store !== undefined
         ? { calls: [callLookup(store.snapshot, command.input.producer)] }
-        : {}),
-      ...(command.kind === 'startRun' && store !== undefined
-        ? firstInputOf(store.inputs, runStartInputs(store.snapshot)[0])
         : {}),
       initializationReceipts: [
         ...(command.kind === 'completeInitialization' ? (store?.operations.values() ?? []) : []),
@@ -610,6 +598,7 @@ export function createSessionTransactions<P>(
       start,
       saved: store.snapshot.entriesProgress ?? [],
       record: held?.record ?? null,
+      derived: derivedTerms(),
     })
     if (decision.kind === 'rejected') return fail(decision.failure)
     if (decision.kind === 'recovered') {

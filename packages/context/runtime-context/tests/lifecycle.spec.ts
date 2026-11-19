@@ -167,28 +167,29 @@ describe('closing with holder operations in flight', () => {
 })
 
 describe('closing with reads and callbacks in flight', () => {
-  it('a registration waiting on a supply callback settles at close, and later calls answer closed', async () => {
+  it('a read waiting on a supply callback settles without success, and later reads answer closed', async () => {
     const h = harness({ settleBoundMs: 50 })
     const a = scope('close/read')
     await open(h, a, tenantA)
     const hanging = deferred<never>()
     let calls = 0
     await producer(h, tenantA, 'test.request', {
-      declaration: supplied('test.request'),
+      declaration: { ...supplied('test.request'), volatility: 'per-request' },
       supply: () => {
         calls++
         return hanging.promise
       },
     })
-    const registering = register(h, a, tenantA, 'test.request').then(
-      () => 'settled',
-      () => 'settled',
-    )
+    await register(h, a, tenantA, 'test.request')
+    const r = await reader(h, await issue(h, a, tenantA, ['test.request']))
+    const reading = r.snapshot()
     while (calls === 0) await new Promise(resolve => setTimeout(resolve, 1))
     const started = Date.now()
     await h.rc.close()
     expect(Date.now() - started).toBeLessThan(1000)
-    expect(await registering).toBe('settled')
+    const settled = await reading
+    expect(settled.kind).not.toBe('success')
+    expect(await r.snapshot()).toEqual({ kind: 'refused', reason: 'closed' })
     expect(await h.rc.bind({ eligibility: 'eligibility-1' })).toEqual({
       kind: 'refused',
       reason: 'closed',
@@ -217,32 +218,34 @@ describe('closing with reads and callbacks in flight', () => {
 })
 
 describe('withdrawing a producer handle', () => {
-  it('settles a registration waiting on its supply within the bound, then reads miss the block', async () => {
+  it('settles the generation reads in flight within the bound, then reads miss the block', async () => {
     const h = harness({ settleBoundMs: 30, supplyBoundMs: 100 })
     const a = scope('dispose/read')
     await open(h, a, tenantA)
     const hanging = deferred<never>()
     let calls = 0
     const handle = await producer(h, tenantA, 'test.request', {
-      declaration: supplied('test.request', { required: true }),
+      declaration: { ...supplied('test.request', { required: true }), volatility: 'per-request' },
       supply: () => {
         calls++
         return hanging.promise
       },
     })
-    const registering = register(h, a, tenantA, 'test.request', 0, { required: true })
+    await register(h, a, tenantA, 'test.request')
+    const r = await reader(h, await issue(h, a, tenantA, ['test.request']))
+    const reading = r.snapshot()
     while (calls === 0) await new Promise(resolve => setTimeout(resolve, 1))
     const started = Date.now()
     await handle.dispose()
     expect(Date.now() - started).toBeLessThan(1000)
-    await registering
-    const r = await reader(h, await issue(h, a, tenantA, ['test.request']))
     const next = await r.snapshot()
     expect(next.kind).toBe('success')
     if (next.kind !== 'success') return
-    expect(next.value.blocks).toEqual([])
-    expect(next.value.missing.map(item => item.cause)).toEqual(['producer-withdrawn'])
+    expect(next.value.perRequest).toEqual([
+      { key: 'test.request', kind: 'missing', cause: 'producer-withdrawn' },
+    ])
     expect(calls).toBe(1)
+    expect((await reading).kind).toBe('success')
   })
 
   it('a withdrawn stable block reads missing, not its old value', async () => {

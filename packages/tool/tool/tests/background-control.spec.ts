@@ -715,9 +715,13 @@ describe('the foreground timers (threshold and foreground limit)', () => {
         throw new Error('no synthetic result was asked for')
       return first.need.closedResult
     }
-    expect(
-      closedResultOf({ kind: 'background', otherwise: 'stop' }, { origin: 'foreground-limit' }),
-    ).toContain('foreground time limit')
+    const limit = closedResultOf(
+      { kind: 'background', otherwise: 'stop' },
+      { origin: 'foreground-limit' },
+    )
+    // The words the model reads name the terminal the call got: interrupted, by the limit.
+    expect(limit).toMatch(/interrupted.*foreground time limit/u)
+    expect(limit).not.toMatch(/placeholder|background/u)
     expect(closedResultOf({ kind: 'withdraw', reach: 'all' }, {})).toContain('withdrawn')
   })
 

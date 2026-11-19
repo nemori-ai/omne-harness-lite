@@ -20,6 +20,8 @@ export type InboxPageProps = Readonly<{
   tenant: string
   /** The sections other domains put into the panel, already laid out by the module. */
   sections?: ReactNode
+  /** The key of the notification the page was brought up on, such as from a toast. */
+  focus?: string
 }>
 
 const FILTERS = [
@@ -37,12 +39,17 @@ export function InboxPage(props: InboxPageProps): JSX.Element {
         </InlineNotice>
       </PageColumn>
     )
-  return <Inbox hub={props.hub} tenant={tenant} sections={props.sections} />
+  return <Inbox hub={props.hub} tenant={tenant} sections={props.sections} focus={props.focus} />
 }
 
-type InboxProps = Readonly<{ hub: InboxHub; tenant: TenantId; sections: ReactNode }>
+type InboxProps = Readonly<{
+  hub: InboxHub
+  tenant: TenantId
+  sections: ReactNode
+  focus: string | undefined
+}>
 
-function Inbox({ hub, tenant, sections }: InboxProps): JSX.Element {
+function Inbox({ hub, tenant, sections, focus }: InboxProps): JSX.Element {
   const { driver, state } = useInbox(hub, tenant)
   return (
     <PageColumn className="notification-page">
@@ -68,7 +75,7 @@ function Inbox({ hub, tenant, sections }: InboxProps): JSX.Element {
         }
       />
       <LiveLine state={state} />
-      <Body state={state} driver={driver} />
+      <Body state={state} driver={driver} focus={focus} />
       {sections}
     </PageColumn>
   )
@@ -90,13 +97,14 @@ function LiveLine({ state }: { readonly state: State }): JSX.Element | null {
   return null
 }
 
-type BodyProps = Readonly<{ state: State; driver: InboxDriver }>
+type BodyProps = Readonly<{ state: State; driver: InboxDriver; focus: string | undefined }>
 
 function Section({
   title,
   entries,
   state,
   driver,
+  focus,
 }: BodyProps & { title: string; entries: readonly Entry[] }) {
   if (entries.length === 0) return null
   return (
@@ -106,14 +114,20 @@ function Section({
       </h3>
       <ul className="notification-list">
         {entries.map(entry => (
-          <EntryRow key={keyOf(entry)} entry={entry} state={state} driver={driver} />
+          <EntryRow
+            key={keyOf(entry)}
+            entry={entry}
+            state={state}
+            driver={driver}
+            focused={keyOf(entry) === focus}
+          />
         ))}
       </ul>
     </section>
   )
 }
 
-function Body({ state, driver }: BodyProps): JSX.Element {
+function Body({ state, driver, focus }: BodyProps): JSX.Element {
   const { read } = state
   const { open, settled } = sectionsOf(state)
   const empty = open.length + settled.length === 0
@@ -133,8 +147,8 @@ function Body({ state, driver }: BodyProps): JSX.Element {
           <p>通知太多，这里没有列全。办完或划掉一些之后再刷新。</p>
         </InlineNotice>
       ) : null}
-      <Section title="未了结" entries={open} state={state} driver={driver} />
-      <Section title="已了结" entries={settled} state={state} driver={driver} />
+      <Section title="未了结" entries={open} state={state} driver={driver} focus={focus} />
+      <Section title="已了结" entries={settled} state={state} driver={driver} focus={focus} />
       {!empty ? null : read.kind === 'ready' ? (
         <EmptyState title={state.filter === 'all' ? '收件箱是空的' : '没有未了结的通知'} />
       ) : read.kind === 'failed' ? null : (

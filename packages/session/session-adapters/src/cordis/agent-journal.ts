@@ -109,6 +109,8 @@ import {
   type ItemRef,
 } from '../testing/closed-items.ts'
 import {
+  restoreRecords,
+  heldOrigins,
   fetchClosed,
   closesOpen,
   foldFull,
@@ -119,6 +121,7 @@ import {
   unsettled,
   type FullViews,
 } from './item-read.ts'
+import { EVENT_PAGE, eventsAfter, newTurns, turn, type Turns } from './event-stream.ts'
 import { SharedMap } from '../journal/shared-map.ts'
 import { boundariesOf, captureFresh, projectionOf, type Fault } from './event-projection.ts'
 import {
@@ -128,11 +131,7 @@ import {
   unavailable,
   type Prepared,
 } from './journal-publication.ts'
-import {
-  projectRecords,
-  type ProjectedRecords,
-  type ProjectionContext,
-} from '../testing/journal-records.ts'
+import { projectRecords, type ProjectionContext } from '../testing/journal-records.ts'
 import {
   readBlob,
   readEvents,
@@ -242,10 +241,12 @@ type Book<P> = {
   readonly fetched: Map<string, unknown>
   readonly lentBlocks: Map<string, string>
   readonly full: FullViews
+  origins: CommonRoot['agent']['callOrigins']
+  readonly turns: Turns
 }
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
-const ROUNDS = 4
+const LOST_RACES = 4
 const READS: ReadonlySet<string> = new Set([
   'load',
   'readCancellationInstallation',
@@ -428,11 +429,14 @@ function adopt<P>(
   for (const view of found.views) {
     executions.set(view.execution, view)
     book.full.delete(view.execution)
+    for (const key of book.origins.keys())
+      if (key.startsWith(`${view.execution}\0`)) book.origins.delete(key)
   }
   for (const view of found.full) book.full.set(view.execution, view)
   book.view = { head: Math.max(book.view.head, published), executions }
   book.published = Math.max(book.published ?? 0, published)
   book.copy = null
+  turn(book.turns)
 }
 
 async function fetchBlobs<P>(book: Book<P>, read: Reader): Promise<Failure | null> {
@@ -478,7 +482,7 @@ function jointState<P>(
   const root = cell.state()
   const execution = [...root.agent.executions.values()].find(item => item.id === input.execution)
   return {
-    accepted: execution?.inputs,
+    accepted: execution?.inputs.filter(() => true),
     snapshot: book.scratch?.snapshot,
     resultOf(caller) {
       if (execution === undefined) return fail({ kind: 'denied', action: method })
@@ -594,8 +598,7 @@ function settleRecordStop<P, T>(
       return { kind: 'again' }
     case 'operation-conflict':
       return recalled(job, reply.digest)
-    // The store holds an item this write opens, or no longer holds one it changes open: the write
-    // repeats or touches closed work, as a repeated key in memory would.
+    // The store holds an item this write opens, or not the open one it changes: closed work.
     case 'item-conflict': {
       const ref: ItemRef = {
         execution: reply.execution as AgentExecutionId,
@@ -660,7 +663,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         refs: new ContentRefs(),
         fetched: new Map(),
         lentBlocks: new Map(),
+        origins: new SharedMap(),
         full: new Map(),
+        turns: newTurns(),
       }
       books.set(key, book)
     }
@@ -902,32 +907,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  function restore(book: Book<P>, cell: JournalCell<P>, records: ProjectedRecords): void {
-    cell.mutate(() => {
-      const root = cell.state()
-      const into = <K, V>(target: Map<K, V>, source: ReadonlyMap<K, V>) => {
-        for (const [key, value] of source) target.set(key, value)
-      }
-      root.agent.view = book.view
-      root.agent.log = []
-      root.agent.closedComplete = false
-      for (const [digest, value] of book.parsed) root.agent.blobs.set(digest, value)
-      into(root.agent.executions, records.executions)
-      into(root.agent.operations, records.operations)
-      into(root.agent.eventReceipts, records.fragments.eventReceipts)
-      into(root.agent.pendingEvents, records.fragments.pendingEvents)
-      into(root.agent.callOrigins, records.fragments.callOrigins)
-      into(root.agent.human, records.fragments.human)
-      into(root.agent.indexedEvents, records.fragments.indexedEvents)
-      for (const name of Object.keys(records.receiving) as (keyof CommonRoot['receiving'])[])
-        into(
-          root.receiving[name] as Map<unknown, unknown>,
-          records.receiving[name] as Map<unknown, unknown>,
-        )
-      cell.touch()
-    })
-  }
-
   function build(book: Book<P>): Copy<P> {
     const records = recordsView(book.view, book.full)
     keepNamed(book.refs, records, book)
@@ -953,7 +932,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         return undefined
       },
     })
-    restore(
+    restoreRecords(
       book,
       cell,
       projectRecords(
@@ -1512,8 +1491,10 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         root.agent.blobs.set(factDigestOf(blob.digest), JSON.parse(blob.payload) as unknown)
       for (const digest of released) root.agent.blobs.delete(digest)
     })
+    book.origins = heldOrigins(job.copy.cell.state().agent.callOrigins, book.view)
     // Records project the open view: once an open item closes or finishing ends, they are rebuilt.
     book.copy = dropped || closesOpen(prepared.changes) ? null : job.copy
+    turn(book.turns)
     for (const at of book.held.keys()) {
       const record = job.after.agent.operations.get(at)
       if (record !== undefined && record.kind !== 'pending') book.held.delete(at)
@@ -1608,7 +1589,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       const domain = await domainOf(book)
       if ('failure' in domain) return domain
       const named = (input as { execution?: unknown }).execution
-      for (let round = 0; round < ROUNDS; round += 1) {
+      for (let lost = 0; lost < LOST_RACES;) {
         let synced = await sync(book, domain.ok)
         if ('failure' in synced) return synced
         if (
@@ -1634,27 +1615,27 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           book.scratch = null
           const after = copy.cell.current()
           if (after === before) return answer
-          const written = writtenOf(method, input)
           settled = await publish(
             book,
             domain.ok,
             copy,
             before,
             after,
-            written,
+            writtenOf(method, input),
             input,
             scratch,
             answer,
           )
         } catch (error) {
-          // A read of the round needs closed items the call has not read: read them, run again.
+          // The round needs closed items the call has not read: read them, run again. Not a lost race.
           if (!(error instanceof NeedItems)) throw error
           settled = { kind: 'fetch', refs: error.refs }
         } finally {
           book.scratch = null
         }
         if (settled.kind === 'answer') return settled.value
-        if (settled.kind === 'fetch') {
+        if (settled.kind === 'again') lost += 1
+        else {
           const unread = await fetchClosed(readerOf(options.storage, domain.ok), book, settled.refs)
           if (unread !== null) return fail(unavailable(unread))
         }
@@ -1744,23 +1725,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             yield fail<Failure>(refused('output.events'))
             return
           }
-          const copy = await serial(book, async () => {
-            const domain = await domainOf(book)
-            if ('failure' in domain) return domain
-            const synced = await sync(book, domain.ok)
-            if ('ok' in synced) book.users += 1
-            return synced
-          })
-          if ('failure' in copy) {
-            yield copy
-            return
-          }
-          try {
-            yield* copy.ok.core.port.output.events(input)
-          } finally {
-            book.users -= 1
-            rest(book)
-          }
+          const read = (after: string | null) =>
+            run(input, 'output.read', async core => {
+              const page = await core.port.output.read({ ...input, after, limit: EVENT_PAGE })
+              if ('failure' in page) return page
+              const ended = book.view.executions.get(input.execution)?.finish.ended ?? null
+              return succeed({ page: page.ok, ended: ended !== null })
+            })
+          yield* eventsAfter(read, input.after, book.turns, input.signal)
         },
       },
     }

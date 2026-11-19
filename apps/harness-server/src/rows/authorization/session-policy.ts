@@ -189,6 +189,21 @@ export const SESSION_POLICY = Object.freeze({
     deny(NO_SOURCE),
     deny(NO_SYSTEM_READ),
   ),
+  readPending: row(
+    member('`session/v1` 的 `read-pending`，packages/session/SPEC.md「读取与投影」'),
+    deny(NO_SOURCE),
+    deny(NO_SYSTEM_READ),
+  ),
+  readWaitingCalls: row(
+    member('`session/v1` 的 `read-waiting-calls`，packages/session/SPEC.md「读取与投影」'),
+    deny(NO_SOURCE),
+    deny(NO_SYSTEM_READ),
+  ),
+  readInputFate: row(
+    member('`session/v1` 的 `read-input-fate`，packages/session/SPEC.md「读取与投影」，SE-33'),
+    deny(NO_SOURCE),
+    deny(NO_SYSTEM_READ),
+  ),
   readBackgroundCalls: row(
     member('`session/v1` 的 `list-background-calls`，packages/session/SPEC.md「协议、接入与界面」'),
     member('BkgToolCalls 的绑定读本会话的后台调用，#1329 C23'),

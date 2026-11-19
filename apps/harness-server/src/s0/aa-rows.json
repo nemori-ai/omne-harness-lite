@@ -6,6 +6,7 @@
     "identity",
     "authorization",
     "session-storage",
+    "session-input-sources",
     "asset-categories",
     "tenant-assets",
     "governance",
@@ -62,6 +63,8 @@
     "agent-context",
     "context-compaction",
     "runtime-context",
+    "runtime-context-tenant-scope",
+    "session-intake-budget",
     "session-observation",
     "server-entry",
     "identity-access",
@@ -142,7 +145,8 @@
         "storage",
         "tenantDomainLookup",
         "tenantDomainRegistration",
-        "tenantDomainScannerPrincipal"
+        "tenantDomainScannerPrincipal",
+        "tenantScopePrincipals"
       ]
     },
     {
@@ -166,7 +170,8 @@
         "sessionDelegatedTransactions",
         "systemActionAuthorization",
         "sessionPermissionBackend",
-        "tenantDomainRegistration"
+        "tenantDomainRegistration",
+        "tenantScopePrincipals"
       ]
     },
     {

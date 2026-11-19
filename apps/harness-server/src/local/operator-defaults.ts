@@ -447,6 +447,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         combinationVersion,
         directoryFile: path.join(locations.storageRoot, 'tenant-domains.json'),
         domainRule: 'organization-account/1',
+        tenantBudget: rows.has('session-intake-budget'),
       },
     ],
     ...(rows.has('secret-custody')

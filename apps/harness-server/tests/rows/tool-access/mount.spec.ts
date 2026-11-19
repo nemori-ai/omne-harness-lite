@@ -58,7 +58,11 @@ describe('tool-access and session-call-control rows', () => {
       's0.principalIssuer',
     ])
     const control = rowDeclarationOf(sessionCallControlRow)
-    expect(control?.manifest.provides).toEqual(['sessionCallControl', 'sessionCallStates'])
+    expect(control?.manifest.provides).toEqual([
+      'sessionCallControl',
+      'sessionCallStates',
+      'sessionDerivedInputs',
+    ])
     expect(toolAccessConfig.safeParse({ extra: 1 }).success).toBe(false)
   })
 

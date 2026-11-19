@@ -1,6 +1,6 @@
 import { Ago, Button, InlineNotice, LoadingState } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
-import type { JSX } from 'react'
+import { useEffect, useRef, type JSX } from 'react'
 import type { InboxDriver } from '../model/inbox-driver.ts'
 import {
   keyOf,
@@ -100,16 +100,25 @@ function Detail({ opened }: { readonly opened: Opened }): JSX.Element {
   )
 }
 
-export type EntryRowProps = Readonly<{ entry: Entry; state: State; driver: InboxDriver }>
+export type EntryRowProps = Readonly<{
+  entry: Entry
+  state: State
+  driver: InboxDriver
+  focused?: boolean
+}>
 
-export function EntryRow({ entry, state, driver }: EntryRowProps): JSX.Element {
+export function EntryRow({ entry, state, driver, focused = false }: EntryRowProps): JSX.Element {
+  const row = useRef<HTMLLIElement>(null)
+  useEffect(() => {
+    if (focused) row.current?.scrollIntoView({ block: 'nearest' })
+  }, [focused])
   const key = keyOf(entry)
   const busy = key in state.marking
   const notice = state.notices[key]
   const opened = state.opened?.key === key ? state.opened : null
   const label = stateOf(entry)
   return (
-    <li className="notification-row">
+    <li ref={row} className="notification-row" data-focused={focused ? '' : undefined}>
       <div className="notification-line">
         <Button
           variant="link"

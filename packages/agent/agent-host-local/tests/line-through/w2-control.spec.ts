@@ -22,6 +22,7 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
   it('J3 cancels from Session: the Run ends cancelled, the intent is established, nothing new is sent', async () => {
     const release = gate()
     const w = await openW2World({
+      reception: 'routed',
       model: a =>
         a.index === 0
           ? {
@@ -83,6 +84,7 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
     const stopped = gate()
     const never = new Promise<void>(() => undefined)
     const w = await openW2World({
+      reception: 'routed',
       progression: 'continue',
       model: a =>
         a.index === 0
@@ -142,6 +144,7 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
   it('J4 answers not-found for a Tool target the session does not hold, the same as a Model target, and leaves the Run alone', async () => {
     const hold = gate()
     const w = await openW2World({
+      reception: 'routed',
       model: a =>
         a.index === 0
           ? { parts: [toolCallBlock('tc-j4')], reason: 'tool-suggestions' }

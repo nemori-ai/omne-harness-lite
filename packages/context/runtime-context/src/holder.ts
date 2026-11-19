@@ -262,7 +262,7 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     s.commitsVersion++
     world.targetsVersion++
     world.cache.dropScope(s.scope.ref)
-    world.changed(s)
+    world.changed(s, null)
   }
 
   async function applyCommit(principal: P, raw: CommitInput): Promise<ApplyCommitResult> {
@@ -348,7 +348,7 @@ export function createHolder<P>(world: World<P>, supplier: Supplier<P>) {
     return {
       apply: () => {
         storeRegistration(world, change, s)
-        world.changed(s)
+        world.changed(s, change.key)
         world.touch(s)
       },
     }
