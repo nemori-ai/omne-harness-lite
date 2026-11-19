@@ -108,6 +108,8 @@
 - `setting set` 写普通项时，值可以从命令行读一个 JSON 值，原样交给服务端，由设置按声明校验；秘密项仍从终端或管道读，不从命令行读。
 - 资产协议的操作要租户、分页与修订号，命令不为此加参数：租户取登录状态里的租户；`setting list` 在命令里读完全部页，只有第一页之后的请求带上一页的游标，任何一页不是成功就以该页的结局收口，一页不推进游标是本地失败，退出 `1`；`setting set` 与 `setting unset` 先读这一项取得修订号，再带着它写，每次写用新的操作标识。读不到这一项就不写，如实报读的结局。写入被答修订冲突时命令如实报冲突，不自己重试。`setting show` 的人读输出对秘密项分两层写「已设置」「未设置」「已吊销」「读不出」四种状态，不含配置时刻，因为资产协议的答复不带它；不是秘密项时写明项的种类，请用 `--json` 读。
 - 选模型（`select-model`）是会话的控制，带会话与目标路由名，控制标识缺省时生成。答复未知时，重做同一次意图要传回原来的控制标识。
+- 选工作区（`select-workspace`）是会话的控制，带会话与目标：`--workspace` 与 `--instance`，或 `--none` 表示不要工作区。控制标识的规矩同选模型。建会话（`create-session`）可以带 `--workspace` 与 `--instance`，两个一起给或都不给。
+- 工作区命令按协议分组：`workspace register <目录>`、`workspace list`、`workspace show <工作区>`、`workspace associate <工作区> <目录>`、`workspace dissociate <工作区> <实例>`、`workspace grant <工作区> <租户>`、`workspace grant-admin|revoke-admin <工作区> <租户>`、`workspace remove <工作区> <租户>`、`workspace leave <工作区>`、`workspace destroy <工作区>`。租户取登录状态里的租户。目录在客户端解析成绝对路径再发出：它指的是服务端所在节点上的目录。`register` 可以带 `--type` 指定管理类型。`destroy` 不带 `--yes` 时只说明它了结登记与全部关系、不删除目录，然后退出 `2`。提交结果不确定时退出 `5`，并把操作标识打印在标准错误里；同一条命令加 `--resume <操作标识>` 先认回原结局。
 - 资产命令按协议分组：`asset categories`、`asset list <类别>`、`asset show <类别>:<名字>`、`asset create <类别>:<名字>`、`asset enable|disable|remove <类别>:<名字>`、`asset watch`。它对任何类别相同，命令里没有类别的名字。租户取登录状态里的租户；`list` 在命令里读完全部页，规则同 `setting list`。
 - `asset create` 两种给法，恰好给一种：`--data` 给一段 JSON 或 `@文件`，原样交给服务端；`--dir` 给一个本机目录。`--dir` 是三个操作的合成：遍历目录里的普通文件，包内路径用 `/`；先开始，照答复给的段长与各路径已收到的字节数逐段追加，最后提交；三步用同一个操作标识。目录里有符号链接或别的读不了的条目时报错退出，一个字节也不传，不悄悄跳过。本机不判上限，被拒的原因照服务端答的打印。
 - `asset enable`、`disable`、`remove` 先看这一份取得持有引用，再带着它提交；看不到就不提交，如实报读的结局。`remove` 不带 `--yes` 时只说明移除不可逆、设置会退出，然后退出 `2`。

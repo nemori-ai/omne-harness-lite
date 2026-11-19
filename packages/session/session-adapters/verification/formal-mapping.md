@@ -1,6 +1,6 @@
 # 形式模型与规格、代码的对照
 
-本页对照 `session-adapters/verification` 下三个有限模型：进程代次与准入记录（`generation-handoff`）、Agent 事实族（`journal-facts`）、执行日志的开放集（`journal-open-set`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)；Agent 一侧的承诺在 [Agent 规格](../../../agent/SPEC.md)。模型检查只说明有限范围内的设计性质。配置预期见下表；运行器按预期判读，正控要求无反例，负控要求命中指定性质。手写的无界证明见 [proofs/](proofs/)。
+本页对照 `session-adapters/verification` 下四个有限模型：进程代次与准入记录（`generation-handoff`）、Agent 事实族（`journal-facts`）、执行日志的开放集（`journal-open-set`）、会话工作目录（`working-directory`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)；Agent 一侧的承诺在 [Agent 规格](../../../agent/SPEC.md)。模型检查只说明有限范围内的设计性质。配置预期见下表；运行器按预期判读，正控要求无反例，负控要求命中指定性质。手写的无界证明见 [proofs/](proofs/)。
 
 ## generation-handoff
 
@@ -118,3 +118,23 @@
 | 按原键点查                 | `AgentJournalReading.inputAcceptance`；模型控制记录自带 `modelInvocation`              |
 | 进程内视图与冷重建同一投影 | `testing/journal-records.ts` 与进程内推进；守卫 `tests/journal-records-parity.spec.ts` |
 | 持久投影、冷装载两页同头   | 尚未实现：冷装载仍从头重放事实（#1310）                                                |
+
+## working-directory
+
+`WorkingDirectory.tla` 检查会话工作目录在更换、步的边界、工具调用的受理与进程重建任意交错下的三条性质。采用的承诺：Session 规格[日志与提交](../../SPEC.md#日志与提交)里会话工作目录的规则，Tool 规格里固定请求钉住工作目录的规则。模型里的耐久事实是会话的选择、写给模型的最后一条提醒、每次已受理调用钉住的目录；活体是发布的块与持有者的「已告知」，重建时都丢。
+
+| 性质（模型名） | 含义 | 负控：去掉的规则 |
+| --- | --- | --- |
+| `PinnedDirectory` | 一次调用执行时用的目录等于它第一次受理时钉住的目录 | `bad-exec-reread` 执行时重新读块；`bad-volatile-pin` 钉住的值不耐久，重建后重新取 |
+| `ToldDirectory` | 一次调用钉住的目录等于模型发出它时被告知的目录 | `bad-live-read` 受理时读最新的选择；`bad-direct-publish` 更换的提交直接改块；`bad-recover-latest` 重建后按最新的选择给块赋值 |
+| `ToldAtBoundary` | 走到模型请求的一步，已经把这一步开始时的选择告知了模型 | `bad-refresh-after-read` 先读变化、后刷新 |
+
+| 配置 | 预期 |
+| --- | --- |
+| `working-directory`、`working-directory-wide` | 无反例。前者两个目录、两次调用、两次更换、三步、一次重建；后者三个目录、三次调用、三次更换、四步、两次重建 |
+| `bad-live-read`、`bad-direct-publish`、`bad-recover-latest` | 命中 `ToldDirectory` |
+| `bad-exec-reread`、`bad-volatile-pin` | 命中 `PinnedDirectory` |
+| `bad-refresh-after-read` | 命中 `ToldAtBoundary` |
+| `witness-new-directory`、`witness-outlives-switch`、`witness-refusal` | 见证：有调用在新目录里执行；有调用在更换之后仍在原目录执行完；有调用被答不可用。证明正控不是空转 |
+
+环境假设：一个会话同一时刻只有一个 Run，一个 Run 的步串行；一步的调用都在下一步开始之前受理；一步开始之前的动作失败时这一步不发模型请求。模型检查只说明这些假设与上界之内的设计性质。`run-models.sh <输出目录>` 跑全部配置。
