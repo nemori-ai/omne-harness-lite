@@ -1139,3 +1139,46 @@ describe('the replay switch and the replay declarations of a fixed request', () 
     })
   })
 })
+
+describe('the context window the request was prepared with', () => {
+  const window = { tokens: '200000', compactionTriggerPercent: '80' }
+
+  it('keeps the window and the compaction percent of the profile as they were', () => {
+    const judged = must(judgeFixedModelRequest({ ...request, contextWindow: window }))
+    expect(judged.contextWindow).toEqual(window)
+    expect(must(judgeFixedModelRequest(request))).not.toHaveProperty('contextWindow')
+  })
+
+  it.each(['1', '9', '100'])('keeps a compaction percent of %s', percent => {
+    const contextWindow = { ...window, compactionTriggerPercent: percent }
+    expect(must(judgeFixedModelRequest({ ...request, contextWindow })).contextWindow).toEqual(
+      contextWindow,
+    )
+  })
+
+  it.each([
+    [{ tokens: '0', compactionTriggerPercent: '80' }, '/contextWindow/tokens', 'integer'],
+    [{ tokens: 200000, compactionTriggerPercent: '80' }, '/contextWindow/tokens', 'integer'],
+    [
+      { tokens: '200000', compactionTriggerPercent: '101' },
+      '/contextWindow/compactionTriggerPercent',
+      'value',
+    ],
+    [
+      { tokens: '200000', compactionTriggerPercent: '0' },
+      '/contextWindow/compactionTriggerPercent',
+      'value',
+    ],
+    [
+      { tokens: '200000', compactionTriggerPercent: 80 },
+      '/contextWindow/compactionTriggerPercent',
+      'value',
+    ],
+    [{ tokens: '200000' }, '/contextWindow/compactionTriggerPercent', 'missing'],
+    [{ ...window, input: '1' }, '/contextWindow', 'unknown-field'],
+  ])('refuses the window %j', (contextWindow, field, reason) => {
+    expect(judgeFixedModelRequest({ ...request, contextWindow })).toMatchObject({
+      failure: { field, reason },
+    })
+  })
+})

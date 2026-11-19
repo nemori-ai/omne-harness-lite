@@ -4,9 +4,13 @@ import { expectTypeOf, it } from 'vitest'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ToolCallPart } from '@omne-harness/message'
 import type {
+  AbandonBasis,
+  AbandonInput,
+  AbandonReceipt,
   AckInput,
   AckReceipt,
   Admission,
+  CleanupStage,
   CallState,
   ControlState,
   CustodyState,
@@ -210,6 +214,29 @@ it('Handoff and AckInput carry evidence, never a bare saved flag', () => {
   >()
   const receipt: AckReceipt = { call, result, custody: acknowledged }
   void receipt
+})
+
+it('AbandonInput carries a refusal or an unreadable result as its basis, never an unknown outcome', () => {
+  const refused: AbandonBasis = { kind: 'refused', refusal: 'denied' }
+  const unreadable: AbandonBasis = { kind: 'unreadable', reason: 'gone' }
+  // @ts-expect-error an unknown outcome is not a refusal
+  const unknown: AbandonBasis = { kind: 'refused', refusal: 'outcome-unknown' }
+  const input: AbandonInput<string> = {
+    principal: 'p',
+    tenant,
+    call,
+    operation,
+    result,
+    basis: refused,
+  }
+  void [unreadable, unknown, input]
+  expectTypeOf<AbandonReceipt['custody']>().toEqualTypeOf<
+    Extract<CustodyState, { kind: 'abandoned' }>
+  >()
+  expectTypeOf<AbandonReceipt['custody']['cleanup']>().toEqualTypeOf<CleanupStage>()
+  expectTypeOf<
+    Extract<CustodyState, { kind: 'acknowledged' }>['cleanup']
+  >().toEqualTypeOf<CleanupStage>()
 })
 
 it('ToolSuggestion is the shared whole tool call and nothing of its own', () => {

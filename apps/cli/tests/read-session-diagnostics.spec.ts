@@ -296,6 +296,113 @@ describe('read-session-diagnostics', () => {
       )
     })
 
+    it('shows the moments, the span to the response and the connect retries of a dispatch, and the progress of its call', async () => {
+      const known = (instant: string) => ({ kind: 'known', instant }) as const
+      const timed = run({
+        modelCalls: [
+          modelCall({
+            call: {
+              kind: 'found',
+              call: 'call-3',
+              phase: 'settled',
+              progress: {
+                allowed: '2',
+                made: '2',
+                last: { cause: 'upstream-unavailable', upstreamStatus: '504' },
+              },
+            },
+            dispatches: [
+              dispatch({
+                dispatch: 'd-3',
+                send: 'sent',
+                outcome: { kind: 'completed', reason: 'stop' },
+                instants: {
+                  prepared: known('2026-11-19T08:00:00.000Z'),
+                  sent: known('2026-11-19T08:00:00.040Z'),
+                  responseStarted: known('2026-11-19T08:00:00.340Z'),
+                  firstContent: known('2026-11-19T08:00:01.040Z'),
+                  ended: { kind: 'unknown' },
+                },
+                timing: {
+                  materialize: { kind: 'known', milliseconds: '40' },
+                  sendToResponse: { kind: 'known', milliseconds: '300' },
+                  sendToFirstContent: { kind: 'known', milliseconds: '1000' },
+                  execution: { kind: 'unknown' },
+                },
+                connectRetries: ['connect-failed'],
+              }),
+            ],
+          }),
+        ],
+      })
+      const service = await serve(diagnosticsService([page([timed], null)]))
+      await loginOwningSession(service)
+      const result = await cli([name, '--session', sessionId])
+      expect(result.code).toBe(0)
+      const lines = result.stdout.split('\n')
+      expect(lines.find(line => line.includes('call call-3'))).toContain(
+        'call call-3 (settled, sent 2 of 2 allowed, last failure upstream-unavailable 504)',
+      )
+      expect(lines).toContain(
+        '        moments: prepared 2026-11-19T08:00:00.000Z, sent 2026-11-19T08:00:00.040Z, response 2026-11-19T08:00:00.340Z, first content 2026-11-19T08:00:01.040Z, ended unknown',
+      )
+      expect(lines).toContain(
+        '        timing: materialize 40 ms, send to response 300 ms, send to first content 1000 ms, execution unknown',
+      )
+      expect(lines).toContain('        connect retries: 1 (connect-failed)')
+    })
+
+    it('shows no retries as zero, several in order, a last failure without a status, and an unknown span to the response', async () => {
+      const lost = run({
+        modelCalls: [
+          modelCall({
+            call: {
+              kind: 'found',
+              call: 'call-4',
+              phase: 'settled',
+              progress: {
+                allowed: '2',
+                made: '1',
+                last: { cause: 'runtime-lost', upstreamStatus: null },
+              },
+            },
+            dispatches: [
+              dispatch({ dispatch: 'd-4', send: 'sent', connectRetries: [] }),
+              dispatch({
+                dispatch: 'd-5',
+                send: 'sent',
+                connectRetries: ['connect-failed', 'connect-timeout'],
+              }),
+            ],
+          }),
+          modelCall({
+            call: {
+              kind: 'found',
+              call: 'call-5',
+              phase: 'settled',
+              progress: { allowed: '2', made: '1', last: null },
+            },
+          }),
+        ],
+      })
+      const service = await serve(diagnosticsService([page([lost], null)]))
+      await loginOwningSession(service)
+      const result = await cli([name, '--session', sessionId])
+      expect(result.code).toBe(0)
+      const lines = result.stdout.split('\n')
+      expect(lines.find(line => line.includes('call call-4'))).toContain(
+        'call call-4 (settled, sent 1 of 2 allowed, last failure runtime-lost)',
+      )
+      expect(lines.find(line => line.includes('call call-5'))).toContain(
+        'call call-5 (settled, sent 1 of 2 allowed)',
+      )
+      expect(lines).toContain('        connect retries: 0')
+      expect(lines).toContain('        connect retries: 2 (connect-failed, connect-timeout)')
+      const timings = lines.filter(line => line.includes('timing:'))
+      expect(timings).toHaveLength(3)
+      expect(timings.every(line => line.includes('send to response unknown'))).toBe(true)
+    })
+
     it('shows the reason of each failed run, the dispatches with timing and account, and the gaps', async () => {
       const service = await serve(diagnosticsService([page([refused, noReply], null, gaps)]))
       await loginOwningSession(service)
@@ -312,7 +419,7 @@ describe('read-session-diagnostics', () => {
           '  model calls: 1',
           '    main ref-1 -> call call-1 (settled), 1 dispatch, coverage complete-through-snapshot',
           '      d-1 openai-compatible: not-sent, first content none-proven, pending',
-          '        timing: materialize unknown, send to first content unknown, execution unknown',
+          '        timing: materialize unknown, send to response unknown, send to first content unknown, execution unknown',
           '        account: unknown (not-recorded)',
           '  tool calls: 0',
           '  messages: message.user 1',
@@ -324,7 +431,7 @@ describe('read-session-diagnostics', () => {
           '  model calls: 1',
           '    main ref-2 -> call call-2 (settled), 1 dispatch, coverage complete-through-snapshot',
           '      d-2 openai-compatible: sent, first content none-proven, failed upstream-unavailable http 504',
-          '        timing: materialize 12 ms, send to first content unknown, execution 1500 ms',
+          '        timing: materialize 12 ms, send to response unknown, send to first content unknown, execution 1500 ms',
           '        account: input_tokens 120 token known, output_tokens unknown token unknown; cost: provider 0.002 USD provisional; duration 1500; receipt received',
           '  tool calls: 1',
           '    tref-1 -> call tcall-1 (settled, foreground), completed',
@@ -453,10 +560,10 @@ describe('read-session-diagnostics', () => {
       expect(result.stdout).toContain(
         [
           '      d-1 openai-compatible: not-sent, first content none-proven, interrupted',
-          '        timing: materialize unknown, send to first content unknown, execution unknown',
+          '        timing: materialize unknown, send to response unknown, send to first content unknown, execution unknown',
           '        account: unknown (not-recorded)',
           '      d-2 openai-compatible: not-sent, first content none-proven, completed limit',
-          '        timing: materialize unknown, send to first content unknown, execution unknown',
+          '        timing: materialize unknown, send to response unknown, send to first content unknown, execution unknown',
           '        account: unknown (not-recorded)',
           '      d-3 openai-compatible: not-sent, first content none-proven, failed stream-lost http unknown',
         ].join('\n'),
@@ -541,7 +648,7 @@ describe('read-session-diagnostics', () => {
           '  model calls: 1',
           '    main ref-1 -> call call-1 (settled), 1 dispatch, coverage complete-through-snapshot',
           '      d-1 openai-compatible: not-sent, first content none-proven, pending',
-          '        timing: materialize unknown, send to first content unknown, execution unknown',
+          '        timing: materialize unknown, send to response unknown, send to first content unknown, execution unknown',
           '        account: output_tokens 7 token provisional; cost: none; duration unknown; receipt late',
           '      facts: model.retry 2',
           '  tool calls: 2',

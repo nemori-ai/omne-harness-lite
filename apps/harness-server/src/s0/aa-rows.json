@@ -312,6 +312,12 @@
       ]
     },
     {
+      "row": "model-host",
+      "names": [
+        "tenantDomainScannerPrincipal"
+      ]
+    },
+    {
       "row": "model-records",
       "names": [
         "storage",

@@ -59,6 +59,20 @@ describe('the config of the model-host row', () => {
     expect(modelHostConfig.safeParse(config).success).toBe(false)
   })
 
+  it('takes the result push intervals as a table and refuses one that is empty or lists anything but integers of at least 1 (C9)', () => {
+    const withDelays = (delaysMs: unknown) =>
+      modelHostConfig.safeParse({ ...base, results: { ...base.results, delaysMs } })
+    const parsed = withDelays([5, 50])
+    expect(parsed.success && parsed.data.results.delaysMs).toEqual([5, 50])
+    for (const delaysMs of [undefined, [], [0], [1.5], ['1']])
+      expect(withDelays(delaysMs).success, JSON.stringify(delaysMs)).toBe(false)
+  })
+
+  it('refuses the removed cleanupRetryMs, which nothing read (C9)', () => {
+    const config = { ...base, runtime: { ...base.runtime, cleanupRetryMs: 0 } }
+    expect(modelHostConfig.safeParse(config).success).toBe(false)
+  })
+
   it('refuses the removed retryBackoffMs', () => {
     const config = { ...base, runtime: { ...base.runtime, retryBackoffMs: 0 } }
     expect(modelHostConfig.safeParse(config).success).toBe(false)

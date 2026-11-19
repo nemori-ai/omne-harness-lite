@@ -3,10 +3,12 @@ import { classify } from '../rows/authorization/principals.ts'
 
 export const MODEL_HOST_COMPONENT = 'modelHostAuthority'
 export const MODEL_WORK_OWNER = 'model'
+/** The work the Model host does at start: reading the calls a tenant left, never one call. */
+export const MODEL_SCAN_OWNER = 'model-start-scan'
 export const COMPACTION_COMPONENT = 'contextCompaction'
 export const COMPACTION_WORK_OWNER = 'context-compaction'
 
-export type PrincipalClass = 'login' | 'work' | 'host'
+export type PrincipalClass = 'login' | 'work' | 'host' | 'scan'
 
 function isOwnedWork(
   value: unknown,
@@ -38,5 +40,7 @@ export function classOf(
     return { kind: 'work', principal }
   if (isOwnedWork(principal, MODEL_HOST_COMPONENT, MODEL_WORK_OWNER))
     return { kind: 'host', principal }
+  if (isOwnedWork(principal, MODEL_HOST_COMPONENT, MODEL_SCAN_OWNER))
+    return { kind: 'scan', principal }
   return null
 }

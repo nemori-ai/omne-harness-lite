@@ -28,6 +28,7 @@ const INTERRUPTED: TransportFact = {
   kind: 'ended',
   termination: { kind: 'interrupted', stop: 'confirmed' },
 }
+const RESPONSE: TransportFact = { kind: 'response', request: null }
 
 let certificate: Certificate
 beforeAll(() => {
@@ -96,6 +97,7 @@ describe('a start that sends', () => {
         })
         expect(Buffer.from(request.body).toString()).toBe('{"model":"test-model","messages":0}')
         expect(await collect(stream)).toEqual([
+          RESPONSE,
           { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
           { kind: 'block-delta', index: '0', delta: 'hel' },
           { kind: 'block-delta', index: '0', delta: 'lo' },
@@ -106,6 +108,43 @@ describe('a start that sends', () => {
         expect(server.requests).toHaveLength(1)
       },
     )
+  })
+
+  it('reports the response with the identity the upstream gave the request in a header, before any content', async () => {
+    await withTransport(
+      res => {
+        res.setHeader('x-generation-id', 'gen-0042')
+        answerSse(res, sseBody(STOP))
+      },
+      async ({ transport }) => {
+        const facts = await collect(
+          (await transport.materialize()).start(new AbortController().signal),
+        )
+        expect(facts).toEqual([{ kind: 'response', request: 'gen-0042' }, COMPLETED])
+      },
+    )
+  })
+
+  it('reports the identity of a refused request too, and none when no header named it', async () => {
+    for (const [header, request] of [
+      ['gen-0043', 'gen-0043'],
+      [null, null],
+    ] as const)
+      await withTransport(
+        res => {
+          if (header !== null) res.setHeader('x-generation-id', header)
+          res.writeHead(503).end('{"error":"busy"}')
+        },
+        async ({ transport }) => {
+          const facts = await collect(
+            (await transport.materialize()).start(new AbortController().signal),
+          )
+          expect(facts).toEqual([
+            { kind: 'response', request },
+            failedWith('upstream-unavailable', 'http-503', '503'),
+          ])
+        },
+      )
   })
 
   it('sends the secret of the route item as the bearer, whatever other items the slot holds', async () => {
@@ -211,7 +250,10 @@ describe('a start that sends', () => {
         const facts = await collect(
           (await transport.materialize()).start(new AbortController().signal),
         )
-        expect(facts).toEqual([failedWith('upstream-protocol', 'decoder-ended-twice', null)])
+        expect(facts).toEqual([
+          RESPONSE,
+          failedWith('upstream-protocol', 'decoder-ended-twice', null),
+        ])
       },
     )
   })
@@ -260,6 +302,7 @@ describe('the end marker', () => {
           (await transport.materialize()).start(new AbortController().signal),
         )
         expect(facts).toEqual([
+          RESPONSE,
           { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
           { kind: 'block-delta', index: '0', delta: 'hi' },
           COMPLETED,
@@ -282,7 +325,7 @@ describe('the end marker', () => {
         const facts = await readAll(
           (await transport.materialize()).start(new AbortController().signal),
         )
-        expect(facts).toEqual([COMPLETED])
+        expect(facts).toEqual([RESPONSE, COMPLETED])
         expect(await slotFree(resources)).toBe(true)
       },
     )
@@ -295,7 +338,7 @@ describe('the end marker', () => {
         for (let send = 0; send < 2; send += 1)
           expect(
             await collect((await transport.materialize()).start(new AbortController().signal)),
-          ).toEqual([COMPLETED])
+          ).toEqual([RESPONSE, COMPLETED])
         expect(server.requests).toHaveLength(2)
         expect(server.openedSockets()).toBe(1)
       },
@@ -309,7 +352,7 @@ describe('the end marker', () => {
         for (let send = 0; send < 2; send += 1) {
           expect(
             await collect((await transport.materialize()).start(new AbortController().signal)),
-          ).toEqual([COMPLETED])
+          ).toEqual([RESPONSE, COMPLETED])
           expect(resources.inFlight.size).toBe(0)
           expect(await slotFree(resources)).toBe(true)
         }
@@ -341,7 +384,7 @@ describe('the failures after the send', () => {
           const facts = await collect(
             (await transport.materialize()).start(new AbortController().signal),
           )
-          expect(facts).toEqual([failedWith(cause, `http-${status}`, String(status))])
+          expect(facts).toEqual([RESPONSE, failedWith(cause, `http-${status}`, String(status))])
           expect(JSON.stringify(facts)).not.toMatch(/secret/)
           expect(await slotFree(resources)).toBe(true)
         },
@@ -359,7 +402,7 @@ describe('the failures after the send', () => {
         const facts = await collect(
           (await transport.materialize()).start(new AbortController().signal),
         )
-        expect(facts).toEqual([failedWith('upstream-protocol', 'http-302', '302')])
+        expect(facts).toEqual([RESPONSE, failedWith('upstream-protocol', 'http-302', '302')])
         expect(server.requests).toHaveLength(1)
       },
     )
@@ -413,6 +456,7 @@ describe('the failures after the send', () => {
           (await transport.materialize()).start(new AbortController().signal),
         )
         expect(facts).toEqual([
+          RESPONSE,
           { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
           { kind: 'block-delta', index: '0', delta: 'part' },
           failedWith('stream-lost', 'response-body-lost', null),
@@ -429,7 +473,10 @@ describe('the failures after the send', () => {
         const facts = await collect(
           (await transport.materialize()).start(new AbortController().signal),
         )
-        expect(facts).toEqual([failedWith('upstream-protocol', 'sse-event-too-large', null)])
+        expect(facts).toEqual([
+          RESPONSE,
+          failedWith('upstream-protocol', 'sse-event-too-large', null),
+        ])
         expect(resources.inFlight.size).toBe(0)
       },
     )
@@ -442,7 +489,10 @@ describe('the failures after the send', () => {
         const facts = await collect(
           (await transport.materialize()).start(new AbortController().signal),
         )
-        expect(facts).toEqual([failedWith('upstream-protocol', 'frame-invalid-json', null)])
+        expect(facts).toEqual([
+          RESPONSE,
+          failedWith('upstream-protocol', 'frame-invalid-json', null),
+        ])
       },
     )
   })
@@ -454,7 +504,7 @@ describe('the failures after the send', () => {
         const facts = await collect(
           (await transport.materialize()).start(new AbortController().signal),
         )
-        expect(facts).toEqual([failedWith('input-rejected', 'test-fault', null)])
+        expect(facts).toEqual([RESPONSE, failedWith('input-rejected', 'test-fault', null)])
       },
     )
   })
@@ -467,6 +517,7 @@ describe('stopping a started send', () => {
   }
 
   async function readTwo(iterator: AsyncIterator<TransportFact>): Promise<void> {
+    expect((await iterator.next()).value).toEqual(RESPONSE)
     expect((await iterator.next()).value).toMatchObject({ kind: 'block-open' })
     expect((await iterator.next()).value).toMatchObject({ kind: 'block-delta' })
   }
@@ -498,6 +549,7 @@ describe('stopping a started send', () => {
         const iterator = (await transport.materialize())
           .start(controller.signal)
           [Symbol.asyncIterator]()
+        expect((await iterator.next()).value).toEqual(RESPONSE)
         expect((await iterator.next()).value).toMatchObject({ kind: 'block-open' })
         controller.abort()
         const rest: TransportFact[] = []
@@ -518,6 +570,7 @@ describe('stopping a started send', () => {
         const iterator = (await transport.materialize())
           .start(controller.signal)
           [Symbol.asyncIterator]()
+        expect((await iterator.next()).value).toEqual(RESPONSE)
         expect((await iterator.next()).value).toMatchObject({ kind: 'block-open' })
         controller.abort()
         expect((await iterator.next()).value).toEqual({
@@ -575,6 +628,7 @@ describe('stopping a started send', () => {
             controller.abort()
             release.resolve()
             expect(await facts).toEqual([
+              RESPONSE,
               { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
               { kind: 'block-delta', index: '0', delta: 'hi' },
               COMPLETED,
@@ -685,13 +739,13 @@ describe('capacity across real sends', () => {
       await settle()
       expect(waiting.done).toBe(false)
       answer.release()
-      expect(await collect(first)).toEqual([COMPLETED])
+      expect(await collect(first)).toEqual([RESPONSE, COMPLETED])
       await expect.poll(() => waiting.done).toBe(true)
       const second = waiting.value
       if (second === undefined || !('ok' in second)) throw new Error('expected a materialization')
       const stream = second.ok.start(new AbortController().signal)
       expect(transport.sends()).toBe(2)
-      expect(await collect(stream)).toEqual([COMPLETED])
+      expect(await collect(stream)).toEqual([RESPONSE, COMPLETED])
       expect(server.requests).toHaveLength(transport.sends())
     })
   })
@@ -726,7 +780,10 @@ describe('capacity across real sends', () => {
         await held.close()
         const next = await waiting
         if (!('ok' in next)) throw new Error('expected a materialization')
-        expect(await collect(next.ok.start(new AbortController().signal))).toEqual([COMPLETED])
+        expect(await collect(next.ok.start(new AbortController().signal))).toEqual([
+          RESPONSE,
+          COMPLETED,
+        ])
         expect(transport.sends()).toBe(1)
         expect(server.requests).toHaveLength(1)
       },

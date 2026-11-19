@@ -42,6 +42,7 @@ import {
   callHandler,
   createSqlModelCommands,
   createSqlModelStorage,
+  dispatchFactsMigration,
   modelMigration,
   pendingHandler,
   requestHandler,
@@ -83,6 +84,7 @@ function sqliteStorage() {
     if (found !== undefined) return found
     const db = new DatabaseSync(':memory:')
     modelMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
+    dispatchFactsMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
     const domain = { db, receipts: new Map<string, ReceiptV2>() }
     domains.set(name, domain)
     return domain
@@ -645,6 +647,17 @@ describe('tenants', () => {
     const fence = fenceOf(subject, own.demand)
     expect(fence.enter().kind).toBe('started')
     expect(fence.starts()).toBe(1)
+  })
+})
+
+describe('the start scan through the mirror', () => {
+  it('lists the calls of a tenant that have work, with the storage that reads them', async () => {
+    const subject = sqlAssembly()
+    await drive(subject, callId('waiting'), 'admitted')
+    const access = { principal, tenant: TENANT }
+    expect(await subject.commands.scanPending({ ...access, after: null, limit: 2 })).toEqual({
+      ok: { calls: [callId('waiting')], next: null },
+    })
   })
 })
 

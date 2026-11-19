@@ -14,6 +14,7 @@ import { LIMITS } from './support/test-family.ts'
 import { collect, slotFree, transportOver } from './support/transport.ts'
 
 const PATH = '/api/v1/chat/completions'
+const RETRIED: TransportFact = { kind: 'connect-retry', reason: 'connect-failed' }
 const CONNECT_FAILED: TransportFact = {
   kind: 'ended',
   termination: {
@@ -54,7 +55,7 @@ describe('retry of a send over real sockets', () => {
       const facts = await collect(
         (await transport.materialize()).start(new AbortController().signal),
       )
-      expect(facts).toEqual([CONNECT_FAILED])
+      expect(facts).toEqual([RETRIED, RETRIED, CONNECT_FAILED])
       expect(transport.sends()).toBe(3)
       expect(Date.now() - started).toBeGreaterThanOrEqual(55)
       expect(retries(observed)).toEqual([
@@ -84,7 +85,7 @@ describe('retry of a send over real sockets', () => {
       const facts = await collect(
         (await transport.materialize()).start(new AbortController().signal),
       )
-      expect(facts).toEqual([CONNECT_FAILED])
+      expect(facts).toEqual([RETRIED, RETRIED, CONNECT_FAILED])
       expect(transport.sends()).toBe(3)
       expect(told).toEqual([
         { kind: 'connect-retry', level: 'info', attempt: 1, delayMs: 20, reason: 'connect-failed' },
@@ -149,6 +150,7 @@ describe('retry of a send over real sockets', () => {
       const started = Date.now()
       controller.abort()
       expect(await running).toEqual([
+        RETRIED,
         { kind: 'ended', termination: { kind: 'interrupted', stop: 'confirmed' } },
       ])
       expect(Date.now() - started).toBeLessThan(2_000)
@@ -172,6 +174,7 @@ describe('retry of a send over real sockets', () => {
       const started = Date.now()
       await materialized.close()
       expect(await running).toEqual([
+        RETRIED,
         { kind: 'ended', termination: { kind: 'interrupted', stop: 'confirmed' } },
       ])
       expect(Date.now() - started).toBeLessThan(2_000)

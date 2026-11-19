@@ -142,6 +142,11 @@
               "pending": false
             },
             {
+              "name": "ContextWindow",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "FixedModelRequest",
               "kind": "type",
               "pending": false
@@ -387,6 +392,21 @@
               "pending": false
             },
             {
+              "name": "costLookupOf",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "accountUndelivered",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "CostLookupState",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "OverLimitMetric",
               "kind": "type",
               "pending": false
@@ -408,6 +428,16 @@
             },
             {
               "name": "SettledReplay",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CleanupStage",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AbandonBasis",
               "kind": "type",
               "pending": false
             },
@@ -459,6 +489,16 @@
             },
             {
               "name": "AckReceipt",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AbandonInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AbandonReceipt",
               "kind": "type",
               "pending": false
             }
@@ -528,7 +568,37 @@
               "pending": false
             },
             {
+              "name": "DispatchInstants",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ConnectRetryReason",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "DispatchRecord",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFact",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFactsQuery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFactsPage",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelDispatchFacts",
               "kind": "type",
               "pending": false
             },
@@ -1013,6 +1083,11 @@
             },
             {
               "name": "CommitQuery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CostLookupAnswer",
               "kind": "type",
               "pending": false
             },

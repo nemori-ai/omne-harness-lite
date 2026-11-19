@@ -217,6 +217,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
         maxConcurrentCalls: calls,
         maxPendingAccountsPerTenant: calls,
         maxPendingAccounts: calls,
+        delaysMs: [1000, 5000, 30_000],
       },
     })
   })

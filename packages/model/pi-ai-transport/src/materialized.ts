@@ -1,4 +1,5 @@
 import type {
+  ConnectRetryReason,
   FixedModelRequest,
   MaterializationReceipt,
   ReplayDeclaration,
@@ -145,6 +146,7 @@ function createMaterialized(
       signal,
     )
     if (started.kind === 'refused') return endedBeforeSend(endOfRefusal(started.reason))
+    const connectRetries: ConnectRetryReason[] = []
     const exchange =
       config.limits.connectRetry === undefined || config.limits.connectRetry.backoffMs.length === 0
         ? started.exchange
@@ -153,7 +155,9 @@ function createMaterialized(
             diagnostics: {
               emit: event => {
                 config.network.diagnostics.emit(event)
-                if (event.kind === 'connect-retry') tell(config.onConnectRetry, event)
+                if (event.kind !== 'connect-retry') return
+                connectRetries.push(event.reason)
+                tell(config.onConnectRetry, event)
               },
             },
             closed: () => config.network.closed,
@@ -172,6 +176,7 @@ function createMaterialized(
       diagnostics: input.diagnostics,
       replayCarried: input.replayCarried,
       onResponseBody: config.onResponseBody,
+      connectRetries: () => connectRetries,
     })
   }
 

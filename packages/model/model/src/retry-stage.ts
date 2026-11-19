@@ -184,7 +184,7 @@ export function createRetryStage<P>(deps: Deps<P>) {
       const step = afterDispatch({
         recovery: recovery.ok,
         termination: input.termination,
-        now: deps.clock.now(),
+        now: () => deps.clock.now(),
       })
       const advanced = await advance(input, recovery.ok, step)
       if ('failure' in advanced) return advanced

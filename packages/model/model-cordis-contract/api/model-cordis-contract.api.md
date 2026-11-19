@@ -26,6 +26,7 @@
 - `ModelConvertersService` · `converters.d.ts`
 - `ModelCredentialService` · `cordis.d.ts`
 - `ModelDiagnosticsService` · `cordis.d.ts`
+- `ModelDispatchFactsService` · `cordis.d.ts`
 - `ModelHostAuthorityService` · `cordis.d.ts`
 - `ModelInstanceHostService` · `cordis.d.ts`
 - `ModelInstancesService` · `instances.d.ts`
@@ -54,6 +55,7 @@
 - `modelConvertersKey` · `converters.d.ts`
 - `modelCredentialKey` · `cordis.d.ts`
 - `modelDiagnosticsKey` · `cordis.d.ts`
+- `modelDispatchFactsKey` · `cordis.d.ts`
 - `modelHostAuthorityKey` · `cordis.d.ts`
 - `modelInstanceHostKey` · `cordis.d.ts`
 - `modelInstancesKey` · `instances.d.ts`
@@ -107,7 +109,7 @@ export declare const modelConvertersKey = "modelConverters";
 ```ts
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelPreparationResources, ModelResultReceiver, ModelRuntime, ModelStreamReferences, ModelStreamObservation, Revision } from '@omne-harness/model-contract';
+import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelDispatchFacts, ModelPreparationResources, ModelResultReceiver, ModelRuntime, ModelStreamReferences, ModelStreamObservation, Revision } from '@omne-harness/model-contract';
 import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMessageConversion, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
 import type { ModelConvertersService } from './converters.ts';
 import type { ModelInstancesService } from './instances.ts';
@@ -169,6 +171,8 @@ export declare abstract class ModelCommandsService<P> extends Service implements
     abstract readonly nextRead: ModelCommands<P>['nextRead'];
     abstract readonly endRead: ModelCommands<P>['endRead'];
     abstract readonly handoff: ModelCommands<P>['handoff'];
+    abstract readonly abandon: ModelCommands<P>['abandon'];
+    abstract readonly confirmAccount: ModelCommands<P>['confirmAccount'];
     abstract readonly advanceCleanup: ModelCommands<P>['advanceCleanup'];
     abstract readonly query: ModelCommands<P>['query'];
     abstract readonly dispatches: ModelCommands<P>['dispatches'];
@@ -259,9 +263,16 @@ export declare abstract class ModelDiagnosticsService<P> extends Service impleme
     abstract readonly list: ModelDiagnostics<P>['list'];
 }
 export declare const modelDiagnosticsKey = "modelDiagnostics";
+export declare abstract class ModelDispatchFactsService<P> extends Service implements ModelDispatchFacts<P> {
+    static readonly provide = "modelDispatchFacts";
+    constructor(ctx: CordisContext);
+    abstract readonly list: ModelDispatchFacts<P>['list'];
+}
+export declare const modelDispatchFactsKey = "modelDispatchFacts";
 declare module '@deepseek-ai/cordis' {
     interface Context {
         modelDiagnostics: ModelDiagnosticsService<unknown>;
+        modelDispatchFacts: ModelDispatchFactsService<unknown>;
         modelRuntime: ModelRuntimeService<unknown>;
         modelCommands: ModelCommandsService<unknown>;
         modelSendBoundary: ModelSendBoundaryService<unknown>;

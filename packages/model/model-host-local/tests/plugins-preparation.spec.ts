@@ -94,6 +94,10 @@ const user = (id: string, text = 'hello') => ({
 function requestWith(messages: readonly unknown[]): FixedModelRequest {
   const judged = judgeFixedModelRequest({
     profile: ADOPTION,
+    contextWindow: {
+      tokens: PROFILE.definition.context.window.provided,
+      compactionTriggerPercent: PROFILE.definition.context.compactionTriggerPercent,
+    },
     suppliers: [SUPPLIER],
     fallback: false,
     retryPolicy: ADOPTION,
@@ -355,6 +359,8 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
+    declare readonly confirmAccount: ModelCommands<unknown>['confirmAccount']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']

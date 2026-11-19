@@ -300,7 +300,13 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'modelStreamReferences',
       'modelStreamObservation',
     ],
-    injects: ['modelCommands', 'modelClock', 'modelHostAuthority'],
+    injects: [
+      'modelCommands',
+      'modelClock',
+      'modelHostAuthority',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+    ],
     phase: 'business',
   },
   'model-instances': { provides: ['modelInstances'], injects: ['modelPublicationAuthority'] },
@@ -315,7 +321,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'secret-custody': { provides: ['settingsSecretCustody'] },
   settings: { provides: ['settingsSecretItems'], injects: ['settingsSecretCustody'] },
   'model-records': {
-    provides: ['modelCommands', 'modelSendBoundary', 'modelDiagnostics'],
+    provides: ['modelCommands', 'modelSendBoundary', 'modelDiagnostics', 'modelDispatchFacts'],
     injects: ['storage', 'tenantDomainLookup', 'modelClock', 'principalVerifier', 'tenantStanding'],
     group: 'model-records',
   },

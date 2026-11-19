@@ -113,25 +113,57 @@ function attemptsLine(attempts: SessionRunAttempts): string {
   return at(1, `attempts: ${attempts.started}${parts.length === 0 ? '' : ` (${parts.join('; ')})`}`)
 }
 
+type SessionDispatchInstants = NonNullable<SessionModelAttemptDiagnostic['instants']>
+
+function instant(value: SessionDispatchInstants['sent']): string {
+  return value.kind === 'known' ? value.instant : 'unknown'
+}
+
+function momentsLine(instants: SessionDispatchInstants): string {
+  return `moments: prepared ${instant(instants.prepared)}, sent ${instant(instants.sent)}, response ${instant(instants.responseStarted)}, first content ${instant(instants.firstContent)}, ended ${instant(instants.ended)}`
+}
+
+function retriesLine(retries: readonly string[]): string {
+  return retries.length === 0
+    ? 'connect retries: 0'
+    : `connect retries: ${retries.length} (${retries.join(', ')})`
+}
+
 function renderDispatch(attempt: SessionModelAttemptDiagnostic): string[] {
   const { timing } = attempt
+  const toResponse = timing.sendToResponse ?? { kind: 'unknown' }
   return [
     at(
       3,
       `${attempt.dispatch} ${attempt.adapter.name}: ${attempt.send}, first content ${attempt.firstContent}, ${attemptOutcome(attempt.outcome)}${attempt.reasoning === undefined ? '' : `, reasoning ${attempt.reasoning}`}`,
     ),
+    ...(attempt.instants === undefined ? [] : [at(4, momentsLine(attempt.instants))]),
     at(
       4,
-      `timing: materialize ${milliseconds(timing.materialize)}, send to first content ${milliseconds(timing.sendToFirstContent)}, execution ${milliseconds(timing.execution)}`,
+      `timing: materialize ${milliseconds(timing.materialize)}, send to response ${milliseconds(toResponse)}, send to first content ${milliseconds(timing.sendToFirstContent)}, execution ${milliseconds(timing.execution)}`,
     ),
+    ...(attempt.connectRetries === undefined ? [] : [at(4, retriesLine(attempt.connectRetries))]),
     at(4, accountLine(attempt.account)),
   ]
+}
+
+type SessionDispatchProgress = NonNullable<
+  Extract<SessionModelCallDiagnostic['call'], { kind: 'found' }>['progress']
+>
+
+function progressOf(progress: SessionDispatchProgress | undefined): string {
+  if (progress === undefined) return ''
+  const last =
+    progress.last === null
+      ? ''
+      : `, last failure ${progress.last.cause}${progress.last.upstreamStatus === null ? '' : ` ${progress.last.upstreamStatus}`}`
+  return `, sent ${progress.made} of ${progress.allowed} allowed${last}`
 }
 
 function renderModelCall(call: SessionModelCallDiagnostic): string[] {
   const resolved =
     call.call.kind === 'found'
-      ? `call ${call.call.call} (${call.call.phase})`
+      ? `call ${call.call.call} (${call.call.phase}${progressOf(call.call.progress)})`
       : `call ${unknown(call.call)}`
   const dispatches = call.dispatches.length
   return [

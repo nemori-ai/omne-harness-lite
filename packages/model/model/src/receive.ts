@@ -14,6 +14,7 @@ import {
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
 import { executionFailure, verdictOf, type WriteVerdict } from './commands/execution-write.ts'
+import { readInstant } from './commands/instants.ts'
 
 type Open = Parameters<ModelCommands<unknown>['openReceiveWindow']>[0]
 type Preserve = Parameters<ModelCommands<unknown>['preserve']>[0]
@@ -29,14 +30,26 @@ type Stage =
       kind: 'reading'
       window: string
       facts: TransportFact[]
+      arrivals: (string | null)[]
       bytes: number
       flush: boolean
       timer: AbortController | null
     }
-  | { kind: 'ready'; window: string; facts: TransportFact[]; completion: Completion }
+  | {
+      kind: 'ready'
+      window: string
+      facts: TransportFact[]
+      arrivals: (string | null)[]
+      completion: Completion
+    }
   | { kind: 'next' }
   | { kind: 'open'; input: Open; pending: boolean }
-  | { kind: 'preserve'; input: Preserve; pending: boolean; completion: Completion }
+  | {
+      kind: 'preserve'
+      input: Preserve & Readonly<{ arrivals: readonly (string | null)[] }>
+      pending: boolean
+      completion: Completion
+    }
   | { kind: 'terminal'; evidence: ReceivedTerminal; published: boolean }
   | { kind: 'refused'; refusal: ModelFailure }
   | { kind: 'superseded'; failure: ModelFailure }
@@ -66,14 +79,7 @@ export function createReceiver<P>(input: {
 }) {
   const { commands, demand } = input
   const iterator = input.facts[Symbol.asyncIterator]()
-  let stage: Stage = {
-    kind: 'reading',
-    window: input.window,
-    facts: [],
-    bytes: 0,
-    flush: false,
-    timer: null,
-  }
+  let stage: Stage = reading(input.window)
   let released: Reply<void> | undefined
   function release(): Reply<void> {
     released ??= (async () => {
@@ -87,7 +93,7 @@ export function createReceiver<P>(input: {
     return released
   }
   function reading(window: string): Stage {
-    return { kind: 'reading', window, facts: [], bytes: 0, flush: false, timer: null }
+    return { kind: 'reading', window, facts: [], arrivals: [], bytes: 0, flush: false, timer: null }
   }
   async function supersede(failure: ModelFailure): Promise<{ failure: ModelFailure }> {
     stage = { kind: 'superseded', failure }
@@ -148,6 +154,7 @@ export function createReceiver<P>(input: {
         dispatch: demand.dispatch,
         window: entry.window,
         facts: entry.facts,
+        arrivals: entry.arrivals,
       },
     }
     return { ok: null }
@@ -235,6 +242,7 @@ export function createReceiver<P>(input: {
           kind: 'ready',
           window: entry.input.window,
           facts: [...entry.input.facts],
+          arrivals: [...entry.input.arrivals],
           completion: entry.completion,
         }
         input.refresh()
@@ -289,23 +297,22 @@ export function createReceiver<P>(input: {
     return { ok: null }
   }
   function armBatchTimer(batch: Extract<Stage, { kind: 'reading' }>): void {
-    if (batch.facts.length === 1 && input.batchDelayMs > 0) {
-      const timer = new AbortController()
-      batch.timer = timer
-      void input.clock
-        .waitUntil(
-          new Date(Date.parse(input.clock.now()) + input.batchDelayMs).toISOString(),
-          timer.signal,
-        )
-        .then(
-          result => {
-            if (result === 'elapsed') batch.flush = true
-          },
-          () => {
-            batch.flush = true
-          },
-        )
-    }
+    const from = batch.arrivals[0] ?? null
+    if (batch.facts.length !== 1 || input.batchDelayMs <= 0) return
+    batch.flush = from === null
+    if (from === null) return
+    const timer = new AbortController()
+    batch.timer = timer
+    void input.clock
+      .waitUntil(new Date(Date.parse(from) + input.batchDelayMs).toISOString(), timer.signal)
+      .then(
+        result => {
+          if (result === 'elapsed') batch.flush = true
+        },
+        () => {
+          batch.flush = true
+        },
+      )
   }
   async function readBatch(batch: Extract<Stage, { kind: 'reading' }>): Reply<null> {
     let next: IteratorResult<TransportFact>
@@ -313,6 +320,7 @@ export function createReceiver<P>(input: {
       next = await iterator.next()
     } catch {
       batch.timer?.abort()
+      batch.arrivals.push(readInstant(input.clock))
       batch.facts.push({
         kind: 'ended',
         termination: {
@@ -328,10 +336,12 @@ export function createReceiver<P>(input: {
         kind: 'ready',
         window: batch.window,
         facts: batch.facts,
+        arrivals: batch.arrivals,
         completion: 'stream-lost',
       }
       return { ok: null }
     }
+    batch.arrivals.push(readInstant(input.clock))
     if (!next.done) {
       batch.facts.push(structuredClone(next.value))
       batch.bytes += Buffer.byteLength(JSON.stringify(next.value), 'utf8')
@@ -357,6 +367,7 @@ export function createReceiver<P>(input: {
       kind: 'ready',
       window: batch.window,
       facts: batch.facts,
+      arrivals: batch.arrivals,
       completion: next.done ? 'stream-lost' : terminal ? 'terminal' : 'continue',
     }
     return { ok: null }

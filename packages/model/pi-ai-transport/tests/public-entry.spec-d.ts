@@ -7,7 +7,11 @@ import type {
   Supplier,
   TransportFailure,
 } from '@omne-harness/model-contract'
-import type { ModelTransport, TransportFact } from '@omne-harness/model-contract/provider'
+import type {
+  CostLookupAnswer,
+  ModelTransport,
+  TransportFact,
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   createNetworkResources,
@@ -72,10 +76,18 @@ it('acquire selects one supplier under a cancel signal', () => {
   >()
 })
 
-it('the factory takes the configuration and gives a model transport with its own close', () => {
+it('the factory takes the configuration and gives a model transport, the cost lookup and its own close', () => {
   expectTypeOf(createPiTransport).parameters.toEqualTypeOf<[PiTransportConfig]>()
   expectTypeOf(createPiTransport).returns.toEqualTypeOf<
-    Readonly<{ transport: ModelTransport; close(): Promise<void> }>
+    Readonly<{
+      transport: ModelTransport
+      lookupCost(
+        supplier: Supplier,
+        request: string,
+        signal: AbortSignal,
+      ): Promise<CostLookupAnswer>
+      close(): Promise<void>
+    }>
   >()
 })
 
