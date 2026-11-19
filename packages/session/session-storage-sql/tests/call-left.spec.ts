@@ -376,11 +376,11 @@ describe('an intent that left the stored snapshot and is associated afterwards',
     }
     const scope = { tenant: textOf(TENANT_A), session: SESSION }
     const keys = { consumptions: [consumption], producers: [] }
-    const [paged] = callsLeft(port as never, scope, null, 1)(keys as never)
+    const [paged] = callsLeft(port as never, scope, undefined, 1)(keys as never)
     expect(paged?.consumed?.results.map(item => item.custody?.digest)).toEqual([
       evidence('custody-invoked').digest,
     ])
-    expect(callsLeft(port as never, scope, null, 2)(keys as never)).toEqual([paged])
+    expect(callsLeft(port as never, scope, undefined, 3)(keys as never)).toEqual([paged])
     expect(callsLeft(port as never, scope)(keys as never)).toEqual([paged])
   })
 })

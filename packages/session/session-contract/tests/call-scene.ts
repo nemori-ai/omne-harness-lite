@@ -2,25 +2,50 @@ import type { CallBinding, ConsumptionId, Participation } from '@omne-harness/se
 import { evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
 import { open, participation } from './scene.ts'
 
+type Opened = Awaited<ReturnType<typeof open>>
+type Active = Awaited<ReturnType<Opened['active']>>
+
 /** One Tool call of the active Run (or one bound from outside a Run), with the steps of its result. */
 export async function callScene(external = false) {
   const s = await open()
-  const { run, advance } = await s.active()
+  return callOn(s, await s.active(), external, 'original', 1, '2')
+}
+
+/** Several calls of one session, each with its own identities: what is said about one must not touch another. */
+export async function callsScene(external: boolean, count: number) {
+  const s = await open()
+  const active = await s.active()
+  const calls = []
+  // The Agent wrote one revision for each call it registered: its hand-overs come after them.
+  const written = String(count + 1)
+  for (let n = 1; n <= count; n += 1)
+    calls.push(await callOn(s, active, external, `call-${n}`, n, written))
+  return calls
+}
+
+async function callOn(
+  s: Opened,
+  { run, advance }: Active,
+  external: boolean,
+  tag: string,
+  n: number,
+  written: string,
+) {
   const binding: CallBinding = {
-    producer: { kind: 'tool', call: 'original-call' },
+    producer: { kind: 'tool', call: `${tag}-call` },
     action: 'action',
-    consumer: { owner: 'session', work: 'work', position: 'original-position', purpose: 'action' },
+    consumer: { owner: 'session', work: 'work', position: `${tag}-position`, purpose: 'action' },
     request: evidence('request'),
     initiatingAttempt: external ? null : advance.attempt,
   }
-  const id = 'original-consumption' as ConsumptionId
+  const id = `${tag}-consumption` as ConsumptionId
   const consumption = external
     ? succeeded(
         await s.commit({
           kind: 'bindExternalCall',
           input: {
             ...s.base,
-            operation: operationId('bind'),
+            operation: operationId(`bind-${tag}`),
             expected: (await s.read()).revision,
             binding: { ...binding, initiatingAttempt: null },
             qualification: evidence('qualified'),
@@ -36,9 +61,9 @@ export async function callScene(external = false) {
           ...s.base,
           run: run.run,
           execution: run.execution.execution,
-          revision: '1',
-          sequence: '1',
-          source: evidence('call'),
+          revision: String(n),
+          sequence: String(n),
+          source: evidence(`call-${n}`),
           consequences: [
             {
               kind: 'call-registration',
@@ -55,7 +80,7 @@ export async function callScene(external = false) {
             },
           ],
         },
-        operationId('call'),
+        operationId(`call-${tag}`),
       ),
       'call',
     )
@@ -83,7 +108,7 @@ export async function callScene(external = false) {
     })
   const process = (
     operation: string,
-    part = participation(run.execution.execution, 'processed'),
+    part = { ...participation(run.execution.execution, 'processed'), written },
     proof = evidence('processed'),
   ) =>
     s.commit({

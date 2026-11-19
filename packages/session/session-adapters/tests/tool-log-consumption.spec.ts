@@ -217,6 +217,7 @@ type Wraps = Partial<{
   commitEntries: SessionTransactionPort<string>['commitEntries']
   /** What the work read answers, given what the store holds. */
   work: (snapshot: WorkSnapshot) => WorkSnapshot
+  call: SessionTransactionPort<string>['readCall']
 }>
 const ALL = ['Session', 'Journal', 'Materials', 'Transactions'] as const
 
@@ -249,7 +250,7 @@ async function assembled(s: ToolScene, options: Options = {}) {
         )
     },
     readCall: (input: Parameters<SessionTransactionPort<string>['readCall']>[0]) =>
-      s.backend.transactions.readCall(input),
+      (wraps.call ?? s.backend.transactions.readCall)(input),
   }
   class Session extends SessionService<unknown> {
     get work(): SessionFaces<unknown>['work'] {
@@ -417,6 +418,21 @@ describe('a Tool received entry becomes one entries-channel Session batch', () =
       'account.linked',
       'entries.interpreted',
     ])
+  })
+
+  it('a binding that Session cannot read answers its failure: the result is not taken for one of an unbound call', async () => {
+    const s = await toolScene('unread')
+    await receive(s, s.result, 'result')
+    const f = await assembled(s, {
+      wraps: {
+        call: async () =>
+          fail({ kind: 'unavailable', owner: 'session', diagnostic: 'the store is down' }),
+      },
+    })
+    expect(await f.consume()).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'the store is down' },
+    })
+    expect(f.commits).toHaveLength(0)
   })
 
   it('Model entries of the same execution are not this channel', async () => {

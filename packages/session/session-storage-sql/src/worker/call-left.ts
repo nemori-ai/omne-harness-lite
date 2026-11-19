@@ -74,51 +74,50 @@ export function writeCallsLeft(
     )
 }
 
+// The largest position: a read without a batch to stop at sees every row.
+const LATEST = 9223372036854775807n
+const LATE_PAGE = 256
+
 function consumptionsOf(
   port: Executor,
   scope: Scope,
   keys: SessionCallKeys,
-  through: bigint | null,
+  through: bigint,
 ): ReadonlySet<string> {
   const ids = new Set<string>(keys.consumptions)
-  const bound = through === null ? '' : ' AND position <= ?'
   for (const producer of keys.producers)
     for (const table of CALL_LEFT_TABLES) {
-      const where = [scope.tenant, scope.session, named(producer)]
       const row = oneRow(
         port,
-        `SELECT consumption FROM ${table} WHERE tenant = ? AND session = ? AND producer = ?${bound} LIMIT 1`,
-        through === null ? where : [...where, through],
+        `SELECT consumption FROM ${table}
+          WHERE tenant = ? AND session = ? AND producer = ? AND position <= ? LIMIT 1`,
+        [scope.tenant, scope.session, named(producer), through],
       )
       if (row !== undefined) ids.add(text(row['consumption']))
     }
   return ids
 }
 
-const LATE_PAGE = 256
-
 // Every statement is bounded; the read goes on until a page comes back short, so no number of slots fails it.
 function lateOf(
   port: Executor,
-  scope: Scope,
-  consumption: string,
-  through: bigint | null,
+  where: readonly [string, string, string],
+  through: bigint,
   page: number,
 ): SessionLateCallFact[] {
   const facts: SessionLateCallFact[] = []
-  const bound = through === null ? [] : [through]
   let after: readonly bigint[] = [-1n, -1n]
   for (;;) {
     const rows = rowsOf(
       port,
       `SELECT position, ordinal, body FROM sl_call_late
         WHERE tenant = ? AND session = ? AND consumption = ? AND (position, ordinal) > (?, ?)
-        ${through === null ? '' : 'AND position <= ?'} ORDER BY position, ordinal LIMIT ?`,
-      [scope.tenant, scope.session, consumption, ...after, ...bound, BigInt(page)],
+        AND position <= ? ORDER BY position, ordinal LIMIT ?`,
+      [...where, ...after, through, BigInt(page)],
     )
     for (const row of rows) facts.push(read<SessionLateCallFact>(row['body']))
-    const last = rows.at(-1)
-    if (last === undefined || rows.length < page) return facts
+    if (rows.length < page) return facts
+    const last = rows[rows.length - 1] as (typeof rows)[number]
     after = [BigInt(String(last['position'])), BigInt(String(last['ordinal']))]
   }
 }
@@ -127,21 +126,20 @@ function lateOf(
 export function callsLeft(
   port: Executor,
   scope: Scope,
-  through: bigint | null = null,
+  through: bigint = LATEST,
   page = LATE_PAGE,
 ): SettledCallLookup {
-  const bound = through === null ? '' : ' AND position <= ?'
   return keys =>
     [...consumptionsOf(port, scope, keys, through)].flatMap(consumption => {
-      const where = [scope.tenant, scope.session, consumption]
-      const params = through === null ? where : [...where, through]
+      const where = [scope.tenant, scope.session, consumption] as const
       const left = oneRow(
         port,
-        `SELECT body FROM sl_call_left WHERE tenant = ? AND session = ? AND consumption = ?${bound} LIMIT 1`,
-        params,
+        `SELECT body FROM sl_call_left
+          WHERE tenant = ? AND session = ? AND consumption = ? AND position <= ? LIMIT 1`,
+        [...where, through],
       )
       if (left === undefined) return []
-      const late = lateOf(port, scope, consumption, through, page)
+      const late = lateOf(port, where, through, page)
       return [callWithLate(read<SessionCall>(left['body']), late)]
     })
 }

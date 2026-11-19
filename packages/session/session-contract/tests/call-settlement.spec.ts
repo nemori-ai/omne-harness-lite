@@ -3,7 +3,7 @@ import type { HistoryEntry, WorkSnapshot } from '@omne-harness/session-contract'
 import { evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
 import type { SessionCall } from '../src/call-settlement.ts'
 import { decodeEntry } from '../src/entries.ts'
-import { callScene, intentScene } from './call-scene.ts'
+import { callScene, callsScene, intentScene } from './call-scene.ts'
 
 const held = (snapshot: WorkSnapshot, consumption: string) => ({
   consumption: snapshot.consumptions.some(item => item.id === consumption),
@@ -237,6 +237,74 @@ describe('a call asked by its key answers what the log says about it', () => {
         expect(left && here).toBe(false)
         left ||= !here
       }
+    },
+  )
+})
+
+describe('several calls of one session', () => {
+  it.each([[false], [true]])(
+    'one leaves and the others stay as they were (bound outside a Run: %s)',
+    async external => {
+      const [first, second, third] = await callsScene(external, 3)
+      if (first === undefined || second === undefined || third === undefined)
+        throw new Error('three calls')
+      const others = () =>
+        JSON.stringify([first.call(first.consumption), third.call(third.consumption)])
+      const before = others()
+      succeeded(await second.preserve('preserve-second'), 'preserve')
+      succeeded(
+        await (external
+          ? second.processExternal('process-second')
+          : second.process('process-second')),
+        'process',
+      )
+      const after = await second.read()
+      expect(held(after, second.consumption)).toEqual(gone)
+      expect(held(after, first.consumption)).toEqual(there)
+      expect(held(after, third.consumption)).toEqual(there)
+      expect(others()).toBe(before)
+      succeeded(await second.release('release-second'), 'a late fact of the one that left')
+      const later = await second.read()
+      expect(held(later, second.consumption)).toEqual(gone)
+      expect(held(later, first.consumption)).toEqual(there)
+      expect(others()).toBe(before)
+      expect(second.call(second.consumption)?.consumed?.results[0]?.release).toBe('confirmed')
+      expect(first.call(first.consumption)?.consumed?.results).toEqual([])
+    },
+  )
+
+  it.each(Array.from({ length: 24 }, (_, seed) => [seed + 1]))(
+    'steps on three calls in the order of seed %i: every record follows the log, none comes back',
+    async seed => {
+      const external = seed % 2 === 0
+      const calls = await callsScene(external, 3)
+      const left = calls.map(() => false)
+      for (const [n, pick] of order(seed, 18).entries()) {
+        const at = (seed + n * 7 + pick) % calls.length
+        const c = calls[at]
+        if (c === undefined) throw new Error('a call')
+        const steps = [
+          () => c.preserve(`preserve-${n}`),
+          () => (external ? c.processExternal(`process-${n}`) : c.process(`process-${n}`)),
+          () => c.release(`release-${n}`),
+          () => c.preserve(`preserve-again-${at}`),
+          () => c.release(`release-again-${at}`),
+        ]
+        await (steps[pick] as () => Promise<unknown>)()
+        const entries = c.port.controls.entriesOf(c.access.tenant, c.access.session)
+        const snapshot = await c.read()
+        for (const [index, each] of calls.entries()) {
+          expect(asKnown(each.call(each.consumption))).toEqual(fromLog(entries, each.consumption))
+          const here = held(snapshot, each.consumption).registration
+          expect(left[index] && here).toBe(false)
+          left[index] ||= !here
+        }
+      }
+      const log = calls[0]?.port.controls.entriesOf(calls[0].access.tenant, calls[0].access.session)
+      const processed = calls.map(each =>
+        fromLog(log ?? [], each.consumption).some(([, result]) => result.completion !== null),
+      )
+      expect(left).toEqual(processed)
     },
   )
 })

@@ -168,6 +168,7 @@ type Wraps = Partial<{
   commitEntries: SessionTransactionPort<string>['commitEntries']
   /** What the work read answers, given what the store holds. */
   work: (snapshot: WorkSnapshot) => WorkSnapshot
+  call: SessionTransactionPort<string>['readCall']
 }>
 const ALL = ['Session', 'Journal', 'Materials', 'Transactions'] as const
 
@@ -195,7 +196,7 @@ async function assembled(
         )
     },
     readCall: (input: Parameters<SessionTransactionPort<string>['readCall']>[0]) =>
-      s.backend.transactions.readCall(input),
+      (wraps.call ?? s.backend.transactions.readCall)(input),
   }
   class Session extends SessionService<unknown> {
     get work(): SessionFaces<unknown>['work'] {
@@ -362,6 +363,19 @@ describe('a call that left the work snapshot', () => {
     await receive(s, sampleReceivedModelAccount(s.access.tenant, s.name, '1'), 'account')
     expect(ok(await f.consume())).toMatchObject({ committed: true, progress: { through: '2' } })
     expect(entriesKinds(s).slice(3)).toEqual(['account.linked', 'entries.interpreted'])
+  })
+
+  it('a binding that Session cannot read answers its failure: the result is not taken for one of an unbound call', async () => {
+    const s = await modelScene('unread')
+    await receive(s, s.result, 'result')
+    const f = await assembled(s, {
+      call: async () =>
+        fail({ kind: 'unavailable', owner: 'session', diagnostic: 'the store is down' }),
+    })
+    expect(await f.consume()).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'the store is down' },
+    })
+    expect(f.commits).toHaveLength(0)
   })
 })
 
