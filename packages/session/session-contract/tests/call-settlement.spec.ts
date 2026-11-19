@@ -93,6 +93,26 @@ describe('a fact about a call that left the snapshot', () => {
   })
 })
 
+describe('a stop of a call that left the snapshot', () => {
+  it('answers that no such call is out, writes no control, and the call stays out', async () => {
+    const s = await callScene()
+    succeeded(await s.preserve('preserve'), 'preserve')
+    succeeded(await s.process('process'), 'process')
+    const before = await s.read()
+    const stopped = succeeded(
+      await s.commit({
+        kind: 'stopCall',
+        input: { ...s.base, operation: operationId('stop'), producer: s.binding.producer },
+      }),
+      'stop',
+    )
+    expect(stopped).toMatchObject({ answer: { kind: 'not-found' } })
+    const after = await s.read()
+    expect(after.controls).toEqual(before.controls)
+    expect(held(after, s.consumption)).toEqual(gone)
+  })
+})
+
 // The record of a call is what the entries that name it say. This reads it from the log alone.
 function fromLog(entries: readonly HistoryEntry[], consumption: string) {
   const results = new Map<
