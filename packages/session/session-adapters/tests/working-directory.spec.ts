@@ -7,8 +7,14 @@ import { memoryAccess, memoryOtherAccess } from '@omne-harness/session-contract/
 import {
   workingDirectoryBindings,
   workingDirectoryCallBinding,
+  workingDirectoryDescriptor,
+  workingDirectoryModelBinding,
+  workingDirectoryProducer,
 } from '../src/cordis/working-directory-block.ts'
-import { createWorkingDirectoryPublisher } from '../src/cordis/working-directory-publisher.ts'
+import {
+  createWorkingDirectoryPublisher,
+  createWorkingDirectoryPublishers,
+} from '../src/cordis/working-directory-publisher.ts'
 import {
   createStepDirectory,
   type StepDirectoryInput,
@@ -20,7 +26,10 @@ type Snapshot = StepDirectoryInput<string>['snapshot']
 
 const access = memoryAccess('directory-a')
 const DEFAULT = '/srv/default'
-const NEED = { need: workingDirectoryCallBinding.need.name, key: workingDirectoryCallBinding.key }
+const NEED = {
+  need: 'session.working-directory-for-calls',
+  key: 'session.working-directory',
+} as const
 
 function workspace(index: number): WorkspaceId {
   const parsed = workspaceCodec.parse(`wsp_${String(index).padStart(26, '0')}`)
@@ -99,6 +108,7 @@ async function world() {
     if (bound.kind !== 'bound') throw new Error(JSON.stringify(bound))
     try {
       const result = await bound.reader.read([NEED])
+      if (result.kind === 'missing') return `missing:${String(result.items[0]?.cause)}`
       if (result.kind !== 'success') return result.kind
       const [item] = result.value
       return item?.kind === 'value' ? item.value : item?.kind
@@ -212,7 +222,10 @@ describe('the working directory in force at a step boundary', () => {
       await p.boundary(w.scope, standing(blog))
       const before = await w.read()
       answer = { kind: 'unavailable' }
-      expect(await p.boundary(w.scope, standing(blog))).toMatchObject({ kind: 'unavailable' })
+      expect(await p.boundary(w.scope, standing(blog))).toEqual({
+        kind: 'unavailable',
+        diagnostic: 'the workspace owner could not verify the selected instance',
+      })
       answer = new Error('the owner threw')
       expect(await p.boundary(w.scope, standing(blog))).toEqual({
         kind: 'unavailable',
@@ -323,7 +336,7 @@ describe('the working directory block between boundaries (C9)', () => {
       expect(await second.publisher.start()).toHaveProperty('kind', 'registered')
       await w.restore(true)
       // Computing it from the latest selection here would pin calls to a directory nobody was told.
-      expect(await w.read()).toBe('missing')
+      expect(await w.read()).toBe('missing:source-unavailable')
       expect(second.asked).toEqual([])
       await second.boundary(w.scope, standing(blog))
       expect(await w.read()).toMatchObject({ directory: '/srv/blog' })
@@ -359,6 +372,14 @@ describe('the working directory block between boundaries (C9)', () => {
       runtime: {
         registerProducer: (principal, input) => {
           supply = input.supply as never
+          // A scoped producer is asked only when a reader finds the block restored without a value.
+          expect(input).toMatchObject({
+            key: 'session.working-directory',
+            tenant: access.tenant,
+            scoped: true,
+            producer: workingDirectoryProducer,
+            declaration: workingDirectoryDescriptor,
+          })
           return w.runtime.registerProducer(principal, input)
         },
       },
@@ -376,6 +397,264 @@ describe('the working directory block between boundaries (C9)', () => {
         kind: 'closed',
       })
       expect(await publisher.start()).toEqual({ kind: 'rejected', reason: 'closed' })
+    } finally {
+      await w.runtime.close()
+    }
+  })
+})
+
+describe('a boundary that cannot publish', () => {
+  const value = { state: 'default', directory: DEFAULT } as const
+  type Runtime = Parameters<typeof createWorkingDirectoryPublisher<string>>[0]['runtime']
+
+  it.each([
+    [
+      'refused',
+      { kind: 'refused', reason: 'unauthorized' },
+      'the publication was refused: unauthorized',
+    ],
+    [
+      'rejected before the scope is restored',
+      { kind: 'rejected', reason: 'replay-incomplete' },
+      'the publication was rejected: replay-incomplete',
+    ],
+    ['unknown', { kind: 'unknown', cause: 'authority' }, 'the publication was unknown'],
+  ] as const)(
+    'answers unavailable when the publication is %s',
+    async (_name, answer, diagnostic) => {
+      const w = await world()
+      const runtime: Runtime = {
+        registerProducer: async (principal, input) => {
+          const registered = await w.runtime.registerProducer(principal, input)
+          if (registered.kind !== 'registered') return registered
+          return {
+            kind: 'registered',
+            handle: { ...registered.handle, publish: async () => answer as never },
+          }
+        },
+      }
+      const publisher = createWorkingDirectoryPublisher<string>({
+        tenant: access.tenant,
+        principal: 'producer',
+        runtime,
+      })
+      try {
+        await w.restore(true)
+        expect(await publisher.publish(w.scope, value)).toEqual({ kind: 'unavailable', diagnostic })
+        // Nothing was published, so nothing is supplied and the next boundary publishes again.
+        expect(await w.read()).toBe('missing:source-unavailable')
+      } finally {
+        await publisher.close()
+        await w.runtime.close()
+      }
+    },
+  )
+
+  it('answers unavailable when the producer cannot be registered, and registers again next time', async () => {
+    const w = await world()
+    let refuse = true
+    let registrations = 0
+    const publisher = createWorkingDirectoryPublisher<string>({
+      tenant: access.tenant,
+      principal: 'producer',
+      runtime: {
+        registerProducer: async (principal, input) => {
+          registrations++
+          return refuse
+            ? { kind: 'unavailable', cause: 'authority' }
+            : w.runtime.registerProducer(principal, input)
+        },
+      },
+    })
+    try {
+      await w.restore(true)
+      expect(await publisher.publish(w.scope, value)).toEqual({
+        kind: 'unavailable',
+        diagnostic: 'the producer registration is unavailable',
+      })
+      refuse = false
+      expect(await publisher.publish(w.scope, value)).toEqual({ kind: 'published' })
+      expect(await publisher.publish(w.scope, { ...value, directory: '/srv/next' })).toEqual({
+        kind: 'published',
+      })
+      expect(registrations).toBe(2)
+    } finally {
+      await publisher.close()
+      await w.runtime.close()
+    }
+  })
+
+  it.each(['absent', 'unavailable'] as const)(
+    'fails the boundary without asking anybody when the scope of the session is %s',
+    async state => {
+      const published: unknown[] = []
+      const asked: unknown[] = []
+      const step = createStepDirectory<string>({
+        defaultDirectory: DEFAULT,
+        targets: () => ({
+          check: async input => {
+            asked.push(input)
+            return { kind: 'unavailable' }
+          },
+        }),
+        recover: async () => ({ kind: state }),
+        publish: async (...input) => {
+          published.push(input)
+          return { kind: 'published' }
+        },
+      })
+      const blog = { workspace: workspace(1), instance: 'wsi_blog' }
+      expect(
+        await step.refresh({ ...access, scope: scopeOf('s'), snapshot: standing(blog) }),
+      ).toEqual({
+        kind: 'unavailable',
+        diagnostic: `the context scope of the session is ${state}`,
+      })
+      expect([asked, published]).toEqual([[], []])
+    },
+  )
+
+  it('fails the boundary when the workspace owner is not installed or the publisher has stopped', async () => {
+    const blog = { workspace: workspace(1), instance: 'wsi_blog' }
+    const input = { ...access, scope: scopeOf('s') }
+    const recover = async () => ({ kind: 'ready' as const })
+    const absent = createStepDirectory<string>({
+      defaultDirectory: DEFAULT,
+      targets: () => undefined,
+      recover,
+      publish: async () => ({ kind: 'published' }),
+    })
+    expect(await absent.refresh({ ...input, snapshot: standing(blog) })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the workspace owner is not installed',
+    })
+    // With no workspace selected the owner is not needed.
+    expect(await absent.refresh({ ...input, snapshot: standing(null) })).toEqual({
+      kind: 'refreshed',
+    })
+    const stopped = createStepDirectory<string>({
+      defaultDirectory: DEFAULT,
+      targets: () => undefined,
+      recover,
+      publish: async () => ({ kind: 'closed' }),
+    })
+    expect(await stopped.refresh({ ...input, snapshot: standing(null) })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the working directory publisher has stopped',
+    })
+  })
+})
+
+describe('one publisher for each tenant', () => {
+  const value = { state: 'default', directory: DEFAULT } as const
+
+  it('registers a producer for a tenant once, as the principal issued for that tenant', async () => {
+    const w = await world()
+    const registered: unknown[] = []
+    const publishers = createWorkingDirectoryPublishers<string>({
+      principal: tenant => (tenant === access.tenant ? 'producer-a' : undefined),
+      runtime: {
+        registerProducer: (principal, input) => {
+          registered.push([principal, input.tenant])
+          return w.runtime.registerProducer(principal, input)
+        },
+      },
+    })
+    try {
+      await w.restore(true)
+      expect(await publishers.publish(access.tenant, w.scope, value)).toEqual({ kind: 'published' })
+      expect(
+        await publishers.publish(access.tenant, w.scope, { ...value, directory: '/srv/next' }),
+      ).toEqual({ kind: 'published' })
+      expect(registered).toEqual([['producer-a', access.tenant]])
+      expect(await w.read()).toEqual({ ...value, directory: '/srv/next' })
+      // A tenant no principal can be issued for has no publisher.
+      const stranger = memoryOtherAccess('stranger').tenant
+      expect(await publishers.publish(stranger, w.scope, value)).toEqual({
+        kind: 'unavailable',
+        diagnostic: 'the tenant has no working directory publisher',
+      })
+      await publishers.close()
+      expect(await publishers.publish(access.tenant, w.scope, value)).toEqual({ kind: 'closed' })
+      // Closing withdrew the producer: the value it published is gone with it.
+      expect(await w.read()).not.toEqual({ ...value, directory: '/srv/next' })
+    } finally {
+      await publishers.close()
+      await w.runtime.close()
+    }
+  })
+})
+
+describe('the declaration of the working directory block', () => {
+  it('is a required supplied block the model, the coordinator and extensions read, with its previous value', () => {
+    expect(workingDirectoryProducer).toEqual({
+      producer: '@omne-harness/session-adapters/session.working-directory',
+    })
+    expect({ ...workingDirectoryDescriptor, schema: null }).toEqual({
+      key: 'session.working-directory',
+      schema: null,
+      consumers: ['model', 'coordinator', 'extension'],
+      required: true,
+      disclosure: 'eligibility-checked',
+      carriesPrevious: true,
+      volatility: 'per-step',
+      kind: 'supplied',
+      recovery: 'recompute',
+    })
+    expect(workingDirectoryBindings).toEqual([
+      workingDirectoryModelBinding,
+      workingDirectoryCallBinding,
+    ])
+    const needs = workingDirectoryBindings.map(({ key, need }) => [
+      key,
+      need.name,
+      need.consumer,
+      need.necessity,
+    ])
+    expect(needs).toEqual([
+      ['session.working-directory', 'session.working-directory-for-model', 'model', 'required'],
+      ['session.working-directory', NEED.need, 'coordinator', 'required'],
+    ])
+  })
+
+  it('withdraws the producer when it is closed while it registers', async () => {
+    const w = await world()
+    let release: () => void = () => undefined
+    const held = new Promise<void>(resolve => {
+      release = resolve
+    })
+    let disposed = 0
+    const publisher = createWorkingDirectoryPublisher<string>({
+      tenant: access.tenant,
+      principal: 'producer',
+      runtime: {
+        registerProducer: async (principal, input) => {
+          await held
+          const registered = await w.runtime.registerProducer(principal, input)
+          if (registered.kind !== 'registered') return registered
+          const { handle } = registered
+          return {
+            kind: 'registered',
+            handle: {
+              ...handle,
+              dispose: () => {
+                disposed++
+                return handle.dispose()
+              },
+            },
+          }
+        },
+      },
+    })
+    try {
+      await w.restore(true)
+      const publishing = publisher.publish(w.scope, { state: 'default', directory: DEFAULT })
+      const closing = publisher.close()
+      release()
+      expect(await publishing).toEqual({ kind: 'closed' })
+      await closing
+      expect(disposed).toBe(1)
+      expect(await w.read()).not.toEqual({ state: 'default', directory: DEFAULT })
     } finally {
       await w.runtime.close()
     }

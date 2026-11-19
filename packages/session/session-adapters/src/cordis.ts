@@ -15,10 +15,9 @@ export {
   workingDirectoryProducer,
 } from './cordis/working-directory-block.ts'
 export {
-  createWorkingDirectoryPublisher,
+  createWorkingDirectoryPublishers,
   type DirectoryPublication,
-  type WorkingDirectoryPublisher,
-  type WorkingDirectoryPublisherInput,
+  type WorkingDirectoryPublishersInput,
 } from './cordis/working-directory-publisher.ts'
 export {
   createStepDirectory,

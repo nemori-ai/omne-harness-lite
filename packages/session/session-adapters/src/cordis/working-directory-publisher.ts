@@ -1,4 +1,4 @@
-import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type {
   ProducerHandle,
   ProducerRegistration,
@@ -48,12 +48,7 @@ export function createWorkingDirectoryPublisher<P>(input: WorkingDirectoryPublis
       scoped: true,
       supply,
     })
-    if (result.kind !== 'registered') return result
-    if (closed) {
-      await result.handle.dispose()
-      return { kind: 'rejected', reason: 'closed' }
-    }
-    handle = result.handle
+    if (result.kind === 'registered') handle = result.handle
     return result
   }
 
@@ -86,7 +81,6 @@ export function createWorkingDirectoryPublisher<P>(input: WorkingDirectoryPublis
 
   async function close(): Promise<void> {
     closed = true
-    inForce.clear()
     await starting?.catch(() => undefined)
     await handle?.dispose()
   }
@@ -94,4 +88,50 @@ export function createWorkingDirectoryPublisher<P>(input: WorkingDirectoryPublis
   return Object.freeze({ start, publish, close })
 }
 
-export type WorkingDirectoryPublisher = ReturnType<typeof createWorkingDirectoryPublisher<unknown>>
+export type WorkingDirectoryPublishersInput<P> = Readonly<{
+  /** The principal the tenant's producer registers and publishes as. Undefined: it cannot be issued. */
+  principal(tenant: TenantId): P | undefined
+  runtime: WorkingDirectoryPublisherInput<P>['runtime']
+}>
+
+/** One publisher for each tenant, made when the tenant's first boundary needs it. */
+export function createWorkingDirectoryPublishers<P>(input: WorkingDirectoryPublishersInput<P>) {
+  const publishers = new Map<string, ReturnType<typeof createWorkingDirectoryPublisher<P>>>()
+  let closed = false
+
+  function publisherOf(tenant: TenantId) {
+    const encoded = tenantCodec.encode(tenant)
+    if (closed || !encoded.ok) return undefined
+    const existing = publishers.get(encoded.value)
+    if (existing !== undefined) return existing
+    const principal = input.principal(tenant)
+    if (principal === undefined) return undefined
+    const created = createWorkingDirectoryPublisher<P>({
+      tenant,
+      principal,
+      runtime: input.runtime,
+    })
+    publishers.set(encoded.value, created)
+    return created
+  }
+
+  return Object.freeze({
+    async publish(
+      tenant: TenantId,
+      scope: ScopeRef,
+      value: WorkingDirectory,
+    ): Promise<DirectoryPublication> {
+      if (closed) return { kind: 'closed' }
+      const publisher = publisherOf(tenant)
+      return publisher === undefined
+        ? { kind: 'unavailable', diagnostic: 'the tenant has no working directory publisher' }
+        : publisher.publish(scope, value)
+    },
+    async close(): Promise<void> {
+      closed = true
+      const closing = [...publishers.values()].map(publisher => publisher.close())
+      publishers.clear()
+      await Promise.all(closing)
+    },
+  })
+}
