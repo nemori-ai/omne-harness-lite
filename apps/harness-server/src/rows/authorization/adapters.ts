@@ -134,21 +134,26 @@ function fromDecision(decision: AdmissionDecision | SystemActionDecision): Verdi
   }
 }
 
+type MemberPlan = Extract<Plan, { kind: 'member' }>
+
+async function executeMember(plan: MemberPlan, ports: AccessPorts): Promise<Verdict> {
+  const decision = fromDecision(await ports.admission.check(plan.input))
+  if (decision.kind !== 'allowed') return decision
+  if (plan.cardDecision !== undefined)
+    return answeredOnCard(plan.cardDecision, plan.input, decision, ports.cards?.())
+  return plan.permissionWrite !== undefined
+    ? qualifyPermissionWrite(plan.permissionWrite, decision.evidence, ports.login)
+    : decision
+}
+
 async function execute(plan: Plan, ports: AccessPorts): Promise<Verdict> {
   switch (plan.kind) {
     case 'denied':
       return Object.freeze({ kind: 'denied' })
     case 'unavailable':
       return unavailable(plan.diagnostic)
-    case 'member': {
-      const decision = fromDecision(await ports.admission.check(plan.input))
-      if (decision.kind !== 'allowed') return decision
-      if (plan.cardDecision !== undefined)
-        return answeredOnCard(plan.cardDecision, plan.input, decision, ports.cards?.())
-      return plan.permissionWrite !== undefined
-        ? qualifyPermissionWrite(plan.permissionWrite, decision.evidence, ports.login)
-        : decision
-    }
+    case 'member':
+      return executeMember(plan, ports)
     case 'matrix':
       return fromDecision(await ports.systemActions.check(plan.request))
     default:
@@ -326,6 +331,26 @@ function factsOf(
   return names ? commandFacts(command) : null
 }
 
+type ChangeCommand = Extract<
+  Extract<SessionTarget, { command: unknown }>['command'],
+  { kind: 'change' }
+>
+
+function withCardDecision(planned: MemberPlan, target: SessionTarget): Plan {
+  const cardDecision = cardDecisionOf(target)
+  return cardDecision === null ? DENIED : { ...planned, cardDecision }
+}
+
+function withPermissionWrite(
+  planned: MemberPlan,
+  command: ChangeCommand,
+  who: NonNullable<ReturnType<typeof classify>>,
+): Plan {
+  if (who.column !== 'login') return DENIED
+  const permissionWrite = preparePermissionWrite(command, who.principal)
+  return permissionWrite === null ? DENIED : { ...planned, permissionWrite }
+}
+
 // Two declarations need more than the cell: each carries the qualification its write stands on.
 function qualifiedWrite(
   planned: Plan,
@@ -335,15 +360,10 @@ function qualifiedWrite(
   if (planned.kind !== 'member' || !('command' in target) || target.command.kind !== 'change')
     return planned
   switch (target.command.input.declaration.kind) {
-    case 'authorization-expression': {
-      const cardDecision = cardDecisionOf(target)
-      return cardDecision === null ? DENIED : { ...planned, cardDecision }
-    }
-    case 'permission-assignment': {
-      if (who.column !== 'login') return DENIED
-      const permissionWrite = preparePermissionWrite(target.command, who.principal)
-      return permissionWrite === null ? DENIED : { ...planned, permissionWrite }
-    }
+    case 'authorization-expression':
+      return withCardDecision(planned, target)
+    case 'permission-assignment':
+      return withPermissionWrite(planned, target.command, who)
     default:
       return planned
   }

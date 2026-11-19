@@ -168,32 +168,20 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
   }
 }
 
-async function decide(
+type Admitting = Readonly<{
+  who: NonNullable<ReturnType<typeof sessionWorkOf>>
+  target: AdmissionInput['target']
+  argumentsDigest: AdmissionInput['arguments']
+  effect: Exclude<AnswerEffect, { kind: 'decided' }> | null
+}>
+
+async function judgeAdmitted(
   input: Request,
-  rules: ActionRules | undefined,
+  rules: ActionRules,
   readers: Readers,
+  admitting: Admitting,
 ): Promise<AdmissionDecision> {
-  if (rules === undefined)
-    return undecidable('no action rule source is installed in this deployment')
-  if (input.permissions.length !== 0)
-    return undecidable('permission interpreters are not installed')
-  const who = sessionWorkOf(input.principal, input.tenant)
-  const target = {
-    owner: 'agent',
-    kind: 'action',
-    key: canonicalText([input.execution, input.passage, input.action]),
-  }
-  const argumentsDigest = effectiveArgumentsOf(input.effectiveArguments)
-  if (who === undefined) {
-    return {
-      kind: 'deny',
-      category: 'rule',
-      reason: 'session-work-required',
-      evidence: decisionEvidence('action-principal', '0', { target, arguments: argumentsDigest }),
-    }
-  }
-  const effect = input.decision === null ? null : answerEffect(input.decision)
-  if (effect?.kind === 'decided') return effect.decision
+  const { who, target, argumentsDigest, effect } = admitting
   const admission = readers.readAdmission()
   if (admission === undefined) return unavailable('the action admission dependency is unavailable')
   const identity = await admission.check({
@@ -220,6 +208,35 @@ async function decide(
   }
   const applied = effect === null ? null : await answered(judging, gates, effect, readers)
   return applied ?? judgeGates(judging, gates)
+}
+
+async function decide(
+  input: Request,
+  rules: ActionRules | undefined,
+  readers: Readers,
+): Promise<AdmissionDecision> {
+  if (rules === undefined)
+    return undecidable('no action rule source is installed in this deployment')
+  if (input.permissions.length !== 0)
+    return undecidable('permission interpreters are not installed')
+  const who = sessionWorkOf(input.principal, input.tenant)
+  const target = {
+    owner: 'agent',
+    kind: 'action',
+    key: canonicalText([input.execution, input.passage, input.action]),
+  }
+  const argumentsDigest = effectiveArgumentsOf(input.effectiveArguments)
+  if (who === undefined) {
+    return {
+      kind: 'deny',
+      category: 'rule',
+      reason: 'session-work-required',
+      evidence: decisionEvidence('action-principal', '0', { target, arguments: argumentsDigest }),
+    }
+  }
+  const effect = input.decision === null ? null : answerEffect(input.decision)
+  if (effect?.kind === 'decided') return effect.decision
+  return judgeAdmitted(input, rules, readers, { who, target, argumentsDigest, effect })
 }
 
 // The answer's effect comes first, so judging again reads what it wrote.
