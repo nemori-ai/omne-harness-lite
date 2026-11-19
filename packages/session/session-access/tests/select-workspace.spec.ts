@@ -105,7 +105,17 @@ describe('select-workspace, row by row', () => {
     })
     expect(world.workspaces.calls()).toEqual([])
     expect(calls(world, 'change').map(call => call.input)).toEqual([
-      expect.objectContaining({ kind: 'workspace', value: null, workspaceAttachment: null }),
+      {
+        kind: 'workspace',
+        value: null,
+        workspaceAttachment: null,
+        basis: {
+          owner: 'session-access',
+          record: 'select-workspace/none',
+          revision: '1',
+          digest: '0'.repeat(64),
+        },
+      },
     ])
   })
 
@@ -141,6 +151,18 @@ describe('select-workspace, row by row', () => {
     expect(await select(world, session)).toEqual({ outcome: 'basis-unavailable' })
     expect(calls(world, 'change')).toEqual([])
   })
+
+  it.each(['throw', 'undescribed'] as const)(
+    'a principal whose facts cannot be read (%s) is an unavailable basis and nothing is asked',
+    async fault => {
+      const world = createWorld()
+      const session = await created(world)
+      world.breakFacts(fault)
+      expect(await select(world, session)).toEqual({ outcome: 'basis-unavailable' })
+      expect(world.workspaces.calls()).toEqual([])
+      expect(calls(world, 'change')).toEqual([])
+    },
+  )
 
   it('a session that does not exist and a session of another tenant get the same answer', async () => {
     const world = createWorld()
