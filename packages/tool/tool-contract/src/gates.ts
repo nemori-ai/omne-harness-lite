@@ -24,10 +24,11 @@ export function commandGateOf(
 ): ToolActionGate {
   const gates = toolGatesOf(definition)
   const first = { kind: 'gate', gate: gates[0] } as const
-  if (definition.kind !== 'commands' || command === null) return first
-  const release = definition.commands.find(entry => entry.name === command)?.release
+  if (definition.kind !== 'commands') return first
+  const declared = definition.commands.find(entry => entry.name === command)
+  const release = declared?.release
   if (release === undefined) return first
-  if (release.gate === null) return named.includes(command) ? { kind: 'ungated' } : first
+  if (release.gate === null) return named.includes(declared!.name) ? { kind: 'ungated' } : first
   // A judged definition names only gates it declares.
   return { kind: 'gate', gate: gates.find(entry => entry.id === release.gate)! }
 }

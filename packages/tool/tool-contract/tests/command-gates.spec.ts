@@ -106,6 +106,17 @@ describe('a tool declares its gates and the gate of each command', () => {
     expect(judgeToolDefinition(gated([{ ...READ, default: 'never' }], []))).toEqual({
       failure: { field: 'gates[0].default', reason: 'value' },
     })
+    expect(judgeToolDefinition(gated([{ ...READ, id: 5 }], []))).toEqual({
+      failure: { field: 'gates[0].id', reason: 'type' },
+    })
+    expect(judgeToolDefinition(gated([{ ...READ, id: 'read!' }], []))).toEqual({
+      failure: { field: 'gates[0].id', reason: 'gate-id' },
+    })
+  })
+
+  it('accepts each of the three defaults a gate can have', () => {
+    for (const pick of ['deny', 'ask', 'auto'])
+      expect(judgeToolDefinition(gated([{ ...READ, default: pick }], []))).toHaveProperty('ok')
   })
 })
 
@@ -134,5 +145,6 @@ describe('the gate a command belongs to is read from the definition alone', () =
     expect(commandGateOf(gated(undefined, []), 'read', [])).toEqual(invoke)
     expect(commandGateOf(gated(undefined, []), 'shell', ['shell'])).toEqual(invoke)
     expect(commandGateOf(functionDefinition(), null, [])).toEqual(invoke)
+    expect(commandGateOf(gated([], []), 'read', [])).toEqual(invoke)
   })
 })
