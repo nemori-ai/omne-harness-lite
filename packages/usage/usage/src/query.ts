@@ -13,6 +13,7 @@ import {
   type UsageFailure,
   type UsagePortFailure,
   type UsageQuery,
+  type UsageRecordsQuery,
   type UsageSessionScope,
   type UsageSource,
   type UsageSourcePage,
@@ -164,52 +165,34 @@ export function createUsage<P>(deps: UsageDeps<P>): Usage<P> {
     },
 
     async records(input) {
-      const checked = checkUsageQuery(
-        { scope: input.scope, range: input.range, zone: 'UTC', bucket: 'none', groupBy: [] },
-        { buckets: 1 },
-      )
-      if ('failure' in checked) return checked
-      if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > limits.page)
-        return fail({ kind: 'invalid', field: 'limit', reason: 'out-of-range' })
-      const fingerprint = JSON.stringify([tenantText(input.tenant), input.scope, input.range])
-      const at =
-        input.after === null
-          ? { source: 0, chunk: 0, cursor: null }
-          : positionOf(fingerprint, input.after)
-      if (at === null) return fail({ kind: 'invalid', field: 'after', reason: 'cursor' })
+      const start = startOf(input, limits.page)
+      if ('failure' in start) return start
       const consumers = await consumerOf(deps, input)
       if ('failure' in consumers) return consumers
       const sources = [...deps.sources()].sort((a, b) => (a.name < b.name ? -1 : 1))
       const access = { principal: input.principal, tenant: input.tenant, range: input.range }
       const to = Date.parse(input.range.to)
-      let position: Position | null = at
+      let position: Position | null = start.ok.at
       for (let reads = 0; position !== null && reads < limits.pages; reads += 1) {
-        const source: UsageSource<P> | undefined = sources[position.source]
-        const consumer: UsageConsumer | null | undefined =
-          source === undefined
-            ? undefined
-            : chunks(consumers.ok, source.limits.works)[position.chunk]
-        if (source === undefined || consumer === undefined) {
-          position =
-            source === undefined ? null : { source: position.source + 1, chunk: 0, cursor: null }
+        const step: Step<P> = stepAt(sources, consumers.ok, position)
+        if (step.kind === 'skip') {
+          position = step.next
           continue
         }
-        const page: Outcome<UsageSourcePage, UsageFailure> = await listOnce(source, {
+        const page: Outcome<UsageSourcePage, UsageFailure> = await listOnce(step.source, {
           ...access,
-          consumer,
+          consumer: step.consumer,
           after: position.cursor,
-          limit: Math.min(input.limit, source.limits.page),
+          limit: Math.min(input.limit, step.source.limits.page),
         })
         if ('failure' in page) return page
-        const after: Position | null =
-          page.ok.next !== null
-            ? { ...position, cursor: page.ok.next }
-            : { source: position.source, chunk: position.chunk + 1, cursor: null }
+        const next = nextAfter(position, page.ok.next)
         const entries = page.ok.entries.filter(
           (fact: UsageFact) => fact.at !== null && Date.parse(fact.at) < to,
         )
-        if (entries.length > 0) return succeed({ entries, next: cursorOf(fingerprint, after) })
-        position = after
+        if (entries.length > 0)
+          return succeed({ entries, next: cursorOf(start.ok.fingerprint, next) })
+        position = next
       }
       return position === null
         ? succeed({ entries: [], next: null })
@@ -237,6 +220,48 @@ function tenantText(tenant: Access<unknown>['tenant']): string {
 }
 
 type Position = Readonly<{ source: number; chunk: number; cursor: string | null }>
+const FIRST: Position = { source: 0, chunk: 0, cursor: null }
+
+/** A records read checked as a statistics query is, its page size within the limit, its cursor its own. */
+function startOf<P>(
+  input: Access<P> & UsageRecordsQuery,
+  page: number,
+): Outcome<Readonly<{ fingerprint: string; at: Position }>, UsageFailure> {
+  const { scope, range } = input
+  const checked = checkUsageQuery(
+    { scope, range, zone: 'UTC', bucket: 'none', groupBy: [] },
+    { buckets: 1 },
+  )
+  if ('failure' in checked) return checked
+  if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > page)
+    return fail({ kind: 'invalid', field: 'limit', reason: 'out-of-range' })
+  const fingerprint = JSON.stringify([tenantText(input.tenant), scope, range])
+  const at = input.after === null ? FIRST : positionOf(fingerprint, input.after)
+  return at === null
+    ? fail({ kind: 'invalid', field: 'after', reason: 'cursor' })
+    : succeed({ fingerprint, at })
+}
+
+type Step<P> =
+  | Readonly<{ kind: 'read'; source: UsageSource<P>; consumer: UsageConsumer | null }>
+  | Readonly<{ kind: 'skip'; next: Position | null }>
+
+/** The page a position reads: of its source and batch, else the next source, else none. */
+function stepAt<P>(
+  sources: readonly UsageSource<P>[],
+  consumers: readonly UsageConsumer[] | null,
+  at: Position,
+): Step<P> {
+  const source = sources[at.source]
+  if (source === undefined) return { kind: 'skip', next: null }
+  const consumer = chunks(consumers, source.limits.works)[at.chunk]
+  return consumer === undefined
+    ? { kind: 'skip', next: { source: at.source + 1, chunk: 0, cursor: null } }
+    : { kind: 'read', source, consumer }
+}
+
+const nextAfter = (at: Position, cursor: string | null): Position =>
+  cursor !== null ? { ...at, cursor } : { source: at.source, chunk: at.chunk + 1, cursor: null }
 const CURSOR = 'ur1.'
 
 function cursorOf(fingerprint: string, at: Position): string {

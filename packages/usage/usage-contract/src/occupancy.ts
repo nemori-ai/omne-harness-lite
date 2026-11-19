@@ -21,38 +21,37 @@ function percentOf(used: string, window: string): string {
   return `${basis / 100n}.${String(basis % 100n).padStart(2, '0')}`
 }
 
+type Dated = UsageFact & Readonly<{ at: string }>
+
+const settledMain = (fact: UsageFact): fact is Dated =>
+  fact.subject.kind === 'model_call' &&
+  fact.consumer.purpose === 'main' &&
+  fact.at !== null &&
+  fact.outcome !== 'pending' &&
+  fact.accounted
+
+/** The newest first; of two at one instant, the later unit first. */
+const newestFirst = (a: Dated, b: Dated): number =>
+  a.at === b.at ? (a.unit < b.unit ? 1 : -1) : a.at < b.at ? 1 : -1
+
+const WINDOW = /^[1-9][0-9]*$/u
+
 export function occupancyOf(facts: readonly UsageFact[]): ContextOccupancy {
-  const candidates = facts
-    .filter(
-      fact =>
-        fact.subject.kind === 'model_call' &&
-        fact.consumer.purpose === 'main' &&
-        fact.at !== null &&
-        fact.outcome !== 'pending' &&
-        fact.accounted,
-    )
-    .sort((a, b) =>
-      (a.at ?? '') === (b.at ?? '')
-        ? a.unit < b.unit
-          ? 1
-          : -1
-        : (a.at ?? '') < (b.at ?? '')
-          ? 1
-          : -1,
-    )
+  const candidates = facts.filter(settledMain).sort(newestFirst)
   if (candidates.length === 0) return { kind: 'none-yet' }
   for (const fact of candidates) {
     const used = inputOf(fact)
     if (used === null) continue
-    if (fact.window === null || !/^[1-9][0-9]*$/u.test(fact.window.tokens))
+    const { window } = fact
+    if (window === null || !WINDOW.test(window.tokens))
       return { kind: 'unknown', reason: 'window-unknown' }
     return {
       kind: 'known',
       used,
-      window: fact.window.tokens,
-      percent: percentOf(used, fact.window.tokens),
-      compactAtPercent: fact.window.compactAtPercent,
-      asOf: { at: fact.at ?? '', model: fact.labels.model },
+      window: window.tokens,
+      percent: percentOf(used, window.tokens),
+      compactAtPercent: window.compactAtPercent,
+      asOf: { at: fact.at, model: fact.labels.model },
     }
   }
   return { kind: 'unknown', reason: 'usage-unknown' }
