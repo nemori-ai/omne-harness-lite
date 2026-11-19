@@ -255,7 +255,7 @@ function responseFact(dispatch: DispatchDocument, request: string | null): Model
     dispatch.record.request === undefined &&
     request !== null &&
     request !== '' &&
-    Buffer.byteLength(request, 'utf8') <= MAX_REQUEST_BYTES
+    Buffer.byteLength(request) <= MAX_REQUEST_BYTES
   )
     dispatch.record = { ...dispatch.record, request }
   return null

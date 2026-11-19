@@ -311,6 +311,18 @@ describe('the whitelist page of one call', () => {
     expect(JSON.stringify(entry)).not.toContain('REQUEST-CANARY')
   })
 
+  it('gives a span of zero when its two moments are the same', async () => {
+    const f = scene()
+    const call = callId('zero')
+    await f.seeded(call, [
+      dispatchOf(0, { ...COMPLETED, instants: { ...MOMENTS, prepared: MOMENTS.sent } }),
+    ])
+    const [entry] = page(
+      await f.diagnostics.list({ ...f.access(A, call), after: null, limit: 10 }),
+    ).entries
+    expect(entry?.timing.materialize).toEqual({ kind: 'known', milliseconds: '0' })
+  })
+
   it('answers unknown for a span whose moment is missing or whose later moment is before the earlier (T6)', async () => {
     const f = scene()
     const call = callId('t6')
