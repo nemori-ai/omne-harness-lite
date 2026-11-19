@@ -25,7 +25,13 @@ import type {
   SessionAccessDecision,
   SessionAccessRequest,
 } from '@omne-harness/session-contract'
-import { resolveCell, type BranchInput, type ResolvedCell, type SystemPurpose } from './cells.ts'
+import {
+  readsAcrossTenant,
+  resolveCell,
+  type BranchInput,
+  type ResolvedCell,
+  type SystemPurpose,
+} from './cells.ts'
 import { AGENT_POLICY } from './agent-policy.ts'
 import { SESSION_POLICY } from './session-policy.ts'
 import {
@@ -385,7 +391,8 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
   if (
     who.column === 'work' &&
     target.kind === 'session' &&
-    who.principal.work.work !== target.session
+    who.principal.work.work !== target.session &&
+    !readsAcrossTenant(SESSION_POLICY[operation].work)
   )
     return DENIED
 

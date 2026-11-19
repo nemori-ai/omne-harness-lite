@@ -288,6 +288,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Calendar: { resultMaxBytes: 65_536 },
       Schedules: { resultMaxBytes: 65_536 },
       Notifications: { resultMaxBytes: 65_536 },
+      Sessions: { resultMaxBytes: 131_072 },
     },
     web: {
       search: {
