@@ -1,6 +1,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import { describe, expect, it } from 'vitest'
-import { controlOf } from '../src/model/value-control.ts'
+import { controlOf, formOf } from '../src/model/value-control.ts'
 
 const text = (value: string): JsonValue => ({ kind: 'string', value })
 const object = (entries: Record<string, JsonValue>): JsonValue => ({
@@ -46,5 +46,57 @@ describe('the control a declared value gets', () => {
     ['a schema that is not an object', text('string')],
   ])('%s is only shown', (_case, schema) => {
     expect(controlOf(schema)).toEqual({ kind: 'none' })
+  })
+})
+
+describe('the form a data body gets', () => {
+  const bodySchema = (properties: Record<string, JsonValue>, required: string[] = []) =>
+    object({
+      type: text('object'),
+      properties: object(properties),
+      required: array(...required.map(text)),
+    })
+
+  it('a top-level object of strings, enums, booleans and numbers is one control per property, required marked', () => {
+    expect(
+      formOf(
+        bodySchema(
+          {
+            url: object({ type: text('string'), title: text('地址') }),
+            mode: object({ enum: array(text('a'), text('b')) }),
+            enabled: object({ type: text('boolean') }),
+            depth: object({ type: text('integer') }),
+            ratio: object({ type: text('number') }),
+          },
+          ['url'],
+        ),
+      ),
+    ).toEqual({
+      kind: 'fields',
+      fields: [
+        { key: 'url', title: '地址', required: true, control: { kind: 'text' } },
+        {
+          key: 'mode',
+          title: null,
+          required: false,
+          control: { kind: 'pick', values: ['a', 'b'] },
+        },
+        { key: 'enabled', title: null, required: false, control: { kind: 'switch' } },
+        { key: 'depth', title: null, required: false, control: { kind: 'number' } },
+        { key: 'ratio', title: null, required: false, control: { kind: 'number' } },
+      ],
+    })
+  })
+
+  it.each([
+    ['a property that is an object', bodySchema({ nested: object({ type: text('object') }) })],
+    ['a property that is an array', bodySchema({ list: object({ type: text('array') }) })],
+    ['a property with no type', bodySchema({ any: object({}) })],
+    ['an object with no properties', bodySchema({})],
+    ['a body that is not an object', object({ type: text('string') })],
+    ['a schema that says nothing', object({})],
+    ['a schema that is not an object', text('object')],
+  ])('%s is taken as JSON text', (_case, schema) => {
+    expect(formOf(schema)).toEqual({ kind: 'json' })
   })
 })

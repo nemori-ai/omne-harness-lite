@@ -864,6 +864,9 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
+      '@omne-harness/assets-protocol':
+        specifier: workspace:*
+        version: link:../../packages/assets/assets-protocol
       '@omne-harness/cli':
         specifier: workspace:*
         version: link:../cli
@@ -1314,6 +1317,9 @@ importers:
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../assets
       '@omne-harness/assets-protocol':
         specifier: workspace:*
         version: link:../assets-protocol

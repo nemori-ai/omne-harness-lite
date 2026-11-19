@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { projectAssetSettings, type AssetSettingsProjection } from '@omne-harness/assets'
+import {
+  projectAssetSettings,
+  summarizeVersion,
+  type AssetSettingsProjection,
+} from '@omne-harness/assets'
 import { SettingsIdSchema } from '@omne-harness/settings'
 import {
   SettingsProjectionBindingSchema,
@@ -26,13 +30,21 @@ import {
   PARTICIPANT,
   PROTOCOL,
   publishMetadataSchema,
+  summaryResultSchema,
+  domainResultSchema,
   versionLookupSchema,
   versionResultSchema,
   type Failure,
   type Mutation,
 } from './schema.ts'
 import { createPublishedPackages, type PackageRecords } from './packages.ts'
-import { receiptResult, type SameOperation } from './results.ts'
+import {
+  freshDomainRevision,
+  publicationRecall,
+  receiptResult,
+  type SameOperation,
+} from './results.ts'
+import { createLocalUploads } from './uploads.ts'
 import type {
   AssetsLocal,
   AssetsLocalOptions,
@@ -119,6 +131,7 @@ function publishCommand(
     source: input.pinned.source,
     body: input.pinned.body,
     declaration,
+    summary: summarizeVersion(options.categories, input.pinned),
     ...(holding === undefined ? {} : { holding }),
   })
   return command.success ? command.data : fail('invalid_input')
@@ -132,7 +145,7 @@ function samePublication(command: Mutation): SameOperation {
     'expectedRevision' in mutation ? { ...mutation, expectedRevision: 0 } : mutation
   return recorded => equal(input(recorded), input(command))
 }
-type ReadKind = 'asset' | 'holding' | 'version' | 'heldCapability' | 'list'
+type ReadKind = 'asset' | 'holding' | 'version' | 'heldCapability' | 'summary' | 'domain' | 'list'
 
 function storageRead(options: Pick<AssetsLocalOptions, 'storage' | 'domain'>) {
   return async (kind: ReadKind, lookup: unknown) => {
@@ -153,8 +166,17 @@ function storageRead(options: Pick<AssetsLocalOptions, 'storage' | 'domain'>) {
 
 type Store = Pick<
   AssetsLocalOptions,
-  'storage' | 'domain' | 'combinationVersion' | 'manifestDigest'
+  'storage' | 'domain' | 'combinationVersion' | 'manifestDigest' | 'onCommitted'
 >
+
+function signal(options: Store, revision: number | undefined): void {
+  if (revision === undefined) return
+  try {
+    options.onCommitted?.({ domain: options.domain, revision })
+  } catch {
+    return
+  }
+}
 
 async function commitMutation(
   options: Store,
@@ -174,6 +196,8 @@ async function commitMutation(
       ],
     })
     const mapped = receiptResult(result, options.domain, command.operationId, same)
+    if (mapped.kind === 'committed' && mapped.changed)
+      signal(options, freshDomainRevision(result, options.domain, command.operationId))
     return mapped.kind === 'not_found'
       ? { kind: 'unknown', operationId: command.operationId }
       : mapped
@@ -182,12 +206,13 @@ async function commitMutation(
   }
 }
 
-async function recallOperation(options: Store, operationId: string) {
+async function recallOperation(options: Store, operationId: string, same?: SameOperation) {
   try {
     return receiptResult(
       await options.storage.query(identity(options.domain, operationId)),
       options.domain,
       operationId,
+      same,
     )
   } catch {
     return { kind: 'unknown' as const, operationId }
@@ -220,7 +245,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     return parsed.success ? commit(parsed.data) : fail('invalid_input')
   }
   const read = storageRead(options)
-  const local: Omit<AssetsLocal, 'packages'> = {
+  const local: Omit<AssetsLocal, 'packages' | 'uploads'> = {
     readAsset: input =>
       run(async () => {
         const parsed = assetLookupSchema.safeParse(input)
@@ -290,10 +315,40 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
           ? listResultSchema.parse(await read('list', parsed.data))
           : fail('invalid_input')
       }),
+    readSummary: input =>
+      run(async () => {
+        const parsed = versionLookupSchema.safeParse(input)
+        return parsed.success
+          ? summaryResultSchema.parse(await read('summary', parsed.data))
+          : fail('invalid_input')
+      }),
+    domainRevision: () => run(async () => domainResultSchema.parse(await read('domain', null))),
     getOperation: operationId =>
       run(async () => {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
         return recallOperation(options, operationId)
+      }),
+    recallPublication: operationId =>
+      run(async () => {
+        if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
+        try {
+          const queried = await options.storage.query(identity(options.domain, operationId))
+          return publicationRecall(queried, options.domain, operationId)
+        } catch {
+          return { kind: 'unknown' as const, operationId }
+        }
+      }),
+    recallChange: ({ operationId, holdingRef, change }) =>
+      run(async () => {
+        if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
+        return recallOperation(
+          options,
+          operationId,
+          recorded =>
+            recorded.kind === 'changeHolding' &&
+            recorded.holdingRef === holdingRef &&
+            equal(recorded.change, change),
+        )
       }),
     close() {
       return (closed ??= Promise.allSettled(active).then(() => undefined))
@@ -307,10 +362,19 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     durability: options.packageDurability,
     records: packageRecordsOf(local),
   })
-  return { ...local, packages }
+  return { ...local, packages, uploads: uploadsOf(options) }
 }
 
-function packageRecordsOf(local: Omit<AssetsLocal, 'packages'>): PackageRecords {
+function uploadsOf(options: AssetsLocalOptions) {
+  return createLocalUploads({
+    root: options.uploads === undefined ? undefined : options.packageRoot,
+    categories: options.categories,
+    policy: options.uploads ?? { idleMs: 0, maxOpen: 0, partBytes: 0 },
+    clock: options.clock,
+  })
+}
+
+function packageRecordsOf(local: Omit<AssetsLocal, 'packages' | 'uploads'>): PackageRecords {
   return {
     publishAndHold: local.publishAndHold,
     async readAssetRevision(assetRef) {

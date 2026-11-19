@@ -83,7 +83,7 @@ const bodies = (login: FixtureLogin) => ({
   'clear-setting': body('clear-setting', { tenant: login.tenantText, ...WRITE }),
 })
 
-function call<K extends Exclude<Name, 'list-categories'>>(
+function call<K extends (typeof NAMES)[number]>(
   world: World,
   name: K,
   login: FixtureLogin,

@@ -41,6 +41,7 @@ export async function openCatalogWorld(
       ) => import('@omne-harness/sql-contract').FactCommandV2
     }
     wrapCatalog?: (storage: SqlStorage) => SqlStorage
+    registryTargets?: Parameters<typeof createSettingsCatalog>[0]['registryTargets']
   } = {},
 ) {
   const identity = await openIdentityWorld()
@@ -102,6 +103,7 @@ export async function openCatalogWorld(
     reservations: identity.identity.reservations,
     required: [],
     registry,
+    ...(options.registryTargets === undefined ? {} : { registryTargets: options.registryTargets }),
     project,
     clock: { now: () => now },
     cursorLifetimeMs: 60000,

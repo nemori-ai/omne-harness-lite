@@ -1,4 +1,10 @@
 export { AccessAssemblyError } from './contribution.ts'
+export {
+  createChangeObservation,
+  type ChangeAdmission,
+  type ChangeListener,
+  type ChangeObservationInput,
+} from './change-observation.ts'
 export type {
   AccessContribution,
   AnswerOf,

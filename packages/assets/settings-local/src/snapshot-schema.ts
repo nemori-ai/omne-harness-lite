@@ -3,6 +3,7 @@ import {
   SettingsDefinitionRefSchema,
   SettingsIdSchema,
   SettingsReferenceSchema,
+  SettingsTargetSchema,
 } from '@omne-harness/settings'
 import { SettingsProjectionBindingSchema } from './projection.ts'
 import { digest } from './encoding.ts'
@@ -13,6 +14,7 @@ export const SnapshotInputSchema = z.strictObject({
   purpose: z.enum(['values', 'authority']),
   binding: SettingsProjectionBindingSchema,
   availability: z.array(SettingsDefinitionRefSchema).max(1024),
+  registryTargets: z.array(SettingsTargetSchema).max(1024),
   incarnation: SettingsIdSchema,
   registryRevision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
   expiryEpoch: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),

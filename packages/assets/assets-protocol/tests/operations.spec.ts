@@ -38,15 +38,45 @@ const table = {
   'set-setting': { identity: 'login', effect: 'commit', limit: 'small' },
   'clear-setting': { identity: 'login', effect: 'commit', limit: 'small' },
   'list-categories': { identity: 'login', effect: 'read', limit: 'small' },
+  'describe-category': { identity: 'login', effect: 'read', limit: 'small' },
+  'list-assets': { identity: 'login', effect: 'read', limit: 'small' },
+  'describe-asset': { identity: 'login', effect: 'read', limit: 'small' },
+  'create-asset': { identity: 'login', effect: 'commit', limit: 'input' },
+  'begin-asset-upload': { identity: 'login', effect: 'commit', limit: 'input' },
+  'append-asset-upload': { identity: 'login', effect: 'commit', limit: 'input' },
+  'commit-asset-upload': { identity: 'login', effect: 'commit', limit: 'small' },
+  'set-asset-enabled': { identity: 'login', effect: 'commit', limit: 'small' },
+  'remove-asset': { identity: 'login', effect: 'commit', limit: 'small' },
+  'query-asset-operation': { identity: 'login', effect: 'read', limit: 'input' },
 } as const
 
 const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
+const published = ['invalid', 'not-found', 'conflict', 'unknown']
+const holding = ['no-change', 'not-found', 'not-writable', 'conflict', 'unknown']
 const outcomes = {
   'list-settings': ['not-visible', 'conflict'],
   'describe-setting': ['not-visible', 'conflict'],
   'set-setting': ['no-change', 'not-visible', 'invalid', 'conflict', 'not-writable', 'unknown'],
   'clear-setting': ['no-change', 'not-visible', 'invalid', 'conflict', 'not-writable', 'unknown'],
   'list-categories': [],
+  'describe-category': ['not-found'],
+  'list-assets': ['not-found', 'invalid'],
+  'describe-asset': ['not-found'],
+  'create-asset': published,
+  'begin-asset-upload': ['invalid', 'not-found', 'conflict', 'limited', 'unknown'],
+  'append-asset-upload': ['not-found', 'invalid', 'unknown'],
+  'commit-asset-upload': published,
+  'set-asset-enabled': holding,
+  'remove-asset': holding,
+  'query-asset-operation': [
+    'no-change',
+    'not-committed',
+    'not-found',
+    'not-writable',
+    'invalid',
+    'conflict',
+    'limited',
+  ],
 } as const
 
 const operations = assetsProtocol.operations
@@ -106,11 +136,22 @@ const views = {
 } as const
 
 describe('assets/v1', () => {
-  it('is assets major 1 with the four setting operations, list-categories and no observation', () => {
+  it('is assets major 1 with the setting, category and asset operations and one observation', () => {
     expect(assetsProtocol.name).toBe('assets')
     expect(assetsProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())
-    expect(Object.keys(assetsProtocol.observations)).toEqual([])
+    expect(Object.keys(assetsProtocol.observations)).toEqual(['observe-assets'])
+  })
+
+  it('observe-assets needs a login, opens on a tenant and only says something changed', () => {
+    const observation = assetsProtocol.observations['observe-assets']
+    expect(observation.identity).toBe('login')
+    expect(observation.ends).toEqual([])
+    expect('countsAsAccess' in observation).toBe(false)
+    expectRoundTrip(observation.open, { tenant })
+    rejects(observation.open, {})
+    expectRoundTrip(observation.frame, { kind: 'changed' })
+    rejects(observation.frame, { kind: 'changed', revision: 3 })
   })
 
   it.each(Object.entries(table))(
@@ -143,6 +184,87 @@ describe('bodies', () => {
     for (const [name, operation] of Object.entries(operations))
       if (name !== 'list-categories')
         rejects(operation.body, { owner: asset, item: 'invoke', after: null, limit: 10 })
+  })
+
+  const skill = { category: 'skill', name: 'review' }
+  const manifest = [
+    { path: 'SKILL.md', bytes: 120 },
+    { path: 'scripts/run.mjs', bytes: 0 },
+  ]
+  const requests = {
+    'describe-category': [{ category: 'skill' }, { category: '' }],
+    'list-assets': [
+      { tenant, category: 'skill', after: 'review', limit: 100 },
+      { tenant, category: 'skill', after: null, limit: 101 },
+    ],
+    'describe-asset': [
+      { tenant, ...skill },
+      { tenant, category: 'skill' },
+    ],
+    'create-asset': [
+      { tenant, operation: 'op-1', category: 'fixture', name: 'a', body: { depth: [1, 'a'] } },
+      { tenant, category: 'fixture', name: 'a', body: {} },
+    ],
+    'begin-asset-upload': [
+      { tenant, operation: 'up-1', ...skill, manifest },
+      { tenant, operation: 'up-1', ...skill, manifest: [{ path: 'SKILL.md' }] },
+    ],
+    'append-asset-upload': [
+      { tenant, upload: 'up-1', path: 'SKILL.md', offset: 0, bytes: 'IyBSZXZpZXcK' },
+      { tenant, upload: 'up-1', path: 'SKILL.md', offset: -1, bytes: 'IyBSZXZpZXcK' },
+    ],
+    'commit-asset-upload': [
+      { tenant, upload: 'up-1' },
+      { tenant, operation: 'up-1' },
+    ],
+    'set-asset-enabled': [
+      { tenant, operation: 'op-2', holding: 'held-1', enabled: false },
+      { tenant, operation: 'op-2', ...skill, enabled: false },
+    ],
+    'remove-asset': [
+      { tenant, operation: 'op-3', holding: 'held-1' },
+      { tenant, holding: 'held-1' },
+    ],
+  } as const
+
+  it.each(Object.entries(requests))(
+    '%s reads its body and rejects one that is off by a field',
+    (name, [good, bad]) => {
+      const codec = operations[name as Name].body
+      expectRoundTrip(codec, good)
+      rejects(codec, bad)
+    },
+  )
+
+  it('every asset operation but describe-category carries its target tenant', () => {
+    for (const [name, [good]] of Object.entries(requests))
+      if (name !== 'describe-category') {
+        const { tenant: _tenant, ...withoutTenant } = good as Record<string, unknown>
+        rejects(operations[name as Name].body, withoutTenant)
+      }
+  })
+
+  it('an appended part is base64 text, read back to the same bytes', () => {
+    const codec = operations['append-asset-upload'].body
+    const read = codec.read(tree(requests['append-asset-upload'][0]), limits)
+    expect(read.ok && Array.from(read.value.bytes)).toEqual(
+      Array.from(new TextEncoder().encode('# Review\n')),
+    )
+    rejects(codec, { ...requests['append-asset-upload'][0], bytes: 'IyBSZXZpZXcK=' })
+  })
+
+  it('query-asset-operation names the operation and repeats the request of each kind', () => {
+    const codec = operations['query-asset-operation'].body
+    for (const request of [
+      { kind: 'create-asset', category: 'fixture', name: 'a', body: { depth: 1 } },
+      { kind: 'begin-asset-upload', ...skill, manifest },
+      { kind: 'commit-asset-upload' },
+      { kind: 'set-asset-enabled', holding: 'held-1', enabled: true },
+      { kind: 'remove-asset', holding: 'held-1' },
+    ])
+      expectRoundTrip(codec, { tenant, operation: 'op-1', request })
+    rejects(codec, { tenant, operation: 'op-1', request: { kind: 'append-asset-upload' } })
+    rejects(codec, { tenant, request: { kind: 'commit-asset-upload' } })
   })
 
   it('list-categories carries no tenant: after is the next text or null, limit is a page limit', () => {
@@ -229,14 +351,117 @@ describe('answers', () => {
     rejects(codec, { item: withoutRevision })
   })
 
-  it('a page of categories carries each category with its name and summary, and its next', () => {
+  it('a page of categories carries each category with its name, summary and creation, and its next', () => {
     const codec = operations['list-categories'].outcomes.succeeded
-    expectRoundTrip(codec, {
-      items: [{ category: 'tool', title: '工具', summary: '代理可以调用的函数。' }],
-      next: 'tool',
-    })
+    for (const creation of ['none', 'data', 'directory'])
+      expectRoundTrip(codec, {
+        items: [{ category: 'tool', title: '工具', summary: '代理可以调用的函数。', creation }],
+        next: 'tool',
+      })
     expectRoundTrip(codec, { items: [], next: null })
-    rejects(codec, { items: [{ category: 'tool', title: '工具' }], next: null })
+    rejects(codec, { items: [{ category: 'tool', title: '工具', summary: 's' }], next: null })
+    rejects(codec, {
+      items: [{ category: 'tool', title: '工具', summary: 's', creation: 'upload' }],
+      next: null,
+    })
+  })
+
+  it('a described category gives a data schema or the three directory limits, by its creation', () => {
+    const codec = operations['describe-category'].outcomes.succeeded
+    const head = { category: 'skill', title: '技能', summary: '一份带说明的目录。', hint: null }
+    expectRoundTrip(codec, { ...head, creation: { kind: 'none' } })
+    expectRoundTrip(codec, { ...head, hint: '选一个目录', creation: { kind: 'data', schema: {} } })
+    const limits3 = { files: 200, fileBytes: 1_048_576, totalBytes: 8_388_608 }
+    expectRoundTrip(codec, { ...head, creation: { kind: 'directory', limits: limits3 } })
+    rejects(codec, { ...head, creation: { kind: 'directory' } })
+    rejects(codec, { ...head, creation: { kind: 'none', schema: {} } })
+  })
+
+  const summary = {
+    title: 'Review',
+    description: 'Reviews a change.',
+    facts: [{ name: 'files', text: '2' }],
+  }
+  const row = {
+    category: 'skill',
+    name: 'review',
+    version: 'sha256:00',
+    selection: 'follow',
+    enabled: true,
+    holding: 'held-1',
+    origin: 'customized',
+    summary,
+  }
+
+  it('a page of assets carries each row with its holding, origin and summary', () => {
+    const codec = operations['list-assets'].outcomes.succeeded
+    expectRoundTrip(codec, {
+      items: [row, { ...row, name: 'plain', origin: 'official', enabled: false, summary: null }],
+      next: 'review',
+      completeness: 'partial',
+    })
+    expectRoundTrip(codec, { items: [], next: null, completeness: 'complete' })
+    const { holding: _holding, ...withoutHolding } = row
+    rejects(codec, { items: [withoutHolding], next: null, completeness: 'complete' })
+    rejects(codec, {
+      items: [{ ...row, summary: { ...summary, facts: Array(9).fill(summary.facts[0]) } }],
+      next: null,
+      completeness: 'complete',
+    })
+  })
+
+  it('a described asset carries its row, revision, content, standing and whether it has settings', () => {
+    const codec = operations['describe-asset'].outcomes.succeeded
+    const base = { item: row, revision: 3, settings: true }
+    for (const content of [
+      { kind: 'data', body: { depth: 1 } },
+      { kind: 'directory', entries: [{ path: 'SKILL.md', bytes: 120 }] },
+    ])
+      for (const standing of [
+        { kind: 'selected' },
+        { kind: 'filtered', reason: 'disabled', by: null },
+        { kind: 'filtered', reason: 'blocked', by: 'organization' },
+        { kind: 'unavailable', layer: 'tenant' },
+      ])
+        expectRoundTrip(codec, { ...base, content, standing })
+    rejects(codec, { ...base, content: { kind: 'directory' }, standing: { kind: 'selected' } })
+  })
+
+  it('a creation answers the version, the holding and whether it changed; a refusal its reason', () => {
+    for (const name of ['create-asset', 'commit-asset-upload'] as const) {
+      const { succeeded, invalid } = operations[name].outcomes
+      expectRoundTrip(succeeded, { version: 'sha256:00', holding: 'held-1', changed: false })
+      rejects(succeeded, { version: 'sha256:00', holding: 'held-1' })
+      expectRoundTrip(invalid, { reason: 'creation-closed' })
+      expectRoundTrip(invalid, { reason: 'incomplete', missing: ['SKILL.md'] })
+      rejects(invalid, {})
+    }
+  })
+
+  it('an upload answers the part size and what has arrived; an append the bytes received', () => {
+    expectRoundTrip(operations['begin-asset-upload'].outcomes.succeeded, {
+      partBytes: 524_288,
+      received: [{ path: 'SKILL.md', bytes: 0 }],
+    })
+    expectRoundTrip(operations['append-asset-upload'].outcomes.succeeded, { received: 120 })
+  })
+
+  it('a holding change that cannot be made says whether it is official or removed', () => {
+    for (const name of ['set-asset-enabled', 'remove-asset'] as const) {
+      const outcomes = operations[name].outcomes
+      expectRoundTrip(outcomes.succeeded, {})
+      for (const reason of ['official', 'removed'])
+        expectRoundTrip(outcomes['not-writable'], { reason })
+      rejects(outcomes['not-writable'], { reason: 'locked' })
+    }
+  })
+
+  it('a recalled operation answers the success of whichever kind it was', () => {
+    const codec = operations['query-asset-operation'].outcomes.succeeded
+    expectRoundTrip(codec, { version: 'sha256:00', holding: 'held-1', changed: true })
+    expectRoundTrip(codec, { partBytes: 1, received: [] })
+    expectRoundTrip(codec, {})
+    rejects(codec, { version: 'sha256:00' })
   })
 
   it('a write answers the new revision, and not-writable its reason', () => {

@@ -7,12 +7,18 @@
 ## 入口 `.` · `index.d.ts`
 
 - `assetCategoriesKey` · `index.d.ts`
+- `assetChangesKey` · `index.d.ts`
+- `assetManagementKey` · `index.d.ts`
 - `assetPublishingKey` · `index.d.ts`
 - `independentSettingsKey` · `index.d.ts`
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
 - `AssetCategoriesService` · `cordis.d.ts`
+- `AssetChangeListener` · `cordis.d.ts`
+- `AssetChanges` · `cordis.d.ts`
+- `AssetChangesService` · `cordis.d.ts`
+- `AssetManagementService` · `cordis.d.ts`
 - `AssetPublishingService` · `cordis.d.ts`
 - `IndependentSettingsService` · `cordis.d.ts`
 - `assetCategoriesPlugin` · `cordis.d.ts`
@@ -23,7 +29,7 @@
 
 ```ts
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis';
-import { type CategoryContribution, type CategoryPoint, type CategoryView, type TenantPublishing, type TenantPublishOutcome, type TenantPublishRequest } from '@omne-harness/assets';
+import { type CategoryContribution, type CategoryPoint, type CategoryView, type TenantManagement, type TenantPublishing, type TenantPublishOutcome, type TenantPublishRequest } from '@omne-harness/assets';
 import type { IndependentSettingsPoint, IndependentSettingsView, SettingDefinitions } from '@omne-harness/settings';
 export declare class AssetCategoriesService extends Service {
     static readonly provide = "assetCategories";
@@ -38,6 +44,24 @@ export declare class AssetPublishingService extends Service implements TenantPub
     constructor(ctx: Context, publishing: TenantPublishing<unknown>);
     publish(request: TenantPublishRequest<unknown>): Promise<TenantPublishOutcome>;
 }
+export declare class AssetManagementService extends Service {
+    static readonly provide = "assetManagement";
+    readonly management: TenantManagement<unknown>;
+    constructor(ctx: Context, management: TenantManagement<unknown>);
+}
+export type AssetChangeListener = Readonly<{
+    changed(): void;
+    closed(): void;
+}>;
+export type AssetChanges = Readonly<{
+    subscribe(tenant: string, listener: AssetChangeListener): () => void;
+}>;
+export declare class AssetChangesService extends Service implements AssetChanges {
+    static readonly provide = "assetChanges";
+    private readonly changes;
+    constructor(ctx: Context, changes: AssetChanges);
+    subscribe(tenant: string, listener: AssetChangeListener): () => void;
+}
 export declare class IndependentSettingsService extends Service {
     static readonly provide = "independentSettings";
     readonly view: IndependentSettingsView;
@@ -49,6 +73,8 @@ declare module '@deepseek-ai/cordis' {
     interface Context {
         assetCategories: AssetCategoriesService;
         assetPublishing: AssetPublishingService;
+        assetManagement: AssetManagementService;
+        assetChanges: AssetChangesService;
         independentSettings: IndependentSettingsService;
     }
 }
@@ -62,5 +88,7 @@ export declare function categoryContributionPlugin(name: string, contribution: C
 ```ts
 export declare const assetCategoriesKey = "assetCategories";
 export declare const assetPublishingKey = "assetPublishing";
+export declare const assetManagementKey = "assetManagement";
+export declare const assetChangesKey = "assetChanges";
 export declare const independentSettingsKey = "independentSettings";
 ```

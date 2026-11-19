@@ -101,6 +101,8 @@ export function createWorld(): World {
     contribution: createAssetsContribution({
       settings: () => (present ? face : undefined),
       categories: () => undefined,
+      management: () => undefined,
+      changes: () => undefined,
       principals,
     }),
   }

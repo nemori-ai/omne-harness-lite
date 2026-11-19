@@ -5,19 +5,24 @@ import {
   type CapabilityId,
   type JsonValue,
   type PackageRejection,
+  type PublishContent,
   type TenantPublisher,
   type TenantPublishOutcome,
 } from '@omne-harness/assets'
 import { writeJsonText } from '@omne-harness/json-text'
-import { publishedRef, type PackageHolding, type PackagePublishResult } from './packages.ts'
+import { digest } from './encoding.ts'
+import { originOf, TENANT_PUBLISHING_OWNER } from './origin.ts'
+import { publishedAssetRef, type PackageHolding, type PackagePublishResult } from './packages.ts'
 import type { Failure } from './schema.ts'
 import type { AssetsLocal, AssetsMutationResult } from './types.ts'
 
+type Refused = Exclude<TenantPublishOutcome, Readonly<{ kind: 'published' }>>
+
 const UNAVAILABLE = Object.freeze({ kind: 'unavailable' } as const)
 const CONFLICT = Object.freeze({ kind: 'conflict' } as const)
-const invalid = (reason: string): TenantPublishOutcome => Object.freeze({ kind: 'invalid', reason })
+const invalid = (reason: string): Refused => Object.freeze({ kind: 'invalid', reason })
 
-const REJECTIONS: Readonly<Record<Failure['reason'], TenantPublishOutcome>> = Object.freeze({
+const REJECTIONS: Readonly<Record<Failure['reason'], Refused>> = Object.freeze({
   invalid_input: invalid('invalid-input'),
   limit_exceeded: invalid('limit-exceeded'),
   forbidden: Object.freeze({ kind: 'denied' }),
@@ -30,14 +35,16 @@ const REJECTIONS: Readonly<Record<Failure['reason'], TenantPublishOutcome>> = Ob
   version_conflict: CONFLICT,
   identity_conflict: CONFLICT,
   holding_exists: CONFLICT,
-  holding_removed: Object.freeze({ kind: 'removed' }),
+  holding_removed: CONFLICT,
   operation_conflict: Object.freeze({ kind: 'operation-conflict' }),
   unknown_category: Object.freeze({ kind: 'unknown-category' }),
 })
 
-function rejected(reason: string): TenantPublishOutcome {
+/** What a publication refused by the store answers, by the store's reason. */
+export function publishRejected(reason: string): Refused {
   return Object.hasOwn(REJECTIONS, reason) ? REJECTIONS[reason as Failure['reason']] : UNAVAILABLE
 }
+const rejected = publishRejected
 
 function packageRejected(rejection: PackageRejection): TenantPublishOutcome {
   switch (rejection.kind) {
@@ -92,13 +99,19 @@ function mutationOutcome(
   }
 }
 
+/** A holding minted by a publication: the same operation always mints the same reference. */
+export function newHoldingRef(operationId: string): string {
+  return `held-${digest(operationId).slice(0, 32)}`
+}
+
 /** The tenant source of a published holding: the tenant can set and clear its settings. */
-function tenantHolding(tenantRef: string): PackageHolding {
+function tenantHolding(tenantRef: string, holdingRef: string): PackageHolding {
   return {
+    holdingRef,
     sources: [
       {
         sourceId: 'tenant',
-        ownerRef: 'assets.tenant-publishing',
+        ownerRef: TENANT_PUBLISHING_OWNER,
         scope: { kind: 'tenant', subjectRef: tenantRef },
       },
     ],
@@ -106,11 +119,30 @@ function tenantHolding(tenantRef: string): PackageHolding {
   }
 }
 
+type Placement = Readonly<{ holdingRef: string }> | Readonly<{ refused: TenantPublishOutcome }>
+
+/** A new version goes to the holding that is held now; with none held, the publication mints one. */
+async function placementOf(
+  local: AssetsLocal,
+  capability: CapabilityId,
+  operationId: string,
+): Promise<Placement> {
+  const held = await local.readHeldCapability({ capability })
+  if (held.kind === 'rejected') return { refused: rejected(held.reason) }
+  if (held.kind === 'absent') return { holdingRef: newHoldingRef(operationId) }
+  if (originOf(held.holding) === 'official') return { refused: invalid('held-by-deployment') }
+  return { holdingRef: held.holding.holdingRef }
+}
+
 export function createTenantPublisher(local: AssetsLocal, tenantRef: string): TenantPublisher {
-  const holding = tenantHolding(tenantRef)
-  async function publishData(operationId: string, capability: CapabilityId, body: JsonValue) {
+  async function publishData(
+    operationId: string,
+    capability: CapabilityId,
+    body: JsonValue,
+    holding: PackageHolding,
+  ) {
     if (!isReadBody(body)) return invalid('body-not-read')
-    const ref = publishedRef(capability)
+    const ref = publishedAssetRef(capability)
     const version = digestBytes(new TextEncoder().encode(writeJsonText(body)))
     const asset = await local.readAsset({ assetRef: ref })
     if (asset.kind === 'rejected') return rejected(asset.reason)
@@ -119,20 +151,31 @@ export function createTenantPublisher(local: AssetsLocal, tenantRef: string): Te
       assetRef: ref,
       expectedRevision: asset.kind === 'asset' ? asset.asset.revision : 0,
       pinned: pinBody({ identity: capability, version, source: 'tenant-publishing', body }),
-      holding: { holdingRef: ref, scopeRef: tenantRef, ...holding },
+      holding: { scopeRef: tenantRef, ...holding },
     })
-    return mutationOutcome(result, ref, version)
+    return mutationOutcome(result, holding.holdingRef, version)
+  }
+  async function publishContent(
+    operationId: string,
+    capability: CapabilityId,
+    content: PublishContent,
+    holding: PackageHolding,
+  ) {
+    if (content.kind === 'data') return publishData(operationId, capability, content.body, holding)
+    const result = await local.packages.publish({
+      capability,
+      from: content.from,
+      operationId,
+      holding,
+    })
+    return packageOutcome(result, holding.holdingRef)
   }
   return Object.freeze({
     async publish({ operationId, capability, content }) {
-      if (content.kind === 'data') return publishData(operationId, capability, content.body)
-      const result = await local.packages.publish({
-        capability,
-        from: content.from,
-        operationId,
-        holding,
-      })
-      return packageOutcome(result, publishedRef(capability))
+      const placement = await placementOf(local, capability, operationId)
+      if ('refused' in placement) return placement.refused
+      const holding = tenantHolding(tenantRef, placement.holdingRef)
+      return publishContent(operationId, capability, content, holding)
     },
   })
 }
