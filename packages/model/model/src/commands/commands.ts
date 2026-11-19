@@ -66,7 +66,7 @@ import {
   completesNotSentWindow,
   bump,
   expireReads,
-  hasDispatchContent,
+  recordSendState,
   lateTerminal,
   abandonReceiveWindows,
   mergeReceiveWindow,
@@ -75,6 +75,7 @@ import {
   type ModelCommandCore,
 } from './state.ts'
 import { beginDispatch, initialAttempts, positionRetry, recordRetryDecision } from './attempts.ts'
+import { readInstant } from './instants.ts'
 import type { ModelCommandStorage } from './storage.ts'
 import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
@@ -650,7 +651,7 @@ export function dispatchCommands<P>(
           if (call.request === null) return invalid('supplier', 'outside-request')
           const supplier = prepareSupplierFailure(call, call.request, input)
           if (supplier) return supplier
-          beginDispatch(call, input, call.request.messageIds)
+          beginDispatch(call, input, call.request.messageIds, readInstant(core.options.clock))
           return null
         },
       ),
@@ -709,14 +710,7 @@ export function dispatchCommands<P>(
         call => {
           const dispatch = dispatchOf(call, input.dispatch)
           if ('kind' in dispatch) return dispatch
-          if (dispatch.record.send === 'started' && input.state !== 'started')
-            return invalid('state', 'started-cannot-regress')
-          if (input.state === 'not-sent' && hasDispatchContent(dispatch))
-            return invalid('state', 'not-sent-content')
-          if (input.state === 'started' && dispatch.record.materialization === null)
-            return invalid('dispatch', 'not-materialized')
-          dispatch.record = { ...dispatch.record, send: input.state }
-          return null
+          return recordSendState(dispatch, input.state, readInstant(core.options.clock))
         },
       ),
     openReceiveWindow: input =>
@@ -748,13 +742,14 @@ export function dispatchCommands<P>(
             dispatch: input.dispatch,
             window: input.window,
             facts: input.facts,
+            ...(input.arrivals === undefined ? {} : { arrivals: input.arrivals }),
           },
           check: call => core.execution(input, call, bound),
           apply: draft =>
             atDispatch(draft, input, (call, dispatch) => {
               if (dispatch.windows.get(input.window) !== 'open')
                 return { failure: invalid('window', 'not-open') }
-              const failure = reduceFacts(call, dispatch, input.facts)
+              const failure = reduceFacts(call, dispatch, input.facts, input.arrivals)
               if (failure) return { failure }
               const completed = receiveCompletion(call, dispatch, input)
               if ('failure' in completed) return completed

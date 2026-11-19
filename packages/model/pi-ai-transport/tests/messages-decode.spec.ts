@@ -14,6 +14,7 @@ import {
 } from './support/chat-record.ts'
 import { frame, framesOf, messagesRecord } from './support/messages-record.ts'
 import { factsOfSend } from '../src/fact-stream.ts'
+import { OPENROUTER_ACCOUNTING } from '../src/chat-completions/openrouter.ts'
 import type { HttpExchange } from '../src/http.ts'
 
 const ACCOUNTING = { place: 'gateway', costUnit: 'gateway-credit' }
@@ -370,13 +371,14 @@ describe('decode: refusals', () => {
       for await (const fact of factsOfSend({
         exchange,
         decoder: decoderOf(),
-        route: {} as never,
+        route: { accounting: OPENROUTER_ACCOUNTING } as never,
         limits: {} as never,
         diagnostics: [],
         replayCarried: carried,
       }))
         facts.push(fact)
       expect(facts).toEqual([
+        { kind: 'response', request: null },
         {
           kind: 'ended',
           termination: { kind: 'failed', fault: { ...fault, upstreamStatus: '400' } },
@@ -404,13 +406,14 @@ describe('decode: refusals', () => {
     for await (const fact of factsOfSend({
       exchange,
       decoder: decoderOf(),
-      route: {} as never,
+      route: { accounting: OPENROUTER_ACCOUNTING } as never,
       limits: {} as never,
       diagnostics: [],
       replayCarried: false,
     }))
       facts.push(fact)
     expect(facts).toEqual([
+      { kind: 'response', request: null },
       {
         kind: 'ended',
         termination: {

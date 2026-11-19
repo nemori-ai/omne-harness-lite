@@ -31,6 +31,7 @@ import {
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
 import type { CredentialSelection } from '../send.ts'
+import { arrivalsFit, keepInstant } from './instants.ts'
 import {
   checkedActor,
   decimal,
@@ -241,12 +242,51 @@ function reduceFact(
       receipt: 'received',
     })
   if (fact.kind === 'diagnostic') return diagnosticFact(dispatch, fact.value)
+  if (fact.kind === 'response') return responseFact(dispatch, fact.request)
+  if (fact.kind === 'connect-retry') return connectRetryFact(dispatch, fact.reason)
   if (fact.kind === 'ended') return endDispatch(call, dispatch, fact.termination)
   return reduceBlock(dispatch, fact)
 }
+const MAX_REQUEST_BYTES = 256
+/** The first identity the upstream gave the request is kept; an empty or oversized one is not an identity. */
+function responseFact(dispatch: DispatchDocument, request: string | null): ModelFailure | null {
+  if (request !== null && typeof request !== 'string') return invalid('response', 'request')
+  if (
+    dispatch.record.request === undefined &&
+    request !== null &&
+    request !== '' &&
+    encodedBytes(request) <= MAX_REQUEST_BYTES
+  )
+    dispatch.record = { ...dispatch.record, request }
+  return null
+}
+function connectRetryFact(dispatch: DispatchDocument, reason: string): ModelFailure | null {
+  if (reason !== 'connect-failed' && reason !== 'connect-timeout')
+    return invalid('connect-retry', 'reason')
+  dispatch.record = {
+    ...dispatch.record,
+    connectRetries: [...(dispatch.record.connectRetries ?? []), reason],
+  }
+  return null
+}
+/** Keeps the moments a fact marks: the response, the first content, the end; each from when the fact reached Model. */
+function keepFactInstants(
+  dispatch: DispatchDocument,
+  fact: TransportFact,
+  arrival: string | null,
+  contentBefore: boolean,
+): void {
+  if (fact.kind === 'response') keepInstant(dispatch, 'responseStarted', arrival)
+  if (!contentBefore && dispatch.record.firstContent === 'observed')
+    keepInstant(dispatch, 'firstContent', arrival)
+  if (fact.kind === 'ended') keepInstant(dispatch, 'ended', arrival)
+}
 function reduceBlock(
   dispatch: DispatchDocument,
-  fact: Exclude<TransportFact, { kind: 'account' | 'diagnostic' | 'ended' }>,
+  fact: Exclude<
+    TransportFact,
+    { kind: 'account' | 'diagnostic' | 'response' | 'connect-retry' | 'ended' }
+  >,
 ): ModelFailure | null {
   if (!decimal(fact.index) || !Number.isSafeInteger(Number(fact.index)))
     return invalid('index', 'safe-integer')
@@ -261,7 +301,9 @@ export function reduceFacts(
   call: CallDocument,
   dispatch: DispatchDocument,
   facts: readonly TransportFact[],
+  arrivals?: readonly (string | null)[],
 ): ModelFailure | null {
+  if (!arrivalsFit(facts, arrivals)) return invalid('arrivals', 'shape')
   if (
     dispatch.record.send === 'not-sent' &&
     facts.some(
@@ -269,10 +311,28 @@ export function reduceFacts(
     )
   )
     return invalid('facts', 'not-sent-content')
-  for (const fact of facts) {
+  for (const [at, fact] of facts.entries()) {
+    const contentBefore = dispatch.record.firstContent === 'observed'
     const failure = reduceFact(call, dispatch, fact)
     if (failure) return failure
+    keepFactInstants(dispatch, fact, arrivals?.[at] ?? null, contentBefore)
   }
+  return null
+}
+/** The send state of a dispatch moves forward only; `sentAt` is kept as its send moment once it started. */
+export function recordSendState(
+  dispatch: DispatchDocument,
+  state: 'started' | 'unknown' | 'not-sent',
+  sentAt: string | null,
+): ModelFailure | null {
+  if (dispatch.record.send === 'started' && state !== 'started')
+    return invalid('state', 'started-cannot-regress')
+  if (state === 'not-sent' && hasDispatchContent(dispatch))
+    return invalid('state', 'not-sent-content')
+  if (state === 'started' && dispatch.record.materialization === null)
+    return invalid('dispatch', 'not-materialized')
+  dispatch.record = { ...dispatch.record, send: state }
+  if (state === 'started') keepInstant(dispatch, 'sent', sentAt)
   return null
 }
 export function hasDispatchContent(dispatch: DispatchDocument): boolean {

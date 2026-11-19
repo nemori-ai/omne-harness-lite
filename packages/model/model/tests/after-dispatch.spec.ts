@@ -53,9 +53,20 @@ const stop: RetryDecision = {
 type Record = Parameters<typeof afterDispatch>[0]['recovery']
 const none = { retry: null, retryPosition: null, retrySource: null }
 const step = (recovery: Record, termination: Termination = failed) =>
-  afterDispatch({ recovery, termination, now: NOW })
+  afterDispatch({ recovery, termination, now: () => NOW })
 
 describe('the step of the driver after one dispatch ended', () => {
+  it('settles a completion without reading the clock, which only a held retry needs', () => {
+    const unreadable = (): string => {
+      throw new Error('the clock cannot be read')
+    }
+    const recovery = { state: running('observed'), ...none }
+    expect(afterDispatch({ recovery, termination: completed, now: unreadable })).toEqual({
+      kind: 'settle',
+      termination: completed,
+    })
+  })
+
   it('a settled call goes to the settlement, which recognizes it', () => {
     const settled = { ...base, phase: 'settled', settlement: {} } as unknown as CallState
     const recovery = { retry: again(NOW), retryPosition: position, retrySource: source }

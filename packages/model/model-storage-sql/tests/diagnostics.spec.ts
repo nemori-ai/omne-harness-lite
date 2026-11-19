@@ -58,9 +58,30 @@ const UNKNOWN = { kind: 'unknown' } as const
 
 const rev = (text: string) => unbox(decodeRevision(text))
 
+const NONE = {
+  prepared: null,
+  sent: null,
+  responseStarted: null,
+  firstContent: null,
+  ended: null,
+}
+const MOMENTS = {
+  prepared: '2026-11-19T07:59:59.960Z',
+  sent: '2026-11-19T08:00:00.000Z',
+  responseStarted: '2026-11-19T08:00:00.300Z',
+  firstContent: '2026-11-19T08:00:01.250Z',
+  ended: '2026-11-19T08:00:04.000Z',
+}
+const COMPLETED = {
+  send: 'started',
+  firstContent: 'observed',
+  terminal: { kind: 'completed', reason: 'stop' },
+} as const
+
 function dispatchOf(
   seq: number,
-  record: Pick<DispatchDocument['record'], 'send' | 'firstContent' | 'terminal'>,
+  record: Pick<DispatchDocument['record'], 'send' | 'firstContent' | 'terminal'> &
+    Partial<Pick<DispatchDocument['record'], 'instants' | 'connectRetries' | 'request'>>,
   logicalTerminal: Termination | null = null,
 ): DispatchDocument {
   return {
@@ -247,18 +268,83 @@ describe('the whitelist page of one call', () => {
     expect(text).not.toContain('"diagnostic"')
   })
 
-  it('answers unknown for every timing, because the storage holds no phase times', async () => {
+  it('answers unknown for every span and no moment for a record written before dispatches kept moments', async () => {
     const f = scene()
     const call = callId('timing')
     await f.seeded(call)
     const got = page(await f.diagnostics.list({ ...f.access(A, call), after: null, limit: 10 }))
     expect(got.entries).toHaveLength(4)
-    for (const entry of got.entries)
+    for (const entry of got.entries) {
       expect(entry.timing).toEqual({
         materialize: UNKNOWN,
+        sendToResponse: UNKNOWN,
         sendToFirstContent: UNKNOWN,
         execution: UNKNOWN,
       })
+      expect(entry.instants).toEqual(NONE)
+      expect(entry.connectRetries).toEqual([])
+    }
+  })
+
+  it('computes every span from its two kept moments, and carries the moments and the connect retries', async () => {
+    const f = scene()
+    const call = callId('spans')
+    await f.seeded(call, [
+      dispatchOf(0, {
+        ...COMPLETED,
+        instants: MOMENTS,
+        connectRetries: ['connect-failed', 'connect-timeout'],
+        request: 'gen-REQUEST-CANARY',
+      }),
+    ])
+    const [entry] = page(
+      await f.diagnostics.list({ ...f.access(A, call), after: null, limit: 10 }),
+    ).entries
+    expect(entry?.instants).toEqual(MOMENTS)
+    expect(entry?.timing).toEqual({
+      materialize: { kind: 'known', milliseconds: '40' },
+      sendToResponse: { kind: 'known', milliseconds: '300' },
+      sendToFirstContent: { kind: 'known', milliseconds: '1250' },
+      execution: { kind: 'known', milliseconds: '4000' },
+    })
+    expect(entry?.connectRetries).toEqual(['connect-failed', 'connect-timeout'])
+    expect(JSON.stringify(entry)).not.toContain('REQUEST-CANARY')
+  })
+
+  it('answers unknown for a span whose moment is missing or whose later moment is before the earlier (T6)', async () => {
+    const f = scene()
+    const call = callId('t6')
+    await f.seeded(call, [
+      dispatchOf(0, { ...COMPLETED, instants: { ...MOMENTS, prepared: null, firstContent: null } }),
+      dispatchOf(1, {
+        ...COMPLETED,
+        instants: { ...MOMENTS, responseStarted: '2026-11-19T07:59:59.000Z' },
+      }),
+    ])
+    const [missing, backwards] = page(
+      await f.diagnostics.list({ ...f.access(A, call), after: null, limit: 10 }),
+    ).entries
+    expect(missing?.timing).toEqual({
+      materialize: UNKNOWN,
+      sendToResponse: { kind: 'known', milliseconds: '300' },
+      sendToFirstContent: UNKNOWN,
+      execution: { kind: 'known', milliseconds: '4000' },
+    })
+    expect(backwards?.timing.sendToResponse).toEqual(UNKNOWN)
+    expect(backwards?.timing.execution).toEqual({ kind: 'known', milliseconds: '4000' })
+  })
+
+  it('makes a stored moment that is not an instant, or a retry reason it does not know, unavailable', async () => {
+    for (const record of [
+      { ...COMPLETED, instants: { ...MOMENTS, sent: 'yesterday' } },
+      { ...COMPLETED, connectRetries: ['dns'] },
+    ]) {
+      const f = scene()
+      const call = callId('broken')
+      await f.seeded(call, [dispatchOf(0, record as DispatchDocument['record'])])
+      const got = await f.diagnostics.list({ ...f.access(A, call), after: null, limit: 10 })
+      expect(got).toMatchObject({ failure: { kind: 'unavailable' } })
+    }
   })
 
   it('gives the same id for the same call and dispatch across two reads', async () => {

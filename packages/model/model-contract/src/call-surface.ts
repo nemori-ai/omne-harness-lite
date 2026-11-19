@@ -82,6 +82,16 @@ export type ReadState =
 export type ReadStart =
   | Readonly<{ kind: 'started'; read: ReadId; value: ReadState }>
   | Readonly<{ kind: 'acknowledged'; custody: Extract<CustodyState, { kind: 'acknowledged' }> }>
+/** The moments of one dispatch, each read from the Model clock where it happened; null when the clock could not be read there. */
+export type DispatchInstants = Readonly<{
+  prepared: string | null
+  sent: string | null
+  responseStarted: string | null
+  firstContent: string | null
+  ended: string | null
+}>
+/** Why the transport connected again before the request went out. */
+export type ConnectRetryReason = 'connect-failed' | 'connect-timeout'
 export type DispatchRecord = Readonly<{
   dispatch: DispatchId
   supplier: Supplier
@@ -94,6 +104,11 @@ export type DispatchRecord = Readonly<{
   messages?: readonly MessageId[]
   /** It carries no reasoning state: it is the resend after a refusal of it, or a later dispatch. */
   withoutReplay?: 'resend' | 'later'
+  /** Absent on records written before dispatches kept their moments. */
+  instants?: DispatchInstants
+  /** The upstream's identity of this request, taken from a response header; used only to look up its cost. */
+  request?: string
+  connectRetries?: readonly ConnectRetryReason[]
 }>
 export interface ModelCalls<P> {
   admit(input: Admit<P>): Reply<Admission>

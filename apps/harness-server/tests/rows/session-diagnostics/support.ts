@@ -2,9 +2,11 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import type { ServerResponse } from 'node:http'
 import { createServer } from 'node:https'
-import type { AddressInfo } from 'node:net'
+import type { AddressInfo, Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { expect } from 'vitest'
+import { interfacePath, renderReply } from '../../fixtures/gateway-wire.ts'
 import { bodyOf, type CliRun } from '../../r9/support.ts'
 
 export const GATEWAY_PATH = '/api/v1/chat/completions'
@@ -18,6 +20,7 @@ export type GatewayReply = Readonly<{
   status: number
   contentType: string
   body: string
+  headers?: Readonly<Record<string, string>>
 }>
 export type ScenarioAnswer = GatewayReply | Readonly<{ kind: 'hold' }>
 
@@ -36,6 +39,9 @@ export type ScenarioGateway = Readonly<{
   received(): number
   held(): number
   release(answer: GatewayReply): void
+  /** The next `count` connections are closed before their TLS handshake: each is a failed connect. */
+  refuseConnections(count: number): void
+  refused(): number
   close(): Promise<void>
 }>
 
@@ -73,10 +79,12 @@ export async function startScenarioGateway(script: ScenarioScript): Promise<Scen
   const directory = realpathSync(mkdtempSync(join(tmpdir(), 'harness-diagnostics-gateway-')))
   const { keyPath, certPath } = certificate(directory)
   let count = 0
-  const held = new Set<ServerResponse>()
-  const write = (response: ServerResponse, reply: GatewayReply): void => {
-    response.writeHead(reply.status, { 'content-type': reply.contentType })
-    response.end(reply.body)
+  const held = new Map<ServerResponse, string>()
+  // A streamed success is written in the interface the request speaks; anything else goes out as is.
+  const write = (response: ServerResponse, reply: GatewayReply, spoken: string): void => {
+    const { body } = renderReply(spoken, reply)
+    response.writeHead(reply.status, { 'content-type': reply.contentType, ...reply.headers })
+    response.end(body)
   }
   const server = createServer(
     { key: readFileSync(keyPath), cert: readFileSync(certPath) },
@@ -86,16 +94,29 @@ export async function startScenarioGateway(script: ScenarioScript): Promise<Scen
       const chunks: Buffer[] = []
       request.on('data', (chunk: Buffer) => chunks.push(chunk))
       request.on('end', () => {
-        const reply = script({ index, body: Buffer.concat(chunks).toString('utf8') })
+        const body = Buffer.concat(chunks).toString('utf8')
+        const spoken = interfacePath(
+          new URL(request.url ?? '/', 'https://127.0.0.1').pathname,
+          body,
+        )
+        const reply = script({ index, body })
         if (reply.kind === 'hold') {
-          held.add(response)
+          held.set(response, spoken)
           response.on('close', () => held.delete(response))
           return
         }
-        write(response, reply)
+        write(response, reply, spoken)
       })
     },
   )
+  let refusing = 0
+  let refused = 0
+  server.on('connection', (socket: Socket) => {
+    if (refusing === 0) return
+    refusing -= 1
+    refused += 1
+    socket.destroy()
+  })
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)
     server.listen(0, '127.0.0.1', () => resolve())
@@ -104,7 +125,7 @@ export async function startScenarioGateway(script: ScenarioScript): Promise<Scen
   const release: ScenarioGateway['release'] = reply => {
     const pending = Array.from(held)
     held.clear()
-    for (const response of pending) write(response, reply)
+    for (const [response, spoken] of pending) write(response, reply, spoken)
   }
   return {
     url: `https://127.0.0.1:${String(port)}${GATEWAY_PATH}`,
@@ -112,6 +133,10 @@ export async function startScenarioGateway(script: ScenarioScript): Promise<Scen
     received: () => count,
     held: () => held.size,
     release,
+    refuseConnections: count => {
+      refusing = count
+    },
+    refused: () => refused,
     close: async () => {
       release(answer504)
       server.closeAllConnections()
@@ -166,4 +191,31 @@ export function structuredCauseOf(run: Record<string, unknown>): unknown {
 export function modelCallsOf(run: Record<string, unknown>): Record<string, unknown>[] {
   const calls = run['modelCalls']
   return Array.isArray(calls) ? (calls as Record<string, unknown>[]) : []
+}
+
+export async function until(ready: () => boolean, what: string, ms: number): Promise<void> {
+  const deadline = Date.now() + ms
+  while (!ready()) {
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`)
+    await sleep(50)
+  }
+}
+
+export async function registerAndLogin(cli: Cli, who: string, credential: string): Promise<void> {
+  for (const step of [
+    await cli(['register', '--login-identifier', who], credential),
+    await cli(['login', '--login-identifier', who], credential),
+  ])
+    expect(step.status, step.stderr).toBe(0)
+}
+
+export async function createSession(cli: Cli): Promise<string> {
+  const created = await cli(['create-session', '--definition', 'assistant'])
+  expect(created.status, created.stderr).toBe(0)
+  return String(bodyOf(created)['session'])
+}
+
+export async function sendInput(cli: Cli, session: string, text: string): Promise<void> {
+  const sent = await cli(['send-input', '--session', session, '--text', text])
+  expect(sent.status, sent.stderr).toBe(0)
 }

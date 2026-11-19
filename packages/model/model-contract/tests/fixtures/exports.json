@@ -528,6 +528,16 @@
               "pending": false
             },
             {
+              "name": "DispatchInstants",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ConnectRetryReason",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "DispatchRecord",
               "kind": "type",
               "pending": false

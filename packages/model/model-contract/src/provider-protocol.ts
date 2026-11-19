@@ -40,6 +40,7 @@ import type {
   Termination,
 } from './result.ts'
 import type {
+  ConnectRetryReason,
   DispatchRecord,
   GrowingContentKind,
   LiveRoute,
@@ -109,6 +110,9 @@ export type TransportFact =
   | Readonly<{ kind: 'trim'; index: string; removed: string; reason: string }>
   | Readonly<{ kind: 'account'; event: string; value: CallAccountReport }>
   | Readonly<{ kind: 'diagnostic'; value: ProviderDiagnostic }>
+  /** The response headers arrived; `request` is the upstream's identity of the request when a header named it. */
+  | Readonly<{ kind: 'response'; request: string | null }>
+  | Readonly<{ kind: 'connect-retry'; reason: ConnectRetryReason }>
   | Readonly<{ kind: 'ended'; termination: TransportTermination }>
 export type IndependentModelFact =
   | TransportFact
@@ -228,7 +232,13 @@ export interface ModelCommands<P> {
   ): Reply<Revision>
   preserve(
     input: WriteContext &
-      Readonly<{ dispatch: DispatchId; window: string; facts: readonly TransportFact[] }>,
+      Readonly<{
+        dispatch: DispatchId
+        window: string
+        facts: readonly TransportFact[]
+        /** When each fact reached Model, aligned with `facts`; null where the clock could not be read. */
+        arrivals?: readonly (string | null)[]
+      }>,
   ): Reply<Snapshot>
   recordLateFact(
     input: Access<P> &

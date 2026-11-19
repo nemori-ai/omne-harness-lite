@@ -6,7 +6,9 @@ import {
   decodeModelDiagnosticId,
   decodeRevision,
   type Adoption,
+  type ConnectRetryReason,
   type DispatchId,
+  type DispatchInstants,
   type DispatchRecord,
   type DurableEvidence,
   type ModelAttemptDiagnostic,
@@ -14,6 +16,7 @@ import {
   type ModelDiagnosticCursor,
   type ModelDiagnostics,
   type ModelDiagnosticsPage,
+  type ModelDuration,
   type ModelFailure,
   type Termination,
 } from '@omne-harness/model-contract'
@@ -126,6 +129,8 @@ type StoredAttempt = Readonly<{
   send: DispatchRecord['send']
   firstContent: DispatchRecord['firstContent']
   terminal: Termination | null
+  instants: DispatchInstants
+  connectRetries: readonly ConnectRetryReason[]
 }>
 
 type AttemptsRead = Readonly<{ revision: number; attempts: readonly StoredAttempt[] }>
@@ -194,6 +199,62 @@ function adoptionOf(value: unknown, field: string): Adoption {
   }
 }
 
+const UNKNOWN_DURATION: ModelDuration = { kind: 'unknown' }
+
+const MOMENTS = [
+  'prepared',
+  'sent',
+  'responseStarted',
+  'firstContent',
+  'ended',
+] as const satisfies readonly (keyof DispatchInstants)[]
+const NO_INSTANTS: DispatchInstants = {
+  prepared: null,
+  sent: null,
+  responseStarted: null,
+  firstContent: null,
+  ended: null,
+}
+const RETRY_REASONS = [
+  'connect-failed',
+  'connect-timeout',
+] as const satisfies readonly ConnectRetryReason[]
+
+/** A record written before dispatches kept their moments has none of them. */
+function instantsOf(value: unknown, field: string): DispatchInstants {
+  if (value === undefined) return NO_INSTANTS
+  if (!isObject(value)) throw new StoredError(field, 'payload')
+  const moment = (key: (typeof MOMENTS)[number]): string | null => {
+    const item = value[key]
+    if (item === null) return null
+    if (typeof item !== 'string' || Number.isNaN(Date.parse(item)))
+      throw new StoredError(`${field}.${key}`, 'value')
+    return item
+  }
+  return {
+    prepared: moment('prepared'),
+    sent: moment('sent'),
+    responseStarted: moment('responseStarted'),
+    firstContent: moment('firstContent'),
+    ended: moment('ended'),
+  }
+}
+
+function retriesOf(value: unknown, field: string): readonly ConnectRetryReason[] {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) throw new StoredError(field, 'payload')
+  return value.map(item => oneOf(item, RETRY_REASONS, field))
+}
+
+/** T6: a span is known only from two kept moments, the later not before the earlier. */
+function durationBetween(from: string | null, to: string | null): ModelDuration {
+  if (from === null || to === null) return UNKNOWN_DURATION
+  const span = Date.parse(to) - Date.parse(from)
+  return Number.isSafeInteger(span) && span >= 0
+    ? { kind: 'known', milliseconds: String(span) }
+    : UNKNOWN_DURATION
+}
+
 function terminalOf(value: unknown, field: string): Termination | null {
   if (value === null) return null
   if (!isObject(value)) throw new StoredError(field, 'payload')
@@ -228,6 +289,8 @@ function attemptOf(
     adapter: adoptionOf(record.supplier.adoption, 'md_dispatch.record.supplier.adoption'),
     send: oneOf(record.send, SENDS, 'md_dispatch.record.send'),
     firstContent: oneOf(record.firstContent, FIRST_CONTENTS, 'md_dispatch.record.firstContent'),
+    instants: instantsOf(record.instants, 'md_dispatch.record.instants'),
+    connectRetries: retriesOf(record.connectRetries, 'md_dispatch.record.connectRetries'),
     terminal:
       logicalTerminal === null
         ? terminalOf(record.terminal, 'md_dispatch.record.terminal')
@@ -393,8 +456,6 @@ function outcomeOf(terminal: Termination | null): ModelAttemptDiagnostic['outcom
   }
 }
 
-const UNKNOWN_DURATION = { kind: 'unknown' } as const
-
 function attemptDiagnostic(
   scope: CursorScope,
   revision: number,
@@ -409,11 +470,14 @@ function attemptDiagnostic(
     send: SEND_OF[attempt.send],
     firstContent: attempt.firstContent,
     outcome: outcomeOf(attempt.terminal),
+    instants: attempt.instants,
     timing: {
-      materialize: UNKNOWN_DURATION,
-      sendToFirstContent: UNKNOWN_DURATION,
-      execution: UNKNOWN_DURATION,
+      materialize: durationBetween(attempt.instants.prepared, attempt.instants.sent),
+      sendToResponse: durationBetween(attempt.instants.sent, attempt.instants.responseStarted),
+      sendToFirstContent: durationBetween(attempt.instants.sent, attempt.instants.firstContent),
+      execution: durationBetween(attempt.instants.sent, attempt.instants.ended),
     },
+    connectRetries: attempt.connectRetries,
   }
 }
 

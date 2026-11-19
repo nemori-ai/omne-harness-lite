@@ -19,6 +19,7 @@
 - `CallAccess` · `root.d.ts`
 - `CallContact` · `result.d.ts`
 - `CallState` · `result.d.ts`
+- `ConnectRetryReason` · `call-surface.d.ts`
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ContextLimits` · `profile.d.ts`
 - `ControlState` · `result.d.ts`
@@ -27,6 +28,7 @@
 - `CredentialLayer` · `root.d.ts`
 - `CustodyState` · `result.d.ts`
 - `DispatchId` · `root.d.ts`
+- `DispatchInstants` · `call-surface.d.ts`
 - `DispatchProgress` · `result.d.ts`
 - `DispatchRecord` · `call-surface.d.ts`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
@@ -430,6 +432,14 @@ export type ReadStart = Readonly<{
         kind: 'acknowledged';
     }>;
 }>;
+export type DispatchInstants = Readonly<{
+    prepared: string | null;
+    sent: string | null;
+    responseStarted: string | null;
+    firstContent: string | null;
+    ended: string | null;
+}>;
+export type ConnectRetryReason = 'connect-failed' | 'connect-timeout';
 export type DispatchRecord = Readonly<{
     dispatch: DispatchId;
     supplier: Supplier;
@@ -444,6 +454,9 @@ export type DispatchRecord = Readonly<{
     }> | null;
     messages?: readonly MessageId[];
     withoutReplay?: 'resend' | 'later';
+    instants?: DispatchInstants;
+    request?: string;
+    connectRetries?: readonly ConnectRetryReason[];
 }>;
 export interface ModelCalls<P> {
     admit(input: Admit<P>): Reply<Admission>;
@@ -1149,6 +1162,7 @@ export type CredentialPort<P = unknown> = {
 ```ts
 import type { Adoption, CallAccess, DispatchId, Identity, ModelCallId, Revision } from './root.ts';
 import type { DurableEvidence, ModelFault, Reply } from './result.ts';
+import type { ConnectRetryReason, DispatchInstants } from './call-surface.ts';
 export type ModelDiagnosticId = Identity<'ModelDiagnosticId'>;
 export type ModelDiagnosticCursor = Identity<'ModelDiagnosticCursor'>;
 export type ModelDuration = Readonly<{
@@ -1177,11 +1191,14 @@ export type ModelAttemptDiagnostic = Readonly<{
         cause: ModelFault['cause'];
         upstreamStatus: string | null;
     }>;
+    instants: DispatchInstants;
     timing: Readonly<{
         materialize: ModelDuration;
+        sendToResponse: ModelDuration;
         sendToFirstContent: ModelDuration;
         execution: ModelDuration;
     }>;
+    connectRetries: readonly ConnectRetryReason[];
 }>;
 export type ModelDiagnosticsPage = Readonly<{
     entries: readonly ModelAttemptDiagnostic[];
@@ -1998,7 +2015,7 @@ import type { ContentReference } from '@omne-harness/content-block';
 import type { MessageId } from '@omne-harness/message';
 import type { Access, Adoption, ActorRef, Admit, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, FixedRequestHead, ModelCallId, ModelInstanceId, ModelOperationId, ProviderName, Mutation, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration } from './root.ts';
 import type { AckInput, AckReceipt, Admission, CallState, ControlState, CustodyState, DurableEvidence, ModelFailure, ModelBlock, ModelFault, Lookup, Reply, Settlement, Termination } from './result.ts';
-import type { DispatchRecord, GrowingContentKind, LiveRoute, ModelHandle, ModelRuntime, ReadState, ReadStart, Snapshot } from './call-surface.ts';
+import type { ConnectRetryReason, DispatchRecord, GrowingContentKind, LiveRoute, ModelHandle, ModelRuntime, ReadState, ReadStart, Snapshot } from './call-surface.ts';
 import type { CallAccount } from '@omne-harness/call-account';
 import type { ReplayOmission } from './profile.ts';
 export type TransportFailure = Extract<ModelFailure, {
@@ -2085,6 +2102,12 @@ export type TransportFact = Readonly<{
 }> | Readonly<{
     kind: 'diagnostic';
     value: ProviderDiagnostic;
+}> | Readonly<{
+    kind: 'response';
+    request: string | null;
+}> | Readonly<{
+    kind: 'connect-retry';
+    reason: ConnectRetryReason;
 }> | Readonly<{
     kind: 'ended';
     termination: TransportTermination;
@@ -2233,6 +2256,7 @@ export interface ModelCommands<P> {
         dispatch: DispatchId;
         window: string;
         facts: readonly TransportFact[];
+        arrivals?: readonly (string | null)[];
     }>): Reply<Snapshot>;
     recordLateFact(input: Access<P> & Readonly<{
         call: ModelCallId;

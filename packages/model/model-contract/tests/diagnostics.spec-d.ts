@@ -28,8 +28,29 @@ const entry: ModelAttemptDiagnostic = {
   send: 'sent',
   firstContent: 'observed',
   outcome: { kind: 'completed', reason: 'stop' },
-  timing: { materialize: known, sendToFirstContent: { kind: 'unknown' }, execution: known },
+  instants: {
+    prepared: '2026-11-19T00:00:00.000Z',
+    sent: '2026-11-19T00:00:00.005Z',
+    responseStarted: null,
+    firstContent: null,
+    ended: '2026-11-19T00:00:00.010Z',
+  },
+  timing: {
+    materialize: known,
+    sendToResponse: { kind: 'unknown' },
+    sendToFirstContent: { kind: 'unknown' },
+    execution: known,
+  },
+  connectRetries: ['connect-failed'],
 }
+
+it('a moment is a UTC instant or null, and a connect retry names one of two reasons', () => {
+  // @ts-expect-error a moment the clock could not give is null, never a placeholder number
+  const placeholder: ModelAttemptDiagnostic = { ...entry, instants: { ...entry.instants, sent: 0 } }
+  // @ts-expect-error a connect retry has one of the two reasons the transport reports
+  const reason: ModelAttemptDiagnostic = { ...entry, connectRetries: ['dns'] }
+  void [placeholder, reason]
+})
 
 it('diagnostic identity and cursor are brands, not plain strings', () => {
   expectTypeOf<ModelDiagnosticId>().not.toEqualTypeOf<ModelDiagnosticCursor>()
