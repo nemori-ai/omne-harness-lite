@@ -100,6 +100,23 @@ function instanceAt(
     : unavailable('stored-value')
 }
 
+/** Looks through the workspaces the tenant has a relation with. A workspace that went away meanwhile has nothing there. */
+async function locatedAmong<P>(
+  deps: Pick<WorkspaceDependencies<P>, 'store' | 'node'>,
+  tenant: string,
+  address: string,
+): Promise<Located> {
+  const memberships = await deps.store.memberships(tenant)
+  if (memberships.kind === 'unavailable') return unavailable('store')
+  for (const { workspace } of memberships.value) {
+    const state = await deps.store.state(tenant, workspace.workspace)
+    if (state.kind === 'unavailable') return unavailable('store')
+    const found = instanceAt(state.value?.instances ?? [], deps.node, address)
+    if (found !== undefined) return found
+  }
+  return NOWHERE
+}
+
 export function createInstances<P>(deps: WorkspaceDependencies<P>): WorkspaceInstances<P> {
   return {
     async associate(access, input): Promise<Answer<Readonly<{ instance: InstanceId }>>> {
@@ -191,15 +208,7 @@ export function createInstances<P>(deps: WorkspaceDependencies<P>): WorkspaceIns
       if (tenant === null) return NOWHERE
       const blocked = await admitted(deps.authority, access, 'workspace.list', deps.node)
       if (blocked !== null) return blocked.kind === 'unavailable' ? blocked : NOWHERE
-      const memberships = await deps.store.memberships(tenant)
-      if (memberships.kind === 'unavailable') return unavailable('store')
-      for (const { workspace } of memberships.value) {
-        const state = await deps.store.state(tenant, workspace.workspace)
-        if (state.kind === 'unavailable') return unavailable('store')
-        const found = instanceAt(state.value?.instances ?? [], deps.node, address)
-        if (found !== undefined) return found
-      }
-      return NOWHERE
+      return locatedAmong(deps, tenant, address)
     },
   }
 }
