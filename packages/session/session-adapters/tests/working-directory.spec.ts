@@ -592,6 +592,13 @@ describe('one publisher for each tenant', () => {
       })
       await publishers.close()
       expect(await publishers.publish(access.tenant, w.scope, value)).toEqual({ kind: 'closed' })
+      // Once closed it makes no publisher for a tenant it has not seen either.
+      const late = createWorkingDirectoryPublishers<string>({
+        principal: () => 'producer-late',
+        runtime: w.runtime,
+      })
+      await late.close()
+      expect(await late.publish(access.tenant, w.scope, value)).toEqual({ kind: 'closed' })
       // Closing withdrew the producer: the value it published is gone with it.
       expect(await w.read()).not.toEqual({ ...value, directory: '/srv/next' })
     } finally {
