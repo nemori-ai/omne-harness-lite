@@ -22,7 +22,7 @@ it('协议客户端的服务名照客户端装配的取法', () => {
   expect(sessionClientService).toBe('protocol:session/v1')
 })
 
-it('依赖都在：往侧栏区放会话列表（最前），往页面放对话页；协议客户端撤了两样都撤掉', async () => {
+it('依赖都在：往侧栏区放会话列表（最前），往页面放对话页与搜索页；协议客户端撤了都撤掉', async () => {
   const fake = createFakeClient()
   const mounted = await mountModule(fake.client, TENANT)
   expect(mounted.shell.items('sidebar').map(item => [item.id, item.order])).toEqual([
@@ -31,7 +31,10 @@ it('依赖都在：往侧栏区放会话列表（最前），往页面放对话�
   ])
   expect(
     mounted.shell.items('pages').map(item => [item.id, item.title, item.order, item.icon]),
-  ).toEqual([['conversation', '对话', 0, 'conversation']])
+  ).toEqual([
+    ['conversation', '对话', 0, 'conversation'],
+    ['history-search', '搜索', 1, 'search'],
+  ])
   await settle()
   expect(screen.getByRole('navigation', { name: '会话列表' })).toBeTruthy()
   expect(screen.getByRole('region', { name: '对话' })).toBeTruthy()

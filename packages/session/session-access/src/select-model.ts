@@ -1,5 +1,5 @@
 import type { LoginIdentity } from '@omne-harness/access-cordis-contract'
-import { commitCall, refused, UNAVAILABLE, type Answer, type Body } from './answers.ts'
+import { commitCall, readCall, refused, UNAVAILABLE, type Answer, type Body } from './answers.ts'
 import type { BackgroundCallPorts } from './background-calls.ts'
 import { controlOperation } from './derivation.ts'
 import type { ModelTargetCheck, ModelTargets } from './ports.ts'
@@ -48,4 +48,22 @@ export async function selectModel(
   if (result === 'unknown') return { outcome: 'unknown' }
   if ('failure' in result) return refused('select-model', result.failure)
   return { outcome: 'succeeded', body: { controlId, model, credential: target.credential } }
+}
+
+/** The model the session stands at now, as Session holds it: its log is the authority. */
+export async function readModelSelection(
+  ports: Pick<SelectModelPorts, 'admit'>,
+  login: LoginIdentity,
+  body: Body<'read-model-selection'>,
+): Promise<Answer<'read-model-selection'>> {
+  const admitted = await ports.admit(login, body.tenant, body.session)
+  if ('outcome' in admitted) return admitted
+  const { access, faces } = admitted
+  const read = await readCall(() => faces.work.readModelSelection(access))
+  if (read === 'basis-unavailable') return UNAVAILABLE
+  if ('failure' in read) return refused('read-model-selection', read.failure)
+  return {
+    outcome: 'succeeded',
+    body: { model: read.ok.selection.name, revision: read.ok.revision },
+  }
 }

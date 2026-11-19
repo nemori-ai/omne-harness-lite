@@ -411,6 +411,8 @@
 - `SessionDelegatedTransactionsService` · `cordis.d.ts`
 - `SessionDerivedInputsService` · `cordis.d.ts`
 - `SessionEvidenceBridgeService` · `cordis.d.ts`
+- `SessionHistoryIndexService` · `history-search.d.ts`
+- `SessionHistoryLogService` · `history-search.d.ts`
 - `SessionIdentityBridgeService` · `cordis.d.ts`
 - `SessionIdleInputService` · `cordis.d.ts`
 - `SessionInputSourcesService` · `cordis.d.ts`
@@ -422,6 +424,8 @@
 - `SessionReplayFactsService` · `cordis.d.ts`
 - `SessionScopeLookupService` · `cordis.d.ts`
 - `SessionScopeOwnersService` · `cordis.d.ts`
+- `SessionSearchCursorsService` · `history-search.d.ts`
+- `SessionSearchService` · `history-search.d.ts`
 - `SessionService` · `cordis.d.ts`
 - `SessionTenantSource` · `cordis.d.ts`
 - `SessionTenantSourceService` · `cordis.d.ts`
@@ -440,6 +444,8 @@
 - `sessionDelegatedTransactionsKey` · `cordis.d.ts`
 - `sessionDerivedInputsKey` · `cordis.d.ts`
 - `sessionEvidenceKey` · `cordis.d.ts`
+- `sessionHistoryIndexKey` · `history-search.d.ts`
+- `sessionHistoryLogKey` · `history-search.d.ts`
 - `sessionIdentityKey` · `cordis.d.ts`
 - `sessionIdleInputKey` · `cordis.d.ts`
 - `sessionInputSourcesKey` · `cordis.d.ts`
@@ -453,6 +459,8 @@
 - `sessionScopeLookupKey` · `cordis.d.ts`
 - `sessionScopeOwnersKey` · `cordis.d.ts`
 - `sessionScopeReleaseKey` · `cordis.d.ts`
+- `sessionSearchCursorsKey` · `history-search.d.ts`
+- `sessionSearchKey` · `history-search.d.ts`
 - `sessionTenantsKey` · `cordis.d.ts`
 - `sessionTransactionsKey` · `cordis.d.ts`
 - `sessionWorkPrincipalsKey` · `cordis.d.ts`
@@ -547,6 +555,7 @@ import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, Sessi
 import type { SessionAdoptedRequests } from './adopted-request.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts';
+export * from './history-search.ts';
 export type SessionIntercept = Readonly<{
     caller: SessionCallerClass;
 }>;
@@ -825,6 +834,45 @@ export interface SessionCursorSigning {
         payload: Uint8Array;
         signature: SessionCursorSignature;
     }>): Promise<SessionCursorVerifyResult>;
+}
+```
+
+## 声明文件 `history-search.d.ts`
+
+```ts
+import { type Context, Service } from '@deepseek-ai/cordis';
+import type { HistoryIndex, HistoryLogReader, HistorySearch, SearchCursorSeal } from '@omne-harness/session-search';
+export declare abstract class SessionHistoryIndexService extends Service {
+    static readonly provide = "sessionHistoryIndex";
+    constructor(ctx: Context);
+    abstract readonly index: HistoryIndex;
+}
+export declare const sessionHistoryIndexKey = "sessionHistoryIndex";
+export declare abstract class SessionHistoryLogService extends Service {
+    static readonly provide = "sessionHistoryLog";
+    constructor(ctx: Context);
+    abstract readonly log: HistoryLogReader;
+}
+export declare const sessionHistoryLogKey = "sessionHistoryLog";
+export declare abstract class SessionSearchCursorsService extends Service {
+    static readonly provide = "sessionSearchCursors";
+    constructor(ctx: Context);
+    abstract readonly seal: SearchCursorSeal;
+}
+export declare const sessionSearchCursorsKey = "sessionSearchCursors";
+export declare abstract class SessionSearchService<P = unknown> extends Service implements HistorySearch<P> {
+    static readonly provide = "sessionSearch";
+    constructor(ctx: Context);
+    abstract readonly search: HistorySearch<P>['search'];
+}
+export declare const sessionSearchKey = "sessionSearch";
+declare module '@deepseek-ai/cordis' {
+    interface Context {
+        sessionHistoryIndex: SessionHistoryIndexService;
+        sessionHistoryLog: SessionHistoryLogService;
+        sessionSearchCursors: SessionSearchCursorsService;
+        sessionSearch: SessionSearchService<unknown>;
+    }
 }
 ```
 

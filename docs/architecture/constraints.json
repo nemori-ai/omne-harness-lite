@@ -351,6 +351,30 @@
       "source": "packages/model/SPEC.md"
     },
     {
+      "id": "packages/model/model-protocol",
+      "paths": ["packages/model/model-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-access",
+      "paths": ["packages/model/model-access/src/**"],
+      "layer": "unknown",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-ui",
+      "paths": ["packages/model/model-ui/src/**"],
+      "layer": "unknown",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/model/SPEC.md"
+    },
+    {
       "id": "packages/tool/tool-contract",
       "paths": ["packages/tool/tool-contract/src/**"],
       "layer": "contract",
@@ -633,6 +657,22 @@
     {
       "id": "packages/session/session-storage-sql",
       "paths": ["packages/session/session-storage-sql/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "adopted",
+      "source": "packages/session/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-search",
+      "paths": ["packages/session/session-search/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "adopted",
+      "source": "packages/session/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-search-sqlite",
+      "paths": ["packages/session/session-search-sqlite/src/**"],
       "layer": "unknown",
       "domains": ["session"],
       "status": "adopted",
@@ -1022,6 +1062,8 @@
         "packages/identity/identity-sql",
         "packages/session/session",
         "packages/session/session-cordis",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
         "packages/session/session-storage-sql"
       ],
       "source": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向"
@@ -1073,6 +1115,8 @@
         "packages/session/session-diagnostics-protocol",
         "packages/session/session-observation",
         "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
         "packages/session/session-storage-sql",
         "packages/session/session-ui",
         "packages/agent/agent-contract",
@@ -1113,6 +1157,8 @@
         "packages/session/session-diagnostics-protocol",
         "packages/session/session-observation",
         "packages/session/session-protocol",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite",
         "packages/session/session-storage-sql",
         "packages/session/session-ui",
         "packages/schedule/schedule",

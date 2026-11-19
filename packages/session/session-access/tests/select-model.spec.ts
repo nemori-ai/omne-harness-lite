@@ -166,3 +166,114 @@ describe('select-model, row by row of T3', () => {
     expect(changes(world)).toEqual([])
   })
 })
+
+describe('create-session with a model', () => {
+  const create = (world: World, model: string | undefined, createCallId = 'create-m') =>
+    ops(world)['create-session'](as(world.issue(ALICE)), {
+      createCallId,
+      definition: DEFINITION,
+      purpose: 'hello',
+      ...(model === undefined ? {} : { model }),
+    })
+  const creations = (world: World) =>
+    world.session.controls.calls().filter(call => call.method === 'create')
+  const read = (world: World, session: string, who = ALICE) =>
+    ops(world)['read-model-selection'](as(loginIdentity(who)), { tenant: who.tenant, session })
+
+  it('without a model: starts at the one the deployment maps the definition to, and asks Model nothing', async () => {
+    const world = createWorld()
+    const answer = await create(world, undefined)
+    if (answer.outcome !== 'succeeded') throw new Error(answer.outcome)
+    expect(world.targets.calls()).toEqual([])
+    const stands = await read(world, answer.body.session)
+    expect(stands).toMatchObject({ outcome: 'succeeded' })
+    expect(stands.outcome === 'succeeded' && stands.body.model).not.toBe(MODEL)
+  })
+
+  it('with a selectable model: asks Model as the member, and the session starts at it', async () => {
+    const world = createWorld()
+    world.targets.answer({ kind: 'selectable', credential: 'missing', basis: TARGET_BASIS })
+    const answer = await create(world, MODEL)
+    if (answer.outcome !== 'succeeded') throw new Error(answer.outcome)
+    expect(world.targets.calls()).toEqual([
+      expect.objectContaining({ tenant: ALICE.tenant, route: MODEL }),
+    ])
+    expect(await read(world, answer.body.session)).toEqual({
+      outcome: 'succeeded',
+      body: { model: MODEL, revision: expect.any(String) },
+    })
+  })
+
+  it.each(['unknown-name', 'withdrawn', 'excluded', 'modality', 'locked', 'scope'] as const)(
+    'with a model that cannot be selected (%s): answers invalid and creates nothing',
+    async reason => {
+      const world = createWorld()
+      world.targets.answer({ kind: 'refused', reason })
+      expect(await create(world, MODEL)).toEqual({ outcome: 'invalid', body: {} })
+      expect(creations(world)).toEqual([])
+    },
+  )
+
+  it('with a model while Model cannot say: answers basis-unavailable and creates nothing', async () => {
+    for (const script of [{ kind: 'unavailable' } as const, 'throw' as const, 'removed' as const]) {
+      const world = createWorld()
+      if (script === 'removed') world.remove('modelTargets')
+      else world.targets.answer(script)
+      expect(await create(world, MODEL)).toEqual({ outcome: 'basis-unavailable' })
+      expect(creations(world)).toEqual([])
+    }
+  })
+
+  it('the same create call with the same model is the same session', async () => {
+    const world = createWorld()
+    const first = await create(world, MODEL)
+    const again = await create(world, MODEL)
+    if (first.outcome !== 'succeeded' || again.outcome !== 'succeeded') throw new Error('create')
+    expect(again.body).toEqual({ session: first.body.session, recovered: true })
+  })
+})
+
+describe('read-model-selection', () => {
+  const read = (world: World, session: string, who = ALICE) =>
+    ops(world)['read-model-selection'](as(loginIdentity(who)), { tenant: who.tenant, session })
+
+  it('answers the route the session stands at: the one selected last', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    const before = await read(world, session)
+    expect((await select(world, session)).outcome).toBe('succeeded')
+    const after = await read(world, session)
+    if (before.outcome !== 'succeeded' || after.outcome !== 'succeeded') throw new Error('read')
+    expect(after.body.model).toBe(MODEL)
+    expect(before.body.model).not.toBe(MODEL)
+    expect(BigInt(after.body.revision)).toBeGreaterThan(BigInt(before.body.revision))
+    // A read changes nothing.
+    expect(await read(world, session)).toEqual(after)
+  })
+
+  it('a login that cannot act for the tenant is refused before the session is read', async () => {
+    for (const [refusal, expected] of [
+      ['denied', { outcome: 'denied' }],
+      ['basis-unavailable', { outcome: 'basis-unavailable' }],
+      ['throw', { outcome: 'basis-unavailable' }],
+    ] as const) {
+      const world = createWorld()
+      const session = await created(world)
+      world.refuseTargets(refusal)
+      expect(await read(world, session)).toEqual(expected)
+    }
+  })
+
+  it('a session that does not exist and a session of another tenant get the same answer', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    expect(await read(world, 'no-such-session')).toEqual(await read(world, session, BOB))
+  })
+
+  it('answers basis-unavailable while Session is off or its read throws', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.remove('faces')
+    expect(await read(world, session)).toEqual({ outcome: 'basis-unavailable' })
+  })
+})

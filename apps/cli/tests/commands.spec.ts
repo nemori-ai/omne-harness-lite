@@ -650,6 +650,114 @@ describe('session commands', () => {
     expect(service.seen).toHaveLength(before)
   })
 
+  it('create-session sends the model it is given, and none when it is given none (C24)', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    await cli(['create-session', '--definition', 'coding'])
+    expect(service.seen.at(-1)?.body).not.toHaveProperty('model')
+    await cli(['create-session', '--definition', 'coding', '--model', 'openai/gpt-6-sol'])
+    expect(service.seen.at(-1)?.body).toMatchObject({
+      definition: 'coding',
+      model: 'openai/gpt-6-sol',
+    })
+    const before = service.seen.length
+    expect(await cli(['create-session', '--definition', 'coding', '--model', ''])).toMatchObject({
+      code: 2,
+    })
+    expect(service.seen).toHaveLength(before)
+  })
+
+  it.each(['send-input', 'interrupt-input'] as const)(
+    '%s with a model selects it first, under a control identity the accept identity gives (C24)',
+    async name => {
+      const service = await serve()
+      await loginOwningSession(service)
+      const route = 'anthropic/claude-sonnet-5'
+      const args = [name, '--session', sessionId, '--text', 'hello', '--model', route]
+      const result = await cli([...args, '--accept-id', 'accept-7'])
+      const [selected, sent] = service.seen.slice(-2)
+      expect(selected?.operation).toBe('select-model')
+      expect(selected?.body).toMatchObject({
+        session: sessionId,
+        model: route,
+        controlId: 'model:accept-7',
+      })
+      expect(sent?.operation).toBe(name)
+      expect(sent?.body).toMatchObject({ session: sessionId, acceptId: 'accept-7' })
+      expect(sent?.body).not.toHaveProperty('model')
+      expect(result).toMatchObject({ code: 0, stderr: '' })
+      expect(parsed(result.stdout)).toMatchObject({ outcome: 'succeeded' })
+    },
+  )
+
+  it('send-input does not send to a model that was not selected, and says which call stopped it (C24)', async () => {
+    const service = await serve(seen =>
+      seen.operation === 'issue-login'
+        ? { outcome: 'succeeded', body: loginBody(seen) }
+        : seen.operation === 'select-model'
+          ? { outcome: 'invalid', body: { reason: 'unknown-name' } }
+          : { outcome: 'succeeded', body: { recovered: false } },
+    )
+    await loginOwningSession(service)
+    const before = service.seen.length
+    const result = await cli(['send-input', '--session', sessionId, '--text', 'hi', '--model', 'x'])
+    expect(service.seen.slice(before).map(seen => seen.operation)).toEqual(['select-model'])
+    expect(parsed(result.stdout)).toMatchObject({
+      outcome: 'invalid',
+      body: { reason: 'unknown-name' },
+    })
+    expect(result.stderr).toBe(
+      'omne send-input: the model was not selected; the input was not sent\n',
+    )
+    expect(result.code).not.toBe(0)
+  })
+
+  it('send-input without a model selects nothing', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    const before = service.seen.length
+    await cli(['send-input', '--session', sessionId, '--text', 'hi'])
+    expect(service.seen.slice(before).map(seen => seen.operation)).toEqual(['send-input'])
+  })
+
+  it('read-model-selection reads the model one session stands at (C24)', async () => {
+    const service = await serve(seen =>
+      seen.operation === 'issue-login'
+        ? { outcome: 'succeeded', body: loginBody(seen) }
+        : { outcome: 'succeeded', body: { model: 'openai/gpt-6-sol', revision: '9' } },
+    )
+    await loginOwningSession(service)
+    const result = await cli(['read-model-selection', '--session', sessionId])
+    expect(service.seen.at(-1)?.path).toBe('/api/session/v1/read-model-selection')
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, session: sessionId })
+    expect(parsed(result.stdout)).toMatchObject({
+      outcome: 'succeeded',
+      body: { model: 'openai/gpt-6-sol', revision: '9' },
+    })
+    expect(await cli(['read-model-selection'])).toMatchObject({ code: 2 })
+  })
+
+  it('list-models asks Model for the models of the login tenant, or of the tenant given (C24)', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    const result = await cli(['list-models'])
+    expect(service.seen.at(-1)?.path).toBe('/api/model/v1/list-models')
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText })
+    expect(result.code).toBe(0)
+    expect(parsed(result.stdout)).toMatchObject({
+      result: 'response',
+      outcome: 'succeeded',
+      request: { tenant: tenantText },
+    })
+    const before = service.seen.length
+    expect(await cli(['list-models', '--tenant', 'not a tenant'])).toMatchObject({
+      code: 2,
+      stderr: commandUnrecognized('list-models'),
+    })
+    expect(await cli(['list-models', '--session', sessionId])).toMatchObject({ code: 2 })
+    expect(service.seen).toHaveLength(before)
+  })
+
   it('list-archived-sessions reads the login tenant and sends only the filters given (C29)', async () => {
     const service = await serve()
     await loginOwningSession(service)

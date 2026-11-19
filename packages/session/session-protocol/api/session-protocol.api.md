@@ -290,6 +290,7 @@ export declare const sessionProtocol: {
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly createCallId: string;
                 readonly definition?: string;
+                readonly model?: string;
                 readonly purpose: string;
             }>;
             readonly countsAsAccess: true;
@@ -556,6 +557,65 @@ export declare const sessionProtocol: {
                 readonly inputId: string;
                 readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+        };
+        readonly 'search-history': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly complete: boolean;
+                    readonly hits: readonly {
+                        readonly at: import("@omne-harness/utc-instant").Instant | null;
+                        readonly kind: "message.assistant" | "message.compaction" | "message.system_reminder" | "message.tool" | "message.tool_internal" | "message.user";
+                        readonly position: string;
+                        readonly session: string;
+                        readonly snippet: {
+                            readonly after: string;
+                            readonly before: string;
+                            readonly match: string;
+                        };
+                    }[];
+                    readonly incomplete: {
+                        readonly behind: number;
+                        readonly progress: {
+                            readonly indexed: number;
+                            readonly total: number;
+                        } | null;
+                        readonly reason: "budget" | "rebuilding" | "tail-budget";
+                    } | null;
+                    readonly next: string | null;
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly field: "cursor" | "limit" | "query";
+                    readonly reason: string;
+                }>;
+                readonly limited: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly archived?: "all" | "archived" | "unarchived";
+                readonly content: {
+                    readonly all: readonly string[];
+                    readonly caseSensitive: boolean;
+                    readonly kind: "literals";
+                } | {
+                    readonly caseSensitive: boolean;
+                    readonly kind: "regex";
+                    readonly pattern: string;
+                };
+                readonly cursor: string | null;
+                readonly from?: import("@omne-harness/utc-instant").Instant | null;
+                readonly kinds?: readonly ("message.assistant" | "message.compaction" | "message.system_reminder" | "message.tool" | "message.tool_internal" | "message.user")[];
+                readonly limit?: number;
+                readonly modelReadable?: "any" | "only";
+                readonly sessions?: readonly string[] | null;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+                readonly to?: import("@omne-harness/utc-instant").Instant | null;
             }>;
             readonly countsAsAccess: true;
         };
@@ -933,6 +993,26 @@ export declare const sessionProtocol: {
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly controlId: string;
                 readonly model: string;
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+        };
+        readonly 'read-model-selection': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly model: string;
+                    readonly revision: string;
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;

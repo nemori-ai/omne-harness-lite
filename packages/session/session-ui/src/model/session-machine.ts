@@ -99,7 +99,7 @@ export type State =
   | Readonly<{ kind: 'unavailable'; session: string; notice: Notice; content: Content }>
 
 export type Event =
-  | Readonly<{ kind: 'create'; createCallId: string }>
+  | Readonly<{ kind: 'create'; createCallId: string; model?: string }>
   | Readonly<{ kind: 'create-answered'; createCallId: string; answer: CreateAnswer }>
   | Readonly<{ kind: 'create-confirm' }>
   | Readonly<{ kind: 'create-confirmed'; createCallId: string; answer: CreateQueryAnswer }>
@@ -126,7 +126,7 @@ export type Event =
 export type HistoryRequest = Readonly<{ cursor: null }> | Readonly<{ cursor: string }>
 
 export type Effect =
-  | Readonly<{ kind: 'create-session'; createCallId: string }>
+  | Readonly<{ kind: 'create-session'; createCallId: string; model?: string }>
   | Readonly<{ kind: 'query-create-session'; createCallId: string }>
   | Readonly<{
       kind: 'send-input'
@@ -189,7 +189,7 @@ type Handlers = {
 }
 
 const HANDLERS: Handlers = {
-  create: (state, event) => onCreate(state, event.createCallId),
+  create: (state, event) => onCreate(state, event),
   'create-answered': (state, event) => onCreateAnswered(state, event),
   'create-confirm': state => onCreateConfirm(state),
   'create-confirmed': (state, event) => onCreateConfirmed(state, event),
@@ -276,11 +276,14 @@ function onOpenSession(state: State, session: string): Step {
   return { state: next.state, effects: [...leave(state), ...next.effects] }
 }
 
-function onCreate(state: State, createCallId: string): Step {
+// No model named: the session starts with the model of its definition.
+function onCreate(state: State, event: Extract<Event, { kind: 'create' }>): Step {
   if (state.kind === 'creating') return same(state)
+  const { createCallId, model } = event
+  const create = { kind: 'create-session', createCallId, ...(model === undefined ? {} : { model }) }
   return {
     state: { kind: 'creating', createCallId, confirm: 'no', notice: null },
-    effects: [...leave(state), { kind: 'create-session', createCallId }],
+    effects: [...leave(state), create as Effect],
   }
 }
 
