@@ -65,6 +65,7 @@ import {
   bump,
   recordSendState,
   lateTerminal,
+  costMiss,
   closeForSettlement,
   mergeReceiveWindow,
   reduceFacts,
@@ -77,6 +78,7 @@ import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
 import { handoffQuestion, provenHandoff, readHandoffProof } from './handoff-evidence.ts'
 import { custodyCommands } from './custody.ts'
+import { lateFactProof } from './late-evidence.ts'
 
 function shareRefusal(share: number, storage: Pick<ModelCommandStorage, 'held'>) {
   return storage.held() < share
@@ -589,28 +591,6 @@ export function dispatchCommands<P>(
       complete.ok.noPrefetch === true
     return { ok: proven }
   }
-  function lateFactProof(
-    call: CallDocument,
-    dispatch: DispatchDocument,
-    input: Parameters<ModelCommands<P>['recordLateFact']>[0],
-  ) {
-    if (input.fact.kind === 'terminal' && encodedBytes(input.fact.actual) > MAX_TERMINATION_BYTES)
-      return { failure: invalid('termination', 'encoded-byte-limit') }
-    const adapter = core.adapter(call)
-    if ('kind' in adapter) return { failure: adapter }
-    return checkedEvidence(
-      adapter.lateFact({
-        tenant: input.tenant,
-        call: input.call,
-        consumer: structuredClone(call.state.consumer),
-        execution: call.execution,
-        dispatch: input.dispatch,
-        supplier: structuredClone(dispatch.record.supplier),
-        source: structuredClone(input.source),
-        fact: structuredClone(input.fact),
-      }),
-    )
-  }
   function retryProof(call: CallDocument, input: Parameters<ModelCommands<P>['decideRetry']>[0]) {
     const adapter = core.adapter(call)
     if ('kind' in adapter) return { failure: adapter }
@@ -794,7 +774,7 @@ export function dispatchCommands<P>(
             if (!call) return { failure: invalid('call', 'not-found') }
             const dispatch = dispatchOf(call, input.dispatch)
             if ('kind' in dispatch) return { failure: dispatch }
-            const proof = lateFactProof(call, dispatch, input)
+            const proof = lateFactProof(core, call, dispatch, input)
             if ('failure' in proof) return proof
             const event = `late:${input.fact.kind}:${input.fact.event}`
             const fingerprint = digest(input.fact)
@@ -814,7 +794,11 @@ export function dispatchCommands<P>(
               })
               if (failure) return { failure }
             } else {
-              const failure = lateTerminal(call, dispatch, input.fact.actual)
+              const fact = input.fact
+              const failure =
+                fact.kind === 'terminal'
+                  ? lateTerminal(call, dispatch, fact.actual)
+                  : costMiss(dispatch, fact)
               if (failure) return { failure }
             }
             dispatch.events.set(event, fingerprint)

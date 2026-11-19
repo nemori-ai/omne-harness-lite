@@ -90,6 +90,7 @@ function harness(maxRecords = 2) {
     createTransport(_config: PiTransportConfig) {
       created++
       return {
+        lookupCost: () => Promise.resolve({ kind: 'unsupported' as const }),
         transport: {
           async prepare() {
             prepares++

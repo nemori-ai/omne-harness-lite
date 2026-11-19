@@ -269,6 +269,7 @@ describe('the dispatch facts of the Model records (C17)', () => {
         outcome: { kind: 'completed', reason: 'stop' },
         connectRetries: 0,
         account: expect.objectContaining({ usage: REPORT.usage, cost: REPORT.cost }),
+        costLookup: 'not-needed',
       },
     ])
     const text = JSON.stringify(page)

@@ -97,6 +97,8 @@ export interface ModelCommandsEvidence {
       Readonly<{
         dispatch: string
         supplier: Supplier
+        /** The upstream's id of this dispatch's request, when its response header gave one. */
+        upstreamRequest: string | null
         source: DurableEvidence
         fact: LateDispatchFact
       }>,

@@ -5,6 +5,7 @@ import type {
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type {
+  CostLookupAnswer,
   ModelTransport,
   PreparedTransport,
   TransportDispatch,
@@ -18,10 +19,13 @@ import {
   type PiTransportConfig,
 } from './config.ts'
 import type { PiFamilyBinding } from './family.ts'
+import { lookupGenerationCost } from './cost-lookup.ts'
 import { materialize, type MaterializedHandle } from './materialized.ts'
 
 export type PiTransport = Readonly<{
   transport: ModelTransport
+  /** Asks the route what one earlier request cost; only an OpenRouter route can answer. */
+  lookupCost(supplier: Supplier, request: string, signal: AbortSignal): Promise<CostLookupAnswer>
   close(): Promise<void>
 }>
 
@@ -92,8 +96,37 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
     if (failed !== undefined) throw failed.reason
   }
 
+  function lookupCost(
+    supplier: Supplier,
+    request: string,
+    signal: AbortSignal,
+  ): Promise<CostLookupAnswer> {
+    const provider = checked.routes.get(supplier.provider)
+    const endpoint = provider?.endpoints.values().next().value
+    if (
+      provider === undefined ||
+      endpoint === undefined ||
+      provider.accounting.place !== 'openrouter'
+    )
+      return Promise.resolve({ kind: 'unsupported' })
+    const secret =
+      provider.auth === null ? undefined : checked.credential.read()?.get(provider.auth.item)
+    if (phase.kind !== 'open' || secret === undefined)
+      return Promise.resolve({ kind: 'unavailable', diagnostic: 'credential-missing' })
+    const input = {
+      url: new URL('/api/v1/generation', endpoint.url.origin),
+      request,
+      secret,
+      costUnit: provider.accounting.costUnit,
+      timeoutMs: checked.limits.connectTimeoutMs ?? 30_000,
+      maxBodyBytes: checked.limits.maxErrorBodyBytes,
+    }
+    return lookupGenerationCost(checked.network, input, signal)
+  }
+
   return {
     transport: { prepare },
+    lookupCost,
     close() {
       if (phase.kind === 'open') phase = { kind: 'closing', done: drain() }
       return phase.done

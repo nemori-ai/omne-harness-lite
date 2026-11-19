@@ -3,6 +3,7 @@ import { initialRunPort, type BoundCommandAccess, type ModelInitialRun } from '.
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
+  costLookupOf,
   decodeModelCallId,
   decodeModelInstanceId,
   decodeModelOperationId,
@@ -25,6 +26,7 @@ import {
   type ActorRef,
   type CallAccountReport,
   type ExecutionRef,
+  type LateDispatchFact,
   type ModelConsumerOwnerDeclaration,
   type ProviderDiagnostic,
   type SendDemand,
@@ -361,6 +363,17 @@ export function completesNotSentWindow(
       ),
     )
   )
+}
+/** One more lookup of the cost that missed; the last one ends the lookup with the cost unknown. */
+export function costMiss(
+  dispatch: DispatchDocument,
+  fact: Extract<LateDispatchFact, { kind: 'cost-miss' }>,
+): ModelFailure | null {
+  if (costLookupOf(dispatch.record) !== 'pending')
+    return invalid('dispatch', 'no-pending-cost-lookup')
+  const misses = (dispatch.record.lookup?.misses ?? 0) + 1
+  dispatch.record = { ...dispatch.record, lookup: { misses, exhausted: fact.final } }
+  return null
 }
 export function lateTerminal(
   call: CallDocument,

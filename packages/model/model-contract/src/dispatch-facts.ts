@@ -10,6 +10,7 @@ import type {
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ModelFault, Reply } from './result.ts'
 import type { DispatchInstants } from './call-surface.ts'
+import type { CostLookupState } from './cost-lookup.ts'
 
 /** One real dispatch as Model shows it outside: numbers and identities only, never a body. */
 export type ModelDispatchFact = Readonly<{
@@ -28,6 +29,7 @@ export type ModelDispatchFact = Readonly<{
     | Readonly<{ kind: 'failed'; cause: ModelFault['cause']; upstreamStatus: string | null }>
   connectRetries: number
   account: CallAccount | null
+  costLookup: CostLookupState
 }>
 export type ModelDispatchFactsQuery = Readonly<{
   /** By the prepared moment, both ends included; null takes every dated dispatch. */

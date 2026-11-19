@@ -99,6 +99,7 @@ function observingFactory() {
     const fault = faults.get(transports.length) ?? {}
     transports.push(observed)
     return {
+      lookupCost: () => Promise.resolve({ kind: 'unsupported' as const }),
       transport: {
         async prepare(request) {
           observed.prepares += 1

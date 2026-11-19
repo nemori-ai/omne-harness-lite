@@ -205,6 +205,13 @@ export type RecoveryRecord = Readonly<{
 export type LateDispatchFact =
   | Readonly<{ kind: 'account'; event: string; value: CallAccountReport }>
   | Readonly<{ kind: 'terminal'; event: string; actual: Termination }>
+  | Readonly<{ kind: 'cost-miss'; event: string; final: boolean }>
+/** The upstream's answer to the cost of one request, asked after the fact. Only `missed` counts. */
+export type CostLookupAnswer =
+  | Readonly<{ kind: 'found'; cost: CallAccountReport['cost'] }>
+  | Readonly<{ kind: 'missed' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  | Readonly<{ kind: 'unsupported' }>
 export interface ModelCommands<P> {
   admit(input: Admit<P>): Reply<Admission>
   recall(input: CallAccess<P> & Readonly<{ admission: ModelOperationId }>): Reply<Lookup>

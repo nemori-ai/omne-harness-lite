@@ -53,6 +53,7 @@ describe('the fact of one dispatch', () => {
       outcome: { kind: 'pending' },
       connectRetries: 2,
       account: null,
+      costLookup: 'not-needed',
     })
   })
 

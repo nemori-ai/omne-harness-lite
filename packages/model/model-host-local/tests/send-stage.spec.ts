@@ -218,6 +218,7 @@ function observing() {
     const observed: Observed = { config, reads: [] }
     transports.push(observed)
     return {
+      lookupCost: () => Promise.resolve({ kind: 'unsupported' as const }),
       transport: {
         async prepare(request, supplier) {
           return {

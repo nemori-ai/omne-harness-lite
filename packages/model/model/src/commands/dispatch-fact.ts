@@ -1,8 +1,9 @@
-import type {
-  Adoption,
-  ContextWindow,
-  ModelDispatchFact,
-  Termination,
+import {
+  costLookupOf,
+  type Adoption,
+  type ContextWindow,
+  type ModelDispatchFact,
+  type Termination,
 } from '@omne-harness/model-contract'
 import { NO_INSTANTS } from './instants.ts'
 import type { CallDocument, DispatchDocument } from './types.ts'
@@ -48,5 +49,6 @@ export function dispatchFactOf(call: CallDocument, dispatch: DispatchDocument): 
     outcome: dispatchOutcome(dispatch.logicalTerminal ?? record.terminal),
     connectRetries: record.connectRetries?.length ?? 0,
     account: record.account,
+    costLookup: costLookupOf(record),
   })
 }
