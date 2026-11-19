@@ -73,3 +73,12 @@ it('carries no comment other than a tool annotation or a licence notice', () => 
   )
   expect(offenders).toEqual([])
 })
+
+it('imports the chart library only in the charts block', () => {
+  const importers = FILES.filter(file =>
+    importedSpecifiers(file.text).some(
+      specifier => specifier === 'recharts' || specifier.startsWith('recharts/'),
+    ),
+  ).map(file => file.name)
+  expect(importers).toEqual(['src/charts/series.tsx'])
+})

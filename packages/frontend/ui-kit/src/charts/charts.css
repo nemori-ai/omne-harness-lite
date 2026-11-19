@@ -1,0 +1,155 @@
+.omne-chart {
+  display: grid;
+  gap: var(--omne-space-inline);
+  margin: 0;
+  min-width: 0;
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-ui);
+}
+.omne-chart-label {
+  color: var(--omne-ink-muted);
+}
+.omne-chart-empty {
+  margin: 0;
+  color: var(--omne-ink-faint);
+}
+.omne-chart-plot {
+  color: var(--omne-chart-ink);
+  font-size: var(--omne-text-caption);
+}
+.omne-chart-grid {
+  color: var(--omne-chart-grid);
+}
+.omne-chart-axis {
+  color: var(--omne-chart-axis);
+}
+.omne-chart-axis text {
+  fill: var(--omne-chart-ink);
+}
+.omne-chart-cursor {
+  color: var(--omne-chart-grid);
+  opacity: 0.6;
+}
+.omne-chart-tooltip {
+  padding: var(--omne-space-inline);
+  border-radius: var(--omne-radius-control);
+  background: var(--omne-tooltip);
+  color: var(--omne-tooltip-ink);
+  font-size: var(--omne-text-caption);
+}
+.omne-chart-tooltip p,
+.omne-chart-tooltip ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.omne-chart-swatch {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-inline-end: 0.3em;
+  border-radius: 2px;
+  background: currentColor;
+}
+.omne-chart-table summary {
+  color: var(--omne-ink-muted);
+  cursor: pointer;
+}
+.omne-chart-table table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.omne-chart-table :is(th, td) {
+  padding: 0.15em 0.6em;
+  text-align: end;
+}
+.omne-chart-table th[scope='row'] {
+  text-align: start;
+  font-weight: inherit;
+  color: var(--omne-ink-muted);
+}
+.omne-share-bar {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border-radius: var(--omne-radius-pill);
+}
+.omne-share-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--omne-space-inline);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--omne-ink-muted);
+}
+.omne-meter {
+  display: grid;
+  grid-template-columns: max-content minmax(4em, 1fr) max-content;
+  align-items: center;
+  gap: var(--omne-space-inline);
+  font-size: var(--omne-text-caption);
+}
+.omne-meter-label,
+.omne-meter-caption {
+  color: var(--omne-ink-muted);
+}
+.omne-meter-caption {
+  grid-column: 1 / -1;
+}
+.omne-meter-track {
+  width: 100%;
+  height: 6px;
+}
+.omne-meter-rail {
+  color: var(--omne-chart-unknown);
+}
+.omne-meter-mark {
+  color: var(--omne-chart-axis);
+}
+.omne-meter[data-state='over'] .omne-meter-value {
+  color: var(--omne-danger-ink);
+}
+.omne-spark {
+  display: inline-block;
+  width: 6em;
+  height: 1.4em;
+  vertical-align: middle;
+}
+.omne-stat {
+  display: grid;
+  gap: 0.1em;
+}
+.omne-stat-label,
+.omne-stat-detail {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.omne-stat-value {
+  font-size: var(--omne-text-title);
+  font-variant-numeric: tabular-nums;
+}
+.omne-chart-color-1 {
+  color: var(--omne-chart-1);
+}
+.omne-chart-color-2 {
+  color: var(--omne-chart-2);
+}
+.omne-chart-color-3 {
+  color: var(--omne-chart-3);
+}
+.omne-chart-color-4 {
+  color: var(--omne-chart-4);
+}
+.omne-chart-color-5 {
+  color: var(--omne-chart-5);
+}
+.omne-chart-color-6 {
+  color: var(--omne-chart-6);
+}
+.omne-chart-color-7 {
+  color: var(--omne-chart-7);
+}
+.omne-chart-color-8 {
+  color: var(--omne-chart-8);
+}
