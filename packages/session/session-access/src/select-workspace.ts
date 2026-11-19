@@ -43,6 +43,19 @@ export async function checkedWorkspace(
   }
 }
 
+type Checked = Extract<CheckedWorkspace, { kind: 'attachable' }>
+
+/** What the selection declares, and the directory it answers: the checked target, or none. */
+const declared = (target: Checked | null) =>
+  target === null
+    ? { value: null, workspaceAttachment: null, basis: NO_WORKSPACE, directory: null }
+    : {
+        value: target.workspace,
+        workspaceAttachment: target.attachment,
+        basis: target.basis,
+        directory: target.directory,
+      }
+
 // The target is verified before anything is committed; the control identity derives the operation.
 export async function selectWorkspace(
   ports: SelectWorkspacePorts,
@@ -58,19 +71,15 @@ export async function selectWorkspace(
   const target = asked === null ? null : await checkedWorkspace(ports.workspaces, access, asked)
   if (target?.kind === 'unavailable') return UNAVAILABLE
   if (target?.kind === 'refused') return { outcome: 'invalid', body: { reason: target.reason } }
+  const { directory, ...declaration } = declared(target)
   const result = await commitCall(() =>
     faces.management.change({
       ...access,
       operation: controlOperation(caller.login, tenantText, access.session, controlId),
-      declaration: {
-        kind: 'workspace',
-        value: target?.workspace ?? null,
-        workspaceAttachment: target?.attachment ?? null,
-        basis: target?.basis ?? NO_WORKSPACE,
-      },
+      declaration: { kind: 'workspace', ...declaration },
     }),
   )
   if (result === 'unknown') return { outcome: 'unknown' }
   if ('failure' in result) return refused('select-workspace', result.failure)
-  return { outcome: 'succeeded', body: { controlId, directory: target?.directory ?? null } }
+  return { outcome: 'succeeded', body: { controlId, directory } }
 }
