@@ -382,6 +382,9 @@
 - `ToolStartAuthority` · `records.d.ts`
 - `ToolStartFence` · `records.d.ts`
 - `ToolStartLookup` · `ports.d.ts`
+- `ToolStartRelease` · `records.d.ts`
+- `ToolStartReleaseReading` · `records.d.ts`
+- `ToolStartReleases` · `records.d.ts`
 - `ToolTask` · `records.d.ts`
 - `ToolValueSchema` · `definitions.d.ts`
 - `ToolWaitContract` · `author-context.d.ts`
@@ -3233,7 +3236,7 @@ export type { ResultPolicy, TextRenderer, ToolCommands, ToolExecutor, ToolRecove
 export type { PreparedEnvironment, ToolBindings, ToolClock, ToolDecisionBridge, ToolDriver, ToolEnvironment, ToolExecutionFact, ToolExecutorBinding, ToolInstanceHost, ToolInstanceIdentities, ToolInvocationSourceIssuer, ToolInvocationSourceOutcome, ToolLiveExecution, ToolOperationIdentities, ToolProvider, ToolStartLookup, } from './ports.ts';
 export type { AvailabilityFacts, OutputCodec, ParameterCodec, TextResultFactory, ToolAuthor, ToolAuthorExecutor, ToolAuthority, ToolBindingDrain, ToolBindingEntry, ToolBindingKey, ToolBindingKeyFailure, ToolBindingRegistry, ToolBindingScope, ToolContribution, ToolContributionFailure, ToolImplementation, ToolImplementationDeclaration, ToolImplementationModule, ToolLoadedRegistration, ToolLoader, ToolOperation, ToolOperationParameters, ToolOperationSpec, ToolPresentation, ToolProgramContract, ToolProgramOutput, ToolReturnValidator, ToolShape, ToolShapeParameters, } from './authoring.ts';
 export type { Checkpoint, ControlDispatch, DrainState, ExternalOperationResolution, FactBatch, FactProgress, FactReceipt, PreparationProgress, PreparationRecord, ProgramScheduling, ReleaseProgress, ReleaseRecord, StartGuard, StartPermit, StartProgress, SuspensionProgress, SuspensionRecord, TaskResolution, ToolRecoveryBinding, ToolResourceResponses, ToolStartAuthority, ToolTask, } from './records.ts';
-export type { ToolPermitConsumption, ToolPermitRef, ToolStartAcceptance, ToolStartFence, } from './records.ts';
+export type { ToolPermitConsumption, ToolPermitRef, ToolStartAcceptance, ToolStartFence, ToolStartRelease, ToolStartReleaseReading, ToolStartReleases, } from './records.ts';
 export type { AccountScope, ToolAccounts, ToolContentReader, ToolOffloader, ToolReads, } from './custody.ts';
 export type { ChildPosition, ChildReservation, ChildState, ProgramClosure, ProgramEnd, ProgramToolResult, ProgramTools, ToolChildren, } from './program.ts';
 export { projectToolBackgroundCalls } from './background-calls-projection.ts';
@@ -3427,7 +3430,24 @@ export type ToolStartAcceptance = Readonly<{
     authorizations: readonly ToolPermitConsumption[];
     executorReceipt: DurableEvidence;
     acceptance: DurableEvidence;
+    release?: ToolStartRelease;
 }>;
+export type ToolStartRelease = Readonly<{
+    by: 'verdict' | 'once' | 'session' | 'skip-ask';
+    grant: string;
+} | {
+    by: 'carrier' | 'ungated';
+    grant: null;
+}>;
+export type ToolStartReleaseReading = Readonly<{
+    kind: 'released';
+    release: ToolStartRelease;
+}> | Readonly<{
+    kind: 'absent';
+}>;
+export interface ToolStartReleases<P> {
+    releaseOf(input: CallAccess<P>): Reply<ToolStartReleaseReading>;
+}
 export type WaitIntent = Readonly<{
     wait: ToolWaitId;
     resume: DurableEvidence;

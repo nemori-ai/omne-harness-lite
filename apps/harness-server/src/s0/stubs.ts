@@ -320,6 +320,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'toolReads',
       'toolStartAuthority',
       'toolStartFence',
+      'toolStartReleases',
       'toolInvocationQualification',
     ],
     injects: [

@@ -11,7 +11,12 @@ import {
   type LedgerWrite,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
-import type { ToolPermitConsumption } from '@omne-harness/tool-contract/provider'
+import type {
+  ToolPermitConsumption,
+  ToolStartRelease,
+  ToolStartReleaseReading,
+  ToolStartReleases,
+} from '@omne-harness/tool-contract/provider'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -113,6 +118,7 @@ type AcceptanceRecord = Readonly<{
   acceptance: DurableEvidence
   requirementSource?: DurableEvidence
   authorizations?: readonly ToolPermitConsumption[]
+  release?: ToolStartRelease
 }>
 type RejectionRecord = Readonly<{
   kind: 'rejection'
@@ -264,6 +270,23 @@ function progressOf(
   if (rejected?.kind === 'rejection')
     return { kind: 'rejected', reason: rejected.reason, exclusion: rejected.evidence }
   return null
+}
+
+// A call whose start was accepted again answers the release of its latest acceptance.
+function latestRelease(snapshot: DomainSnapshot, call: ToolCallId): ToolStartReleaseReading {
+  let latest: AcceptanceRecord | undefined
+  for (const record of snapshot.records.values()) {
+    if (record.kind !== 'acceptance' || record.call !== call || record.release === undefined)
+      continue
+    if (
+      latest === undefined ||
+      BigInt(record.acceptance.revision) > BigInt(latest.acceptance.revision)
+    )
+      latest = record
+  }
+  return latest?.release === undefined
+    ? { kind: 'absent' }
+    : { kind: 'released', release: latest.release }
 }
 
 function invalid(field: string, reason: string): Outcome<never, ToolFailure> {
@@ -569,7 +592,7 @@ function snapshotOf(
 
 export function createLocalStartCoordinator<P>(
   input: LocalStartCoordinatorInput<P>,
-): ToolStartAuthority<P> {
+): ToolStartAuthority<P> & ToolStartReleases<P> {
   const { store, access, guardsOf, commitAttempts, permitRequirements } = input
   const requestAccess = input.requestAccess?.access
   const commitWith: ConditionalLedgerCommit['commit'] =
@@ -904,6 +927,7 @@ export function createLocalStartCoordinator<P>(
           executorReceipt: receipt.ok,
           requirementSource: requirement.source,
           ...(policy.authorizations === undefined ? {} : { authorizations: policy.authorizations }),
+          ...(policy.release === undefined ? {} : { release: policy.release }),
         }
         const acceptance = mint(tenant, key, revision, facts)
         const accepted: AcceptanceRecord = { kind: 'acceptance', call, start, ...facts, acceptance }
@@ -1050,6 +1074,24 @@ export function createLocalStartCoordinator<P>(
     )
   }
 
-  const authority: ToolStartAuthority<P> = { exclude, prepare, consume, inspect, invalidate }
+  const releaseOf: ToolStartReleases<P>['releaseOf'] = async raw => {
+    const checked = await callEntry(raw)
+    if ('failure' in checked) return checked
+    const { tenant, call } = checked.ok
+    return transactOwn<ToolStartReleaseReading>(
+      startDomain(tenant, call),
+      snapshot => reply(succeed(latestRelease(snapshot, call))),
+      unavailable,
+    )
+  }
+
+  const authority: ToolStartAuthority<P> & ToolStartReleases<P> = {
+    exclude,
+    prepare,
+    consume,
+    inspect,
+    invalidate,
+    releaseOf,
+  }
   return Object.freeze(authority)
 }

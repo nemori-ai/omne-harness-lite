@@ -21,8 +21,12 @@
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EffectiveArguments` · `evidence.d.ts`
 - `ExpiryReading` · `system-action.d.ts`
+- `GRANT_REF_TEXT_LIMIT` · `grant.d.ts`
+- `GateRef` · `grant.d.ts`
 - `GateVerdict` · `release.d.ts`
+- `GrantLayer` · `grant.d.ts`
 - `GrantOutcome` · `permit.d.ts`
+- `GrantRef` · `grant.d.ts`
 - `InquiryPolicy` · `inquiry.d.ts`
 - `MaintenanceGrant` · `system-action.d.ts`
 - `MaintenanceGrantReading` · `system-action.d.ts`
@@ -70,9 +74,12 @@
 - `decodePermitId` · `permit.d.ts`
 - `digestOf` · `evidence.d.ts`
 - `effectiveArgumentsOf` · `evidence.d.ts`
+- `grantLayerOf` · `grant.d.ts`
+- `grantRefText` · `grant.d.ts`
 - `inMemoryPermitLedger` · `permit.d.ts`
 - `noArguments` · `evidence.d.ts`
 - `operationEquals` · `operation.d.ts`
+- `parseGrantRef` · `grant.d.ts`
 - `referenceAdmissionCheck` · `reference.d.ts`
 - `referenceSystemActionAuthorization` · `system-reference.d.ts`
 - `releaseCard` · `release-card.d.ts`
@@ -158,11 +165,48 @@ export declare function noArguments(): EffectiveArguments;
 export declare function decisionEvidence(record: string, revision: string, content: unknown): DecisionEvidence;
 ```
 
+## 声明文件 `grant.d.ts`
+
+```ts
+import type { DurableEvidence } from '@omne-harness/exchange-refs';
+export type GrantLayer = 'tenant' | 'session';
+export type GateRef = Readonly<{
+    capability: string;
+    key: string;
+}>;
+export type GrantRef = Readonly<{
+    via: 'verdict';
+    layer: GrantLayer;
+    holder: string;
+    gate: GateRef;
+    revision: string;
+}> | Readonly<{
+    via: 'session-grant';
+    holder: string;
+    gate: GateRef;
+    source: DurableEvidence;
+}> | Readonly<{
+    via: 'once';
+    holder: string;
+    source: DurableEvidence;
+}> | Readonly<{
+    via: 'skip-ask';
+    holder: string;
+    source: DurableEvidence;
+}>;
+export declare const GRANT_REF_TEXT_LIMIT = 2048;
+export declare function grantLayerOf(grant: GrantRef): GrantLayer;
+export declare function grantRefText(grant: GrantRef): string;
+export declare function parseGrantRef(value: string): GrantRef | null;
+```
+
 ## 声明文件 `index.d.ts`
 
 ```ts
 export { decideAdmission } from './admission.ts';
 export { decideRelease } from './release.ts';
+export { GRANT_REF_TEXT_LIMIT, grantLayerOf, grantRefText, parseGrantRef } from './grant.ts';
+export type { GateRef, GrantLayer, GrantRef } from './grant.ts';
 export { RELEASE_ARGUMENTS_LIMIT, RELEASE_OPTIONS, releaseCard } from './release-card.ts';
 export type { ReleaseCard, ReleaseCardAction, ReleaseCardDetail, ReleaseCardOption, ReleaseCardRow, ReleaseOffer, ReleaseOption, } from './release-card.ts';
 export type { GateVerdict, ReleaseBasis, ReleaseDecision, ReleaseFacts, SessionFacts, } from './release.ts';
@@ -396,9 +440,15 @@ export declare function releaseCard(action: ReleaseCardAction, offer: ReleaseOff
 ## 声明文件 `release.d.ts`
 
 ```ts
+import type { DurableEvidence } from '@omne-harness/exchange-refs';
+import type { GateRef, GrantLayer, GrantRef } from './grant.ts';
 import type { InquiryPolicy } from './inquiry.ts';
 export type GateVerdict = Readonly<{
-    kind: 'prohibited' | 'allowed' | 'decision-required';
+    kind: 'allowed';
+    revision: string;
+    layer: GrantLayer;
+}> | Readonly<{
+    kind: 'prohibited' | 'decision-required';
     revision: string;
 }> | Readonly<{
     kind: 'unavailable';
@@ -407,8 +457,12 @@ export type SessionFacts = Readonly<{
     kind: 'read';
     revision: string;
     policy: InquiryPolicy;
-    once: boolean;
-    sessionGrantBasis: string | null;
+    policySource: DurableEvidence;
+    once: DurableEvidence | null;
+    sessionGrant: Readonly<{
+        basis: string;
+        source: DurableEvidence;
+    }> | null;
 }> | Readonly<{
     kind: 'unavailable';
 }>;
@@ -416,6 +470,11 @@ export type ReleaseFacts = Readonly<{
     carrier: boolean;
     verdict: GateVerdict;
     session: SessionFacts;
+    holders: Readonly<{
+        tenant: string;
+        session: string;
+    }>;
+    gate: GateRef;
 }>;
 export type ReleaseBasis = Readonly<{
     verdict: string;
@@ -423,8 +482,13 @@ export type ReleaseBasis = Readonly<{
 }>;
 export type ReleaseDecision = Readonly<{
     kind: 'release';
-    by: 'verdict' | 'carrier' | 'once' | 'session' | 'skip-ask';
+    by: 'carrier';
     basis: ReleaseBasis;
+}> | Readonly<{
+    kind: 'release';
+    by: 'verdict' | 'once' | 'session' | 'skip-ask';
+    basis: ReleaseBasis;
+    grant: GrantRef;
 }> | Readonly<{
     kind: 'ask';
     basis: ReleaseBasis;

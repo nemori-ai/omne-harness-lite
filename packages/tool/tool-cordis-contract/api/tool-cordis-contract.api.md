@@ -46,6 +46,7 @@
 - `ToolRuntimeService` · `cordis.d.ts`
 - `ToolStartAuthorityService` · `cordis.d.ts`
 - `ToolStartFenceService` · `cordis.d.ts`
+- `ToolStartReleasesService` · `cordis.d.ts`
 - `ToolSweepReport` · `cordis.d.ts`
 - `ToolUnloadState` · `cordis.d.ts`
 - `VerifiedAuthority` · `cordis.d.ts`
@@ -71,6 +72,7 @@
 - `toolRuntimeKey` · `cordis.d.ts`
 - `toolStartAuthorityKey` · `cordis.d.ts`
 - `toolStartFenceKey` · `cordis.d.ts`
+- `toolStartReleasesKey` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
@@ -127,7 +129,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import { type ConsumerRef, type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolReleaseDetails, type ToolRevision, type ToolResultReceiver, type ToolRuntime } from '@omne-harness/tool-contract';
-import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
+import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolStartReleases, type ToolShape } from '@omne-harness/tool-contract/provider';
 export declare abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
     static readonly provide = "toolRuntime";
     private readonly resultReceivers;
@@ -440,6 +442,12 @@ export declare abstract class ToolStartFenceService<P> extends Service implement
     abstract readonly invalidate: ToolStartFence<P>['invalidate'];
 }
 export declare const toolStartFenceKey = "toolStartFence";
+export declare abstract class ToolStartReleasesService<P> extends Service implements ToolStartReleases<P> {
+    static readonly provide = "toolStartReleases";
+    constructor(ctx: Context);
+    abstract readonly releaseOf: ToolStartReleases<P>['releaseOf'];
+}
+export declare const toolStartReleasesKey = "toolStartReleases";
 export declare abstract class ToolResourceResponsesService<P> extends Service implements ToolResourceResponses<P> {
     static readonly provide = "toolResourceResponses";
     constructor(ctx: Context);

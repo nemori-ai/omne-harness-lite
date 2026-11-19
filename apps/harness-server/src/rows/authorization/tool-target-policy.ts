@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { effectiveArgumentsOf } from '@omne-harness/authorization'
+import { effectiveArgumentsOf, grantRefText } from '@omne-harness/authorization'
 import type { RequestAccessVerdict } from '@omne-harness/tool-host-local'
-import type { CallAccess } from '@omne-harness/tool-contract/provider'
+import type { CallAccess, ToolStartRelease } from '@omne-harness/tool-contract/provider'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   FixedToolRequest,
@@ -33,16 +33,23 @@ function permissionVerdict(
   // The fence only guards: a call a person has yet to release does not start.
   if (decision.kind === 'ask') return { kind: 'denied', reason: 'decision-required' }
   if (decision.kind !== 'allow') return unavailable()
+  const { condition, release: given } = decision
+  const release: ToolStartRelease =
+    given.grant === null
+      ? { by: given.by, grant: null }
+      : { by: given.by, grant: grantRefText(given.grant) }
   const once = decision.authorization
-  if (once === undefined) return { kind: 'allowed', condition: decision.condition }
+  if (once === undefined) return { kind: 'allowed', condition, release }
   // The start that rests on a once authorization consumes it in its acceptance.
   const consumption = {
     permit: { tenant, permit: once.source.digest },
     consumer: once.consumer,
     evidence: once.source,
   }
-  return { kind: 'allowed', condition: decision.condition, authorizations: [consumption] }
+  return { kind: 'allowed', condition, release, authorizations: [consumption] }
 }
+
+const UNGATED: ToolStartRelease = { by: 'ungated', grant: null }
 
 type Qualified = Parameters<ToolTargetPolicy['qualify']>[0]
 
@@ -125,7 +132,8 @@ export function createToolTargetPolicy(
         if (started === undefined) return unavailable()
         const refused = await ruled(admission, rules, who, input)
         if (refused !== null) return refused
-        if (started.gate.kind === 'ungated') return { kind: 'allowed', condition: null }
+        if (started.gate.kind === 'ungated')
+          return { kind: 'allowed', condition: null, release: UNGATED }
         const permission = readPermission()
         if (permission === undefined) return unavailable()
         const action = actionOf(who, input, started.carrier, started.gate.gate)
