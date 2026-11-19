@@ -1,4 +1,4 @@
-import type { InstanceId, Json, TypeName } from '@omne-harness/workspace-contract'
+import { reason, type InstanceId, type Json, type TypeName } from '@omne-harness/workspace-contract'
 import type { WorkspaceTxn } from '../txn.ts'
 import { once, type Named, type ScriptResult } from './script.ts'
 
@@ -21,7 +21,8 @@ export type RegisterResult = ScriptResult<
 export function registerWorkspace(txn: WorkspaceTxn, command: RegisterCommand): RegisterResult {
   return once(txn, command, 'register', () => {
     const { workspace, instance, type, node, occupancy, address, material, tenant } = command
-    if (txn.occupant(node, occupancy) !== null) return { kind: 'not-performed', reason: 'occupied' }
+    if (txn.occupant(node, occupancy) !== null)
+      return { kind: 'not-performed', reason: reason('occupied') }
     txn.insertWorkspace({ workspace, type, revision: 1 })
     txn.putRelation(workspace, tenant, { role: 'owner' })
     txn.insertInstance({ instance, workspace, node, occupancy, address, material, state: 'active' })

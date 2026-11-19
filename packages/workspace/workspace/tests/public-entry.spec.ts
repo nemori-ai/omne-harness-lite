@@ -18,6 +18,7 @@ it('the testing entry exports the memory store, the fakes and the conformance ca
   const testing = (await import('@omne-harness/workspace/testing')) as Record<string, unknown>
   expect(Object.keys(testing).sort()).toEqual([
     'createMemoryStore',
+    'emptyFacts',
     'fakeAccess',
     'fakeAuthority',
     'fakeMinting',

@@ -1,5 +1,4 @@
-// @module-tag slow
-// Real directories, links and renames on the filesystem.
+import { chmod } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { DirectoryType } from '@omne-harness/workspace-filesystem'
@@ -140,5 +139,21 @@ describe('inspecting what was recognised', () => {
     [{ scope: { root: '/a' } }],
   ])("material that is not this type's (%j) cannot be looked at", async material => {
     expect(await type.inspect(material)).toEqual({ unavailable: 'material' })
+  })
+})
+
+describe('a directory that cannot be looked at', () => {
+  it('is unavailable with the error code, not a refusal', async () => {
+    const parent = join(box.root, 'locked')
+    const root = await project(parent, 'blog')
+    const answer = await type.recognise(root)
+    if (!('ok' in answer)) throw new Error('not recognised')
+    await chmod(parent, 0o000)
+    try {
+      expect(await type.recognise(root)).toEqual({ unavailable: 'EACCES' })
+      expect(await type.inspect(answer.ok.material)).toEqual({ unavailable: 'EACCES' })
+    } finally {
+      await chmod(parent, 0o700)
+    }
   })
 })

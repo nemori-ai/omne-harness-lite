@@ -1,5 +1,3 @@
-// @module-tag slow
-// Runs the rules every management type obeys against real directories.
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { typeConformanceCases, type TypeHarness } from '@omne-harness/workspace/testing'

@@ -13,7 +13,6 @@ import type {
   Material,
   NotPermitted,
   OperationId,
-  Reason,
   Recognised,
   TypeAnswer,
 } from '@omne-harness/workspace-contract'
@@ -86,40 +85,40 @@ export async function inspect(
   }
 }
 
-function canonical(value: Json): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
-  const object = value as { readonly [key: string]: Json }
-  return `{${Object.keys(object)
-    .sort()
-    .map(key => `${JSON.stringify(key)}:${canonical(object[key]!)}`)
-    .join(',')}}`
+/** A digest of a value this group built itself, so its members are always written in one order. */
+export function digestOf(value: Json): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex')
 }
 
-/** One digest for one value, whatever order its members were written in. */
-export function digestOf(value: Json): string {
-  return createHash('sha256').update(canonical(value)).digest('hex')
+/** A commit that did not answer: nothing was written, or it is not known whether anything was. */
+export function uncommitted(
+  answer: Exclude<StoreAnswer<unknown>, { kind: 'committed' }>,
+  operation: OperationId,
+): Answer<never> {
+  return answer.kind === 'unknown' ? { kind: 'unknown', operation } : unavailable('store')
 }
 
 /**
- * A commit's answer in the words of the caller. `read` turns the stored value back into the
- * caller's value; `undefined` says the stored value cannot be read. A `stale` that reaches here
- * was not retried by the caller.
+ * What a script decided, in the words of the caller. `read` turns the stored value back into
+ * the caller's value; `undefined` says the store answered something this group never wrote.
  */
-export function answerOf<S extends Json, T>(
-  committed: StoreAnswer<ScriptResult<S>>,
-  operation: OperationId,
+export function decided<S extends Json, T>(
+  result: ScriptResult<S>,
   read: (stored: S) => T | undefined,
 ): Answer<T> {
-  if (committed.kind === 'unknown') return { kind: 'unknown', operation }
-  if (committed.kind === 'rolled-back') return unavailable('store')
-  const result = committed.value
-  if (result.kind === 'stale') return unavailable('contended')
-  if (result.kind === 'not-performed')
-    return { kind: 'not-performed', reason: result.reason as Reason }
   if (result.kind !== 'done') return result
   const value = read(result.value)
   return value === undefined
     ? unavailable('stored-value')
     : { kind: 'done', value, changed: result.changed }
+}
+
+export function answerOf<S extends Json, T>(
+  committed: StoreAnswer<ScriptResult<S>>,
+  operation: OperationId,
+  read: (stored: S) => T | undefined,
+): Answer<T> {
+  return committed.kind === 'committed'
+    ? decided(committed.value, read)
+    : uncommitted(committed, operation)
 }

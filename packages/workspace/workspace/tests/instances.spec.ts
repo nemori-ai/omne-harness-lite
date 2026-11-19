@@ -92,20 +92,22 @@ describe('associating one more instance', () => {
     const made = await registered(w, '/a')
     w.things.put('/b', { kinds: ['plain', 'versioned'], resource: 'repo' })
     w.withdrawVersioned()
+    const expected = { kind: 'unavailable', diagnostic: 'type-not-contributed' }
     expect(
-      (
-        await w.instances.associate(ALICE, {
-          operation: op('a1'),
-          workspace: made.workspace,
-          address: '/b',
-        })
-      ).kind,
-    ).toBe('unavailable')
-    expect((await w.instances.verify(ALICE, made)).kind).toBe('unavailable')
+      await w.instances.associate(ALICE, {
+        operation: op('a1'),
+        workspace: made.workspace,
+        address: '/b',
+      }),
+    ).toEqual(expected)
+    expect(await w.instances.verify(ALICE, made)).toEqual(expected)
     const view = await w.catalog.describe(ALICE, made.workspace)
     expect(view).toMatchObject({
       kind: 'read',
-      value: { type: 'versioned', instances: [{ availability: { kind: 'unknown' } }] },
+      value: {
+        type: 'versioned',
+        instances: [{ availability: { kind: 'unknown', diagnostic: 'type-not-contributed' } }],
+      },
     })
   })
 
@@ -146,6 +148,30 @@ describe('dissociating an instance', () => {
     })
     const view = await w.catalog.describe(ALICE, made.workspace)
     expect(view).toMatchObject({ kind: 'read', value: { instances: [] } })
+  })
+
+  it('its operation name used for another instance is a conflict', async () => {
+    const w = world()
+    const made = await registered(w, '/a')
+    w.things.put('/b', { kinds: ['plain', 'versioned'], resource: 'repo' })
+    const added = await w.instances.associate(ALICE, {
+      operation: op('a1'),
+      workspace: made.workspace,
+      address: '/b',
+    })
+    if (added.kind !== 'done') throw new Error('not associated')
+    await w.instances.dissociate(ALICE, {
+      operation: op('d1'),
+      workspace: made.workspace,
+      instance: made.instance,
+    })
+    expect(
+      await w.instances.dissociate(ALICE, {
+        operation: op('d1'),
+        workspace: made.workspace,
+        instance: added.value.instance,
+      }),
+    ).toEqual({ kind: 'conflict' })
   })
 
   it('a tenant without a relation, or an instance of another workspace, is not permitted', async () => {

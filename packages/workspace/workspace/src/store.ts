@@ -20,6 +20,9 @@ export type StoreRead<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kin
 /** A workspace as one tenant sees it: the workspace and that tenant's relation with it. */
 export type Membership = Readonly<{ workspace: WorkspaceRecord; relation: Relation }>
 
+/** A membership with the workspace's active instances, read at one moment. */
+export type WorkspaceState = Membership & Readonly<{ instances: readonly InstanceRecord[] }>
+
 /**
  * The repository, in the words of the domain. The facts belong to no single tenant, so every
  * entry names the tenant it is for and returns only what that tenant has a relation with:
@@ -30,9 +33,8 @@ export interface WorkspaceStore {
   associate(command: AssociateCommand): Promise<StoreAnswer<AssociateResult>>
   dissociate(command: DissociateCommand): Promise<StoreAnswer<DissociateResult>>
 
-  membership(tenant: string, workspace: string): Promise<StoreRead<Membership | null>>
+  /** Null without a relation, whether or not the workspace exists. */
+  state(tenant: string, workspace: string): Promise<StoreRead<WorkspaceState | null>>
   memberships(tenant: string): Promise<StoreRead<readonly Membership[]>>
-  /** The active instances of a workspace this tenant has a relation with; null without a relation. */
-  instances(tenant: string, workspace: string): Promise<StoreRead<readonly InstanceRecord[] | null>>
   operation(tenant: string, operation: string): Promise<StoreRead<OperationRecord | null>>
 }

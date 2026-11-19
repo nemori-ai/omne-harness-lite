@@ -12,7 +12,7 @@ export type WorkspaceFacts = {
   operations: Map<string, OperationRecord>
 }
 
-const emptyFacts = (): WorkspaceFacts => ({
+export const emptyFacts = (): WorkspaceFacts => ({
   workspaces: new Map(),
   relations: new Map(),
   instances: new Map(),
@@ -110,21 +110,21 @@ export function createMemoryStore(): MemoryStore {
     register: command => commit(registerWorkspace, command),
     associate: command => commit(associateInstance, command),
     dissociate: command => commit(dissociateInstance, command),
-    membership: async (tenant, workspace) => read(() => membership(tenant, workspace)),
+    state: async (tenant, workspace) =>
+      read(() => {
+        const found = membership(tenant, workspace)
+        if (found === null) return null
+        const instances = [...facts.instances.values()].filter(
+          record => record.workspace === workspace && record.state === 'active',
+        )
+        return { ...found, instances }
+      }),
     memberships: async tenant =>
       read(() =>
         [...facts.workspaces.keys()]
           .sort()
           .map(workspace => membership(tenant, workspace))
           .filter(found => found !== null),
-      ),
-    instances: async (tenant, workspace) =>
-      read(() =>
-        membership(tenant, workspace) === null
-          ? null
-          : [...facts.instances.values()].filter(
-              record => record.workspace === workspace && record.state === 'active',
-            ),
       ),
     operation: async (tenant, operation) =>
       read(() => facts.operations.get(pair(tenant, operation)) ?? null),

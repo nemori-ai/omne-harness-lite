@@ -1,12 +1,13 @@
 import {
   decide,
+  reason,
   standingOf,
   type GovernedOperation,
   type InstanceId,
   type Json,
 } from '@omne-harness/workspace-contract'
 import type { WorkspaceRecord, WorkspaceTxn } from '../txn.ts'
-import { once, type Named, type ScriptResult } from './script.ts'
+import { once, type Named, type ScriptResult, type Stale } from './script.ts'
 
 export type AssociateCommand = Named &
   Readonly<{
@@ -19,7 +20,7 @@ export type AssociateCommand = Named &
     /** The workspace revision the type's admission was decided at. */
     revision: number
   }>
-export type AssociateResult = ScriptResult<Readonly<{ instance: InstanceId }>>
+export type AssociateResult = ScriptResult<Readonly<{ instance: InstanceId }>> | Stale
 
 export type DissociateCommand = Named & Readonly<{ workspace: string; instance: InstanceId }>
 export type DissociateResult = ScriptResult<null>
@@ -31,10 +32,8 @@ function governed(
   tenant: string,
   operation: GovernedOperation,
 ): WorkspaceRecord | null {
-  const record = txn.workspace(workspace)
-  if (record === null) return null
   const standing = standingOf(txn.relation(workspace, tenant))
-  return decide(standing, operation) === 'allow' ? record : null
+  return decide(standing, operation) === 'allow' ? txn.workspace(workspace) : null
 }
 
 /** One more instance of a workspace. The type admitted it against the instances at `revision`. */
@@ -44,7 +43,8 @@ export function associateInstance(txn: WorkspaceTxn, command: AssociateCommand):
     const record = governed(txn, workspace, command.tenant, 'associate')
     if (record === null) return { kind: 'not-permitted' }
     if (record.revision !== command.revision) return { kind: 'stale' }
-    if (txn.occupant(node, occupancy) !== null) return { kind: 'not-performed', reason: 'occupied' }
+    if (txn.occupant(node, occupancy) !== null)
+      return { kind: 'not-performed', reason: reason('occupied') }
     txn.insertInstance({ instance, workspace, node, occupancy, address, material, state: 'active' })
     txn.setRevision(workspace, record.revision + 1)
     return { kind: 'done', value: { instance }, changed: true }

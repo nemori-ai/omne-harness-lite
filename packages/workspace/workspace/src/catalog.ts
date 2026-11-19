@@ -29,7 +29,7 @@ async function availability(
   type: ManagementType | null,
   record: InstanceRecord,
 ): Promise<InstanceAvailability> {
-  if (type === null) return { kind: 'unknown', diagnostic: 'type' }
+  if (type === null) return { kind: 'unknown', diagnostic: 'type-not-contributed' }
   const inspection = await inspect(type, record.material)
   if ('unavailable' in inspection) return { kind: 'unknown', diagnostic: inspection.unavailable }
   if ('refused' in inspection) return { kind: 'unavailable', reason: inspection.refused }
@@ -59,17 +59,15 @@ export function createCatalog<P>(
       if (tenant === null || workspace === null) return NOT_PERMITTED
       const blocked = await admitted(deps.authority, access, 'workspace.view', workspace)
       if (blocked !== null) return blocked
-      const membership = await deps.store.membership(tenant, workspace)
-      const records = await deps.store.instances(tenant, workspace)
-      if (membership.kind === 'unavailable' || records.kind === 'unavailable')
-        return unavailable('store')
-      if (membership.value === null || records.value === null) return NOT_PERMITTED
-      if (decide(standingOf(membership.value.relation), 'view') !== 'allow') return NOT_PERMITTED
-      const summary = summaryOf(membership.value)
+      const state = await deps.store.state(tenant, workspace)
+      if (state.kind === 'unavailable') return unavailable('store')
+      if (state.value === null) return NOT_PERMITTED
+      if (decide(standingOf(state.value.relation), 'view') !== 'allow') return NOT_PERMITTED
+      const summary = summaryOf(state.value)
       if (summary === null) return unavailable('stored-value')
       const type = deps.types.named(summary.type)
       const instances: InstanceView[] = []
-      for (const record of records.value)
+      for (const record of state.value.instances)
         instances.push({
           instance: record.instance,
           address: record.address,

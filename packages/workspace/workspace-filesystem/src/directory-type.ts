@@ -25,8 +25,7 @@ export type DirectoryMaterial = Readonly<{
 export const UNPINNED: LoadBasis = loadBasis('unpinned')
 
 const MISSING = new Set(['ENOENT', 'ENOTDIR'])
-const codeOf = (error: unknown): string =>
-  typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : 'unknown'
+const codeOf = (error: unknown): string => String((error as NodeJS.ErrnoException).code)
 
 type Looked = Readonly<{ identity: string }>
 
@@ -47,11 +46,11 @@ async function look(path: string): Promise<TypeAnswer<Looked>> {
   }
 }
 
+/** Material is read back from storage, so its shape is checked before it is used. */
 function materialOf(value: Material): DirectoryMaterial | null {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
-  const { scope, rootIdentity } = value as { scope?: Material; rootIdentity?: Material }
-  if (typeof scope !== 'object' || scope === null || Array.isArray(scope)) return null
-  const { root } = scope as { root?: Material }
+  const stored = value as { scope?: { root?: unknown }; rootIdentity?: unknown } | null
+  const root = stored?.scope?.root
+  const rootIdentity = stored?.rootIdentity
   return typeof root === 'string' && typeof rootIdentity === 'string'
     ? { scope: { root }, rootIdentity }
     : null
