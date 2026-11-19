@@ -56,6 +56,14 @@ const release = {
     },
   ],
 }
+const given = {
+  state: 'given',
+  rows: [
+    { label: '收件人', value: '你' },
+    { label: '标签', value: ['a', 'b'] },
+  ],
+  typed: { kind: 'test.release@1', value: '{"title":"T"}' },
+}
 const submissionRef = { tenantRef: tenant, actorRef: 'actor-1', operationId: 'operation-1' }
 const decisionRef = { card: cardRef, decisionId: 'decision-1', submission: submissionRef }
 const decision = { ref: decisionRef, reply: pick, basisRef: 'basis-1', commitReceipt: 'receipt-1' }
@@ -158,6 +166,8 @@ const successBodies: Readonly<Record<Name, readonly object[]>> = {
     { item: item(pending) },
     { item: item({ ...pending, question: asking }) },
     { item: item({ ...pending, question: release }) },
+    { item: item({ ...pending, question: { ...release, detail: given } }) },
+    { item: item({ ...pending, question: { ...release, detail: { state: 'unavailable' } } }) },
   ],
   'submit-reply': replyResults,
   'query-submit-reply': replyResults,
@@ -182,6 +192,14 @@ const invalidSuccess: Readonly<Record<Name, readonly object[]>> = {
       item: item({
         ...pending,
         question: { ...release, options: [{ id: 'deny-once', label: 'No', description: 'No' }] },
+      }),
+    },
+    { item: item({ ...pending, question: { ...release, detail: { ...given, rows: [] } } }) },
+    { item: item({ ...pending, question: { ...release, detail: { state: 'shown' } } }) },
+    {
+      item: item({
+        ...pending,
+        question: { ...release, detail: { state: 'given', rows: [{ label: 'l', value: [] }] } },
       }),
     },
   ],

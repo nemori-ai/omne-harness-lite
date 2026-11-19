@@ -71,6 +71,21 @@ const option = {
   label: { rule: text },
   description: { rule: text },
 } as const
+const releaseRow = object({
+  label: { rule: text },
+  value: { rule: { kind: 'one-of', rules: [text, { kind: 'array', item: text, nonempty: true }] } },
+})
+const releaseDetail = {
+  kind: 'one-of',
+  rules: [
+    object({
+      state: { rule: literal('given') },
+      rows: { rule: { kind: 'array', item: releaseRow, nonempty: true } },
+      typed: { rule: object({ kind: { rule: text }, value: { rule: text } }), optional: true },
+    }),
+    object({ state: { rule: literal('unavailable') } }),
+  ],
+} as const
 const questionFields = {
   cardId: { rule: text },
   title: { rule: text },
@@ -112,6 +127,7 @@ const question = {
         }),
         optional: true,
       },
+      detail: { rule: releaseDetail, optional: true },
       options: {
         rule: {
           kind: 'array',

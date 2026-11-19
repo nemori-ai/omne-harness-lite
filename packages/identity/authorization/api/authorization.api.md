@@ -42,7 +42,9 @@
 - `ReleaseBasis` · `release.d.ts`
 - `ReleaseCard` · `release-card.d.ts`
 - `ReleaseCardAction` · `release-card.d.ts`
+- `ReleaseCardDetail` · `release-card.d.ts`
 - `ReleaseCardOption` · `release-card.d.ts`
+- `ReleaseCardRow` · `release-card.d.ts`
 - `ReleaseDecision` · `release.d.ts`
 - `ReleaseFacts` · `release.d.ts`
 - `ReleaseOffer` · `release-card.d.ts`
@@ -162,7 +164,7 @@ export declare function decisionEvidence(record: string, revision: string, conte
 export { decideAdmission } from './admission.ts';
 export { decideRelease } from './release.ts';
 export { RELEASE_ARGUMENTS_LIMIT, RELEASE_OPTIONS, releaseCard } from './release-card.ts';
-export type { ReleaseCard, ReleaseCardAction, ReleaseCardOption, ReleaseOffer, ReleaseOption, } from './release-card.ts';
+export type { ReleaseCard, ReleaseCardAction, ReleaseCardDetail, ReleaseCardOption, ReleaseCardRow, ReleaseOffer, ReleaseOption, } from './release-card.ts';
 export type { GateVerdict, ReleaseBasis, ReleaseDecision, ReleaseFacts, SessionFacts, } from './release.ts';
 export type { InquiryPolicy } from './inquiry.ts';
 export type { AdmissionBasis, AdmissionCheck, AdmissionDecision, AdmissionFacts, AdmissionInput, DenialReason, StandingBasis, } from './admission.ts';
@@ -329,6 +331,23 @@ export declare const RELEASE_OPTIONS: readonly [
     'deny-always'
 ];
 export type ReleaseOption = (typeof RELEASE_OPTIONS)[number];
+export type ReleaseCardRow = Readonly<{
+    label: string;
+    value: string | readonly string[];
+}>;
+export type ReleaseCardDetail = Readonly<{
+    state: 'given';
+    rows: readonly [
+        ReleaseCardRow,
+        ...ReleaseCardRow[]
+    ];
+    typed?: Readonly<{
+        kind: string;
+        value: string;
+    }>;
+}> | Readonly<{
+    state: 'unavailable';
+}>;
 export type ReleaseCardAction = Readonly<{
     tool: string;
     command: string | null;
@@ -337,6 +356,7 @@ export type ReleaseCardAction = Readonly<{
     effectiveArguments: string;
     session: string;
     agent: string;
+    detail?: ReleaseCardDetail;
 }>;
 export type ReleaseOffer = Readonly<Record<ReleaseOption, boolean>>;
 export type ReleaseCardOption = Readonly<{
@@ -363,6 +383,7 @@ export type ReleaseCard = Readonly<{
         session: string;
         agent: string;
     }>;
+    detail?: ReleaseCardDetail;
     options: readonly [
         ReleaseCardOption,
         ...ReleaseCardOption[]

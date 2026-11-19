@@ -58,6 +58,18 @@ describe('the content of a release card', () => {
     ])
   })
 
+  it('carries what the tool said this call would do as it was given, and nothing when there is none', () => {
+    expect(releaseCard(action, all)).not.toHaveProperty('detail')
+    const given = {
+      state: 'given',
+      rows: [{ label: '收件人', value: '你' }],
+      typed: { kind: 'test.release@1', value: '{"title":"T"}' },
+    } as const
+    expect(releaseCard({ ...action, detail: given }, all).detail).toBe(given)
+    const unavailable = { state: 'unavailable' } as const
+    expect(releaseCard({ ...action, detail: unavailable }, all).detail).toBe(unavailable)
+  })
+
   it('scopes every lasting option to the gate of the action, not to the whole tool', () => {
     const read = releaseCard({ ...action, tool: 'Files', command: 'read', gateTitle: '读' }, all)
     const write = releaseCard({ ...action, tool: 'Files', command: 'write', gateTitle: '写' }, all)

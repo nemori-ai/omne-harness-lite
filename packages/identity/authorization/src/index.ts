@@ -4,7 +4,9 @@ export { RELEASE_ARGUMENTS_LIMIT, RELEASE_OPTIONS, releaseCard } from './release
 export type {
   ReleaseCard,
   ReleaseCardAction,
+  ReleaseCardDetail,
   ReleaseCardOption,
+  ReleaseCardRow,
   ReleaseOffer,
   ReleaseOption,
 } from './release-card.ts'

@@ -5,9 +5,11 @@ import {
   selectCommandText,
   type Adoption,
   type ToolActionGate,
+  type ReleaseDetailAnswer,
   type ToolActionResolution,
   type ToolAvailability,
   type ToolCallLabel,
+  type ToolReleaseDetails,
 } from '@omne-harness/tool-contract'
 import { forwardIntentOfCall } from '@omne-harness/tool-host-local'
 import {
@@ -24,13 +26,22 @@ const unavailable = (diagnostic: string) =>
 type Input = Parameters<ToolActionResolution<unknown>['resolve']>[0]
 
 // A release card's label, from the very definition admission judged; never the model's intent.
+// The detail is what the implementer says this call would do, asked once with the same arguments.
 export type ToolCallLabeling = Readonly<{
   label(
     input: Omit<Input, 'name'> & Readonly<{ definition: Adoption }>,
-  ): Promise<Omit<ToolCallLabel, 'intent'> | undefined>
+  ): Promise<
+    (Omit<ToolCallLabel, 'intent'> & Readonly<{ detail: ReleaseDetailAnswer }>) | undefined
+  >
 }>
 
-export function createToolCallLabeling(ports: ForwardRequestPorts): ToolCallLabeling {
+const NO_DETAILS: ReleaseDetailAnswer = { kind: 'unavailable', reason: 'no-provider' }
+const DETAILS_THREW: ReleaseDetailAnswer = { kind: 'unavailable', reason: 'threw' }
+
+export function createToolCallLabeling(
+  ports: ForwardRequestPorts &
+    Readonly<{ details?: () => ToolReleaseDetails<unknown> | undefined }>,
+): ToolCallLabeling {
   return {
     async label(input) {
       const release = ports.release()
@@ -50,7 +61,20 @@ export function createToolCallLabeling(ports: ForwardRequestPorts): ToolCallLabe
       const called = callOf(definition, input.effectiveArguments)
       if ('answer' in called) return undefined
       const { tool, command, preview } = called.label
-      return { tool, command, preview }
+      const details = ports.details?.()
+      const detail =
+        details === undefined
+          ? NO_DETAILS
+          : await details
+              .describe({
+                principal: input.principal,
+                tenant: input.tenant,
+                availability: inspected.ok,
+                command,
+                effectiveArguments: input.effectiveArguments,
+              })
+              .catch(() => DETAILS_THREW)
+      return { tool, command, preview, detail }
     },
   }
 }

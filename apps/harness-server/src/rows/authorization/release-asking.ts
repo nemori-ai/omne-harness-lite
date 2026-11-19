@@ -10,9 +10,12 @@ import {
   releaseCard,
   type DecisionEvidence,
   type ReleaseCard,
+  type ReleaseCardDetail,
   type ReleaseOffer,
 } from '@omne-harness/authorization'
+import { ReleaseDetailSchema } from '@omne-harness/human-intervention'
 import type { JsonValue } from '@omne-harness/json-text'
+import type { ReleaseDetailAnswer } from '@omne-harness/tool-contract'
 import type { ToolCallLabeling } from '../../entry/tool-action-resolution.ts'
 import type { AskedGate, ToolPermissionAction } from './current-tool-permission.ts'
 import type { LastingEffect } from './tenant-picks.ts'
@@ -46,6 +49,20 @@ function jsonOf(value: unknown): JsonValue {
   }
 }
 
+const UNAVAILABLE: ReleaseCardDetail = { state: 'unavailable' }
+
+// A detail the card cannot hold is one the tool could not give: the person is asked all the same.
+export function cardDetailOf(answer: ReleaseDetailAnswer): ReleaseCardDetail | undefined {
+  if (answer.kind === 'none') return undefined
+  if (answer.kind === 'unavailable') return UNAVAILABLE
+  const given: ReleaseCardDetail = {
+    state: 'given',
+    rows: answer.rows,
+    ...(answer.typed === undefined ? {} : { typed: answer.typed }),
+  }
+  return ReleaseDetailSchema.safeParse(given).success ? given : UNAVAILABLE
+}
+
 // The detail is the body of a human-intervention release question, filled as that card contract reads.
 function draftOf(
   card: ReleaseCard,
@@ -68,6 +85,7 @@ function draftOf(
       arguments: card.arguments,
       origin: card.origin,
       ...(gate === undefined ? {} : { gate }),
+      ...(card.detail === undefined ? {} : { detail: card.detail }),
       options: card.options.map(entry => ({
         id: entry.id,
         label: entry.label,
@@ -105,9 +123,12 @@ export async function askedDecision(
   })
   if (label === undefined)
     return { kind: 'unavailable', diagnostic: 'the label of the call could not be read now' }
+  const { detail, ...named } = label
+  const shown = cardDetailOf(detail)
   const card = releaseCard(
     {
-      ...label,
+      ...named,
+      ...(shown === undefined ? {} : { detail: shown }),
       gateTitle: asking.gateTitle,
       effectiveArguments: asking.effectiveArguments,
       session: asking.session,

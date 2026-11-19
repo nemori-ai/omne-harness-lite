@@ -31,6 +31,7 @@ const tree = (value: unknown): JsonValue => {
 }
 
 const TEST_KIND = 'test.release@1'
+const OTHER_KIND = 'test.other@1'
 const typedSchema = tree({
   type: 'object',
   required: ['title'],
@@ -52,6 +53,7 @@ function operation(describeRelease?: ToolReleaseDescriber<Args>) {
         adoption: adoption('parameters'),
         parse: args => {
           const value: unknown = JSON.parse(args.effective)
+          if ((value as { title?: unknown }).title === 'throw') throw new Error('parser')
           return typeof value === 'object' &&
             value !== null &&
             typeof (value as { title?: unknown }).title === 'string'
@@ -96,6 +98,11 @@ function probeModule(
             operation: operation(describeRelease),
             release: { gate: null, detail: { kind: TEST_KIND, schema: typedSchema } },
           },
+          post: {
+            summary: 'Post a titled note.',
+            operation: operation(describeRelease),
+            release: { gate: null, detail: { kind: OTHER_KIND, schema: typedSchema } },
+          },
           peek: { summary: 'Read the last message.', operation: operation() },
         },
       })
@@ -107,6 +114,7 @@ async function detailsOf(
   describeRelease: ToolReleaseDescriber<Args>,
   policy = DEFAULT_RELEASE_DETAIL_POLICY,
   registered: 'loaded' | 'none' | 'absent' = 'loaded',
+  maxSnapshots = 8,
 ) {
   const loaded = unbox(await loadAuthor(probeModule(describeRelease)))
   const { registry } = fiberedRegistry(scriptedVerifier([authorAuthority]))
@@ -121,7 +129,7 @@ async function detailsOf(
   const details = createLocalReleaseDetails({
     registry: () => (registered === 'absent' ? undefined : registry),
     provider: createSchemaProvider({
-      maxSnapshots: 8,
+      maxSnapshots,
       maxConstructDepth: 32,
       maxConstructNodes: 4096,
       maxAttempts: 1,
@@ -198,6 +206,24 @@ describe('Tool asks the implementer what one call would do, and only reads', () 
   ] as const)('cannot give a detail when %s', async (_name, describeRelease, params, reason) => {
     const { describe } = await detailsOf(describeRelease as ToolReleaseDescriber<Args>)
     expect(await describe('send', params)).toEqual({ kind: 'unavailable', reason })
+  })
+
+  it('cannot give a detail when the argument parser of the command throws', async () => {
+    const { describe } = await detailsOf(describing)
+    expect(await describe('send', { title: 'throw' })).toEqual({
+      kind: 'unavailable',
+      reason: 'threw',
+    })
+  })
+
+  it('checks typed values of two declared kinds in turn on a provider that keeps one schema', async () => {
+    const { describe } = await detailsOf(describing, DEFAULT_RELEASE_DETAIL_POLICY, 'loaded', 1)
+    const kinds = []
+    for (const command of ['send', 'post', 'send', 'post', 'send']) {
+      const answer = await describe(command, { title: 'T' })
+      kinds.push(answer.kind === 'detail' ? answer.typed?.kind : answer)
+    }
+    expect(kinds).toEqual([TEST_KIND, OTHER_KIND, TEST_KIND, OTHER_KIND, TEST_KIND])
   })
 
   it('cannot give a detail when the function does not answer in time', async () => {

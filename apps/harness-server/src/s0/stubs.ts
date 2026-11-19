@@ -332,7 +332,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     group: 'tool-start',
   },
   'tool-bindings': {
-    provides: ['toolBindings', 'toolCatalog'],
+    provides: ['toolBindings', 'toolCatalog', 'toolReleaseDetails'],
     injects: ['toolContributionAuthority'],
   },
   skills: {

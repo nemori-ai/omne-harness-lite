@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { decisionEvidence } from '@omne-harness/authorization'
+import { HITL_COMMAND_MAX_BYTES, QuestionSchema } from '@omne-harness/human-intervention'
 import { writeJsonText } from '@omne-harness/json-text'
+import type { ReleaseDetailAnswer } from '@omne-harness/tool-contract'
+import { DEFAULT_RELEASE_DETAIL_POLICY } from '@omne-harness/tool-contract/provider'
 import {
   answerEffect,
   askedDecision,
@@ -193,7 +196,58 @@ describe('the card for an action a person must release', () => {
     evidence,
     lasting: { allow: false, deny: false },
   }
-  const labeled = { label: async () => ({ tool: 'Shell', command: 'run', preview: 'ls' }) }
+  const labeledWith = (detail: ReleaseDetailAnswer) => ({
+    label: async () => ({ tool: 'Shell', command: 'run', preview: 'ls', detail }),
+  })
+  const labeled = labeledWith({ kind: 'none' })
+  const questionOf = async (detail: ReleaseDetailAnswer) => {
+    const decision = await askedDecision(labeledWith(detail), asking)
+    if (decision.kind !== 'need-decision') throw new Error(decision.kind)
+    const question = { ...JSON.parse(writeJsonText(decision.card.detail!)), cardId: 'c1' }
+    expect(QuestionSchema.safeParse(question).success).toBe(true)
+    return question
+  }
+  const rows = [
+    { label: '收件人', value: '你' },
+    { label: '标签', value: ['a', 'b'] },
+  ] as const
+
+  it('puts what the tool said this call would do on the card, as it was given', async () => {
+    expect(await questionOf({ kind: 'none' })).not.toHaveProperty('detail')
+    expect((await questionOf({ kind: 'unavailable', reason: 'timeout' })).detail).toEqual({
+      state: 'unavailable',
+    })
+    const typed = { kind: 'test.release@1', value: '{"title":"T"}' }
+    expect((await questionOf({ kind: 'detail', rows, typed })).detail).toEqual({
+      state: 'given',
+      rows,
+      typed,
+    })
+    expect((await questionOf({ kind: 'detail', rows })).detail).toEqual({ state: 'given', rows })
+  })
+
+  it('keeps on the card the largest detail the default policy of Tool lets through', async () => {
+    const policy = DEFAULT_RELEASE_DETAIL_POLICY
+    const item = '字'.repeat(policy.maxItem)
+    const largest = Array.from({ length: policy.maxRows }, () => ({
+      label: '标'.repeat(policy.maxLabel),
+      value: Array.from({ length: policy.maxItems }, () => item),
+    }))
+    const value = `[${Array.from({ length: (policy.maxTypedBytes - 1) / 2 }, () => '1').join(',')}]`
+    const typed = { kind: 'test.release@1', value: value.slice(0, policy.maxTypedBytes) }
+    const question = await questionOf({ kind: 'detail', rows: largest as never, typed })
+    expect(question.detail).toEqual({ state: 'given', rows: largest, typed })
+    expect(new TextEncoder().encode(JSON.stringify(question)).byteLength).toBeLessThan(
+      HITL_COMMAND_MAX_BYTES - 16 * 1024,
+    )
+  })
+
+  it('asks all the same when the card cannot hold the detail, saying the tool could not give it', async () => {
+    const long = [{ label: 'l'.repeat(41), value: 'v' }] as const
+    expect((await questionOf({ kind: 'detail', rows: long })).detail).toEqual({
+      state: 'unavailable',
+    })
+  })
 
   it('names the action from its label and arguments, offers only what this deployment can do', async () => {
     const decision = await askedDecision(labeled, asking)

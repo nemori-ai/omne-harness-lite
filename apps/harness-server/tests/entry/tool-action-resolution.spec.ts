@@ -344,7 +344,65 @@ describe('the label a person reads on a release card', () => {
         definition: definition.adoption,
         effectiveArguments: call({ script: 'ls -la\nrm notes.txt' }),
       })
-      expect(label).toEqual({ tool: definition.name, command: 'execute', preview: 'ls -la' })
+      expect(label).toEqual({
+        tool: definition.name,
+        command: 'execute',
+        preview: 'ls -la',
+        detail: { kind: 'unavailable', reason: 'no-provider' },
+      })
+    } finally {
+      await world.close()
+    }
+  })
+
+  it('asks the tool once for the detail of the very call it labels, with the same arguments', async () => {
+    const world = await forwardWorld()
+    try {
+      const definition = judged(world)
+      const asked: unknown[] = []
+      const effectiveArguments = call({ script: 'ls' })
+      const given = { kind: 'detail', rows: [{ label: '命令', value: 'ls' }] } as const
+      const labeling = createToolCallLabeling({
+        release: () => world.release,
+        catalog: () => world.catalog,
+        view: () => world.view,
+        details: () => ({
+          describe: async request => {
+            asked.push(request)
+            return given
+          },
+        }),
+      })
+      const input = {
+        principal: world.principal,
+        tenant: world.tenant,
+        definition: definition.adoption,
+        effectiveArguments,
+      }
+      expect(await labeling.label(input)).toMatchObject({ command: 'execute', detail: given })
+      expect(asked).toEqual([
+        {
+          principal: world.principal,
+          tenant: world.tenant,
+          availability: expect.objectContaining({ kind: 'available', definition }),
+          command: 'execute',
+          effectiveArguments,
+        },
+      ])
+      const throwing = createToolCallLabeling({
+        release: () => world.release,
+        catalog: () => world.catalog,
+        view: () => world.view,
+        details: () => ({
+          describe: async () => {
+            throw new Error('provider gone')
+          },
+        }),
+      })
+      expect((await throwing.label(input))?.detail).toEqual({
+        kind: 'unavailable',
+        reason: 'threw',
+      })
     } finally {
       await world.close()
     }

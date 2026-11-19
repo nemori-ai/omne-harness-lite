@@ -8,6 +8,7 @@ import {
   type SourceLayer,
   type ToolCallId,
   type ToolCatalog,
+  type ToolReleaseDetails,
   type ToolRevision,
   type ToolResultReceiver,
   type ToolRuntime,
@@ -440,6 +441,19 @@ export abstract class ToolCatalogService<P> extends Service implements ToolCatal
 export const toolCatalogKey = ToolCatalogService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolReleaseDetailsService<P>
+  extends Service
+  implements ToolReleaseDetails<P>
+{
+  static readonly provide = 'toolReleaseDetails'
+  constructor(ctx: Context) {
+    super(ctx, ToolReleaseDetailsService.provide)
+  }
+  abstract readonly describe: ToolReleaseDetails<P>['describe']
+}
+export const toolReleaseDetailsKey = ToolReleaseDetailsService.provide
+
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolStartAuthorityService<P>
   extends Service
   implements ToolStartAuthority<P>
@@ -541,6 +555,7 @@ declare module '@deepseek-ai/cordis' {
     toolResultPolicy: ResultPolicyService<ContentBlock>
     toolReads: ToolReadsService<unknown, ContentBlock>
     toolCatalog: ToolCatalogService<unknown>
+    toolReleaseDetails: ToolReleaseDetailsService<unknown>
     toolStartAuthority: ToolStartAuthorityService<unknown>
     toolStartFence: ToolStartFenceService<unknown>
     toolResourceResponses: ToolResourceResponsesService<unknown>

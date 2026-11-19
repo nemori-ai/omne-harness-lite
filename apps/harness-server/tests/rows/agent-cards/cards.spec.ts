@@ -109,7 +109,14 @@ describe('a round of card requests as HITL questions', () => {
 
   describe('the release card the admission issues', async () => {
     const asked = await askedDecision(
-      { label: async () => ({ tool: 'Shell', command: 'run', preview: 'ls' }) },
+      {
+        label: async () => ({
+          tool: 'Shell',
+          command: 'run',
+          preview: 'ls',
+          detail: { kind: 'none' } as const,
+        }),
+      },
       {
         input: { tenant: 't', execution: 'exe-1', action } as never,
         principal: 'p' as never,

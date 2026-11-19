@@ -14,7 +14,7 @@ export type ToolReleaseDescriber<A> = (
 ) => Promise<ReleaseDescription>
 
 export type ReleaseDetail = Readonly<{
-  rows: readonly ReleaseRow[]
+  rows: readonly [ReleaseRow, ...ReleaseRow[]]
   typed?: Readonly<{ kind: string; value: string }>
 }>
 
@@ -86,16 +86,13 @@ export function judgeReleaseDescription(
   if (!Array.isArray(rows) || rows.length === 0 || rows.length > policy.maxRows) return fail('rows')
   const read = rows.map(row => rowOf(row, policy))
   if (read.some(row => row === undefined)) return fail('row')
+  const kept = Object.freeze(read) as ReleaseDetail['rows']
   if ((typed === undefined) !== (declared === undefined)) return fail('typed-undeclared')
-  if (typed === undefined || declared === undefined)
-    return succeed({ rows: Object.freeze(read as ReleaseRow[]) })
+  if (typed === undefined || declared === undefined) return succeed({ rows: kept })
   const tree = judgeJsonValue(typed)
   if (!('ok' in tree)) return fail('typed-not-json')
   const text = writeJsonText(tree.ok)
   if (new TextEncoder().encode(text).byteLength > policy.maxTypedBytes)
     return fail('typed-too-large')
-  return succeed({
-    rows: Object.freeze(read as ReleaseRow[]),
-    typed: { kind: declared.kind, value: text },
-  })
+  return succeed({ rows: kept, typed: { kind: declared.kind, value: text } })
 }

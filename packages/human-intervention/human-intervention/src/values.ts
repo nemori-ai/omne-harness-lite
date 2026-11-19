@@ -73,6 +73,31 @@ const releaseGate = z.strictObject({
 })
 const bounded = (maxCodePoints: number) =>
   z.string().refine(value => value.isWellFormed() && [...value].length <= maxCodePoints)
+export const HITL_RELEASE_DETAIL_MAX_BYTES = 196_608
+const utf8 = (value: string) => new TextEncoder().encode(value).byteLength
+const bytesOf = (value: unknown) => utf8(JSON.stringify(value))
+const releaseRow = z.strictObject({
+  label: text(40),
+  value: z.union([text(500), z.array(text(200)).min(1).max(12).readonly()]),
+})
+// What the tool said this one call would do; the card keeps it as given and knows no kind.
+export const ReleaseDetailSchema = z
+  .discriminatedUnion('state', [
+    z.strictObject({
+      state: z.literal('given'),
+      rows: z.array(releaseRow.readonly()).min(1).max(24).readonly(),
+      typed: z
+        .strictObject({
+          kind: text(128),
+          value: z.string().refine(value => value.isWellFormed() && utf8(value) <= 16_384),
+        })
+        .readonly()
+        .optional(),
+    }),
+    z.strictObject({ state: z.literal('unavailable') }),
+  ])
+  .refine(detail => bytesOf(detail) <= HITL_RELEASE_DETAIL_MAX_BYTES)
+  .readonly()
 const questionFields = {
   cardId: CardIdSchema,
   title: text(256),
@@ -112,6 +137,7 @@ export const QuestionSchema = z
         .readonly(),
       gateTitle: text(256),
       gate: releaseGate.readonly().optional(),
+      detail: ReleaseDetailSchema.optional(),
       options: z.array(releaseOption.readonly()).min(1).max(64).readonly(),
     }),
   ])

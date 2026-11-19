@@ -10,6 +10,17 @@ export const RELEASE_OPTIONS = [
 ] as const
 export type ReleaseOption = (typeof RELEASE_OPTIONS)[number]
 
+export type ReleaseCardRow = Readonly<{ label: string; value: string | readonly string[] }>
+
+/** What the tool said this one call would do; absent when the tool gave no describe function. */
+export type ReleaseCardDetail =
+  | Readonly<{
+      state: 'given'
+      rows: readonly [ReleaseCardRow, ...ReleaseCardRow[]]
+      typed?: Readonly<{ kind: string; value: string }>
+    }>
+  | Readonly<{ state: 'unavailable' }>
+
 /** What the card is about: the action as the system resolved it, never text the model wrote. */
 export type ReleaseCardAction = Readonly<{
   tool: string
@@ -19,6 +30,7 @@ export type ReleaseCardAction = Readonly<{
   effectiveArguments: string
   session: string
   agent: string
+  detail?: ReleaseCardDetail
 }>
 
 /** Which options the card offers now; one that cannot take effect is shown and not offered. */
@@ -39,6 +51,7 @@ export type ReleaseCard = Readonly<{
   gateTitle: string
   arguments: Readonly<{ text: string; truncated: boolean; digest: string }>
   origin: Readonly<{ session: string; agent: string }>
+  detail?: ReleaseCardDetail
   options: readonly [ReleaseCardOption, ...ReleaseCardOption[]]
 }>
 
@@ -96,6 +109,7 @@ export function releaseCard(action: ReleaseCardAction, offer: ReleaseOffer): Rel
     gateTitle: action.gateTitle,
     arguments: argumentsOf(action.effectiveArguments),
     origin: { session: action.session, agent: action.agent },
+    ...(action.detail === undefined ? {} : { detail: action.detail }),
     options: [optionOf(first), ...rest.map(optionOf)],
   }
 }

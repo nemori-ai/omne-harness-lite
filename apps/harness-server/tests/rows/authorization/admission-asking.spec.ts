@@ -18,6 +18,7 @@ import type {
   ToolPermissionDecision,
 } from '../../../src/rows/authorization/current-tool-permission.ts'
 import type { TenantPicks } from '../../../src/rows/authorization/tenant-picks.ts'
+import type { ToolReleaseDetails } from '@omne-harness/tool-contract'
 import { echoCall, toolsCall } from '../../entry/tool-call-support.ts'
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
 
@@ -39,6 +40,9 @@ type Setup = Readonly<{
   decide?: (action: ToolPermissionAction) => ToolPermissionDecision
   picks?: TenantPicks | null
   writer?: true
+  details?: ToolReleaseDetails<unknown>
+  express?: (input: unknown) => Promise<'written'>
+  resolved?: (input: unknown) => void
 }>
 
 async function world(setup: Setup = {}) {
@@ -75,15 +79,29 @@ async function world(setup: Setup = {}) {
     catalog: () => forward.catalog,
     view: () => forward.view,
   }
+  const resolution = createToolActionResolution(forwarding)
   const admission = createActionAdmission({
     actionRules: setup.rules ?? rules('Tools', 'ToyEcho'),
     readAdmission: () => allowing,
     readPermission: () => check,
-    readResolution: () => createToolActionResolution(forwarding),
-    readLabeling: () => createToolCallLabeling(forwarding),
+    readResolution: () => ({
+      resolve: input => {
+        setup.resolved?.(input)
+        return resolution.resolve(input)
+      },
+    }),
+    readLabeling: () =>
+      createToolCallLabeling({
+        ...forwarding,
+        ...(setup.details === undefined ? {} : { details: () => setup.details }),
+      }),
     ...(setup.picks === null ? {} : { readPicks: () => picks }),
     ...(setup.writer
-      ? { readAuthorizations: () => ({ express: async () => 'written' as const }) }
+      ? {
+          readAuthorizations: () => ({
+            express: setup.express ?? (async () => 'written' as const),
+          }),
+        }
       : {}),
   })
   const adoption = (name: 'Tools' | 'ToyEcho') => {
@@ -183,6 +201,81 @@ describe('an action whose gate asks', () => {
     const w = await world({ decide: () => ({ kind: 'ask', evidence }) })
     expect(offeredOf(await w.admit('ToyEcho', echoCall(w.forward, {}))).gate).toBeUndefined()
   })
+})
+
+describe('the detail on the card of an asked action', () => {
+  type Asked = Readonly<{
+    effectiveArguments: string
+    availability: { definition: { name: string } }
+  }>
+  const rows = [{ label: '命令', value: 'info' }] as const
+  const recording = () => {
+    const asked: Asked[] = []
+    const details: ToolReleaseDetails<unknown> = {
+      describe: async input => {
+        asked.push(input as unknown as Asked)
+        return { kind: 'detail', rows }
+      },
+    }
+    return { asked, details }
+  }
+  const allow = { kind: 'allow', evidence, condition: null } as const
+  const ask = { kind: 'ask', evidence, gate } as const
+  const detailOf = (decision: Awaited<ReturnType<Awaited<ReturnType<typeof world>>['admit']>>) => {
+    if (decision.kind !== 'need-decision') throw new Error(JSON.stringify(decision))
+    return (JSON.parse(writeJsonText(decision.card.detail!)) as { detail?: unknown }).detail
+  }
+
+  it('is asked of the tool only when the gate asks', async () => {
+    const r = recording()
+    const allowed = await world({ details: r.details, decide: () => allow })
+    expect((await allowed.admit('ToyEcho', echoCall(allowed.forward, {}))).kind).toBe('allow')
+    expect(r.asked).toEqual([])
+    const w = await world({ details: r.details })
+    expect(detailOf(await w.admit('ToyEcho', echoCall(w.forward, {})))).toEqual({
+      state: 'given',
+      rows,
+    })
+    expect(r.asked).toHaveLength(1)
+  })
+
+  it.each([
+    ['a call of the tool itself', 'ToyEcho'],
+    ['a call carried through Tools', 'Tools'],
+  ] as const)(
+    'is asked once, and resolution, the detail and the one-time release read the same arguments, for %s',
+    async (_what, name) => {
+      const r = recording()
+      const resolved: string[] = []
+      const expressed: Readonly<{ expression: { scope: { argumentsDigest: string } } }>[] = []
+      let granted = false
+      const w = await world({
+        details: r.details,
+        writer: true,
+        resolved: input =>
+          resolved.push((input as { effectiveArguments: string }).effectiveArguments),
+        express: async input => {
+          expressed.push(input as never)
+          granted = true
+          return 'written'
+        },
+        decide: action => (granted || action.definition.name !== 'ToyEcho' ? allow : ask),
+      })
+      const args =
+        name === 'ToyEcho'
+          ? echoCall(w.forward, {})
+          : toolsCall(w.forward, { name: 'ToyEcho', command: 'info', arguments: {} })
+      expect((await w.admit(name, args)).kind).toBe('need-decision')
+      expect((await w.admit(name, args, { decision: chose('allow-once') })).kind).toBe('allow')
+      expect(r.asked).toHaveLength(1)
+      expect(r.asked[0]!.availability.definition.name).toBe('ToyEcho')
+      const digest = (text: string) => effectiveArgumentsOf(text).digest
+      const acted = digest(r.asked[0]!.effectiveArguments)
+      expect(expressed.map(entry => entry.expression.scope.argumentsDigest)).toEqual([acted])
+      if (name === 'ToyEcho') expect(resolved.map(digest)).toEqual([acted, acted])
+      else expect(resolved).toEqual([args, args])
+    },
+  )
 })
 
 describe('what admission asks the current permission', () => {

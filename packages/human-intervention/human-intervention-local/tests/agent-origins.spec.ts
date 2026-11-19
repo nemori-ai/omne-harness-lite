@@ -24,6 +24,14 @@ const cards = {
       arguments: { text: '{"script":"rm notes.txt"}', truncated: false, digest: 'digest-1' },
       origin: { session: 'session-1', agent: 'agent-1' },
       gateTitle: '执行',
+      detail: {
+        state: 'given',
+        rows: [
+          { label: '命令', value: 'rm notes.txt' },
+          { label: '删除', value: ['notes.txt'] },
+        ],
+        typed: { kind: 'test.release@1', value: '{"paths":["notes.txt"]}' },
+      },
       options: [
         {
           id: 'allow-once',
@@ -80,6 +88,7 @@ it.each(['admission', 'agent-extension'] as const)(
     expect(listed).toMatchObject([
       { origin: w.request.origin, card: { kind: 'pending', question: cards[kind].question } },
     ])
+    expect(listed[0]!.card.question).toEqual(cards[kind].question)
     expect(await pool(w, { sessionRef: SESSION })).toEqual(listed)
     expect(await pool(w, { sessionRef: SESSION, originKind: kind })).toEqual(listed)
     expect(await pool(w)).toEqual(listed)

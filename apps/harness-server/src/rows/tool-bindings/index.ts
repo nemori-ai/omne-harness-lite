@@ -9,6 +9,7 @@ import {
   toolBindingsKey,
   toolCatalogKey,
   toolContributionAuthorityKey,
+  toolReleaseDetailsKey,
   toolStartAuthorityKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
@@ -170,7 +171,7 @@ export const toolBindingsRow = defineRow({
   row: 'tool-bindings',
   implementation: 'real',
   manifest: {
-    provides: [toolBindingsKey, toolCatalogKey],
+    provides: [toolBindingsKey, toolCatalogKey, toolReleaseDetailsKey],
     injects: [toolContributionAuthorityKey],
     sameProviderGroup: null,
   },

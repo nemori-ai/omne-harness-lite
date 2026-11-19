@@ -57,7 +57,14 @@ const advance = {
   source: evidence('advance'),
 } as unknown as Authority
 const asked = await askedDecision(
-  { label: async () => ({ tool: 'Shell', command: 'execute', preview: 'rm notes.txt' }) },
+  {
+    label: async () => ({
+      tool: 'Shell',
+      command: 'execute',
+      preview: 'rm notes.txt',
+      detail: { kind: 'none' } as const,
+    }),
+  },
   {
     input: { tenant: 't', execution: 'exec-1', action } as never,
     principal: 'p' as never,

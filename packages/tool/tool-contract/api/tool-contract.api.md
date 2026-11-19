@@ -3838,7 +3838,10 @@ export type ToolReleaseDescriber<A> = (input: Readonly<{
     arguments: A;
 }>) => Promise<ReleaseDescription>;
 export type ReleaseDetail = Readonly<{
-    rows: readonly ReleaseRow[];
+    rows: readonly [
+        ReleaseRow,
+        ...ReleaseRow[]
+    ];
     typed?: Readonly<{
         kind: string;
         value: string;

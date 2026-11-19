@@ -37,6 +37,7 @@
 - `ToolRegistration` · `cordis.d.ts`
 - `ToolRegistrationFailure` · `cordis.d.ts`
 - `ToolRegistrationInput` · `cordis.d.ts`
+- `ToolReleaseDetailsService` · `cordis.d.ts`
 - `ToolResidencyPage` · `cordis.d.ts`
 - `ToolResidencyReader` · `cordis.d.ts`
 - `ToolResidencyReaderService` · `cordis.d.ts`
@@ -63,6 +64,7 @@
 - `toolOffloaderKey` · `cordis.d.ts`
 - `toolPublicationAuthorityKey` · `cordis.d.ts`
 - `toolReadsKey` · `cordis.d.ts`
+- `toolReleaseDetailsKey` · `cordis.d.ts`
 - `toolResidencyReaderKey` · `cordis.d.ts`
 - `toolResourceResponsesKey` · `cordis.d.ts`
 - `toolResultPolicyKey` · `cordis.d.ts`
@@ -124,7 +126,7 @@ import { type Context, Service } from '@deepseek-ai/cordis';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
-import { type ConsumerRef, type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolRevision, type ToolResultReceiver, type ToolRuntime } from '@omne-harness/tool-contract';
+import { type ConsumerRef, type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolReleaseDetails, type ToolRevision, type ToolResultReceiver, type ToolRuntime } from '@omne-harness/tool-contract';
 import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
 export declare abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
     static readonly provide = "toolRuntime";
@@ -416,6 +418,12 @@ export declare abstract class ToolCatalogService<P> extends Service implements T
     abstract readonly search: ToolCatalog<P>['search'];
 }
 export declare const toolCatalogKey = "toolCatalog";
+export declare abstract class ToolReleaseDetailsService<P> extends Service implements ToolReleaseDetails<P> {
+    static readonly provide = "toolReleaseDetails";
+    constructor(ctx: Context);
+    abstract readonly describe: ToolReleaseDetails<P>['describe'];
+}
+export declare const toolReleaseDetailsKey = "toolReleaseDetails";
 export declare abstract class ToolStartAuthorityService<P> extends Service implements ToolStartAuthority<P> {
     static readonly provide = "toolStartAuthority";
     constructor(ctx: Context);
@@ -485,6 +493,7 @@ declare module '@deepseek-ai/cordis' {
         toolResultPolicy: ResultPolicyService<ContentBlock>;
         toolReads: ToolReadsService<unknown, ContentBlock>;
         toolCatalog: ToolCatalogService<unknown>;
+        toolReleaseDetails: ToolReleaseDetailsService<unknown>;
         toolStartAuthority: ToolStartAuthorityService<unknown>;
         toolStartFence: ToolStartFenceService<unknown>;
         toolResourceResponses: ToolResourceResponsesService<unknown>;

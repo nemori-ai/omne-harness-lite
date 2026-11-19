@@ -64,6 +64,54 @@ describe('the release card is its own kind of card', () => {
   })
 })
 
+describe('what the tool said the call would do, kept on the release card', () => {
+  const rows = [
+    { label: '收件人', value: '你' },
+    { label: '标签', value: ['a', 'b'] },
+  ]
+  const typed = { kind: 'test.release@1', value: '{"title":"T"}' }
+  const takes = (detail: unknown) => QuestionSchema.safeParse({ ...release, detail }).success
+
+  it('takes rows with or without a typed value, and a detail the tool could not give', () => {
+    expect(takes({ state: 'given', rows })).toBe(true)
+    expect(takes({ state: 'given', rows, typed })).toBe(true)
+    expect(takes({ state: 'unavailable' })).toBe(true)
+  })
+
+  it.each([
+    ['no rows', { state: 'given', rows: [] }],
+    ['too many rows', { state: 'given', rows: Array.from({ length: 25 }, () => rows[0]) }],
+    ['a label over its bound', { state: 'given', rows: [{ label: 'l'.repeat(41), value: 'v' }] }],
+    ['a text over its bound', { state: 'given', rows: [{ label: 'l', value: 'v'.repeat(501) }] }],
+    ['an empty list', { state: 'given', rows: [{ label: 'l', value: [] }] }],
+    [
+      'too many items',
+      { state: 'given', rows: [{ label: 'l', value: Array.from({ length: 13 }, () => 'i') }] },
+    ],
+    [
+      'an item over its bound',
+      { state: 'given', rows: [{ label: 'l', value: ['i'.repeat(201)] }] },
+    ],
+    [
+      'a typed value over 16 KiB',
+      { state: 'given', rows, typed: { kind: 'k@1', value: 'x'.repeat(16 * 1024 + 1) } },
+    ],
+    ['rows with a detail it could not give', { state: 'unavailable', rows }],
+    ['an unknown state', { state: 'partial', rows }],
+  ])('refuses a detail with %s', (_name, detail) => {
+    expect(takes(detail)).toBe(false)
+  })
+
+  it('refuses a detail larger than the card keeps, whatever its parts', () => {
+    const wide = Array.from({ length: 12 }, () => '字'.repeat(200))
+    const full = Array.from({ length: 24 }, () => ({ label: '标'.repeat(40), value: wide }))
+    expect(takes({ state: 'given', rows: full })).toBe(true)
+    const control = Array.from({ length: 12 }, () => '\u0001'.repeat(200))
+    const escaped = Array.from({ length: 24 }, () => ({ label: '标'.repeat(40), value: control }))
+    expect(takes({ state: 'given', rows: escaped })).toBe(false)
+  })
+})
+
 describe('an answer to a release card', () => {
   const card = CardSchema.parse({ kind: 'pending', ref: cardRef, revision: '0', question: release })
   const answer = (optionId: string) =>

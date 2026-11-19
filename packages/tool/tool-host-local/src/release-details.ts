@@ -42,20 +42,20 @@ async function within<T>(work: () => Promise<T>, ms: number): Promise<T | typeof
   }
 }
 
-async function fitsSchema(
+async function schemaVerdict(
   provider: SchemaProvider,
   declared: ToolCommandReleaseDetail,
   value: string,
-): Promise<boolean> {
+  maxBytes: number,
+): Promise<string> {
   const read = readJsonText(value, {
-    maxBytes: 64 * 1024,
+    maxBytes,
     maxDepth: 32,
     maxItems: 4096,
     maxMembers: 512,
-    maxStringLength: 16 * 1024,
+    maxStringLength: maxBytes,
     maxNumberLength: 64,
   })
-  if (read.kind !== 'ok') return false
   const reference = defineSchema({
     id: `release-detail:${canonicalDigest(declared)}`,
     load: async () =>
@@ -64,7 +64,7 @@ async function fitsSchema(
         numbers: 'exact-or-reject',
       }),
   })
-  return (await validate(provider, reference, read)).kind === 'valid'
+  return (await validate(provider, reference, read)).kind
 }
 
 /**
@@ -76,51 +76,62 @@ export function createLocalReleaseDetails<P, E, B extends ContentBlock>(
   input: LocalReleaseDetailsInput<P, E, B>,
 ): ToolReleaseDetails<P> {
   const policy = input.policy ?? DEFAULT_RELEASE_DETAIL_POLICY
+  const answer: ToolReleaseDetails<P>['describe'] = async ({
+    principal,
+    tenant,
+    availability,
+    command,
+    effectiveArguments,
+  }) => {
+    const registry = input.registry()
+    if (registry === undefined) return unavailable('no-registry')
+    const loaded = registry.peek({ principal, tenant }, availability)
+    if ('failure' in loaded) return unavailable('no-registration')
+    const registration = readToolRegistration(loaded.ok.implementation)
+    const slot =
+      registration?.kind === 'commands'
+        ? registration.operations.find(([name]) => name === command)?.[1]
+        : registration?.operation
+    if (slot === undefined || slot.describeRelease === null) return { kind: 'none' }
+    const { definition } = availability
+    const cut = commandArguments(definition, command, {
+      original: effectiveArguments,
+      effective: effectiveArguments,
+      complete: true,
+    })
+    if ('failure' in cut) return unavailable('arguments')
+    const parsed = slot.author.parameters.parse(cut.ok)
+    if ('failure' in parsed) return unavailable('arguments')
+    const describe = slot.describeRelease
+    const described = await within(
+      () => describe({ principal, tenant, arguments: parsed.ok }),
+      policy.timeoutMs,
+    )
+    if (described === TIMED_OUT) return unavailable('timeout')
+    const declared =
+      definition.kind === 'commands'
+        ? definition.commands.find(entry => entry.name === command)?.release?.detail
+        : undefined
+    const judged = judgeReleaseDescription(described, declared, policy)
+    if ('failure' in judged) return unavailable(judged.failure)
+    if (judged.ok.typed === undefined || declared === undefined)
+      return { kind: 'detail', ...judged.ok }
+    const verdict = await schemaVerdict(
+      input.provider,
+      declared,
+      judged.ok.typed.value,
+      policy.maxTypedBytes,
+    )
+    if (verdict === 'valid') return { kind: 'detail', ...judged.ok }
+    return unavailable(verdict === 'invalid' ? 'typed-schema' : `schema-${verdict}`)
+  }
   return {
-    async describe({ principal, tenant, availability, command, effectiveArguments }) {
-      const registry = input.registry()
-      if (registry === undefined) return unavailable('no-registry')
-      const loaded = registry.peek({ principal, tenant }, availability)
-      if ('failure' in loaded) return unavailable('no-registration')
-      const registration = readToolRegistration(loaded.ok.implementation)
-      const slot =
-        registration?.kind === 'commands'
-          ? registration.operations.find(([name]) => name === command)?.[1]
-          : registration?.operation
-      if (slot === undefined || slot.describeRelease === null) return { kind: 'none' }
-      const { definition } = availability
-      const cut = commandArguments(definition, command, {
-        original: effectiveArguments,
-        effective: effectiveArguments,
-        complete: true,
-      })
-      if ('failure' in cut) return unavailable('arguments')
-      const parsed = slot.author.parameters.parse(cut.ok)
-      if ('failure' in parsed) return unavailable('arguments')
-      const describe = slot.describeRelease
-      let described: unknown
+    async describe(request) {
       try {
-        described = await within(
-          () => describe({ principal, tenant, arguments: parsed.ok }),
-          policy.timeoutMs,
-        )
+        return await answer(request)
       } catch {
         return unavailable('threw')
       }
-      if (described === TIMED_OUT) return unavailable('timeout')
-      const declared =
-        definition.kind === 'commands'
-          ? definition.commands.find(entry => entry.name === command)?.release?.detail
-          : undefined
-      const judged = judgeReleaseDescription(described, declared, policy)
-      if ('failure' in judged) return unavailable(judged.failure)
-      if (
-        judged.ok.typed !== undefined &&
-        declared !== undefined &&
-        !(await fitsSchema(input.provider, declared, judged.ok.typed.value))
-      )
-        return unavailable('typed-schema')
-      return { kind: 'detail', ...judged.ok }
     },
   }
 }
