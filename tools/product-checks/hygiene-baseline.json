@@ -73,7 +73,7 @@
       "packages/agent/agent-contract/src/testing-journal-finishing.ts": 4101,
       "packages/agent/agent-contract/src/testing-received-conformance.ts": 1055,
       "packages/agent/agent-host-local/src/host.ts": 1037,
-      "packages/agent/agent/src/loop/coordinator.ts": 3319,
+      "packages/agent/agent/src/loop/coordinator.ts": 3305,
       "packages/agent/agent/src/testing/journal.ts": 3589,
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1055,
       "packages/execution/execution-environment/src/registry.ts": 1046,
@@ -81,10 +81,10 @@
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
       "packages/model/model-storage-sql/src/commit.ts": 1109,
       "packages/model/model/src/commands/commands.ts": 1054,
-      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1774,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1768,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
-      "packages/session/session-adapters/src/testing/factory.ts": 1259,
+      "packages/session/session-adapters/src/testing/factory.ts": 1239,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1263,
       "packages/session/session-adapters/src/testing/journal.ts": 4190,
       "packages/session/session-adapters/src/testing/session.ts": 1221,
@@ -163,7 +163,7 @@
       },
       "packages/agent/agent/src/loop/coordinator.ts": {
         "count": 1,
-        "longest": 2843
+        "longest": 2828
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
@@ -507,7 +507,7 @@
       },
       "packages/session/session-adapters/src/cordis/agent-journal.ts": {
         "count": 1,
-        "longest": 1143
+        "longest": 1137
       },
       "packages/session/session-adapters/src/cordis/context-holder.ts": {
         "count": 1,
@@ -523,7 +523,7 @@
       },
       "packages/session/session-adapters/src/testing/factory.ts": {
         "count": 3,
-        "longest": 1128
+        "longest": 1109
       },
       "packages/session/session-adapters/src/testing/journal-finishing.ts": {
         "count": 1,

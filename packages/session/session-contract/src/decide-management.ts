@@ -17,6 +17,7 @@ import {
   invalid,
   originOf,
   rejected,
+  controlSource,
   sourceOf,
   terminalEntries,
 } from './decision-support.ts'
@@ -56,7 +57,7 @@ export function decideControl(
   const scope = resolveControlScope(snapshot, intent)
   if (scope.kind === 'invalid') return invalid('intent', scope.reason)
   if (scope.kind === 'terminal') return rejected(scope)
-  const source = sourceOf(operation, 'control')
+  const source = controlSource(operation)
   const archive =
     intent.kind === 'auto-archive' || (intent.kind === 'control' && intent.value.kind === 'archive')
   const unarchive = intent.kind === 'control' && intent.value.kind === 'unarchive'
