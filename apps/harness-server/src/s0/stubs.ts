@@ -47,7 +47,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   'calendar-notification': {
     provides: [],
-    injects: ['notificationSources', 'runtimeContextTenantBlocks'],
+    injects: [],
     phase: 'composition',
   },
   'session-intake-budget': {
@@ -93,12 +93,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   },
   calendar: {
     provides: ['calendarQuery', 'calendarCalculator', 'calendarSupply'],
-    injects: [
-      'storage',
-      'tenantStanding',
-      'tenantIndependentSettings',
-      'runtimeContextTenantBlocks',
-    ],
+    injects: ['storage', 'tenantStanding', 'tenantIndependentSettings'],
     phase: 'composition',
   },
   schedule: {
