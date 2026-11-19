@@ -135,6 +135,32 @@ describe('the history index through its two threads', () => {
   })
 })
 
+describe('a thread of the index that does not answer (SH-4, SH-5)', () => {
+  it('fails the call as unavailable when its time is up, and writes nothing by halves', async () => {
+    const { index, root } = fresh()
+    const begun = await index.beginRebuild(TENANT, 1)
+    if ('failure' in begun) throw new Error('begin')
+    await index.adopt(TENANT, begun.ok.generation)
+    // One millisecond is less than a thread takes to start: every call of this one is late.
+    const late = createSqliteHistoryIndex({ root, readDeadlineMs: 1, writeDeadlineMs: 1 })
+    indexes.push(late)
+    expect(await late.candidates(request(1, gram('nee')))).toEqual({ failure: 'unavailable' })
+    expect(await late.covers(TENANT, 1)).toEqual({ failure: 'unavailable' })
+    expect(await late.state(TENANT)).toMatchObject({ kind: 'broken' })
+    const batch = { tenant: TENANT, generation: 1, session: S1, through: '1' as SessionRevision }
+    expect(await late.append({ ...batch, at: 1001, documents: [at(1, 'needle')] })).toEqual({
+      failure: 'unavailable',
+    })
+    expect(await late.beginRebuild(TENANT, 1)).toEqual({ failure: 'unavailable' })
+    // The index itself is as it was or has the whole batch: its own threads read it at once.
+    const found = await index.candidates(request(1, gram('nee')))
+    if ('failure' in found) throw new Error(found.failure)
+    expect([found.ok.covered.size, found.ok.rows.length]).toSatisfy(
+      ([covers, rows]: number[]) => covers === rows,
+    )
+  })
+})
+
 describe('a process killed between the rows of a batch and its cover (SH-2)', () => {
   it('leaves neither: the index reopens with the cover and the rows it had before', () => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'history-index-kill-')))

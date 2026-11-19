@@ -18,14 +18,18 @@ const WORKER_URL = new URL(`./worker.${EXTENSION}`, import.meta.url)
 export type SqliteHistoryIndexOptions = Readonly<{
   root: string
   vocabularyLimit?: number
+  /** How long a read or a write may take before its thread counts as hung and is replaced. */
+  readDeadlineMs?: number
+  writeDeadlineMs?: number
 }>
 
 export type SqliteHistoryIndex = HistoryIndex & Readonly<{ close(): Promise<void> }>
 
 type Waiting = Readonly<{ resolve(value: unknown): void; reject(cause: Error): void }>
 
-// One thread and its calls in flight. A thread that dies fails them; the next call starts another.
-function lane(options: StoreOptions) {
+// One thread and its calls in flight. A thread that dies, or does not answer in time, fails them;
+// the next call starts another.
+function lane(options: StoreOptions, deadlineMs: number) {
   let worker: Worker | null = null
   let serial = 0
   const waiting = new Map<number, Waiting>()
@@ -61,7 +65,22 @@ function lane(options: StoreOptions) {
     ): Promise<ReturnType<Store[M]>> {
       return new Promise((resolve, reject) => {
         serial += 1
-        waiting.set(serial, { resolve: resolve as Waiting['resolve'], reject })
+        const timer = setTimeout(() => {
+          const hung = worker
+          failAll(new Error('the index thread did not answer in time'))
+          void hung?.terminate()
+        }, deadlineMs)
+        timer.unref()
+        const settled = <T>(settle: (value: T) => void) => {
+          return (value: T) => {
+            clearTimeout(timer)
+            settle(value)
+          }
+        }
+        waiting.set(serial, {
+          resolve: settled(resolve as Waiting['resolve']),
+          reject: settled(reject),
+        })
         started().postMessage({ id: serial, method, args } satisfies WorkerCall)
       })
     },
@@ -105,8 +124,8 @@ export function createSqliteHistoryIndex(options: SqliteHistoryIndexOptions): Sq
     extraction: EXTRACTION_VERSION,
     vocabularyLimit: options.vocabularyLimit ?? 512,
   }
-  const reads = lane({ ...shared, readOnly: true })
-  const writes = lane({ ...shared, readOnly: false })
+  const reads = lane({ ...shared, readOnly: true }, options.readDeadlineMs ?? 10_000)
+  const writes = lane({ ...shared, readOnly: false }, options.writeDeadlineMs ?? 60_000)
   const textOf = (tenant: TenantId): string | null => {
     const text = tenantCodec.encode(tenant)
     return text.ok ? text.value : null

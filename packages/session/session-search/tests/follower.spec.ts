@@ -1,0 +1,162 @@
+import { describe, expect, it } from 'vitest'
+import { createHistoryFollower, followTenant } from '../src/index.ts'
+import { literals, queryOf } from './support.ts'
+import { S1, S2, S3, TENANT, keysOf, said, world } from './search-support.ts'
+
+const NEEDLE = queryOf({ content: literals(['needle']) })
+const LIMITS = { pageBytes: 1 << 20, maxSteps: 100 }
+
+function logged() {
+  const w = world()
+  for (const session of [S1, S2, S3])
+    for (let turn = 1; turn <= 3; turn += 1) w.log.commit(session, [said(`needle ${turn}`)], turn)
+  const pass = (limits = LIMITS) =>
+    followTenant({ index: w.index, log: w.log.reader }, TENANT, limits)
+  return { w, pass }
+}
+
+describe('following the logs of a tenant (SH-2, SH-3)', () => {
+  it('with no index: begins a build, follows every log, and adopts it when nothing is behind', async () => {
+    const { w, pass } = logged()
+    expect(await pass()).toEqual({ ok: { behind: 0, steps: 3, adopted: true } })
+    expect(await w.index.state(TENANT)).toEqual({ kind: 'ready', generation: 1 })
+    w.log.reads.entries = 0
+    const page = await w.page(NEEDLE)
+    expect(page.complete).toBe(true)
+    expect(keysOf([page])).toHaveLength(9)
+    expect(w.log.reads.entries).toBe(0)
+  })
+
+  it('with a ready index: appends what was committed since, and then has nothing to do', async () => {
+    const { w, pass } = logged()
+    await pass()
+    w.log.commit(S2, [said('needle late')], 50)
+    expect(await pass()).toEqual({ ok: { behind: 0, steps: 1, adopted: false } })
+    expect(w.index.coverOf(1, S2)).toEqual({ through: '4', at: 50 })
+    expect(await pass()).toEqual({ ok: { behind: 0, steps: 0, adopted: false } })
+  })
+
+  it('stops after its steps and says how many sessions are still behind; a build waits for them', async () => {
+    const { w, pass } = logged()
+    const small = { pageBytes: 1, maxSteps: 4 }
+    expect(await pass(small)).toEqual({ ok: { behind: 2, steps: 4, adopted: false } })
+    expect(await w.index.state(TENANT)).toMatchObject({ kind: 'rebuilding', generation: null })
+    w.log.commit(S1, [said('needle while building')], 60)
+    expect(await pass(small)).toEqual({ ok: { behind: 1, steps: 4, adopted: false } })
+    expect(await pass(small)).toEqual({ ok: { behind: 0, steps: 2, adopted: true } })
+    expect(keysOf([await w.page(NEEDLE)])).toHaveLength(10)
+  })
+
+  it('while a rebuild is on: writes to the new generation, leaves the old one as it was', async () => {
+    const { w, pass } = logged()
+    await pass()
+    await w.index.beginRebuild(TENANT, 3)
+    w.log.commit(S3, [said('needle during rebuild')], 70)
+    expect(await pass({ pageBytes: 1 << 20, maxSteps: 2 })).toEqual({
+      ok: { behind: 1, steps: 2, adopted: false },
+    })
+    expect(w.index.coverOf(1, S3)).toEqual({ through: '3', at: 3 })
+    expect(w.index.coverOf(2, S1)).toEqual({ through: '3', at: 3 })
+    expect(keysOf([await w.page(NEEDLE)])).toHaveLength(10)
+    expect(await pass()).toEqual({ ok: { behind: 0, steps: 1, adopted: true } })
+    expect(await w.index.state(TENANT)).toEqual({ kind: 'ready', generation: 2 })
+  })
+
+  it('with a broken index: builds a new generation and puts it in place', async () => {
+    const { w, pass } = logged()
+    await pass()
+    w.index.faults.broken = true
+    expect(await w.search(NEEDLE)).toEqual({ failure: 'index-broken' })
+    expect(await pass()).toEqual({ ok: { behind: 0, steps: 3, adopted: true } })
+    expect(await w.index.state(TENANT)).toEqual({ kind: 'ready', generation: 2 })
+    expect(keysOf([await w.page(NEEDLE)])).toHaveLength(9)
+  })
+
+  it('says unavailable when the log or the index does not answer, and adopts nothing', async () => {
+    const { w, pass } = logged()
+    w.log.faults.sessions = true
+    expect(await pass()).toEqual({ failure: 'unavailable' })
+    w.log.faults.sessions = false
+    w.log.faults.entries = true
+    expect(await pass()).toEqual({ failure: 'unavailable' })
+    w.log.faults.entries = false
+    w.index.faults.failing = 'unavailable'
+    expect(await pass()).toEqual({ failure: 'unavailable' })
+    w.index.faults.failing = null
+    expect(await w.index.state(TENANT)).toMatchObject({ kind: 'rebuilding' })
+    expect(await pass()).toMatchObject({ ok: { adopted: true } })
+  })
+})
+
+describe('the follower of a process (SH-2, SH-4)', () => {
+  function following(over: { intervalMs?: number; maxSteps?: number } = {}) {
+    const { w } = logged()
+    const reports: string[] = []
+    const compacted: number[] = []
+    w.index.compact = async (_tenant, pages) => void compacted.push(pages)
+    const follower = createHistoryFollower({
+      index: w.index,
+      log: w.log.reader,
+      limits: { pageBytes: 1, maxSteps: over.maxSteps ?? 2 },
+      intervalMs: over.intervalMs ?? 60_000,
+      compactPages: 7,
+      report: diagnostic => reports.push(diagnostic),
+    })
+    return { w, follower, reports, compacted }
+  }
+
+  it('on a poke: goes pass after pass until nothing is behind, compacting as it goes', async () => {
+    const { w, follower, compacted, reports } = following()
+    follower.poke(TENANT)
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(await w.index.state(TENANT)).toEqual({ kind: 'ready', generation: 1 })
+    expect(compacted.length).toBeGreaterThanOrEqual(5)
+    expect(new Set(compacted)).toEqual(new Set([7]))
+    expect(reports).toEqual([])
+    w.log.commit(S1, [said('needle after')], 90)
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(w.index.coverOf(1, S1).through).toBe('4')
+    follower.stop()
+  })
+
+  it('a poke that comes during a pass is not lost: one more pass follows', async () => {
+    const { w, follower } = following({ maxSteps: 100 })
+    follower.poke(TENANT)
+    w.log.commit(S2, [said('needle racing')], 91)
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(w.index.coverOf(1, S2).through).toBe('4')
+    follower.stop()
+  })
+
+  it('reports a pass that failed and tries again at the next poke', async () => {
+    const { w, follower, reports } = following()
+    w.log.faults.sessions = true
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(reports).toEqual(['following the history failed: unavailable'])
+    w.log.faults.sessions = false
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(await w.index.state(TENANT)).toMatchObject({ kind: 'ready' })
+    follower.stop()
+  })
+
+  it('looks again at the tenants it knows on its interval, and no more once stopped', async () => {
+    const { w, follower } = following({ intervalMs: 5, maxSteps: 100 })
+    follower.poke(TENANT)
+    await follower.idle()
+    w.log.commit(S3, [said('needle with no wake-up')], 92)
+    await new Promise(resolve => setTimeout(resolve, 40))
+    await follower.idle()
+    expect(w.index.coverOf(1, S3).through).toBe('4')
+    follower.stop()
+    w.log.commit(S3, [said('needle after the stop')], 93)
+    follower.poke(TENANT)
+    await new Promise(resolve => setTimeout(resolve, 20))
+    await follower.idle()
+    expect(w.index.coverOf(1, S3).through).toBe('4')
+  })
+})

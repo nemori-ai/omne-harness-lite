@@ -42,6 +42,8 @@ import type { SessionAdoptedRequests } from './adopted-request.ts'
 import type { SessionCursorSigning } from './cursor-signing.ts'
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts'
 
+export * from './history-search.ts'
+
 export type SessionIntercept = Readonly<{ caller: SessionCallerClass }>
 
 /** @owner packages/session/session-contract */

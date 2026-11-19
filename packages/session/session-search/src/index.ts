@@ -23,6 +23,14 @@ export {
 } from './cursor.ts'
 export { foldText } from './fold.ts'
 export { followSession, type FollowInput, type FollowStep } from './follow.ts'
+export {
+  createHistoryFollower,
+  followTenant,
+  type FollowLimits,
+  type FollowPass,
+  type FollowerOptions,
+  type HistoryFollower,
+} from './follower.ts'
 export type {
   AppendRequest,
   CandidateRequest,
@@ -59,3 +67,14 @@ export {
 export type { Span } from './regex.ts'
 export type { SearchDeps, SearchInput, SearchLimits } from './search-run.ts'
 export { searchHistory, type Incomplete, type SearchFailure, type SearchPage } from './search.ts'
+export {
+  createHistorySearch,
+  type HistorySearch,
+  type HistorySearchDeps,
+  type HistorySearchFailure,
+  type HistorySearchPage,
+  type HistorySearchReply,
+  type HistorySearchRequest,
+  type SearchCursorSeal,
+  type SearchPolicy,
+} from './service.ts'

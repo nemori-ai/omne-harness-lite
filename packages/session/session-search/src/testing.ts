@@ -296,6 +296,7 @@ export function createMemoryIndex(): MemoryIndex {
       if (current !== null) generations.delete(current)
       current = generation
       building = null
+      faults.broken = false
       return succeed(null)
     },
     async compact() {},

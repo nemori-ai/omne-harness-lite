@@ -223,6 +223,9 @@ describe('localOperatorLayer over the bundled distribution', () => {
       packageRoot: input('linux').locations.assetsRoot,
     })
     expect(configOf(layer, 'skills')).toEqual({ ranking: SEARCH_RANKING })
+    expect(configOf(layer, 'session-history-index')).toEqual({
+      root: input('linux').locations.historyIndexRoot,
+    })
     const without = localOperatorLayer({
       ...input('linux'),
       distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
@@ -230,7 +233,16 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(without.ops.map(op => op.id)).toEqual(
       layer.ops
         .map(op => op.id)
-        .filter(id => !['tenant-assets', 'skills', 'secret-custody', 'notification'].includes(id)),
+        .filter(
+          id =>
+            ![
+              'tenant-assets',
+              'skills',
+              'secret-custody',
+              'notification',
+              'session-history-index',
+            ].includes(id),
+        ),
     )
   })
 

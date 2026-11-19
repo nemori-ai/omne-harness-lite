@@ -431,6 +431,11 @@ export function operatorLayer(options: {
         id: 'tenant-assets',
         config: { packageRoot: join(dirname(options.storageRoot), 'assets') },
       },
+      {
+        kind: 'replace',
+        id: 'session-history-index',
+        config: { root: join(dirname(options.storageRoot), 'history-index') },
+      },
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
       { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
       {

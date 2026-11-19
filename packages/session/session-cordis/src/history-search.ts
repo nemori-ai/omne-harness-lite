@@ -1,0 +1,69 @@
+import type { Context, Plugin } from '@deepseek-ai/cordis'
+import type { TenantId } from '@omne-harness/legal-identity'
+import {
+  SessionSearchService,
+  sessionAccessCheckKey,
+  sessionHistoryIndexKey,
+  sessionHistoryLogKey,
+  sessionSearchCursorsKey,
+} from '@omne-harness/session-cordis-contract/cordis'
+import {
+  createHistoryFollower,
+  createHistorySearch,
+  type FollowLimits,
+  type HistorySearch,
+  type SearchPolicy,
+} from '@omne-harness/session-search'
+import { diagnoser } from './diagnostics.ts'
+
+export type SessionSearchConfig = Readonly<{
+  policy: SearchPolicy
+  follow: FollowLimits & Readonly<{ intervalMs: number; compactPages: number }>
+}>
+
+class SessionSearchImpl extends SessionSearchService<unknown> {
+  readonly search: HistorySearch<unknown>['search']
+  constructor(ctx: Context, search: HistorySearch<unknown>) {
+    super(ctx)
+    this.search = input => search.search(input)
+  }
+}
+
+// The history search and the follower that keeps the index behind the logs. A commit only wakes
+// the follower: nothing on the way of an intake or a Run reads the index, writes it or waits.
+export function createSessionSearchPlugin(config: SessionSearchConfig): Plugin.Object {
+  return {
+    name: 'session-search',
+    inject: [
+      sessionAccessCheckKey,
+      sessionHistoryIndexKey,
+      sessionHistoryLogKey,
+      sessionSearchCursorsKey,
+    ],
+    apply(ctx: Context) {
+      const { index } = ctx[sessionHistoryIndexKey]
+      const { log } = ctx[sessionHistoryLogKey]
+      const { intervalMs, compactPages, ...limits } = config.follow
+      const follower = createHistoryFollower({
+        index,
+        log,
+        limits,
+        intervalMs,
+        compactPages,
+        report: diagnoser(ctx, 'session-search'),
+      })
+      ctx.on('session-cordis-contract/committed', (tenant: TenantId) => follower.poke(tenant))
+      ctx.effect(() => () => follower.stop())
+      const search = createHistorySearch<unknown>({
+        access: ctx[sessionAccessCheckKey],
+        index,
+        log,
+        seal: ctx[sessionSearchCursorsKey].seal,
+        policy: config.policy,
+        now: Date.now,
+        searched: tenant => follower.poke(tenant),
+      })
+      new SessionSearchImpl(ctx, search)
+    },
+  }
+}

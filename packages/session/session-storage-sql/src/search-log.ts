@@ -1,4 +1,4 @@
-import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { EntryId, SessionId, SessionRevision } from '@omne-harness/session-contract'
 import {
@@ -7,8 +7,11 @@ import {
   type HistoryLogReader,
   type LoggedEntry,
   type LoggedSession,
+  type SearchCursorSeal,
 } from '@omne-harness/session-search'
+import type { SessionCursorSigning } from '@omne-harness/session-cordis-contract'
 import { domainOf, readHandler, type HandlerOutput, type SessionStorageOptions } from './context.ts'
+import { open, seal } from './cursor.ts'
 import { readEntryText } from './entry-codec.ts'
 
 export type SessionSearchLogOptions = Pick<SessionStorageOptions<unknown>, 'storage' | 'domains'>
@@ -117,6 +120,41 @@ export function createSessionSearchLog(options: SessionSearchLogOptions): Histor
         }
       }
       return succeed(found)
+    },
+  }
+}
+
+export type SessionSearchCursorOptions = Readonly<{
+  signing: SessionCursorSigning
+  now?: () => number
+  ttlMs?: number
+}>
+
+/** The cursors of the history search: signed like the session's other cursors, bound to a tenant. */
+export function createSearchCursorSeal(options: SessionSearchCursorOptions): SearchCursorSeal {
+  const cursor = {
+    signing: options.signing,
+    now: options.now ?? Date.now,
+    ttlMs: options.ttlMs ?? 15 * 60_000,
+  }
+  const bindingOf = (tenant: TenantId) => {
+    const text = tenantCodec.encode(tenant)
+    return text.ok ? { kind: 'history.search', tenant: text.value, session: null } : null
+  }
+  return {
+    async seal(tenant, state) {
+      const binding = bindingOf(tenant)
+      if (binding === null) return null
+      const sealed = await seal(cursor, binding, state)
+      return 'failure' in sealed ? null : sealed.ok
+    },
+    async open(tenant, sealed) {
+      const binding = bindingOf(tenant)
+      if (binding === null) return 'invalid'
+      const found = await open<unknown>(cursor, binding, sealed)
+      if ('failure' in found)
+        return found.failure.kind === 'unavailable' ? 'unavailable' : 'invalid'
+      return found.ok
     },
   }
 }

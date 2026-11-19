@@ -791,6 +791,9 @@ importers:
       '@omne-harness/session-observation':
         specifier: workspace:*
         version: link:../../packages/session/session-observation
+      '@omne-harness/session-search-sqlite':
+        specifier: workspace:*
+        version: link:../../packages/session/session-search-sqlite
       '@omne-harness/session-storage-sql':
         specifier: workspace:*
         version: link:../../packages/session/session-storage-sql
@@ -891,6 +894,9 @@ importers:
       '@omne-harness/session-protocol':
         specifier: workspace:*
         version: link:../../packages/session/session-protocol
+      '@omne-harness/session-search':
+        specifier: workspace:*
+        version: link:../../packages/session/session-search
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -4446,6 +4452,9 @@ importers:
       '@omne-harness/session-cordis-contract':
         specifier: workspace:*
         version: link:../session-cordis-contract
+      '@omne-harness/session-search':
+        specifier: workspace:*
+        version: link:../session-search
     devDependencies:
       '@omne-harness/session-storage-sql':
         specifier: workspace:*
@@ -4480,6 +4489,9 @@ importers:
       '@omne-harness/session-contract':
         specifier: workspace:*
         version: link:../session-contract
+      '@omne-harness/session-search':
+        specifier: workspace:*
+        version: link:../session-search
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
