@@ -268,7 +268,13 @@ export function decidePreserveResult<B extends ContentBlock>(
   const writes: LedgerWrite[] = [
     put({ kind: 'call', call: { ...call, state: state.ok } }),
     ...first.writes,
-    settlementAccount(snapshot, call, measuredDuration(call.startedAt, settledAt), mint),
+    ...settlementAccount(
+      snapshot,
+      call,
+      state.ok.phase === 'settled' ? state.ok.terminal : final.terminal,
+      measuredDuration(call.startedAt, settledAt),
+      mint,
+    ),
     ...uses.ok,
     ...dropSuspensionContent(snapshot),
     put(operationRecord(command, { kind: 'preserve-result', state: state.ok }, mint)),

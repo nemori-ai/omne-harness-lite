@@ -195,7 +195,6 @@
 
 ## 入口 `./provider` · `provider.d.ts`
 
-- `AccountScope` · `custody.d.ts`
 - `AdoptionFacts` · `dynamics.d.ts`
 - `AdoptionPlan` · `dynamics.d.ts`
 - `AdoptionRules` · `adoption.d.ts`
@@ -367,6 +366,10 @@
 - `ToolStartFence` · `records.d.ts`
 - `ToolStartLookup` · `ports.d.ts`
 - `ToolTask` · `records.d.ts`
+- `ToolUsageFact` · `custody.d.ts`
+- `ToolUsageOutcome` · `custody.d.ts`
+- `ToolUsagePage` · `custody.d.ts`
+- `ToolUsageQuery` · `custody.d.ts`
 - `ToolValueSchema` · `definitions.d.ts`
 - `ToolWaitContract` · `author-context.d.ts`
 - `ToolWaitProtocolDefinition` · `author-context.d.ts`
@@ -1536,11 +1539,10 @@ export interface ToolCredentials<P, C> {
 import type { CallAccount } from '@omne-harness/call-account';
 import type { CallOutput, ToolBodyReader, ToolOutputReadRequest } from './body-reads.ts';
 import type { ContentBlock } from '@omne-harness/content-block';
-import type { OrganizationId, TenantId } from '@omne-harness/legal-identity';
-import type { Adoption, CallAccess, DurableEvidence, Mutation, ToolCallId, ToolCursor, ToolOperationId, ToolResultVersion, ToolWaitId } from './identity.ts';
+import type { Access, Adoption, CallAccess, ConsumerRef, DurableEvidence, Mutation, ToolCallId, ToolCursor, ToolOperationId, ToolResultVersion, ToolWaitId } from './identity.ts';
 import type { ProcessBlock } from './operations.ts';
 import type { WaitRecord } from './records.ts';
-import type { Attachment, OperationResolution, Reply, ResultPage, ToolLookup, ToolResult, ToolState } from './results.ts';
+import type { Attachment, InterruptionCause, OperationResolution, Reply, ResultPage, ToolLookup, ToolResult, ToolState, ToolTerminal } from './results.ts';
 export type RawOutput = Readonly<{
     codec: Adoption;
     content: Attachment;
@@ -1605,29 +1607,49 @@ export interface ToolReads<P, B extends ContentBlock> {
         admission: ToolOperationId;
     }> & ToolOutputReadRequest): Reply<CallOutput>;
 }
-export type AccountScope = Readonly<{
-    kind: 'tenant';
-    tenant: TenantId;
+export type ToolUsageOutcome = Readonly<{
+    kind: 'completed';
 }> | Readonly<{
-    kind: 'organization';
-    organization: OrganizationId;
+    kind: 'failed';
+    cause: Extract<ToolTerminal, {
+        kind: 'failed';
+    }>['cause'];
+}> | Readonly<{
+    kind: 'unavailable';
+}> | Readonly<{
+    kind: 'interrupted';
+    cause: InterruptionCause;
+}> | Readonly<{
+    kind: 'no-response';
+}>;
+export type ToolUsageFact = Readonly<{
+    call: ToolCallId;
+    consumer: ConsumerRef;
+    tool: string;
+    start: string | null;
+    outcome: ToolUsageOutcome;
+    account: CallAccount;
+}>;
+export type ToolUsageQuery = Readonly<{
+    range: Readonly<{
+        from: string;
+        to: string;
+    }> | null;
+    consumer: Readonly<{
+        owner: string;
+        works: readonly string[];
+    }> | null;
+    order: 'ascending' | 'descending';
+    after: string | null;
+    limit: number;
+}>;
+export type ToolUsagePage = Readonly<{
+    entries: readonly ToolUsageFact[];
+    undated: number;
+    next: string | null;
 }>;
 export interface ToolAccounts<P> {
-    list(input: Readonly<{
-        principal: P;
-        scope: AccountScope;
-        after: string | null;
-        limit: number;
-    }>): Reply<Readonly<{
-        entries: readonly Readonly<{
-            tenant: TenantId;
-            call: ToolCallId;
-            start: ToolOperationId | null;
-            source: DurableEvidence;
-            account: CallAccount;
-        }>[];
-        next: string | null;
-    }>>;
+    list(input: Access<P> & ToolUsageQuery): Reply<ToolUsagePage>;
 }
 export interface ToolOffloader<P, B extends ContentBlock> {
     offload(input: Mutation<P> & Readonly<{
@@ -3150,7 +3172,7 @@ export type { PreparedEnvironment, ToolBindings, ToolClock, ToolDecisionBridge, 
 export type { AvailabilityFacts, OutputCodec, ParameterCodec, TextResultFactory, ToolAuthor, ToolAuthorExecutor, ToolAuthority, ToolBindingDrain, ToolBindingEntry, ToolBindingKey, ToolBindingKeyFailure, ToolBindingRegistry, ToolBindingScope, ToolContribution, ToolContributionFailure, ToolImplementation, ToolImplementationDeclaration, ToolImplementationModule, ToolLoadedRegistration, ToolLoader, ToolOperation, ToolOperationParameters, ToolOperationSpec, ToolPresentation, ToolProgramContract, ToolProgramOutput, ToolReturnValidator, ToolShape, ToolShapeParameters, } from './authoring.ts';
 export type { Checkpoint, ControlDispatch, DrainState, ExternalOperationResolution, FactBatch, FactProgress, FactReceipt, PreparationProgress, PreparationRecord, ProgramScheduling, ReleaseProgress, ReleaseRecord, StartGuard, StartPermit, StartProgress, SuspensionProgress, SuspensionRecord, TaskResolution, ToolRecoveryBinding, ToolResourceResponses, ToolStartAuthority, ToolTask, } from './records.ts';
 export type { ToolPermitConsumption, ToolPermitRef, ToolStartAcceptance, ToolStartFence, } from './records.ts';
-export type { AccountScope, ToolAccounts, ToolContentReader, ToolOffloader, ToolReads, } from './custody.ts';
+export type { ToolAccounts, ToolUsageFact, ToolUsageOutcome, ToolUsagePage, ToolUsageQuery, ToolContentReader, ToolOffloader, ToolReads, } from './custody.ts';
 export type { ChildPosition, ChildReservation, ChildState, ProgramClosure, ProgramEnd, ProgramToolResult, ProgramTools, ToolChildren, } from './program.ts';
 export { projectToolBackgroundCalls } from './background-calls-projection.ts';
 export type { ToolBackgroundCallSource, ToolBackgroundCallsSource, } from './background-calls-projection.ts';

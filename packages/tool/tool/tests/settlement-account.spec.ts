@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { decodeToolInstant } from '@omne-harness/tool-contract/provider'
 import { measuredDuration, settlementAccount, SETTLEMENT_EVENT } from '../src/ledger-account.ts'
+import type { ToolTerminal } from '@omne-harness/tool-contract'
 import type { Snapshot } from '../src/ledger-decider.ts'
+import type { CallRecord } from '../src/ledger-store.ts'
 import { INITIAL_REVISION } from '../src/evidence.ts'
 import { settlementFixture } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'
@@ -35,9 +37,22 @@ describe('the duration of a real execution (TL-54, I-14)', () => {
 describe('the account a settlement writes (C14)', () => {
   const place = { tenant: tenantA, call: callId('account-call') }
   const mint = { revision: INITIAL_REVISION }
+  const consumer = { owner: 'agent', work: 'exec-1', position: 'step-1', purpose: 'main' }
+  const record = {
+    ...place,
+    admission: 'admit-1',
+    startedAt: '2026-11-17T05:00:00.000Z',
+    request: { arguments: 'x'.repeat(1000), consumer, label: { tool: 'Shell' } },
+  } as unknown as CallRecord
+  const completed: ToolTerminal = { kind: 'completed' }
+  const writes = (
+    accounts: Snapshot['accounts'],
+    duration: string | null,
+    end: ToolTerminal = completed,
+  ) => settlementAccount({ accounts } as unknown as Snapshot, record, end, duration, mint)
   const write = (accounts: Snapshot['accounts'], duration: string | null) => {
-    const put = settlementAccount({ accounts } as unknown as Snapshot, place, duration, mint)
-    if (put.kind !== 'put' || put.record.kind !== 'account') throw new Error('not an account')
+    const [put] = writes(accounts, duration)
+    if (put?.kind !== 'put' || put.record.kind !== 'account') throw new Error('not an account')
     return put.record.account
   }
 
@@ -58,10 +73,8 @@ describe('the account a settlement writes (C14)', () => {
   })
 
   it('names the call and nothing else of the call record it is given', () => {
-    const record = { ...place, admission: 'admit-1', request: { arguments: 'x'.repeat(1000) } }
-    const put = settlementAccount({ accounts: [] } as unknown as Snapshot, record, null, mint)
-    if (put.kind !== 'put' || put.record.kind !== 'account') throw new Error('not an account')
-    expect(Object.keys(put.record.account).sort()).toEqual([
+    const account = write([], null)
+    expect(Object.keys(account).sort()).toEqual([
       'call',
       'event',
       'source',
@@ -69,7 +82,29 @@ describe('the account a settlement writes (C14)', () => {
       'tenant',
       'value',
     ])
-    expect(JSON.stringify(put.record.account)).not.toContain('x'.repeat(100))
+    expect(JSON.stringify(account)).not.toContain('x'.repeat(100))
+  })
+
+  it('writes the usage row of the call with the same account: consumer, tool, start and how it ended, no argument or diagnostic', () => {
+    const [put, usage] = writes([], 'PT2.500S', {
+      kind: 'failed',
+      cause: 'executor',
+      diagnostic: 'the output said y',
+    })
+    if (put?.kind !== 'put' || put.record.kind !== 'account') throw new Error('not an account')
+    expect(usage).toEqual({
+      kind: 'usage',
+      fact: {
+        call: place.call,
+        consumer,
+        tool: 'Shell',
+        start: '2026-11-17T05:00:00.000Z',
+        outcome: { kind: 'failed', cause: 'executor' },
+        account: put.record.account.value,
+      },
+    })
+    expect(JSON.stringify(usage)).not.toContain('x'.repeat(100))
+    expect(JSON.stringify(usage)).not.toContain('output said')
   })
 
   it('is the next revision of the same account, marked late, after an earlier one', () => {

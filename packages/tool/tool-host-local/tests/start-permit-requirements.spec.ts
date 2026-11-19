@@ -246,6 +246,7 @@ describe('start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),
@@ -285,6 +286,7 @@ describe('start permit requirements', () => {
         wrap: memory => ({
           durability: 'none',
           scanPending: input => memory.scanPending(input),
+          usage: query => memory.usage(query),
           readRecord: (domain, key) => memory.readRecord(domain, key),
           due: (tenant, now, limit) => memory.due(tenant, now, limit),
           read: domain => memory.read(domain),
@@ -343,6 +345,7 @@ describe('start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: async domain => {
@@ -518,6 +521,7 @@ describe('start permit requirements', () => {
         wrap: memory => ({
           durability: 'none',
           scanPending: input => memory.scanPending(input),
+          usage: query => memory.usage(query),
           readRecord: (domain, key) => memory.readRecord(domain, key),
           due: (tenant, now, limit) => memory.due(tenant, now, limit),
           commit: input => memory.commit(input),
@@ -561,6 +565,7 @@ describe('start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         commit: input => memory.commit(input),
@@ -602,6 +607,7 @@ describe('start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),
@@ -635,6 +641,7 @@ describe('start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),

@@ -47,7 +47,7 @@ import { classOf } from '../../model/principals.ts'
 import { classify, SESSION_WORK_OWNER } from './principals.ts'
 export { LOGIN_WORK_OWNER, SESSION_WORK_OWNER } from './principals.ts'
 export { createActionAdmission } from './action-admission.ts'
-export { createToolAccessGuard } from './tool-access.ts'
+export { createToolAccessGuard, createToolAccountsGuard } from './tool-access.ts'
 
 export type AccessPorts = Readonly<{
   admission: AdmissionCheck

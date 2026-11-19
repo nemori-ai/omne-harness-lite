@@ -233,8 +233,11 @@ export type {
   ToolStartFence,
 } from './records.ts'
 export type {
-  AccountScope,
   ToolAccounts,
+  ToolUsageFact,
+  ToolUsageOutcome,
+  ToolUsagePage,
+  ToolUsageQuery,
   ToolContentReader,
   ToolOffloader,
   ToolReads,

@@ -4,6 +4,7 @@ import {
   type LedgerCommit,
   type LedgerCommitInput,
   type ToolAccessGuard,
+  type ToolAccountsGuard,
   type ToolGrantVerifier,
   type ToolLedgerBudgets,
   type ToolLedgerGuards,
@@ -59,6 +60,8 @@ export type ToolHostAccess<P> = Readonly<{
   guard: ToolAccessGuard<P>
   start: StartCoordinatorAccess<P>
   request?: ToolRequestAccess<P>
+  /** Who may list the usage of a tenant; without it the list answers unavailable. */
+  accounts?: ToolAccountsGuard<P>
 }>
 
 export type LocalToolLedgerGuardsInput<P, E = unknown> = Readonly<{

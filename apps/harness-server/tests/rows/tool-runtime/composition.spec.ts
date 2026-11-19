@@ -40,9 +40,10 @@ import type {
   ToolInvokeRequest,
   ToolResultReceiver,
 } from '@omne-harness/tool-contract'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
+import type { ToolAccounts, ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import {
   ToolResidencyReaderService,
+  toolAccountsKey,
   toolCatalogKey,
   toolCommandsKey,
   toolResidencyReaderKey,
@@ -740,6 +741,22 @@ describe('Tool segment B: the release rows in one process composition', () => {
               maxBytes: 64,
             }),
           ).toEqual({ failure: { kind: 'not-found', target: 'result', reason: 'missing' } })
+          const accounts = ctx.get(toolAccountsKey) as ToolAccounts<unknown>
+          const usage = { range: null, consumer: null, order: 'ascending', after: null, limit: 10 }
+          expect(
+            await accounts.list({ principal, tenant: TENANT_A, ...usage } as never),
+          ).toMatchObject({
+            ok: {
+              entries: [
+                { call, tool: 'Shell', outcome: { kind: 'completed' }, account: { revision: '1' } },
+              ],
+              undated: 0,
+              next: null,
+            },
+          })
+          expect(
+            await accounts.list({ principal, tenant: TENANT_B, ...usage } as never),
+          ).toMatchObject({ failure: { kind: 'denied' } })
           return { call }
         },
       )
@@ -761,6 +778,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
                 chunks: n('tl_body_chunk'),
                 manifests: n('tl_body_manifest'),
                 due: n('tl_due'),
+                usage: n('tl_usage'),
                 callRecords: Number(
                   (
                     db
@@ -776,7 +794,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
             db.close()
           }
         })
-      expect(counts).toEqual([{ chunks: 0, manifests: 0, due: 0, callRecords: 0 }])
+      expect(counts).toEqual([{ chunks: 0, manifests: 0, due: 0, usage: 1, callRecords: 0 }])
     },
   )
 

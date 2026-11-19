@@ -227,6 +227,7 @@ export function witnessStore(store: ToolLedgerStore) {
     readRecord: (domain, key) => store.readRecord(domain, key),
     commit: input => store.commit(input),
     scanPending: input => store.scanPending(input),
+    usage: query => store.usage(query),
     due: (tenant, now, limit) => store.due(tenant, now, limit),
     async read(domain) {
       const answer = await store.read(domain)

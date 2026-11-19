@@ -14,6 +14,7 @@ import {
 } from '@omne-harness/sql-contract/cordis'
 
 import {
+  toolAccountsKey,
   toolClockKey,
   toolCommandsKey,
   toolEnvironmentsKey,
@@ -134,6 +135,7 @@ export function createToolRecordsRow(input: ToolRecordsRowInput = {}) {
         toolStartAuthorityKey,
         toolStartFenceKey,
         toolInvocationQualificationKey,
+        toolAccountsKey,
       ],
       injects: [
         storageKey,

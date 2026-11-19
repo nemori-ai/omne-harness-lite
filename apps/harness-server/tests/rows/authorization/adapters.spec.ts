@@ -30,7 +30,7 @@ import {
   principalVerifierKey,
   tenantStandingKey,
 } from '@omne-harness/identity/cordis'
-import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { SessionAccessRequest } from '@omne-harness/session-contract'
 import { sessionId } from '@omne-harness/session-contract/testing'
 import {
@@ -47,6 +47,7 @@ import {
   createAgentAccessCheck,
   createSessionAccessCheck,
   createToolAccessGuard,
+  createToolAccountsGuard,
   type AccessPorts,
 } from '../../../src/rows/authorization/adapters.ts'
 import { identityClock } from '../../../src/entry/identity-clock.ts'
@@ -1410,6 +1411,60 @@ describe('agentActionAdmission', () => {
       expect(answer).toMatchObject({ ok: { kind: 'undecidable' } })
       expect(JSON.stringify(answer)).not.toContain('"allow"')
     }
+  })
+})
+
+function tenantText(tenant: TenantId): string {
+  const encoded = tenantCodec.encode(tenant)
+  if (!encoded.ok) throw new Error('fixture tenant')
+  return encoded.value
+}
+
+describe('Tool usage list qualification', () => {
+  it('lets a member or the session work of the tenant list its usage, asking the admission for the tenant', async () => {
+    const w = world()
+    const guard = createToolAccountsGuard(() => w.ports.admission)
+    for (const principal of [w.login(), w.work()]) {
+      expect(await guard.qualify({ principal, tenant: A })).toEqual({ kind: 'allowed' })
+      expect(w.seen.admissions.at(-1)).toMatchObject({
+        operation: { owner: 'tool', name: 'list-accounts' },
+        target: { owner: 'tool', kind: 'tenant', key: tenantText(A) },
+        arguments: noArguments(),
+      })
+    }
+  })
+
+  it('denies another tenant, a foreign or system principal, before reading the admission', async () => {
+    const w = world()
+    let reads = 0
+    const guard = createToolAccountsGuard(() => {
+      reads += 1
+      return w.ports.admission
+    })
+    for (const [principal, tenant] of [
+      [w.login(), B],
+      [w.foreign(), A],
+      [w.system('unlisted'), A],
+      [{ subject: 'forged' }, A],
+    ] as const)
+      expect(await guard.qualify({ principal, tenant })).toEqual({
+        kind: 'denied',
+        reason: 'tenant-member-required',
+      })
+    expect(reads).toBe(0)
+  })
+
+  it('answers unavailable without an admission or when the dependency throws', async () => {
+    const w = world()
+    expect(
+      await createToolAccountsGuard(() => undefined).qualify({ principal: w.login(), tenant: A }),
+    ).toMatchObject({ kind: 'unavailable' })
+    const broken = createToolAccountsGuard(() => {
+      throw new Error('admission reader broke')
+    })
+    expect(await broken.qualify({ principal: w.login(), tenant: A })).toMatchObject({
+      kind: 'unavailable',
+    })
   })
 })
 
