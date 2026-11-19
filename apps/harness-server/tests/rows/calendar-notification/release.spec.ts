@@ -1,5 +1,8 @@
 // @module-tag slow
+import { readdirSync } from 'node:fs'
 import { request } from 'node:http'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { runtimeContextTenantScopeKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { describe, expect, it } from 'vitest'
 import { tenantScopeIssuerOf } from '../../../src/entry/principals.ts'
@@ -101,6 +104,74 @@ describe('the calendar-notification row', () => {
         expect(again.map(item => item.id).sort()).toEqual(items.map(item => item.id).sort())
         const dates = await call(tree, '/api/calendar/v1/list-calendars', { tenant })
         expect(dates.json).toMatchObject({ outcome: 'succeeded' })
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'reminds a person who set supply failures to strong once for each open risk, and keeps the items out of the inbox',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
+        await tree.startSession('hello')
+        const tenant = savedTenant(tree.home)
+        const person = { kind: 'person' }
+        await until(
+          () => calendarItems(tree),
+          found => found.length === 3,
+        )
+        const set = await call(tree, '/api/notification/v1/set-subscription', {
+          tenant,
+          recipient: person,
+          source: 'calendar.supply',
+          type: 'supply-failing',
+          scope: { kind: 'all' },
+          level: 'strong',
+          note: null,
+          term: { kind: 'standing' },
+        })
+        expect(set.json).toMatchObject({ outcome: 'succeeded', body: { level: 'strong' } })
+        // A standing item never enters the inbox; the reminder is a delivery Notification records once.
+        const reminders = () => {
+          const domains = join(tree.storageRoot, 'domains')
+          const prefix = Buffer.from('tenant/').toString('hex')
+          const file = readdirSync(domains).find(
+            name => name.startsWith(prefix) && name.endsWith('.sqlite'),
+          )
+          if (file === undefined) return []
+          const db = new DatabaseSync(join(domains, file), { readOnly: true })
+          try {
+            return db
+              .prepare(
+                "select r.item as item, u.pending as pending from nt_reminders r join nt_units u on u.id = json_array(r.recipient, 'default', 'standing', r.item) where r.recipient = 'person' order by r.item",
+              )
+              .all() as { item: string; pending: number }[]
+          } finally {
+            db.close()
+          }
+        }
+        const end = Date.now() + 150_000
+        let reminded = reminders()
+        while (reminded.length < 3 && Date.now() < end) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          reminded = reminders()
+        }
+        expect(reminded).toEqual([
+          { item: 'calendar.supply/cn-legal-holidays/supply-failing', pending: 0 },
+          { item: 'calendar.supply/jp-legal-holidays/supply-failing', pending: 0 },
+          { item: 'calendar.supply/us-federal-holidays/supply-failing', pending: 0 },
+        ])
+        const inbox = await call(tree, '/api/notification/v1/list-inbox', {
+          tenant,
+          recipient: person,
+          filter: 'all',
+          after: null,
+          limit: 50,
+        })
+        expect(
+          inbox.json.body.entries.filter((entry: any) => entry.source === 'calendar.supply'),
+        ).toEqual([])
       })
       expect(exitCode).toBe(0)
     },
