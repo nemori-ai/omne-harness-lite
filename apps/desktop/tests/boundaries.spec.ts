@@ -56,34 +56,59 @@ function offending(directory: string, bad: (specifier: string) => boolean): stri
   )
 }
 
+const OUTSIDE_PAGE = ['forwarding', 'standalone', 'main', 'utility', 'port-fetch']
+
 describe('边界', () => {
-  it('页面与共享类型不导入宿主一侧，也不导入 Node 内置', () => {
+  it('页面与共享类型不导入页面之外的那一半，也不导入 Node 内置与 electron', () => {
     const bad = (specifier: string) =>
       NODE.has(specifier) ||
       specifier === 'electron' ||
-      /(^|\/)(main-core|web-host|electron-host)(\/|$)/.test(specifier)
+      new RegExp(`(^|/)(${OUTSIDE_PAGE.join('|')})(/|$)`).test(specifier)
     expect([...offending('page', bad), ...offending('shared', bad)]).toEqual([])
   })
 
-  it('宿主一侧不导入页面', () => {
+  it('页面之外的那一半不导入页面', () => {
     const bad = (specifier: string) => /(^|\/)page(\/|$)/.test(specifier)
-    expect([
-      ...offending('main-core', bad),
-      ...offending('web-host', bad),
-      ...offending('electron-host', bad),
-    ]).toEqual([])
+    expect(OUTSIDE_PAGE.flatMap(directory => offending(directory, bad))).toEqual([])
   })
 
-  it('预加载只导入 electron 与共享类型，不导入宿主核心或主进程一侧', () => {
-    const preload = join(SRC, 'electron-host', 'preload.ts')
+  it('转发层不导入 electron、Node 的 HTTP 模块与任何一种承载', () => {
     const bad = (specifier: string) =>
-      specifier !== 'electron' && !specifier.startsWith('../shared/')
-    expect(imports(preload).filter(bad)).toEqual([])
+      specifier === 'electron' ||
+      /^(node:)?https?$/.test(specifier) ||
+      /(^|\/)(standalone|main|utility|port-fetch)(\/|$)/.test(specifier)
+    expect(offending('forwarding', bad)).toEqual([])
   })
 
-  it('主进程一侧的桥不导入 electron，换成替身就能测', () => {
-    const bridge = join(SRC, 'electron-host', 'ipc-host.ts')
-    expect(imports(bridge).filter(specifier => specifier === 'electron')).toEqual([])
+  it('进程间传输不导入 electron 与本应用别的部分', () => {
+    const bad = (specifier: string) => specifier === 'electron' || specifier.startsWith('../')
+    expect(offending('port-fetch', bad)).toEqual([])
+  })
+
+  it('主进程不做业务：不导入协议契约、转发层与 SDK', () => {
+    const bad = (specifier: string) =>
+      /(^|\/)forwarding(\/|$)/.test(specifier) ||
+      /^@omne-harness\/(.*-protocol|public-contract|sdk)(\/|$)/.test(specifier) ||
+      specifier.endsWith('shared/protocols.ts')
+    expect(offending('main', bad)).toEqual([])
+  })
+
+  it('主进程里只有入口、窗口与 utility 进程的启动导入 electron，其余换成替身就能测', () => {
+    const using = files(join(SRC, 'main'))
+      .filter(file => imports(file).includes('electron'))
+      .map(file => relative(join(SRC, 'main'), file))
+      .toSorted()
+    expect(using).toEqual(['main.ts', 'utility-process.ts', 'window.ts'])
+  })
+
+  it('没有预加载脚本，不用进程间通信承载页面的请求；桌面应用不启动独立转发进程', () => {
+    for (const file of files(join(SRC, 'main'))) {
+      const text = readFileSync(file, 'utf8')
+      expect(text, relative(SRC, file)).not.toMatch(/ipcMain|ipcRenderer|contextBridge|preload/)
+      expect(text, relative(SRC, file)).not.toMatch(/createServer|\.listen\(/)
+    }
+    const bad = (specifier: string) => /standalone\/(server|bin)\.ts$/.test(specifier)
+    expect([...offending('main', bad), ...offending('utility', bad)]).toEqual([])
   })
 
   it('外壳不导入任何领域的成员，也不导入装配文件', () => {
