@@ -5,6 +5,7 @@ import type { EntryId, SessionId, SessionRevision } from '@omne-harness/session-
 import {
   EXTRACTION_VERSION,
   type Candidates,
+  type Cover,
   type HistoryIndex,
   type IndexFailure,
   type IndexState,
@@ -97,14 +98,18 @@ function lane(options: StoreOptions, deadlineOf: (method: keyof Store) => number
 
 const isFailure = (answer: unknown): answer is StoreFailure => typeof answer === 'string'
 
+const coveredOf = (rows: NonNullable<StoreCandidates['covered']>): Map<SessionId, Cover> =>
+  new Map(
+    rows.map(row => [
+      row.session as SessionId,
+      { through: row.through as SessionRevision, at: row.at },
+    ]),
+  )
+
 function candidatesOf(found: StoreCandidates): Candidates {
   return {
-    covered: new Map(
-      found.covered.map(row => [
-        row.session as SessionId,
-        { through: row.through as SessionRevision, at: row.at },
-      ]),
-    ),
+    stamp: found.stamp,
+    covered: found.covered === null ? null : coveredOf(found.covered),
     rows: found.rows.map(row => ({
       doc: row.doc,
       session: row.session as SessionId,
@@ -166,7 +171,7 @@ export function createSqliteHistoryIndex(options: SqliteHistoryIndexOptions): Sq
       if (text === null) return fail('unavailable')
       const found = await answered(() => reads.call('covers', text, generation))
       if ('failure' in found) return found
-      return succeed(candidatesOf({ covered: found.ok, rows: [] }).covered)
+      return succeed(coveredOf(found.ok))
     },
     async append(input) {
       const tenant = textOf(input.tenant)

@@ -86,6 +86,7 @@ describe('the release tree and the history search (C10, C11, C15)', () => {
           window: { from: null, to: null },
           before: null,
           limit: 10,
+          known: null,
         })
         expect(found).toMatchObject({ ok: { rows: [{ session }] } })
         // Searching changes no session: every log stands where it stood.

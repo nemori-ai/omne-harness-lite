@@ -57,6 +57,7 @@ const ask = (generation: number, plan: GramPlan, over: Partial<StoreCandidateReq
     window: { from: null, to: null },
     before: null,
     limit: 50,
+    known: null,
     ...over,
   }) satisfies StoreCandidateRequest
 
@@ -235,6 +236,45 @@ describe('the candidates of a plan', () => {
     ])
     const docs = answer.rows.map(row => BigInt(row.doc))
     expect(docs).toEqual([...docs].sort((left, right) => (left > right ? -1 : 1)))
+  })
+
+  it('come with the covers once: while the stamp the asker holds stands, only the stamp is sent', () => {
+    const { store, generation } = filled()
+    const first = found(store, ask(generation, gram('nee')))
+    expect(first.stamp).toEqual({ sessions: 2, total: '6' })
+    expect(first.covered).toHaveLength(2)
+    const again = found(store, ask(generation, gram('nee'), { known: first.stamp }))
+    expect(again).toEqual({ ...first, covered: null })
+    // Narrowing to sessions works without the covers being read.
+    expect(
+      positions(
+        store,
+        ask(generation, gram('nee'), { known: first.stamp, sessions: ['s2', 'sx'] }),
+      ),
+    ).toEqual(['s2:1'])
+    // A cover that moved, or a session that came, changes the stamp: the covers are sent again.
+    store.append({
+      tenant: TENANT,
+      generation,
+      session: 's1',
+      through: '5',
+      at: 1005,
+      documents: [],
+    })
+    const moved = found(store, ask(generation, gram('nee'), { known: first.stamp }))
+    expect(moved.stamp).toEqual({ sessions: 2, total: '7' })
+    expect(moved.covered).toContainEqual({ session: 's1', through: '5', at: 1005 })
+    store.append({
+      tenant: TENANT,
+      generation,
+      session: 's3',
+      through: '0',
+      at: 0,
+      documents: [],
+    })
+    const joined = found(store, ask(generation, gram('nee'), { known: moved.stamp }))
+    expect(joined.stamp).toEqual({ sessions: 3, total: '7' })
+    expect(joined.covered).toHaveLength(3)
   })
 
   it('go on after a document, a page at a time', () => {
@@ -586,6 +626,7 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
       }),
     ).toBeNull()
     expect(found(store, ask(generation, ANY))).toEqual({
+      stamp: { sessions: 1, total: '9' },
       covered: [{ session: 's1', through: '9', at: expect.any(Number) }],
       rows: [],
     })
@@ -665,7 +706,7 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
       },
     })
     if (typeof answer === 'string') throw new Error(answer)
-    const cover = BigInt(answer.covered.find(row => row.session === 's1')!.through)
+    const cover = BigInt(answer.covered!.find(row => row.session === 's1')!.through)
     // Whatever the cover says is indexed must be among the rows: 15 is, only if the cover reached it.
     const seen = answer.rows.map(row => BigInt(row.position))
     if (cover >= 15n) expect(seen).toContain(15n)
@@ -753,6 +794,45 @@ describe('the number of a row in the file: its day, then a serial', () => {
         before = rows[0]!.doc
       }
       expect(walked).toEqual(NEWEST_FIRST)
+    }
+  })
+
+  it.each([1, 2, 3, 4, 5, 7, 9, 10, 11])(
+    'gives the same rows in the same order whatever the batch: %i at a time',
+    limit => {
+      const { store, generation } = spread()
+      for (const plan of [gram('nee'), ANY]) {
+        const walked: string[] = []
+        let before: string | null = null
+        for (let turn = 0; turn < 2 * NEWEST_FIRST.length; turn += 1) {
+          const rows: readonly Readonly<{ doc: string; session: string; position: string }>[] =
+            found(store, ask(generation, plan, { limit, before })).rows
+          expect(rows.length).toBeLessThanOrEqual(limit)
+          if (rows.length === 0) break
+          for (const row of rows) walked.push(`${row.session}:${row.position}`)
+          before = rows.at(-1)!.doc
+        }
+        expect(walked).toEqual(NEWEST_FIRST)
+      }
+    },
+  )
+
+  it('keeps a window in every batch size, also when it cuts a day', () => {
+    const { store, generation } = spread()
+    for (const limit of [1, 2, 3, 10]) {
+      const walked: string[] = []
+      let before: string | null = null
+      for (let turn = 0; turn < 20; turn += 1) {
+        const window = { from: T + 1001, to: T + 2 * DAY + 500 }
+        const rows: readonly Readonly<{ doc: string; session: string; position: string }>[] = found(
+          store,
+          ask(generation, gram('nee'), { limit, before, window }),
+        ).rows
+        if (rows.length === 0) break
+        for (const row of rows) walked.push(`${row.session}:${row.position}`)
+        before = rows.at(-1)!.doc
+      }
+      expect(walked).toEqual(['s2:4', 's2:3', 's1:3', 's2:2', 's1:2', 's2:1'])
     }
   })
 

@@ -6,19 +6,21 @@ import type {
   SessionId,
   SessionRevision,
 } from '@omne-harness/session-contract'
-import { SEARCHABLE_KINDS, documentRow, isSearchableKind } from './extract.ts'
+import { SEARCHABLE_KINDS, documentRow, documentsOf, isSearchableKind } from './extract.ts'
 import { followSession } from './follow.ts'
 import type {
   CandidateRequest,
   Candidates,
   Cover,
+  CoverStamp,
   HistoryIndex,
   IndexFailure,
   IndexState,
 } from './index-port.ts'
-import type { HistoryLogReader, LoggedEntry } from './log-port.ts'
+import type { HistoryLogReader, LogPage, LogRange, LoggedSession } from './log-port.ts'
 import { planAdmits } from './plan.ts'
-import { matchEntry, type CompiledQuery, type SearchQuery } from './query.ts'
+import { createJudge, matchEntry, type CompiledQuery, type SearchQuery } from './query.ts'
+import { headsOf, sameStamp } from './search-memo.ts'
 import { inWindow } from './search-run.ts'
 
 // Testing only: doubles for the two ports of the history search, and the scan it is checked against.
@@ -67,8 +69,8 @@ export type MemoryLog = Readonly<{
   sessions(): readonly SessionId[]
   tail(session: SessionId): SessionRevision
   scan(query: CompiledQuery): readonly string[]
-  faults: { sessions: boolean; entries: boolean; points: boolean }
-  reads: { entries: number; points: number }
+  faults: { sessions: boolean; entries: boolean; points: boolean; stamps: boolean }
+  reads: { entries: number; points: number; sessions: number; stamps: number }
 }>
 
 const sizeOf = (entry: HistoryEntry): number => JSON.stringify(entry.payload).length
@@ -76,55 +78,87 @@ const revisionOf = (value: bigint): SessionRevision => String(value) as SessionR
 
 export function createMemoryLog(): MemoryLog {
   const logs = new Map<SessionId, Logged>()
-  const faults = { sessions: false, entries: false, points: false }
-  const reads = { entries: 0, points: 0 }
+  const faults = { sessions: false, entries: false, points: false, stamps: false }
+  const reads = { entries: 0, points: 0, sessions: 0, stamps: 0 }
+  const listed = (): LoggedSession[] =>
+    [...logs].map(([session, log]) => ({
+      session,
+      tail: revisionOf(BigInt(log.commits.length)),
+      archived: log.archived,
+    }))
   const unavailable = () => fail('unavailable' as const)
 
+  type Read = Readonly<{ entry: HistoryEntry; at: number | null }>
+  const pageOf = (input: LogRange): LogPage<Read> | null => {
+    reads.entries += 1
+    const log = logs.get(input.session)
+    if (faults.entries || log === undefined) return null
+    const tail = revisionOf(BigInt(log.commits.length))
+    const entries: Read[] = []
+    let bytes = 0
+    let taken = 0
+    for (const commit of log.commits) {
+      if (commit.revision <= BigInt(input.after)) continue
+      const searchable = commit.entries.filter(entry => isSearchableKind(entry.kind))
+      const size = searchable.reduce((sum, entry) => sum + sizeOf(entry), 0)
+      // Whole commits only; the first one is given however large it is.
+      if (taken > 0 && bytes + size > input.maxBytes)
+        return { entries, through: revisionOf(commit.revision - 1n), exhausted: false, bytes }
+      for (const entry of searchable) entries.push({ entry, at: commit.at })
+      bytes += size
+      taken += 1
+    }
+    return { entries, through: tail, exhausted: true, bytes }
+  }
+
   const reader: HistoryLogReader = {
+    async stamp() {
+      reads.stamps += 1
+      return faults.stamps ? unavailable() : succeed(headsOf(listed()))
+    },
     async sessions() {
-      if (faults.sessions) return unavailable()
-      return succeed(
-        [...logs].map(([session, log]) => ({
-          session,
-          tail: revisionOf(BigInt(log.commits.length)),
-          archived: log.archived,
-        })),
-      )
+      reads.sessions += 1
+      return faults.sessions ? unavailable() : succeed(listed())
     },
-    async entries(input) {
-      reads.entries += 1
-      const log = logs.get(input.session)
-      if (faults.entries || log === undefined) return unavailable()
-      const tail = revisionOf(BigInt(log.commits.length))
-      const entries: LoggedEntry[] = []
-      let bytes = 0
-      let taken = 0
-      for (const commit of log.commits) {
-        if (commit.revision <= BigInt(input.after)) continue
-        const searchable = commit.entries.filter(entry => isSearchableKind(entry.kind))
-        const size = searchable.reduce((sum, entry) => sum + sizeOf(entry), 0)
-        // Whole commits only; the first one is given however large it is.
-        if (taken > 0 && bytes + size > input.maxBytes)
-          return succeed({
-            entries,
-            through: revisionOf(commit.revision - 1n),
-            exhausted: false,
-            bytes,
-          })
-        for (const entry of searchable) entries.push({ entry, at: commit.at })
-        bytes += size
-        taken += 1
-      }
-      return succeed({ entries, through: tail, exhausted: true, bytes })
+    async judge(input) {
+      const judge = createJudge(input.spec)
+      if (judge === null) return unavailable()
+      const page = pageOf(input)
+      if (page === null) return unavailable()
+      const entries = page.entries.map(({ entry, at }) => ({
+        position: entry.id,
+        revision: entry.revision,
+        at,
+        match: judge(entry),
+      }))
+      return succeed({ ...page, entries })
     },
-    async at(input) {
+    async extract(input) {
+      const page = pageOf(input)
+      if (page === null) return unavailable()
+      const entries = page.entries.map(({ entry, at }) => ({
+        position: entry.id,
+        revision: entry.revision,
+        at,
+        documents: documentsOf(entry),
+      }))
+      return succeed({ ...page, entries })
+    },
+    async judgeAt(input) {
       reads.points += input.points.length
-      if (faults.points) return unavailable()
+      const judge = createJudge(input.spec)
+      if (faults.points || judge === null) return unavailable()
       return succeed(
         input.points.map(point => {
           for (const commit of logs.get(point.session)?.commits ?? []) {
             const entry = commit.entries.find(item => item.id === point.position)
-            if (entry !== undefined) return { entry, at: commit.at }
+            if (entry !== undefined)
+              return {
+                position: entry.id,
+                revision: entry.revision,
+                at: commit.at,
+                match: judge(entry),
+              }
           }
           return null
         }),
@@ -186,7 +220,7 @@ export type MemoryIndex = HistoryIndex &
       failing: IndexFailure | null
       broken: boolean
     }
-    reads: { candidates: number; asked: CandidateRequest[] }
+    reads: { candidates: number; covers: number; listed: number; asked: CandidateRequest[] }
     ready(): number
     coverOf(generation: number, session: SessionId): Cover
   }>
@@ -205,7 +239,18 @@ export function createMemoryIndex(): MemoryIndex {
     failing: null,
     broken: false,
   }
-  const reads: MemoryIndex['reads'] = { candidates: 0, asked: [] }
+  const reads: MemoryIndex['reads'] = { candidates: 0, covers: 0, listed: 0, asked: [] }
+  const stampOf = (covered: ReadonlyMap<SessionId, Cover>): CoverStamp => {
+    let total = 0n
+    for (const cover of covered.values()) total += BigInt(cover.through)
+    return { sessions: covered.size, total: total.toString() }
+  }
+  const coversFor = (generation: Generation, input: CandidateRequest) => {
+    const stamp = stampOf(generation.covered)
+    if (input.known !== null && sameStamp(input.known, stamp)) return { stamp, covered: null }
+    reads.covers += 1
+    return { stamp, covered: new Map(generation.covered) }
+  }
   const fresh = (): number => {
     issued += 1
     generations.set(issued, { covered: new Map(), rows: [], serial: 0n })
@@ -253,14 +298,15 @@ export function createMemoryIndex(): MemoryIndex {
       if (faults.coverAfterRows) {
         const rows = rowsOf(generation, input)
         await faults.duringCandidates?.()
-        found = { covered: new Map(generation.covered), rows: rows.map(shown) }
+        found = { ...coversFor(generation, input), rows: rows.map(shown) }
       } else {
-        found = { covered: new Map(generation.covered), rows: rowsOf(generation, input).map(shown) }
+        found = { ...coversFor(generation, input), rows: rowsOf(generation, input).map(shown) }
         await faults.duringCandidates?.()
       }
       return succeed(found)
     },
     async covers(_tenant, number) {
+      reads.listed += 1
       const generation = generations.get(number)
       if (faults.failing !== null) return fail(faults.failing)
       return generation === undefined

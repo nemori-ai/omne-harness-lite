@@ -1,10 +1,11 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { SessionId, SessionRevision } from '@omne-harness/session-contract'
+import type { SessionId } from '@omne-harness/session-contract'
 import type { FrozenCover, SearchCursor } from './cursor.ts'
 import type { SearchHit } from './hit.ts'
-import type { Candidates, IndexState, Progress } from './index-port.ts'
+import type { CandidateRow, CoverStamp, IndexState, Progress } from './index-port.ts'
 import type { LoggedSession } from './log-port.ts'
 import type { CompiledQuery } from './query.ts'
+import { behindOf, headsOf, sameStamp, type Remembered } from './search-memo.ts'
 import { candidatesAsk, type Run, type SearchDeps, type SearchInput } from './search-run.ts'
 import { scanTails, type TailEnd } from './search-tail.ts'
 import { walkIndex, type WalkEnd } from './search-walk.ts'
@@ -37,23 +38,24 @@ function scopeOf(query: CompiledQuery, sessions: readonly LoggedSession[]) {
   }
 }
 
-function behindOf(
-  sessions: readonly LoggedSession[],
-  covered: Candidates['covered'] | undefined,
-): FrozenCover[] {
-  const behind: FrozenCover[] = []
-  for (const { session, tail } of sessions) {
-    const cover = covered?.get(session) ?? { through: '0' as SessionRevision, at: 0 }
-    if (BigInt(tail) > BigInt(cover.through)) behind.push([session, cover.through, cover.at])
-  }
-  return behind
-}
-
 type Opened = Readonly<{
   state: IndexState
-  index: Readonly<{ generation: number; first: Candidates }> | null
+  index: Readonly<{ generation: number; stamp: CoverStamp; rows: readonly CandidateRow[] }> | null
   sessions: readonly LoggedSession[]
+  behind: readonly FrozenCover[]
 }>
+
+async function headsNow(
+  deps: SearchDeps,
+  tenant: SearchInput['tenant'],
+  held: Remembered | undefined,
+): Promise<Pick<Remembered, 'heads' | 'sessions'> | null> {
+  const stamp = await deps.log.stamp(tenant)
+  if ('failure' in stamp) return null
+  if (held !== undefined && sameStamp(held.heads, stamp.ok)) return held
+  const listed = await deps.log.sessions(tenant)
+  return 'failure' in listed ? null : { heads: headsOf(listed.ok), sessions: listed.ok }
+}
 
 // Covers and first candidates in one index read, the log heads after: a sound cover is behind them.
 async function open(deps: SearchDeps, input: SearchInput): Promise<Outcome<Opened, SearchFailure>> {
@@ -63,23 +65,37 @@ async function open(deps: SearchDeps, input: SearchInput): Promise<Outcome<Opene
   const generation = state.kind === 'absent' ? null : state.generation
   if (cursor !== null && (cursor.generation !== generation || cursor.query !== input.digest))
     return fail('cursor-stale')
+  const held = deps.memo?.get(tenant)
+  const known = held?.generation === generation ? held : undefined
   let index: Opened['index'] = null
+  let covered: Remembered['covered'] | undefined
   if (generation !== null) {
-    const before = cursor?.before ?? null
-    const found = await deps.index.candidates(candidatesAsk(input, generation, before))
+    const ask = candidatesAsk(input, generation, cursor?.before ?? null, known?.stamp ?? null)
+    const found = await deps.index.candidates(ask)
     if ('failure' in found) {
       const gone = found.failure === 'generation-gone' && cursor !== null
       return fail(gone ? 'cursor-stale' : 'unavailable')
     }
-    index = { generation, first: found.ok }
+    covered = found.ok.covered ?? known?.covered
+    if (covered === undefined) return fail('unavailable')
+    index = { generation, stamp: found.ok.stamp, rows: found.ok.rows }
   }
-  const listed = await deps.log.sessions(tenant)
-  if ('failure' in listed) return fail('unavailable')
-  for (const { session, tail } of listed.ok) {
-    const cover = index?.first.covered.get(session)
-    if (cover !== undefined && BigInt(cover.through) > BigInt(tail)) return fail('index-broken')
-  }
-  return succeed({ state, index, sessions: listed.ok })
+  const logs = await headsNow(deps, tenant, held)
+  if (logs === null) return fail('unavailable')
+  const { heads, sessions } = logs
+  const same = known !== undefined && covered === known.covered && sessions === known.sessions
+  const behind = same ? known.behind : behindOf(sessions, covered)
+  if (index !== null && covered !== undefined)
+    deps.memo?.set(tenant, {
+      generation: index.generation,
+      stamp: index.stamp,
+      covered,
+      heads,
+      sessions,
+      behind,
+    })
+  if (behind === 'broken') return fail('index-broken')
+  return succeed({ state, index, sessions, behind })
 }
 
 type Ends =
@@ -146,8 +162,7 @@ export async function searchHistory(
     started: deps.now(),
     inScope,
   }
-  const inRange = sessions.filter(item => inScope(item.session))
-  const frozen = cursor?.frozen ?? behindOf(inRange, index?.first.covered)
+  const frozen = cursor?.frozen ?? opened.ok.behind.filter(([session]) => inScope(session))
   const from = cursor === null ? (frozen.length > 0 ? 'start' : null) : cursor.tail
   const tail: TailEnd = from === null ? { kind: 'done' } : await scanTails(run, frozen, from)
   if (tail.kind === 'unavailable') return fail('unavailable')
@@ -155,9 +170,9 @@ export async function searchHistory(
   if (tail.kind === 'stopped') return succeed(pageOf(run, opened.ok, frozen, { tail }))
   // The tails are through, and a page they had filled would have stopped in them: the walk goes on.
   if (index === null) return succeed(pageOf(run, opened.ok, frozen, THROUGH))
-  const { generation, first } = index
+  const { generation, stamp, rows: first } = index
   const last = cursor?.last ?? null
-  const walk = await walkIndex(run, { generation, first: first.rows, frozen, last })
+  const walk = await walkIndex(run, { generation, stamp, first, frozen, last })
   if (walk.kind === 'unavailable') return fail('unavailable')
   if (walk.kind === 'stale') return fail(cursor === null ? 'unavailable' : 'cursor-stale')
   return succeed(pageOf(run, opened.ok, frozen, { tail, walk }))

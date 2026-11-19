@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ANY,
   compileQuery,
+  createJudge,
   documentRow,
   documentsOf,
   kindMarker,
@@ -14,6 +15,7 @@ import {
   type GramPlan,
   type SearchQuery,
 } from '../src/index.ts'
+import { testEntry } from '../src/testing.ts'
 import {
   ALPHABET,
   LIMITS,
@@ -366,5 +368,55 @@ describe('the regular expression engine', () => {
 
   it('still gives the required literals of a pattern: an upgrade that drops them shows here', () => {
     expect(contentPlan(regex('needle[0-9]', true))).not.toEqual(ANY)
+  })
+})
+
+describe('a judge built from the spec of a compiled query', () => {
+  const entry = (kind: string, text: string, toModel = true) =>
+    testEntry({ kind, blocks: [{ text, toModel }] }, '1', '1')
+  const specOf = (over: Partial<SearchQuery> & Pick<SearchQuery, 'content'>) => {
+    const compiled = compileQuery(queryOf(over), LIMITS)
+    if (typeof compiled === 'string') throw new Error(compiled)
+    // The spec crosses a thread as plain data.
+    return JSON.parse(JSON.stringify(compiled.spec)) as typeof compiled.spec
+  }
+  const literal = (text: string) =>
+    ({ kind: 'literals', all: [text], caseSensitive: false }) as const
+
+  it('gives the verdict the search gives: the kind and the text around the match, or null', () => {
+    const judge = createJudge(specOf({ content: literal('Needle') }))
+    if (judge === null) throw new Error('no judge')
+    expect(judge(entry('message.user', 'a NEEDLE in the hay'))).toEqual({
+      kind: 'message.user',
+      snippet: { before: 'a ', match: 'NEEDLE', after: ' in the hay' },
+    })
+    expect(judge(entry('message.user', 'nothing'))).toBeNull()
+  })
+
+  it('keeps the kinds and the visibility of the query', () => {
+    const mine = createJudge(specOf({ content: literal('needle'), kinds: ['message.user'] }))!
+    expect(mine(entry('message.assistant', 'needle'))).toBeNull()
+    expect(mine(entry('message.user', 'needle'))).not.toBeNull()
+    const readable = createJudge(specOf({ content: literal('needle'), modelReadable: 'only' }))!
+    expect(readable(entry('message.user', 'needle', false))).toBeNull()
+    const any = createJudge(specOf({ content: literal('needle'), modelReadable: 'any' }))!
+    expect(any(entry('message.user', 'needle', false))).not.toBeNull()
+  })
+
+  it('judges a pattern as the query does, case and all', () => {
+    const content = { kind: 'regex', pattern: 'ne+dle\\d', caseSensitive: true } as const
+    const judge = createJudge(specOf({ content }))!
+    expect(judge(entry('message.user', 'a neeedle7'))?.snippet.match).toBe('neeedle7')
+    expect(judge(entry('message.user', 'a NEEDLE7'))).toBeNull()
+  })
+
+  it('is null for a spec no query compiles to', () => {
+    const spec = specOf({ content: literal('needle') })
+    expect(
+      createJudge({ ...spec, content: { kind: 'regex', pattern: '(', caseSensitive: true } }),
+    ).toBeNull()
+    expect(
+      createJudge({ ...spec, content: { kind: 'literals', all: [], caseSensitive: false } }),
+    ).toBeNull()
   })
 })

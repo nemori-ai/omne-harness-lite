@@ -1,7 +1,7 @@
 // @module-tag slow
 import { afterEach, expect, it } from 'vitest'
 import type { SessionId, SessionRevision } from '@omne-harness/session-contract'
-import { blocksOf } from '@omne-harness/session-search'
+import { compileQuery } from '@omne-harness/session-search'
 import { createSessionSearchLog } from '../src/search-log.ts'
 import { openRealApp, TENANT_A, TENANT_B, type RealApp } from './fixtures/real-provider.ts'
 
@@ -23,28 +23,49 @@ it('reads sessions, commits and single entries through the read handlers of the 
   })
   expect(await log.sessions(TENANT_B)).toEqual({ ok: [] })
 
-  const page = await log.entries({
+  const range = {
     tenant: TENANT_A,
     session: 'session-1' as SessionId,
     after: '0' as SessionRevision,
     maxBytes: 1_000_000,
-  })
+  }
+  const page = await log.extract(range)
   if ('failure' in page) throw new Error(page.failure)
-  expect(page.ok.entries.map(item => blocksOf(item.entry, 'any'))).toEqual([
+  expect(page.ok.entries.map(item => item.documents.map(row => row.text))).toEqual([
     ['input the first words'],
     ['input the second words'],
   ])
   expect(page.ok).toMatchObject({ through: '3', exhausted: true })
 
-  const [first] = page.ok.entries
-  const found = await log.at({
-    tenant: TENANT_A,
-    points: [{ session: 'session-1' as SessionId, position: first!.entry.id }],
-  })
-  expect(found).toEqual({ ok: [first] })
-  const other = await log.at({
-    tenant: TENANT_B,
-    points: [{ session: 'session-1' as SessionId, position: first!.entry.id }],
-  })
-  expect(other).toEqual({ ok: [null] })
+  // Judged in the read thread of the real provider: the handler loads the matcher there.
+  const compiled = compileQuery(
+    {
+      scope: { kind: 'tenant' },
+      archived: 'all',
+      from: null,
+      to: null,
+      kinds: [],
+      modelReadable: 'any',
+      content: { kind: 'regex', pattern: 'sec\\w+', caseSensitive: true },
+    },
+    {
+      maxGramsPerLiteral: 16,
+      maxAlternatives: 32,
+      maxLiterals: 8,
+      maxLiteralLength: 256,
+      maxPatternLength: 512,
+      maxProgramSize: 8192,
+      maxScopeSessions: 64,
+    },
+  )
+  if (typeof compiled === 'string') throw new Error(compiled)
+  const { spec } = compiled
+  const judged = await log.judge({ ...range, spec })
+  if ('failure' in judged) throw new Error(judged.failure)
+  expect(judged.ok.entries.map(item => item.match?.snippet.match ?? null)).toEqual([null, 'second'])
+
+  const [, second] = judged.ok.entries
+  const point = { session: 'session-1' as SessionId, position: second!.position }
+  expect(await log.judgeAt({ tenant: TENANT_A, points: [point], spec })).toEqual({ ok: [second] })
+  expect(await log.judgeAt({ tenant: TENANT_B, points: [point], spec })).toEqual({ ok: [null] })
 }, 60_000)

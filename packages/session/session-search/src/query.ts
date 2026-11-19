@@ -12,6 +12,7 @@ import {
 import { foldText } from './fold.ts'
 import { ANY, and, or, planLiteral, type GramPlan, type PlanLimits } from './plan.ts'
 import { compileRegex, type Span } from './regex.ts'
+import { snippetOf, type Snippet } from './snippet.ts'
 
 export type SearchScope =
   | Readonly<{ kind: 'tenant' }>
@@ -27,7 +28,6 @@ export type SearchQuery = Readonly<{
   /** Commit time in epoch milliseconds, inclusive; null: open on that side. */
   from: number | null
   to: number | null
-  /** Empty: the default kinds. */
   kinds: readonly SearchableKind[]
   modelReadable: 'only' | 'any'
   content: SearchContent
@@ -53,8 +53,16 @@ export type QueryLimits = PlanLimits &
     maxScopeSessions: number
   }>
 
+/** What decides whether an entry matches, as plain data: it goes to wherever the log bytes are. */
+export type JudgeSpec = Readonly<{
+  content: SearchContent
+  kinds: readonly SearchableKind[]
+  modelReadable: 'only' | 'any'
+  limits: QueryLimits
+}>
+
 export type CompiledQuery = Readonly<{
-  /** Content and filters together: what the index is asked for. */
+  spec: JudgeSpec
   plan: GramPlan
   kinds: ReadonlySet<SearchableKind>
   modelReadable: 'only' | 'any'
@@ -142,7 +150,9 @@ export function compileQuery(
       : regexMatcher(query.content, limits)
   if (typeof matcher === 'string') return matcher
   const kinds = new Set(query.kinds.length === 0 ? DEFAULT_SEARCH_KINDS : query.kinds)
+  const { content, modelReadable } = query
   return {
+    spec: { content, kinds: [...kinds], modelReadable, limits },
     plan: and([matcher.plan, filterPlan(kinds, query.modelReadable, limits)]),
     kinds,
     modelReadable: query.modelReadable,
@@ -164,4 +174,29 @@ export function matchEntry(query: CompiledQuery, entry: HistoryEntry): BlockMatc
     if (span !== null) return { kind, block, span }
   }
   return null
+}
+
+export type Verdict = Readonly<{ kind: SearchableKind; snippet: Snippet }>
+
+// Judges entries as the search does, from a spec alone: built where the entries are read, so
+// that only verdicts travel. Null: the spec is not one a query compiles to.
+export function createJudge(spec: JudgeSpec): ((entry: HistoryEntry) => Verdict | null) | null {
+  const { content, kinds, modelReadable, limits } = spec
+  const query = compileQuery(
+    {
+      scope: { kind: 'tenant' },
+      archived: 'all',
+      from: null,
+      to: null,
+      kinds,
+      modelReadable,
+      content,
+    },
+    limits,
+  )
+  if (typeof query === 'string') return null
+  return entry => {
+    const match = matchEntry(query, entry)
+    return match === null ? null : { kind: match.kind, snippet: snippetOf(match) }
+  }
 }

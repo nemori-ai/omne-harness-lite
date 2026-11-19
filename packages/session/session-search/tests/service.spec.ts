@@ -263,14 +263,14 @@ describe('what a search refuses and what it cannot do', () => {
     s.w.index.faults.broken = true
     expect(await s.ask(NEEDLE)).toEqual(cannot('the history index is broken'))
     s.w.index.faults.broken = false
-    s.w.log.faults.sessions = true
+    s.w.log.faults.stamps = true
     expect(await s.ask(NEEDLE)).toEqual(cannot('the history cannot be read now'))
   })
 
   it('tells whoever follows the log after each search, also after one that failed', async () => {
     const s = await filled()
     await s.page(NEEDLE)
-    s.w.log.faults.sessions = true
+    s.w.log.faults.stamps = true
     await s.ask(NEEDLE)
     expect(s.told).toEqual([TENANT, TENANT])
     s.refused.add('tenant')
@@ -281,13 +281,14 @@ describe('what a search refuses and what it cannot do', () => {
 
 describe('how many searches of a tenant run at once (SH-5)', () => {
   function held(s: Awaited<ReturnType<typeof filled>>) {
-    const sessions = s.w.log.reader.sessions.bind(s.w.log.reader)
+    // Every page reads the stamp of the logs: holding that read holds the search in its place.
+    const stamp = s.w.log.reader.stamp.bind(s.w.log.reader)
     const waiting: (() => void)[] = []
     let entered = 0
-    s.w.log.reader.sessions = async tenant => {
+    s.w.log.reader.stamp = async tenant => {
       entered += 1
       await new Promise<void>(resume => waiting.push(resume))
-      return sessions(tenant)
+      return stamp(tenant)
     }
     return { release: () => waiting.shift()?.(), entered: () => entered }
   }
@@ -317,9 +318,9 @@ describe('how many searches of a tenant run at once (SH-5)', () => {
 
   it('frees its place when a search fails, and counts each tenant by itself', async () => {
     const s = await filled({ maxConcurrent: 1, maxQueued: 0 })
-    s.w.log.faults.sessions = true
+    s.w.log.faults.stamps = true
     expect(await s.ask(NEEDLE)).toMatchObject({ failure: { kind: 'unavailable' } })
-    s.w.log.faults.sessions = false
+    s.w.log.faults.stamps = false
     const gate = held(s)
     const running = s.ask(NEEDLE)
     await settle()

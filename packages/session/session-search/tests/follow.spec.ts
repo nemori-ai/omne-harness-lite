@@ -25,6 +25,7 @@ function followed() {
       window: { from: null, to: null },
       before: null,
       limit: 100,
+      known: null,
     })
     if ('failure' in found) throw new Error(found.failure)
     return found.ok.rows.map(row => `${row.position}@${String(BigInt(row.doc) >> 20n)}`)

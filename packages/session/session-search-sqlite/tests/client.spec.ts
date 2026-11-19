@@ -44,6 +44,7 @@ const request = (generation: number, plan: GramPlan) => ({
   window: { from: null, to: null },
   before: null,
   limit: 10,
+  known: null,
 })
 
 describe('the history index through its two threads', () => {
@@ -75,7 +76,7 @@ describe('the history index through its two threads', () => {
       [S1, '3'],
       [S1, '1'],
     ])
-    expect([...found.ok.covered]).toEqual([[S1, { through: '3', at: 1003 }]])
+    expect([...(found.ok.covered ?? [])]).toEqual([[S1, { through: '3', at: 1003 }]])
     await index.compact(TENANT, 8)
     expect((await index.candidates(request(1, gram('nee')))) satisfies object).toMatchObject({
       ok: {},
@@ -155,7 +156,7 @@ describe('a thread of the index that does not answer (SH-4, SH-5)', () => {
     // The index itself is as it was or has the whole batch: its own threads read it at once.
     const found = await index.candidates(request(1, gram('nee')))
     if ('failure' in found) throw new Error(found.failure)
-    expect([found.ok.covered.size, found.ok.rows.length]).toSatisfy(
+    expect([found.ok.covered?.size, found.ok.rows.length]).toSatisfy(
       ([covers, rows]: number[]) => covers === rows,
     )
   })
@@ -192,6 +193,7 @@ describe('a process killed between the rows of a batch and its cover (SH-2)', ()
         window: { from: null, to: null },
         before: null,
         limit: 10,
+        known: null,
       }
       expect(reopened.state('t')).toEqual({ kind: 'ready', generation: 1 })
       expect(reopened.candidates(ask)).toMatchObject({

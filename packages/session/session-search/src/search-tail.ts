@@ -1,7 +1,6 @@
 import type { SessionRevision } from '@omne-harness/session-contract'
 import type { FrozenCover, TailPoint } from './cursor.ts'
-import { snippetOf, type SearchHit } from './hit.ts'
-import { matchEntry } from './query.ts'
+import type { SearchHit } from './hit.ts'
 import { inWindow, spentOut, type Run } from './search-run.ts'
 
 // The part of the logs the index had not reached when the search began is read here, entry by
@@ -59,31 +58,28 @@ export async function scanTails(
       reads += 1
       const after = scan.through
       const maxBytes = input.limits.tailPageBytes
-      const page = await deps.log.entries({ tenant: input.tenant, session, after, maxBytes })
+      const { tenant, query } = input
+      const page = await deps.log.judge({ tenant, session, after, maxBytes, spec: query.spec })
       if ('failure' in page) return { kind: 'unavailable' }
       run.spent.bytes += page.ok.bytes
       let revision = scan.through
-      for (const { entry, at } of page.ok.entries) {
-        if (entry.revision !== revision) {
+      for (const judged of page.ok.entries) {
+        const { at } = judged
+        if (judged.revision !== revision) {
           // A new commit begins: what came before it is wholly read.
-          scan.through = String(BigInt(entry.revision) - 1n) as SessionRevision
+          scan.through = String(BigInt(judged.revision) - 1n) as SessionRevision
           scan.at = scan.carried
-          revision = entry.revision
+          revision = judged.revision
         }
         // An entry with no recorded time counts at the last recorded time before it.
         if (at !== null) scan.carried = at
-        if (BigInt(entry.id) <= scan.position) continue
-        scan.position = BigInt(entry.id)
-        const match = inWindow(input.query.window, scan.carried) && matchEntry(input.query, entry)
-        if (!match) continue
+        if (BigInt(judged.position) <= scan.position) continue
+        scan.position = BigInt(judged.position)
+        const match = inWindow(query.window, scan.carried) ? judged.match : null
+        if (match === null) continue
         const when = scan.carried === 0 ? null : scan.carried
-        const hit = {
-          session,
-          position: entry.id,
-          kind: match.kind,
-          at: when,
-          snippet: snippetOf(match),
-        }
+        const { kind, snippet } = match
+        const hit = { session, position: judged.position, kind, at: when, snippet }
         found.push({ hit, when: scan.carried })
         if (found.length >= input.pageSize) return end(false)
       }

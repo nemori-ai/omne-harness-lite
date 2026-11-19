@@ -23,12 +23,15 @@ export type DocId = string
 
 export type CandidateRow = Readonly<{ doc: DocId; session: SessionId; position: EntryId }>
 
-/** How far a session is indexed, and the last commit time the index recorded in it (0: none). */
 export type Cover = Readonly<{ through: SessionRevision; at: number }>
 
+/** Covers of a generation only move on: two reads with one stamp read the same covers. */
+export type CoverStamp = Readonly<{ sessions: number; total: string }>
+
 export type Candidates = Readonly<{
-  /** The cover of each indexed session, read before the rows in one read transaction. */
-  covered: ReadonlyMap<SessionId, Cover>
+  stamp: CoverStamp
+  /** Read before the rows in one read transaction. Null: they are what `known` stands for. */
+  covered: ReadonlyMap<SessionId, Cover> | null
   rows: readonly CandidateRow[]
 }>
 
@@ -37,10 +40,11 @@ export type CandidateRequest = Readonly<{
   generation: number
   plan: GramPlan
   sessions: readonly SessionId[] | null
-  /** Applied exactly, by the time each row was appended with; the plan may let more through. */
   window: Readonly<{ from: number | null; to: number | null }>
   before: DocId | null
   limit: number
+  /** The stamp of the covers the asker holds; while it stands, they are not sent again. */
+  known: CoverStamp | null
 }>
 
 export type AppendRequest = Readonly<{

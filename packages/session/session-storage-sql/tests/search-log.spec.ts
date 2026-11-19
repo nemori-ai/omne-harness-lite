@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type {
-  EntryId,
-  HistoryEntry,
-  SessionId,
-  SessionRevision,
-} from '@omne-harness/session-contract'
-import { blocksOf, type LoggedEntry } from '@omne-harness/session-search'
+import type { EntryId, SessionId, SessionRevision } from '@omne-harness/session-contract'
+import { compileQuery, type Extracted, type JudgeSpec } from '@omne-harness/session-search'
+import { testEntry } from '@omne-harness/session-search/testing'
 import { ordinaryInput } from '@omne-harness/session-contract/testing'
 import { writeEntryText } from '../src/entry-codec.ts'
 import { createSessionSearchLog } from '../src/search-log.ts'
@@ -14,13 +10,6 @@ import { packedLiteral } from './fixtures/packed.ts'
 
 const DOMAIN = 'dom_0'
 
-function tree(plain: unknown): HistoryEntry['payload'] {
-  if (typeof plain === 'string') return { kind: 'string', value: plain }
-  if (typeof plain === 'boolean') return { kind: 'boolean', value: plain }
-  if (Array.isArray(plain)) return { kind: 'array', items: plain.map(tree) }
-  const entries = Object.entries(plain as Record<string, unknown>)
-  return { kind: 'object', entries: entries.map(([key, value]) => ({ key, value: tree(value) })) }
-}
 const SEEDED = 'seeded' as SessionId
 const rev = (text: string) => text as SessionRevision
 
@@ -42,7 +31,7 @@ async function entriesOf(
   after = '0',
   maxBytes = 1_000_000,
 ) {
-  const page = await log.entries({
+  const page = await log.extract({
     tenant: TENANT_A,
     session: session as SessionId,
     after: rev(after),
@@ -51,13 +40,30 @@ async function entriesOf(
   if ('failure' in page) throw new Error(page.failure)
   return page.ok
 }
-const textsOf = (entries: readonly LoggedEntry[]): string[] =>
-  entries.map(item => blocksOf(item.entry, 'any')[0] ?? JSON.stringify(item.entry.kind))
+// The text of the first index row of each entry: what the follower would append of it.
+const textsOf = (entries: readonly Extracted[]): string[] =>
+  entries.map(item => item.documents[0]?.text ?? '(no text)')
+
+const QUERY_LIMITS = {
+  maxGramsPerLiteral: 16,
+  maxAlternatives: 32,
+  maxLiterals: 8,
+  maxLiteralLength: 256,
+  maxPatternLength: 512,
+  maxProgramSize: 8192,
+  maxScopeSessions: 64,
+}
+function specOf(content: JudgeSpec['content'], kinds: JudgeSpec['kinds'] = []): JudgeSpec {
+  const query = { scope: { kind: 'tenant' }, archived: 'all', from: null, to: null } as const
+  const compiled = compileQuery({ ...query, kinds, modelReadable: 'any', content }, QUERY_LIMITS)
+  if (typeof compiled === 'string') throw new Error(compiled)
+  return compiled.spec
+}
+const WORD = specOf({ kind: 'regex', pattern: '\\w+', caseSensitive: true })
 
 // Rows written by hand: a session whose commits hold several messages, which no test command makes.
 function seed(
   a: App,
-  template: HistoryEntry,
   tenant: string,
   session: string,
   rows: readonly (readonly [number, number, string, string])[],
@@ -69,19 +75,8 @@ function seed(
     [tenant, session, BigInt(tail), BigInt(tail), 'epoch:0'],
   )
   for (const [position, revision, kind, text] of rows) {
-    const entry = {
-      ...template,
-      id: String(position),
-      revision: String(revision),
-      kind,
-      payload: tree({
-        message: {
-          id: `msg_${String(position).padStart(22, '0')}`,
-          role: kind.replace('message.', ''),
-          blocks: [{ kind: 'text', id: 'b0', visibility: { toHuman: true, toModel: true }, text }],
-        },
-      }),
-    } as unknown as HistoryEntry
+    const message = { kind, blocks: [{ text }] }
+    const entry = { ...testEntry(message, String(position), String(revision)), kind }
     a.provider.seed(
       DOMAIN,
       `INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes) VALUES (?, ?, ?, ?, ?, ${packedLiteral(writeEntryText(entry))}, 100)`,
@@ -102,8 +97,7 @@ const COMMITS = [
 
 async function seeded() {
   const { a, log } = await started()
-  const [template] = (await entriesOf(log, 'session-1')).entries
-  seed(a, template!.entry, textOf(TENANT_A), SEEDED, COMMITS)
+  seed(a, textOf(TENANT_A), SEEDED, COMMITS)
   a.provider.seed(
     DOMAIN,
     'INSERT INTO sl_commit_time (tenant, session, commit_seq, at) VALUES (?, ?, 2, ?)',
@@ -114,7 +108,7 @@ async function seeded() {
     'INSERT INTO sl_commit_time (tenant, session, commit_seq, at) VALUES (?, ?, 4, NULL)',
     [textOf(TENANT_A), SEEDED],
   )
-  return { a, log, template: template!.entry }
+  return { a, log }
 }
 
 describe('the sessions of a tenant, as the history search reads them', () => {
@@ -140,6 +134,50 @@ describe('the sessions of a tenant, as the history search reads them', () => {
     ])
   })
 
+  it('stamps the heads of a tenant: the same while nothing moved, another after a commit, a new session or an archive', async () => {
+    const { a, log } = await started()
+    const stampOf = async () => {
+      const stamp = await log.stamp(TENANT_A)
+      if ('failure' in stamp) throw new Error(stamp.failure)
+      return stamp.ok
+    }
+    const first = await stampOf()
+    expect(first).toEqual({ sessions: 1, total: '3', archived: 0 })
+    expect(await stampOf()).toEqual(first)
+    // The stamp is the one the list gives: who holds a list knows whether it still stands.
+    const listed = await log.sessions(TENANT_A)
+    if ('failure' in listed) throw new Error(listed.failure)
+    expect(listed.ok.reduce((sum, item) => sum + Number(item.tail), 0)).toBe(Number(first.total))
+    expect(await a.accept(TENANT_A, 'session-1', 'three', ordinaryInput('third'))).toHaveProperty(
+      'ok',
+    )
+    expect(await stampOf()).toEqual({ sessions: 1, total: '4', archived: 0 })
+    a.provider.seed(
+      DOMAIN,
+      "INSERT INTO sl_journal (tenant, session, tail, commit_seq, epoch) VALUES (?, 'zz-archived', 7, 7, 'epoch:0')",
+      [textOf(TENANT_A)],
+    )
+    expect(await stampOf()).toEqual({ sessions: 2, total: '11', archived: 0 })
+    a.provider.seed(
+      DOMAIN,
+      "INSERT INTO sl_session_list (tenant, session, lifecycle, version) VALUES (?, 'zz-archived', 'archived', 1)",
+      [textOf(TENANT_A)],
+    )
+    expect(await stampOf()).toEqual({ sessions: 2, total: '11', archived: 1 })
+  })
+
+  it('stamps nothing of another tenant, and answers unavailable when the domain cannot be reached', async () => {
+    const { a, log } = await started()
+    a.provider.seed(
+      DOMAIN,
+      "INSERT INTO sl_journal (tenant, session, tail, commit_seq, epoch) VALUES (?, 'ghost', 5, 5, 'epoch:0')",
+      [textOf(TENANT_B)],
+    )
+    expect(await log.stamp(TENANT_A)).toEqual({ ok: { sessions: 1, total: '3', archived: 0 } })
+    a.directory.entries.length = 0
+    expect(await log.stamp(TENANT_A)).toEqual({ failure: 'unavailable' })
+  })
+
   it('lists nothing of another tenant, even of rows that lie in the same domain', async () => {
     const { a, log } = await started()
     a.provider.seed(
@@ -158,16 +196,62 @@ describe('the sessions of a tenant, as the history search reads them', () => {
   })
 })
 
+describe('the reads of the history search and one tenant domain', () => {
+  it('go one at a time, whoever asks: the search and the follower leave the other read thread free', async () => {
+    const { a } = await started()
+    const { storage } = a.storageOptions
+    let inFlight = 0
+    let most = 0
+    const counted = {
+      ...a.storageOptions,
+      storage: Object.assign(Object.create(storage) as typeof storage, {
+        async read(input: Parameters<typeof storage.read>[0]) {
+          inFlight += 1
+          most = Math.max(most, inFlight)
+          await new Promise(resolve => setTimeout(resolve, 3))
+          try {
+            return await storage.read(input)
+          } finally {
+            inFlight -= 1
+          }
+        },
+      }),
+    }
+    const log = createSessionSearchLog(counted)
+    const session = 'session-1' as SessionId
+    const point = { session, position: '1' as EntryId }
+    const all = await Promise.all([
+      log.stamp(TENANT_A),
+      log.sessions(TENANT_A),
+      log.extract({ tenant: TENANT_A, session, after: rev('0'), maxBytes: 1000 }),
+      log.judgeAt({ tenant: TENANT_A, points: [point], spec: WORD }),
+      log.stamp(TENANT_A),
+      log.judge({ tenant: TENANT_A, session, after: rev('1'), maxBytes: 1000, spec: WORD }),
+    ])
+    expect(all.every(answer => 'ok' in answer)).toBe(true)
+    expect(most).toBe(1)
+  })
+
+  it('lets the next read in after one that failed', async () => {
+    const { a } = await started()
+    const log = createSessionSearchLog(a.storageOptions)
+    const saved = [...a.directory.entries]
+    a.directory.entries.length = 0
+    expect(await log.stamp(TENANT_A)).toEqual({ failure: 'unavailable' })
+    a.directory.entries.push(...saved)
+    expect(await log.stamp(TENANT_A)).toHaveProperty('ok')
+  })
+})
+
 describe('the commits of a session after a revision', () => {
   it('gives the searchable entries of the commits after a revision, through the tail of the log', async () => {
     const { log } = await started()
     const page = await entriesOf(log, 'session-1')
-    expect(page.entries.map(item => item.entry.kind)).toEqual(['message.user', 'message.user'])
     expect(textsOf(page.entries)).toEqual(['input first words', 'input second words'])
-    expect(page.entries.map(item => item.entry.revision)).toEqual(['2', '3'])
+    expect(page.entries.map(item => item.revision)).toEqual(['2', '3'])
     expect(page).toMatchObject({ through: '3', exhausted: true })
     expect(await entriesOf(log, 'session-1', '2')).toMatchObject({
-      entries: [{ entry: { revision: '3' } }],
+      entries: [{ revision: '3' }],
       through: '3',
     })
     expect(await entriesOf(log, 'session-1', '3')).toEqual({
@@ -180,13 +264,14 @@ describe('the commits of a session after a revision', () => {
 
   it('answers unavailable for a session that has no log', async () => {
     const { log } = await started()
-    const answer = await log.entries({
+    const never = {
       tenant: TENANT_A,
       session: 'never' as SessionId,
       after: rev('0'),
       maxBytes: 1000,
-    })
-    expect(answer).toEqual({ failure: 'unavailable' })
+    }
+    expect(await log.extract(never)).toEqual({ failure: 'unavailable' })
+    expect(await log.judge({ ...never, spec: WORD })).toEqual({ failure: 'unavailable' })
   })
 
   it('reads the time of a commit where one was recorded, and null where none was', async () => {
@@ -253,20 +338,74 @@ describe('the commits of a session after a revision', () => {
     expect(textsOf((await entriesOf(log, SEEDED, '4')).entries)).toEqual(['eight'])
   })
 
+  it('judges each entry of a page where it is read: the match and its text, or null', async () => {
+    const { log } = await seeded()
+    const range = { tenant: TENANT_A, session: SEEDED, after: rev('0'), maxBytes: 1_000_000 }
+    const literal = specOf({ kind: 'literals', all: ['E'], caseSensitive: false })
+    const page = await log.judge({ ...range, spec: literal })
+    if ('failure' in page) throw new Error(page.failure)
+    expect(page.ok.entries.map(item => [item.position, item.match?.snippet ?? null])).toEqual([
+      ['2', null],
+      ['3', { before: 'thr', match: 'e', after: 'e' }],
+      ['5', { before: 'fiv', match: 'e', after: '' }],
+      ['6', null],
+      ['7', { before: 's', match: 'e', after: 'ven' }],
+      ['8', { before: '', match: 'e', after: 'ight' }],
+    ])
+    expect(page.ok).toMatchObject({ through: '5', exhausted: true })
+    expect(page.ok.entries.map(item => item.at)).toEqual(
+      (await entriesOf(log, SEEDED)).entries.map(item => item.at),
+    )
+    // The kinds of the query are the judge's: an entry of another kind matches nothing.
+    const tools = await log.judge({ ...range, spec: specOf(literal.content, ['message.tool']) })
+    if ('failure' in tools) throw new Error(tools.failure)
+    expect(tools.ok.entries.filter(item => item.match !== null).map(item => item.position)).toEqual(
+      ['7', '8'],
+    )
+    expect(tools.ok.entries.find(item => item.position === '7')?.match?.kind).toBe('message.tool')
+  })
+
+  it('cuts a judged page as it cuts an extracted one', async () => {
+    const { log } = await seeded()
+    const range = { tenant: TENANT_A, session: SEEDED, after: rev('0'), maxBytes: 250 }
+    const judged = await log.judge({ ...range, spec: WORD })
+    const extracted = await log.extract(range)
+    if ('failure' in judged || 'failure' in extracted) throw new Error('read')
+    const { entries: _judged, ...judgedEnd } = judged.ok
+    const { entries: _rows, ...extractedEnd } = extracted.ok
+    expect(judgedEnd).toEqual(extractedEnd)
+    expect(judged.ok.entries.map(item => item.position)).toEqual(['2', '3'])
+  })
+
+  it('answers unavailable for a spec no query compiles to, and judges nothing by it', async () => {
+    const { log } = await seeded()
+    const range = { tenant: TENANT_A, session: SEEDED, after: rev('0'), maxBytes: 1_000_000 }
+    const broken = {
+      ...WORD,
+      content: { kind: 'regex', pattern: '(', caseSensitive: true },
+    } as const
+    expect(await log.judge({ ...range, spec: broken })).toEqual({ failure: 'unavailable' })
+    const point = { session: SEEDED, position: '2' as EntryId }
+    expect(await log.judgeAt({ tenant: TENANT_A, points: [point], spec: broken })).toEqual({
+      failure: 'unavailable',
+    })
+  })
+
   it('says a commit of more messages than a page reads is unavailable, and does not cut it', async () => {
-    const { a, log, template } = await seeded()
+    const { a, log } = await seeded()
     const rows = Array.from(
       { length: 402 },
       (_, at) => [at + 2, 2, 'message.tool', `row ${String(at)}`] as const,
     )
-    seed(a, template, textOf(TENANT_A), 'huge', [[1, 1, 'session.created', 'x'], ...rows])
-    const answer = await log.entries({
+    seed(a, textOf(TENANT_A), 'huge', [[1, 1, 'session.created', 'x'], ...rows])
+    const huge = {
       tenant: TENANT_A,
       session: 'huge' as SessionId,
       after: rev('0'),
       maxBytes: 1_000_000,
-    })
-    expect(answer).toEqual({ failure: 'unavailable' })
+    }
+    expect(await log.extract(huge)).toEqual({ failure: 'unavailable' })
+    expect(await log.judge({ ...huge, spec: WORD })).toEqual({ failure: 'unavailable' })
   })
 })
 
@@ -278,38 +417,41 @@ describe('single entries by their position', () => {
       { session: SEEDED, position: '99' as EntryId },
       {
         session: 'session-1' as SessionId,
-        position: (await entriesOf(log, 'session-1')).entries[0]!.entry.id,
+        position: (await entriesOf(log, 'session-1')).entries[0]!.position,
       },
       { session: 'never' as SessionId, position: '1' as EntryId },
       { session: SEEDED, position: '2' as EntryId },
     ]
-    const found = await log.at({ tenant: TENANT_A, points })
+    const found = await log.judgeAt({ tenant: TENANT_A, points, spec: WORD })
     if ('failure' in found) throw new Error(found.failure)
-    expect(found.ok.map(item => (item === null ? null : textsOf([item])[0]))).toEqual([
+    expect(found.ok.map(item => (item === null ? null : item.match?.snippet.match))).toEqual([
       'six',
       null,
-      'input first words',
+      'input',
       null,
       'two',
     ])
+    expect(found.ok[0]).toMatchObject({ position: '6', revision: '4' })
     expect(found.ok[4]!.at).toBe(Date.parse('2026-01-01T00:00:00.000Z'))
     expect(found.ok[0]!.at).toBeNull()
   })
 
   it('reads more points than one read takes, and none of another tenant', async () => {
-    const { a, log, template } = await seeded()
-    seed(a, template, textOf(TENANT_B), 'ghost', [[1, 1, 'message.user', 'of another tenant']])
+    const { a, log } = await seeded()
+    seed(a, textOf(TENANT_B), 'ghost', [[1, 1, 'message.user', 'of another tenant']])
     const many = Array.from({ length: 300 }, (_, at) => ({
       session: SEEDED,
       position: String((at % 8) + 1) as EntryId,
     }))
-    const found = await log.at({
+    const found = await log.judgeAt({
       tenant: TENANT_A,
       points: [...many, { session: 'ghost' as SessionId, position: '1' as EntryId }],
+      spec: WORD,
     })
     if ('failure' in found) throw new Error(found.failure)
     expect(found.ok).toHaveLength(301)
     expect(found.ok.at(-1)).toBeNull()
-    expect(found.ok[299]!.entry).toMatchObject({ id: '4', kind: 'run.started' })
+    // An entry that is no message is there, and matches nothing.
+    expect(found.ok[299]).toMatchObject({ position: '4', revision: '3', match: null })
   })
 })

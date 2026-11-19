@@ -2,6 +2,7 @@ import type { SessionId } from '@omne-harness/session-contract'
 import { testingTenant } from '@omne-harness/session-contract/testing'
 import {
   compileQuery,
+  createSearchMemo,
   queryDigest,
   searchHistory,
   type SearchCursor,
@@ -40,6 +41,7 @@ export function world() {
   const deps = {
     index,
     log: log.reader,
+    memo: createSearchMemo(),
     now: () => {
       clock.now += clock.step
       return clock.now

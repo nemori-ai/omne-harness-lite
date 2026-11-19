@@ -272,6 +272,13 @@ export const HANDLERS: readonly Handler[] = [
     maxRowsRead: 40_010,
   },
   {
+    handler: 'session.search-stamp',
+    file: 'read-search-stamp',
+    tables: ['sl_journal', 'sl_session_list'],
+    migrations: [...factMigrations, sessionListMigrationRef],
+    maxRowsRead: 4,
+  },
+  {
     handler: 'session.search-entries',
     file: 'read-search-entries',
     tables: ['sl_journal', 'sl_entry', 'sl_blob', 'sl_commit_time'],

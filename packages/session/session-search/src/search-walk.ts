@@ -1,9 +1,8 @@
 import type { SessionId } from '@omne-harness/session-contract'
 import type { FrozenCover, SearchCursor } from './cursor.ts'
-import { snippetOf, type SearchHit } from './hit.ts'
-import type { CandidateRow, DocId } from './index-port.ts'
-import type { LoggedEntry } from './log-port.ts'
-import { matchEntry } from './query.ts'
+import type { SearchHit } from './hit.ts'
+import type { CandidateRow, CoverStamp, DocId } from './index-port.ts'
+import type { Judged } from './log-port.ts'
 import { candidatesAsk, pageFull, spentOut, type Run } from './search-run.ts'
 
 // The index names candidates, newest first; each is read back from the log and matched there.
@@ -17,6 +16,7 @@ export type WalkEnd =
 
 export type WalkStart = Readonly<{
   generation: number
+  stamp: CoverStamp
   first: readonly CandidateRow[]
   frozen: readonly FrozenCover[]
   last: SearchCursor['last']
@@ -40,20 +40,20 @@ export async function walkIndex(run: Run, start: WalkStart): Promise<WalkEnd> {
   // Rows of one entry lie next to each other, so the page's set and `last` leave one hit each.
   const wanted = (row: CandidateRow): boolean =>
     run.inScope(row.session) && !run.seen.has(keyOf(row.session, row.position))
-  const hitOf = (row: CandidateRow, logged: LoggedEntry): SearchHit | null => {
+  const hitOf = (row: CandidateRow, judged: Judged): SearchHit | null => {
     // What lies past a frozen cover was the tail scan's to report.
     const cover = frozenAt.get(row.session)
-    if (cover !== undefined && BigInt(logged.entry.revision) > cover) return null
-    const match = matchEntry(input.query, logged.entry)
-    if (match === null) return null
+    if (cover !== undefined && BigInt(judged.revision) > cover) return null
+    if (judged.match === null) return null
     const { session, position } = row
-    return { session, position, kind: match.kind, at: timeOf(row.doc), snippet: snippetOf(match) }
+    const { kind, snippet } = judged.match
+    return { session, position, kind, at: timeOf(row.doc), snippet }
   }
   for (let rows = start.first; ;) {
     for (let from = 0; from < rows.length; from += limits.verifyBatch) {
       const batch = rows.slice(from, from + limits.verifyBatch)
       const asked = batch.filter(wanted)
-      const read = await deps.log.at({ tenant, points: asked })
+      const read = await deps.log.judgeAt({ tenant, points: asked, spec: input.query.spec })
       if ('failure' in read) return { kind: 'unavailable' }
       const entries = new Map(asked.map((row, at) => [row.doc, read.ok[at]]))
       for (const row of batch) {
@@ -64,8 +64,8 @@ export async function walkIndex(run: Run, start: WalkStart): Promise<WalkEnd> {
           before: row.doc,
           last,
         })
-        const logged = wanted(row) ? entries.get(row.doc) : null
-        const hit = logged ? hitOf(row, logged) : null
+        const judged = wanted(row) ? entries.get(row.doc) : null
+        const hit = judged ? hitOf(row, judged) : null
         if (hit !== null) {
           run.seen.add(keyOf(row.session, row.position))
           last = { session: row.session, position: row.position }
@@ -78,7 +78,8 @@ export async function walkIndex(run: Run, start: WalkStart): Promise<WalkEnd> {
     }
     const end = rows.at(-1)
     if (end === undefined || rows.length < limits.candidateBatch) return { kind: 'done' }
-    const next = await deps.index.candidates(candidatesAsk(input, start.generation, end.doc))
+    const ask = candidatesAsk(input, start.generation, end.doc, start.stamp)
+    const next = await deps.index.candidates(ask)
     if ('failure' in next)
       return { kind: next.failure === 'generation-gone' ? 'stale' : 'unavailable' }
     rows = next.ok.rows

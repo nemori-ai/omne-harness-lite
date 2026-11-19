@@ -1,10 +1,12 @@
+import { createJudge, documentsOf, type JudgeSpec } from '@omne-harness/session-search'
+import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ReadPort } from '@omne-harness/sql-contract/worker'
-import { writeEntryText } from '../entry-codec.ts'
 import { readSharedEntry } from './shared-messages.ts'
 import { big, handler, oneRow, packed, rowsOf, text, type Row } from './support.ts'
 
-// What the history search reads: whole commits of a session after a revision, or single entries.
-// An entry's revision is the sequence of its commit, so the commit time is one key lookup away.
+// What the history search reads: whole commits of a session after a revision, or single entries,
+// each judged against a query or turned into index rows here; only that outcome leaves the thread.
+type As = Readonly<{ kind: 'judged'; spec: JudgeSpec }> | Readonly<{ kind: 'rows' }>
 type Range = Readonly<{
   mode: 'range'
   tenant: string
@@ -12,11 +14,13 @@ type Range = Readonly<{
   after: string
   kinds: string[]
   maxBytes: number
+  as: As
 }>
 type Points = Readonly<{
   mode: 'points'
   tenant: string
   points: Readonly<{ session: string; position: string }>[]
+  as: As
 }>
 
 const PAGE_ROWS = 400
@@ -38,10 +42,35 @@ function timeOf(port: ReadPort, tenant: string, session: string, revision: bigin
   return at === null || at === undefined ? null : text(at)
 }
 
-function shown(port: ReadPort, tenant: string, session: string, row: Row) {
-  return {
-    text: writeEntryText(readSharedEntry(port, tenant, packed(row['entry']))),
-    at: timeOf(port, tenant, session, big(row['revision'])),
+type Judge = NonNullable<ReturnType<typeof createJudge>>
+const JUDGES = 8
+const judges = new Map<string, Judge>()
+
+function judgeOf(spec: JudgeSpec): Judge {
+  const key = JSON.stringify(spec)
+  const held = judges.get(key)
+  if (held !== undefined) return held
+  const judge = createJudge(spec)
+  if (judge === null) throw new Error('invalid input')
+  if (judges.size >= JUDGES) judges.delete(judges.keys().next().value!)
+  judges.set(key, judge)
+  return judge
+}
+
+type Show = (session: string, row: Row) => JsonValue
+
+function showing(port: ReadPort, tenant: string, as: As): Show {
+  const judge = as?.kind === 'judged' ? judgeOf(as.spec) : null
+  if (judge === null && as?.kind !== 'rows') throw new Error('invalid input')
+  return (session, row) => {
+    const entry = readSharedEntry(port, tenant, packed(row['entry']))
+    const outcome = judge === null ? { documents: documentsOf(entry) } : { match: judge(entry) }
+    return {
+      position: String(row['position']),
+      revision: String(row['revision']),
+      at: timeOf(port, tenant, session, big(row['revision'])),
+      ...outcome,
+    } as unknown as JsonValue
   }
 }
 
@@ -79,6 +108,7 @@ function range(port: ReadPort, input: Range) {
     throw new Error('invalid input')
   if (!Number.isInteger(input.maxBytes) || input.maxBytes < 1) throw new Error('invalid input')
   const scope = [input.tenant, input.session] as const
+  const show = showing(port, input.tenant, input.as)
   const journal = oneRow(
     port,
     'SELECT tail FROM sl_journal WHERE tenant = ? AND session = ? LIMIT 1',
@@ -107,7 +137,7 @@ function range(port: ReadPort, input: Range) {
   if (taken === rows.length)
     return {
       kind: 'page',
-      entries: rows.map(row => shown(port, ...scope, row)),
+      entries: rows.map(row => show(input.session, row)),
       through: tail,
       exhausted: true,
       bytes,
@@ -115,10 +145,10 @@ function range(port: ReadPort, input: Range) {
   // The page ends inside the log: keep whole commits only, and say how far they reach.
   const cut = big(rows[taken]!['revision'])
   const whole = rows.slice(0, taken).filter(row => big(row['revision']) < cut)
-  if (whole.length === 0) return oneCommit(port, scope, rows, { cut, tail })
+  if (whole.length === 0) return oneCommit(show, input.session, rows, { cut, tail })
   return {
     kind: 'page',
-    entries: whole.map(row => shown(port, ...scope, row)),
+    entries: whole.map(row => show(input.session, row)),
     through: String(cut - 1n),
     exhausted: false,
     bytes: sizeOf(whole),
@@ -127,8 +157,8 @@ function range(port: ReadPort, input: Range) {
 
 // One commit that alone is more than a page asked for: it is given whole, or said to be too large.
 function oneCommit(
-  port: ReadPort,
-  scope: readonly [string, string],
+  show: Show,
+  session: string,
   rows: readonly Row[],
   at: Readonly<{ cut: bigint; tail: string }>,
 ) {
@@ -138,7 +168,7 @@ function oneCommit(
   const exhausted = own.length === rows.length
   return {
     kind: 'page',
-    entries: own.map(row => shown(port, ...scope, row)),
+    entries: own.map(row => show(session, row)),
     through: exhausted ? at.tail : String(at.cut),
     exhausted,
     bytes: sizeOf(own),
@@ -148,6 +178,7 @@ function oneCommit(
 function points(port: ReadPort, input: Points) {
   if (!Array.isArray(input.points) || input.points.length > MAX_POINTS)
     throw new Error('invalid input')
+  const show = showing(port, input.tenant, input.as)
   return {
     kind: 'points',
     entries: input.points.map(point => {
@@ -157,7 +188,7 @@ function points(port: ReadPort, input: Points) {
         `SELECT ${COLUMNS} FROM sl_entry WHERE tenant = ? AND session = ? AND position = ? LIMIT 1`,
         [input.tenant, point.session, BigInt(point.position)],
       )
-      return row === undefined ? null : shown(port, input.tenant, point.session, row)
+      return row === undefined ? null : show(point.session, row)
     }),
   }
 }

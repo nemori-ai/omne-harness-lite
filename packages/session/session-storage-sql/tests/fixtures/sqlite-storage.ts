@@ -65,6 +65,7 @@ import readModelView from '../../src/worker/read-model-view.ts'
 import readPending from '../../src/worker/read-pending.ts'
 import readSearchEntries from '../../src/worker/read-search-entries.ts'
 import readSearchSessions from '../../src/worker/read-search-sessions.ts'
+import readSearchStamp from '../../src/worker/read-search-stamp.ts'
 import readPreadmission from '../../src/worker/read-preadmission.ts'
 import readReferences from '../../src/worker/read-references.ts'
 import readReleasedScopes from '../../src/worker/read-released-scopes.ts'
@@ -100,6 +101,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readModelView,
   readPending,
   readSearchSessions,
+  readSearchStamp,
   readSearchEntries,
   readSessionList,
   readArchivedSessions,

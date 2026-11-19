@@ -18,7 +18,9 @@ import { diagnoser } from './diagnostics.ts'
 
 export type SessionSearchConfig = Readonly<{
   policy: SearchPolicy
-  follow: FollowLimits & Readonly<{ intervalMs: number; compactPages: number }>
+  /** `restRatio`: after a read of the log, how many times as long the follower stays off it. */
+  follow: Pick<FollowLimits, 'pageBytes' | 'maxSteps'> &
+    Readonly<{ intervalMs: number; compactPages: number; restRatio: number }>
 }>
 
 class SessionSearchImpl extends SessionSearchService<unknown> {
@@ -43,11 +45,15 @@ export function createSessionSearchPlugin(config: SessionSearchConfig): Plugin.O
     apply(ctx: Context) {
       const { index } = ctx[sessionHistoryIndexKey]
       const { log } = ctx[sessionHistoryLogKey]
-      const { intervalMs, compactPages, ...limits } = config.follow
+      const { intervalMs, compactPages, restRatio: ratio, ...pages } = config.follow
+      const sleep = (ms: number) => new Promise<void>(resume => setTimeout(resume, ms))
+      const now = () =>
+        /* wall-clock: operation-timing -- How long one read of the log took; compared with itself only. */ performance.now()
+      const rest = { ratio, now, sleep }
       const follower = createHistoryFollower({
         index,
         log,
-        limits,
+        limits: ratio > 0 ? { ...pages, rest } : pages,
         intervalMs,
         compactPages,
         report: diagnoser(ctx, 'session-search'),

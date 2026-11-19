@@ -36,6 +36,24 @@ describe('following the logs of a tenant (SH-2, SH-3)', () => {
     expect(await pass()).toEqual({ ok: { behind: 0, steps: 0, adopted: false } })
   })
 
+  it('rests off the log after each read for as long as the read took, times the ratio it is given', async () => {
+    const { w } = logged()
+    const clock = { at: 0 }
+    const rests: number[] = []
+    const extract = w.log.reader.extract.bind(w.log.reader)
+    w.log.reader.extract = async input => {
+      clock.at += 7
+      return extract(input)
+    }
+    const rest = { ratio: 2, now: () => clock.at, sleep: async (ms: number) => void rests.push(ms) }
+    const deps = { index: w.index, log: w.log.reader }
+    expect(await followTenant(deps, TENANT, { pageBytes: 1, maxSteps: 100, rest })).toMatchObject({
+      ok: { behind: 0, steps: 9, adopted: true },
+    })
+    // Nine reads: the follower stays off the log between them, not after the last one.
+    expect(rests).toEqual(Array.from({ length: 8 }, () => 14))
+  })
+
   it('stops after its steps and says how many sessions are still behind; a build waits for them', async () => {
     const { w, pass } = logged()
     const small = { pageBytes: 1, maxSteps: 4 }
@@ -105,8 +123,8 @@ describe('reading ahead while appending', () => {
     const order: string[] = []
     let reading = 0
     let most = 0
-    const entries = w.log.reader.entries.bind(w.log.reader)
-    w.log.reader.entries = async input => {
+    const entries = w.log.reader.extract.bind(w.log.reader)
+    w.log.reader.extract = async input => {
       reading += 1
       most = Math.max(most, reading)
       order.push('read')
@@ -159,6 +177,57 @@ describe('the follower of a process (SH-2, SH-4)', () => {
     })
     return { w, follower, reports, compacted }
   }
+
+  it('on a poke when nothing moved: reads the stamp of the logs, no list and no covers', async () => {
+    const { w, follower, reports } = following()
+    follower.poke(TENANT)
+    await follower.idle()
+    const read = () => ({ lists: w.log.reads.sessions, covers: w.index.reads.listed })
+    const settled = read()
+    const stamps = w.log.reads.stamps
+    for (let turn = 0; turn < 3; turn += 1) {
+      follower.poke(TENANT)
+      await follower.idle()
+    }
+    expect(read()).toEqual(settled)
+    expect(w.log.reads.stamps).toBe(stamps + 3)
+    // A commit moves the stamp: the next wake-up follows the log again.
+    w.log.commit(S1, [said('needle late')], 99)
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(w.log.reads.sessions).toBeGreaterThan(settled.lists)
+    expect(w.index.coverOf(1, S1).through).toBe('4')
+    expect(reports).toEqual([])
+    follower.stop()
+  })
+
+  it('follows again when the index changed under it, though the logs did not move', async () => {
+    const { w, follower } = following()
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(await w.index.state(TENANT)).toEqual({ kind: 'ready', generation: 1 })
+    // A rebuild begun by someone else: the generation being built is behind every log.
+    await w.index.beginRebuild(TENANT, 3)
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(await w.index.state(TENANT)).toEqual({ kind: 'ready', generation: 2 })
+    expect(w.index.coverOf(2, S3).through).toBe('3')
+    follower.stop()
+  })
+
+  it('does not take a pass that left sessions behind, or failed, for a settled one', async () => {
+    const { w, follower } = following({ maxSteps: 1 })
+    w.log.faults.entries = true
+    follower.poke(TENANT)
+    await follower.idle()
+    w.log.faults.entries = false
+    const lists = w.log.reads.sessions
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(w.log.reads.sessions).toBeGreaterThan(lists)
+    expect(await w.index.state(TENANT)).toEqual({ kind: 'ready', generation: 1 })
+    follower.stop()
+  })
 
   it('on a poke: goes pass after pass until nothing is behind, compacting as it goes', async () => {
     const { w, follower, compacted, reports } = following()

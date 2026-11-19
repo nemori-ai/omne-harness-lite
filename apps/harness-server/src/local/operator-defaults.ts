@@ -41,7 +41,7 @@ export const LOCAL_HISTORY_SEARCH = {
     maxConcurrent: 2,
     maxQueued: 8,
   },
-  follow: { pageBytes: 512 * 1024, maxSteps: 32, intervalMs: 5000, compactPages: 16 },
+  follow: { pageBytes: 512 * 1024, maxSteps: 32, intervalMs: 5000, compactPages: 16, restRatio: 1 },
 } as const
 
 export const LOCAL_DIAGNOSTICS_KINDS = [

@@ -214,7 +214,7 @@ describe('rule: what was not looked at is said', () => {
 
   it('counts a budget as spent when it is reached, not only when it is passed', async () => {
     const { w, generation } = behind()
-    const one = await w.log.reader.entries({
+    const one = await w.log.reader.extract({
       tenant: TENANT,
       session: S1,
       after: '0' as never,

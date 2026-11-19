@@ -37,6 +37,7 @@ export type {
   CandidateRow,
   Candidates,
   Cover,
+  CoverStamp,
   DocId,
   HistoryIndex,
   IndexFailure,
@@ -45,26 +46,34 @@ export type {
   Progress,
 } from './index-port.ts'
 export type {
-  EntryPage,
+  Extracted,
   HistoryLogReader,
+  Judged,
+  LogPage,
   LogPoint,
-  LoggedEntry,
+  LogRange,
+  LogStamp,
   LoggedSession,
 } from './log-port.ts'
-export { SNIPPET_CONTEXT, SNIPPET_MATCH, snippetOf, type SearchHit, type Snippet } from './hit.ts'
+export type { SearchHit } from './hit.ts'
+export { SNIPPET_CONTEXT, SNIPPET_MATCH, snippetOf, type Snippet } from './snippet.ts'
 export { ANY, planAdmits, type GramPlan, type PlanLimits } from './plan.ts'
 export {
   compileQuery,
+  createJudge,
   matchEntry,
   type BlockMatch,
   type CompiledQuery,
+  type JudgeSpec,
   type QueryLimits,
   type QueryRefusal,
   type SearchContent,
   type SearchQuery,
   type SearchScope,
+  type Verdict,
 } from './query.ts'
 export type { Span } from './regex.ts'
+export { createSearchMemo, type SearchMemo } from './search-memo.ts'
 export type { SearchDeps, SearchInput, SearchLimits } from './search-run.ts'
 export { searchHistory, type Incomplete, type SearchFailure, type SearchPage } from './search.ts'
 export {

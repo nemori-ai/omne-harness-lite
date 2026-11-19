@@ -26,8 +26,10 @@ export type StoreState =
   | Readonly<{ kind: 'broken'; diagnostic: string }>
 
 export type StoreFailure = 'generation-gone' | 'unavailable'
+export type StoreStamp = Readonly<{ sessions: number; total: string }>
 export type StoreCandidates = Readonly<{
-  covered: readonly Readonly<{ session: string; through: string; at: number }>[]
+  stamp: StoreStamp
+  covered: readonly Readonly<{ session: string; through: string; at: number }>[] | null
   rows: readonly Readonly<{ doc: string; session: string; position: string }>[]
 }>
 export type StoreCandidateRequest = Readonly<{
@@ -38,6 +40,7 @@ export type StoreCandidateRequest = Readonly<{
   window: Readonly<{ from: number | null; to: number | null }>
   before: string | null
   limit: number
+  known: StoreStamp | null
 }>
 /** Testing only: called between the two reads of a candidate query. */
 export type CandidateFaults = Readonly<{ betweenReads?: () => void }>
@@ -89,20 +92,28 @@ export function stateOf(context: ReadContext, tenant: string): StoreState {
 type Scope = readonly number[] | null
 
 const ROW = 'd.id AS id, d.at AS at, d.position AS position, s.id AS session'
+const FROM_DOC = 'doc d JOIN session s ON s.ordinal = d.session'
 const INSIDE =
   'd.at >= ? AND d.at <= ? AND (d.at < ? OR (d.at = ? AND d.id < ?)) ORDER BY d.at DESC, d.id DESC LIMIT ?'
+const ONE = `SELECT ${ROW} FROM ${FROM_DOC} WHERE d.id = ?`
 const WALK = {
-  newest: 'SELECT max(id) AS id FROM doc WHERE id < ?',
-  day: `SELECT ${ROW} FROM doc d JOIN session s ON s.ordinal = d.session WHERE d.id >= ? AND d.id < ? AND ${INSIDE}`,
+  top: 'SELECT id FROM doc WHERE id < ? ORDER BY id DESC LIMIT ?',
+  day: `SELECT ${ROW} FROM ${FROM_DOC} WHERE d.id >= ? AND d.id < ? AND ${INSIDE}`,
 }
 const MATCH = {
-  newest:
-    'SELECT rowid AS id FROM grams WHERE grams MATCH ? AND rowid < ? ORDER BY rowid DESC LIMIT 1',
+  top: 'SELECT rowid AS id FROM grams WHERE grams MATCH ? AND rowid < ? ORDER BY rowid DESC LIMIT ?',
   day: `SELECT ${ROW} FROM grams CROSS JOIN doc d ON d.id = grams.rowid JOIN session s ON s.ordinal = d.session WHERE grams MATCH ? AND grams.rowid >= ? AND grams.rowid < ? AND ${INSIDE}`,
 }
 
-// Days are walked from the newest with a row of the plan; a day's rows lie in the order they
-// were written, so they are put in the order of their times here.
+type Found = Readonly<Record<string, unknown>>
+const shownRow = (row: Found): StoreCandidates['rows'][number] => ({
+  doc: docOf(row['at'] as bigint, row['id'] as bigint),
+  session: String(row['session']),
+  position: String(row['position']),
+})
+
+// The plan is asked once for the newest row numbers. Days lie in the order of time, a day's rows
+// as written: whole days are ordered here, a day cut short is read in full by itself.
 function rowsOf(
   context: ReadContext,
   handle: Handle,
@@ -123,27 +134,56 @@ function rowsOf(
   const beforeId = before === null ? 0n : dayOf(beforeAt) * SERIALS + (before % SERIALS)
   const low = BigInt(request.window.from ?? 0)
   const high = request.window.to === null ? FOREVER : BigInt(request.window.to)
+  const inside = (row: Found): boolean => {
+    const [at, id] = [row['at'] as bigint, row['id'] as bigint]
+    return at >= low && at <= high && (at < beforeAt || (at === beforeAt && id < beforeId))
+  }
+  const newestFirst = (left: Found, right: Found): number => {
+    const [a, b] = [left['at'] as bigint, right['at'] as bigint]
+    if (a !== b) return a > b ? -1 : 1
+    return (left['id'] as bigint) > (right['id'] as bigint) ? -1 : 1
+  }
+  const one = handles.statement(handle, ONE)
+  const floor = dayOf(low) * SERIALS
   const rows: StoreCandidates['rows'][number][] = []
   let ceiling = (dayOf(high < beforeAt ? high : beforeAt) + 1n) * SERIALS
   while (rows.length < request.limit) {
-    const top = handles.statement(handle, sql.newest).get(...narrowed, ceiling)?.['id']
-    if (typeof top !== 'bigint' || top < dayOf(low) * SERIALS) break
-    ceiling = top - (top % SERIALS)
+    const want = request.limit - rows.length
+    const ids = handles
+      .statement(handle, sql.top)
+      .all(...narrowed, ceiling, want + 1)
+      .map(row => row['id'] as bigint)
+    const last = ids.at(-1)
+    if (last === undefined) break
+    const open = ids.length > want && last >= floor ? last - (last % SERIALS) : null
+    const whole = ids.filter(id => id >= floor && (open === null || id >= open + SERIALS))
+    const found: Found[] = []
+    for (const id of whole) {
+      const row = one.get(id)
+      if (row !== undefined && inside(row)) found.push(row)
+    }
+    for (const row of found.sort(newestFirst)) rows.push(shownRow(row))
+    if (open === null) break
     const left = request.limit - rows.length
-    const found = handles
-      .statement(handle, sql.day)
-      .all(...narrowed, ceiling, ceiling + SERIALS, low, high, beforeAt, beforeAt, beforeId, left)
-    for (const row of found)
-      rows.push({
-        doc: docOf(row['at'] as bigint, row['id'] as bigint),
-        session: String(row['session']),
-        position: String(row['position']),
-      })
+    const args = [...narrowed, open, open + SERIALS, low, high, beforeAt, beforeAt, beforeId, left]
+    if (left > 0)
+      for (const row of handles.statement(handle, sql.day).all(...args)) rows.push(shownRow(row))
+    ceiling = open
   }
   return rows
 }
 
-type CoverRow = StoreCandidates['covered'][number]
+type CoverRow = NonNullable<StoreCandidates['covered']>[number]
+
+const coversIn = (handles: Handles, handle: Handle): CoverRow[] =>
+  handles
+    .statement(handle, 'SELECT id, covered, last_at FROM session')
+    .all()
+    .map(row => ({
+      session: String(row['id']),
+      through: String(row['covered']),
+      at: Number(row['last_at']),
+    }))
 
 export function coversOf(
   context: ReadContext,
@@ -154,14 +194,8 @@ export function coversOf(
   const known = [pointerOf(directory)?.generation, buildingOf(directory, context.boot)?.generation]
   if (!known.includes(generation)) return 'generation-gone'
   try {
-    return context.handles
-      .prepared(fileOf(directory, generation), 'SELECT id, covered, last_at FROM session')
-      .all()
-      .map(row => ({
-        session: String(row['id']),
-        through: String(row['covered']),
-        at: Number(row['last_at']),
-      }))
+    const handle = context.handles.handleOf(fileOf(directory, generation))
+    return coversIn(context.handles, handle)
   } catch {
     return 'unavailable'
   }
@@ -176,21 +210,22 @@ function readCandidates(
   faults: CandidateFaults,
 ): StoreCandidates {
   const { handles } = context
-  const sessions = handles
-    .statement(handle, 'SELECT ordinal, id, covered, last_at FROM session')
-    .all()
-  const covered = sessions.map(row => ({
-    session: String(row['id']),
-    through: String(row['covered']),
-    at: Number(row['last_at']),
-  }))
-  const ordinals = new Map(sessions.map(row => [String(row['id']), Number(row['ordinal'])]))
+  const sum = handles
+    .statement(handle, 'SELECT count(*) AS n, coalesce(sum(covered), 0) AS total FROM session')
+    .get()!
+  const stamp = { sessions: Number(sum['n']), total: String(sum['total']) }
+  const { known } = request
+  const stands = known?.sessions === stamp.sessions && known.total === stamp.total
+  const covered = stands ? null : coversIn(handles, handle)
+  const ordinal = handles.statement(handle, 'SELECT ordinal FROM session WHERE id = ?')
   const scope =
-    request.sessions?.map(session => ordinals.get(session)).filter(found => found !== undefined) ??
-    null
+    request.sessions?.flatMap(session => {
+      const found = ordinal.get(session)
+      return found === undefined ? [] : [Number(found['ordinal'])]
+    }) ?? null
   faults.betweenReads?.()
   const rows = rowsOf(context, handle, request, scope)
-  return { covered, rows }
+  return { stamp, covered, rows }
 }
 
 export function candidatesOf(

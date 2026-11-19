@@ -6,6 +6,7 @@ import type { SearchHit } from './hit.ts'
 import type { HistoryIndex } from './index-port.ts'
 import type { HistoryLogReader } from './log-port.ts'
 import { compileQuery, type CompiledQuery, type QueryLimits, type SearchQuery } from './query.ts'
+import { createSearchMemo } from './search-memo.ts'
 import type { SearchLimits } from './search-run.ts'
 import { searchHistory, type Incomplete } from './search.ts'
 
@@ -74,6 +75,7 @@ type Gate = { running: number; waiting: (() => void)[] }
 export function createHistorySearch<P>(deps: HistorySearchDeps<P>): HistorySearch<P> {
   const { policy } = deps
   const gates = new Map<string, Gate>()
+  const remembering = { ...deps, memo: createSearchMemo() }
 
   // The sessions of the list this principal may read the history of; null: the answer is not known.
   async function readable(
@@ -106,7 +108,7 @@ export function createHistorySearch<P>(deps: HistorySearchDeps<P>): HistorySearc
     query: CompiledQuery,
     cursor: SearchCursor | null,
   ): HistorySearchReply {
-    const found = await searchHistory(deps, {
+    const found = await searchHistory(remembering, {
       tenant: input.tenant,
       query,
       digest: queryDigest(input.query),

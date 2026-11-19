@@ -2,9 +2,10 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { SessionId } from '@omne-harness/session-contract'
 import type { SearchCursor } from './cursor.ts'
 import type { SearchHit } from './hit.ts'
-import type { CandidateRequest, DocId, HistoryIndex } from './index-port.ts'
+import type { CandidateRequest, CoverStamp, DocId, HistoryIndex } from './index-port.ts'
 import type { HistoryLogReader } from './log-port.ts'
 import type { CompiledQuery } from './query.ts'
+import type { SearchMemo } from './search-memo.ts'
 
 export type SearchLimits = Readonly<{
   /** Rows asked of the index at a time, and entries read back in one log read. */
@@ -19,7 +20,12 @@ export type SearchLimits = Readonly<{
   maxFrozen: number
 }>
 
-export type SearchDeps = Readonly<{ index: HistoryIndex; log: HistoryLogReader; now(): number }>
+export type SearchDeps = Readonly<{
+  index: HistoryIndex
+  log: HistoryLogReader
+  now(): number
+  memo?: SearchMemo
+}>
 
 export type SearchInput = Readonly<{
   tenant: TenantId
@@ -57,9 +63,19 @@ export function candidatesAsk(
   input: SearchInput,
   generation: number,
   before: DocId | null,
+  known: CoverStamp | null,
 ): CandidateRequest {
   const { query, tenant } = input
   const sessions = query.scope.kind === 'sessions' ? query.scope.sessions : null
   const limit = input.limits.candidateBatch
-  return { tenant, generation, plan: query.plan, sessions, window: query.window, before, limit }
+  return {
+    tenant,
+    generation,
+    plan: query.plan,
+    sessions,
+    window: query.window,
+    before,
+    limit,
+    known,
+  }
 }

@@ -47,7 +47,7 @@ const CONFIG: SessionSearchConfig = {
     maxConcurrent: 2,
     maxQueued: 4,
   },
-  follow: { pageBytes: 1 << 20, maxSteps: 16, intervalMs: 60_000, compactPages: 8 },
+  follow: { pageBytes: 1 << 20, maxSteps: 16, intervalMs: 60_000, compactPages: 8, restRatio: 0 },
 }
 const said = (text: string) => ({ kind: 'message.user', blocks: [{ text }] })
 
