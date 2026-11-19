@@ -7,6 +7,7 @@ import { commitLog } from './log.ts'
 import {
   historyFace,
   pending,
+  readCall,
   readInput,
   readModelSelection,
   readWork,
@@ -20,6 +21,7 @@ export function portOf<P>(context: Context<P>): SessionTransactionPort<P> {
     commit: (input => commit(context, input)) as SessionTransactionPort<P>['commit'],
     readWork: input => readWork(context, input),
     readCurrentScope: input => readCurrentScope(context, input),
+    readCall: input => readCall(context, input),
     readInput: input => readInput(context, input),
     queryOperation: input => queryOperation(context, input),
     queryControlOperation: input => queryControlOperation(context, input),

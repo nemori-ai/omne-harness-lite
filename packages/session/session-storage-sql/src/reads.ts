@@ -1,29 +1,34 @@
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  readAccessRequest,
+  bindingOf,
+  boundCall,
+  type CompactionContextRead,
+  type ContextScopeBinding,
   type HistoryPage,
   type InputId,
-  type ModelViewRead,
   type ModelViewBasis,
-  type CompactionContextRead,
+  type ModelViewRead,
   type PendingReason,
+  type ProducerRef,
+  readAccessRequest,
   type ReleasedScope,
   type ResidentKey,
   type ResidentReference,
   type RoutedInput,
   type SavedModelSelection,
   type SessionAccess,
+  type SessionCall,
+  type SessionCallBinding,
   type SessionFailure,
   type SessionHistory,
   type SessionId,
   type SessionModelSelection,
   type WorkSnapshot,
-  type ContextScopeBinding,
 } from '@omne-harness/session-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
-import { decodeValue } from './codec.ts'
+import { decodeValue, encodeValue } from './codec.ts'
 import { readEntryTexts, StoredEntryMalformed } from './entry-codec.ts'
 import { open, OWNER, seal, type CursorBinding } from './cursor.ts'
 import {
@@ -99,6 +104,26 @@ export async function readCurrentScope<P>(
   if (read.ok.out['kind'] !== 'scope' || read.ok.out['value'] === undefined)
     return failure(unavailable('session.current-scope: invalid response'))
   return succeed(decodeValue(read.ok.out['value']) as ContextScopeBinding | null)
+}
+
+// The call is in the snapshot while it is open; after it left, its row answers.
+export async function readCall<P>(
+  context: Context<P>,
+  access: SessionAccess<P> & Readonly<{ producer: ProducerRef }>,
+): Reply<SessionCallBinding | null> {
+  const work = await readWork(context, access)
+  if ('failure' in work) return work
+  const held = boundCall(work.ok, access.producer)
+  if (held !== null) return succeed(held)
+  const read = await sessionRead(context, access, 'readWork', 'session.calls-left', {
+    keys: encodeValue({ consumptions: [], producers: [access.producer] }),
+    through: work.ok.revision,
+  })
+  if ('failure' in read) return read
+  if (read.ok.out['kind'] !== 'calls')
+    return failure(unavailable('session.calls-left: invalid response'))
+  const [left] = decodeValue(read.ok.out['calls'] as JsonValue) as readonly SessionCall[]
+  return succeed(left === undefined ? null : bindingOf(left))
 }
 
 export async function readInput<P>(

@@ -715,6 +715,7 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
     return {
       readWork: gate('readWork', s.port.readWork),
       readCurrentScope: gate('readCurrentScope', s.port.readCurrentScope),
+      readCall: gate('readWork', s.port.readCall),
       readModelSelection: gate('readModelSelection', s.port.readModelSelection),
     }
   }
@@ -746,6 +747,7 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
     }
     readonly readWork = port.readWork
     readonly readCurrentScope = port.readCurrentScope
+    readonly readCall = port.readCall
     readonly commitEntries = port.commitEntries
     readonly commitLog = commitLog
   }

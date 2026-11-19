@@ -21,6 +21,7 @@ import {
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
+import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { SessionFaces, SessionTransactionPort } from '@omne-harness/session-contract'
 import { memoryOtherAccess } from '@omne-harness/session-contract/testing'
 import {
@@ -165,6 +166,9 @@ type Wraps = Partial<{
   entries: AgentJournalEntries<string>['read']
   read: AgentMaterials<string, ContentBlock>['read']
   commitEntries: SessionTransactionPort<string>['commitEntries']
+  /** What the work read answers, given what the store holds. */
+  work: (snapshot: WorkSnapshot) => WorkSnapshot
+  call: SessionTransactionPort<string>['readCall']
 }>
 const ALL = ['Session', 'Journal', 'Materials', 'Transactions'] as const
 
@@ -185,8 +189,14 @@ async function assembled(
   const work = {
     readWork: (access: Parameters<SessionTransactionPort<string>['readWork']>[0]) => {
       reads.work += 1
-      return s.backend.transactions.readWork(access)
+      return s.backend.transactions
+        .readWork(access)
+        .then(answer =>
+          'ok' in answer && wraps.work !== undefined ? succeed(wraps.work(answer.ok)) : answer,
+        )
     },
+    readCall: (input: Parameters<SessionTransactionPort<string>['readCall']>[0]) =>
+      (wraps.call ?? s.backend.transactions.readCall)(input),
   }
   class Session extends SessionService<unknown> {
     get work(): SessionFaces<unknown>['work'] {
@@ -334,6 +344,38 @@ describe('a Model received entry becomes one entries-channel Session batch', () 
     expect(f.commits[1]?.observation).toMatchObject({ after: '1', through: '2' })
     expect(f.commits[1]?.start).toMatchObject({ kind: 'saved', progress: { through: '1' } })
     expect(entriesKinds(s).slice(3)).toEqual(['account.linked', 'entries.interpreted'])
+  })
+})
+
+describe('a call that left the work snapshot', () => {
+  // The snapshot the adapter reads holds no call: Session answers the binding of the producer by its own read.
+  const left = (snapshot: WorkSnapshot): WorkSnapshot => ({
+    ...snapshot,
+    consumptions: [],
+    callRegistrations: [],
+  })
+
+  it('its result and a later account delivery are still interpreted: the binding is asked from Session', async () => {
+    const s = await modelScene('left')
+    await receive(s, s.result, 'result')
+    const f = await assembled(s, { work: left })
+    expect(ok(await f.consume())).toMatchObject({ committed: true, progress: { through: '1' } })
+    await receive(s, sampleReceivedModelAccount(s.access.tenant, s.name, '1'), 'account')
+    expect(ok(await f.consume())).toMatchObject({ committed: true, progress: { through: '2' } })
+    expect(entriesKinds(s).slice(3)).toEqual(['account.linked', 'entries.interpreted'])
+  })
+
+  it('a binding that Session cannot read answers its failure: the result is not taken for one of an unbound call', async () => {
+    const s = await modelScene('unread')
+    await receive(s, s.result, 'result')
+    const f = await assembled(s, {
+      call: async () =>
+        fail({ kind: 'unavailable', owner: 'session', diagnostic: 'the store is down' }),
+    })
+    expect(await f.consume()).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'the store is down' },
+    })
+    expect(f.commits).toHaveLength(0)
   })
 })
 

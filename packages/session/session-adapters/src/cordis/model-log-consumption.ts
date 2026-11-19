@@ -35,6 +35,8 @@ import type {
   SessionId,
   SessionTransactionPort,
   WorkSnapshot,
+  ProducerRef,
+  SessionCallBinding,
 } from '@omne-harness/session-contract'
 import { sessionKey, sessionTransactionsKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
@@ -73,6 +75,7 @@ export type SessionModelLogConsumptionInput<P> = Readonly<{
 
 type Ports<P> = Readonly<{
   readWork(access: SessionAccess<P>): Reply<WorkSnapshot>
+  readCall(access: SessionAccess<P>, producer: ProducerRef): Reply<SessionCallBinding | null>
   load: AgentJournal<P>['load']
   entries: AgentJournalEntries<P>['read']
   read: AgentMaterials<P, ContentBlock>['read']
@@ -211,12 +214,11 @@ function createModelLogConsumption<P>(
       return call.failure.kind === 'malformed'
         ? invalid(`${field}.delivery.key.reference`, 'not a Model invocation reference')
         : denied()
-    const bound = work.consumptions.find(
-      item =>
-        item.binding.producer.kind === 'model' && item.binding.producer.call === key.reference,
-    )
-    if (bound === undefined) return succeed({ kind: 'unbound' })
-    if (!sameText(bound.id, entry.consumption))
+    const asked = await ports.readCall(access, { kind: 'model', call: key.reference })
+    if ('failure' in asked) return asked
+    const bound = asked.ok
+    if (bound === null) return succeed({ kind: 'unbound' })
+    if (!sameText(bound.consumption, entry.consumption))
       return invalid(`${field}.consumption`, 'not the consumption Session bound to the call')
     if (canonical(bound.binding.consumer) !== canonical(entry.consumer))
       return invalid(`${field}.consumer`, 'not the consumer Session bound to the call')
@@ -373,6 +375,7 @@ export function createSessionModelLogConsumptionPlugin<P>(
         const logger = ctx.logger(OWNER)
         const consume = createModelLogConsumption<P>(input, {
           readWork: access => session.work.readWork(access),
+          readCall: (access, producer) => session.work.readCall({ ...access, producer }),
           load: value => journal.load(value),
           entries: value => entries.read(value),
           read: value => materials.read(value),
