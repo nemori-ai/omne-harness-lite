@@ -186,9 +186,7 @@ export function createUsage<P>(deps: UsageDeps<P>): Usage<P> {
         })
         if ('failure' in page) return page
         const next = nextAfter(position, page.ok.next)
-        const entries = page.ok.entries.filter(
-          (fact: UsageFact) => fact.at !== null && Date.parse(fact.at) < to,
-        )
+        const entries = page.ok.entries.filter(datedBefore(to))
         if (entries.length > 0)
           return succeed({ entries, next: cursorOf(start.ok.fingerprint, next) })
         position = next
@@ -258,6 +256,11 @@ function stepAt<P>(
     ? { kind: 'skip', next: { source: at.source + 1, chunk: 0, cursor: null } }
     : { kind: 'read', source, consumer }
 }
+
+const datedBefore =
+  (to: number) =>
+  (fact: UsageFact): boolean =>
+    fact.at !== null && Date.parse(fact.at) < to
 
 const nextAfter = (at: Position, cursor: string | null): Position =>
   cursor !== null ? { ...at, cursor } : { source: at.source, chunk: at.chunk + 1, cursor: null }

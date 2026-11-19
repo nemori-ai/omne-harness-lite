@@ -111,12 +111,42 @@ describe('the context occupancy of a session, by the rows of T9 (C23)', () => {
     })
   })
 
+  it('takes the newest known dispatch whatever order the facts come in', () => {
+    const older = main({ unit: 'u9', at: '2026-11-19T10:00:00.000Z', usage: three('10', '0', '0') })
+    const newer = main({ unit: 'u1', at: '2026-11-19T10:05:00.000Z', usage: three('20', '0', '0') })
+    for (const facts of [
+      [older, newer],
+      [newer, older],
+    ])
+      expect(occupancyOf(facts)).toMatchObject({ used: '20', asOf: { at: newer.at } })
+  })
+
+  it('answers the window unknown when its tokens are not a plain positive integer', () => {
+    for (const tokens of ['0200000', '200000x', 'x200000'])
+      expect(
+        occupancyOf([
+          main({
+            unit: 'u1',
+            at: '2026-11-19T10:00:00.000Z',
+            window: { tokens, compactAtPercent: null },
+          }),
+        ]),
+        tokens,
+      ).toEqual({ kind: 'unknown', reason: 'window-unknown' })
+  })
+
   it('takes the later unit when two dispatches share the latest instant', () => {
     const at = '2026-11-19T10:00:00.000Z'
     expect(
       occupancyOf([
         main({ unit: 'u2', at, usage: three('20', '0', '0') }),
         main({ unit: 'u1', at, usage: three('10', '0', '0') }),
+      ]),
+    ).toMatchObject({ used: '20' })
+    expect(
+      occupancyOf([
+        main({ unit: 'u1', at, usage: three('10', '0', '0') }),
+        main({ unit: 'u2', at, usage: three('20', '0', '0') }),
       ]),
     ).toMatchObject({ used: '20' })
   })

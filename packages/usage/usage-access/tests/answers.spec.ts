@@ -73,6 +73,15 @@ describe('what a succeeded read carries', () => {
       buckets: { start: unknown }[]
     }
     expect(body.total.rates.cacheHit).toEqual({ kind: 'known', value: String(500 / 1500) })
+    const unknownRates = Object.entries(result.total.rates).filter(
+      ([, rate]) => rate.kind === 'unknown',
+    )
+    expect(unknownRates.length).toBeGreaterThan(0)
+    for (const [name] of unknownRates)
+      expect((body.total.rates as Record<string, unknown>)[name], name).toEqual({ kind: 'unknown' })
+    expect(encodeInstant((body as any).coverage.earliest)).toBe(facts[0]?.at)
+    const none = fold([], checked.ok, { sources: [], undated: 0 })
+    expect(((await answered('query-usage', none)) as any).coverage.earliest).toBeNull()
     expect(body.total.duration.toFirstContent).toEqual({ count: 1, p50: 310, p90: 310 })
     expect(body.buckets.map(bucket => encodeInstant(bucket.start as never))).toEqual([range.from])
   })

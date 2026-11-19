@@ -436,6 +436,94 @@ describe('the records of a scope, page by page (C24)', () => {
     })
   })
 
+  it('reads the sources in name order whatever order they are registered in', async () => {
+    const named = ['tool', 'model', 'extra'].map(name => source(name, [fact(name, name, hour(1))]))
+    const orders = [
+      [0, 1, 2],
+      [0, 2, 1],
+      [1, 0, 2],
+      [1, 2, 0],
+      [2, 0, 1],
+      [2, 1, 0],
+    ]
+    for (const order of orders) {
+      const usage = usageOver(order.map(at => named[at]!.self))
+      const seen: string[] = []
+      let after: string | null = null
+      do {
+        const answer = await records(usage, { after })
+        if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
+        for (const item of answer.ok.entries) seen.push(item.unit)
+        after = answer.ok.next
+      } while (after !== null)
+      expect(seen, JSON.stringify(order)).toEqual(['extra', 'model', 'tool'])
+    }
+  })
+
+  it('follows the cursor of a source within its pages, asks at most its own page size, and takes the edges of the limit', async () => {
+    const model = source(
+      'model',
+      [fact('model', 'm1', hour(1)), fact('model', 'm2', hour(2)), fact('model', 'm3', hour(3))],
+      { limits: { page: 1, works: 100 } },
+    )
+    const usage = usageOver([model.self])
+    const seen: string[] = []
+    let after: string | null = null
+    do {
+      const answer = await records(usage, { after, limit: 2 })
+      if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
+      for (const item of answer.ok.entries) seen.push(item.unit)
+      after = answer.ok.next
+    } while (after !== null)
+    expect(seen).toEqual(['m1', 'm2', 'm3'])
+    expect(model.asked.map(input => input.limit)).toEqual([1, 1, 1])
+    for (const limit of [1, LIMITS.page])
+      expect('ok' in (await records(usage, { limit }))).toBe(true)
+    expect(await records(usage, { range: { from: TO, to: FROM } })).toEqual({
+      failure: { kind: 'invalid', field: 'range', reason: 'order' },
+    })
+  })
+
+  it('reads past pages that hold nothing before the end, and answers too-large past the page limit', async () => {
+    const late = source('model', [
+      fact('model', 'a', TO),
+      fact('model', 'b', TO),
+      fact('model', 'c', TO),
+    ])
+    const asked = (pages: number) =>
+      records(usageOver([late.self], undefined, { ...LIMITS, pages }), { limit: 1 })
+    // Three pages of the source, then the end of its one batch, then past the last source.
+    expect(await asked(5)).toEqual({ ok: { entries: [], next: null } })
+    expect(await asked(4)).toEqual({ failure: { kind: 'too-large', limit: 'pages' } })
+    const late2 = source('model', [fact('model', 'a', TO), fact('model', 'b', hour(1))])
+    expect(await records(usageOver([late2.self]), { limit: 1 })).toMatchObject({
+      ok: { entries: [{ unit: 'b' }] },
+    })
+  })
+
+  it('refuses a cursor whose prefix, source, batch or source cursor is not of its shape', async () => {
+    const model = source('model', [fact('model', 'm1', hour(1)), fact('model', 'm2', hour(2))])
+    const usage = usageOver([model.self])
+    const first = await records(usage, { limit: 1 })
+    if (!('ok' in first) || first.ok.next === null) throw new Error('a first page with more')
+    const [fingerprint] = JSON.parse(
+      Buffer.from(first.ok.next.slice(4), 'base64url').toString('utf8'),
+    ) as [string]
+    const sealed = (prefix: string, parts: unknown[]) =>
+      `${prefix}${Buffer.from(JSON.stringify([fingerprint, ...parts])).toString('base64url')}`
+    expect('ok' in (await records(usage, { after: sealed('ur1.', [0, 0, '1']) }))).toBe(true)
+    for (const after of [
+      sealed('ur2.', [0, 0, '1']),
+      sealed('ur1.', [-1, 0, null]),
+      sealed('ur1.', ['0', 0, null]),
+      sealed('ur1.', [0, -1, null]),
+      sealed('ur1.', [0, 0, 5]),
+    ])
+      expect(await records(usage, { after }), after).toEqual({
+        failure: { kind: 'invalid', field: 'after', reason: 'cursor' },
+      })
+  })
+
   it('keeps to the session scope and answers an absent session as not found', async () => {
     const model = source('model', [
       fact('model', 'mine', hour(1), 'exec-1'),
@@ -460,6 +548,16 @@ describe('the records of a scope, page by page (C24)', () => {
 })
 
 describe('the context occupancy of a session (C23)', () => {
+  it('answers a source that cannot answer by its name, and no occupancy', async () => {
+    const found = scopeOf({
+      ok: { kind: 'found', consumers: [{ owner: 'agent', works: ['exec-1'] }] },
+    })
+    const broken = source('model', [], { fails: { kind: 'denied' } })
+    expect(
+      await usageOver([broken.self], found.scope).occupancy({ principal, tenant, session: 's-1' }),
+    ).toEqual({ failure: { kind: 'denied', dependency: { kind: 'source', name: 'model' } } })
+  })
+
   it('reads every unit of the session scope without a range and answers by the rows of T9', async () => {
     const usageOf = (input: string) => [
       { name: 'input', state: 'known' as const, lexeme: input, unit: 'token' },
