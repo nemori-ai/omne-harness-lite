@@ -111,6 +111,11 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
     phase: 'composition',
   },
+  workspace: {
+    provides: ['workspaceGovernance', 'workspaceInstances', 'workspaceCatalog', 'workspaceTypes'],
+    injects: ['storage'],
+    phase: 'composition',
+  },
   'session-storage': {
     provides: [
       'sessionTransactions',

@@ -1,5 +1,6 @@
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import { notificationSqlMaterials } from '@omne-harness/notification-local'
+import { workspaceSqlMaterials } from '@omne-harness/workspace-local'
 import { loadProductionRelease, type ToolRelease } from '../../entry/tool-release.ts'
 import { calendarStorageMaterials } from '../calendar/authority.ts'
 import { scheduleStorageMaterials } from '../schedule/guard.ts'
@@ -16,6 +17,7 @@ export async function productionStorageCatalog(
     calendarStorageMaterials(),
     scheduleStorageMaterials(),
     notificationSqlMaterials(),
+    workspaceSqlMaterials(),
   ]
   return {
     ...core,

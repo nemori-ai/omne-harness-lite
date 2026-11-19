@@ -151,6 +151,11 @@
       "config": {}
     },
     {
+      "id": "workspace",
+      "plugin": "workspaceRow",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
       "config": {

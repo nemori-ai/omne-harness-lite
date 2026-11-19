@@ -146,6 +146,11 @@
     "@omne-harness/tool-host-local": "workspace:*",
     "@omne-harness/tool-storage-sql": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",
+    "@omne-harness/workspace": "workspace:*",
+    "@omne-harness/workspace-contract": "workspace:*",
+    "@omne-harness/workspace-cordis-contract": "workspace:*",
+    "@omne-harness/workspace-filesystem": "workspace:*",
+    "@omne-harness/workspace-local": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

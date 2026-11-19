@@ -441,6 +441,7 @@ export function operatorLayer(options: {
       },
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
       { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
+      { kind: 'replace', id: 'workspace', config: { node: 'local' } },
       {
         kind: 'replace',
         id: 'request-context',

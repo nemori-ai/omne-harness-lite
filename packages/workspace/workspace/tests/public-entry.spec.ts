@@ -26,6 +26,7 @@ it('the testing entry exports the memory store, the fakes and the conformance ca
     'fakeWorkspaceId',
     'fakeWorld',
     'memoryTxn',
+    'storeConformanceCases',
     'typeConformanceCases',
   ])
 })

@@ -15,6 +15,7 @@
     "calendar",
     "schedule",
     "notification",
+    "workspace",
     "session-provider",
     "session-ad02",
     "session-ad03",
@@ -150,6 +151,14 @@
         "tenantDomainRegistration",
         "tenantDomainScannerPrincipal",
         "tenantScopePrincipals"
+      ]
+    },
+    {
+      "row": "workspace",
+      "names": [
+        "storage",
+        "principalVerifier",
+        "tenantStanding"
       ]
     },
     {

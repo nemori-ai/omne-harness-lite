@@ -973,6 +973,30 @@
       "domains": ["workspace"],
       "status": "candidate",
       "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-cordis-contract",
+      "paths": [
+        "packages/workspace/workspace-cordis-contract/src/**"
+      ],
+      "layer": "contract",
+      "domains": [
+        "workspace"
+      ],
+      "status": "adopted",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-local",
+      "paths": [
+        "packages/workspace/workspace-local/src/**"
+      ],
+      "layer": "assembly",
+      "domains": [
+        "workspace"
+      ],
+      "status": "adopted",
+      "source": "packages/workspace/SPEC.md"
     }
   ],
   "rules": [
@@ -1366,7 +1390,10 @@
       "from": [
         "packages/workspace/workspace-contract",
         "packages/workspace/workspace",
-        "packages/workspace/workspace-filesystem"
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local"
+
       ],
       "to": [
         "packages/agent/agent-contract",
@@ -1397,7 +1424,10 @@
     {
       "id": "DIR-WORKSPACE-GOVERNANCE",
       "from": ["packages/workspace/workspace-contract", "packages/workspace/workspace"],
-      "to": ["packages/workspace/workspace-filesystem"],
+      "to": ["packages/workspace/workspace-filesystem",
+"packages/workspace/workspace-cordis-contract",
+"packages/workspace/workspace-local"
+],
       "source": "packages/workspace/SPEC.md"
     }
   ]
