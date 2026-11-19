@@ -204,6 +204,17 @@ const NAMED: ReadonlySet<string> = new Set<DenialCategory>([
   'guidance',
 ])
 
+const categoryOf = (output: ExtensionOutput | undefined): DenialCategory =>
+  output?.kind === 'veto' && NAMED.has(output.reason) ? (output.reason as DenialCategory) : 'rule'
+
+const guidanceWords = (
+  progress: Extract<Passage['progress'], { kind: 'applied' }>,
+): string | null => {
+  const last = progress.rounds.at(-1)?.progress
+  const response = last?.kind === 'processed' ? last.cards[0]?.response : undefined
+  return response?.kind === 'remark' ? response.text : null
+}
+
 /** Why the action was denied, read from its chain, which the batch adopted before any message. */
 export function denialOf(
   passages: readonly Passage[],
@@ -211,13 +222,8 @@ export function denialOf(
 ): Readonly<{ category: DenialCategory; words: string | null }> {
   const progress = passages.find(passage => admissionActionOf(passage.id) === action)?.progress
   if (progress?.kind !== 'applied') return { category: 'rule', words: null }
-  const { output } = progress.conclusion
-  const category =
-    output?.kind === 'veto' && NAMED.has(output.reason) ? (output.reason as DenialCategory) : 'rule'
-  const last = progress.rounds.at(-1)?.progress
-  const response = last?.kind === 'processed' ? last.cards[0]?.response : undefined
-  const words = category === 'guidance' && response?.kind === 'remark' ? response.text : null
-  return { category, words }
+  const category = categoryOf(progress.conclusion.output)
+  return { category, words: category === 'guidance' ? guidanceWords(progress) : null }
 }
 
 export function presentRequest(chain: Passage): Readonly<{

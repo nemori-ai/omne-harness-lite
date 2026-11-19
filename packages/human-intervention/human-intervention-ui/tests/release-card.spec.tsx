@@ -61,6 +61,26 @@ describe('the release card body', () => {
   })
 })
 
+it('lets one answered release card be submitted while the others stay unanswered', async () => {
+  const fake = createFakeClient()
+  render(<DecisionsPage hub={new CardsHub({ client: fake.client })} tenant={TENANT} />)
+  const call = await fake.next('list-cards')
+  call.answer(page([releaseItem('r1'), releaseItem('r2'), releaseItem('r3')]))
+  await act(async () => {
+    for (let round = 0; round < 5; round += 1) await Promise.resolve()
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+  const submit = screen.getByRole('button', { name: '提交' }) as HTMLButtonElement
+  expect(submit.disabled).toBe(true)
+  expect(screen.getByText('另有 3 张放行卡没答，可以先提交已答的')).toBeTruthy()
+  await act(async () => {
+    ;(screen.getAllByRole('radio')[0] as HTMLButtonElement).click()
+  })
+  expect(submit.disabled).toBe(false)
+  expect(screen.getByText('另有 2 张放行卡没答，可以先提交已答的')).toBeTruthy()
+  expect(screen.getByText('第 1 题，共 3 题')).toBeTruthy()
+})
+
 it('draws a kind it does not know with the common body, so the card is not lost', async () => {
   const known = questionItem('card-9')
   const item = {

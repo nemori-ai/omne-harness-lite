@@ -435,25 +435,19 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   const lostEnvironment = async (
     step: Step<P>,
     recovery: ToolRecovery,
-    preparation: PreparationRecord,
-    lost: (diagnostic: string) => Promise<StepResult>,
-  ): Promise<StepResult | null> => {
-    if (environmentsPrepared.has(callKey(step.tenant, step.call))) return null
-    const found = await preparedEnvironments.reconnect(step, recovery, preparation)
-    if ('failure' in found) return { kind: 'failed', failure: found.failure }
-    return found.ok.kind === 'lost' ? lost(found.ok.diagnostic) : null
-  }
-
-  const resumeEnvironment = async (
-    step: Step<P>,
-    recovery: ToolRecovery,
+    lost: (preparation: PreparationRecord, diagnostic: string) => Promise<StepResult>,
   ): Promise<StepResult | null> => {
     const preparation = recovery.preparations.at(-1)
-    if (preparation?.purpose !== 'resume') return null
-    return lostEnvironment(step, recovery, preparation, () =>
-      replanResume(step, recovery, preparation),
-    )
+    if (preparation === undefined) return null
+    const found = await preparedEnvironments.reconnect(step, recovery, preparation)
+    if ('failure' in found) return { kind: 'failed', failure: found.failure }
+    return found.ok.kind === 'lost' ? lost(preparation, found.ok.diagnostic) : null
   }
+
+  const resumeEnvironment = (step: Step<P>, recovery: ToolRecovery): Promise<StepResult | null> =>
+    recovery.preparations.at(-1)?.purpose === 'resume'
+      ? lostEnvironment(step, recovery, preparation => replanResume(step, recovery, preparation))
+      : Promise.resolve(null)
 
   const prepare = async (
     step: Step<P>,
@@ -670,13 +664,12 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       return recordBindingFailureMarker()
     if (binding.hasLive(step, start))
       return blocked('the authority excludes a start with a known live execution')
-    const preparation = recovery.preparations.at(-1)
-    if (start.kind === 'start' && preparation !== undefined) {
-      const gone = await lostEnvironment(step, recovery, preparation, diagnostic =>
-        rejectUnstarted(step, recovery, start, `environment: ${diagnostic}`),
-      )
-      if (gone !== null) return gone
-    }
+    const gone = await lostEnvironment(step, recovery, (preparation, diagnostic) =>
+      start.kind === 'start'
+        ? rejectUnstarted(step, recovery, start, `environment: ${diagnostic}`)
+        : replanResume(step, recovery, preparation),
+    )
+    if (gone !== null) return gone
     const invoked = await binding.invoke(step, recovery, start)
     if (invoked.kind === 'port-failed') return { kind: 'failed', failure: invoked.failure }
     if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
@@ -757,22 +750,24 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return resumed === 'waiting' ? awaitPlace(step, recovery) : resumed
   }
 
+  const preparingFirst =
+    (rest: Action): Action =>
+    (step, recovery) => {
+      const task = recovery.tasks.find(item => item.kind === 'prepare')
+      return task?.kind === 'prepare' ? prepare(step, recovery, task) : rest(step, recovery)
+    }
+
+  const resumeOrDecide: Action = async (step, recovery) =>
+    owesQueue(recovery)
+      ? ((await resumeEnvironment(step, recovery)) ?? resumeStep(step, recovery))
+      : resumptions.decide(step, recovery)
+
   const phaseSteps: Readonly<Partial<Record<ToolRecovery['state']['phase'], Action>>> = {
     accepted: owing(plan),
-    preparing: (step, recovery) => {
-      const task = recovery.tasks.find(item => item.kind === 'prepare')
-      return task?.kind === 'prepare'
-        ? prepare(step, recovery, task)
-        : owing(enqueue)(step, recovery)
-    },
+    preparing: preparingFirst(owing(enqueue)),
     queued: owing(prepareStart),
-    starting: startStep,
-    suspended: async (step, recovery) => {
-      const task = recovery.tasks.find(item => item.kind === 'prepare')
-      if (task?.kind === 'prepare') return prepare(step, recovery, task)
-      if (!owesQueue(recovery)) return resumptions.decide(step, recovery)
-      return (await resumeEnvironment(step, recovery)) ?? resumeStep(step, recovery)
-    },
+    starting: preparingFirst(startStep),
+    suspended: preparingFirst(resumeOrDecide),
   }
 
   type Duty = Readonly<{ key: string; run: () => Promise<StepResult> }>
