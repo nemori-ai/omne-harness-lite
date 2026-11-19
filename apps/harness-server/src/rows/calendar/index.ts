@@ -33,7 +33,6 @@ import { tenantStandingKey } from '@omne-harness/identity/cordis'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { combinationManifest, manifestDigest, type SqlStorage } from '@omne-harness/sql-contract'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
-import { runtimeContextTenantBlocksKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { epochMillisOf, readSystemInstant } from '../../entry/session-clock.ts'
 import { defineRow } from '../../row.ts'
 import {
@@ -132,12 +131,7 @@ export const calendarRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [calendarQueryKey, calendarCalculatorKey, calendarSupplyKey],
-    injects: [
-      storageKey,
-      tenantStandingKey,
-      tenantIndependentSettingsKey,
-      runtimeContextTenantBlocksKey,
-    ],
+    injects: [storageKey, tenantStandingKey, tenantIndependentSettingsKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },

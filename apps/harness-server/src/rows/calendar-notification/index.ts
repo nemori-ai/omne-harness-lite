@@ -5,21 +5,17 @@ import { runtimeContextTenantBlocksKey } from '@omne-harness/runtime-context-cor
 import { defineRow } from '../../row.ts'
 import { standingItemsBinding } from '../notification/standing.ts'
 
-/** The calendar as a source of notification; without this row the calendar works and is no source. */
+/** The calendar as a source of notification; without this row the calendar works and is no source.
+ * It requires nothing: it registers while Notification's rows are there, and stays idle without them. */
 export const calendarNotificationRow = defineRow({
   row: 'calendar-notification',
   implementation: 'real',
-  manifest: {
-    provides: [],
-    injects: [notificationSourcesKey, runtimeContextTenantBlocksKey],
-    sameProviderGroup: null,
-  },
+  manifest: { provides: [], injects: [], sameProviderGroup: null },
   lifecycle: { kind: 'body', phase: 'composition' },
   async body(ctx: Context) {
-    ctx.inject([notificationSourcesKey], child => {
+    // Notification's need is bound only while Notification is there to read it.
+    ctx.inject([notificationSourcesKey, runtimeContextTenantBlocksKey], child => {
       child[notificationSourcesKey].register(calendarSupplySource)
-    })
-    ctx.inject([runtimeContextTenantBlocksKey], child => {
       child[runtimeContextTenantBlocksKey].register({
         needs: [standingItemsBinding(CALENDAR_SUPPLY_RISK_KEY)],
       })
