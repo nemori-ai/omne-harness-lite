@@ -6,7 +6,7 @@ import {
   type ObserveEnd,
   type ObserveRequest,
 } from '@omne-harness/sdk/core'
-import type { ServerConnector } from '../../src/main-core/index.ts'
+import type { ServerConnector } from '../../src/forwarding/rules.ts'
 
 export const TENANT_TEXT = JSON.stringify({
   organization: 'org_00000000000000000000000000',

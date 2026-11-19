@@ -67,7 +67,7 @@ async function setup(
     modules?: readonly Plugin.Object[]
     logout?: LogoutResult
     connectivity?: Connectivity
-    missingAtHost?: readonly string[]
+    missingAtForwarding?: readonly string[]
   } = {},
 ) {
   const login = source<ShellLoginState>(options.login ?? 'signed-out')
@@ -106,7 +106,9 @@ async function setup(
       state={state}
       connectivity={connectivity}
       theme={theme}
-      {...(options.missingAtHost === undefined ? {} : { missingAtHost: options.missingAtHost })}
+      {...(options.missingAtForwarding === undefined
+        ? {}
+        : { missingAtForwarding: options.missingAtForwarding })}
     />,
   )
   const provide = async (name: string) => {
@@ -194,14 +196,14 @@ describe('外壳：连接', () => {
   })
 
   it.each(['signed-out', 'signed-in'] as const)(
-    '%s 时页面宿主少了页面要用的协议：主区上方写宿主的版本旧了、需要重启，列出少的那几样；不少时不写',
+    '%s 时转发层少了页面要用的协议：主区上方写应用的版本旧了、需要重启，列出少的那几样；不少时不写',
     async login => {
-      await setup({ login, missingAtHost: ['human-intervention/v1'] })
+      await setup({ login, missingAtForwarding: ['human-intervention/v1'] })
       expect(screen.getByRole('alert').textContent).toBe(
-        '页面宿主的版本旧了，需要重启。它不认得这个页面要用的：human-intervention/v1。',
+        '应用的版本旧了，需要重启。它不认得这个页面要用的：human-intervention/v1。',
       )
       cleanup()
-      await setup({ login, missingAtHost: [] })
+      await setup({ login, missingAtForwarding: [] })
       expect(screen.queryByRole('alert')).toBeNull()
     },
   )

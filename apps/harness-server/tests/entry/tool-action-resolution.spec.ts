@@ -222,6 +222,53 @@ describe('the action a tool call performs', () => {
   })
 })
 
+describe('the reason a Tools call that carries no valid target is invalid', () => {
+  it.each([
+    [
+      { name: 'Tools', command: 'search', arguments: {} },
+      { field: 'name', reason: 'recursive-tools-execute' },
+    ],
+    [
+      { name: 'Nope', command: 'info', arguments: {} },
+      { field: 'name', reason: 'unknown-target' },
+    ],
+    [
+      { name: 'ToyEcho', command: 'nope', arguments: {} },
+      { field: 'command', reason: 'unknown-target-command' },
+    ],
+    [
+      { name: 'ToyEcho', command: null, arguments: {} },
+      { field: 'command', reason: 'unknown-target-command' },
+    ],
+    [
+      { name: 'ToyEcho', command: 'info', arguments: [1] },
+      { field: 'arguments', reason: 'command-parameters-must-be-object' },
+    ],
+    [
+      { name: 'Shell', command: 'execute', arguments: { script: 'ls' } },
+      { field: 'name', reason: 'target-refused' },
+    ],
+    [
+      { name: 'ToyFn', command: 'info', arguments: {} },
+      { field: 'command', reason: 'function-command-must-be-null' },
+    ],
+  ])('names %j as %j', async (intent, expected) => {
+    const world = await forwardWorld()
+    try {
+      expect(
+        await withFunctionTool(world).resolve({
+          principal: world.principal,
+          tenant: world.tenant,
+          name: 'Tools',
+          effectiveArguments: toolsCall(world, intent),
+        }),
+      ).toEqual({ failure: { kind: 'invalid', ...expected } })
+    } finally {
+      await world.close()
+    }
+  })
+})
+
 describe('the label a person reads on a release card', () => {
   const labelingOf = (world: World, release: () => World['release'] = () => world.release) =>
     createToolCallLabeling({ release, catalog: () => world.catalog, view: () => world.view })

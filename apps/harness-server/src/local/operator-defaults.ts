@@ -17,6 +17,33 @@ export const LOCAL_HISTORY_KINDS = [
   'run.terminal',
 ] as const
 
+export const LOCAL_HISTORY_SEARCH = {
+  policy: {
+    query: {
+      maxGramsPerLiteral: 16,
+      maxAlternatives: 32,
+      maxLiterals: 8,
+      maxLiteralLength: 256,
+      maxPatternLength: 512,
+      maxProgramSize: 8192,
+      maxScopeSessions: 64,
+    },
+    search: {
+      candidateBatch: 256,
+      verifyBatch: 64,
+      timeBudgetMs: 1500,
+      maxCandidates: 20_000,
+      scanBytes: 64 * 1024 * 1024,
+      tailPageBytes: 1024 * 1024,
+      maxFrozen: 64,
+    },
+    maxPageSize: 100,
+    maxConcurrent: 2,
+    maxQueued: 8,
+  },
+  follow: { pageBytes: 512 * 1024, maxSteps: 32, intervalMs: 5000, compactPages: 16, restRatio: 1 },
+} as const
+
 export const LOCAL_DIAGNOSTICS_KINDS = [
   'run.started',
   'run.attempt-started',
@@ -420,7 +447,10 @@ function combinationVersionOf(rows: ReleaseRows): string {
 
 export type LocalOperatorInput = Readonly<{
   distribution: unknown
-  locations: Pick<ServerLocations, 'vaultFile' | 'storageRoot' | 'hostFilesDir' | 'assetsRoot'>
+  locations: Pick<
+    ServerLocations,
+    'vaultFile' | 'storageRoot' | 'hostFilesDir' | 'assetsRoot' | 'historyIndexRoot'
+  >
   settings: ServerSettings
   shutdownDeadlineMs: number
   platform: NodeJS.Platform
@@ -451,6 +481,9 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         tenantBudget: rows.has('session-intake-budget'),
       },
     ],
+    ...(rows.has('session-history-index')
+      ? ([['session-history-index', { root: locations.historyIndexRoot }]] as const)
+      : []),
     ...(rows.has('secret-custody')
       ? ([['secret-custody', { path: locations.vaultFile }]] as const)
       : []),

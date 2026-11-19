@@ -106,6 +106,7 @@ export type SessionAccessFaces = Readonly<{
     | 'readInputFate'
     | 'control'
     | 'readBackgroundCalls'
+    | 'readModelSelection'
   >
   history: Pick<SessionHistory<Principal>, 'begin' | 'next'>
 }>

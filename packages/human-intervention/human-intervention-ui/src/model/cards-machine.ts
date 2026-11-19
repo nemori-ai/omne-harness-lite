@@ -139,6 +139,7 @@ export type Sheet = Readonly<{
   closed: readonly Closed[]
   running: boolean
   missing: readonly string[]
+  open: readonly string[]
   ready: boolean
 }>
 
@@ -150,21 +151,28 @@ function sendableOf(state: State, group: string): readonly Sendable[] {
     .map(entry => ({ entry, reply: replyOf(state.drafts[entry.key]) }))
 }
 
+const leavable = (entry: Entry): boolean => entry.item.card.question.kind === 'release'
+
+const answeredOf = (state: State, group: string): readonly Sendable[] =>
+  sendableOf(state, group).filter(item => item.reply !== null)
+
 export function sheetOf(state: State, group: string): Sheet {
-  const sendable = sendableOf(state, group)
-  const missing = sendable.filter(item => item.reply === null).map(item => item.entry.key)
+  const unanswered = sendableOf(state, group).filter(item => item.reply === null)
+  const keysOf = (items: readonly Sendable[]) => items.map(item => item.entry.key)
+  const missing = keysOf(unanswered.filter(item => !leavable(item.entry)))
   const running = state.batches[group] !== undefined
   return {
     entries: state.entries.filter(entry => groupOf(entry.item) === group),
     closed: state.closed.filter(closed => groupOf(closed.item) === group),
     running,
     missing,
-    ready: !running && sendable.length > 0 && missing.length === 0,
+    open: keysOf(unanswered.filter(item => leavable(item.entry))),
+    ready: !running && answeredOf(state, group).length > 0 && missing.length === 0,
   }
 }
 
 export function submittable(state: State, group: string): readonly string[] {
-  return sheetOf(state, group).ready ? sendableOf(state, group).map(item => item.entry.key) : []
+  return sheetOf(state, group).ready ? answeredOf(state, group).map(item => item.entry.key) : []
 }
 
 const same = (state: State): Step => ({ state, effects: [] })
@@ -322,7 +330,7 @@ function proceed(state: State, group: string, queue: readonly Queued[]): Step {
 
 function submitGroup(state: State, group: string, plan: readonly Planned[]): Step {
   if (!sheetOf(state, group).ready) return same(state)
-  const sendable = sendableOf(state, group)
+  const sendable = answeredOf(state, group)
   const queue = sendable.flatMap(({ entry, reply }, at) => {
     const planned = plan[at]
     if (reply === null || planned?.key !== entry.key) return []

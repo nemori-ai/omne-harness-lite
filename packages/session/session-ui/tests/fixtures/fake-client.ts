@@ -98,6 +98,9 @@ export function createFakeClient(): FakeClient {
     'archive-session',
     'unarchive-session',
     'list-archived-sessions',
+    'search-history',
+    'read-model-selection',
+    'select-model',
   ]
   const client = Object.fromEntries(names.map(name => [name, operation(name)])) as Record<
     string,

@@ -147,6 +147,7 @@ async function start(
       vaultFile: `${base.stateRoot}/vault`,
       hostFilesDir: base.stateRoot,
       assetsRoot: `${base.stateRoot}/assets`,
+      historyIndexRoot: `${base.stateRoot}/history-index`,
     },
     settings: {
       version: 1,

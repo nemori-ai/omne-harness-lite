@@ -33,7 +33,7 @@ export type ShellProps = Readonly<{
   state: ShellState
   connectivity: ConnectivitySource
   theme: ThemeSwitch
-  missingAtHost?: readonly string[]
+  missingAtForwarding?: readonly string[]
 }>
 
 const CONNECTIVITY_TEXT: Readonly<Record<Connectivity, string>> = {
@@ -67,11 +67,11 @@ function Disconnected(props: { connectivity: Connectivity }) {
   )
 }
 
-function StaleHost(props: { missing: readonly string[] }) {
+function StaleApp(props: { missing: readonly string[] }) {
   if (props.missing.length === 0) return null
   return (
     <InlineNotice tone="caution" role="alert" className="shell-banner" still>
-      {`页面宿主的版本旧了，需要重启。它不认得这个页面要用的：${props.missing.join('、')}。`}
+      {`应用的版本旧了，需要重启。它不认得这个页面要用的：${props.missing.join('、')}。`}
     </InlineNotice>
   )
 }
@@ -116,7 +116,7 @@ function Outside(props: {
   return (
     <main className="shell-outside">
       <Disconnected connectivity={props.connectivity} />
-      <StaleHost missing={props.missing} />
+      <StaleApp missing={props.missing} />
       <span className="shell-brand shell-brand-outside">{props.appName}</span>
       {props.login === 'signing-out' ? (
         <LoadingState label="正在退出……" />
@@ -250,7 +250,7 @@ function Workspace(props: {
       <Sidebar {...props} shown={shown} pages={pages} />
       <main className="shell-workspace">
         <Disconnected connectivity={props.connectivity} />
-        <StaleHost missing={props.missing} />
+        <StaleApp missing={props.missing} />
         {pages.map(page => (
           <section
             key={page.id}
@@ -306,7 +306,7 @@ function Toasts(props: { state: ShellState }) {
 export function Shell(props: ShellProps) {
   const login = useLoginState(props.state)
   const connectivity = useConnectivity(props.connectivity)
-  const missing = props.missingAtHost ?? []
+  const missing = props.missingAtForwarding ?? []
   return (
     <AppTooltipProvider>
       {login === 'signed-in' ? (

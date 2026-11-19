@@ -28,7 +28,7 @@ import type {
 import { timerSchedules } from './ledger-timers.ts'
 import { executionResultOf, unstartedReleaseBasis } from './ledger-ending.ts'
 import { invalid } from './boundary.ts'
-import { commonOf, type StateBody, type CommonState } from './ledger-state.ts'
+import { commonOf, resumePlanningBody, type StateBody, type CommonState } from './ledger-state.ts'
 import { mintEvidence, digestOf, sameFactValue } from './evidence.ts'
 import {
   operationRecord,
@@ -508,17 +508,10 @@ function decideResumePrepared(
   record: CallRecord,
   mint: Mint,
 ): Decision<ToolState> {
-  const current = record.state
-  if (current.phase !== 'suspended') return reply(wrongPhase(current.phase))
+  const body = resumePlanningBody(record.state, record.start)
+  if (body === null) return reply(wrongPhase(record.state.phase))
   if (record.preparations.at(-1)?.operation !== command.preparation.operation)
     return reply(invalid('preparation', 'not-the-current-preparation'))
-  const body: StateBody = {
-    ...commonOf(current),
-    phase: 'suspended',
-    checkpoint: current.checkpoint,
-    relation: 'foreground',
-    wait: current.wait,
-  }
   const state = nextState(record, body, mint.revision)
   const environment = { preparation: command.preparation.operation, resources: command.resources }
   return {

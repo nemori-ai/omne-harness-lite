@@ -39,6 +39,10 @@ const documentedPairs = {
   sessionAdoptedRequestsKey: 'SessionAdoptedRequestsService',
   sessionInputSourcesKey: 'SessionInputSourcesService',
   sessionDerivedInputsKey: 'SessionDerivedInputsService',
+  sessionHistoryIndexKey: 'SessionHistoryIndexService',
+  sessionHistoryLogKey: 'SessionHistoryLogService',
+  sessionSearchCursorsKey: 'SessionSearchCursorsService',
+  sessionSearchKey: 'SessionSearchService',
 } as const
 
 const documentedKeys = {
@@ -70,6 +74,10 @@ const documentedKeys = {
   sessionAdoptedRequestsKey: 'sessionAdoptedRequests',
   sessionInputSourcesKey: 'sessionInputSources',
   sessionDerivedInputsKey: 'sessionDerivedInputs',
+  sessionHistoryIndexKey: 'sessionHistoryIndex',
+  sessionHistoryLogKey: 'sessionHistoryLog',
+  sessionSearchCursorsKey: 'sessionSearchCursors',
+  sessionSearchKey: 'sessionSearch',
 } as const
 
 describe('the ./cordis entry', () => {

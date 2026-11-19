@@ -31,6 +31,16 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
   'session-input-sources': { provides: ['sessionInputSources'] },
+  'session-history-index': { provides: ['sessionHistoryIndex'], phase: 'composition' },
+  'session-search': {
+    provides: ['sessionSearch'],
+    injects: [
+      'sessionAccessCheck',
+      'sessionHistoryIndex',
+      'sessionHistoryLog',
+      'sessionSearchCursors',
+    ],
+  },
   'runtime-context-tenant-scope': {
     provides: ['runtimeContextTenantBlocks', 'runtimeContextTenantScope'],
     injects: ['runtimeContext'],
@@ -110,6 +120,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'tenantDomainRegistration',
       'sessionPrincipalBindings',
       'sessionScopeOwners',
+      'sessionHistoryLog',
+      'sessionSearchCursors',
     ],
     injects: ['storage', 'sessionAccessCheck'],
     phase: 'composition',
@@ -411,6 +423,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'human-intervention-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'session-diagnostics-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'calendar-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'model-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'schedule-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'notification-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },

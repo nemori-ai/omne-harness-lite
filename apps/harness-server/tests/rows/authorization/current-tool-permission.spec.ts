@@ -31,7 +31,7 @@ import {
   type ToolPermissionAction,
   type ToolPermissionPorts,
 } from '../../../src/rows/authorization/current-tool-permission.ts'
-import { okOf } from '../../entry/support.ts'
+import { fixtureTenant, okOf } from '../../entry/support.ts'
 import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
 import { onceTarget } from '../../../src/rows/authorization/authorization-facts.ts'
 
@@ -564,4 +564,66 @@ it('the default authorization row adopts the current source on each call without
     await identity.dispose()
     await ctx.fiber.dispose()
   }
+})
+
+it('does not let a carrier ask: the call it carries is judged for its own gate, and only a prohibition of its own refuses', async () => {
+  const w = world()
+  const check = createCurrentToolPermission(w.ports)
+  const carrier = { ...w.input, carrier: true as const }
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
+  const released = await check.check(carrier)
+  expect(released).toMatchObject({ kind: 'allow', condition: w.condition })
+  expect(released).not.toHaveProperty('authorization')
+  w.authorize(onceFor(w))
+  expect(await check.check(carrier)).not.toHaveProperty('authorization')
+  w.authorize(null)
+  w.current.evaluation.sources.tenant.rule.pick = 'deny'
+  expect(await check.check(carrier)).toMatchObject({
+    kind: 'deny',
+    category: 'rule',
+    reason: 'permission-policy',
+  })
+})
+
+it('needs the session inquiry of an action that asks, and of that one only', async () => {
+  const w = world()
+  const unread = createCurrentToolPermission({ ...w.ports, inquiry: async () => null })
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  expect(await unread.check(w.input)).toEqual({
+    kind: 'unavailable',
+    diagnostic: 'The session inquiry policy could not be read now.',
+  })
+  expect(await unread.check({ ...w.input, carrier: true })).toMatchObject({ kind: 'allow' })
+  w.current.evaluation.sources.tenant.rule.pick = 'auto'
+  expect(await unread.check(w.input)).toMatchObject({ kind: 'allow' })
+})
+
+it.each([
+  ['a tenant that is not a minted one', (w: World) => ({ ...w.input, tenant: {} as never })],
+  [
+    'the work of a session that does not act for the tenant of the action',
+    (w: World) => ({
+      ...w.input,
+      principal: okOf(
+        w.authority.issuer.issueActingForTenant({
+          actor: okOf(
+            w.authority.issuer.issueSystem({ component: 'sessionWorkPrincipals' }),
+            'actor',
+          ),
+          tenant: fixtureTenant('b'),
+          work: { owner: 'session', work: 'session-1' },
+        }),
+        'principal',
+      ),
+    }),
+  ],
+])('answers undecidable, with its reason, to an action of %s', async (_what, given) => {
+  const w = world()
+  const check = createCurrentToolPermission(w.ports)
+  expect(await check.check(given(w))).toEqual({
+    kind: 'undecidable',
+    diagnostic: 'The permission source answered for another request.',
+  })
+  expect(w.reads()).toBe(1)
 })

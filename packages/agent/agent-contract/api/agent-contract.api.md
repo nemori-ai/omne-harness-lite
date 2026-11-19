@@ -910,10 +910,12 @@ export type ActionJudgment = Readonly<{
     kind: 'denied';
     evidence: DurableEvidence;
     answer?: DurableEvidence;
+    notice?: string;
 }> | Readonly<{
     kind: 'allowed';
     evidence: DurableEvidence;
     request: DurableEvidence;
+    notice?: string;
 }>;
 export type ActionToolCall = ToolCallPart;
 export type Action = Readonly<{
@@ -3200,11 +3202,13 @@ export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-clos
 export type AdmissionDecision = Readonly<{
     kind: 'allow';
     evidence: DurableEvidence;
+    notice?: string;
 }> | Readonly<{
     kind: 'deny';
     category: DenialCategory;
     reason: string;
     evidence: DurableEvidence;
+    notice?: string;
 }> | Readonly<{
     kind: 'need-decision';
     card: DecisionCardDraft;

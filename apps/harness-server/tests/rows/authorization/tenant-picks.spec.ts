@@ -242,4 +242,40 @@ describe('writing the lasting pick on a card answer', () => {
     const other = { ...answer('allow'), definition: { ...gate.definition, name: 'Unknown' } }
     expect(await world(view()).picks.write(other)).toBe('not-writable')
   })
+
+  it('waits, and writes nothing, while the settings are not there, whether or not the gate has an item', async () => {
+    const absent = createTenantPicks({
+      declarations: () => declarations,
+      settings: () => undefined,
+    })
+    const other = { ...answer('allow'), definition: { ...gate.definition, name: 'Unknown' } }
+    expect(await absent.write(answer('allow'))).toBe('unavailable')
+    expect(await absent.write(other)).toBe('unavailable')
+    expect(await absent.writable(other)).toBe('unavailable')
+  })
+
+  it('does not read the settings for a gate the declarations do not answer, nor write for an effect it has no value for', async () => {
+    const other = { ...answer('allow'), definition: { ...gate.definition, name: 'Unknown' } }
+    const w = world(view())
+    expect(await w.picks.write(other)).toBe('not-writable')
+    expect(w.asked).toEqual([])
+    expect(w.sets).toEqual([])
+  })
+
+  it.each([
+    ['not visible', { kind: 'not-visible' }],
+    ['conflicting', { kind: 'conflict' }],
+    [
+      'not a permission',
+      { kind: 'described', item: { kind: 'ordinary', editable: { kind: 'yes' } } },
+    ],
+  ] as const)(
+    'writes nothing to an item that is %s, and answers not-writable',
+    async (_what, described) => {
+      const w = world(described as unknown as Described)
+      expect(await w.picks.write(answer('allow'))).toBe('not-writable')
+      expect(await w.picks.write(answer('deny'))).toBe('not-writable')
+      expect(w.sets).toEqual([])
+    },
+  )
 })

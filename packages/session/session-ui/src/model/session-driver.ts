@@ -68,8 +68,14 @@ const CALLS: Calls = {
       token,
       answer,
     })),
-  'create-session': ({ createCallId }, { client }) =>
-    notSent(() => client['create-session']({ createCallId, purpose: '' })).then(answer => ({
+  'create-session': ({ createCallId, model }, { client }) =>
+    notSent(() =>
+      client['create-session']({
+        createCallId,
+        purpose: '',
+        ...(model === undefined ? {} : { model }),
+      }),
+    ).then(answer => ({
       kind: 'create-answered',
       createCallId,
       answer,
@@ -162,8 +168,9 @@ export class SessionDriver {
     this.dispatch({ kind: 'open-session', session })
   }
 
-  createSession(): void {
-    this.dispatch({ kind: 'create', createCallId: this.#deps.newId() })
+  createSession(model?: string): void {
+    const createCallId = this.#deps.newId()
+    this.dispatch({ kind: 'create', createCallId, ...(model === undefined ? {} : { model }) })
   }
 
   confirmCreate(): void {

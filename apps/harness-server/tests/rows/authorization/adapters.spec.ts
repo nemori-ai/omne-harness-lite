@@ -497,6 +497,87 @@ describe('sessionAccessCheck: members and branches', () => {
       expect(read).toEqual([])
     })
 
+    it.each<[string, (() => unknown) | undefined, string]>([
+      ['no card service is installed', undefined, 'the decision cards are not installed'],
+      [
+        'the card service is not there now',
+        () => undefined,
+        'the decision cards are not installed',
+      ],
+      [
+        'the card cannot be read now',
+        () => ({ read: async () => ({ failure: { kind: 'unavailable' } }) }),
+        'the card answer could not be read now',
+      ],
+    ])('names why it waits when %s', async (_what, cards, diagnostic) => {
+      const w = world()
+      const check = createSessionAccessCheck({
+        ...w.ports,
+        ...(cards === undefined ? {} : { cards: cards as never }),
+      })
+      expect(await check.check(mutate(w.work(), 'change', once()))).toEqual({
+        kind: 'unavailable',
+        diagnostic,
+      })
+    })
+
+    it('answers a card service that throws as a dependency failure, without its message', async () => {
+      const w = world()
+      const check = createSessionAccessCheck({
+        ...w.ports,
+        cards: () => ({ read: () => Promise.reject(new Error('card SECRET-TEXT')) }) as never,
+      })
+      expect(await check.check(mutate(w.work(), 'change', once()))).toEqual({
+        kind: 'unavailable',
+        diagnostic:
+          'a dependency of the access check threw an exception; its message is not reported',
+      })
+    })
+
+    it('answers denied, with nothing more, to each answer the card cannot stand on', async () => {
+      const handing = (over: Record<string, unknown>) => ({ ...handingBack(gate), ...over })
+      for (const reply of [
+        { kind: 'pending' },
+        { kind: 'declined', evidence: said },
+        chosen('allow-once', { ...said, digest: 'other' }),
+        chosen('deny-once'),
+      ]) {
+        const { w, check } = answering(reply)
+        expect(await check.check(mutate(w.work(), 'change', once()))).toStrictEqual({
+          kind: 'denied',
+        })
+      }
+      for (const reply of [
+        { kind: 'pending' },
+        handing({ option: 'allow-once' }),
+        handing({ evidence: { ...said, digest: 'other' } }),
+        { ...handingBack({ ...gate, basis: 'r8' }) },
+      ]) {
+        const { w, check } = answering(reply)
+        expect(await check.check(mutate(w.work(), 'change', forSession()))).toStrictEqual({
+          kind: 'denied',
+        })
+      }
+    })
+
+    it('answers denied to a change whose declaration is no authorization expression of a card', async () => {
+      const { w, read, check } = answering(chosen('allow-once'))
+      const declared = once()
+      const unknown = {
+        declaration: {
+          ...declared.declaration,
+          expression: {
+            ...declared.declaration.expression,
+            scope: { kind: 'tenant' },
+          },
+        },
+      }
+      expect(await check.check(mutate(w.work(), 'change', unknown))).toStrictEqual({
+        kind: 'denied',
+      })
+      expect(read).toEqual([])
+    })
+
     it('answers unavailable while the cards cannot be read, and writes nothing on its own word', async () => {
       const w = world()
       expect((await w.session.check(mutate(w.work(), 'change', once()))).kind).toBe('unavailable')
