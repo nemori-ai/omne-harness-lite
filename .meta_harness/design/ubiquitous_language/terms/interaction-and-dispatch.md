@@ -690,7 +690,7 @@
 - **出处**：[PF-016 §4 交付面](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
   [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
   [§5.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 13） ·
-  [桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述)（rev 3）
+  [桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述)（rev 4）
 - **⚠️ 别混**：**不是[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)。**
   据点是这些会话事实**所在的那一处**，交付面**什么都不持有**；
   同一处据点上**可以同时开着好几处**在用它
@@ -842,7 +842,7 @@
 > settings of an asset here, not in the Settings part.
 
 - **形态**：位置
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 3）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 4）
 - **别混**：不是「设置」那一部分：设置只放不属于任何一份资产的设置项。
   不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)：它是资产的界面模块放进外壳「页面」这个位置里的一项。
 
@@ -862,7 +862,7 @@
 > has at most one page.
 
 - **形态**：视图
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 3）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 4）
 - **别混**：不是资产本身，也不存任何事实：页面上的每个值取自服务端此刻的答复。
   有没有这一页只说明这次部署装没装这一类的界面，不说明这个人许不许用这一类资产。
 - **注意**：它是放进资产页的[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)的一项[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)。

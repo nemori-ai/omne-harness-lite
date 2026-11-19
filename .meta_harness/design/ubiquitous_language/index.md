@@ -345,6 +345,8 @@
 | [UL-execution-frame](terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) | 执行帧 | Execution Frame | **一条 `ToolInternalMessage` 的到达增量**，走与模型回复同一套到达语法 |
 | [UL-tool-output](terms/execution-and-outcome.md#ul-tool-output--工具产出--tool-output) | 工具产出 | Tool Output | 三部分，**读者不同**；帧只给人看，agent 看不到 |
 | [UL-call-account](terms/execution-and-outcome.md#ul-call-account--调用账目--call-account) | 调用账目 | Call Account | 一次调用或执行花了什么、产出多少的账；**进日志不进上下文**，费用拿不到记未知 |
+| [UL-usage-fact](terms/execution-and-outcome.md#ul-usage-fact--用量事实--usage-fact) | 用量事实 | Usage Fact | 一次发出或一次工具执行给统计看的那一面；**只有数与标识**，由产生方保管，清理后仍在 |
+| [UL-context-occupancy](terms/execution-and-outcome.md#ul-context-occupancy--上下文占比--context-occupancy) | 上下文占比 | Context Occupancy | 最近一次主循环请求的全部输入占模型窗口的比例；**是读数不是用量**，不求实时 |
 | [UL-attachment](terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 附件 | Attachment | 存进存储、不进对话，agent 自己去取 |
 | [UL-result-offloading](terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading) | 结果卸载 | Result Offloading | 另存模型正文，首次消息呈现作者摘要或机械预览和有限期读回引用 |
 | [UL-offloaded-result](terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 被卸载的原始结果 | Offloaded Result | 卸载后另存的完整模型正文，不含程序值与原生资源目标 |
