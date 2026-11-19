@@ -1,4 +1,12 @@
-import { mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -24,6 +32,8 @@ function storeOf(root: string, over: Partial<Parameters<typeof createStore>[0]> 
 }
 
 const TENANT = 'tenant-a'
+// The one directory of a tenant under a root.
+const directoryIn = (root: string): string => join(root, readdirSync(root)[0]!)
 const gram = (text: string): GramPlan => ({ kind: 'gram', gram: text })
 const ANY: GramPlan = { kind: 'any' }
 const document = (text: string, kind = 'u'): IndexDocument => ({
@@ -369,6 +379,90 @@ describe('the candidates of a plan', () => {
     expect(found(store, ask(generation, ANY)).covered).toEqual([
       { session: 's1', through: '2', at: 8200 },
     ])
+  })
+})
+
+describe('a generation being built and the disk (SH-3)', () => {
+  const built = (root: string, boot: number) =>
+    createStore({ root, extraction: 1, readOnly: false, vocabularyLimit: 512, boot })
+
+  it('goes on with a build after the process restarts, and drops one from before the machine restarted', () => {
+    const root = rootOf()
+    const first = built(root, 1000)
+    stores.push(first)
+    expect(first.beginRebuild(TENANT, 2)).toEqual({ generation: 1 })
+    const batch = { tenant: TENANT, generation: 1, session: 's1', through: '1', at: 1001 }
+    expect(first.append({ ...batch, documents: [item(1, 'needle')] })).toBeNull()
+    first.close()
+    // The same start of the machine (a minute of slack either way): the build is still there.
+    const again = built(root, 1001)
+    stores.push(again)
+    expect(again.state(TENANT)).toMatchObject({ kind: 'rebuilding', building: 1, indexed: 1 })
+    expect(again.covers(TENANT, 1)).toEqual([{ session: 's1', through: '1', at: 1001 }])
+    again.close()
+    // Another start of the machine: what was written without waiting for the disk is not trusted.
+    const after = built(root, 1500)
+    stores.push(after)
+    expect(after.state(TENANT)).toEqual({ kind: 'absent' })
+    expect(after.covers(TENANT, 1)).toBe('generation-gone')
+    expect(after.append({ ...batch, documents: [item(1, 'needle')] })).toBe('generation-gone')
+    expect(after.beginRebuild(TENANT, 2)).toEqual({ generation: 2 })
+    expect(readdirSync(directoryIn(root)).filter(name => name.startsWith('g1.'))).toEqual([])
+    expect(after.covers(TENANT, 2)).toEqual([])
+  })
+
+  it('keeps the generation in use when a build from before a restart is dropped', () => {
+    const root = rootOf()
+    const first = built(root, 1000)
+    stores.push(first)
+    const generation = ready(first)
+    first.append({
+      tenant: TENANT,
+      generation,
+      session: 's1',
+      through: '1',
+      at: 1001,
+      documents: [item(1, 'needle')],
+    })
+    expect(first.beginRebuild(TENANT, 1)).toEqual({ generation: 2 })
+    first.close()
+    const after = built(root, 2000)
+    stores.push(after)
+    expect(after.state(TENANT)).toEqual({ kind: 'ready', generation })
+    expect(positions(after, ask(generation, gram('nee')))).toEqual(['s1:1'])
+    expect(after.beginRebuild(TENANT, 1)).toEqual({ generation: 3 })
+    expect(positions(after, ask(generation, gram('nee')))).toEqual(['s1:1'])
+  })
+
+  it('puts a build on the disk whole before it is adopted: nothing of it is left in the write-ahead log', () => {
+    const root = rootOf()
+    const store = built(root, 1000)
+    stores.push(store)
+    expect(store.beginRebuild(TENANT, 1)).toEqual({ generation: 1 })
+    for (let n = 1; n <= 50; n += 1)
+      store.append({
+        tenant: TENANT,
+        generation: 1,
+        session: 's1',
+        through: String(n),
+        at: 1000 + n,
+        documents: [item(n, `needle ${String(n)} `.repeat(40))],
+      })
+    const wal = join(directoryIn(root), 'g1.db-wal')
+    expect(statSync(wal).size).toBeGreaterThan(0)
+    expect(store.adopt(TENANT, 1)).toBeNull()
+    expect(existsSync(wal) ? statSync(wal).size : 0).toBe(0)
+    expect(positions(store, ask(1, gram('nee'), { limit: 100 }))).toHaveLength(50)
+    // It goes on as the generation in use: a later batch is written and read as before.
+    store.append({
+      tenant: TENANT,
+      generation: 1,
+      session: 's1',
+      through: '51',
+      at: 2000,
+      documents: [item(51, 'needle late')],
+    })
+    expect(positions(store, ask(1, gram('nee'), { limit: 100 }))).toHaveLength(51)
   })
 })
 

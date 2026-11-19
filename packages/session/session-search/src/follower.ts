@@ -1,8 +1,9 @@
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { followSession } from './follow.ts'
-import type { HistoryIndex } from './index-port.ts'
-import type { HistoryLogReader } from './log-port.ts'
+import type { SessionId, SessionRevision } from '@omne-harness/session-contract'
+import { appendPage } from './follow.ts'
+import type { Cover, HistoryIndex } from './index-port.ts'
+import type { EntryPage, HistoryLogReader } from './log-port.ts'
 
 export type FollowLimits = Readonly<{
   pageBytes: number
@@ -27,6 +28,26 @@ async function targetOf(deps: Ports, tenant: TenantId, total: number) {
   return succeed({ generation: begun.ok.generation, building: true })
 }
 
+type Behind = Readonly<{ session: SessionId; tail: SessionRevision }>
+type Read = Readonly<{ session: SessionId; page: EntryPage }>
+
+async function* pagesOf(
+  log: HistoryLogReader,
+  tenant: TenantId,
+  behind: readonly (Behind & Readonly<{ cover: Cover }>)[],
+  maxBytes: number,
+): AsyncGenerator<Read | null> {
+  for (const { session, tail, cover } of behind) {
+    let after = cover.through
+    while (BigInt(after) < BigInt(tail)) {
+      const page = await log.entries({ tenant, session, after, maxBytes })
+      if ('failure' in page) return yield null
+      yield { session, page: page.ok }
+      after = page.ok.through
+    }
+  }
+}
+
 /** One pass of following a tenant's logs: each session that is behind, a bounded number of steps. */
 export async function followTenant(
   deps: Ports,
@@ -40,22 +61,33 @@ export async function followTenant(
   const { generation, building } = target.ok
   const covers = await deps.index.covers(tenant, generation)
   if ('failure' in covers) return fail('unavailable')
+  const none: Cover = { through: '0' as SessionRevision, at: 0 }
+  const reached = new Map<SessionId, Cover>()
+  const behind = listed.ok.flatMap(({ session, tail }) => {
+    const cover = covers.ok.get(session) ?? none
+    return BigInt(cover.through) < BigInt(tail) ? [{ session, tail, cover }] : []
+  })
+  for (const { session, cover } of behind) reached.set(session, cover)
+  // The next page is read while this one is appended; one read is under way at a time.
+  const pages = pagesOf(deps.log, tenant, behind, limits.pageBytes)
   let steps = 0
-  let behind = 0
-  for (const { session, tail } of listed.ok) {
-    let cover = covers.ok.get(session) ?? { through: '0' as typeof tail, at: 0 }
-    while (BigInt(cover.through) < BigInt(tail) && steps < limits.maxSteps) {
-      const maxBytes = limits.pageBytes
-      const step = await followSession(deps, { tenant, generation, session, cover, maxBytes })
-      if ('failure' in step) return fail('unavailable')
-      steps += 1
-      cover = step.ok
-    }
-    if (BigInt(cover.through) < BigInt(tail)) behind += 1
+  let next = steps < limits.maxSteps ? pages.next() : null
+  while (next !== null) {
+    const read = await next
+    if (read.done === true) break
+    if (read.value === null) return fail('unavailable')
+    steps += 1
+    next = steps < limits.maxSteps ? pages.next() : null
+    const { session, page } = read.value
+    const cover = reached.get(session) ?? none
+    const step = await appendPage(deps, { tenant, generation, session, cover }, page)
+    if ('failure' in step) return fail('unavailable')
+    reached.set(session, step.ok)
   }
-  if (!building || behind > 0) return succeed({ behind, steps, adopted: false })
+  const left = behind.filter(item => BigInt(reached.get(item.session)!.through) < BigInt(item.tail))
+  if (!building || left.length > 0) return succeed({ behind: left.length, steps, adopted: false })
   const adopted = await deps.index.adopt(tenant, generation)
-  return 'failure' in adopted ? fail('unavailable') : succeed({ behind, steps, adopted: true })
+  return 'failure' in adopted ? fail('unavailable') : succeed({ behind: 0, steps, adopted: true })
 }
 
 export type FollowerOptions = Readonly<{
@@ -90,7 +122,6 @@ export function createHistoryFollower(options: FollowerOptions): HistoryFollower
       if ('failure' in pass) return options.report(`following the history failed: ${pass.failure}`)
       if (pass.ok.steps > 0) await options.index.compact(entry.tenant, options.compactPages)
       if (pass.ok.behind > 0) entry.again = true
-      // Other work of the process goes first between two passes.
       await new Promise(resume => setImmediate(resume))
     } while (entry.again && !stopped)
   }

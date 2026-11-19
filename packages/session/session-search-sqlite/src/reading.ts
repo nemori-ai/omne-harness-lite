@@ -8,6 +8,8 @@ export type ReadContext = Readonly<{
   root: string
   extraction: number
   vocabularyLimit: number
+  /** Which start of the machine this process runs in; see `bootOf`. */
+  boot: number
   handles: Handles
 }>
 
@@ -61,7 +63,7 @@ function brokenCurrent(context: ReadContext, file: string): string | null {
 export function stateOf(context: ReadContext, tenant: string): StoreState {
   const directory = directoryOf(context.root, tenant)
   const pointer = pointerOf(directory)
-  const building = buildingOf(directory)
+  const building = buildingOf(directory, context.boot)
   if (pointer !== null) {
     const diagnostic = brokenCurrent(context, fileOf(directory, pointer.generation))
     if (diagnostic !== null) return { kind: 'broken', diagnostic }
@@ -132,7 +134,7 @@ export function coversOf(
   generation: number,
 ): readonly CoverRow[] | StoreFailure {
   const directory = directoryOf(context.root, tenant)
-  const known = [pointerOf(directory)?.generation, buildingOf(directory)?.generation]
+  const known = [pointerOf(directory)?.generation, buildingOf(directory, context.boot)?.generation]
   if (!known.includes(generation)) return 'generation-gone'
   try {
     return context.handles

@@ -99,6 +99,50 @@ describe('following the logs of a tenant (SH-2, SH-3)', () => {
   })
 })
 
+describe('reading ahead while appending', () => {
+  it('reads the next page while this one is appended, one read at a time, and none past its steps', async () => {
+    const { w, pass } = logged()
+    const order: string[] = []
+    let reading = 0
+    let most = 0
+    const entries = w.log.reader.entries.bind(w.log.reader)
+    w.log.reader.entries = async input => {
+      reading += 1
+      most = Math.max(most, reading)
+      order.push('read')
+      const page = await entries(input)
+      await new Promise(resolve => setTimeout(resolve, 2))
+      reading -= 1
+      return page
+    }
+    const append = w.index.append.bind(w.index)
+    w.index.append = async input => {
+      order.push('append')
+      await new Promise(resolve => setTimeout(resolve, 6))
+      const done = await append(input)
+      order.push('appended')
+      return done
+    }
+    expect(await pass({ pageBytes: 1, maxSteps: 3 })).toEqual({
+      ok: { behind: 2, steps: 3, adopted: false },
+    })
+    // The second read starts before the first append is done; the last step reads nothing more.
+    expect(order).toEqual([
+      'read',
+      'read',
+      'append',
+      'appended',
+      'read',
+      'append',
+      'appended',
+      'append',
+      'appended',
+    ])
+    expect(most).toBe(1)
+    expect(w.index.coverOf(1, S1)).toEqual({ through: '3', at: 3 })
+  })
+})
+
 describe('the follower of a process (SH-2, SH-4)', () => {
   function following(over: { intervalMs?: number; maxSteps?: number } = {}) {
     const { w } = logged()

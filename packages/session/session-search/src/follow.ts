@@ -3,7 +3,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SessionId, SessionRevision } from '@omne-harness/session-contract'
 import { documentsOf } from './extract.ts'
 import type { Cover, HistoryIndex, IndexFailure, IndexedEntry } from './index-port.ts'
-import type { HistoryLogReader } from './log-port.ts'
+import type { EntryPage, HistoryLogReader } from './log-port.ts'
 
 export type FollowInput = Readonly<{
   tenant: TenantId
@@ -21,16 +21,14 @@ export type FollowStep = Readonly<{
   entries: number
 }>
 
-/** One page of a session's log into the index: its rows and the new cover in one append. */
-export async function followSession(
-  deps: Readonly<{ index: HistoryIndex; log: HistoryLogReader }>,
-  input: FollowInput,
+/** The rows of one page of a session's log and the new cover, in one append. */
+export async function appendPage(
+  deps: Readonly<{ index: HistoryIndex }>,
+  input: Omit<FollowInput, 'maxBytes'>,
+  page: EntryPage,
 ): Promise<Outcome<FollowStep, IndexFailure>> {
   const { tenant, generation, session, cover } = input
-  const after = cover.through
-  const page = await deps.log.entries({ tenant, session, after, maxBytes: input.maxBytes })
-  if ('failure' in page) return fail('unavailable')
-  const { entries, exhausted, through } = page.ok
+  const { entries, exhausted, through } = page
   let at = cover.at
   const documents: IndexedEntry[] = []
   for (const logged of entries) {
@@ -43,4 +41,16 @@ export async function followSession(
   const appended = await deps.index.append({ tenant, generation, session, through, at, documents })
   if ('failure' in appended) return appended
   return succeed({ through, at, exhausted, entries: entries.length })
+}
+
+/** One page of a session's log into the index: read from behind the cover, then appended. */
+export async function followSession(
+  deps: Readonly<{ index: HistoryIndex; log: HistoryLogReader }>,
+  input: FollowInput,
+): Promise<Outcome<FollowStep, IndexFailure>> {
+  const { tenant, session, cover } = input
+  const after = cover.through
+  const page = await deps.log.entries({ tenant, session, after, maxBytes: input.maxBytes })
+  if ('failure' in page) return fail('unavailable')
+  return appendPage(deps, input, page.ok)
 }

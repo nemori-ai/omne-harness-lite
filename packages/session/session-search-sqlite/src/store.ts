@@ -1,3 +1,4 @@
+import { bootOf } from './files.ts'
 import { createHandles } from './handles.ts'
 import {
   candidatesOf,
@@ -23,12 +24,14 @@ export type StoreOptions = Readonly<{
   readOnly: boolean
   /** How many vocabulary terms two code points may expand to before they narrow nothing. */
   vocabularyLimit: number
+  /** Which start of the machine this is; left out, it is read from the system. */
+  boot?: number
 }>
 
 /** The synchronous half of the index: one instance lives in one thread. */
 export function createStore(options: StoreOptions) {
   const handles = createHandles(options.readOnly)
-  const context: ReadContext = { ...options, handles }
+  const context: ReadContext = { ...options, boot: options.boot ?? bootOf(), handles }
   return {
     state: (tenant: string) => stateOf(context, tenant),
     candidates: (request: StoreCandidateRequest, faults?: CandidateFaults) =>
