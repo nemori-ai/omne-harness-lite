@@ -702,6 +702,11 @@
       "config": {}
     },
     {
+      "id": "workspace-access",
+      "plugin": "workspaceAccessRow",
+      "config": {}
+    },
+    {
       "id": "tool-access",
       "plugin": "toolAccessRow",
       "config": {}

@@ -60,6 +60,7 @@
         "packages/human-intervention/human-intervention-protocol",
         "packages/calendar/calendar-protocol",
         "packages/notification/notification-protocol",
+        "packages/workspace/workspace-protocol",
         "packages/schedule/schedule-protocol"
       ]
     },

@@ -32,14 +32,15 @@
     "@omne-harness/calendar-protocol": "workspace:*",
     "@omne-harness/human-intervention-protocol": "workspace:*",
     "@omne-harness/identity-protocol": "workspace:*",
-    "@omne-harness/notification-protocol": "workspace:*",
     "@omne-harness/model-protocol": "workspace:*",
+    "@omne-harness/notification-protocol": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/schedule-protocol": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
     "@omne-harness/session-diagnostics-protocol": "workspace:*",
     "@omne-harness/session-protocol": "workspace:*",
-    "@omne-harness/tool-protocol": "workspace:*"
+    "@omne-harness/tool-protocol": "workspace:*",
+    "@omne-harness/workspace-protocol": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -976,26 +976,34 @@
     },
     {
       "id": "packages/workspace/workspace-cordis-contract",
-      "paths": [
-        "packages/workspace/workspace-cordis-contract/src/**"
-      ],
+      "paths": ["packages/workspace/workspace-cordis-contract/src/**"],
       "layer": "contract",
-      "domains": [
-        "workspace"
-      ],
+      "domains": ["workspace"],
       "status": "adopted",
       "source": "packages/workspace/SPEC.md"
     },
     {
       "id": "packages/workspace/workspace-local",
-      "paths": [
-        "packages/workspace/workspace-local/src/**"
-      ],
+      "paths": ["packages/workspace/workspace-local/src/**"],
       "layer": "assembly",
-      "domains": [
-        "workspace"
-      ],
+      "domains": ["workspace"],
       "status": "adopted",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-protocol",
+      "paths": ["packages/workspace/workspace-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-access",
+      "paths": ["packages/workspace/workspace-access/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
       "source": "packages/workspace/SPEC.md"
     }
   ],
@@ -1392,8 +1400,9 @@
         "packages/workspace/workspace",
         "packages/workspace/workspace-filesystem",
         "packages/workspace/workspace-cordis-contract",
-        "packages/workspace/workspace-local"
-
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-protocol",
+        "packages/workspace/workspace-access"
       ],
       "to": [
         "packages/agent/agent-contract",
@@ -1424,10 +1433,36 @@
     {
       "id": "DIR-WORKSPACE-GOVERNANCE",
       "from": ["packages/workspace/workspace-contract", "packages/workspace/workspace"],
-      "to": ["packages/workspace/workspace-filesystem",
-"packages/workspace/workspace-cordis-contract",
-"packages/workspace/workspace-local"
-],
+      "to": [
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-protocol",
+        "packages/workspace/workspace-access"
+      ],
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-PROTOCOL",
+      "from": ["packages/workspace/workspace-protocol"],
+      "to": [
+        "packages/workspace/workspace-contract",
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-access"
+      ],
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-ACCESS",
+      "from": ["packages/workspace/workspace-access"],
+      "to": [
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-filesystem"
+      ],
       "source": "packages/workspace/SPEC.md"
     }
   ]

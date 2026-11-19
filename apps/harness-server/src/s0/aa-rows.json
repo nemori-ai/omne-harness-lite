@@ -78,6 +78,7 @@
     "calendar-access",
     "schedule-access",
     "notification-access",
+    "workspace-access",
     "tool-access",
     "model-access"
   ],
@@ -447,6 +448,13 @@
     },
     {
       "row": "notification-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "workspace-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

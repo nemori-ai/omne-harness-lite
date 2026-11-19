@@ -110,6 +110,7 @@ describe('command catalog', () => {
       'calendar',
       'schedule',
       'notification',
+      'workspace',
       'setting',
       'asset',
     ])

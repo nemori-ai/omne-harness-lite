@@ -100,6 +100,7 @@
 | `calendar-access` | `@omne-harness/calendar-access` 的 `./cordis` 插件 `createCalendarAccessPlugin`：`calendar/v1` 的接入插件。装上这一行，新地址才开放 `calendar/v1` | 无。插件把 `calendar/v1` 的贡献（列日历、读生效环境、答日期问题 3 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `calendarQuery`、`calendarCalculator`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `schedule-access` | `@omne-harness/schedule-access` 的 `./cordis` 插件 `createScheduleAccessPlugin`：`schedule/v1` 的接入插件。装上这一行，新地址才开放 `schedule/v1` | 无。插件把 `schedule/v1` 的贡献（列、读、修订历史、视图、预览、建与认回、管理与认回 9 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | `scheduleCommands`、`scheduleQueries`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `notification-access` | `@omne-harness/notification-access` 的 `./cordis` 插件 `createNotificationAccessPlugin`：`notification/v1` 的接入插件。装上这一行，新地址才开放 `notification/v1`。登录能为租户行事时，行事者是这个租户的 owner | 无。插件把 `notification/v1` 的贡献（以一个来源发送与查一次发送，收件、订阅与节拍、去处、目录共 16 个操作，一条观察）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | 通知的五个服务面与 `notificationChanges`。服务面取不到时调用答 `basis-unavailable`，协议不撤下；变化源取不到时观察以不可用结束 | 无 |
+| `workspace-access` | `@omne-harness/workspace-access` 的 `./cordis` 插件 `createWorkspaceAccessPlugin`：`workspace/v1` 的接入插件。装上这一行，新地址才开放 `workspace/v1`。登录能为租户行事时，行事的主体是这个租户的成员主体 | 无。插件把 `workspace/v1` 的贡献（登记与查一次登记，列出，查看，共 4 个操作，没有观察）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | 工作区的治理面与目录面。服务面取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `tool-access` | `@omne-harness/tool-access` 的 `./cordis` 插件 `createToolAccessPlugin`：`tool/v1` 的接入插件。装上这一行，新地址才开放 `tool/v1` | 无。插件把 `tool/v1` 的贡献（按调用引用读一次调用与读结果 2 个操作、观察 `observe-call`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createMemberActing`，把登录换成为目标租户行事的主体；资格读口缺席时换不出，调用答 `basis-unavailable`） | `toolRuntime` 的查询、实例与观察。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `model-access` | `@omne-harness/model-access` 的 `./cordis` 插件 `createModelAccessPlugin`：`model/v1` 的接入插件。装上这一行，新地址才开放 `model/v1` | 无。插件把 `model/v1` 的贡献（列出模型 1 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `modelProfiles`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 
@@ -258,6 +259,9 @@ flowchart LR
   server-entry --> notification-access
   identity -.-> notification-access
   notification -.-> notification-access
+  server-entry --> workspace-access
+  identity -.-> workspace-access
+  workspace -.-> workspace-access
   server-entry --> tool-access
   identity -.-> tool-access
   tool-runtime -.-> tool-access
@@ -399,6 +403,7 @@ flowchart LR
 | `calendar-access` | `principalIssuer`、`tenantStanding` |
 | `schedule-access` | `principalIssuer`、`tenantStanding` |
 | `notification-access` | `principalIssuer`、`tenantStanding` |
+| `workspace-access` | `principalIssuer`、`tenantStanding` |
 | `tool-access` | `principalIssuer`、`tenantStanding` |
 | `model-access` | `principalIssuer`、`tenantStanding` |
 

@@ -40,6 +40,7 @@ import { settingCommand } from './setting-command.ts'
 import { calendarCommand } from './calendar-command.ts'
 import { scheduleCommand } from './schedule-command.ts'
 import { notificationCommand } from './notification-command.ts'
+import { workspaceCommand } from './workspace-command.ts'
 import { callsCommand } from './calls-command.ts'
 
 async function runAccount(
@@ -825,6 +826,7 @@ export const productionCommands: readonly CommandSpec[] = [
   calendarCommand,
   scheduleCommand,
   notificationCommand,
+  workspaceCommand,
   settingCommand,
   assetCommand,
 ]

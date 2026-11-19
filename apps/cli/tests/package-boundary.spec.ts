@@ -17,6 +17,7 @@ const allowed = [
   '@omne-harness/session-diagnostics-protocol',
   '@omne-harness/session-protocol',
   '@omne-harness/tool-protocol',
+  '@omne-harness/workspace-protocol',
 ]
 
 const forbidden = [

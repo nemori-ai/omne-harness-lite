@@ -386,6 +386,11 @@
       "config": {}
     },
     {
+      "id": "workspace-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "tool-access",
       "plugin": "stubPlugin",
       "config": {}
