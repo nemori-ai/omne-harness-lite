@@ -9,18 +9,22 @@ import { inWindow, spentOut, type Run } from './search-run.ts'
 
 export type TailEnd =
   | Readonly<{ kind: 'done' }>
-  | Readonly<{ kind: 'stopped'; why: 'full' | 'budget'; resume: TailPoint; left: number }>
+  | Readonly<{ kind: 'stopped'; spent: boolean; resume: TailPoint; left: number }>
   | Readonly<{ kind: 'stale' }>
   | Readonly<{ kind: 'unavailable' }>
 
 type Found = Readonly<{ hit: SearchHit; when: number }>
 type Scan = { through: SessionRevision; at: number; carried: number; position: bigint }
 
+const scanFrom = ([, through, at]: FrozenCover): Scan => ({
+  through,
+  at,
+  carried: at,
+  position: 0n,
+})
+
 function startOf(frozen: readonly FrozenCover[], from: 'start' | TailPoint): [number, Scan] | null {
-  if (from === 'start') {
-    const [, through, at] = frozen[0]!
-    return [0, { through, at, carried: at, position: 0n }]
-  }
+  if (from === 'start') return [0, scanFrom(frozen[0]!)]
   const index = frozen.findIndex(([session]) => session === from.session)
   if (index < 0) return null
   const { through, at } = from
@@ -36,35 +40,26 @@ export async function scanTails(
   if (start === null) return { kind: 'stale' }
   const { deps, input } = run
   const found: Found[] = []
-  const room = input.pageSize - run.hits.length
   let [index, scan] = start
-  const end = (why: 'full' | 'budget'): TailEnd => ({
-    kind: 'stopped',
-    why,
-    resume: {
-      session: frozen[index]![0],
-      through: scan.through,
-      at: scan.at,
-      position: String(scan.position) as TailPoint['position'],
-    },
-    left: frozen.length - index,
-  })
-  const give = () => {
+  let reads = 0
+  const end = (spent: boolean): TailEnd => {
     // Newest first within the page; the scan itself goes session by session in log order.
     found.sort((left, right) => right.when - left.when)
     for (const { hit } of found) run.hits.push(hit)
+    if (index === frozen.length) return { kind: 'done' }
+    const position = String(scan.position) as TailPoint['position']
+    const resume = { session: frozen[index]![0], through: scan.through, at: scan.at, position }
+    return { kind: 'stopped', spent, resume, left: frozen.length - index }
   }
   while (index < frozen.length) {
     const session = frozen[index]![0]
-    let exhausted = false
-    while (!exhausted) {
-      if (spentOut(run)) return (give(), end('budget'))
-      const page = await deps.log.entries({
-        tenant: input.tenant,
-        session,
-        after: scan.through,
-        maxBytes: input.limits.tailPageBytes,
-      })
+    for (let exhausted = false; !exhausted;) {
+      // Asked after a read, never before the first: a page always gets somewhere.
+      if (reads > 0 && spentOut(run)) return end(true)
+      reads += 1
+      const after = scan.through
+      const maxBytes = input.limits.tailPageBytes
+      const page = await deps.log.entries({ tenant: input.tenant, session, after, maxBytes })
       if ('failure' in page) return { kind: 'unavailable' }
       run.spent.bytes += page.ok.bytes
       let revision = scan.through
@@ -75,26 +70,23 @@ export async function scanTails(
           scan.at = scan.carried
           revision = entry.revision
         }
+        // An entry with no recorded time counts at the last recorded time before it.
         if (at !== null) scan.carried = at
         if (BigInt(entry.id) <= scan.position) continue
         scan.position = BigInt(entry.id)
-        // An entry with no recorded time counts at the last recorded time before it.
-        if (!inWindow(input.query.window, scan.carried)) continue
-        const match = matchEntry(input.query, entry)
-        if (match === null) continue
+        const match = inWindow(input.query.window, scan.carried) && matchEntry(input.query, entry)
+        if (!match) continue
         const hit = { session, position: entry.id, kind: match.kind, at, snippet: snippetOf(match) }
         found.push({ hit, when: scan.carried })
-        if (found.length >= room) return (give(), end('full'))
+        if (found.length >= input.pageSize) return end(false)
       }
       scan.through = page.ok.through
       scan.at = scan.carried
       exhausted = page.ok.exhausted
     }
     index += 1
-    if (index < frozen.length) {
-      const [, through, at] = frozen[index]!
-      scan = { through, at, carried: at, position: 0n }
-    }
+    const next = frozen[index]
+    if (next !== undefined) scan = scanFrom(next)
   }
-  return (give(), { kind: 'done' })
+  return end(false)
 }

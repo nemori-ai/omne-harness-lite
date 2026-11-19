@@ -1,12 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { parseCursor, queryDigest, type SearchCursor } from '../src/index.ts'
-import { literals, queryOf } from './support.ts'
-import { S1, S2, S3, TENANT, keysOf, said, world } from './search-support.ts'
+import {
+  compileQuery,
+  parseCursor,
+  queryDigest,
+  searchHistory,
+  type SearchCursor,
+  type SearchQuery,
+} from '../src/index.ts'
+import { LIMITS, literals, queryOf } from './support.ts'
+import { ROOMY, S1, S2, S3, TENANT, keysOf, said, world } from './search-support.ts'
 
 // The three rules the model SearchCoverage states for a search. Each case names the rule it
 // keeps; a control beside it breaks the rule and shows the same search then goes wrong.
 
 const NEEDLE = queryOf({ content: literals(['needle']) })
+function compiledOf(query: SearchQuery) {
+  const compiled = compileQuery(query, LIMITS)
+  if (typeof compiled === 'string') throw new Error(compiled)
+  return compiled
+}
 
 describe('rule: the covers are read before the rows, or in one read with them', () => {
   // An entry is in the log and not yet in the index when the search begins. While the candidates
@@ -93,6 +105,42 @@ describe('rule: one search, one generation', () => {
     expect(keysOf([await w.page(NEEDLE)])).toHaveLength(5)
   })
 
+  it('sees the generation go between asking for the state and asking for candidates', async () => {
+    const { w, cursor } = await paged()
+    const state = w.index.state.bind(w.index)
+    const racing = {
+      ...w.deps,
+      index: {
+        ...w.index,
+        state: async (tenant: typeof TENANT) => {
+          const told = await state(tenant)
+          await rebuilt(w)
+          return told
+        },
+      },
+    }
+    const input = {
+      tenant: TENANT,
+      query: compiledOf(NEEDLE),
+      digest: queryDigest(NEEDLE),
+      pageSize: 2,
+      limits: ROOMY,
+    }
+    expect(await searchHistory(racing, { ...input, cursor })).toEqual({ failure: 'cursor-stale' })
+    expect(await searchHistory(racing, { ...input, cursor: null })).toEqual({
+      failure: 'unavailable',
+    })
+  })
+
+  it('says unavailable when the index stops answering in the middle of a walk', async () => {
+    const { w, cursor } = await paged()
+    w.index.faults.duringCandidates = async () => {
+      w.index.faults.failing = 'unavailable'
+    }
+    const limits = { candidateBatch: 2 }
+    expect(await w.search(NEEDLE, { limits, cursor })).toEqual({ failure: 'unavailable' })
+  })
+
   it('keeps a cursor through a rebuild that is not adopted yet', async () => {
     const { w, cursor } = await paged()
     await w.index.beginRebuild(TENANT, 1)
@@ -161,6 +209,38 @@ describe('rule: what was not looked at is said', () => {
     expect(keysOf(timed).sort()).toEqual(w.scan(NEEDLE))
   })
 
+  it('counts a budget as spent when it is reached, not only when it is passed', async () => {
+    const { w, generation } = behind()
+    const one = await w.log.reader.entries({
+      tenant: TENANT,
+      session: S1,
+      after: '0' as never,
+      maxBytes: 200,
+    })
+    if ('failure' in one) throw new Error('read')
+    w.log.reads.entries = 0
+    const bytes = await w.page(NEEDLE, { limits: { scanBytes: one.ok.bytes, tailPageBytes: 200 } })
+    expect(w.log.reads.entries).toBe(1)
+    expect(bytes.incomplete?.reason).toBe('tail-budget')
+    await w.followAll(generation)
+    w.clock.step = 10
+    const timed = await w.page(NEEDLE, { limits: { timeBudgetMs: 10 } })
+    expect(timed.hits).toHaveLength(1)
+    expect(timed.incomplete?.reason).toBe('budget')
+  })
+
+  it('gets somewhere on every page, however small the budgets: a search always ends', async () => {
+    const { w, generation } = behind()
+    await w.follow(generation, S1)
+    await w.follow(generation, S2, '2')
+    const limits = { timeBudgetMs: 0, scanBytes: 0, maxCandidates: 0, tailPageBytes: 1 }
+    const pages = await w.pages(NEEDLE, { limits })
+    expect(pages.length).toBeGreaterThanOrEqual(12)
+    expect(keysOf(pages).sort()).toEqual(w.scan(NEEDLE))
+    // One read of a tail, or one candidate; the page that ends the tails does both.
+    expect(pages.slice(0, -1).every(page => !page.complete && page.hits.length <= 2)).toBe(true)
+  })
+
   it('does not call a full page incomplete: there is a way on and nothing was skipped', async () => {
     const { w, generation } = behind()
     await w.follow(generation, S1)
@@ -187,6 +267,12 @@ describe('rule: what was not looked at is said', () => {
   it('with more sessions behind than a cursor carries, says it cannot go on', async () => {
     const { w, generation } = behind()
     await w.follow(generation, S1)
+    const carried = await w.page(NEEDLE, { pageSize: 3, limits: { maxFrozen: 2 } })
+    expect(carried.complete).toBe(true)
+    expect(carried.next?.frozen).toEqual([
+      [S2, '0', 0],
+      [S3, '0', 0],
+    ])
     const cut = await w.page(NEEDLE, { pageSize: 3, limits: { maxFrozen: 1 } })
     expect(cut).toMatchObject({
       next: null,
@@ -234,11 +320,19 @@ describe('the cursor as data', () => {
     expect(parseCursor(JSON.parse(JSON.stringify(cursor)))).toEqual(cursor)
     const bare = { ...cursor, frozen: [], tail: null, before: null, last: null }
     expect(parseCursor(bare)).toEqual(bare)
+    const zero = {
+      ...cursor,
+      generation: 0,
+      frozen: [[S1, '0', 0]],
+      tail: { session: S1, through: '0', at: 0, position: '0' },
+    }
+    expect(parseCursor(zero)).toEqual(zero)
   })
 
   it.each([
     ['not an object', 'cursor'],
     ['null', null],
+    ['nothing', undefined],
     ['no query', { ...cursor, query: '' }],
     ['a generation that is no count', { ...cursor, generation: -1 }],
     ['a generation that is text', { ...cursor, generation: '3' }],
@@ -279,6 +373,9 @@ describe('the cursor as data', () => {
       { ...base, content: { kind: 'regex' as const, pattern: 'a', caseSensitive: false } },
       { ...base, kinds: ['message.user'] as const },
       { ...base, scope: { kind: 'tenant' as const } },
+      { ...base, scope: { kind: 'sessions' as const, sessions: [S1] } },
+      { ...base, content: { kind: 'regex' as const, pattern: 'b', caseSensitive: false } },
+      { ...base, content: { kind: 'regex' as const, pattern: 'a', caseSensitive: true } },
       { ...base, archived: 'archived' as const },
       { ...base, from: 1 },
       { ...base, to: 1 },

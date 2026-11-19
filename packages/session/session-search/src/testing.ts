@@ -186,7 +186,7 @@ export type MemoryIndex = HistoryIndex &
       failing: IndexFailure | null
       broken: boolean
     }
-    reads: { candidates: number }
+    reads: { candidates: number; asked: CandidateRequest[] }
     ready(): number
     coverOf(generation: number, session: SessionId): Cover
   }>
@@ -205,7 +205,7 @@ export function createMemoryIndex(): MemoryIndex {
     failing: null,
     broken: false,
   }
-  const reads = { candidates: 0 }
+  const reads: MemoryIndex['reads'] = { candidates: 0, asked: [] }
   const fresh = (): number => {
     issued += 1
     generations.set(issued, { covered: new Map(), rows: [], serial: 0n })
@@ -245,6 +245,7 @@ export function createMemoryIndex(): MemoryIndex {
     },
     async candidates(input) {
       reads.candidates += 1
+      reads.asked.push(input)
       const generation = generations.get(input.generation)
       if (faults.failing !== null) return fail(faults.failing)
       if (generation === undefined) return fail('generation-gone')

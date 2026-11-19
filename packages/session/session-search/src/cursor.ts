@@ -28,6 +28,7 @@ export type SearchCursor = Readonly<{
 /** One digest for one query: a cursor of another query does not continue this one. */
 export function queryDigest(query: SearchQuery): string {
   const scope = query.scope.kind === 'tenant' ? null : [...query.scope.sessions].sort()
+  const { content } = query
   const canonical = [
     scope,
     query.archived,
@@ -35,9 +36,11 @@ export function queryDigest(query: SearchQuery): string {
     query.to,
     [...query.kinds].sort(),
     query.modelReadable,
-    query.content.kind === 'literals'
-      ? ['literals', query.content.all, query.content.caseSensitive]
-      : ['regex', query.content.pattern, query.content.caseSensitive],
+    [
+      content.kind,
+      content.kind === 'literals' ? content.all : content.pattern,
+      content.caseSensitive,
+    ],
   ]
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex')
 }
@@ -47,8 +50,8 @@ const count = (value: unknown): value is number => Number.isSafeInteger(value) &
 const digits = (value: unknown): value is string => text(value) && /^\d+$/u.test(value)
 
 function point(value: unknown, key: 'through' | 'position'): boolean {
-  const given = value as Record<string, unknown> | null
-  return typeof given === 'object' && given !== null && text(given['session']) && digits(given[key])
+  const given = value as Record<string, unknown>
+  return typeof given === 'object' && text(given['session']) && digits(given[key])
 }
 
 function tailPoint(value: unknown): boolean {

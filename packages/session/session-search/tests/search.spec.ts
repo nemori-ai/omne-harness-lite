@@ -85,6 +85,9 @@ describe('a search in each state of the index (SH-1, SH-3)', () => {
     ])
     expect(page).toMatchObject({ complete: true, incomplete: null, next: null })
     expect(w.log.reads.entries).toBe(0)
+    // Six rows in batches of four: a short batch ends the walk, with no third question.
+    expect(w.index.reads.candidates).toBe(2)
+    expect(w.index.reads.asked.map(asked => asked.before)).toEqual([null, expect.any(String)])
   })
 
   it('goes on from a cursor: every hit once, newest first, then no way on', async () => {
@@ -248,12 +251,18 @@ describe('the range of a search', () => {
   it('keeps to the named sessions, in the index and in the tails', async () => {
     const w = filled()
     await w.follow(w.index.ready(), S1)
+    const sessions = [S1, S3]
     const query = queryOf({
       content: literals(['needle']),
-      scope: { kind: 'sessions', sessions: [S1, S3] },
+      scope: { kind: 'sessions', sessions },
     })
     const page = await w.page(query)
     expect(keysOf([page]).sort()).toEqual(['session-1#1', 'session-1#3', 'session-3#2'])
+    await w.followAll(((await w.index.state(TENANT)) as { generation: number }).generation)
+    w.index.reads.asked.length = 0
+    await w.page(query, { limits: { candidateBatch: 1 } })
+    expect(w.index.reads.asked).toHaveLength(4)
+    expect(w.index.reads.asked.every(asked => asked.sessions === sessions)).toBe(true)
   })
 
   it('keeps to archived or unarchived sessions as asked', async () => {
@@ -267,20 +276,29 @@ describe('the range of a search', () => {
     expect(keysOf([open]).sort()).toEqual(['session-2#1', 'session-2#2', 'session-2#3'])
   })
 
+  it('reads back only the candidates that can still be hits', async () => {
+    const w = filled()
+    await w.followAll(w.index.ready())
+    w.log.archive(S2, true)
+    w.log.reads.points = 0
+    await w.page(queryOf({ content: literals(['needle']), archived: 'unarchived' }))
+    expect(w.log.reads.points).toBe(3)
+  })
+
   it('counts an entry with no recorded time at the last one before it, tail and index alike', async () => {
     const w = world()
     w.log.commit(S1, [said('needle early')], 1000)
     w.log.commit(S1, [said('needle untimed')], null)
     w.log.commit(S1, [said('needle late')], 3000)
     w.log.commit(S1, [said('needle untimed late')], null)
-    const query = queryOf({ content: literals(['needle']), from: 900, to: 1500 })
+    const query = queryOf({ content: literals(['needle']), from: 1000, to: 1000 })
     const generation = w.index.ready()
     expect(keysOf([await w.page(query)]).sort()).toEqual(['session-1#1', 'session-1#2'])
     await w.follow(generation, S1, '1')
     expect(keysOf([await w.page(query)]).sort()).toEqual(['session-1#1', 'session-1#2'])
     await w.follow(generation, S1)
     expect(keysOf([await w.page(query)]).sort()).toEqual(['session-1#1', 'session-1#2'])
-    const late = queryOf({ content: literals(['needle']), from: 2000, to: null })
+    const late = queryOf({ content: literals(['needle']), from: 3000, to: null })
     expect(keysOf([await w.page(late)]).sort()).toEqual(['session-1#3', 'session-1#4'])
   })
 

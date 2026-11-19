@@ -2,7 +2,7 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { SessionId } from '@omne-harness/session-contract'
 import type { SearchCursor } from './cursor.ts'
 import type { SearchHit } from './hit.ts'
-import type { HistoryIndex } from './index-port.ts'
+import type { CandidateRequest, DocId, HistoryIndex } from './index-port.ts'
 import type { HistoryLogReader } from './log-port.ts'
 import type { CompiledQuery } from './query.ts'
 
@@ -50,4 +50,16 @@ export const spentOut = (run: Run): boolean =>
 
 export function inWindow(window: CompiledQuery['window'], at: number): boolean {
   return (window.from === null || at >= window.from) && (window.to === null || at <= window.to)
+}
+
+/** What a search asks the index for: the same question for every batch, further down each time. */
+export function candidatesAsk(
+  input: SearchInput,
+  generation: number,
+  before: DocId | null,
+): CandidateRequest {
+  const { query, tenant } = input
+  const sessions = query.scope.kind === 'sessions' ? query.scope.sessions : null
+  const limit = input.limits.candidateBatch
+  return { tenant, generation, plan: query.plan, sessions, window: query.window, before, limit }
 }

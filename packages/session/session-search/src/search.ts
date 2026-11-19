@@ -5,7 +5,13 @@ import type { SearchHit } from './hit.ts'
 import type { Candidates, IndexState, Progress } from './index-port.ts'
 import type { LoggedSession } from './log-port.ts'
 import type { CompiledQuery } from './query.ts'
-import { pageFull, spentOut, type Run, type SearchDeps, type SearchInput } from './search-run.ts'
+import {
+  candidatesAsk,
+  pageFull,
+  type Run,
+  type SearchDeps,
+  type SearchInput,
+} from './search-run.ts'
 import { scanTails, type TailEnd } from './search-tail.ts'
 import { walkIndex, type WalkEnd } from './search-walk.ts'
 
@@ -28,81 +34,68 @@ export type SearchPage = Readonly<{
 
 export type SearchFailure = 'unavailable' | 'index-broken' | 'cursor-stale'
 
-function generationOf(state: IndexState): number | null {
-  return state.kind === 'ready' || state.kind === 'rebuilding' ? state.generation : null
-}
-
 function scopeOf(query: CompiledQuery, sessions: readonly LoggedSession[]) {
   const named = query.scope.kind === 'sessions' ? new Set(query.scope.sessions) : null
   const archived = new Map(sessions.map(item => [item.session, item.archived]))
   return (session: SessionId): boolean => {
-    const state = archived.get(session)
-    if (state === undefined || (named !== null && !named.has(session))) return false
-    return query.archived === 'all' || state === (query.archived === 'archived')
+    if (named !== null && !named.has(session)) return false
+    return query.archived === 'all' || archived.get(session) === (query.archived === 'archived')
   }
 }
 
 function behindOf(
   sessions: readonly LoggedSession[],
-  covered: Candidates['covered'],
+  covered: Candidates['covered'] | undefined,
 ): FrozenCover[] {
   const behind: FrozenCover[] = []
   for (const { session, tail } of sessions) {
-    const cover = covered.get(session)
-    const through = cover?.through ?? ('0' as SessionRevision)
-    if (BigInt(tail) > BigInt(through)) behind.push([session, through, cover?.at ?? 0])
+    const cover = covered?.get(session) ?? { through: '0' as SessionRevision, at: 0 }
+    if (BigInt(tail) > BigInt(cover.through)) behind.push([session, cover.through, cover.at])
   }
-  return behind.sort((left, right) => (left[0] < right[0] ? -1 : 1))
+  return behind
 }
 
 type Opened = Readonly<{
   state: IndexState
-  generation: number | null
-  first: Candidates
+  index: Readonly<{ generation: number; first: Candidates }> | null
   sessions: readonly LoggedSession[]
 }>
 
 // Covers and first candidates in one index read, the log heads after it: a sound cover is behind them.
 async function open(deps: SearchDeps, input: SearchInput): Promise<Outcome<Opened, SearchFailure>> {
-  const { cursor, query, tenant } = input
+  const { cursor, tenant } = input
   const state = await deps.index.state(tenant)
   if (state.kind === 'broken') return fail('index-broken')
-  const generation = generationOf(state)
+  const generation = state.kind === 'absent' ? null : state.generation
   if (cursor !== null && (cursor.generation !== generation || cursor.query !== input.digest))
     return fail('cursor-stale')
-  let first: Candidates = { covered: new Map(), rows: [] }
+  let index: Opened['index'] = null
   if (generation !== null) {
-    const found = await deps.index.candidates({
-      tenant,
-      generation,
-      plan: query.plan,
-      sessions: query.scope.kind === 'sessions' ? query.scope.sessions : null,
-      window: query.window,
-      before: cursor?.before ?? null,
-      limit: input.limits.candidateBatch,
-    })
+    const before = cursor?.before ?? null
+    const found = await deps.index.candidates(candidatesAsk(input, generation, before))
     if ('failure' in found) {
       const gone = found.failure === 'generation-gone' && cursor !== null
       return fail(gone ? 'cursor-stale' : 'unavailable')
     }
-    first = found.ok
+    index = { generation, first: found.ok }
   }
   const listed = await deps.log.sessions(tenant)
   if ('failure' in listed) return fail('unavailable')
-  for (const { session, tail } of listed.ok)
-    if (BigInt(first.covered.get(session)?.through ?? '0') > BigInt(tail))
-      return fail('index-broken')
-  return succeed({ state, generation, first, sessions: listed.ok })
+  for (const { session, tail } of listed.ok) {
+    const cover = index?.first.covered.get(session)
+    if (cover !== undefined && BigInt(cover.through) > BigInt(tail)) return fail('index-broken')
+  }
+  return succeed({ state, index, sessions: listed.ok })
 }
 
 type Ends = Readonly<{
   tail: Extract<TailEnd, { kind: 'done' | 'stopped' }>
-  walk: WalkEnd | null
+  walk: Extract<WalkEnd, { kind: 'done' | 'stopped' }> | null
 }>
 
 function pageOf(run: Run, opened: Opened, frozen: readonly FrozenCover[], ends: Ends): SearchPage {
-  const { cursor, digest, limits } = run.input
-  const { generation, state } = opened
+  const { digest, limits } = run.input
+  const { state, index } = opened
   const progress = state.kind === 'rebuilding' ? state.progress : null
   const page = (next: SearchCursor | null, incomplete: Incomplete | null): SearchPage => ({
     hits: run.hits,
@@ -111,34 +104,34 @@ function pageOf(run: Run, opened: Opened, frozen: readonly FrozenCover[], ends: 
     incomplete,
   })
   const { tail, walk } = ends
-  if (generation === null) {
-    // No generation to bind a cursor to: the logs were scanned, wholly or not.
+  if (index === null) {
     if (tail.kind === 'done') return page(null, null)
     const total = opened.sessions.length
-    return page(null, {
-      reason: 'rebuilding',
-      behind: tail.left,
-      progress: progress ?? { indexed: 0, total },
-    })
+    const built = progress ?? { indexed: 0, total }
+    return page(null, { reason: 'rebuilding', behind: tail.left, progress: built })
   }
-  const cursorOf = (rest: Pick<SearchCursor, 'tail' | 'before' | 'last'>): SearchCursor | null =>
-    frozen.length <= limits.maxFrozen ? { query: digest, generation, frozen, ...rest } : null
-  const carried = { before: cursor?.before ?? null, last: cursor?.last ?? null }
+  // A page that stops with a way on is through; one that spent its budget, or has no way on, is not.
+  const onward = (
+    rest: Pick<SearchCursor, 'tail' | 'before' | 'last'>,
+    spent: boolean,
+    short: Pick<Incomplete, 'reason' | 'behind'>,
+  ): SearchPage => {
+    const carried = frozen.length <= limits.maxFrozen
+    const next = carried ? { query: digest, generation: index.generation, frozen, ...rest } : null
+    return page(next, spent || next === null ? { ...short, progress } : null)
+  }
   if (tail.kind === 'stopped') {
-    const next = cursorOf({ tail: tail.resume, ...carried })
-    const said = tail.why === 'budget' || next === null
-    return page(next, said ? { reason: 'tail-budget', behind: tail.left, progress } : null)
+    const short = { reason: 'tail-budget', behind: tail.left } as const
+    return onward({ tail: tail.resume, before: null, last: null }, tail.spent, short)
   }
-  // The walk did not run: the tails filled the page or spent the budget.
-  const end: WalkEnd =
-    walk ??
-    (opened.first.rows.length === 0
-      ? { kind: 'done' }
-      : { kind: 'stopped', why: pageFull(run) ? 'full' : 'budget', ...carried })
-  if (end.kind !== 'stopped') return page(null, null)
-  const next = cursorOf({ tail: null, before: end.before, last: end.last })
-  const said = end.why === 'budget' || next === null
-  return page(next, said ? { reason: 'budget', behind: 0, progress } : null)
+  const short = { reason: 'budget', behind: 0 } as const
+  if (walk === null) {
+    // The tails filled the page: the walk begins with the next one, if the index has anything.
+    if (index.first.rows.length === 0) return page(null, null)
+    return onward({ tail: null, before: null, last: null }, false, short)
+  }
+  if (walk.kind === 'done') return page(null, null)
+  return onward({ tail: null, before: walk.before, last: walk.last }, walk.spent, short)
 }
 
 export async function searchHistory(
@@ -147,7 +140,7 @@ export async function searchHistory(
 ): Promise<Outcome<SearchPage, SearchFailure>> {
   const opened = await open(deps, input)
   if ('failure' in opened) return opened
-  const { first, generation, sessions } = opened.ok
+  const { index, sessions } = opened.ok
   const { cursor } = input
   const inScope = scopeOf(input.query, sessions)
   const run: Run = {
@@ -159,22 +152,20 @@ export async function searchHistory(
     started: deps.now(),
     inScope,
   }
-  const frozen =
-    cursor?.frozen ??
-    behindOf(
-      sessions.filter(item => inScope(item.session)),
-      first.covered,
-    )
+  const inRange = sessions.filter(item => inScope(item.session))
+  const frozen = cursor?.frozen ?? behindOf(inRange, index?.first.covered)
   const from = cursor === null ? (frozen.length > 0 ? 'start' : null) : cursor.tail
   const tail: TailEnd = from === null ? { kind: 'done' } : await scanTails(run, frozen, from)
   if (tail.kind === 'unavailable') return fail('unavailable')
   if (tail.kind === 'stale') return fail('cursor-stale')
-  let walk: WalkEnd | null = null
-  if (tail.kind === 'done' && generation !== null && !pageFull(run) && !spentOut(run)) {
-    const start = { generation, first, frozen, before: cursor?.before ?? null }
-    walk = await walkIndex(run, { ...start, last: cursor?.last ?? null })
-    if (walk.kind === 'unavailable') return fail('unavailable')
-    if (walk.kind === 'stale') return fail(cursor === null ? 'unavailable' : 'cursor-stale')
+  let walk: Ends['walk'] = null
+  if (tail.kind === 'done' && index !== null && !pageFull(run)) {
+    const { generation, first } = index
+    const last = cursor?.last ?? null
+    const walked = await walkIndex(run, { generation, first: first.rows, frozen, last })
+    if (walked.kind === 'unavailable') return fail('unavailable')
+    if (walked.kind === 'stale') return fail(cursor === null ? 'unavailable' : 'cursor-stale')
+    walk = walked
   }
   return succeed(pageOf(run, opened.ok, frozen, { tail, walk }))
 }
