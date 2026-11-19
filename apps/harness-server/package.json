@@ -157,6 +157,7 @@
     "@omne-harness/workspace-filesystem": "workspace:*",
     "@omne-harness/workspace-git": "workspace:*",
     "@omne-harness/workspace-local": "workspace:*",
+    "@omne-harness/workspace-tools": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

@@ -1,3 +1,4 @@
+import { workspaceCodec } from '@omne-harness/legal-identity'
 import {
   decide,
   instanceId,
@@ -6,6 +7,7 @@ import {
   standingOf,
   type Answer,
   type InstanceId,
+  type Located,
   type ManagementType,
   type Reason,
   type Recognised,
@@ -29,8 +31,10 @@ import {
   type Blocked,
 } from './gate.ts'
 import type { WorkspaceState } from './store.ts'
+import type { InstanceRecord } from './txn.ts'
 
 const INVALID = { kind: 'not-performed', reason: reason('invalid-request') } as const
+const NOWHERE = { kind: 'none' } as const
 const notPerformed = (why: Reason) => ({ kind: 'not-performed', reason: why }) as const
 
 /** How often an association is decided again after the workspace changed under it. */
@@ -166,6 +170,28 @@ export function createInstances<P>(deps: WorkspaceDependencies<P>): WorkspaceIns
           digest: digestOf({ tenant, workspace, instance, directory, basis }),
         },
       }
+    },
+
+    async locate(access, address): Promise<Located> {
+      const tenant = tenantText(access)
+      if (tenant === null) return NOWHERE
+      const blocked = await admitted(deps.authority, access, 'workspace.list', deps.node)
+      if (blocked !== null) return blocked.kind === 'unavailable' ? blocked : NOWHERE
+      const memberships = await deps.store.memberships(tenant)
+      if (memberships.kind === 'unavailable') return unavailable('store')
+      for (const { workspace } of memberships.value) {
+        const state = await deps.store.state(tenant, workspace.workspace)
+        if (state.kind === 'unavailable') return unavailable('store')
+        const here = (record: InstanceRecord) =>
+          record.node === deps.node && record.address === address
+        const record = state.value?.instances.find(here)
+        const id = workspaceCodec.parse(workspace.workspace)
+        if (record !== undefined)
+          return id.ok
+            ? { kind: 'located', workspace: id.value, instance: record.instance }
+            : unavailable('stored-value')
+      }
+      return NOWHERE
     },
   }
 }

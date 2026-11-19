@@ -27,6 +27,7 @@ const CODING = [
   'Sessions',
   'Shell',
   'Skills',
+  'SwitchWorkspace',
   'TodoItems',
   'Tools',
   'Web',

@@ -39,7 +39,7 @@ const SESSION_GOLDEN = {
   completeInitialization: NOT_MEMBER_ROW,
   change: [
     'member [declaration permission-assignment|permission-mode|collaboration-mode|environment-mode|workspace|model|declaration|context-registration|context-step-commit|recovery-input]',
-    'member [declaration authorization-expression]',
+    'member [declaration authorization-expression|workspace]',
     D,
   ],
   setRelation: [M, D, D],

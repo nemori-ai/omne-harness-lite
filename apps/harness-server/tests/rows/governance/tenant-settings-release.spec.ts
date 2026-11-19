@@ -35,6 +35,7 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
           'Sessions',
           'Shell',
           'Skills',
+          'SwitchWorkspace',
           'TodoItems',
           'Tools',
           'Web',

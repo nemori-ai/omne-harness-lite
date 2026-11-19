@@ -17,6 +17,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolConsumerProfile, ToolDefinition } from '@omne-harness/tool-contract'
 import { toolEnvironmentsKey } from '@omne-harness/tool-cordis-contract/cordis'
+import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import type { LocalToolAvailabilitySource } from '@omne-harness/tool-host-local'
 import { releaseOf } from '../../entry/tool-release.ts'
 import type { ToolReleaseManifest } from '../../entry/tool-release-manifest.ts'
@@ -110,6 +111,7 @@ const CAPABILITY_SERVICES: Readonly<Record<string, string>> = {
   'notification.write': notificationSendingKey,
   'session.read': sessionKey,
   'session.search': sessionSearchKey,
+  'workspace.switch': workspaceInstancesKey,
 }
 
 function capabilityFacts(ctx: Context, definition: ToolDefinition) {

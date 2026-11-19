@@ -290,6 +290,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Schedules: { resultMaxBytes: 65_536 },
       Notifications: { resultMaxBytes: 65_536 },
       Sessions: { resultMaxBytes: 131_072 },
+      SwitchWorkspace: { resultMaxBytes: 65_536 },
     },
     web: {
       search: {

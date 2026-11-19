@@ -117,8 +117,8 @@ export const SESSION_POLICY = Object.freeze({
       { kind: 'declaration', kinds: LOGIN_DECLARATIONS },
     ),
     member(
-      'packages/session/SPEC.md「权限配值与待办」：会话授权上下文的追加要专属的写资格。只有这个会话的这一轮能写，并且只凭卡上那一个答复（准入的适配在答复之后写，访问检查回读卡）。别的声明照 SW:129：Agent 不能直接写模式',
-      { kind: 'declaration', kinds: ['authorization-expression'] },
+      'packages/session/SPEC.md「权限配值与待办」：会话授权上下文的追加要专属的写资格。只有这个会话的这一轮能写，并且只凭卡上那一个答复（准入的适配在答复之后写，访问检查回读卡）。工作区的更换见 apps/harness-server/SPEC.md「SwitchWorkspace 的绑定」：这个会话的这一轮用切换工具提交，目标先由工作区核验，不取得会话租户本来没有的资格。别的声明照 SW:129：Agent 不能直接写模式',
+      { kind: 'declaration', kinds: ['authorization-expression', 'workspace'] },
     ),
     deny(OUTSIDE_MATRIX),
   ),

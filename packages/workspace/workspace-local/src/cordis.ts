@@ -45,11 +45,13 @@ class LocalInstances extends WorkspaceInstancesService {
   readonly associate: WorkspaceInstances<unknown>['associate']
   readonly dissociate: WorkspaceInstances<unknown>['dissociate']
   readonly verify: WorkspaceInstances<unknown>['verify']
+  readonly locate: WorkspaceInstances<unknown>['locate']
   constructor(ctx: Context, face: WorkspaceInstances<unknown>) {
     super(ctx)
     this.associate = face.associate
     this.dissociate = face.dissociate
     this.verify = face.verify
+    this.locate = face.locate
   }
 }
 

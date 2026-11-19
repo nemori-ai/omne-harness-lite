@@ -514,6 +514,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Schedules: { resultMaxBytes: 65_536 },
           Notifications: { resultMaxBytes: 65_536 },
           Sessions: { resultMaxBytes: 131_072 },
+          SwitchWorkspace: { resultMaxBytes: 65_536 },
         },
       },
     ],

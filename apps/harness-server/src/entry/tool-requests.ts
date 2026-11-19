@@ -337,7 +337,7 @@ export function pinnedDirectory(
   }
 }
 
-const FORWARDING_TOOL = 'Tools'
+const CARRIES_DIRECTORY: ReadonlySet<string> = new Set(['Tools', 'SwitchWorkspace'])
 
 async function directoryOf(
   ports: ToolRequestPorts,
@@ -345,13 +345,13 @@ async function directoryOf(
   definition: ToolAvailability['definition'],
 ): Promise<Outcome<Placed | ToolCallAnswer, Failure>> {
   const needed = definition.declarations.environment !== null
-  if (!needed && definition.name !== FORWARDING_TOOL) return succeed({ kind: 'pinned' })
+  if (!needed && !CARRIES_DIRECTORY.has(definition.name)) return succeed({ kind: 'pinned' })
   const read = await ports.workingDirectory(access)
   const placed: Outcome<Placed | ToolCallAnswer, Failure> =
     'failure' in read
       ? unavailable(`the working directory of the session is not readable: ${read.failure}`)
       : pinnedDirectory(read.ok)
-  // The forwarding tool itself needs no directory: without one it carries none to its targets.
+  // Such a tool needs no directory itself: without one it carries none.
   const usable = 'ok' in placed && placed.ok.kind === 'pinned'
   return needed || usable ? placed : succeed({ kind: 'pinned' })
 }

@@ -42,6 +42,7 @@ export abstract class WorkspaceInstancesService
   abstract readonly associate: WorkspaceInstances<unknown>['associate']
   abstract readonly dissociate: WorkspaceInstances<unknown>['dissociate']
   abstract readonly verify: WorkspaceInstances<unknown>['verify']
+  abstract readonly locate: WorkspaceInstances<unknown>['locate']
 }
 export const workspaceInstancesKey = WorkspaceInstancesService.provide
 

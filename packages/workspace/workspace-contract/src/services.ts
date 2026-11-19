@@ -2,6 +2,7 @@ import type { Access, TenantId, WorkspaceId } from '@omne-harness/legal-identity
 import type {
   Answer,
   InstanceId,
+  Located,
   NotPermitted,
   OperationId,
   OperationView,
@@ -55,6 +56,9 @@ export interface WorkspaceInstances<P> {
     access: Access<P>,
     input: Readonly<{ workspace: WorkspaceId; instance: InstanceId }>,
   ): Promise<Verification>
+
+  /** The instance registered at this address, compared as text. Nothing physical is looked at. */
+  locate(access: Access<P>, address: string): Promise<Located>
 }
 
 export interface WorkspaceCatalog<P> {

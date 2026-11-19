@@ -3092,7 +3092,7 @@ import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvid
 import type { BoundedClose, CallBinding, Participation } from './values.ts';
 import type { ProducerFact } from './faces.ts';
 export type SessionOperationElements = Readonly<{
-    kind: 'todo-tool-call' | 'stop-tool-call';
+    kind: 'todo-tool-call' | 'stop-tool-call' | 'workspace-tool-call';
     tenant: string;
     session: SessionId;
     call: string;
