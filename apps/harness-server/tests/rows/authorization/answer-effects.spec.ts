@@ -107,7 +107,11 @@ describe('the effect of always allow', () => {
 
   it('releases this one call when the setting cannot be written', async () => {
     const w = world('not-writable')
-    expect(await applyAnswer(answered, allowAlways, w.ports)).toBe(null)
+    expect(await applyAnswer(answered, allowAlways, w.ports)).toEqual({
+      kind: 'judge-again',
+      notice:
+        'The person chose to always allow this capability, but that choice could not be saved. This call was allowed; later calls will ask again.',
+    })
     expect(w.steps[1]).toEqual({
       express: { scope: once, direction: 'grant', source },
       session: 'ses-1',
@@ -155,6 +159,8 @@ describe('the effect of always deny', () => {
       kind: 'deny',
       category: 'not-released',
       reason: 'deny-always-not-written',
+      notice:
+        'The person chose to always prohibit this capability, but that choice could not be saved. This call was not allowed; later calls will ask again.',
     })
     expect(w.steps).toHaveLength(1)
   })

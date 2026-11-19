@@ -7,7 +7,14 @@ import {
 import { recoveryRoute } from '../src/loop/coordinator.ts'
 import { evidence, execution, ok } from './journal-support.ts'
 import { eventually, invoke } from './loop-support.ts'
-import { deliverToolSuggestion, toolCall } from './fixtures/tool-call.ts'
+import {
+  associatedTools,
+  deliverToolSuggestion,
+  pushToolResult,
+  toolCall,
+  toolDelivery,
+  toolReceiver,
+} from './fixtures/tool-call.ts'
 import {
   allow,
   ask,
@@ -109,7 +116,11 @@ describe('an admission that asks a person', () => {
     const WORDS = 'Use port 8081, not 8080.'
     const remark: CardReply = { kind: 'remark', text: WORDS, evidence: evidence('remark') }
 
-    async function denialTexts(category: DenialCategory, reply: CardReply = remark) {
+    async function denialTexts(
+      category: DenialCategory,
+      reply: CardReply = remark,
+      notice?: string,
+    ) {
       const assembly = await cardAssembly()
       assembly.controls.admission.admit.always(async call =>
         call.decision === null
@@ -120,6 +131,7 @@ describe('an admission that asks a person', () => {
                 category,
                 reason: 'fixture',
                 evidence: evidence('deny-after-remark'),
+                ...(notice === undefined ? {} : { notice }),
               },
             },
       )
@@ -134,6 +146,14 @@ describe('an admission that asks a person', () => {
       // Every block counts: a denial message is its fixed text, plus the words only for guidance.
       return message?.blocks.map(block => (block.kind === 'text' ? block.text : block.kind))
     }
+
+    it('puts the notice of the admission after the fixed message', async () => {
+      expect(await denialTexts('not-released', remark, 'The choice was not saved.')).toEqual([
+        'tool_result',
+        'The tool call did not run: the person did not allow it this time.',
+        'The choice was not saved.',
+      ])
+    })
 
     it('carries the words of the person after the guidance message', async () => {
       expect(await denialTexts('guidance')).toEqual([
@@ -160,6 +180,31 @@ describe('an admission that asks a person', () => {
         expect(await denialTexts(category)).toEqual(['tool_result', text])
       },
     )
+  })
+
+  it('puts the notice of an allowing admission after the result of the tool', async () => {
+    const assembly = await cardAssembly()
+    assembly.controls.admission.admit.always(async call =>
+      call.decision === null
+        ? ask()
+        : {
+            ok: { kind: 'allow', evidence: evidence('allow'), notice: 'The choice was not saved.' },
+          },
+    )
+    assembly.controls.cards.read.always(async () => ({ ok: chosen }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    const [pending] = await associatedTools(assembly, 1)
+    if (pending === undefined) throw new Error('the allowed call was not associated')
+    ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: 'r1' })))
+    await eventually(async () => (await toolMessages(assembly)).length === 1)
+    const [message] = await toolMessages(assembly)
+    expect(message?.blocks[0]?.kind).toBe('tool_result')
+    expect(message?.blocks.at(-1)).toMatchObject({
+      kind: 'text',
+      text: 'The choice was not saved.',
+      visibility: { toHuman: true, toModel: true },
+    })
   })
 
   it('changes the effective arguments when the person chooses the option bound to the rewrite', async () => {
