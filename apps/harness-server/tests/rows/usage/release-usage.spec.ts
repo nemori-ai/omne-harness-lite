@@ -7,6 +7,8 @@ import {
 } from '@omne-harness/legal-identity'
 import type { UsageQuery } from '@omne-harness/usage-contract'
 import { usageKey, type UsageService } from '@omne-harness/usage-cordis-contract/cordis'
+import { toolAccountsKey } from '@omne-harness/tool-cordis-contract/cordis'
+import type { ToolAccounts } from '@omne-harness/tool-contract/provider'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
 import { savedTenant } from '../../r9/support.ts'
@@ -146,10 +148,24 @@ describe('usage over the release tree', () => {
               ),
             seen => seen['model/summary'] === 1 && seen['model/main'] === main.length,
           )
-          expect(units).toEqual({
+          const worker = workerOf(tree, session)
+          const accounts = tree.scope.get(toolAccountsKey) as ToolAccounts<unknown>
+          const listed = await accounts.list({
+            ...worker,
+            tenant: worker.tenant as never,
+            range: null,
+            consumer: null,
+            order: 'ascending',
+            after: null,
+            limit: 500,
+          })
+          if (!('ok' in listed))
+            throw new Error(`the tool accounts read failed: ${JSON.stringify(listed)}`)
+          const dated = listed.ok.entries.length
+          expect(units, JSON.stringify({ tools, dated, undated: listed.ok.undated })).toEqual({
             'model/main': main.length,
             'model/summary': 1,
-            'tool/action': tools,
+            ...(dated === 0 ? {} : { 'tool/action': dated }),
           })
           const tenant = unitsByGroup(
             await query(tree, { kind: 'tenant' }, workerOf(tree, session)),
