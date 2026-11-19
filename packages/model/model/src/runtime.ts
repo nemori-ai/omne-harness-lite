@@ -60,6 +60,7 @@ const METHODS = {
     'nextRead',
     'endRead',
     'handoff',
+    'abandon',
     'advanceCleanup',
     'query',
     'dispatches',

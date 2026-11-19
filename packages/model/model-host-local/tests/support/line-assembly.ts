@@ -106,6 +106,7 @@ const PUSH_LIMITS: ResultPushLimits = {
   maxCleanupSteps: 8,
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
+  delaysMs: [1000, 5000, 30000],
 }
 const DOMAIN = 'line'
 
@@ -515,6 +516,7 @@ function commandsServiceOver(commands: ModelCommands<Principal>) {
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']

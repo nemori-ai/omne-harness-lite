@@ -47,6 +47,7 @@ function scan(stuckOnB: boolean) {
     {
       commands,
       paused: () => Promise.resolve(false),
+      delaysMs: [1],
       size: 10,
       stopping: new AbortController().signal,
       report: () => {},
@@ -96,6 +97,7 @@ function loading(
     {
       commands,
       paused: () => Promise.resolve((pauses += 1) === 1),
+      delaysMs: [1],
       size: 10,
       stopping,
       report: event => reports.push(event),
@@ -178,6 +180,7 @@ describe('the start scan', () => {
       {
         commands: {} as ModelCommands<unknown>,
         paused: () => Promise.resolve(false),
+        delaysMs: [1],
         size: 10,
         stopping: new AbortController().signal,
         report: () => {},

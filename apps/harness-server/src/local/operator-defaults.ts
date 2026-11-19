@@ -126,6 +126,7 @@ const MODEL_HOST = {
     maxCleanupSteps: 8,
     maxPendingAccountsPerTenant: LOCAL_CONCURRENT_MODEL_CALLS,
     maxPendingAccounts: LOCAL_CONCURRENT_MODEL_CALLS,
+    delaysMs: [1000, 5000, 30_000],
   },
 } as const
 

@@ -124,6 +124,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       maxConcurrentCalls: 4,
       maxRedeliveries: 2,
       maxCleanupSteps: 8,
+      delaysMs: [1000, 5000, 30000],
       maxPendingAccountsPerTenant: 4,
       maxPendingAccounts: 16,
     },

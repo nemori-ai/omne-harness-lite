@@ -100,6 +100,7 @@ function scene(window: typeof WINDOW | null = WINDOW) {
       work?: string
       at?: string | null
       clean?: boolean
+      abandon?: boolean
     }> = {},
   ) {
     const tenant = options.tenant ?? A
@@ -162,6 +163,19 @@ function scene(window: typeof WINDOW | null = WINDOW) {
         facts: reply(REPLY_CANARY),
       }),
     )
+    if (options.abandon === true) {
+      const result: ResultVersion = unbox(
+        await commands.settle({ ...(await write()), termination: COMPLETED }),
+      ).version
+      unbox(
+        await commands.abandon({
+          ...access,
+          operation: next('abandon'),
+          result,
+          basis: { kind: 'refused', refusal: 'conflict' },
+        }),
+      )
+    }
     if (options.clean === true) {
       const result: ResultVersion = unbox(
         await commands.settle({ ...(await write()), termination: COMPLETED }),
@@ -181,7 +195,7 @@ function scene(window: typeof WINDOW | null = WINDOW) {
         if (custody.kind === 'acknowledged' && custody.cleanup === 'released') break
       }
     }
-    return { call, dispatch, principal: admit.principal }
+    return { call, dispatch, principal: admit.principal, execution }
   }
 
   const principalOf = (tenant: typeof A) =>
@@ -199,6 +213,35 @@ function scene(window: typeof WINDOW | null = WINDOW) {
     })
   return { dispatched, query, facts, principalOf, built }
 }
+
+describe('an abandoned result in the SQL records (C8)', () => {
+  it('reads the abandoned custody back from the rows and keeps the call pending until its cleanup released it', async () => {
+    const s = scene()
+    const { call, principal, execution } = await s.dispatched('dropped', { abandon: true })
+    const { commands } = s.built
+    const pending = async () =>
+      unbox(await commands.scanPending({ principal, tenant: A, after: null, limit: 2 })).calls
+    expect(
+      unbox(await commands.loadRecovery({ principal, tenant: A, call })).state.custody,
+    ).toMatchObject({
+      kind: 'abandoned',
+      basis: { kind: 'refused', refusal: 'conflict' },
+      cleanup: 'pending',
+    })
+    expect(await pending()).toEqual([call])
+    let custody = unbox(await commands.advanceCleanup({ ...execution, operation: opId('clean-1') }))
+    for (
+      let step = 2;
+      step < 16 && !(custody.kind !== 'producer' && custody.cleanup === 'released');
+      step += 1
+    )
+      custody = unbox(
+        await commands.advanceCleanup({ ...execution, operation: opId(`clean-${step}`) }),
+      )
+    expect(custody).toMatchObject({ kind: 'abandoned', cleanup: 'released' })
+    expect(await pending()).toEqual([])
+  })
+})
 
 describe('the dispatch facts of the Model records (C17)', () => {
   it('reads one fact per dispatch with its consumer, profile, window, moments, outcome and account, and no body', async () => {

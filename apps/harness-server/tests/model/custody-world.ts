@@ -112,6 +112,7 @@ const LIMITS = {
   maxConcurrentCalls: 4,
   maxRedeliveries: 2,
   maxCleanupSteps: 8,
+  delaysMs: [1000, 5000, 30000],
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
 }
@@ -583,6 +584,7 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']

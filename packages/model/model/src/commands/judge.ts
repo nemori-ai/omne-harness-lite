@@ -99,7 +99,7 @@ function producerTasks(call: CallDocument): RecoveryTask[] {
 }
 export function tasks(call: CallDocument, pending: readonly ModelOperationId[]): RecoveryTask[] {
   const result = call.state.custody.kind === 'producer' ? producerTasks(call) : []
-  if (call.state.custody.kind === 'acknowledged' && call.state.custody.cleanup !== 'released')
+  if (call.state.custody.kind !== 'producer' && call.state.custody.cleanup !== 'released')
     result.push('cleanup')
   if (pending.length > 0 || call.dispatches.some(d => d.record.send === 'unknown'))
     result.push('account')

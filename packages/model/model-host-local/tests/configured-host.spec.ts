@@ -56,6 +56,7 @@ const CONFIG = {
     maxCleanupSteps: 8,
     maxPendingAccountsPerTenant: 4,
     maxPendingAccounts: 8,
+    delaysMs: [1000, 5000, 30000],
   },
 }
 const REQUEST: FixedModelRequest = {
@@ -140,6 +141,7 @@ function fixture() {
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -205,6 +207,25 @@ function fixture() {
     },
   }
 }
+
+it('rejects a result push interval table that is empty or lists anything but integers of at least 1 (C9)', async () => {
+  const f = fixture()
+  await f.services()
+  try {
+    for (const delaysMs of [[], [0], [1.5], ['1'], [1, -1]] as unknown as number[][]) {
+      const fiber = f.ctx.plugin(f.Plugin, { ...CONFIG, results: { ...CONFIG.results, delaysMs } })
+      await expect(
+        (async () => {
+          await fiber
+        })(),
+        `results.delaysMs=${JSON.stringify(delaysMs)}`,
+      ).rejects.toThrow()
+      expect(f.ctx.modelRuntime).toBeUndefined()
+    }
+  } finally {
+    await f.ctx.fiber.dispose()
+  }
+})
 
 it('rejects every missing or invalid numeric setting through the Cordis configuration boundary', async () => {
   const f = fixture()

@@ -24,6 +24,8 @@ import type {
   ToolDeclaration,
 } from './root.ts'
 import type {
+  AbandonInput,
+  AbandonReceipt,
   AckInput,
   AckReceipt,
   Admission,
@@ -262,6 +264,7 @@ export interface ModelCommands<P> {
   nextRead(input: CallAccess<P> & Readonly<{ read: ReadId; after: string }>): Reply<ReadState>
   endRead(input: CallAccess<P> & Readonly<{ read: ReadId }>): Reply<ReadState>
   handoff(input: AckInput<P>): Reply<AckReceipt>
+  abandon(input: AbandonInput<P>): Reply<AbandonReceipt>
   advanceCleanup(
     input: ExecutionRef & Readonly<{ operation: ModelOperationId }>,
   ): Reply<CustodyState>

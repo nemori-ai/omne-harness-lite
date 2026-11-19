@@ -30,7 +30,7 @@ const RESULT_BOUNDS = {
   maxCleanupSteps: { minimum: 1, safe: true },
   maxPendingAccountsPerTenant: { minimum: 1, safe: true },
   maxPendingAccounts: { minimum: 1, safe: true },
-} satisfies Record<keyof ResultPushLimits, Bound>
+} satisfies Record<Exclude<keyof ResultPushLimits, 'delaysMs'>, Bound>
 const REPLAY_RESEND_BOUNDS = { max: { minimum: 0, safe: true } } satisfies Record<
   keyof ReplayResend,
   Bound
@@ -65,6 +65,14 @@ function parseNumbers<K extends string>(
 }
 
 const named = (value: unknown): value is string => typeof value === 'string' && value !== ''
+
+function parseDelays(value: unknown, group: string): Parsed<readonly number[]> {
+  return Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(delay => Number.isSafeInteger(delay) && delay >= 1)
+    ? { value: [...(value as number[])] }
+    : { issues: [{ message: `${group} must list integers of at least 1` }] }
+}
 
 function parseRetry(value: unknown): Parsed<ConfiguredModelHostSettings['retry']> {
   const adoption = fieldOf(value, 'adoption')
@@ -102,10 +110,17 @@ function parseConfig(value: unknown): Parsed<ConfiguredModelHostSettings> {
   if ('issues' in runtime) return runtime
   const results = parseNumbers(fieldOf(value, 'results'), 'results', RESULT_BOUNDS)
   if ('issues' in results) return results
+  const delays = parseDelays(fieldOf(fieldOf(value, 'results'), 'delaysMs'), 'results.delaysMs')
+  if ('issues' in delays) return delays
   const retry = parseRetry(fieldOf(value, 'retry'))
   if ('issues' in retry) return retry
   return {
-    value: { host: host.value, runtime: runtime.value, results: results.value, retry: retry.value },
+    value: {
+      host: host.value,
+      runtime: runtime.value,
+      results: { ...results.value, delaysMs: delays.value },
+      retry: retry.value,
+    },
   }
 }
 

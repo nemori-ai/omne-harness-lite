@@ -173,6 +173,7 @@ export const MODEL_WRITE_METHODS = [
   'control',
   'acquireRead',
   'handoff',
+  'abandon',
   'advanceCleanup',
 ] as const
 export type ModelWriteMethod = (typeof MODEL_WRITE_METHODS)[number]
@@ -196,7 +197,7 @@ export type Receipt =
   | Readonly<{ kind: 'preserve'; cursor: OutputCursor }>
   | Readonly<{ kind: 'late'; revision: Revision }>
   | Readonly<{ kind: 'read'; read: ReadId | null }>
-  | Readonly<{ kind: 'control' | 'handoff' | 'cleanup' }>
+  | Readonly<{ kind: 'control' | 'handoff' | 'abandon' | 'cleanup' }>
 export type BindingBase = Readonly<{
   call: ModelCallId
   method: ModelWriteMethod

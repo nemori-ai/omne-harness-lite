@@ -23,6 +23,7 @@ const METHODS = [
   'nextRead',
   'endRead',
   'handoff',
+  'abandon',
   'advanceCleanup',
   'query',
 ] as const satisfies readonly (keyof ModelCommands<unknown>)[]

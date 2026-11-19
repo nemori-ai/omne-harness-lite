@@ -10,7 +10,6 @@ import {
 } from '@omne-harness/model-contract'
 import type {
   AckReceipt,
-  CustodyState,
   DispatchId,
   Lookup,
   ModelCallId,
@@ -64,13 +63,11 @@ import {
   accountFact,
   completesNotSentWindow,
   bump,
-  expireReads,
   recordSendState,
   lateTerminal,
   closeForSettlement,
   mergeReceiveWindow,
   reduceFacts,
-  releaseMaterial,
   type ModelCommandCore,
 } from './state.ts'
 import { beginDispatch, initialAttempts, positionRetry, recordRetryDecision } from './attempts.ts'
@@ -79,6 +76,7 @@ import type { ModelCommandStorage } from './storage.ts'
 import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
 import { handoffQuestion, provenHandoff, readHandoffProof } from './handoff-evidence.ts'
+import { custodyCommands } from './custody.ts'
 
 function shareRefusal(share: number, storage: Pick<ModelCommandStorage, 'held'>) {
   return storage.held() < share
@@ -912,8 +910,7 @@ export function dispatchCommands<P>(
 
 export function consumptionCommands<P>(
   core: ModelCommandCore<P>,
-  bound?: BoundCommandAccess<P>,
-): Pick<ModelCommands<P>, 'acquireRead' | 'nextRead' | 'endRead' | 'handoff' | 'advanceCleanup'> {
+): Pick<ModelCommands<P>, 'acquireRead' | 'nextRead' | 'endRead' | 'handoff'> {
   return {
     acquireRead: input =>
       core.runWrite(input, () =>
@@ -938,6 +935,8 @@ export function consumptionCommands<P>(
             if (call.state.phase !== 'settled') return { failure: { kind: 'not-settled' } }
             if (call.state.settlement.version !== input.result)
               return { failure: invalid('result', 'not-original') }
+            if (call.state.custody.kind === 'abandoned')
+              return { failure: invalid('custody', 'abandoned') }
             if (call.state.custody.kind === 'acknowledged')
               return {
                 ok: {
@@ -1005,6 +1004,8 @@ export function consumptionCommands<P>(
           apply: draft => {
             const call = draft.call
             if (!call) return { failure: invalid('call', 'not-found') }
+            if (call.state.custody.kind === 'abandoned')
+              return { failure: invalid('custody', 'abandoned') }
             const question = handoffQuestion(core, input, call)
             if ('failure' in question) return question
             const proof = provenHandoff(question.ok, read)
@@ -1052,43 +1053,6 @@ export function consumptionCommands<P>(
         }),
       )
     },
-    advanceCleanup: input =>
-      core.runWrite(input, () =>
-        core.write<CustodyState>({
-          input,
-          method: 'advanceCleanup',
-          fields: { instance: input.instance, generation: input.generation },
-          check: call => core.execution(input, call, bound),
-          apply: draft => {
-            const call = draft.call
-            if (!call) return { failure: invalid('call', 'not-found') }
-            if (call.state.custody.kind !== 'acknowledged')
-              return { failure: invalid('custody', 'not-acknowledged') }
-            if (call.state.custody.cleanup === 'released')
-              return {
-                ok: { value: structuredClone(call.state.custody), receipt: { kind: 'cleanup' } },
-              }
-            expireReads(call, () => core.options.clock.now(), core.options.limits.readIdleMs)
-            const active = [...call.reads.values()].some(r => r.state.kind === 'reading')
-            const pending =
-              unresolved(draft.tenant, input.call).length > 0 ||
-              call.dispatches.some(
-                d => d.record.send === 'unknown' || [...d.windows.values()].includes('open'),
-              )
-            const diagnostic =
-              call.cleanupFailure ??
-              (active ? 'active-read' : pending ? 'unresolved-write-or-receive' : null)
-            const cleanup = diagnostic === null ? 'released' : 'blocked'
-            call.state = { ...call.state, custody: { ...call.state.custody, cleanup, diagnostic } }
-            if (cleanup === 'released') releaseMaterial(call)
-            bump(call)
-            return {
-              ok: { value: structuredClone(call.state.custody), receipt: { kind: 'cleanup' } },
-            }
-          },
-          replay: call => (call ? { ok: structuredClone(call.state.custody) } : missingReceipt()),
-        }),
-      ),
   }
 }
 
@@ -1100,6 +1064,7 @@ export function modelCommands<P>(
     ...callCommands(core, bound),
     ...recoveryCommands(core, bound),
     ...dispatchCommands(core, bound),
-    ...consumptionCommands(core, bound),
+    ...consumptionCommands(core),
+    ...custodyCommands(core, bound),
   } satisfies ModelCommands<P>
 }

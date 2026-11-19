@@ -6,6 +6,9 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `AbandonBasis` · `result.d.ts`
+- `AbandonInput` · `result.d.ts`
+- `AbandonReceipt` · `result.d.ts`
 - `Access` · 包 `@omne-harness/legal-identity`
 - `AckInput` · `result.d.ts`
 - `AckReceipt` · `result.d.ts`
@@ -19,6 +22,7 @@
 - `CallAccess` · `root.d.ts`
 - `CallContact` · `result.d.ts`
 - `CallState` · `result.d.ts`
+- `CleanupStage` · `result.d.ts`
 - `ConnectRetryReason` · `call-surface.d.ts`
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ContextLimits` · `profile.d.ts`
@@ -2074,7 +2078,7 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import type { ContentReference } from '@omne-harness/content-block';
 import type { MessageId } from '@omne-harness/message';
 import type { Access, Adoption, ActorRef, Admit, CallAccess, ConsumerRef, DispatchId, FixedModelRequest, FixedRequestHead, ModelCallId, ModelInstanceId, ModelOperationId, ProviderName, Mutation, ReadId, ResultVersion, Revision, Supplier, ToolDeclaration } from './root.ts';
-import type { AckInput, AckReceipt, Admission, CallState, ControlState, CustodyState, DurableEvidence, ModelFailure, ModelBlock, ModelFault, Lookup, Reply, Settlement, Termination } from './result.ts';
+import type { AbandonInput, AbandonReceipt, AckInput, AckReceipt, Admission, CallState, ControlState, CustodyState, DurableEvidence, ModelFailure, ModelBlock, ModelFault, Lookup, Reply, Settlement, Termination } from './result.ts';
 import type { ConnectRetryReason, DispatchRecord, GrowingContentKind, LiveRoute, ModelHandle, ModelRuntime, ReadState, ReadStart, Snapshot } from './call-surface.ts';
 import type { CallAccount } from '@omne-harness/call-account';
 import type { ReplayOmission } from './profile.ts';
@@ -2352,6 +2356,7 @@ export interface ModelCommands<P> {
         read: ReadId;
     }>): Reply<ReadState>;
     handoff(input: AckInput<P>): Reply<AckReceipt>;
+    abandon(input: AbandonInput<P>): Reply<AbandonReceipt>;
     advanceCleanup(input: ExecutionRef & Readonly<{
         operation: ModelOperationId;
     }>): Reply<CustodyState>;
@@ -2738,13 +2743,28 @@ export type Settlement = Readonly<{
     source: DurableEvidence;
     replay?: SettledReplay;
 }>;
+export type CleanupStage = 'pending' | 'running' | 'blocked' | 'released';
+export type AbandonBasis = Readonly<{
+    kind: 'refused';
+    refusal: 'denied' | 'invalid' | 'conflict';
+}> | Readonly<{
+    kind: 'unreadable';
+    reason: string;
+}>;
 export type CustodyState = Readonly<{
     kind: 'producer';
 }> | Readonly<{
     kind: 'acknowledged';
     operation: ModelOperationId;
     receipt: DurableEvidence;
-    cleanup: 'pending' | 'running' | 'blocked' | 'released';
+    cleanup: CleanupStage;
+    diagnostic: string | null;
+}> | Readonly<{
+    kind: 'abandoned';
+    operation: ModelOperationId;
+    basis: AbandonBasis;
+    record: DurableEvidence;
+    cleanup: CleanupStage;
     diagnostic: string | null;
 }>;
 export type DispatchProgress = Readonly<{
@@ -2823,6 +2843,17 @@ export type AckReceipt = Readonly<{
     result: ResultVersion;
     custody: Extract<CustodyState, {
         kind: 'acknowledged';
+    }>;
+}>;
+export type AbandonInput<P> = Mutation<P> & Readonly<{
+    result: ResultVersion;
+    basis: AbandonBasis;
+}>;
+export type AbandonReceipt = Readonly<{
+    call: ModelCallId;
+    result: ResultVersion;
+    custody: Extract<CustodyState, {
+        kind: 'abandoned';
     }>;
 }>;
 ```

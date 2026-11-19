@@ -3,7 +3,7 @@
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ModelCallId, ModelFailure } from '@omne-harness/model-contract'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
-import { pauseAfter } from './push-values.ts'
+import { delayAfter } from './push-values.ts'
 import type { ResultPushRecovery, RuntimeEvent } from './runtime.ts'
 
 type Scan<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kind: 'again' | 'given-up' }>
@@ -13,6 +13,7 @@ type Access = Readonly<{ principal: unknown; tenant: TenantId }>
 export type StartScanInput = Readonly<{
   commands: ModelCommands<unknown>
   paused(ms: number): Promise<boolean>
+  delaysMs: readonly number[]
   size: number
   stopping: AbortSignal
   report(event: RuntimeEvent): void
@@ -57,7 +58,7 @@ export function createStartScan(
 
   async function readAgain<T>(read: () => Promise<Scan<T>>): Promise<T | null> {
     for (let failures = 0; ; failures += 1) {
-      if (!(await input.paused(pauseAfter(failures)))) return null
+      if (!(await input.paused(delayAfter(input.delaysMs, failures)))) return null
       const scan = await read()
       if (scan.kind === 'read') return scan.value
       if (scan.kind === 'given-up') return null

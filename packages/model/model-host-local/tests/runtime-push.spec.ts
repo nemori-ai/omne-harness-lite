@@ -70,6 +70,7 @@ const LIMITS: ResultPushLimits = {
   maxCleanupSteps: 8,
   maxPendingAccountsPerTenant: 4,
   maxPendingAccounts: 8,
+  delaysMs: [1000, 5000, 30000],
 }
 const CONFIGURATION: ModelConfiguration = {
   outputBatchBytes: 1,
@@ -147,7 +148,14 @@ function scriptedReceiver() {
   const saved = new Map<string, { delivery: ModelDelivery; receipt: ModelSavedReceipt }>()
   const state = {
     missing: null as Conjunct | null,
-    next: [] as ('unknown' | 'unavailable' | 'backpressured' | 'foreign-key' | 'foreign-owner')[],
+    next: [] as (
+      | 'unknown'
+      | 'unavailable'
+      | 'backpressured'
+      | 'denied'
+      | 'foreign-key'
+      | 'foreign-owner'
+    )[],
     refuseAccounts: false,
   }
   const evidenceOf = (delivery: ModelDelivery): DurableEvidence => ({
@@ -161,6 +169,7 @@ function scriptedReceiver() {
       pushes.push(delivery)
       const scripted = state.next.shift()
       if (scripted === 'unknown') return { failure: { kind: 'outcome-unknown' } }
+      if (scripted === 'denied') return { failure: { kind: 'denied' } }
       if (scripted === 'unavailable')
         return { failure: { kind: 'unavailable', dependency: 'responsibility' } }
       if (scripted === 'backpressured')
@@ -422,6 +431,7 @@ function world(
     declare readonly nextRead: ModelCommands<unknown>['nextRead']
     declare readonly endRead: ModelCommands<unknown>['endRead']
     declare readonly handoff: ModelCommands<unknown>['handoff']
+    declare readonly abandon: ModelCommands<unknown>['abandon']
     declare readonly advanceCleanup: ModelCommands<unknown>['advanceCleanup']
     declare readonly query: ModelCommands<unknown>['query']
     declare readonly dispatches: ModelCommands<unknown>['dispatches']
@@ -724,6 +734,68 @@ it.each(['unavailable', 'backpressured'] as const)(
     expect(await w.custody('one')).toEqual({ kind: 'producer' })
   },
 )
+
+it('records an abandonment when the receiver refuses the result for good, cleans it up and gives the share back (C8)', async () => {
+  const w = world({ share: 1 })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  scripted.state.next = ['denied']
+  await w.register(scripted.receiver)
+  const admitted = await w.admit('first')
+
+  await until(() => w.record('first')?.cleanup === 'released', 'the abandonment and its cleanup')
+  const custody = await w.custody('first')
+  expect(custody).toMatchObject({
+    kind: 'abandoned',
+    basis: { kind: 'refused', refusal: 'denied' },
+    cleanup: 'released',
+  })
+  expect(scripted.pushes).toHaveLength(1)
+  expect(w.handoffs).toEqual([])
+  const contact = await w.ctx.modelRuntime.calls.contact({
+    principal: PRINCIPAL,
+    tenant: TENANT,
+    reference: admitted.reference,
+  })
+  expect(contact).toEqual({
+    ok: { kind: 'lost', evidence: custody.kind === 'abandoned' ? custody.record : null },
+  })
+  expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
+})
+
+it('keeps producer custody when the outcome stays unknown through the round, and waits the configured interval before pushing again (C8, C9)', async () => {
+  const w = world({ limits: { ...LIMITS, maxRedeliveries: 0, delaysMs: [60_000] } })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  scripted.state.next = ['unknown']
+  await w.register(scripted.receiver)
+  await w.admit('one')
+
+  await until(() => w.record('one')?.result?.standing.status === 'unknown', 'the unknown outcome')
+  await new Promise(resolve => setTimeout(resolve, 1500))
+  expect(scripted.pushes).toHaveLength(1)
+  expect(await w.custody('one')).toEqual({ kind: 'producer' })
+})
+
+it('pushes an unknown result again with the same key after the configured interval and acknowledges it once saved (C8, C9)', async () => {
+  const w = world({ limits: { ...LIMITS, maxRedeliveries: 0, delaysMs: [5] } })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  scripted.state.next = ['unknown']
+  await w.register(scripted.receiver)
+  await w.admit('one')
+
+  await until(
+    () => w.record('one')?.acknowledgement === 'acknowledged',
+    'the ACK after a second push',
+  )
+  const [first, second] = scripted.pushes
+  expect(scripted.pushes).toHaveLength(2)
+  expect(second).toEqual(first)
+})
 
 it('recognises an unknown ACK through the original operation and input', async () => {
   const w = world()

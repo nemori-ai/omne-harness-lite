@@ -417,6 +417,16 @@
               "pending": false
             },
             {
+              "name": "CleanupStage",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AbandonBasis",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "CustodyState",
               "kind": "type",
               "pending": false
@@ -464,6 +474,16 @@
             },
             {
               "name": "AckReceipt",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AbandonInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AbandonReceipt",
               "kind": "type",
               "pending": false
             }

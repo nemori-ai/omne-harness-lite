@@ -160,6 +160,7 @@ export abstract class ModelCommandsService<P> extends Service implements ModelCo
   abstract readonly nextRead: ModelCommands<P>['nextRead']
   abstract readonly endRead: ModelCommands<P>['endRead']
   abstract readonly handoff: ModelCommands<P>['handoff']
+  abstract readonly abandon: ModelCommands<P>['abandon']
   abstract readonly advanceCleanup: ModelCommands<P>['advanceCleanup']
   abstract readonly query: ModelCommands<P>['query']
   abstract readonly dispatches: ModelCommands<P>['dispatches']

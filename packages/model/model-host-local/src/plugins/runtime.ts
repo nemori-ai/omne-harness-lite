@@ -33,7 +33,15 @@ import {
 } from '@omne-harness/model-cordis-contract/cordis'
 import { wakingCommands } from './delegated-commands.ts'
 import { createPushAgain } from './push-again.ts'
-import { awaitsReceiver, definite, due, laterRevision, unfinished } from './push-values.ts'
+import { createCustodyEnd, savedResultOf } from './push-custody.ts'
+import {
+  awaitsReceiver,
+  custodyEnded,
+  definite,
+  due,
+  laterRevision,
+  unfinished,
+} from './push-values.ts'
 import { whenEmpty } from './idle.ts'
 import { createStartScan } from './start-scan.ts'
 
@@ -65,10 +73,10 @@ export type HeldAccount = HeldDelivery<AccountDelivery> & Readonly<{ reservation
 export type ResultPushRecord = Readonly<{
   tenant: TenantId
   call: ModelCallId
-  operations: Readonly<{ read: ModelOperationId; ack: ModelOperationId }>
+  operations: Readonly<{ read: ModelOperationId; ack: ModelOperationId; abandon: ModelOperationId }>
   origin: Readonly<{ reference: ModelInvocationRef; consumer: ConsumerRef }> | null
   result: HeldDelivery<ResultDelivery> | null
-  acknowledgement: 'none' | 'unknown' | 'acknowledged'
+  acknowledgement: 'none' | 'unknown' | 'acknowledged' | 'abandoned'
   cleanup: 'pending' | 'released'
   delivered: Readonly<Record<string, string | null>>
   accounts: readonly HeldAccount[]
@@ -119,6 +127,8 @@ export type ResultPushLimits = Readonly<{
   maxCleanupSteps: number
   maxPendingAccountsPerTenant: number
   maxPendingAccounts: number
+  /** The pauses before a call that still owes work is woken again; the last one repeats. */
+  delaysMs: readonly number[]
 }>
 
 export type ResultPushRecovery = Readonly<{
@@ -138,6 +148,7 @@ export type RuntimeEvent =
   | Readonly<{ kind: 'push-failed'; failure: DeliveryFailure['kind'] }>
   | Readonly<{ kind: 'freeze-failed'; step: string }>
   | Readonly<{ kind: 'ack-failed'; failure: ModelFailure['kind'] }>
+  | Readonly<{ kind: 'abandon-failed'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'cleanup-pending'; reason: string }>
   | Readonly<{ kind: 'late-account-refused'; pending: number }>
   | Readonly<{ kind: 'blocked'; failure: ModelFailure['kind'] }>
@@ -165,7 +176,14 @@ function checkedLimits(limits: ResultPushLimits): ResultPushLimits {
     if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < lower)
       throw new RangeError(`model result push: ${name} must be an integer of at least ${lower}`)
   }
-  return { ...limits }
+  const delays: unknown = limits?.delaysMs
+  if (
+    !Array.isArray(delays) ||
+    delays.length === 0 ||
+    !delays.every(delay => Number.isSafeInteger(delay) && delay >= 1)
+  )
+    throw new RangeError('model result push: delaysMs must list integers of at least 1')
+  return { ...limits, delaysMs: [...delays] }
 }
 
 function newOperation(): ModelOperationId {
@@ -191,11 +209,6 @@ function replaces(standing: DeliveryStanding, next: DeliveryStanding): boolean {
   return true
 }
 
-type SavedResult = Readonly<{
-  result: ResultDelivery['key']['result']
-  evidence: ModelSavedReceipt['evidence']
-}>
-
 function acceptReceipt(
   delivery: ModelDelivery,
   receipt: ModelSavedReceipt,
@@ -204,12 +217,6 @@ function acceptReceipt(
     receipt.evidence.owner === delivery.consumer.owner
     ? { status: 'saved', receipt: frozen(receipt) }
     : { status: 'failed', failure: { kind: 'receipt-mismatch' } }
-}
-
-function savedResultOf(record: ResultPushRecord): SavedResult | null {
-  const held = record.result
-  if (held === null || held.standing.status !== 'saved') return null
-  return { result: held.delivery.key.result, evidence: held.standing.receipt.evidence }
 }
 
 function dropBody(record: ResultPushRecord): ResultPushRecord {
@@ -320,7 +327,14 @@ function createResultPush(
   let phase: 'ready' | 'started' | 'stopped' = 'ready'
   let release: (() => void) | undefined
   let scanning: Promise<void> = Promise.resolve()
-  const owing = createPushAgain<Target>({ keyOf, paused, wake })
+  const owing = createPushAgain<Target>({ keyOf, paused, wake, delaysMs: limits.delaysMs })
+  const custody = createCustodyEnd({
+    commands,
+    maxRedeliveries: limits.maxRedeliveries,
+    stopping: stopping.signal,
+    report,
+    mark: (record, failure) => owing.mark(record, failure),
+  })
 
   function wake(target: Target): void {
     const key = keyOf(target)
@@ -353,7 +367,7 @@ function createResultPush(
     return save({
       tenant: target.tenant,
       call: target.call,
-      operations: { read: newOperation(), ack: newOperation() },
+      operations: { read: newOperation(), ack: newOperation(), abandon: newOperation() },
       origin: null,
       result: null,
       acknowledgement: 'none',
@@ -373,10 +387,11 @@ function createResultPush(
       }
       const access = { principal: resolved.ok.principal, tenant: target.tenant }
       let record = receive(ledger.read(target) ?? fresh(target))
-      if (record.origin === null || record.acknowledgement !== 'acknowledged')
+      if (record.origin === null || !custodyEnded(record.acknowledgement))
         record = await freeze(record, access)
       record = await pushResult(record, access)
-      record = await acknowledge(record, access)
+      const ended = await custody.end(record, access)
+      if (ended !== record) record = save(ended)
       record = await clean(record, access)
       await pushAccounts(record, access)
     } catch {
@@ -429,8 +444,8 @@ function createResultPush(
       return record
     }
     const origin = frozen({ reference: reference.ok, consumer: state.consumer })
-    if (state.custody.kind === 'acknowledged')
-      return save({ ...record, origin, acknowledgement: 'acknowledged' })
+    if (state.custody.kind !== 'producer')
+      return save({ ...record, origin, acknowledgement: state.custody.kind })
     if (record.result !== null) return record
     const dispatches = await commands.dispatches(call)
     if ('failure' in dispatches) {
@@ -567,45 +582,12 @@ function createResultPush(
 
   async function pushResult(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     const held = record.result
-    if (held === null || record.acknowledgement === 'acknowledged' || !due(held)) return record
+    if (held === null || custodyEnded(record.acknowledgement) || !due(held)) return record
     return save({ ...record, result: await push(held, access) })
   }
 
-  async function acknowledge(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
-    if (record.acknowledgement === 'acknowledged') return record
-    const saved = savedResultOf(record)
-    if (saved === null) return record
-    return save({ ...record, acknowledgement: await handoff(record, access, saved) })
-  }
-
-  async function handoff(
-    record: ResultPushRecord,
-    access: Access,
-    saved: SavedResult,
-  ): Promise<ResultPushRecord['acknowledgement']> {
-    const ack = {
-      ...access,
-      call: record.call,
-      operation: record.operations.ack,
-      result: saved.result,
-      evidence: { kind: 'retained', custody: saved.evidence },
-    } as const
-    for (let resends = 0; ; resends += 1) {
-      const reply = await commands.handoff(ack)
-      if ('ok' in reply) return 'acknowledged'
-      if (reply.failure.kind !== 'commit-unknown') {
-        report({ kind: 'ack-failed', failure: reply.failure.kind })
-        return record.acknowledgement
-      }
-      if (resends >= limits.maxRedeliveries || stopping.signal.aborted) {
-        report({ kind: 'ack-failed', failure: 'commit-unknown' })
-        return 'unknown'
-      }
-    }
-  }
-
   async function clean(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
-    if (record.acknowledgement !== 'acknowledged' || record.cleanup === 'released') return record
+    if (!custodyEnded(record.acknowledgement) || record.cleanup === 'released') return record
     const execution = await cleanupExecution(record, access)
     if (execution === null) return record
     if (execution === 'released' || (await advanceCleanup(execution))) {
@@ -629,8 +611,7 @@ function createResultPush(
       return null
     }
     const { execution, state } = recovery.ok
-    if (state.custody.kind === 'acknowledged' && state.custody.cleanup === 'released')
-      return 'released'
+    if (state.custody.kind !== 'producer' && state.custody.cleanup === 'released') return 'released'
     if (execution === null) report({ kind: 'cleanup-pending', reason: 'no-execution' })
     return execution
   }
@@ -642,7 +623,7 @@ function createResultPush(
         report({ kind: 'cleanup-pending', reason: advanced.failure.kind })
         return false
       }
-      if (advanced.ok.kind !== 'acknowledged') continue
+      if (advanced.ok.kind === 'producer') continue
       if (advanced.ok.cleanup === 'released') return true
       if (advanced.ok.cleanup === 'blocked') {
         report({ kind: 'cleanup-pending', reason: 'blocked' })
@@ -801,6 +782,7 @@ function createResultPush(
     {
       commands,
       paused,
+      delaysMs: limits.delaysMs,
       report,
       stopping: stopping.signal,
       wake,
@@ -884,6 +866,9 @@ export function reportRuntimeEvent(ctx: Context, event: RuntimeEvent): void {
       return
     case 'ack-failed':
       ctx.logger.warn(`model result push: the acknowledgement did not complete (${event.failure})`)
+      return
+    case 'abandon-failed':
+      ctx.logger.warn(`model result push: the abandonment did not complete (${event.failure})`)
       return
     case 'cleanup-pending':
       ctx.logger.warn(`model result push: the cleanup stays pending (${event.reason})`)
