@@ -1,3 +1,4 @@
+import { callsLeft, lentTo, type CallsLeft } from './call-left.ts'
 import {
   digestSessionEntries,
   projectSessionEntries,
@@ -31,6 +32,7 @@ export type EntriesBatch = Readonly<{
   previous: WorkSnapshot
   snapshot: WorkSnapshot
   entries: readonly HistoryEntry[]
+  left: CallsLeft
   answer: SessionEntriesReceipt
   /** System inputs the interpretation accepted; written to `sl_input` in the same transaction. */
   admitted: readonly Extract<RoutedInput, { kind: 'ordinary' }>[]
@@ -113,7 +115,7 @@ export function judgeEntries(
           digest: text(held['input_digest']),
           receipt: JSON.parse(packed(held['receipt'])) as CommitReceipt,
         }
-  const decision = projectSessionEntries(previous, {
+  const decision = projectSessionEntries(lentTo(port, { tenant, session }, previous, observation), {
     observation,
     start,
     saved: previous.entriesProgress ?? [],
@@ -144,7 +146,8 @@ export function judgeEntries(
 
   const revision = String(journal.tail + 1n)
   const entries = assignPositions(port, { tenant, session }, revision, decision.entries)
-  const reduced = reduce(previous, { revision, entries } as never)
+  const left = callsLeft(port, { tenant, session })
+  const reduced = reduce(previous, { revision, entries } as never, undefined, left)
   if (reduced.kind === 'quarantined')
     return {
       kind: 'stopped',
@@ -161,6 +164,7 @@ export function judgeEntries(
       previous,
       snapshot: reduced.snapshot,
       entries,
+      left: reduced,
       answer: {
         operation: observation.operation,
         through: decision.progress.through,

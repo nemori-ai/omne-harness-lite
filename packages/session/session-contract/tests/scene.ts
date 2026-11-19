@@ -185,6 +185,8 @@ export function scene(extra: Partial<MemorySessionTransactionOptions<string>> = 
     initialization,
     commit,
     read,
+    /** One call by its consumption, in the snapshot or after it left. */
+    call: (consumption: string) => port.controls.callOf(access.tenant, access.session, consumption),
     create,
     accept,
     start,

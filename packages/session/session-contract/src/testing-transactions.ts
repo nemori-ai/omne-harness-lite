@@ -71,8 +71,9 @@ import { type OperationRecord } from './judgments.ts'
 import { canonicalText, digestOf, deriveSessionOperation } from './operations.ts'
 import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
+import type { SessionCall } from './call-settlement.ts'
+import * as gone from './testing-calls-left.ts'
 import { controlAnswer } from './call-control.ts'
-import { judgeIdle } from './judgments.ts'
 import { materializeModelView, compactionReads, type MaterializedModelView } from './model-view.ts'
 import { memoryCompactionContext, memoryModelViewPage } from './testing-model-view-reads.ts'
 import { decodeEntry } from './entries.ts'
@@ -124,6 +125,7 @@ type Recall = (receipt: CommitReceipt) => unknown
 
 type Store = {
   snapshot: WorkSnapshot
+  readonly left: gone.CallsLeft
   modelView: MaterializedModelView
   readonly entries: HistoryEntry[]
   readonly operations: Map<
@@ -162,6 +164,7 @@ export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> 
   readonly commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
   readonly controls: Readonly<{
     entriesOf(tenant: TenantId, session: SessionId): readonly HistoryEntry[]
+    callOf(tenant: TenantId, session: SessionId, consumption: string): SessionCall | null
     decisionOf(
       tenant: TenantId,
       session: SessionId,
@@ -575,7 +578,11 @@ export function createMemorySessionTransactionPair<P>(
     return {
       material,
       prepared,
-      decision: projectSessionLog(prepared, observation, material?.reads),
+      decision: projectSessionLog(
+        gone.lentFor(store, prepared, observation),
+        observation,
+        material?.reads,
+      ),
     }
   }
 
@@ -672,7 +679,8 @@ export function createMemorySessionTransactionPair<P>(
               ...store.snapshot,
               ...(material === undefined ? {} : { historyIndex: material.index }),
             }
-      const decision = decide(prepared, command, guards, held?.record ?? null, {
+      const lent = gone.lentFor(store, prepared, command)
+      const decision = decide(lent, command, guards, held?.record ?? null, {
         ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
         intakeLimits,
         ...(material === undefined ? {} : { history: material.reads }),
@@ -740,29 +748,7 @@ export function createMemorySessionTransactionPair<P>(
         command.kind === 'considerAutoArchive' &&
         store !== undefined
       ) {
-        const snapshot = store.snapshot
-        const observation = snapshot.idle?.observation
-        const result =
-          snapshot.autoArchive?.kind !== 'enabled'
-            ? 'disabled'
-            : snapshot.relation?.kind === 'main' && snapshot.relation.resident
-              ? 'exempt'
-              : observation === undefined
-                ? 'not-due'
-                : judgeIdle(snapshot, {
-                    observation,
-                    policy: snapshot.autoArchive,
-                    coverage:
-                      observation.kind === 'interval'
-                        ? observation.coverage
-                        : {
-                            own: observation.source,
-                            relations: observation.source,
-                            calls: [],
-                            children: [],
-                            completeScope: observation.source,
-                          },
-                  }).kind
+        const result = gone.autoArchiveVerdict(store.snapshot)
         return succeed({ result, receipt: null })
       }
       const previous = prepared
@@ -775,7 +761,7 @@ export function createMemorySessionTransactionPair<P>(
         id: String(offset + index + 1) as EntryId,
         revision,
       }))
-      const reduced = reduce(previous, { revision, entries }, material?.reads)
+      const reduced = reduce(previous, { revision, entries }, material?.reads, gone.lookupOf(store))
       if (reduced.kind === 'quarantined')
         return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
       const committedEntries = [...(store?.entries ?? []), ...entries]
@@ -814,6 +800,7 @@ export function createMemorySessionTransactionPair<P>(
         operations,
         answers: store?.answers ?? new Map(),
         inputs,
+        left: gone.leftAfter(store, reduced),
       }
       const initialization = command.kind === 'create' || command.kind === 'completeInitialization'
       if (initialization && failInitialization) {
@@ -839,7 +826,7 @@ export function createMemorySessionTransactionPair<P>(
       if (store.answers.has(observation.operation))
         return fail({ kind: 'conflict', operation: observation.operation })
       const held = store.operations.get(observation.operation)
-      const decision = projectSessionEntries(store.snapshot, {
+      const decision = projectSessionEntries(gone.lentFor(store, store.snapshot, observation), {
         observation,
         start,
         saved: store.snapshot.entriesProgress ?? [],
@@ -859,10 +846,7 @@ export function createMemorySessionTransactionPair<P>(
         id: String(store.entries.length + index + 1) as EntryId,
         revision,
       }))
-      const reduced = reduce(store.snapshot, {
-        revision,
-        entries,
-      })
+      const reduced = reduce(store.snapshot, { revision, entries }, undefined, gone.lookupOf(store))
       if (reduced.kind === 'quarantined')
         return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
       const committedEntries = [...store.entries, ...entries]
@@ -894,6 +878,7 @@ export function createMemorySessionTransactionPair<P>(
       stores.set(key.ok, {
         ...store,
         snapshot,
+        left: gone.leftAfter(store, reduced),
         modelView: materializeModelView(store.modelView, entries, committedEntries),
         entries: committedEntries,
         operations,
@@ -923,7 +908,7 @@ export function createMemorySessionTransactionPair<P>(
         id: String(store.entries.length + index + 1) as EntryId,
         revision,
       }))
-      const reduced = reduce(prepared, { revision, entries }, material?.reads)
+      const reduced = reduce(prepared, { revision, entries }, material?.reads, gone.lookupOf(store))
       if (reduced.kind === 'quarantined')
         return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
       const progress = progressRowOf(entries, observation)
@@ -945,7 +930,10 @@ export function createMemorySessionTransactionPair<P>(
         interpreted: entryEvidence(progress),
         recovered: false,
       }
-      stores.set(key.ok, publishedLog(store, reduced.snapshot, entries, observation, answer))
+      stores.set(key.ok, {
+        ...publishedLog(store, reduced.snapshot, entries, observation, answer),
+        left: gone.leftAfter(store, reduced),
+      })
       return succeed(answer)
     }
 
@@ -1087,6 +1075,7 @@ export function createMemorySessionTransactionPair<P>(
         const store = await storeOf(input, 'readCurrentScope')
         return 'failure' in store ? store : succeed(store.ok.snapshot.contextScopes?.at(-1) ?? null)
       },
+      readCall: async input => gone.bindingFor(await storeOf(input, 'readWork'), input.producer),
       readInput: async input => {
         const store = await storeOf(input, 'readInput')
         if ('failure' in store) return store
@@ -1333,7 +1322,8 @@ export function createMemorySessionTransactionPair<P>(
           id: String(store.entries.length + index + 1) as EntryId,
           revision,
         }))
-        const reduced = reduce(prepared, { revision, entries }, material?.reads)
+        const lookup = gone.lookupOf(store)
+        const reduced = reduce(prepared, { revision, entries }, material?.reads, lookup)
         if (reduced.kind === 'quarantined')
           return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
         const receipt = receiptOf(observation.session, operation, revision, entries)
@@ -1346,6 +1336,7 @@ export function createMemorySessionTransactionPair<P>(
         stores.set(key.ok, {
           ...store,
           snapshot: reduced.snapshot,
+          left: gone.leftAfter(store, reduced),
           entries: [...store.entries, ...entries],
           operations,
           modelView: materializeModelView(store.modelView, entries, [...store.entries, ...entries]),
@@ -1369,6 +1360,8 @@ export function createMemorySessionTransactionPair<P>(
         const key = keyOf(tenant, session)
         return 'failure' in key ? [] : [...(stores.get(key.ok)?.entries ?? [])]
       },
+      callOf: (tenant: TenantId, session: SessionId, consumption: string) =>
+        gone.callAt(stores, keyOf(tenant, session), consumption),
       decisionOf: (tenant: TenantId, session: SessionId, operation: SessionOperationId) => {
         const key = keyOf(tenant, session)
         return 'failure' in key

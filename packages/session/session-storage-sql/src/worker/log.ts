@@ -1,3 +1,4 @@
+import { callsLeft, lentTo, type CallsLeft } from './call-left.ts'
 import {
   digestSessionLog,
   executionReadThrough,
@@ -45,6 +46,7 @@ export type LogBatch = Readonly<{
   previous: WorkSnapshot
   snapshot: WorkSnapshot
   entries: readonly HistoryEntry[]
+  left: CallsLeft
   answer: SessionLogReceipt
   decision: HistoryBasis
 }>
@@ -241,6 +243,7 @@ function batchOf(
     projected.prepared,
     { revision, entries } as never,
     projected.history.reads,
+    callsLeft(port, { tenant, session }),
   )
   if (reduced.kind === 'quarantined')
     return { kind: 'stopped', failure: { kind: 'quarantined', diagnostic: reduced.diagnostic } }
@@ -260,6 +263,7 @@ function batchOf(
       previous: start.previous,
       snapshot,
       entries,
+      left: reduced,
       answer: {
         operation: observation.operation,
         execution: observation.execution,
@@ -314,7 +318,8 @@ export function judgeLog(
       diagnostic: 'the history index of the session exceeds the read bound',
     }
   const prepared = { ...previous, historyIndex: history.index }
-  const decision = projectSessionLog(prepared, observation, history.reads)
+  const lent = lentTo(port, { tenant, session: observation.session }, prepared, observation)
+  const decision = projectSessionLog(lent, observation, history.reads)
   if (decision.kind === 'rejected') return { kind: 'stopped', failure: decision.failure }
   if (decision.kind !== 'entries')
     return {

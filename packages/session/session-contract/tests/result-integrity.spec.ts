@@ -7,7 +7,6 @@ import {
   type CallBinding,
   type ConsumptionId,
   type HistoryEntry,
-  type Participation,
   type SessionCommand,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -18,150 +17,10 @@ import {
   refused,
   assistantMessage,
 } from '@omne-harness/session-contract/testing'
+import type { SessionCall } from '../src/call-settlement.ts'
 import { encodeEntry, type SessionEntry } from '../src/entries.ts'
-import { open, participation, scene } from './scene.ts'
-
-async function callScene(external = false) {
-  const s = await open()
-  const { run, advance } = await s.active()
-  const binding: CallBinding = {
-    producer: { kind: 'tool', call: 'original-call' },
-    action: 'action',
-    consumer: { owner: 'session', work: 'work', position: 'original-position', purpose: 'action' },
-    request: evidence('request'),
-    initiatingAttempt: external ? null : advance.attempt,
-  }
-  const id = 'original-consumption' as ConsumptionId
-  const consumption = external
-    ? succeeded(
-        await s.commit({
-          kind: 'bindExternalCall',
-          input: {
-            ...s.base,
-            operation: operationId('bind'),
-            expected: (await s.read()).revision,
-            binding: { ...binding, initiatingAttempt: null },
-            qualification: evidence('qualified'),
-          },
-        }),
-        'external bind',
-      ).consumption
-    : id
-  if (!external)
-    succeeded(
-      await s.project(
-        {
-          ...s.base,
-          run: run.run,
-          execution: run.execution.execution,
-          revision: '1',
-          sequence: '1',
-          source: evidence('call'),
-          consequences: [
-            {
-              kind: 'call-registration',
-              consumption,
-              registration: {
-                kind: 'associated',
-                binding: { ...binding, producer: { kind: 'tool', call: binding.producer.call } },
-                purpose: 'action',
-              },
-            },
-            {
-              kind: 'waiting',
-              waiting: [{ kind: 'producer', binding, position: binding.consumer.position }],
-            },
-          ],
-        },
-        operationId('call'),
-      ),
-      'call',
-    )
-  const result = {
-    producer: binding.producer,
-    version: '1',
-    delivery: 'delivery',
-    source: evidence('result'),
-  }
-  const preserve = (
-    operation: string,
-    custody = evidence('custody'),
-    part: Participation | null = null,
-  ) =>
-    s.commit({
-      kind: 'preserveResult',
-      input: {
-        ...s.base,
-        operation: operationId(operation),
-        consumption,
-        result,
-        custody,
-        participation: part,
-      },
-    })
-  const process = (
-    operation: string,
-    part = participation(run.execution.execution, 'processed'),
-    proof = evidence('processed'),
-  ) =>
-    s.commit({
-      kind: 'completeConsumption',
-      input: {
-        ...s.base,
-        operation: operationId(operation),
-        participation: part,
-        completion: { consumption, result, completion: proof },
-      },
-    })
-  const processExternal = async (
-    operation: string,
-    position = binding.consumer.position,
-    processing = evidence('processed'),
-  ) =>
-    s.commit({
-      kind: 'completeExternalConsumption',
-      input: {
-        ...s.base,
-        operation: operationId(operation),
-        expected: (await s.read()).revision,
-        qualification: evidence('qualified'),
-        completion: { consumption, result, position, processing, message: null },
-      },
-    })
-  const cancel = async () =>
-    succeeded(
-      await s.commit({
-        kind: 'control',
-        input: {
-          ...s.base,
-          operation: operationId('cancel'),
-          intent: { kind: 'cancel-run', run: run.run, urgency: 'force' },
-        },
-      }),
-      'cancel',
-    )
-  const release = (operation: string) =>
-    s.commit({
-      kind: 'receive',
-      input: {
-        ...s.base,
-        operation: operationId(operation),
-        fact: { kind: 'release', consumption, result, source: evidence('confirmed') },
-      },
-    })
-  return {
-    ...s,
-    run,
-    binding,
-    consumption,
-    result,
-    preserve,
-    process,
-    processExternal,
-    cancel,
-    release,
-  }
-}
+import { callScene } from './call-scene.ts'
+import { participation, scene } from './scene.ts'
 
 function committedBatch(snapshot: WorkSnapshot, ...entries: SessionEntry[]) {
   const revision = String(BigInt(snapshot.revision) + 1n) as WorkSnapshot['revision']
@@ -179,6 +38,13 @@ function replay(snapshot: WorkSnapshot, entry: SessionEntry) {
   return reduce(snapshot, committedBatch(snapshot, entry))
 }
 
+/** A replay onto a snapshot the call has left: the call is lent back, as a store does. */
+function replayLent(snapshot: WorkSnapshot, left: SessionCall | null, entry: SessionEntry) {
+  return reduce(snapshot, committedBatch(snapshot, entry), undefined, () =>
+    left === null ? [] : [left],
+  )
+}
+
 describe('original result responsibility', () => {
   it('processing requires the original execution, and a refused commit leaves waiting intact', async () => {
     const s = await callScene()
@@ -189,7 +55,7 @@ describe('original result responsibility', () => {
     expect(await s.read()).toEqual(before)
     succeeded(await s.process('valid'), 'valid')
     expect((await s.read()).waiting).toEqual([])
-    expect((await s.read()).consumptions[0]?.results[0]?.completion).toEqual(evidence('processed'))
+    expect(s.call(s.consumption)?.consumed?.results[0]?.completion).toEqual(evidence('processed'))
   })
   it('Run and external completion cannot substitute for one another or another position', async () => {
     const s = await callScene(true)
@@ -408,7 +274,7 @@ describe('original result responsibility', () => {
       readThrough: '1',
     })
     expect(reduced.snapshot.waiting).toEqual([])
-    expect(reduce(reduced.snapshot, batch)).toEqual(reduced)
+    expect(reduce(reduced.snapshot, batch)).toMatchObject({ snapshot: reduced.snapshot })
     expect(await s.read()).toEqual(before)
   })
   it('reduce quarantines malformed message participation revisions without throwing', async () => {
@@ -479,14 +345,14 @@ describe('original result responsibility', () => {
         ).kind,
       ).toBe('conflict')
       expect(await s.read()).toEqual(unchanged)
-      expect(unchanged.consumptions[0]?.results[0]).toEqual({
+      expect(s.call(s.consumption)?.consumed?.results[0]).toEqual({
         result: s.result,
         custody: evidence('custody'),
         completion: evidence('processed'),
         release: 'confirmed',
       })
       expect(
-        replay(unchanged, {
+        replayLent(unchanged, s.call(s.consumption), {
           kind: 'call.result-preserved',
           consumption: s.consumption,
           result: s.result,
@@ -495,7 +361,7 @@ describe('original result responsibility', () => {
         }).kind,
       ).toBe('quarantined')
       expect(
-        replay(unchanged, {
+        replayLent(unchanged, s.call(s.consumption), {
           kind: 'call.result-processed',
           consumption: s.consumption,
           result: s.result,
@@ -504,7 +370,7 @@ describe('original result responsibility', () => {
           position: s.binding.consumer.position,
         }).kind,
       ).toBe('quarantined')
-      const same = replay(unchanged, {
+      const same = replayLent(unchanged, s.call(s.consumption), {
         kind: 'call.result-preserved',
         consumption: s.consumption,
         result: s.result,
@@ -516,7 +382,7 @@ describe('original result responsibility', () => {
         snapshot: { consumptions: unchanged.consumptions },
       })
       expect(
-        replay(unchanged, {
+        replayLent(unchanged, s.call(s.consumption), {
           kind: 'call.execution-fact',
           fact: {
             kind: 'release',
