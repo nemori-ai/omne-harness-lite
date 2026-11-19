@@ -109,6 +109,10 @@ describe.each([
       )
       expect(widths.length).toBeGreaterThan(0)
       expect(widths.every(width => width > 50)).toBe(true)
+      const lefts = [...container.querySelectorAll('.recharts-rectangle')].map(bar =>
+        Number(bar.getAttribute('x')),
+      )
+      expect(lefts.every(left => left >= 56)).toBe(true)
     }
     expect(container.querySelectorAll('.omne-chart-color-1').length).toBeGreaterThan(0)
     expect(container.querySelectorAll('.omne-chart-color-2').length).toBeGreaterThan(0)
