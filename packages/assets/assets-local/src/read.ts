@@ -5,6 +5,7 @@ import {
   readAsset,
   readDomain,
   readHolding,
+  readSummary,
   readVersion,
   selectedVersion,
 } from './records.ts'
@@ -86,6 +87,46 @@ function versionResult(
   const version = readVersion(port, domain, lookup.assetRef, lookup.version)
   return { kind: 'read', output: json(version ? { kind: 'version', version } : { kind: 'absent' }) }
 }
+function summaryResult(
+  request: Extract<ReadRequest, { kind: 'summary' }>,
+  port: Port,
+): ReturnType<ReadHandlerModule['read']> {
+  const { domain, lookup } = request
+  const summary = readSummary(port, domain, lookup.assetRef, lookup.version)
+  return { kind: 'read', output: json({ kind: 'summary', summary }) }
+}
+
+function domainResult(
+  request: Extract<ReadRequest, { kind: 'domain' }>,
+  port: Port,
+): ReturnType<ReadHandlerModule['read']> {
+  const current = readDomain(port)
+  if (foreign(current, request.domain)) return FORBIDDEN
+  return { kind: 'read', output: json({ kind: 'domain', revision: current?.revision ?? 0 }) }
+}
+
+type Kind = ReadRequest['kind']
+type Reader<K extends Kind> = (
+  request: Extract<ReadRequest, { kind: K }>,
+  port: Port,
+) => ReturnType<ReadHandlerModule['read']>
+
+function owned<K extends Kind>(reader: Reader<K>): Reader<K> {
+  return (request, port) => (belongs(port, request.domain) ? reader(request, port) : FORBIDDEN)
+}
+
+const READERS: { readonly [K in Kind]: Reader<K> } = {
+  asset: assetResult,
+  heldCapability: heldCapabilityResult,
+  version: owned(versionResult),
+  holding: owned(holdingResult),
+  summary: owned(summaryResult),
+  domain: domainResult,
+}
+
+function dispatch<K extends Kind>(request: Extract<ReadRequest, { kind: K }>, port: Port) {
+  return (READERS[request.kind] as Reader<K>)(request, port)
+}
 
 export default {
   handler: HANDLER,
@@ -94,16 +135,6 @@ export default {
     if (!withinBudget(input)) return { kind: 'failed', diagnostic: 'assets_input_budget' }
     const parsed = readRequestSchema.safeParse(input)
     if (!parsed.success) return { kind: 'failed', diagnostic: 'assets_invalid_input' }
-    const request = parsed.data
-    switch (request.kind) {
-      case 'asset':
-        return assetResult(request, port)
-      case 'heldCapability':
-        return heldCapabilityResult(request, port)
-      case 'version':
-        return belongs(port, request.domain) ? versionResult(request, port) : FORBIDDEN
-      case 'holding':
-        return belongs(port, request.domain) ? holdingResult(request, port) : FORBIDDEN
-    }
+    return dispatch(parsed.data, port)
   },
 } satisfies ReadHandlerModule

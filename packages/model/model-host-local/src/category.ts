@@ -7,4 +7,5 @@ import {
 export const modelProviderCategoryPlugin = categoryContributionPlugin('model-provider-category', {
   contract: modelProviderBodyContract(),
   display: modelProviderCategoryDisplay,
+  generalCreation: 'closed',
 })

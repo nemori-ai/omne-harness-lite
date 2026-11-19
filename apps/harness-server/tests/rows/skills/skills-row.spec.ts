@@ -22,7 +22,11 @@ import {
 import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 import { toolBodyContract, toolCategoryDisplay } from '@omne-harness/tool-contract'
 import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
-import { assetsSettingsProjectionCommand, createTenantPublisher } from '@omne-harness/assets-local'
+import {
+  assetsSettingsProjectionCommand,
+  createTenantPublisher,
+  newHoldingRef,
+} from '@omne-harness/assets-local'
 import { SettingsOwnerProjectionSchema } from '@omne-harness/settings-local'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
@@ -232,7 +236,7 @@ describe('the skills row and the Skills binding over a real store', () => {
     const w = await world()
     expect(await w.publishThroughTenantAssets('weekly-report')).toMatchObject({
       kind: 'published',
-      holdingRef: 'skill/weekly-report',
+      holdingRef: newHoldingRef('publish-weekly-report'),
       changed: true,
     })
     expect(await search(w.alpha, '出周报')).toMatchObject({

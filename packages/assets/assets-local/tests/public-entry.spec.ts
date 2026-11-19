@@ -4,13 +4,17 @@ it('exports the trusted owner and both public Settings integration commands', ()
   expect(Object.keys(assets).sort()).toEqual([
     'AssetPublicationRefSchema',
     'AssetsPublicationProjectionSchema',
+    'TENANT_PUBLISHING_OWNER',
     'assetsPublicationCommand',
     'assetsPublicationFact',
     'assetsSettingsProjectionCommand',
     'assetsSqlMaterials',
     'createAssetsLocal',
+    'createTenantLayerStore',
     'createTenantPublisher',
-    'publishedRef',
+    'newHoldingRef',
+    'originOf',
+    'publishedAssetRef',
     'tenantLayerSource',
   ])
 })

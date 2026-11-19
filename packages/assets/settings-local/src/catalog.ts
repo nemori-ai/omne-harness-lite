@@ -14,6 +14,7 @@ import type {
   SettingsFailure,
   SettingsReadPort,
   SettingsRegistrySnapshot,
+  SettingsTarget,
   SettingsViewRequest,
 } from '@omne-harness/settings'
 import {
@@ -59,6 +60,8 @@ export type SettingsCatalogOptions = SettingsSqlTerminalOptions &
     reservations: StandingReservations
     required: readonly Qualification[]
     registry: Readonly<{ snapshot(): SettingsRegistrySnapshot }>
+    /** Asset targets whose definition only a registered provider supplies; the others carry it. */
+    registryTargets?: () => readonly SettingsTarget[]
     project: SettingsProjectionCommands
     selection?: SettingsSelectionSource
     clock: Readonly<{ now(): number }>
@@ -83,6 +86,10 @@ const BasisSchema = z.strictObject({
   completeness: z.enum(['complete', 'partial']),
   unavailableProviders: z.array(z.string()).max(128),
 })
+function definitionRefOf(definition: SettingsRegistrySnapshot['definitions'][number]) {
+  const { providerId, definitionId, version } = definition
+  return { providerId, definitionId, version, digest: digest(definition) }
+}
 export function createSettingsCatalog(
   input: SettingsCatalogOptions,
 ): SettingsReadPort<ActingForTenantPrincipal> & {
@@ -192,12 +199,8 @@ export function createSettingsCatalog(
         captureId: randomUUID(),
         request,
       },
-      availability: before.definitions.map(d => ({
-        providerId: d.providerId,
-        definitionId: d.definitionId,
-        version: d.version,
-        digest: digest(d),
-      })),
+      availability: before.definitions.map(definitionRefOf),
+      registryTargets: options.registryTargets?.() ?? [],
       incarnation,
       registryRevision: before.revision,
       expiryEpoch: Math.floor(now / options.cursorLifetimeMs),
