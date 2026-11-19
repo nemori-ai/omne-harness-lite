@@ -1693,6 +1693,9 @@ importers:
       '@omne-harness/runtime-context-contract':
         specifier: workspace:*
         version: link:../../context/runtime-context-contract
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

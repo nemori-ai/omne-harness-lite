@@ -29,7 +29,8 @@
     "@omne-harness/calendar-contract": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/notification-contract": "workspace:*",
-    "@omne-harness/runtime-context-contract": "workspace:*"
+    "@omne-harness/runtime-context-contract": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
