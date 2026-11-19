@@ -4,6 +4,7 @@ import {
   commandGateOf,
   selectCommandText,
   type Adoption,
+  type ToolActionGate,
   type ToolActionResolution,
   type ToolAvailability,
   type ToolCallLabel,
@@ -114,38 +115,48 @@ export function createToolActionResolution(
       if (input.name !== 'Tools' || called.command !== 'execute')
         return succeed({ kind: 'own', gate: own })
       if (!released) return unavailable('Tools is not available as released')
-      const refused = (field: string, reason: string) =>
-        succeed({ kind: 'argument-error' as const, gate: own, field, reason })
-      const effective = input.effectiveArguments
-      const intent = forwardIntentOfCall({
-        definition,
-        command: called.command,
-        arguments: { original: effective, effective, complete: true },
-      })
-      if (intent === null) return refused('arguments', 'tools-execute-arguments')
-      const resolved = await resolveForwardTarget(ports, input, intent)
-      if ('failure' in resolved) {
-        const { failure } = resolved
-        // A target the forward refuses (resident, not included, not available) is no target either.
-        if (failure.kind === 'denied') return refused('name', 'target-refused')
-        if (failure.kind === 'invalid') return refused(failure.field, failure.reason)
-        return resolved
-      }
-      const target = resolved.ok.availability.definition
-      // A call its target would answer with usage carries no action either.
-      const targetCall = callOf(target, resolved.ok.effective)
-      if ('answer' in targetCall) return refused('arguments', 'target-call-refused')
-      return succeed({
-        kind: 'carried',
-        carrier: { name: input.name, definition: definition.adoption, gate: own },
-        target: {
-          name: intent.name,
-          definition: target.adoption,
-          command: intent.command,
-          effectiveArguments: resolved.ok.effective,
-          gate: gateOf(target, targetCall.command),
-        },
-      })
+      return carriedAction(ports, input, definition, own, gateOf)
     },
   }
+}
+
+async function carriedAction(
+  ports: ForwardRequestPorts,
+  input: Input,
+  definition: Definition,
+  own: ToolActionGate,
+  gateOf: (tool: Definition, command: string | null) => ToolActionGate,
+): ReturnType<ToolActionResolution<unknown>['resolve']> {
+  const refused = (field: string, reason: string) =>
+    succeed({ kind: 'argument-error' as const, gate: own, field, reason })
+  const effective = input.effectiveArguments
+  const intent = forwardIntentOfCall({
+    definition,
+    command: 'execute',
+    arguments: { original: effective, effective, complete: true },
+  })
+  if (intent === null) return refused('arguments', 'tools-execute-arguments')
+  const resolved = await resolveForwardTarget(ports, input, intent)
+  if ('failure' in resolved) {
+    const { failure } = resolved
+    // A target the forward refuses (resident, not included, not available) is no target either.
+    if (failure.kind === 'denied') return refused('name', 'target-refused')
+    if (failure.kind === 'invalid') return refused(failure.field, failure.reason)
+    return resolved
+  }
+  const target = resolved.ok.availability.definition
+  // A call its target would answer with usage carries no action either.
+  const targetCall = callOf(target, resolved.ok.effective)
+  if ('answer' in targetCall) return refused('arguments', 'target-call-refused')
+  return succeed({
+    kind: 'carried',
+    carrier: { name: input.name, definition: definition.adoption, gate: own },
+    target: {
+      name: intent.name,
+      definition: target.adoption,
+      command: intent.command,
+      effectiveArguments: resolved.ok.effective,
+      gate: gateOf(target, targetCall.command),
+    },
+  })
 }
