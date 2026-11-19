@@ -9,7 +9,7 @@ import {
   TableRow,
   type Tone,
 } from '@omne-harness/ui-kit'
-import type { JSX } from 'react'
+import { Fragment, type JSX } from 'react'
 
 type Client = ClientOf<CalendarProtocol>
 export type SupplyHealth = Extract<
@@ -59,21 +59,30 @@ export function SupplyHealthTable({
         {health.calendars.map(item => {
           const [supply, supplyTone] = SUPPLY[item.supply]
           const [horizon, horizonTone] = HORIZON[item.horizon]
+          const lines = why(item)
           return (
-            <TableRow key={item.calendar}>
-              <TableCell>{titleOf(item.calendar)}</TableCell>
-              <TableCell>
-                <StatusPill tone={supplyTone}>{supply}</StatusPill>
-                {item.consecutiveFailures > 0 && `，连续失败 ${item.consecutiveFailures} 次`}
-                {why(item).map(line => (
-                  <div key={line}>{line}</div>
-                ))}
-              </TableCell>
-              <TableCell>
-                <StatusPill tone={horizonTone}>{horizon}</StatusPill>
-              </TableCell>
-              <TableCell>{coverage(item)}</TableCell>
-            </TableRow>
+            <Fragment key={item.calendar}>
+              <TableRow>
+                <TableCell>{titleOf(item.calendar)}</TableCell>
+                <TableCell>
+                  <StatusPill tone={supplyTone}>{supply}</StatusPill>
+                  {item.consecutiveFailures > 0 && `，连续失败 ${item.consecutiveFailures} 次`}
+                </TableCell>
+                <TableCell>
+                  <StatusPill tone={horizonTone}>{horizon}</StatusPill>
+                </TableCell>
+                <TableCell>{coverage(item)}</TableCell>
+              </TableRow>
+              {lines.length > 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="whitespace-normal text-xs text-ink-muted">
+                    {lines.map(line => (
+                      <div key={line}>{line}</div>
+                    ))}
+                  </TableCell>
+                </TableRow>
+              )}
+            </Fragment>
           )
         })}
       </TableBody>
