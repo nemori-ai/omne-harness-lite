@@ -132,7 +132,12 @@ describe('the fence of a call is the directory pinned in its own request', () =>
 
   function world(answer: Verification | 'absent' = 'absent') {
     const holder = toolRuntimeHolder({ root: {} } as unknown as Context)
-    const identity = { sessionWork: async () => ({ kind: 'session' }) } as never
+    // A principal named `stranger` is verified and is not the work principal of a session.
+    const identity = {
+      sessionWork: async (principal: unknown) => ({
+        kind: principal === 'stranger' ? 'denied' : 'session',
+      }),
+    } as never
     const { workspaces, asked } = asking(answer)
     const { input } = createReleaseEnvironment(holder, identity as ReleaseToolIdentity, {
       workspaces: workspaces as never,
@@ -151,14 +156,24 @@ describe('the fence of a call is the directory pinned in its own request', () =>
           ...(directory === undefined ? {} : { directory }),
         },
       } as never)
-    const read = (origin: unknown, path: string) =>
+    const read = (origin: unknown, path: string, principal = 'work') =>
       input.plan.guard.authorize('files', 'read', {
         requestId: 'r',
-        access: { principal: 'work', tenant: TENANT },
+        access: { principal, tenant: TENANT },
         origin,
         path,
       } as never)
-    return { bind, read, asked, holder }
+    const name = (origin: unknown, path: string, principal = 'work') =>
+      input.naming.name({
+        principal,
+        tenant: TENANT,
+        origin,
+        binding: { kind: 'host_machine' },
+        operation: 'read',
+        path,
+        role: 'object',
+      } as never)
+    return { bind, read, name, asked, holder }
   }
 
   it('keeps two calls apart: each reads under its own directory and not under the other', async () => {
@@ -174,6 +189,21 @@ describe('the fence of a call is the directory pinned in its own request', () =>
     for (const settle of w.holder.settled) settle(callKeyOf(TENANT, 'call-blog'))
     expect(await w.read(blog.ok.origin, join(BLOG, 'a.txt'))).toBe('notAuthorized')
     expect(await w.read(shop.ok.origin, join(SHOP, 'a.txt'))).toBe('authorized')
+  })
+
+  it('names a host object only inside the directory of its call, and only for the work principal of a session', async () => {
+    const w = world()
+    const blog = await w.bind('call-blog', { path: BLOG, workspace: null })
+    if ('failure' in blog) throw new Error('binding')
+    const denied = { failure: { kind: 'denied', action: 'name-host-object' } }
+    expect(await w.name(blog.ok.origin, BLOG)).toHaveProperty('ok')
+    expect(await w.name(blog.ok.origin, '.')).toHaveProperty('ok')
+    expect(await w.name(blog.ok.origin, SHOP)).toEqual(denied)
+    expect(await w.name(blog.ok.origin, join(BLOG, '..', 'shop'))).toEqual(denied)
+    expect(await w.name(blog.ok.origin, BLOG, 'stranger')).toEqual(denied)
+    expect(await w.name('tool:unknown:origin', BLOG)).toEqual(denied)
+    // The guard refuses the same stranger a path the call itself may read.
+    expect(await w.read(blog.ok.origin, join(BLOG, 'a.txt'), 'stranger')).toBe('notAuthorized')
   })
 
   it('binds nothing for a call that works in an environment and whose directory is not admitted', async () => {

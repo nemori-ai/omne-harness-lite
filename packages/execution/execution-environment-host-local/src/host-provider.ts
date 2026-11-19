@@ -193,7 +193,6 @@ function enginesByRoot(
     },
     leave(): void {
       for (const membership of joined.values()) membership.leave()
-      joined.clear()
     },
   }
 }
