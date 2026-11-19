@@ -50,7 +50,7 @@ const health = {
       lastSuccess: null,
     },
   ],
-  reasons: [],
+  reasons: ['Some source observations are unknown'],
 }
 const resolution = {
   calendarId: 'jp-legal-holidays',
@@ -121,8 +121,49 @@ describe('read-supply-health', () => {
           consecutiveFailures: 2,
         },
       ],
-      reasons: [],
+      reasons: ['Some source observations are unknown'],
     })
+  })
+  it('carries what the domain does not know as null, and a last success as an instant', async () => {
+    const unknown = {
+      ...health,
+      knowledgeAsOf: null,
+      remainingCoverageDays: null,
+      lastSuccess: '2026-11-18T00:00:00.000Z',
+    }
+    const answer: any = await world({ health: { kind: 'ok', value: [unknown] } }).ops[
+      'read-supply-health'
+    ](call, {
+      tenant: tenantId,
+    })
+    const [item] = answer.body.calendars
+    expect([
+      item.knowledgeAsOf,
+      item.remainingCoverageDays,
+      encodeInstant(item.lastSuccess),
+    ]).toEqual([null, null, '2026-11-18T00:00:00.000Z'])
+  })
+  it('answers denied before the domain when the login cannot act for the tenant', async () => {
+    const asked: string[] = []
+    const contribution = createCalendarContribution({
+      principals: {
+        async actingFor() {
+          return { refused: 'denied' } as const
+        },
+        contextOf: () => context,
+      },
+      faces: () => {
+        asked.push('faces')
+        return undefined
+      },
+      requestId: () => 'r-1',
+    })
+    expect(await contribution.operations['read-supply-health'](call, { tenant: tenantId })).toEqual(
+      {
+        outcome: 'denied',
+      },
+    )
+    expect(asked).toEqual([])
   })
   it('answers denied or an unavailable basis for a refusal, never an empty list', async () => {
     for (const [code, outcome] of [
@@ -156,12 +197,20 @@ describe('read-supply-health', () => {
 
 describe('answer on a named calendar and version', () => {
   const question = { kind: 'day', date: '2026-11-03' } as const
-  it('refuses a version without its calendar before the domain', async () => {
+  it('refuses a version without its calendar, or an empty calendar or version, before the domain', async () => {
     const { ops, asked } = world({})
-    expect(await ops.answer(call, { tenant: tenantId, question, version: 'v-0' })).toEqual({
-      outcome: 'invalid',
-      body: { reason: 'input' },
-    })
+    for (const named of [
+      { version: 'v-0' },
+      { calendar: '' },
+      { calendar: 'jp-legal-holidays', version: '' },
+    ])
+      expect(
+        await ops.answer(call, { tenant: tenantId, question, ...named }),
+        JSON.stringify(named),
+      ).toEqual({
+        outcome: 'invalid',
+        body: { reason: 'input' },
+      })
     expect(asked).toEqual([])
   })
   it('resolves on the named calendar at its latest version, or the named version', async () => {

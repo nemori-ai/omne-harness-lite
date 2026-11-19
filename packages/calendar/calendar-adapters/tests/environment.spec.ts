@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { calendarCallContextSchema } from '@omne-harness/calendar-contract'
-import { calendarEnvironmentBlock, createCalendarEnvironmentReader } from '../src/index.ts'
+import {
+  calendarEnvironmentBlock,
+  calendarEnvironmentDescriptor,
+  createCalendarEnvironmentReader,
+} from '../src/index.ts'
 
 const context = calendarCallContextSchema.parse({
   principalRef: 'p',
@@ -80,6 +84,37 @@ describe('the calendar environment read through the tenant-level scope', () => {
       owner: { kind: 'tenant', tenantId: 't-2', ownerId: 'o' },
     })
     expect(await reader(found).environment.read(other)).toEqual({ kind: 'unavailable' })
+  })
+})
+
+describe('the calendar environment beside other blocks', () => {
+  it('takes its own block out of a read that holds others first', async () => {
+    const read = vi.fn(async () => ({
+      ok: {
+        entries: [
+          { key: 'session.intake-budget', kind: 'value', value: { kind: 'missing' } },
+          { key: 'calendar.environment', kind: 'value', value: found },
+        ],
+      },
+    }))
+    const environment = createCalendarEnvironmentReader<string>({
+      scope: () => ({ read }) as never,
+      reader: async () => ({ principal: 'reader', tenant }),
+    })
+    expect(await environment.read(context)).toMatchObject({
+      kind: 'found',
+      value: { revision: 'rev-7' },
+    })
+  })
+  it('declares a schema that takes a found or missing environment and refuses anything else', () => {
+    const validate = calendarEnvironmentDescriptor.schema['~standard'].validate
+    expect(validate(found)).toEqual({ value: found })
+    expect(validate({ kind: 'missing' })).toEqual({ value: { kind: 'missing' } })
+    for (const bad of [
+      null,
+      { kind: 'found', revision: 'r', timezone: 'Nowhere/Here', calendarId: null },
+    ])
+      expect(validate(bad)).toMatchObject({ issues: [{ message: expect.any(String) }] })
   })
 })
 
