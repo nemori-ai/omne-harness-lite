@@ -76,6 +76,7 @@ describe('another working copy of the same repository is the same resource', () 
     const directory = await new DirectoryType().recognise(await plain(box.root, next()))
     if (!('ok' in directory)) throw new Error('the directory type did not take it')
     expect(git.admits([main.material], directory.ok)).toEqual(OTHER)
+    expect(git.admits([], directory.ok)).toEqual(OTHER)
     expect(git.admits([directory.ok.material], main)).toEqual(OTHER)
     const { repository: known } = main.material as GitMaterial
     for (const repository of [

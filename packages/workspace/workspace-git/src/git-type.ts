@@ -16,20 +16,12 @@ export type GitMaterial = DirectoryMaterial & Readonly<{ repository: Repository 
 
 const OTHER = { kind: 'refused', reason: reason('not-the-same-resource') } as const
 
-/** Material is read back from storage, so its shape is checked before it is used. */
-function repositoryOf(value: Material): Repository | null {
-  const stored = (value as { repository?: Partial<Repository> } | null)?.repository
-  const { commonDirectory, identity } = stored ?? {}
-  return typeof commonDirectory === 'string' && typeof identity === 'string'
-    ? { commonDirectory, identity }
-    : null
-}
+/** Stored material may name no repository, or not a whole one: that is the same as another one. */
+const repositoryOf = (material: Material): Partial<Repository> | undefined =>
+  (material as Partial<GitMaterial>).repository ?? undefined
 
-const same = (left: Repository | null, right: Repository | null): boolean =>
-  left !== null &&
-  right !== null &&
-  left.identity === right.identity &&
-  left.commonDirectory === right.commonDirectory
+const same = (left: Partial<Repository> | undefined, right: Partial<Repository>): boolean =>
+  left?.identity === right.identity && left?.commonDirectory === right.commonDirectory
 
 /** A directory that is also a working copy. Every override asks the directory type first. */
 export class GitType extends DirectoryType {
@@ -49,7 +41,7 @@ export class GitType extends DirectoryType {
   /** Another working copy of the same repository is the same resource. */
   override admits(existing: readonly Material[], candidate: Recognised): Admission {
     const wanted = repositoryOf(candidate.material)
-    return wanted !== null && existing.every(material => same(repositoryOf(material), wanted))
+    return wanted !== undefined && existing.every(material => same(repositoryOf(material), wanted))
       ? { kind: 'admitted' }
       : OTHER
   }

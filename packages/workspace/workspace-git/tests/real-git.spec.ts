@@ -82,6 +82,9 @@ describe('what git itself wrote is read as git itself reads it', () => {
     expect(await headOf(other)).toBe(git(other, 'rev-parse', 'HEAD'))
     git(other, 'checkout', '-q', '--detach')
     expect(await headOf(other)).toBe(git(other, 'rev-parse', 'HEAD'))
+    git(other, 'checkout', '-q', '-b', 'fix/#1+a@b')
+    git(other, 'commit', '-q', '--allow-empty', '-m', 'third')
+    expect(await headOf(other)).toBe(git(other, 'rev-parse', 'HEAD'))
     const [main, copy] = [await readWorkingCopy(root), await readWorkingCopy(other)]
     expect('ok' in main && 'ok' in copy && copy.ok.repository).toEqual(
       'ok' in main && main.ok.repository,
