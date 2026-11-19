@@ -97,7 +97,7 @@ export function createHistorySearch<P>(deps: HistorySearchDeps<P>): HistorySearc
     if (input.cursor === null) return succeed(null)
     const found = await deps.seal.open(input.tenant, input.cursor)
     if (found === 'unavailable') return unavailable('the cursor cannot be verified now')
-    const cursor = found === 'invalid' ? null : parseCursor(found)
+    const cursor = parseCursor(found)
     return cursor === null ? invalid('cursor', 'not a cursor of this search') : succeed(cursor)
   }
 

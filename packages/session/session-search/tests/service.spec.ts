@@ -117,7 +117,9 @@ describe('who may search and what they see (SL10, SE-9)', () => {
     expect(await s.ask(NEEDLE)).toEqual({ failure: { kind: 'denied' } })
     s.refused.clear()
     s.faults.accessFrom = 0
-    expect(await s.ask(NEEDLE)).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(await s.ask(NEEDLE)).toEqual({
+      failure: { kind: 'unavailable', diagnostic: 'the access basis is unavailable' },
+    })
     expect(s.w.index.reads.candidates).toBe(0)
   })
 
@@ -188,6 +190,22 @@ describe('what a search refuses and what it cannot do', () => {
       failure: { kind: 'invalid', field: 'pageSize', reason: 'from 1 to 100' },
     })
     expect(s.asked).toEqual([])
+  })
+
+  it('takes a page size at either end of its range, and needs nobody to tell of a search', async () => {
+    const s = await filled()
+    expect((await s.page(NEEDLE, { pageSize: 1 })).hits).toHaveLength(1)
+    expect((await s.page(NEEDLE, { pageSize: 100 })).hits).toHaveLength(6)
+    const quiet = createHistorySearch<string>({
+      access: { check: async () => ({ kind: 'allowed', evidence: evidence('search') }) },
+      index: s.w.index,
+      log: s.w.log.reader,
+      seal: { seal: async () => null, open: async () => 'invalid' },
+      policy: POLICY,
+      now: () => 0,
+    })
+    const asked = { principal: 'alice', tenant: TENANT, query: NEEDLE, cursor: null, pageSize: 50 }
+    expect(await quiet.search(asked)).toMatchObject({ ok: { complete: true } })
   })
 
   it('refuses a query the compiler refuses, with its reason', async () => {

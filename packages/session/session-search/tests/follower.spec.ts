@@ -84,7 +84,18 @@ describe('following the logs of a tenant (SH-2, SH-3)', () => {
     expect(await pass()).toEqual({ failure: 'unavailable' })
     w.index.faults.failing = null
     expect(await w.index.state(TENANT)).toMatchObject({ kind: 'rebuilding' })
+    const adopt = w.index.adopt.bind(w.index)
+    w.index.adopt = async () => ({ failure: 'unavailable' })
+    expect(await pass()).toEqual({ failure: 'unavailable' })
+    w.index.adopt = adopt
     expect(await pass()).toMatchObject({ ok: { adopted: true } })
+  })
+
+  it('says unavailable when a build cannot be begun', async () => {
+    const { w, pass } = logged()
+    w.index.beginRebuild = async () => ({ failure: 'unavailable' })
+    expect(await pass()).toEqual({ failure: 'unavailable' })
+    expect(await w.index.state(TENANT)).toEqual({ kind: 'absent' })
   })
 })
 
@@ -118,6 +129,33 @@ describe('the follower of a process (SH-2, SH-4)', () => {
     follower.poke(TENANT)
     await follower.idle()
     expect(w.index.coverOf(1, S1).through).toBe('4')
+    // A pass that appended nothing has nothing to compact.
+    const before = compacted.length
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(compacted).toHaveLength(before)
+    follower.stop()
+  })
+
+  it('runs one pass of a tenant at a time, however often it is poked', async () => {
+    const { w, follower } = following({ maxSteps: 1 })
+    const sessions = w.log.reader.sessions.bind(w.log.reader)
+    let inFlight = 0
+    let most = 0
+    w.log.reader.sessions = async tenant => {
+      inFlight += 1
+      most = Math.max(most, inFlight)
+      await new Promise(resolve => setTimeout(resolve, 2))
+      inFlight -= 1
+      return sessions(tenant)
+    }
+    for (let turn = 0; turn < 5; turn += 1) {
+      follower.poke(TENANT)
+      await new Promise(resolve => setTimeout(resolve, 1))
+    }
+    await follower.idle()
+    expect(most).toBe(1)
+    expect(await w.index.state(TENANT)).toMatchObject({ kind: 'ready' })
     follower.stop()
   })
 
@@ -138,6 +176,12 @@ describe('the follower of a process (SH-2, SH-4)', () => {
     await follower.idle()
     expect(reports).toEqual(['following the history failed: unavailable'])
     w.log.faults.sessions = false
+    const sessions = w.log.reader.sessions.bind(w.log.reader)
+    w.log.reader.sessions = () => Promise.reject(new Error('the port broke'))
+    follower.poke(TENANT)
+    await follower.idle()
+    expect(reports[1]).toBe('following the history failed: Error: the port broke')
+    w.log.reader.sessions = sessions
     follower.poke(TENANT)
     await follower.idle()
     expect(await w.index.state(TENANT)).toMatchObject({ kind: 'ready' })

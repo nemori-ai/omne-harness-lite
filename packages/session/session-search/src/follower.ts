@@ -17,12 +17,11 @@ export type FollowPass = Readonly<{
 
 type Ports = Readonly<{ index: HistoryIndex; log: HistoryLogReader }>
 
-// The generation to write to: the one being built if there is one, else the current one. An index
-// that is absent or broken is begun anew; the build is adopted by the pass that finds nothing behind.
+// The generation to write to: the current one, or the one being built. Beginning a build that is
+// already on gives that build, so an absent, a broken and a half-built index are one case.
 async function targetOf(deps: Ports, tenant: TenantId, total: number) {
   const state = await deps.index.state(tenant)
   if (state.kind === 'ready') return succeed({ generation: state.generation, building: false })
-  if (state.kind === 'rebuilding') return succeed({ generation: state.building, building: true })
   const begun = await deps.index.beginRebuild(tenant, total)
   if ('failure' in begun) return begun
   return succeed({ generation: begun.ok.generation, building: true })
@@ -51,7 +50,6 @@ export async function followTenant(
       if ('failure' in step) return fail('unavailable')
       steps += 1
       cover = step.ok
-      if (step.ok.exhausted) break
     }
     if (BigInt(cover.through) < BigInt(tail)) behind += 1
   }

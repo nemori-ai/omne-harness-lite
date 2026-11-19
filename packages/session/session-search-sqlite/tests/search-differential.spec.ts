@@ -1,5 +1,5 @@
 // @module-tag slow
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -7,6 +7,7 @@ import type { SessionId } from '@omne-harness/session-contract'
 import { testingTenant } from '@omne-harness/session-contract/testing'
 import {
   compileQuery,
+  followTenant,
   queryDigest,
   searchHistory,
   type SearchCursor,
@@ -166,4 +167,33 @@ describe.each([false, true])('a search on the SQLite index, rebuilding: %s (SH-1
       ).toEqual([])
     }
   }, 120_000)
+})
+
+describe('following a tenant on the SQLite index (SH-3)', () => {
+  it('builds and adopts a first generation, and builds a new one when the files are lost', async () => {
+    const w = await prepared(424242, false)
+    const root = roots.at(-1)!
+    const index = indexes.at(-1)!
+    const deps = { index, log: w.log.reader }
+    const limits = { pageBytes: 4096, maxSteps: 3 }
+    let pass = await followTenant(deps, TENANT, limits)
+    for (let turn = 0; turn < 200 && 'ok' in pass && pass.ok.behind > 0; turn += 1)
+      pass = await followTenant(deps, TENANT, limits)
+    expect(pass).toMatchObject({ ok: { behind: 0, adopted: false } })
+    const query = randomQuery(w.rng, w.clock.at, SESSIONS)
+    expect(keysOf([await w.page(query, null, { pageSize: 10_000 })]).sort()).toEqual(w.scan(query))
+    // The index is a projection: with its files gone it is absent, and one pass after another rebuilds it.
+    await index.close()
+    for (const name of readdirSync(root)) rmSync(join(root, name), { recursive: true, force: true })
+    expect(await index.state(TENANT)).toEqual({ kind: 'absent' })
+    let rebuilt = await followTenant(deps, TENANT, limits)
+    expect(await index.state(TENANT)).toMatchObject({ kind: 'rebuilding', generation: null })
+    for (let turn = 0; turn < 200 && 'ok' in rebuilt && !rebuilt.ok.adopted; turn += 1)
+      rebuilt = await followTenant(deps, TENANT, limits)
+    expect(rebuilt).toMatchObject({ ok: { behind: 0, adopted: true } })
+    expect(await index.state(TENANT)).toMatchObject({ kind: 'ready' })
+    const page = await w.page(query, null, { pageSize: 10_000 })
+    expect(page.complete).toBe(true)
+    expect(keysOf([page]).sort()).toEqual(w.scan(query))
+  }, 60_000)
 })
