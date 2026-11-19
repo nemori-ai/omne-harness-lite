@@ -1,5 +1,5 @@
-// One statistics query: checked before any read, the session resolved to a consumer scope, every
-// registered source read in full, then folded. A source that cannot answer leaves no total.
+// Three reads over the registered sources, each checked first, a session resolved to its consumers:
+// statistics and occupancy read every source in full, records a page at a time.
 import { tenantCodec, type Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -72,7 +72,6 @@ function chunks(
 
 type SourceRequest<P> = Access<P> & Readonly<{ range: UsageQuery['range'] | null }>
 
-/** One page of one source, its failures named by the source. */
 async function listOnce<P>(
   source: UsageSource<P>,
   request: SourceRequest<P> &
@@ -222,7 +221,7 @@ function tenantText(tenant: Access<unknown>['tenant']): string {
 type Position = Readonly<{ source: number; chunk: number; cursor: string | null }>
 const FIRST: Position = { source: 0, chunk: 0, cursor: null }
 
-/** A records read checked as a statistics query is, its page size within the limit, its cursor its own. */
+/** Records are checked as a query is; the page within the limit, the cursor of this read. */
 function startOf<P>(
   input: Access<P> & UsageRecordsQuery,
   page: number,
