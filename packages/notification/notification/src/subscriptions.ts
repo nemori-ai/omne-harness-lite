@@ -104,6 +104,20 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
     }
   }
 
+  /** The decision, with the consent of the call read in when it needs one. */
+  async function settle(
+    ctx: CallContext,
+    change: SubscriptionChange,
+    current: Subscription | null,
+  ): Promise<Exclude<SubscriptionDecision, { kind: 'needs-consent' }> | typeof UNAVAILABLE> {
+    const decision = decide(ctx, change, current)
+    if (decision === null) return UNAVAILABLE
+    if (decision.kind !== 'needs-consent') return decision
+    const consent = await consentOf(ctx)
+    if (consent.kind === 'unavailable') return UNAVAILABLE
+    return consent.kind === 'basis' ? { kind: 'set', basis: consent.basis } : consent
+  }
+
   async function write(
     ctx: CallContext,
     key: SubscriptionKey,
@@ -126,14 +140,10 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
       if (blocked !== null) return blocked
       const current = await deps.store.subscription(ctx.tenant, key)
       if (current.kind === 'unavailable') return UNAVAILABLE
-      const decision = decide(ctx, change, current.value)
-      if (decision === null) return UNAVAILABLE
-      if (decision.kind === 'refused') return decision
-      if (decision.kind === 'recalled')
-        return { kind: 'done', recalled: true, value: decision.current }
-      const settled = decision.kind === 'set' ? decision : await consentOf(ctx)
-      if (settled.kind === 'unavailable') return UNAVAILABLE
-      if (settled.kind === 'refused') return settled
+      const settled = await settle(ctx, change, current.value)
+      if (settled.kind === 'recalled')
+        return { kind: 'done', recalled: true, value: settled.current }
+      if (settled.kind !== 'set') return settled
       const next = { ...key, level, note, term, basis: settled.basis, expired: false }
       const failed = await write(ctx, key, current.value, next)
       return failed ?? { kind: 'done', recalled: false, value: next }

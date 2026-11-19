@@ -170,25 +170,31 @@ export async function describeActivation(
       ? UNSEEN
       : ((await within(() => seenOf(args, given, reads), READ_WITHIN_MS)) ?? UNSEEN)
   const name = seen.current?.definition.label ?? given.label ?? '未命名'
-  const definition = given.proposed ?? seen.current?.definition
   const next: Next = ENDING.has(args.command) ? { kind: 'none' } : seen.next
-  const timezone = seen.timezone
   return {
     rows: [
       { label: '动作', value: VERBS[args.command] },
       { label: '日程', value: name },
       ...changeRows(args),
-      {
-        label: '规则',
-        value: definition === undefined ? '取不到' : ruleText(definition.recurrence),
-      },
-      ...(next.kind === 'none' ? [] : [{ label: '时区', value: timezone ?? '取不到' }]),
-      { label: '接下来三次', value: nextText(next) },
-      {
-        label: '要做的事',
-        value: definition === undefined ? '取不到' : purposeText(definition.purpose).slice(0, 200),
-      },
+      ...definitionRows(given.proposed ?? seen.current?.definition, next, seen.timezone),
     ],
     typed: tree({ action: args.command, name, next }),
   }
+}
+
+function definitionRows(
+  definition: ScheduleDefinition | undefined,
+  next: Next,
+  timezone: string | undefined,
+): ReleaseRow[] {
+  const zone = next.kind === 'none' ? [] : [{ label: '时区', value: timezone ?? '取不到' }]
+  return [
+    { label: '规则', value: definition === undefined ? '取不到' : ruleText(definition.recurrence) },
+    ...zone,
+    { label: '接下来三次', value: nextText(next) },
+    {
+      label: '要做的事',
+      value: definition === undefined ? '取不到' : purposeText(definition.purpose).slice(0, 200),
+    },
+  ]
 }
