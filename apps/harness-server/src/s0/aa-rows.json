@@ -16,6 +16,8 @@
     "schedule",
     "notification",
     "calendar-notification",
+    "usage",
+    "usage-adapters",
     "session-provider",
     "session-ad02",
     "session-ad03",

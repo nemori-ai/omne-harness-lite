@@ -161,6 +161,16 @@
       "config": {}
     },
     {
+      "id": "usage",
+      "plugin": "usageRow",
+      "config": {}
+    },
+    {
+      "id": "usage-adapters",
+      "plugin": "usageAdaptersRow",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
       "config": {

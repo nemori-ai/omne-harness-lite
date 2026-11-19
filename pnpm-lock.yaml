@@ -893,6 +893,15 @@ importers:
       '@omne-harness/tool-storage-sql':
         specifier: workspace:*
         version: link:../../packages/tool/tool-storage-sql
+      '@omne-harness/usage':
+        specifier: workspace:*
+        version: link:../../packages/usage/usage
+      '@omne-harness/usage-adapters':
+        specifier: workspace:*
+        version: link:../../packages/usage/usage-adapters
+      '@omne-harness/usage-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/usage/usage-cordis-contract
       '@omne-harness/utc-instant':
         specifier: workspace:*
         version: link:../../packages/common/utc-instant
@@ -927,6 +936,9 @@ importers:
       '@omne-harness/session-protocol':
         specifier: workspace:*
         version: link:../../packages/session/session-protocol
+      '@omne-harness/usage-contract':
+        specifier: workspace:*
+        version: link:../../packages/usage/usage-contract
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

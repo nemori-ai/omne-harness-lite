@@ -50,6 +50,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: [],
     phase: 'composition',
   },
+  usage: { provides: ['usage', 'usageSources'] },
+  'usage-adapters': { provides: ['usageSessionScope'], injects: ['usageSources'] },
   'session-intake-budget': {
     provides: [],
     injects: ['runtimeContextTenantBlocks', 'tenantIndependentSettings'],
