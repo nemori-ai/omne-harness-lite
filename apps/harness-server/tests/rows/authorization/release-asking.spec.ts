@@ -226,19 +226,25 @@ describe('the card for an action a person must release', () => {
     expect((await questionOf({ kind: 'detail', rows })).detail).toEqual({ state: 'given', rows })
   })
 
-  it('keeps on the card the largest detail the default policy of Tool lets through', async () => {
+  it('keeps a detail within what one card holds, and asks with the largest the default policy of Tool lets through as one the tool could not give', async () => {
     const policy = DEFAULT_RELEASE_DETAIL_POLICY
-    const item = '字'.repeat(policy.maxItem)
-    const largest = Array.from({ length: policy.maxRows }, () => ({
-      label: '标'.repeat(policy.maxLabel),
-      value: Array.from({ length: policy.maxItems }, () => item),
-    }))
-    const value = `[${Array.from({ length: (policy.maxTypedBytes - 1) / 2 }, () => '1').join(',')}]`
-    const typed = { kind: 'test.release@1', value: value.slice(0, policy.maxTypedBytes) }
-    const question = await questionOf({ kind: 'detail', rows: largest as never, typed })
-    expect(question.detail).toEqual({ state: 'given', rows: largest, typed })
-    expect(new TextEncoder().encode(JSON.stringify(question)).byteLength).toBeLessThan(
-      HITL_COMMAND_MAX_BYTES - 16 * 1024,
+    const rowsOf = (each: number) =>
+      Array.from({ length: policy.maxRows }, () => ({
+        label: '标'.repeat(policy.maxLabel),
+        value: Array.from({ length: policy.maxItems }, () => '字'.repeat(each)),
+      }))
+    const value = `[${Array.from({ length: 2000 }, () => '1').join(',')}]`
+    const typed = { kind: 'test.release@1', value }
+    const kept = await questionOf({ kind: 'detail', rows: rowsOf(25) as never, typed })
+    expect(kept.detail).toEqual({ state: 'given', rows: rowsOf(25), typed })
+    const largest = await questionOf({
+      kind: 'detail',
+      rows: rowsOf(policy.maxItem) as never,
+      typed: { ...typed, value: `[${'1,'.repeat(policy.maxTypedBytes / 2 - 2)}1]` },
+    })
+    expect(largest.detail).toEqual({ state: 'unavailable' })
+    expect(new TextEncoder().encode(JSON.stringify(kept)).byteLength).toBeLessThan(
+      HITL_COMMAND_MAX_BYTES / 6,
     )
   })
 

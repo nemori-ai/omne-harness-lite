@@ -103,9 +103,13 @@ describe('what the tool said the call would do, kept on the release card', () =>
   })
 
   it('refuses a detail larger than the card keeps, whatever its parts', () => {
-    const wide = Array.from({ length: 12 }, () => '字'.repeat(200))
-    const full = Array.from({ length: 24 }, () => ({ label: '标'.repeat(40), value: wide }))
-    expect(takes({ state: 'given', rows: full })).toBe(true)
+    const rowsOf = (each: number) =>
+      Array.from({ length: 24 }, () => ({
+        label: '标'.repeat(40),
+        value: Array.from({ length: 12 }, () => '字'.repeat(each)),
+      }))
+    expect(takes({ state: 'given', rows: rowsOf(30) })).toBe(true)
+    expect(takes({ state: 'given', rows: rowsOf(200) })).toBe(false)
     const control = Array.from({ length: 12 }, () => '\u0001'.repeat(200))
     const escaped = Array.from({ length: 24 }, () => ({ label: '标'.repeat(40), value: control }))
     expect(takes({ state: 'given', rows: escaped })).toBe(false)

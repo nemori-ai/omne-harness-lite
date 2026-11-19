@@ -73,7 +73,7 @@ const releaseGate = z.strictObject({
 })
 const bounded = (maxCodePoints: number) =>
   z.string().refine(value => value.isWellFormed() && [...value].length <= maxCodePoints)
-export const HITL_RELEASE_DETAIL_MAX_BYTES = 196_608
+export const HITL_RELEASE_DETAIL_MAX_BYTES = 32_768
 const utf8 = (value: string) => new TextEncoder().encode(value).byteLength
 const bytesOf = (value: unknown) => utf8(JSON.stringify(value))
 const releaseRow = z.strictObject({

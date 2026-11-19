@@ -64,6 +64,14 @@ const given = {
   ],
   typed: { kind: 'test.release@1', value: '{"title":"T"}' },
 }
+const largest = {
+  state: 'given',
+  rows: Array.from({ length: 24 }, () => ({
+    label: '标'.repeat(40),
+    value: Array.from({ length: 12 }, () => '字'.repeat(25)),
+  })),
+  typed: { kind: 'test.release@1', value: `[${'1,'.repeat(1999)}1]` },
+}
 const submissionRef = { tenantRef: tenant, actorRef: 'actor-1', operationId: 'operation-1' }
 const decisionRef = { card: cardRef, decisionId: 'decision-1', submission: submissionRef }
 const decision = { ref: decisionRef, reply: pick, basisRef: 'basis-1', commitReceipt: 'receipt-1' }
@@ -167,6 +175,7 @@ const successBodies: Readonly<Record<Name, readonly object[]>> = {
     { item: item({ ...pending, question: asking }) },
     { item: item({ ...pending, question: release }) },
     { item: item({ ...pending, question: { ...release, detail: given } }) },
+    { item: item({ ...pending, question: { ...release, detail: largest } }) },
     { item: item({ ...pending, question: { ...release, detail: { state: 'unavailable' } } }) },
   ],
   'submit-reply': replyResults,
