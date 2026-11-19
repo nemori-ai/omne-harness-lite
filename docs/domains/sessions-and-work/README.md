@@ -26,7 +26,7 @@ Session 与六个邻域协作：Agent、Model、Tool、Runtime Context、Request
 | 成员 | 责任 |
 | --- | --- |
 | [session-contract](../../../packages/session/SPEC.md#总体架构) | 会话的值、身份、端口、事件目录与不变量。不依赖任何邻域契约，也不依赖 Cordis |
-| [session-cordis-contract](../../../packages/session/SPEC.md#装配) | 唯一的 Cordis 服务定义，以及 Session 自己的提交通知 |
+| [session-cordis-contract](../../../packages/session/SPEC.md#装配) | 唯一的 Cordis 服务定义，以及 Session 自己的提交叫醒 |
 | [session](../../../packages/session/SPEC.md#总体架构) | 不含 Cordis 的治理机制：命令处理、归约、投影、受理流水线、协调器与调度器的决策 |
 | [session-cordis](../../../packages/session/SPEC.md#装配) | Service 实现，接上计时、通知、事务与出站端口 |
 | [session-adapters](../../../packages/session/SPEC.md#领域边界) | 全部邻域适配插件。它是唯一依赖邻域契约的成员 |
