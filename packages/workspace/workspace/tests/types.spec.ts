@@ -21,9 +21,9 @@ describe('management types are contributions', () => {
   it('counts every type a type extends, and a cycle no further than itself', () => {
     const things = fakeWorld()
     const types = createManagementTypes()
-    types.contribute(things.type('a-middle', { extends: 'root' }))
+    types.contribute(things.type('a-middle', { extends: 'base' }))
     types.contribute(things.type('z-leaf', { extends: 'a-middle' }))
-    types.contribute(things.type('root'))
+    types.contribute(things.type('base'))
     types.contribute(things.type('ring-a', { extends: 'ring-b' }))
     types.contribute(things.type('ring-b', { extends: 'ring-a' }))
     expect(types.specificFirst().map(type => type.name)).toEqual([
@@ -31,7 +31,7 @@ describe('management types are contributions', () => {
       'a-middle',
       'ring-a',
       'ring-b',
-      'root',
+      'base',
     ])
   })
 

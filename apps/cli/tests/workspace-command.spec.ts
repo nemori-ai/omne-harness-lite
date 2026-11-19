@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { commandUnrecognized } from './support/expected.ts'
+import { commandUnrecognized, notLoggedIn } from './support/expected.ts'
 import {
   defaultAnswer,
   startFakeService,
@@ -192,6 +192,14 @@ describe('what omne workspace refuses before it sends anything', () => {
     expect(result.code).toBe(2)
     expect(result.stderr.startsWith('omne workspace')).toBe(true)
     expect(service.seen.filter(seen => !['issue-login'].includes(seen.operation))).toEqual([])
+  })
+
+  it('exits 1 when nobody has logged in', async () => {
+    expect(await cli(['workspace', 'list'])).toMatchObject({
+      code: 1,
+      stdout: '',
+      stderr: notLoggedIn,
+    })
   })
 
   it('names the subcommand that was not recognized', async () => {
