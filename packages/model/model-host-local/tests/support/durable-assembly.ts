@@ -67,6 +67,7 @@ import {
 import {
   callHandler,
   createSqlModelCommands,
+  dispatchFactsMigration,
   modelMigration,
   pendingHandler,
   requestHandler,
@@ -343,6 +344,7 @@ function sqliteStorage(): SqlStorage {
     if (found !== undefined) return found
     const db = new DatabaseSync(':memory:')
     modelMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
+    dispatchFactsMigration.up({ execute: (sql, params) => rowsOf(db, sql, params) })
     const domain = { db, receipts: new Map<string, Receipt>() }
     domains.set(name, domain)
     return domain

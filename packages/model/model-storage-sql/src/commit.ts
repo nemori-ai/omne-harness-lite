@@ -32,11 +32,9 @@ import {
   type TenantDomainLookup,
 } from '@omne-harness/sql-contract'
 import {
-  packText,
   type ParticipantModule,
   type ParticipantPort,
   type ParticipantReply,
-  type SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import {
   comparePartKeys,

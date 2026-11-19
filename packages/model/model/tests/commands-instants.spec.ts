@@ -43,7 +43,12 @@ async function prepared() {
   const dispatch: DispatchId = unbox(decodeDispatchId('mdisp_instants'))
   const supplier = f.admit.request.suppliers[0]
   unbox(
-    await commands.prepareDispatch({ ...(await write()), dispatch, supplier, policyDecision: null }),
+    await commands.prepareDispatch({
+      ...(await write()),
+      dispatch,
+      supplier,
+      policyDecision: null,
+    }),
   )
   const record = async (): Promise<DispatchRecord | undefined> =>
     unbox(await commands.dispatches(access)).find(item => item.dispatch === dispatch)
@@ -106,8 +111,16 @@ describe('the moments a batch of facts keeps', () => {
   })
 
   it.each([
-    ['a connect retry of another reason', [retry('dns')], { field: 'connect-retry', reason: 'reason' }],
-    ['a response whose identity is not text', [response(42)], { field: 'response', reason: 'request' }],
+    [
+      'a connect retry of another reason',
+      [retry('dns')],
+      { field: 'connect-retry', reason: 'reason' },
+    ],
+    [
+      'a response whose identity is not text',
+      [response(42)],
+      { field: 'response', reason: 'request' },
+    ],
   ])('refuses %s', async (_name, facts, failure) => {
     const s = await started()
     expect(await s.deliver(facts)).toEqual({ failure: { kind: 'invalid', ...failure } })

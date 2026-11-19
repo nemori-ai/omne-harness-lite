@@ -11,11 +11,7 @@ import type { CallAccount } from '@omne-harness/call-account'
 import type { ModelFault, Reply } from './result.ts'
 import type { DispatchInstants } from './call-surface.ts'
 
-/**
- * One real dispatch as Model shows it outside: numbers and identities only, never a request, a
- * reply or reasoning state. It is written with the dispatch record and kept after the call is
- * cleaned up.
- */
+/** One real dispatch as Model shows it outside: numbers and identities only, never a body. */
 export type ModelDispatchFact = Readonly<{
   call: ModelCallId
   dispatch: DispatchId
