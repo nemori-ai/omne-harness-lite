@@ -11,7 +11,7 @@ import type {
   SessionFailure,
 } from '@omne-harness/session-contract'
 import { sessionKey, sessionWorkPrincipalsKey } from '@omne-harness/session-cordis-contract/cordis'
-import { modesInitialization } from '../../assembly/session-modes-initialization.ts'
+import { contextInitialization } from '../../assembly/session-context-initialization.ts'
 import { jsonOf } from './json.ts'
 
 type Create = Extract<AdoptionEvidenceCommand, { kind: 'create' }>
@@ -20,16 +20,16 @@ const same = (left: unknown, right: unknown) => canonicalText(left) === canonica
 const unavailable = () =>
   fail({
     kind: 'unavailable' as const,
-    owner: 'session.modes',
-    diagnostic: 'original mode initialization cannot be read',
+    owner: 'session.context',
+    diagnostic: 'original context initialization cannot be read',
   })
 const invalid = (): Reply =>
   fail({
     kind: 'quarantined',
-    diagnostic: 'original mode initialization does not match its stored preparation',
+    diagnostic: 'original context initialization does not match its stored preparation',
   })
 
-export async function recallInitialModes<P>(
+export async function recallInitialContext<P>(
   ctx: Context,
   command: Create,
   access: SessionAccess<P> | undefined,
@@ -87,26 +87,21 @@ function originalGuard<P>(
   })
   if (!same(input, original.input))
     return fail({ kind: 'conflict', operation: command.input.operation })
-  const candidate = modesInitialization({ ...command.input, principal: access.principal })
+  const candidate = contextInitialization({ ...command.input, principal: access.principal })
   const material = original.initialAdoption.capabilities
   if (!same(material.schema, schema) || material.value.kind !== 'object') return invalid()
   const preparations = material.value.entries.find(
     entry => entry.key === 'contextPreparations',
   )?.value
-  if (!same(preparations, jsonOf([canonicalText(candidate.preparation)]))) return invalid()
-  const registered = original.registrations.find(item =>
-    same(item.decision, candidate.preparation.decision),
-  )
-  if (
-    registered === undefined ||
-    !same(
-      registered.prepared,
-      candidate.outcome.consequence?.kind === 'context-registration'
-        ? candidate.outcome.consequence.prepared
-        : null,
+  const planned = candidate.blocks.map(block => canonicalText(block.preparation))
+  if (!same(preparations, jsonOf(planned))) return invalid()
+  for (const { preparation, result } of candidate.blocks) {
+    const registered = original.registrations.find(item =>
+      same(item.decision, preparation.decision),
     )
-  )
-    return invalid()
+    if (registered === undefined || !same(registered.prepared, result.result.evidence))
+      return invalid()
+  }
   const outcomes = []
   for (const result of command.input.creation.initialization?.results ?? []) {
     const found = original.results.find(

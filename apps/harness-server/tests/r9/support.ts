@@ -455,7 +455,11 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'session-ad03',
-        config: { scopeIndexEntries: 4096, pageBytes: 65536 },
+        config: {
+          scopeIndexEntries: 4096,
+          pageBytes: 65536,
+          defaultDirectory: tools.host.filesRoot,
+        },
       },
       {
         kind: 'replace',

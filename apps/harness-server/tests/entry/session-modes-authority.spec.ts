@@ -43,6 +43,19 @@ it('allows the issued tenant modes producer to register only its own publication
   expect(
     await authority.producer(principal, { ...action, producer: { producer: 'other' } }),
   ).toEqual({ kind: 'refused' })
+  // The working directory block is produced by its own producer, and neither produces the other's.
+  const directory = {
+    ...action,
+    key: 'session.working-directory' as const,
+    producer: { producer: '@omne-harness/session-adapters/session.working-directory' },
+  }
+  expect(await authority.producer(principal, directory)).toMatchObject({ kind: 'authorized' })
+  expect(await authority.producer(principal, { ...directory, key: action.key })).toEqual({
+    kind: 'refused',
+  })
+  expect(await authority.producer(principal, { ...action, key: directory.key })).toEqual({
+    kind: 'refused',
+  })
 })
 
 it('issues the narrow modes role and supplies with the confirmed Session work principal', async () => {

@@ -157,7 +157,10 @@ const membershipOf = (row: Row): Membership => ({
 
 /** A workspace as one tenant sees it. Without a relation it reads the same as one that does not exist. */
 export function stateOf(port: SqlPort, tenant: string, workspace: string): WorkspaceState | null {
-  const found = one(select(port, `${MEMBERSHIP} AND r.workspace = ?`, [tenant, workspace]), membershipOf)
+  const found = one(
+    select(port, `${MEMBERSHIP} AND r.workspace = ?`, [tenant, workspace]),
+    membershipOf,
+  )
   if (found === null) return null
   const active = `${INSTANCE} WHERE workspace = ? AND active = 1 ORDER BY rowid`
   return { ...found, instances: select(port, active, [workspace]).map(instanceOf) }

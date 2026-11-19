@@ -1,6 +1,6 @@
 import { canonicalText } from '../../src/rows/agent-adoptions/definition-mappings.ts'
 import { decide } from '@omne-harness/session-contract'
-import { modesInitialization } from '../../src/assembly/session-modes-initialization.ts'
+import { contextInitialization } from '../../src/assembly/session-context-initialization.ts'
 import { AdoptionSourcesImpl } from '../../src/rows/adoption-sources/sources.ts'
 import { agentAdoptionsConfig } from '../../src/rows/agent-adoptions/config.ts'
 import { buildTable } from '../../src/rows/agent-adoptions/table.ts'
@@ -81,8 +81,12 @@ it('mounts one real producer per tenant through the production authority and wit
     expect(registrations).toHaveBeenCalledTimes(2)
     const original = createCommand('alpha')
     const input = { ...original.input, tenant, principal: principals.forTenant(tenant) }
-    const initial = modesInitialization(input)
-    expect(modesInitialization(input)).toEqual(initial)
+    const initial = contextInitialization(input)
+    expect(contextInitialization(input)).toEqual(initial)
+    expect(initial.blocks.map(item => item.block.item)).toEqual([
+      'session.modes',
+      'session.working-directory',
+    ])
     const command = {
       ...original,
       input: {
@@ -109,15 +113,24 @@ it('mounts one real producer per tenant through the production authority and wit
     const adoption = createdBody['initialAdoption'] as Record<string, unknown>
     const capabilitiesMaterial = adoption['capabilities'] as Record<string, unknown>
     const capabilities = plainOf(capabilitiesMaterial['value']) as Record<string, unknown>
-    expect(capabilities['contextPreparations']).toEqual([canonicalText(initial.preparation)])
+    expect(capabilities['contextPreparations']).toEqual(
+      initial.blocks.map(item => canonicalText(item.preparation)),
+    )
+    const registered = decision.entries
+      .filter(entry => entry.kind === 'session.context-registration-changed')
+      .map(entry => (plainOf(entry.payload) as { initialization: unknown }).initialization)
+    expect(registered).toMatchObject(
+      initial.blocks.map(item => ({ decision: item.preparation.decision })),
+    )
+    const outcomes = decision.entries.filter(entry => entry.kind === 'session.initialization-item')
+    expect(outcomes.map(entry => plainOf(entry.payload))).toMatchObject(
+      initial.blocks.map(item => ({ outcome: item.outcome })),
+    )
     expect(
-      decision.entries.some(entry => entry.kind === 'session.context-registration-changed'),
-    ).toBe(true)
-    const outcome = decision.entries.find(entry => entry.kind === 'session.initialization-item')
-    if (outcome === undefined) throw new Error('missing initialization result')
-    expect(plainOf(outcome.payload)).toMatchObject({ outcome: initial.outcome })
-    expect(
-      await modes.prepareInitial({ ...input, principal: structuredClone(input.principal) }),
+      await modes.prepareInitial(
+        { ...input, principal: structuredClone(input.principal) },
+        initial.blocks[0]!.block,
+      ),
     ).toHaveProperty('failure')
     const tampered = {
       ...command,

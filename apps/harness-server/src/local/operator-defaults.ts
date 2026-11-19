@@ -560,7 +560,10 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ['request-context', {}],
     ['agent-context', {}],
     ['agent-host', AGENT_HOST],
-    ['session-ad03', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
+    [
+      'session-ad03',
+      { scopeIndexEntries: 4096, pageBytes: 65_536, defaultDirectory: settings.workspace },
+    ],
     ['session-ad04', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
     [
       'session-access',

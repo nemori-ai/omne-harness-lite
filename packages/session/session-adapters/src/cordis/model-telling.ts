@@ -22,6 +22,7 @@ import {
   reminderReadFailure,
 } from './model-reminder-commit.ts'
 import type { ModelReminders } from './model-reminders.ts'
+import type { StepDirectory } from './working-directory-step.ts'
 
 export type { ModelReminders } from './model-reminders.ts'
 
@@ -43,14 +44,19 @@ export type Told =
   | Readonly<{ kind: 'again' }>
   | Readonly<{ kind: 'answer'; value: Readonly<{ failure: Failure }> }>
 
-export type ModelTellingPorts<P, B extends Book> = Readonly<{
-  storage: SqlStorage
-  combination: JournalCombination
-  generations: GenerationMemory
+export type StepOpening<P> = Readonly<{
   reminders?: ModelReminders<P> | undefined
-  fault?: ((diagnostic: string) => void) | undefined
-  read(book: B, domain: DomainRef): Promise<Outcome<WorkSnapshot | null, Failure>>
+  directory?: StepDirectory<P> | undefined
 }>
+
+export type ModelTellingPorts<P, B extends Book> = StepOpening<P> &
+  Readonly<{
+    storage: SqlStorage
+    combination: JournalCombination
+    generations: GenerationMemory
+    fault?: ((diagnostic: string) => void) | undefined
+    read(book: B, domain: DomainRef): Promise<Outcome<WorkSnapshot | null, Failure>>
+  }>
 
 export function beginsStep(appended: readonly PublishedBatch[]): boolean {
   return appended.some(batch => batch.facts.some(fact => fact.kind === 'step.begun'))
@@ -61,7 +67,17 @@ const down = (diagnostic: string): Told =>
   failed({ kind: 'unavailable', owner: 'session-log-journal', diagnostic })
 
 export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P, B>) {
-  const { reminders } = ports
+  const { reminders, directory } = ports
+
+  async function refresh(book: B, principal: P, snapshot: WorkSnapshot | null): Promise<Told> {
+    if (directory === undefined) return null
+    if (snapshot === null) return down('no Session snapshot to take the working directory from')
+    const scope = openContextScope({ tenant: book.tenant, session: book.session, snapshot })
+    if (scope === null) return down('the session has no open context scope')
+    const { tenant, session } = book
+    const refreshed = await directory.refresh({ principal, tenant, session, scope, snapshot })
+    return refreshed.kind === 'refreshed' ? null : down(refreshed.diagnostic)
+  }
 
   async function tell(
     book: B,
@@ -126,9 +142,10 @@ export function createModelTelling<P, B extends Book>(ports: ModelTellingPorts<P
       scratch: Scratch,
       appended: readonly PublishedBatch[],
     ): Promise<Told> {
-      return beginsStep(appended)
-        ? tell(book, domain, principalOf<P>(write), scratch.snapshot)
-        : null
+      if (!beginsStep(appended)) return null
+      const principal = principalOf<P>(write)
+      const stale = await refresh(book, principal, scratch.snapshot)
+      return stale ?? tell(book, domain, principal, scratch.snapshot)
     },
     /** The request after a compaction is prepared in the same step: tell it in full right away. */
     async afterCompaction(

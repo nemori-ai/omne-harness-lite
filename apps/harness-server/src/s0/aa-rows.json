@@ -214,6 +214,7 @@
         "storage",
         "tenantDomainLookup",
         "sessionModesInstallation",
+        "sessionWorkingDirectory",
         "definitionMappings"
       ]
     },
@@ -270,7 +271,8 @@
       "names": [
         "storage",
         "tenantDomainLookup",
-        "agentReceivedRecords"
+        "agentReceivedRecords",
+        "sessionWorkingDirectory"
       ]
     },
     {

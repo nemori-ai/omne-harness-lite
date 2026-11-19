@@ -159,6 +159,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionReplayFacts',
       'sessionScopeLookup',
       'sessionModesInstallation',
+      'sessionWorkingDirectory',
     ],
     injects: [
       'sessionWorkPrincipals',

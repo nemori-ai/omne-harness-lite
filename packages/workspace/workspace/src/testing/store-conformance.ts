@@ -212,11 +212,14 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
       assert.deepEqual(state?.instances, [])
       assert.equal(state?.workspace.revision, 2)
       assert.equal(committed(await store.register(second({ occupancy: '/a' }))).kind, 'done')
-      assert.deepEqual(committed(await store.dissociate({ ...command, operation: 'd2', digest: 'd-d2' })), {
-        kind: 'done',
-        value: null,
-        changed: false,
-      })
+      assert.deepEqual(
+        committed(await store.dissociate({ ...command, operation: 'd2', digest: 'd-d2' })),
+        {
+          kind: 'done',
+          value: null,
+          changed: false,
+        },
+      )
       assert.equal(read(await store.state('alice', 'wsp_1'))?.workspace.revision, 2)
     },
   },

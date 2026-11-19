@@ -107,14 +107,27 @@ describe('the transaction adapter writes and reads back every shape of a fact', 
   it('an instance in either state, and its state changed both ways', () => {
     const txn = sqlTxn(portOf(createInProcessStore().db))
     const record = { workspace: 'w', node: 'n', address: '/a', material: { a: [1] } } as const
-    txn.insertInstance({ ...record, instance: 'gone' as never, occupancy: '/a', state: 'dissociated' })
+    txn.insertInstance({
+      ...record,
+      instance: 'gone' as never,
+      occupancy: '/a',
+      state: 'dissociated',
+    })
     txn.insertInstance({ ...record, instance: 'here' as never, occupancy: '/b', state: 'active' })
-    expect(txn.instance('gone')).toEqual({ ...record, instance: 'gone', occupancy: '/a', state: 'dissociated' })
+    expect(txn.instance('gone')).toEqual({
+      ...record,
+      instance: 'gone',
+      occupancy: '/a',
+      state: 'dissociated',
+    })
     expect(txn.instance('here')?.state).toBe('active')
     expect(txn.occupant('n', '/a')).toBeNull()
     txn.setInstanceState('gone', 'active')
     txn.setInstanceState('here', 'dissociated')
-    expect([txn.instance('gone')?.state, txn.instance('here')?.state]).toEqual(['active', 'dissociated'])
+    expect([txn.instance('gone')?.state, txn.instance('here')?.state]).toEqual([
+      'active',
+      'dissociated',
+    ])
     expect(txn.occupant('n', '/a')?.instance).toBe('gone')
     expect(txn.occupant('n', '/b')).toBeNull()
   })
@@ -122,7 +135,9 @@ describe('the transaction adapter writes and reads back every shape of a fact', 
   it('a statement that returns more rows than its limit fails instead of being cut', () => {
     const { db } = createInProcessStore()
     for (const name of ['a', 'b', 'c'])
-      db.exec(`INSERT INTO ws_workspaces (workspace, type, revision) VALUES ('${name}', 'plain', 1)`)
+      db.exec(
+        `INSERT INTO ws_workspaces (workspace, type, revision) VALUES ('${name}', 'plain', 1)`,
+      )
     const sql = 'SELECT workspace FROM ws_workspaces ORDER BY workspace'
     expect(select(portOf(db), sql, [], 3).map(row => row[0])).toEqual(['a', 'b', 'c'])
     expect(() => select(portOf(db), sql, [], 2)).toThrow(/more rows/)
@@ -130,12 +145,20 @@ describe('the transaction adapter writes and reads back every shape of a fact', 
 
   it.each([
     ['a type that is not text', "UPDATE ws_workspaces SET type = x'00' WHERE workspace = 'w'"],
-    ['a revision that is not an integer', "UPDATE ws_workspaces SET revision = 'many' WHERE workspace = 'w'"],
-    ['a flag that is not an integer', "UPDATE ws_relations SET super_admin = 'yes' WHERE workspace = 'w'"],
+    [
+      'a revision that is not an integer',
+      "UPDATE ws_workspaces SET revision = 'many' WHERE workspace = 'w'",
+    ],
+    [
+      'a flag that is not an integer',
+      "UPDATE ws_relations SET super_admin = 'yes' WHERE workspace = 'w'",
+    ],
   ])('%s fails the read', async (_name, damage) => {
     const store = createInProcessStore()
     store.db.exec("INSERT INTO ws_workspaces (workspace, type, revision) VALUES ('w', 'plain', 1)")
-    store.db.exec("INSERT INTO ws_relations (workspace, tenant, role, super_admin) VALUES ('w', 'alice', 'participant', 0)")
+    store.db.exec(
+      "INSERT INTO ws_relations (workspace, tenant, role, super_admin) VALUES ('w', 'alice', 'participant', 0)",
+    )
     expect((await store.state('alice', 'w')).kind).toBe('read')
     store.db.exec(damage)
     expect(await store.state('alice', 'w')).toEqual({ kind: 'unavailable' })
