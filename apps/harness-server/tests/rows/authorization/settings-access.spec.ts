@@ -204,6 +204,19 @@ describe('what the settings face answers to the refusals of its members', () => 
     expect(await checking.qualify(asked(login, 'set'))).toStrictEqual({ kind: 'unavailable' })
   })
 
+  it('answers unavailable when the card reader throws or rejects', async () => {
+    const allowing = () => ({ check: async () => ({ kind: 'allowed' }) as never })
+    const rejecting = createSettingsGuard(
+      allowing,
+      () => ({ read: () => Promise.reject(new Error('cards SECRET-TEXT')) }) as never,
+    )
+    expect(await rejecting.qualify(asked(standing(), 'set'))).toStrictEqual({ kind: 'unavailable' })
+    const throwing = createSettingsGuard(allowing, () => {
+      throw new Error('reader SECRET-TEXT')
+    })
+    expect(await throwing.qualify(asked(standing(), 'set'))).toStrictEqual({ kind: 'unavailable' })
+  })
+
   it('answers denied, with nothing more, to an answer the card cannot stand on, and unavailable to a card it cannot read', async () => {
     for (const reply of [
       chosen('allow-once'),
