@@ -284,6 +284,29 @@ describe('folding, on cases written out', () => {
     ])
   })
 
+  it('picks the same call whatever order the units come in', () => {
+    const call = { kind: 'model_call' as const, id: 'c-2' }
+    const labels = (model: string) => ({ ...base.labels, model })
+    const callsOf = (units: readonly UsageFact[]) =>
+      fold(units, checked('UTC', 'none', ['model']), { sources: [], undated: 0 }).groups.map(
+        cell => [cell.key[0], cell.measures.calls],
+      )
+    const early = fact({ at: at(1), subject: call, unit: 'u-2', labels: labels('m-early') })
+    const late = fact({ at: at(30), subject: call, unit: 'u-1', labels: labels('m-late') })
+    expect(callsOf([early, late])).toEqual([
+      ['m-early', 1],
+      ['m-late', 0],
+    ])
+    expect(callsOf([late, early])).toEqual(callsOf([early, late]))
+    const first = fact({ at: at(2), subject: call, unit: 'u-1', labels: labels('m-first') })
+    const second = fact({ at: at(2), subject: call, unit: 'u-2', labels: labels('m-second') })
+    expect(callsOf([first, second])).toEqual([
+      ['m-first', 1],
+      ['m-second', 0],
+    ])
+    expect(callsOf([second, first])).toEqual(callsOf([first, second]))
+  })
+
   it('puts a fact at the start of a bucket into that bucket', () => {
     const result = fold([fact({ at: at(24) }), fact({ at: at(48) })], checked('UTC', 'day', []), {
       sources: [],

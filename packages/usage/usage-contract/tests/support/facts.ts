@@ -44,7 +44,9 @@ function amount(pick: Pick, unit: string, places: number): Amount {
 
 function cost(pick: Pick): UsageCost {
   const value = amount(pick, pick.one(['USD', 'credit']), 2)
-  return value.state === 'known' ? value : { state: 'unknown' }
+  return value.state === 'known'
+    ? { state: 'known', lexeme: value.lexeme, unit: value.unit }
+    : { state: 'unknown' }
 }
 
 /** A fact with random numbers; its instant falls in [from, to] or is missing. */
