@@ -1150,6 +1150,33 @@ it('pushes again after a restart that lost the ledger, acknowledges, and gives t
   expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
 })
 
+it('cleans up after a restart that lost the ledger a result the last process abandoned, without pushing it again (C8)', async () => {
+  const w = world({ share: 1, recovery: SCAN_TENANT })
+  await w.services()
+  w.hooks.advanceCleanup = () => 'fail'
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  scripted.state.next = ['denied']
+  await w.register(scripted.receiver)
+  await w.admit('first')
+  await until(
+    () => w.messages.some(text => text.includes('cleanup stays pending')),
+    'the abandonment and the failed cleanup',
+  )
+  expect(await w.custody('first')).toMatchObject({ kind: 'abandoned', cleanup: 'pending' })
+
+  await first.dispose()
+  w.restart()
+  w.hooks.advanceCleanup = () => 'pass'
+  await w.load()
+  await until(() => w.record('first')?.cleanup === 'released', 'the cleanup of the successor')
+  expect(w.record('first')?.acknowledgement).toBe('abandoned')
+  expect(scripted.pushes).toHaveLength(1)
+  expect(w.handoffs).toEqual([])
+  expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
+})
+
 it('drives after a restart a call the last process left unsettled, then pushes and gives the share back', async () => {
   const w = world({ share: 1, recovery: SCAN_TENANT })
   await w.services()
