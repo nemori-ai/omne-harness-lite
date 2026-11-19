@@ -86,6 +86,20 @@ function associated(value: Readonly<{ instance: string }>): { instance: Instance
   return instance === null ? undefined : { instance }
 }
 
+/** The instance registered at this address on this node, among those of one workspace. */
+function instanceAt(
+  instances: readonly InstanceRecord[],
+  node: string,
+  address: string,
+): Located | undefined {
+  const record = instances.find(each => each.node === node && each.address === address)
+  if (record === undefined) return undefined
+  const workspace = workspaceCodec.parse(record.workspace)
+  return workspace.ok
+    ? { kind: 'located', workspace: workspace.value, instance: record.instance }
+    : unavailable('stored-value')
+}
+
 export function createInstances<P>(deps: WorkspaceDependencies<P>): WorkspaceInstances<P> {
   return {
     async associate(access, input): Promise<Answer<Readonly<{ instance: InstanceId }>>> {
@@ -182,14 +196,8 @@ export function createInstances<P>(deps: WorkspaceDependencies<P>): WorkspaceIns
       for (const { workspace } of memberships.value) {
         const state = await deps.store.state(tenant, workspace.workspace)
         if (state.kind === 'unavailable') return unavailable('store')
-        const here = (record: InstanceRecord) =>
-          record.node === deps.node && record.address === address
-        const record = state.value?.instances.find(here)
-        const id = workspaceCodec.parse(workspace.workspace)
-        if (record !== undefined)
-          return id.ok
-            ? { kind: 'located', workspace: id.value, instance: record.instance }
-            : unavailable('stored-value')
+        const found = instanceAt(state.value?.instances ?? [], deps.node, address)
+        if (found !== undefined) return found
       }
       return NOWHERE
     },

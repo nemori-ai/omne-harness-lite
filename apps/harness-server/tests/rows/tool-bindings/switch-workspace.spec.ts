@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { workspaceCodec } from '@omne-harness/legal-identity'
-import type { SessionManagement } from '@omne-harness/session-contract'
+import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
+import { deriveSessionOperation, type SessionManagement } from '@omne-harness/session-contract'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import {
   createCatalog,
@@ -17,6 +17,8 @@ import {
 } from '@omne-harness/workspace/testing'
 import { operationId, type OperationId } from '@omne-harness/workspace-contract'
 import {
+  SWITCH_ABSENT,
+  SWITCH_SILENT,
   createBoundWorkspaceSwitch,
   type SwitchPorts,
 } from '../../../src/rows/tool-bindings/switch-workspace.ts'
@@ -121,10 +123,23 @@ describe('switching to a directory that is an instance', () => {
         basis: { owner: 'workspace' },
       },
     })
-    expect(change?.operation).toMatch(/^sop_[0-9a-f]{64}$/u)
+    const tenant = tenantCodec.encode(ALICE.tenant)
+    if (!tenant.ok) throw new Error('tenant')
+    const operationOf = (call: string) =>
+      deriveSessionOperation({
+        kind: 'workspace-tool-call',
+        tenant: tenant.value,
+        session: SESSION as never,
+        call,
+      })
+    expect(change?.operation).toBe(operationOf('call_1'))
     // The same call derives the same operation; another call another one.
     await h.bound.switch({ kind: 'directory', directory: '/repo' })
     expect(h.changes[1]?.operation).toBe(change?.operation)
+    const other = harness(w, { call: 'call_2' })
+    await other.bound.switch({ kind: 'directory', directory: '/repo' })
+    expect(other.changes[0]?.operation).toBe(operationOf('call_2'))
+    expect(operationOf('call_2')).not.toBe(operationOf('call_1'))
   })
 
   it('refuses a directory that is no instance when the call has no current workspace', async () => {
@@ -316,11 +331,16 @@ describe('switching to no workspace', () => {
       associated: false,
     })
     expect(w.authority.asked()).toHaveLength(before)
-    expect(h.changes[0]?.declaration).toMatchObject({
+    expect(h.changes[0]?.declaration).toEqual({
       kind: 'workspace',
       value: null,
       workspaceAttachment: null,
-      basis: { owner: '@omne-harness/workspace-tools' },
+      basis: {
+        owner: '@omne-harness/workspace-tools',
+        record: 'switch-workspace/none',
+        revision: '1',
+        digest: '0'.repeat(64),
+      },
     })
   })
 
@@ -329,13 +349,20 @@ describe('switching to no workspace', () => {
     ['archived', refused('archived')],
     ['frozen', refused('frozen')],
     ['invalid', refused('invalid')],
-    ['unavailable', { kind: 'unavailable' }],
-    ['commit-unknown', { kind: 'unavailable' }],
-    ['conflict', { kind: 'unavailable' }],
+    ['unavailable', { kind: 'unavailable', diagnostic: 'unavailable' }],
+    ['commit-unknown', { kind: 'unavailable', diagnostic: 'commit-unknown' }],
+    ['conflict', { kind: 'unavailable', diagnostic: 'conflict' }],
   ])('answers what the session answered: %s', async (kind, answer) => {
     const h = harness(await world())
     h.state.change = failing(kind)
-    expect(await h.bound.switch({ kind: 'none' })).toMatchObject(answer)
+    expect(await h.bound.switch({ kind: 'none' })).toEqual(answer)
+  })
+
+  it('refuses a call whose tenant is not one that was parsed', async () => {
+    const forged = { principal: ALICE.principal, tenant: { ...ALICE.tenant } } as typeof ALICE
+    const h = harness(await world(), { who: forged })
+    expect(await h.bound.switch({ kind: 'none' })).toEqual(refused('not-permitted'))
+    expect(h.changes).toEqual([])
   })
 })
 
@@ -353,32 +380,82 @@ describe('what the switch stands on', () => {
     expect(h.changes).toEqual([])
   })
 
-  it('is unavailable when a service it needs is absent or throws, and never says switched', async () => {
+  it('says a service is absent, or did not answer, and never says switched', async () => {
     const w = await world()
     const made = await w.register(ALICE, '/repo')
+    const workspace = text(made.workspace)
+    const absent = { kind: 'unavailable', diagnostic: SWITCH_ABSENT }
+    const silent = { kind: 'unavailable', diagnostic: SWITCH_SILENT }
+    const down = async () => {
+      throw new Error('down')
+    }
     const h = harness(w)
     h.state.management = false
-    expect(await h.bound.switch({ kind: 'none' })).toMatchObject({ kind: 'unavailable' })
+    expect(await h.bound.switch({ kind: 'none' })).toEqual(absent)
     h.state.management = true
+    h.state.change = down as never
+    expect(await h.bound.switch({ kind: 'none' })).toEqual(silent)
+    h.state.instances = undefined
+    expect(await h.bound.switch({ kind: 'directory', directory: '/repo' })).toEqual(absent)
+    // The catalog finds the one instance; the instances that would verify it are not there.
+    expect(await h.bound.switch({ kind: 'workspace', workspace })).toEqual(absent)
+    h.state.catalog = undefined
+    expect(await h.bound.switch({ kind: 'workspace', workspace })).toEqual(absent)
+    h.state.instances = { locate: down } as never
+    expect(await h.bound.switch({ kind: 'directory', directory: '/repo' })).toEqual(silent)
+  })
+
+  it('answers what the workspace owner could not tell, with its word for why', async () => {
+    const w = await world()
+    const made = await w.register(ALICE, '/repo')
+    const h = harness(w, { current: made.workspace })
+    const unsure = { kind: 'unavailable', diagnostic: 'admission' }
+    w.authority.admits((_who, action) => (action === 'workspace.view' ? 'unavailable' : 'allowed'))
+    expect(await h.bound.switch({ kind: 'workspace', workspace: text(made.workspace) })).toEqual(
+      unsure,
+    )
+    w.authority.admits((_who, action) => (action === 'workspace.list' ? 'unavailable' : 'allowed'))
+    expect(await h.bound.switch({ kind: 'directory', directory: '/copy' })).toEqual(unsure)
+    expect(await w.instances.locate(ALICE, '/copy')).toMatchObject({ kind: 'unavailable' })
+  })
+
+  it.each(['unavailable', 'unknown', 'conflict'])(
+    'an association that answered %s is not known to hold: nothing is switched and nothing is called half-done',
+    async kind => {
+      const w = await world()
+      const made = await w.register(ALICE, '/repo')
+      const h = harness(w, { current: made.workspace })
+      h.state.instances = { ...w.instances, associate: async () => ({ kind }) as never }
+      expect(await h.bound.switch({ kind: 'directory', directory: '/copy' })).toEqual({
+        kind: 'unavailable',
+        diagnostic: `the association answered ${kind}`,
+      })
+      expect(h.changes).toEqual([])
+    },
+  )
+
+  it('the same call asking for another directory is not the operation it made: nothing more is associated', async () => {
+    const w = await world()
+    const made = await w.register(ALICE, '/repo')
+    const h = harness(w, { current: made.workspace })
+    await h.bound.switch({ kind: 'directory', directory: '/copy' })
+    expect(await h.bound.switch({ kind: 'directory', directory: '/other' })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the association answered conflict',
+    })
+    expect(await w.instances.locate(ALICE, '/other')).toEqual({ kind: 'none' })
+  })
+
+  it('says half-done, not unavailable, when the session did not answer after an association', async () => {
+    const w = await world()
+    const made = await w.register(ALICE, '/repo')
+    const h = harness(w, { current: made.workspace })
     h.state.change = (async () => {
       throw new Error('down')
     }) as never
-    expect(await h.bound.switch({ kind: 'none' })).toMatchObject({ kind: 'unavailable' })
-    h.state.instances = undefined
-    expect(await h.bound.switch({ kind: 'directory', directory: '/repo' })).toMatchObject({
-      kind: 'unavailable',
-    })
-    h.state.catalog = undefined
-    expect(
-      await h.bound.switch({ kind: 'workspace', workspace: text(made.workspace) }),
-    ).toMatchObject({ kind: 'unavailable' })
-    h.state.instances = {
-      locate: async () => {
-        throw new Error('down')
-      },
-    } as never
-    expect(await h.bound.switch({ kind: 'directory', directory: '/repo' })).toMatchObject({
-      kind: 'unavailable',
+    expect(await h.bound.switch({ kind: 'directory', directory: '/copy' })).toMatchObject({
+      kind: 'half-done',
+      reason: SWITCH_SILENT,
     })
   })
 })

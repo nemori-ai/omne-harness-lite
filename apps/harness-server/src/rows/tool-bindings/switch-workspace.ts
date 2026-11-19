@@ -33,9 +33,10 @@ import { verifySessionWork, type VerifiedSessionWork } from '../tool-runtime/ses
 
 type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
+type Instances = Pick<WorkspaceInstances<unknown>, 'locate' | 'associate' | 'verify'>
 export type SwitchPorts = Readonly<{
   session(): Promise<VerifiedSessionWork | Readonly<{ kind: 'session'; session: string }>>
-  instances(): Pick<WorkspaceInstances<unknown>, 'locate' | 'associate' | 'verify'> | undefined
+  instances(): Instances | undefined
   catalog(): Pick<WorkspaceCatalog<unknown>, 'describe'> | undefined
   management(): Pick<SessionManagement<unknown>, 'change'> | undefined
 }>
@@ -49,7 +50,6 @@ const NO_WORKSPACE: DurableEvidence = Object.freeze({
 })
 
 type Declaration = Extract<DeclarationChange, { kind: 'workspace' }>
-/** The instance to switch to. `associated`: this call made it an instance. */
 type Aim = Readonly<{ workspace: WorkspaceId; instance: InstanceId; associated: boolean }>
 type Stop = Exclude<SwitchAnswer, { kind: 'switched' | 'half-done' }>
 
@@ -65,11 +65,14 @@ const REFUSALS: Partial<Record<SessionFailure['kind'], string>> = {
   frozen: 'frozen',
 }
 
+export const SWITCH_ABSENT = 'a service the switch needs is absent'
+export const SWITCH_SILENT = 'a service the switch needs did not answer'
+
 /** The workspace the model was told this step, as the request pinned it. The request may be a copy, so the identity is read again from its text. */
 function currentOf(request: FixedToolRequest): WorkspaceId | null {
-  const text = (request.directory?.workspace?.id as { text?: unknown } | undefined)?.text
-  const parsed = typeof text === 'string' ? workspaceCodec.parse(text) : null
-  return parsed?.ok === true ? parsed.value : null
+  const pinned = request.directory?.workspace?.id as { text?: unknown } | undefined
+  const parsed = workspaceCodec.parse(String(pinned?.text))
+  return parsed.ok ? parsed.value : null
 }
 
 export function createBoundWorkspaceSwitch(
@@ -82,9 +85,8 @@ export function createBoundWorkspaceSwitch(
   async function byWorkspace(text: string): Promise<Aim | Stop> {
     const workspace = workspaceCodec.parse(text)
     if (!workspace.ok) return refused('not-permitted')
-    const catalog = ports.catalog()
-    if (catalog === undefined) return unavailable('the workspace catalog is absent')
-    const view = await catalog.describe(access, workspace.value)
+    const view = await ports.catalog()?.describe(access, workspace.value)
+    if (view === undefined) return unavailable(SWITCH_ABSENT)
     if (view.kind === 'not-permitted') return refused('not-permitted')
     if (view.kind === 'unavailable') return unavailable(view.diagnostic)
     const [only, ...more] = view.value.instances
@@ -93,36 +95,26 @@ export function createBoundWorkspaceSwitch(
     return { workspace: workspace.value, instance: only.instance, associated: false }
   }
 
+  /** The directory as one more instance of the current workspace. The operation is the call's, so a replay associates once. */
+  async function associated(instances: Instances, address: string): Promise<Aim | Stop> {
+    if (current === null) return refused('not-an-instance')
+    const operation = operationId(`switch-${canonicalDigest({ call: parent.call })}`)!
+    const made = await instances.associate(access, { operation, workspace: current, address })
+    if (made.kind === 'done')
+      return { workspace: current, instance: made.value.instance, associated: true }
+    if (made.kind === 'not-permitted') return refused('not-permitted')
+    return made.kind === 'not-performed'
+      ? refused(made.reason)
+      : unavailable(`the association answered ${made.kind}`)
+  }
+
   async function byDirectory(directory: string): Promise<Aim | Stop> {
     const instances = ports.instances()
-    if (instances === undefined) return unavailable('the workspace instances are absent')
+    if (instances === undefined) return unavailable(SWITCH_ABSENT)
     const located = await instances.locate(access, directory)
     if (located.kind === 'unavailable') return unavailable(located.diagnostic)
-    if (located.kind === 'located') {
-      const { workspace, instance } = located
-      return { workspace, instance, associated: false }
-    }
-    if (current === null) return refused('not-an-instance')
-    const operation = operationId(`switch-${canonicalDigest({ call: parent.call })}`)
-    if (operation === null) return unavailable('the call derives no operation')
-    const made = await instances.associate(access, {
-      operation,
-      workspace: current,
-      address: directory,
-    })
-    switch (made.kind) {
-      case 'done':
-        return { workspace: current, instance: made.value.instance, associated: true }
-      case 'not-permitted':
-        return refused('not-permitted')
-      case 'not-performed':
-        return refused(made.reason)
-      case 'unavailable':
-        return unavailable(made.diagnostic)
-      case 'unknown':
-      case 'conflict':
-        return unavailable(`the association answered ${made.kind}`)
-    }
+    if (located.kind === 'none') return associated(instances, directory)
+    return { workspace: located.workspace, instance: located.instance, associated: false }
   }
 
   async function declared(
@@ -132,36 +124,32 @@ export function createBoundWorkspaceSwitch(
       const declaration = { value: null, workspaceAttachment: null, basis: NO_WORKSPACE }
       return { declaration: { kind: 'workspace', ...declaration }, directory: null }
     }
-    const instances = ports.instances()
-    if (instances === undefined) return unavailable('unavailable')
     const { workspace, instance } = aim
-    const check = targetOf(await instances.verify(access, { workspace, instance }))
+    const verification = await ports.instances()?.verify(access, { workspace, instance })
+    if (verification === undefined) return unavailable(SWITCH_ABSENT)
+    const check = targetOf(verification)
     if (check.kind === 'unavailable') return unavailable('unavailable')
     if (check.kind === 'refused') return refused(check.reason)
     const { attachment: workspaceAttachment, basis, directory } = check
-    const declaration = { value: aim.workspace, workspaceAttachment, basis }
+    const declaration = { value: workspace, workspaceAttachment, basis }
     return { declaration: { kind: 'workspace', ...declaration }, directory }
   }
 
-  async function committed(session: string, declaration: Declaration): Promise<Stop | null> {
-    const management = ports.management()
+  async function committed(session: SessionId, declaration: Declaration): Promise<Stop | null> {
     const tenant = tenantCodec.encode(parent.tenant)
-    if (management === undefined || !tenant.ok) return unavailable('unavailable')
-    const id = session as SessionId
-    const operation = deriveSessionOperation({
-      kind: 'workspace-tool-call',
-      tenant: tenant.value,
-      session: id,
-      call: parent.call,
-    })
-    const result = await management.change({ ...access, session: id, operation, declaration })
+    if (!tenant.ok) return refused('not-permitted')
+    const { call } = parent
+    const elements = { kind: 'workspace-tool-call', tenant: tenant.value, session, call } as const
+    const operation = deriveSessionOperation(elements)
+    const result = await ports.management()?.change({ ...access, session, operation, declaration })
+    if (result === undefined) return unavailable(SWITCH_ABSENT)
     if ('ok' in result) return null
     const reason = REFUSALS[result.failure.kind]
     return reason === undefined ? unavailable(result.failure.kind) : refused(reason)
   }
 
   /** Verifies, then commits. Whatever stops it after an association is told as half-done. */
-  async function switched(session: string, aim: Aim | null): Promise<SwitchAnswer> {
+  async function switched(session: SessionId, aim: Aim | null): Promise<SwitchAnswer> {
     let stop: Stop | null
     let directory: string | null = null
     try {
@@ -172,7 +160,7 @@ export function createBoundWorkspaceSwitch(
         stop = await committed(session, selection.declaration)
       }
     } catch {
-      stop = unavailable('unavailable')
+      stop = unavailable(SWITCH_SILENT)
     }
     if (stop === null) return { kind: 'switched', directory, associated: aim?.associated === true }
     if (aim?.associated !== true) return stop
@@ -189,9 +177,10 @@ export function createBoundWorkspaceSwitch(
         if (who.kind === 'unavailable') return unavailable(who.diagnostic)
         if (target.kind === 'workspace') aim = await byWorkspace(target.workspace)
         if (target.kind === 'directory') aim = await byDirectory(target.directory)
-        return aim !== null && isStop(aim) ? aim : await switched(who.session, aim)
+        if (aim !== null && isStop(aim)) return aim
+        return await switched(who.session as SessionId, aim)
       } catch {
-        return unavailable('a service the switch needs did not answer')
+        return unavailable(SWITCH_SILENT)
       }
     },
   }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RegisteredWorkspace } from '@omne-harness/workspace-contract'
-import { fakeAccess } from '@omne-harness/workspace/testing'
+import { createInstances, createManagementTypes } from '@omne-harness/workspace'
+import { fakeAccess, fakeMinting } from '@omne-harness/workspace/testing'
 import { op, world } from './world.ts'
 
 const [ALICE, BOB] = [fakeAccess(1), fakeAccess(2)]
@@ -75,6 +76,20 @@ describe('an address is found as the instance it is, for those who have a relati
     expect(
       await w.instances.locate({ principal: 'p', tenant: { ...ALICE.tenant } }, '/blog'),
     ).toEqual(NONE)
+  })
+
+  it('finds nothing on another node: the same text there is another place', async () => {
+    const w = world()
+    const blog = await registered(w, '/blog')
+    const elsewhere = createInstances({
+      authority: w.authority,
+      store: w.store,
+      types: createManagementTypes(),
+      minting: fakeMinting(),
+      node: 'node-2',
+    })
+    expect(await elsewhere.locate(ALICE, '/blog')).toEqual(NONE)
+    expect(await w.instances.locate(ALICE, '/blog')).toEqual(located(blog))
   })
 
   it('could not look when the facts cannot be read, and does not say nothing is there', async () => {

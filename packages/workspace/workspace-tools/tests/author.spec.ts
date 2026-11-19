@@ -68,7 +68,7 @@ function fixture(maximum = 65536) {
     if ('failure' in checked) throw new Error(JSON.stringify(checked.failure))
     return String(checked.ok)
   }
-  return { definition, parse, run }
+  return { definition, parse, run, author }
 }
 const answering = (answer: SwitchAnswer) => {
   const asked = vi.fn(async () => answer)
@@ -81,11 +81,32 @@ describe('the SwitchWorkspace declaration', () => {
     expect(judgeToolDefinition(definition)).toHaveProperty('ok')
     if (definition.kind !== 'function') throw new Error('function')
     expect(definition.name).toBe('SwitchWorkspace')
-    const declared = JSON.stringify(definition.parameters.schema)
-    for (const field of ['directory', 'workspace', 'none']) expect(declared).toContain(field)
-    for (const field of ['tenant', 'session', 'instance']) expect(declared).not.toContain(field)
+    const text = { type: 'string', minLength: 1, maxLength: 4096 }
+    expect(definition.parameters.schema).toEqual(
+      json({
+        type: 'object',
+        additionalProperties: false,
+        properties: { directory: text, workspace: text, none: { const: true } },
+      }),
+    )
+    expect(definition.parameters.descriptions.map(each => each.path)).toEqual([
+      'directory',
+      'workspace',
+      'none',
+    ])
+    for (const { text: described } of definition.parameters.descriptions)
+      expect(described.length).toBeGreaterThan(20)
     expect(definition.description).toContain('takes effect from your next step')
-    expect(definition.declarations.environment).toBeNull()
+    expect(definition).toMatchObject({
+      backgroundAllowed: false,
+      declarations: {
+        environment: null,
+        attachments: [],
+        inputModalities: ['text'],
+        outputModalities: ['text'],
+        settings: null,
+      },
+    })
   })
 
   it.each([
@@ -112,10 +133,27 @@ describe('the SwitchWorkspace declaration', () => {
     expect(fixture().parse(params)).toMatchObject({ failure: { kind: 'invalid' } })
   })
 
+  it('says how many targets a call takes when it was given none or several', () => {
+    for (const params of [{}, { directory: '/a', none: true }])
+      expect(fixture().parse(params)).toEqual({
+        failure: { kind: 'invalid', reason: 'give exactly one of directory, workspace, none' },
+      })
+  })
+
   it('takes only resultMaxBytes as its construction', () => {
-    for (const construction of [{}, { resultMaxBytes: 15 }, { resultMaxBytes: 64, other: 1 }, 7])
-      expect(createSwitchWorkspaceAuthor(json(construction))).toMatchObject({
-        failure: { field: 'construction' },
+    for (const construction of [
+      {},
+      { resultMaxBytes: 15 },
+      { resultMaxBytes: 64, other: 1 },
+      { other: 64 },
+      { resultMaxBytes: '64' },
+      7,
+    ])
+      expect(createSwitchWorkspaceAuthor(json(construction))).toEqual({
+        failure: {
+          field: 'construction',
+          reason: 'SwitchWorkspace takes only resultMaxBytes, at least 16',
+        },
       })
     expect(createSwitchWorkspaceAuthor(json({ resultMaxBytes: 16 }))).toHaveProperty('ok')
   })
@@ -164,6 +202,50 @@ describe('a SwitchWorkspace call', () => {
     ],
   ])('answers %j in words the model can act on', async (answer, text) => {
     expect(await fixture().run({ none: true }, answering(answer).bound)).toBe(text)
+  })
+
+  it('finishes the execution it wraps once, however often it is finished', async () => {
+    const inner = scope()
+    let finishes = 0
+    const counted = {
+      ...inner,
+      finish: (exit: never) => {
+        finishes += 1
+        return inner.finish(exit)
+      },
+    }
+    const attached = attachWorkspaceSwitch(
+      counted as never,
+      answering({ kind: 'refused', reason: 'x' }).bound,
+    )
+    expect(attached.limits).toBe(inner.limits)
+    const exit = { kind: 'completed' } as never
+    expect(await attached.finish(exit)).toEqual(await attached.finish(exit))
+    expect(finishes).toBe(1)
+  })
+
+  it('keeps a result that is exactly as large as the bound, as text', async () => {
+    const answer = answering({ kind: 'refused', reason: 'not-permitted' }).bound
+    const whole = 'refused reason=not-permitted\nNothing changed.'
+    expect(await fixture(whole.length).run({ none: true }, answer)).toBe(whole)
+    // One byte less and it is too large, and so is the sentence that would say by how much.
+    expect(await fixture(whole.length - 1).run({ none: true }, answer)).toBe('too-large')
+  })
+
+  it('checks, encodes and renders its result as bounded text and nothing else', () => {
+    const { author } = fixture(8 + 8)
+    const check = (value: unknown) => author.output.check({ arguments: { kind: 'none' }, value })
+    expect(check('x'.repeat(16))).toEqual({ ok: 'x'.repeat(16) })
+    for (const value of ['x'.repeat(17), 7, null])
+      expect(check(value)).toEqual({ failure: { reason: 'bounded-text-required' } })
+    const encoded = author.codec.encode('切换')
+    if ('failure' in encoded) throw new Error('encode')
+    expect(author.codec.decode(encoded.ok)).toEqual({ ok: '切换' })
+    expect(author.codec.encode(7)).toEqual({ failure: { reason: 'text-required' } })
+    expect(author.codec.decode(new Uint8Array([0xff, 0xfe]))).toEqual({
+      failure: { reason: 'invalid-utf8' },
+    })
+    expect(author.renderer.render('done')).toEqual({ ok: 'done' })
   })
 
   it('says a result is too large instead of cutting it', async () => {
