@@ -60,6 +60,42 @@ export declare const calendarProtocol: {
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
+        readonly 'read-supply-health': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly calendars: readonly {
+                        readonly calendar: string;
+                        readonly consecutiveFailures: number;
+                        readonly coverageEnd: string | null;
+                        readonly coverageStart: string | null;
+                        readonly horizon: "critical" | "ok" | "unknown" | "warning";
+                        readonly knowledgeAsOf: import("@omne-harness/utc-instant").Instant | null;
+                        readonly lastSuccess: import("@omne-harness/utc-instant").Instant | null;
+                        readonly pendingRuns: number;
+                        readonly queryAvailability: "available" | "missing" | "unavailable";
+                        readonly reasons: readonly string[];
+                        readonly remainingCoverageDays: number | null;
+                        readonly sources: readonly {
+                            readonly consecutiveFailures: number;
+                            readonly observation: "changed" | "failed" | "unchanged";
+                            readonly reason: string | null;
+                            readonly source: string;
+                        }[];
+                        readonly supply: "failed" | "ok" | "pending" | "unknown";
+                    }[];
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'read';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
         readonly answer: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
@@ -104,6 +140,7 @@ export declare const calendarProtocol: {
             readonly limit: 'small';
             readonly countsAsAccess: true;
             readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly calendar?: string;
                 readonly question: {
                     readonly date: string;
                     readonly kind: "day";
@@ -127,6 +164,7 @@ export declare const calendarProtocol: {
                     readonly periodStart: string;
                 };
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
+                readonly version?: string;
             }>;
         };
     };

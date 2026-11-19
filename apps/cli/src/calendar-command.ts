@@ -28,7 +28,7 @@ const text = (values: Option, name: string) => values.get(name) ?? ''
 const count = (value: string, pattern: RegExp) =>
   pattern.test(value) && Number.isSafeInteger(Number(value)) ? Number(value) : undefined
 
-/** Each question names its dates; none names a calendar: the settings of the tenant choose it. */
+/** Each question names its dates; `--calendar` and `--version` name the basis, else the settings choose it. */
 const QUESTIONS: Readonly<Record<string, Asked>> = {
   day: { options: ['--date'], question: v => ({ kind: 'day', date: text(v, '--date') }) },
   count: {
@@ -68,7 +68,11 @@ const QUESTIONS: Readonly<Record<string, Asked>> = {
     },
   },
 }
-const READS = { list: 'list-calendars', environment: 'read-environment' } as const
+const READS = {
+  list: 'list-calendars',
+  environment: 'read-environment',
+  health: 'read-supply-health',
+} as const
 type Read = (typeof READS)[keyof typeof READS]
 
 /** What one invocation asks: a read of its own, or a date question. */
@@ -87,7 +91,7 @@ function requestOf(action: string, rest: readonly string[]): Request | string {
   const asked = QUESTIONS[action]
   if (!Object.hasOwn(QUESTIONS, action) || asked === undefined) return unrecognized('calendar')
   const read = readOptions(rest, {
-    accepted: [serverOption, ...asked.options],
+    accepted: [serverOption, ...asked.options, '--calendar', '--version'],
     required: asked.options,
     ...(asked.switches === undefined ? {} : { switches: asked.switches }),
   })
@@ -97,6 +101,16 @@ function requestOf(action: string, rest: readonly string[]): Request | string {
   return question === undefined
     ? unrecognized(name)
     : { kind: 'answer', question, values: read.values }
+}
+
+/** The calendar and version a question names, when it names them; the server judges the pair. */
+function basisOf(values: Option): Readonly<{ calendar?: string; version?: string }> {
+  const calendar = values.get('--calendar')
+  const version = values.get('--version')
+  return {
+    ...(calendar === undefined ? {} : { calendar }),
+    ...(version === undefined ? {} : { version }),
+  }
 }
 
 async function runCalendar(
@@ -118,7 +132,7 @@ async function runCalendar(
       : await link.call(
           calendarProtocol,
           'answer',
-          { tenant, question: request.question },
+          { tenant, question: request.question, ...basisOf(request.values) },
           messageId,
         )
   if (result === undefined) return usageError(output, unrecognized(name))
@@ -127,8 +141,8 @@ async function runCalendar(
 
 export const calendarCommand: CommandSpec = {
   name: 'calendar',
-  usage: 'list|environment|day|count|shift|next|nth',
+  usage: 'list|environment|health|day|count|shift|next|nth',
   summary:
-    'Ask a date question on the calendar your settings choose: list the calendars, read the one in effect, or classify, count, shift and list working days.',
+    'Ask a date question on the calendar your settings choose, or on one you name with --calendar and --version: list the calendars, read the one in effect, read the supply health, or classify, count, shift and list working days.',
   run: runCalendar,
 }

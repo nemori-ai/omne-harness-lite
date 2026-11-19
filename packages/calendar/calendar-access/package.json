@@ -34,7 +34,8 @@
     "@omne-harness/access-cordis-contract": "workspace:*",
     "@omne-harness/calendar-contract": "workspace:*",
     "@omne-harness/calendar-protocol": "workspace:*",
-    "@omne-harness/legal-identity": "workspace:*"
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

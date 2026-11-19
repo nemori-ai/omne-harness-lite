@@ -5,10 +5,15 @@ import { expectRoundTrip, readSample, tenant } from './fixtures/samples.ts'
 const { operations } = calendarProtocol
 
 describe('calendar/v1', () => {
-  it('is calendar major 1 with three reads and no observation', () => {
+  it('is calendar major 1 with four reads and no observation', () => {
     expect(calendarProtocol.name).toBe('calendar')
     expect(calendarProtocol.major).toBe(1)
-    expect(Object.keys(operations)).toEqual(['list-calendars', 'read-environment', 'answer'])
+    expect(Object.keys(operations)).toEqual([
+      'list-calendars',
+      'read-environment',
+      'read-supply-health',
+      'answer',
+    ])
     expect(Object.keys(calendarProtocol.observations)).toEqual([])
     for (const operation of Object.values(operations))
       expect([operation.identity, operation.effect, operation.countsAsAccess]).toEqual([
@@ -37,6 +42,61 @@ describe('calendar/v1', () => {
           coverageEnd: null,
         },
       ],
+    })
+  })
+
+  it('reads the supply health of each calendar', () => {
+    expectRoundTrip(operations['read-supply-health'].body, { tenant })
+    expectRoundTrip(operations['read-supply-health'].outcomes.succeeded, {
+      calendars: [
+        {
+          calendar: 'jp-legal-holidays',
+          queryAvailability: 'available',
+          supply: 'failed',
+          horizon: 'warning',
+          coverageStart: '1955-01-01',
+          coverageEnd: '2027-12-31',
+          knowledgeAsOf: '2026-02-02T00:30:17.000Z',
+          remainingCoverageDays: 298,
+          consecutiveFailures: 2,
+          lastSuccess: null,
+          pendingRuns: 0,
+          sources: [
+            {
+              source: 'cao-syukujitsu-csv',
+              observation: 'failed',
+              reason: 'fetch failed',
+              consecutiveFailures: 2,
+            },
+            {
+              source: 'vacanza-holidays-library',
+              observation: 'unchanged',
+              reason: null,
+              consecutiveFailures: 0,
+            },
+          ],
+          reasons: [],
+        },
+      ],
+    })
+    const negative = readSample(operations['read-supply-health'].outcomes.succeeded, {
+      calendars: [{ calendar: 'x', remainingCoverageDays: -1 }],
+    })
+    expect(negative.ok).toBe(false)
+    const unnamed = readSample(operations['read-supply-health'].outcomes.succeeded, {
+      calendars: [{ calendar: 'x', sources: [{ observation: 'lost' }] }],
+    })
+    expect(unnamed.ok).toBe(false)
+  })
+
+  it('answers on a named calendar and version, both optional', () => {
+    const question = { kind: 'day', date: '2026-11-03' }
+    expectRoundTrip(operations.answer.body, { tenant, question, calendar: 'jp-legal-holidays' })
+    expectRoundTrip(operations.answer.body, {
+      tenant,
+      question,
+      calendar: 'jp-legal-holidays',
+      version: 'v-0',
     })
   })
 
