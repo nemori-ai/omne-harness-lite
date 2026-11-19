@@ -66,12 +66,14 @@ class Queries extends CalendarQueryService {
   readonly get: CalendarQueries['get']
   readonly effective: CalendarQueries['effective']
   readonly resolve: CalendarQueries['resolve']
+  readonly health: CalendarQueries['health']
   constructor(ctx: Context, queries: CalendarQueries) {
     super(ctx)
     this.list = (context, input) => queries.list(context, input)
     this.get = (context, input) => queries.get(context, input)
     this.effective = context => queries.effective(context)
     this.resolve = (context, input) => queries.resolve(context, input)
+    this.health = context => queries.health(context)
   }
 }
 

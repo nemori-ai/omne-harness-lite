@@ -112,5 +112,19 @@ export function createCalendarQueries(dependencies: CalendarQueriesDependencies)
         return resolveCalculation(repository, calendarId, query)
       })
     },
+    health(context) {
+      return execute(context, 'health', z.null(), null, async access => {
+        await access.require(null)
+        const project = dependencies.healthProjection
+        if (!project) throw new QueryFailure('provider_failure')
+        const health = []
+        for (const { calendarId } of catalog) {
+          const read = await project(calendarId)
+          if (read.kind !== 'ok') throw new QueryFailure('provider_failure')
+          health.push(read.value)
+        }
+        return health
+      })
+    },
   }
 }
