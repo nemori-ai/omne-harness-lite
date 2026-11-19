@@ -10,7 +10,12 @@ import { succeed } from '@omne-harness/operation-result'
 import type { ToolActionResolution } from '@omne-harness/tool-contract'
 import type { ToolCallLabeling } from '../../entry/tool-action-resolution.ts'
 import { actionRulesSchema, toolActionRule, type ActionRules } from './action-rules.ts'
-import { applyAnswer, type AuthorizationWriter } from './answer-effects.ts'
+import {
+  applyAnswer,
+  type Applied,
+  type AuthorizationWriter,
+  type JudgeAgain,
+} from './answer-effects.ts'
 import { answerEffect, askedDecision, type AnswerEffect } from './release-asking.ts'
 import type { TenantPicks } from './tenant-picks.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
@@ -207,8 +212,14 @@ async function judgeAdmitted(
     picks: readers.readPicks?.(),
   }
   const applied = effect === null ? null : await answered(judging, gates, effect, readers)
-  return applied ?? judgeGates(judging, gates)
+  if (applied === null) return judgeGates(judging, gates)
+  return applied.kind === 'judge-again'
+    ? noticed(await judgeGates(judging, gates), applied)
+    : applied
 }
+
+const noticed = (answer: AdmissionDecision, { notice }: JudgeAgain): AdmissionDecision =>
+  answer.kind === 'allow' ? { ...answer, notice } : answer
 
 async function decide(
   input: Request,
@@ -245,7 +256,7 @@ function answered(
   gates: Gates,
   effect: Exclude<AnswerEffect, { kind: 'decided' }>,
   readers: Readers,
-): Promise<AdmissionDecision | null> {
+): Promise<Applied> {
   const { input } = judging
   const action = {
     principal: judging.principal,
