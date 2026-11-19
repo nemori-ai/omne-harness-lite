@@ -209,14 +209,21 @@ async function availabilityOf(
   if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
   const closed = await closedBySession(ports, input, session, selected.command)
   if ('failure' in closed) return closed
-  if (closed.ok !== null) return succeed(closed.ok)
   const access = { principal: input.principal, tenant: input.tenant, session }
-  const placed = await directoryOf(ports, access, availability.definition)
+  return closed.ok === null
+    ? placedCall(ports, access, { ...availability, ...selected })
+    : succeed(closed.ok)
+}
+
+async function placedCall<C extends Pick<ToolAvailability, 'definition'>>(
+  ports: ToolRequestPorts,
+  access: SessionAccess<unknown>,
+  call: C,
+): Promise<Outcome<(C & Pinned) | ToolCallAnswer, Failure>> {
+  const placed = await directoryOf(ports, access, call.definition)
   if ('failure' in placed) return placed
   return succeed(
-    placed.ok.kind === 'answered'
-      ? placed.ok
-      : { ...availability, ...selected, ...pinned(placed.ok.directory) },
+    placed.ok.kind === 'answered' ? placed.ok : { ...call, ...pinned(placed.ok.directory) },
   )
 }
 

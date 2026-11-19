@@ -172,8 +172,11 @@ const INHERITED = [
   'limits',
   'mode',
 ] as const
-/** A target works where its parent was pinned: the directory is inherited, absent or not. */
-const pinOf = (request: Pick<ToolInvokeRequest, 'directory'>) => request.directory ?? null
+/** What a target takes from its parent as it is; the pinned directory too, absent or not. */
+const inheritedOf = (request: ToolInvokeRequest) => [
+  ...INHERITED.map(key => request[key]),
+  request.directory ?? null,
+]
 
 function matchesTarget(
   parent: FixedToolRequest,
@@ -197,9 +200,7 @@ function matchesTarget(
   )
     return false
   if (target.batchDecision !== null) return false
-  return (
-    INHERITED.every(key => same(parent[key], target[key])) && same(pinOf(parent), pinOf(target))
-  )
+  return same(inheritedOf(parent), inheritedOf(target))
 }
 
 export function createInvocationForwarding<P>(

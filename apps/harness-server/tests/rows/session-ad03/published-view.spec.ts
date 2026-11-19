@@ -234,7 +234,7 @@ describe('a view that names the session it was computed for', () => {
     expect(await readPublishedView(reading(read), access, view)).toEqual({ failure })
   })
 
-  it('is refused for a tenant its codec did not mint', async () => {
+  it('is refused for a tenant its codec did not mint, before anything is read', async () => {
     const forged = { ...access, tenant: { ...TENANT } }
     const ports = world(named(encoded.value, SESSION), {
       work: {
@@ -249,7 +249,8 @@ describe('a view that names the session it was computed for', () => {
         read: named(encoded.value, SESSION),
       },
     }).ports
-    const answer = await readPublishedView(ports, forged, view)
-    expect(answer).toHaveProperty('failure')
+    expect(await readPublishedView(ports, forged, view)).toEqual({
+      failure: 'session work: another session',
+    })
   })
 })

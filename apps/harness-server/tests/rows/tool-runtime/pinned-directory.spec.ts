@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
@@ -202,6 +202,9 @@ describe('the fence of a call is the directory pinned in its own request', () =>
     expect(await w.name(blog.ok.origin, join(BLOG, '..', 'shop'))).toEqual(denied)
     expect(await w.name(blog.ok.origin, BLOG, 'stranger')).toEqual(denied)
     expect(await w.name('tool:unknown:origin', BLOG)).toEqual(denied)
+    // A link is named as the object it is, in the directory; what it points to is not followed.
+    symlinkSync(SHOP, join(BLOG, 'to-shop'))
+    expect(await w.name(blog.ok.origin, join(BLOG, 'to-shop'))).toHaveProperty('ok')
     // The guard refuses the same stranger a path the call itself may read.
     expect(await w.read(blog.ok.origin, join(BLOG, 'a.txt'), 'stranger')).toBe('notAuthorized')
   })

@@ -166,6 +166,30 @@ const startDirectory = (args: Arguments, environment: ShellAuthorEnvironment): s
 const shownDirectory = (environment: ShellAuthorEnvironment): string =>
   JSON.stringify(environment.directory ?? null)
 
+async function createTerminal(
+  args: Arguments,
+  environment: ShellAuthorEnvironment,
+  config: Arguments,
+): Promise<string> {
+  if (environment.terminal.retention === undefined)
+    return 'rejected reason=unavailable session retention unavailable zero starts'
+  if (args.has('columns') !== args.has('rows'))
+    return 'rejected reason=invalidInput columns and rows must be supplied together'
+  const cwd = startDirectory(args, environment)
+  if (cwd === undefined) return NO_DIRECTORY
+  return confirmation(
+    await environment.terminal.create({
+      retain: 'scope',
+      cwd,
+      env: { ...config.env('env'), ...args.env('env') },
+      ...(args.has('columns')
+        ? { geometry: { columns: args.number('columns', 0), rows: args.number('rows', 0) } }
+        : {}),
+    }),
+    value => `terminal=${JSON.stringify(value.terminal)}`,
+  )
+}
+
 /** A one-shot command. Null: nothing names a directory to start it in, so it does not start. */
 function startOnce(
   args: Arguments,
@@ -197,25 +221,8 @@ async function executeShell(
   switch (command) {
     case 'info':
       return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${shownDirectory(environment)}\nprocess_containment=${environment.command.containment ?? 'undeclared'}\n${BACKGROUND_LINES}${await terminalLines(environment)}${await retainedProcessLines(environment)}`
-    case 'create_session': {
-      if (environment.terminal.retention === undefined)
-        return 'rejected reason=unavailable session retention unavailable zero starts'
-      if (args.has('columns') !== args.has('rows'))
-        return 'rejected reason=invalidInput columns and rows must be supplied together'
-      const cwd = startDirectory(args, environment)
-      if (cwd === undefined) return NO_DIRECTORY
-      return confirmation(
-        await environment.terminal.create({
-          retain: 'scope',
-          cwd,
-          env: { ...config.env('env'), ...args.env('env') },
-          ...(args.has('columns')
-            ? { geometry: { columns: args.number('columns', 0), rows: args.number('rows', 0) } }
-            : {}),
-        }),
-        value => `terminal=${JSON.stringify(value.terminal)}`,
-      )
-    }
+    case 'create_session':
+      return createTerminal(args, environment, config)
     case 'close_session': {
       if (terminal === undefined) return 'rejected reason=invalidInput terminal required'
       const denied = await attachTerminal(environment, terminal)
