@@ -49,6 +49,32 @@ describe('the open rule on the lists that name a call', () => {
     ])
   })
 
+  it('a call that a stop refers to stays after its result is processed, while the stop is not reconciled', async () => {
+    const s = await callScene()
+    succeeded(await s.preserve('preserve'), 'preserve')
+    const stopped = succeeded(
+      await s.commit({
+        kind: 'stopCall',
+        input: { ...s.base, operation: operationId('stop'), producer: s.binding.producer },
+      }),
+      'stop',
+    )
+    expect(stopped).toMatchObject({ answer: { kind: 'requested' } })
+    succeeded(await s.process('process'), 'process')
+    expect(held(await s.read(), s.consumption)).toEqual(there)
+  })
+
+  it('the binding of a producer is answered from the snapshot while the call is open, and none for another producer', async () => {
+    const s = await callScene()
+    const bound = (call: string) =>
+      s.port.readCall({ ...s.access, producer: { kind: 'tool', call } })
+    expect(succeeded(await bound(s.binding.producer.call), 'the open call')).toEqual({
+      consumption: s.consumption,
+      binding: s.binding,
+    })
+    expect(succeeded(await bound('another-call'), 'another producer')).toBeNull()
+  })
+
   it('an intent that a control took over stays after the terminal of its Run', async () => {
     const s = await intentScene(true)
     await s.cancel()
