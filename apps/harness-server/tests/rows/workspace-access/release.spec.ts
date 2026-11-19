@@ -1,5 +1,6 @@
 // @module-tag slow
 // Starts the release tree twice and drives it with the real omne command line.
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
   mkdirSync,
@@ -233,6 +234,64 @@ describe('workspace and workspace-access rows', () => {
       ])
       expect(exitCodes).toEqual([0])
       expect(digestOf(root)).toBe(before)
+    },
+  )
+  it(
+    'a working copy is registered as the Git type and shown at its commit; another working copy of it is not an instance',
+    { tags: ['slow'], timeout: 360_000 },
+    async () => {
+      const base = realpathSync(mkdtempSync(join(tmpdir(), 'workspace-git-release-')))
+      const root = join(base, 'repo')
+      mkdirSync(root)
+      const git = (cwd: string, ...args: string[]) =>
+        execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', ...args], {
+          cwd,
+          encoding: 'utf8',
+        }).trim()
+      git(root, 'init', '-q', '-b', 'main')
+      writeFileSync(join(root, 'README.md'), '# repo\n')
+      git(root, 'add', '.')
+      git(root, 'commit', '-q', '-m', 'first')
+      const before = digestOf(root)
+
+      const exitCodes = await onReleaseTreeRuns({ script: toolCallsThenText(() => []) }, [
+        async tree => {
+          const made = replyOf((await tree.cli(['workspace', 'register', root])).stdout)
+          expect(made).toMatchObject({ outcome: 'succeeded', body: { type: 'git' } })
+          const { workspace, instance } = made.body
+          const shown = async () =>
+            replyOf((await tree.cli(['workspace', 'show', String(workspace)])).stdout).body
+          expect(await shown()).toEqual({
+            workspace,
+            type: 'git',
+            standing: 'owner',
+            instances: [
+              {
+                instance,
+                address: root,
+                availability: {
+                  kind: 'available',
+                  directory: root,
+                  basis: git(root, 'rev-parse', 'HEAD'),
+                },
+              },
+            ],
+          })
+          expect(digestOf(root)).toBe(before)
+          // The repository gains a working copy and a commit; the workspace gains neither by itself.
+          git(root, 'worktree', 'add', '-q', '-b', 'feature', join(base, 'feature'))
+          git(root, 'commit', '-q', '--allow-empty', '-m', 'second')
+          const later = (await shown())['instances'] as { availability: { basis: string } }[]
+          expect(later.map(found => found.availability.basis)).toEqual([
+            git(root, 'rev-parse', 'HEAD'),
+          ])
+          const plain = join(base, 'plain')
+          mkdirSync(plain)
+          const directory = replyOf((await tree.cli(['workspace', 'register', plain])).stdout)
+          expect(directory.body['type']).toBe('directory')
+        },
+      ])
+      expect(exitCodes).toEqual([0])
     },
   )
 })

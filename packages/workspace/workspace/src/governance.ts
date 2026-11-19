@@ -52,6 +52,7 @@ async function take(types: TypeLookup, address: string, named: TypeName | null):
     if ('ok' in answer) return { kind: 'taken', type, recognised: answer.ok }
     if ('unavailable' in answer) return unavailable(answer.unavailable)
     refusal = { kind: 'not-performed', reason: answer.refused }
+    if (answer.final === true) return refusal
   }
   return refusal
 }

@@ -10,6 +10,7 @@ import {
   workspaceTypesKey,
 } from '@omne-harness/workspace-cordis-contract/cordis'
 import { DirectoryType } from '@omne-harness/workspace-filesystem'
+import { GitType } from '@omne-harness/workspace-git'
 import {
   createDomainBinding,
   workspacePersistenceParticipant,
@@ -68,6 +69,7 @@ export const workspaceRow = defineRow({
     await provider.await()
     ctx.inject([workspaceTypesKey], child => {
       child.workspaceTypes.contribute(new DirectoryType())
+      child.workspaceTypes.contribute(new GitType())
     })
     return {
       async stop() {

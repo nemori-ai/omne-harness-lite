@@ -7,10 +7,10 @@ export type Recognised = Readonly<{ material: Material; occupancy: string }>
 
 export type Inspection = Readonly<{ directory: string; basis: LoadBasis }>
 
-/** `refused`: the type looked and the answer is no. `unavailable`: the type could not look. */
+/** `refused`: the type looked and the answer is no; `final`, no less specific type may take it either. `unavailable`: the type could not look. */
 export type TypeAnswer<T> =
   | Readonly<{ ok: T }>
-  | Readonly<{ refused: Reason }>
+  | Readonly<{ refused: Reason; final?: true }>
   | Readonly<{ unavailable: string }>
 
 export type Admission =

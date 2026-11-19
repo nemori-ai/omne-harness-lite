@@ -155,6 +155,7 @@
     "@omne-harness/workspace-contract": "workspace:*",
     "@omne-harness/workspace-cordis-contract": "workspace:*",
     "@omne-harness/workspace-filesystem": "workspace:*",
+    "@omne-harness/workspace-git": "workspace:*",
     "@omne-harness/workspace-local": "workspace:*",
     "zod": "catalog:"
   },
