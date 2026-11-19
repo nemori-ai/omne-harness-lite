@@ -276,6 +276,35 @@ describe('an action that comes with an answer', () => {
     })
     expect(w.judged).toEqual([])
   })
+
+  const unsaved: TenantPicks = {
+    writable: async () => ({ allow: true, deny: true }),
+    write: async () => 'not-writable',
+  }
+
+  it('says on the allow that always allow was not saved, when judging again allows this call', async () => {
+    const w = await world({
+      picks: unsaved,
+      writer: true,
+      decide: () => ({ kind: 'allow', evidence, condition: null }),
+    })
+    const answer = await w.admit('ToyEcho', echoCall(w.forward, {}), {
+      decision: chose('allow-always'),
+    })
+    expect(answer).toMatchObject({
+      kind: 'allow',
+      notice: expect.stringContaining('could not be saved. This call was allowed'),
+    })
+  })
+
+  it('puts that notice on no answer other than an allow', async () => {
+    const w = await world({ picks: unsaved, writer: true })
+    const answer = await w.admit('ToyEcho', echoCall(w.forward, {}), {
+      decision: chose('allow-always'),
+    })
+    expect(answer.kind).toBe('need-decision')
+    expect(answer).not.toHaveProperty('notice')
+  })
 })
 
 describe('the evidence and the refusal of a judged action', () => {
