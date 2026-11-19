@@ -8,6 +8,15 @@ export function definite(failure: ModelFailure): boolean {
   return failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable'
 }
 
+/** A table of pauses: at least one, each an integer of at least 1 millisecond. */
+export function isDelayTable(value: unknown): value is readonly number[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(delay => Number.isSafeInteger(delay) && delay >= 1)
+  )
+}
+
 /** The pause before the next try after `failures` in a row: the next delay of the table, then its last. */
 export function delayAfter(delaysMs: readonly number[], failures: number): number {
   return delaysMs[Math.min(failures, delaysMs.length - 1)] ?? 0

@@ -3,6 +3,7 @@ import type { Adoption } from '@omne-harness/model-contract'
 import { parseRetryPolicy, type RetryPolicy } from '@omne-harness/retry'
 import { fieldOf, isRecord } from '../fields.ts'
 import { modelHostConfigSchema, type ModelHostSettings } from './config.ts'
+import { isDelayTable } from './push-values.ts'
 import type { ResultPushLimits } from './runtime.ts'
 
 export type ConfiguredModelHostSettings = Readonly<{
@@ -66,10 +67,8 @@ function parseNumbers<K extends string>(
 const named = (value: unknown): value is string => typeof value === 'string' && value !== ''
 
 function parseDelays(value: unknown, group: string): Parsed<readonly number[]> {
-  return Array.isArray(value) &&
-    value.length > 0 &&
-    value.every(delay => Number.isSafeInteger(delay) && delay >= 1)
-    ? { value: [...(value as number[])] }
+  return isDelayTable(value)
+    ? { value: [...value] }
     : { issues: [{ message: `${group} must list integers of at least 1` }] }
 }
 

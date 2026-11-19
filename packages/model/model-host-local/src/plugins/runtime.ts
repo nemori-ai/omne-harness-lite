@@ -39,6 +39,7 @@ import {
   custodyEnded,
   definite,
   due,
+  isDelayTable,
   laterRevision,
   unfinished,
 } from './push-values.ts'
@@ -176,14 +177,9 @@ function checkedLimits(limits: ResultPushLimits): ResultPushLimits {
     if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < lower)
       throw new RangeError(`model result push: ${name} must be an integer of at least ${lower}`)
   }
-  const delays: unknown = limits?.delaysMs
-  if (
-    !Array.isArray(delays) ||
-    delays.length === 0 ||
-    !delays.every(delay => Number.isSafeInteger(delay) && delay >= 1)
-  )
+  if (!isDelayTable(limits?.delaysMs))
     throw new RangeError('model result push: delaysMs must list integers of at least 1')
-  return { ...limits, delaysMs: [...delays] }
+  return { ...limits, delaysMs: [...limits.delaysMs] }
 }
 
 function newOperation(): ModelOperationId {

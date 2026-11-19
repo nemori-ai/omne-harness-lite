@@ -94,7 +94,10 @@ describe('abandoning a settled result (T4)', () => {
         kind: 'abandoned',
         operation: op('abandon'),
         basis: refused,
-        record: { owner: 'model-memory' },
+        record: {
+          owner: 'model-memory',
+          record: `${f.admit.call}/${f.settlement.version}/abandoned`,
+        },
         cleanup: 'pending',
         diagnostic: null,
       },
@@ -126,9 +129,15 @@ describe('abandoning a settled result (T4)', () => {
       }),
     ).toEqual({ failure: { kind: 'not-settled' } })
     const other = await settled()
+    expect(await s.commands.abandon({ ...s.abandon(), result: other.settlement.version })).toEqual({
+      failure: { kind: 'invalid', field: 'result', reason: 'not-original' },
+    })
     expect(
-      await s.commands.abandon({ ...s.abandon(), result: other.settlement.version }),
-    ).toMatchObject({ failure: { kind: 'invalid', field: 'result' } })
+      await s.commands.abandon({
+        ...s.abandon(),
+        result: 'mrver_' as typeof other.settlement.version,
+      }),
+    ).toEqual({ failure: { kind: 'invalid', field: 'result', reason: 'identity' } })
     expect(await s.custody()).toEqual({ kind: 'producer' })
   })
 
@@ -138,10 +147,43 @@ describe('abandoning a settled result (T4)', () => {
       { kind: 'refused', refusal: 'unavailable' },
       { kind: 'unknown' },
       { kind: 'unreadable', reason: '' },
+      { kind: 'unreadable', reason: 5 },
+      null,
     ])
       expect(
         await f.commands.abandon({ ...f.abandon(), basis: basis as unknown as AbandonBasis }),
-      ).toMatchObject({ failure: { kind: 'invalid', field: 'basis' } })
+        JSON.stringify(basis),
+      ).toEqual({
+        failure: { kind: 'invalid', field: 'basis', reason: 'not-a-refusal-or-unreadable' },
+      })
+    expect(await f.custody()).toEqual({ kind: 'producer' })
+  })
+
+  it.each(['denied', 'invalid', 'conflict'] as const)(
+    'abandons on a %s refusal and on an unreadable result',
+    async refusal => {
+      const refused = await settled()
+      expect(
+        unbox(
+          await refused.commands.abandon(refused.abandon('abandon', { kind: 'refused', refusal })),
+        ).custody.basis,
+      ).toEqual({ kind: 'refused', refusal })
+      const unreadable = await settled()
+      const basis = { kind: 'unreadable', reason: `pages-${refusal}` } as const
+      expect(
+        unbox(await unreadable.commands.abandon(unreadable.abandon('abandon', basis))).custody
+          .basis,
+      ).toEqual(basis)
+    },
+  )
+
+  it('refuses a principal the authority denies, and keeps producer custody', async () => {
+    const f = await settled()
+    f.denied.add('handoff')
+    expect(await f.commands.abandon(f.abandon())).toEqual({
+      failure: { kind: 'denied', action: 'handoff' },
+    })
+    f.denied.delete('handoff')
     expect(await f.custody()).toEqual({ kind: 'producer' })
   })
 
