@@ -81,7 +81,8 @@ describe('a model dispatch as a usage fact', () => {
       cost: { state: 'known', lexeme: '0.001368', unit: 'openrouter-credit' },
       durations: { toResponse: 1078, toFirstContent: 1969, total: 2436, generation: 467 },
       connectRetries: 1,
-      window: '200000',
+      window: { tokens: '200000', compactAtPercent: '80' },
+      accounted: true,
     })
   })
 
@@ -92,6 +93,7 @@ describe('a model dispatch as a usage fact', () => {
       { name: 'output', state: 'unknown', unit: 'token' },
     ])
     expect(sent.cost).toEqual({ state: 'unknown' })
+    expect(sent.accounted).toBe(false)
     expect(sent.outcome).toBe('pending')
     const unsent = modelUsageFact(dispatch({ account: null, send: 'not-sent' }))
     expect([unsent.usage, unsent.cost]).toEqual([[], null])
@@ -149,6 +151,7 @@ describe('a tool call as a usage fact', () => {
       durations: { toResponse: null, toFirstContent: null, total: 2500, generation: null },
       connectRetries: 0,
       window: null,
+      accounted: true,
     })
   })
 

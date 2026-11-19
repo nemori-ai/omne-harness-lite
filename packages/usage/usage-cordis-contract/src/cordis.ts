@@ -11,6 +11,8 @@ export abstract class UsageService<P> extends Service implements Usage<P> {
   }
 
   abstract readonly query: Usage<P>['query']
+  abstract readonly records: Usage<P>['records']
+  abstract readonly occupancy: Usage<P>['occupancy']
 }
 export const usageKey = UsageService.provide
 

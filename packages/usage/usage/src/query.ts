@@ -5,6 +5,8 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   checkUsageQuery,
   fold,
+  occupancyOf,
+  type UsageRecordsQuery,
   type Usage,
   type UsageConsumer,
   type UsageDependency,
@@ -14,6 +16,7 @@ import {
   type UsageQuery,
   type UsageSessionScope,
   type UsageSource,
+  type UsageSourcePage,
 } from '@omne-harness/usage-contract'
 
 /** Page size asked of a source, pages one query may read, buckets one query may ask for. */
@@ -34,7 +37,7 @@ const failureOf = (dependency: UsageDependency, failure: UsagePortFailure): Usag
 
 async function consumerOf<P>(
   deps: UsageDeps<P>,
-  input: Access<P> & UsageQuery,
+  input: Access<P> & Readonly<{ scope: UsageQuery['scope'] }>,
 ): Promise<Outcome<readonly UsageConsumer[] | null, UsageFailure>> {
   if (input.scope.kind !== 'session') return succeed(null)
   const dependency: UsageDependency = { kind: 'session-scope' }
@@ -67,14 +70,29 @@ function chunks(
   return parts
 }
 
+type SourceRequest<P> = Access<P> & Readonly<{ range: UsageQuery['range'] | null }>
+
+/** One page of one source, its failures named by the source. */
+async function listOnce<P>(
+  source: UsageSource<P>,
+  request: SourceRequest<P> &
+    Readonly<{ consumer: UsageConsumer | null; after: string | null; limit: number }>,
+): Promise<Outcome<UsageSourcePage, UsageFailure>> {
+  const dependency: UsageDependency = { kind: 'source', name: source.name }
+  try {
+    const answer = await source.list(request)
+    return 'failure' in answer ? fail(failureOf(dependency, answer.failure)) : answer
+  } catch {
+    return fail({ kind: 'unavailable', dependency, diagnostic: 'the source threw' })
+  }
+}
+
 async function readSource<P>(
   source: UsageSource<P>,
-  request: Access<P> &
-    Readonly<{ range: UsageQuery['range']; consumers: readonly UsageConsumer[] | null }>,
+  request: SourceRequest<P> & Readonly<{ consumers: readonly UsageConsumer[] | null }>,
   budget: { pages: number },
   page: number,
 ): Promise<Outcome<Read, UsageFailure>> {
-  const dependency: UsageDependency = { kind: 'source', name: source.name }
   const limit = Math.min(page, source.limits.page)
   const facts: UsageFact[] = []
   let undated = 0
@@ -85,13 +103,13 @@ async function readSource<P>(
     while (first || after !== null) {
       if (budget.pages === 0) return fail({ kind: 'too-large', limit: 'pages' })
       budget.pages -= 1
-      let answer: Awaited<ReturnType<UsageSource<P>['list']>>
-      try {
-        answer = await source.list({ ...access, consumer, after, limit })
-      } catch {
-        return fail({ kind: 'unavailable', dependency, diagnostic: 'the source threw' })
-      }
-      if ('failure' in answer) return fail(failureOf(dependency, answer.failure))
+      const answer: Outcome<UsageSourcePage, UsageFailure> = await listOnce(source, {
+        ...access,
+        consumer,
+        after,
+        limit,
+      })
+      if ('failure' in answer) return answer
       for (const fact of answer.ok.entries) facts.push(fact)
       if (first) undated += answer.ok.undated
       first = false
@@ -135,5 +153,102 @@ export function createUsage<P>(deps: UsageDeps<P>): Usage<P> {
       }
       return succeed(fold(facts, checked.ok, { sources: names, undated }))
     },
+
+    async records(input) {
+      const checked = checkUsageQuery(
+        { scope: input.scope, range: input.range, zone: 'UTC', bucket: 'none', groupBy: [] },
+        { buckets: 1 },
+      )
+      if ('failure' in checked) return checked
+      if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > limits.page)
+        return fail({ kind: 'invalid', field: 'limit', reason: 'out-of-range' })
+      const fingerprint = JSON.stringify([input.tenant, input.scope, input.range])
+      const at =
+        input.after === null
+          ? { source: 0, chunk: 0, cursor: null }
+          : positionOf(fingerprint, input.after)
+      if (at === null) return fail({ kind: 'invalid', field: 'after', reason: 'cursor' })
+      const consumers = await consumerOf(deps, input)
+      if ('failure' in consumers) return consumers
+      const sources = [...deps.sources()].sort((a, b) => (a.name < b.name ? -1 : 1))
+      const access = { principal: input.principal, tenant: input.tenant, range: input.range }
+      const to = Date.parse(input.range.to)
+      let position: Position | null = at
+      for (let reads = 0; position !== null && reads < limits.pages; reads += 1) {
+        const source: UsageSource<P> | undefined = sources[position.source]
+        const consumer: UsageConsumer | null | undefined =
+          source === undefined
+            ? undefined
+            : chunks(consumers.ok, source.limits.works)[position.chunk]
+        if (source === undefined || consumer === undefined) {
+          position =
+            source === undefined ? null : { source: position.source + 1, chunk: 0, cursor: null }
+          continue
+        }
+        const page: Outcome<UsageSourcePage, UsageFailure> = await listOnce(source, {
+          ...access,
+          consumer,
+          after: position.cursor,
+          limit: Math.min(input.limit, source.limits.page),
+        })
+        if ('failure' in page) return page
+        const after: Position | null =
+          page.ok.next !== null
+            ? { ...position, cursor: page.ok.next }
+            : { source: position.source, chunk: position.chunk + 1, cursor: null }
+        const entries = page.ok.entries.filter(
+          (fact: UsageFact) => fact.at !== null && Date.parse(fact.at) < to,
+        )
+        if (entries.length > 0) return succeed({ entries, next: cursorOf(fingerprint, after) })
+        position = after
+      }
+      return position === null
+        ? succeed({ entries: [], next: null })
+        : fail({ kind: 'too-large', limit: 'pages' })
+    },
+
+    async occupancy(input) {
+      const consumers = await consumerOf(deps, {
+        ...input,
+        scope: { kind: 'session', session: input.session },
+      })
+      if ('failure' in consumers) return consumers
+      const request = {
+        principal: input.principal,
+        tenant: input.tenant,
+        range: null,
+        consumers: consumers.ok,
+      }
+      const budget = { pages: limits.pages }
+      const facts: UsageFact[] = []
+      for (const source of deps.sources()) {
+        const read = await readSource(source, request, budget, limits.page)
+        if ('failure' in read) return read
+        for (const fact of read.ok.facts) facts.push(fact)
+      }
+      return succeed(occupancyOf(facts))
+    },
+  }
+}
+
+type Position = Readonly<{ source: number; chunk: number; cursor: string | null }>
+const CURSOR = 'ur1.'
+
+function cursorOf(fingerprint: string, at: Position): string {
+  return `${CURSOR}${Buffer.from(JSON.stringify([fingerprint, at.source, at.chunk, at.cursor])).toString('base64url')}`
+}
+
+function positionOf(fingerprint: string, cursor: string): Position | null {
+  if (!cursor.startsWith(CURSOR)) return null
+  try {
+    const [given, source, chunk, after] = JSON.parse(
+      Buffer.from(cursor.slice(CURSOR.length), 'base64url').toString('utf8'),
+    ) as unknown[]
+    const index = (value: unknown) => Number.isSafeInteger(value) && (value as number) >= 0
+    if (given !== fingerprint || !index(source) || !index(chunk)) return null
+    if (after !== null && typeof after !== 'string') return null
+    return { source: source as number, chunk: chunk as number, cursor: after }
+  } catch {
+    return null
   }
 }

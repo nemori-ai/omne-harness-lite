@@ -32,6 +32,8 @@ export function createUsagePlugin(input: Readonly<{ limits: UsageLimits }>): Usa
   return class UsageProvider extends UsageService<unknown> {
     static readonly inject = [usageSourcesKey]
     readonly query: UsageService<unknown>['query']
+    readonly records: UsageService<unknown>['records']
+    readonly occupancy: UsageService<unknown>['occupancy']
 
     constructor(ctx: Context) {
       super(ctx)
@@ -41,6 +43,8 @@ export function createUsagePlugin(input: Readonly<{ limits: UsageLimits }>): Usa
         limits,
       })
       this.query = request => usage.query(request)
+      this.records = request => usage.records(request)
+      this.occupancy = request => usage.occupancy(request)
     }
   }
 }

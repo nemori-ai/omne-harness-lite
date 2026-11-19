@@ -2,6 +2,7 @@ export {
   TOKEN_KINDS,
   USAGE_BUCKETS,
   USAGE_DIMENSIONS,
+  type ContextOccupancy,
   type TokenKind,
   type UsageBucket,
   type UsageBucketResult,
@@ -16,6 +17,8 @@ export {
   type UsageMeasures,
   type UsageQuery,
   type UsageRatio,
+  type UsageRecordPage,
+  type UsageRecordsQuery,
   type UsageResult,
   type UsageScope,
   type UsageSum,
@@ -33,3 +36,4 @@ export type {
 export { checkUsageQuery, edgesOf, type CheckedUsageQuery, type UsageEdge } from './check.ts'
 export { addLexemes } from './decimal.ts'
 export { fold } from './fold.ts'
+export { occupancyOf } from './occupancy.ts'

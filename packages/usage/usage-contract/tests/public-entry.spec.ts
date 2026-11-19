@@ -12,6 +12,7 @@ describe('the usage contract entry', () => {
       'checkUsageQuery',
       'edgesOf',
       'fold',
+      'occupancyOf',
     ])
   })
 })

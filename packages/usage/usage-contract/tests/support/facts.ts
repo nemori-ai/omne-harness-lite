@@ -86,6 +86,7 @@ export function randomFact(pick: Pick, index: number, from: number, to: number):
     durations: { toResponse: ms(), toFirstContent: ms(), total: ms(), generation: ms() },
     connectRetries: pick.int(0, 2),
     window: null,
+    accounted: true,
   }
 }
 

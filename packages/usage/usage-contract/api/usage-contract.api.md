@@ -7,6 +7,7 @@
 ## 入口 `.` · `index.d.ts`
 
 - `CheckedUsageQuery` · `check.d.ts`
+- `ContextOccupancy` · `values.d.ts`
 - `TOKEN_KINDS` · `values.d.ts`
 - `TokenKind` · `values.d.ts`
 - `USAGE_BUCKETS` · `values.d.ts`
@@ -29,6 +30,8 @@
 - `UsagePortFailure` · `ports.d.ts`
 - `UsageQuery` · `values.d.ts`
 - `UsageRatio` · `values.d.ts`
+- `UsageRecordPage` · `values.d.ts`
+- `UsageRecordsQuery` · `values.d.ts`
 - `UsageReply` · `ports.d.ts`
 - `UsageResult` · `values.d.ts`
 - `UsageScope` · `values.d.ts`
@@ -40,6 +43,7 @@
 - `checkUsageQuery` · `check.d.ts`
 - `edgesOf` · `check.d.ts`
 - `fold` · `fold.d.ts`
+- `occupancyOf` · `occupancy.d.ts`
 
 ## 声明文件 `check.d.ts`
 
@@ -90,11 +94,19 @@ export declare function fold(facts: readonly UsageFact[], query: CheckedUsageQue
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { TOKEN_KINDS, USAGE_BUCKETS, USAGE_DIMENSIONS, type TokenKind, type UsageBucket, type UsageBucketResult, type UsageCell, type UsageConsumer, type UsageCost, type UsageCoverage, type UsageDimension, type UsageDistribution, type UsageFact, type UsageInstant, type UsageMeasures, type UsageQuery, type UsageRatio, type UsageResult, type UsageScope, type UsageSum, } from './values.ts';
+export { TOKEN_KINDS, USAGE_BUCKETS, USAGE_DIMENSIONS, type ContextOccupancy, type TokenKind, type UsageBucket, type UsageBucketResult, type UsageCell, type UsageConsumer, type UsageCost, type UsageCoverage, type UsageDimension, type UsageDistribution, type UsageFact, type UsageInstant, type UsageMeasures, type UsageQuery, type UsageRatio, type UsageRecordPage, type UsageRecordsQuery, type UsageResult, type UsageScope, type UsageSum, } from './values.ts';
 export type { Usage, UsageDependency, UsageFailure, UsagePortFailure, UsageReply, UsageSessionScope, UsageSource, UsageSourcePage, } from './ports.ts';
 export { checkUsageQuery, edgesOf, type CheckedUsageQuery, type UsageEdge } from './check.ts';
 export { addLexemes } from './decimal.ts';
 export { fold } from './fold.ts';
+export { occupancyOf } from './occupancy.ts';
+```
+
+## 声明文件 `occupancy.d.ts`
+
+```ts
+import type { ContextOccupancy, UsageFact } from './values.ts';
+export declare function occupancyOf(facts: readonly UsageFact[]): ContextOccupancy;
 ```
 
 ## 声明文件 `ports.d.ts`
@@ -102,7 +114,7 @@ export { fold } from './fold.ts';
 ```ts
 import type { Access } from '@omne-harness/legal-identity';
 import type { Outcome } from '@omne-harness/operation-result';
-import type { UsageConsumer, UsageFact, UsageInstant, UsageQuery, UsageResult } from './values.ts';
+import type { ContextOccupancy, UsageConsumer, UsageFact, UsageInstant, UsageQuery, UsageRecordPage, UsageRecordsQuery, UsageResult } from './values.ts';
 export type UsageDependency = Readonly<{
     kind: 'source';
     name: string;
@@ -111,7 +123,7 @@ export type UsageDependency = Readonly<{
 }>;
 export type UsageFailure = Readonly<{
     kind: 'invalid';
-    field: 'scope' | 'range' | 'zone' | 'bucket' | 'groupBy';
+    field: 'scope' | 'range' | 'zone' | 'bucket' | 'groupBy' | 'limit' | 'after';
     reason: string;
 }> | Readonly<{
     kind: 'unsupported';
@@ -152,7 +164,7 @@ export interface UsageSource<P> {
         range: Readonly<{
             from: UsageInstant;
             to: UsageInstant;
-        }>;
+        }> | null;
         consumer: UsageConsumer | null;
         after: string | null;
         limit: number;
@@ -170,6 +182,10 @@ export interface UsageSessionScope<P> {
 }
 export interface Usage<P> {
     query(input: Access<P> & UsageQuery): UsageReply<UsageResult>;
+    records(input: Access<P> & UsageRecordsQuery): UsageReply<UsageRecordPage>;
+    occupancy(input: Access<P> & Readonly<{
+        session: string;
+    }>): UsageReply<ContextOccupancy>;
 }
 ```
 
@@ -212,7 +228,11 @@ export type UsageFact = Readonly<{
         generation: number | null;
     }>;
     connectRetries: number;
-    window: string | null;
+    window: Readonly<{
+        tokens: string;
+        compactAtPercent: string | null;
+    }> | null;
+    accounted: boolean;
 }>;
 export type UsageConsumer = Readonly<{
     owner: string;
@@ -332,5 +352,34 @@ export type UsageResult = Readonly<{
     groups: readonly UsageCell[];
     buckets: readonly UsageBucketResult[];
     coverage: UsageCoverage;
+}>;
+export type UsageRecordsQuery = Readonly<{
+    scope: UsageScope;
+    range: Readonly<{
+        from: UsageInstant;
+        to: UsageInstant;
+    }>;
+    after: string | null;
+    limit: number;
+}>;
+export type UsageRecordPage = Readonly<{
+    entries: readonly UsageFact[];
+    next: string | null;
+}>;
+export type ContextOccupancy = Readonly<{
+    kind: 'known';
+    used: string;
+    window: string;
+    percent: string;
+    compactAtPercent: string | null;
+    asOf: Readonly<{
+        at: UsageInstant;
+        model: string | null;
+    }>;
+}> | Readonly<{
+    kind: 'none-yet';
+}> | Readonly<{
+    kind: 'unknown';
+    reason: 'usage-unknown' | 'window-unknown';
 }>;
 ```

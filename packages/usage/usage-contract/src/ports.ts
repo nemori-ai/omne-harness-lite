@@ -1,6 +1,15 @@
 import type { Access } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
-import type { UsageConsumer, UsageFact, UsageInstant, UsageQuery, UsageResult } from './values.ts'
+import type {
+  ContextOccupancy,
+  UsageConsumer,
+  UsageFact,
+  UsageInstant,
+  UsageQuery,
+  UsageRecordPage,
+  UsageRecordsQuery,
+  UsageResult,
+} from './values.ts'
 
 /** What a failure of a query depends on: a registered source by its name, or the session scope. */
 export type UsageDependency =
@@ -10,7 +19,7 @@ export type UsageDependency =
 export type UsageFailure =
   | Readonly<{
       kind: 'invalid'
-      field: 'scope' | 'range' | 'zone' | 'bucket' | 'groupBy'
+      field: 'scope' | 'range' | 'zone' | 'bucket' | 'groupBy' | 'limit' | 'after'
       reason: string
     }>
   | Readonly<{ kind: 'unsupported'; field: 'scope' }>
@@ -40,8 +49,8 @@ export interface UsageSource<P> {
   list(
     input: Access<P> &
       Readonly<{
-        /** Both ends included. */
-        range: Readonly<{ from: UsageInstant; to: UsageInstant }>
+        /** Both ends included; null takes every dated unit. */
+        range: Readonly<{ from: UsageInstant; to: UsageInstant }> | null
         consumer: UsageConsumer | null
         after: string | null
         limit: number
@@ -64,4 +73,6 @@ export interface UsageSessionScope<P> {
 
 export interface Usage<P> {
   query(input: Access<P> & UsageQuery): UsageReply<UsageResult>
+  records(input: Access<P> & UsageRecordsQuery): UsageReply<UsageRecordPage>
+  occupancy(input: Access<P> & Readonly<{ session: string }>): UsageReply<ContextOccupancy>
 }

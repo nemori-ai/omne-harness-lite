@@ -28,6 +28,8 @@ export declare abstract class UsageService<P> extends Service implements Usage<P
     static readonly provide = "usage";
     constructor(ctx: CordisContext);
     abstract readonly query: Usage<P>['query'];
+    abstract readonly records: Usage<P>['records'];
+    abstract readonly occupancy: Usage<P>['occupancy'];
 }
 export declare const usageKey = "usage";
 export declare abstract class UsageSourcesService<P> extends Service implements UsageSources<P> {

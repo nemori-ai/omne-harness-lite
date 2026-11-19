@@ -51,7 +51,14 @@ export function modelUsageFact(fact: ModelDispatchFact): UsageFact {
       generation: msBetween(firstContent, ended),
     },
     connectRetries: fact.connectRetries,
-    window: fact.contextWindow?.tokens ?? null,
+    window:
+      fact.contextWindow === null
+        ? null
+        : {
+            tokens: fact.contextWindow.tokens,
+            compactAtPercent: fact.contextWindow.compactionTriggerPercent,
+          },
+    accounted: fact.account !== null,
   }
 }
 
@@ -87,6 +94,7 @@ export function toolUsageFact(fact: ToolUsageFact): UsageFact {
     },
     connectRetries: 0,
     window: null,
+    accounted: true,
   }
 }
 

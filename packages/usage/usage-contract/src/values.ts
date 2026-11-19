@@ -33,7 +33,9 @@ export type UsageFact = Readonly<{
     generation: number | null
   }>
   connectRetries: number
-  window: string | null
+  window: Readonly<{ tokens: string; compactAtPercent: string | null }> | null
+  /** Whether the producer holds an account for this unit, known numbers or not. */
+  accounted: boolean
 }>
 
 export type UsageConsumer = Readonly<{ owner: string; works: readonly string[] }>
@@ -87,7 +89,6 @@ export type UsageMeasures = Readonly<{
   }>
 }>
 
-/** The key holds one value per dimension of the query, in its order. */
 export type UsageCell = Readonly<{ key: readonly (string | null)[]; measures: UsageMeasures }>
 export type UsageBucketResult = Readonly<{
   start: UsageInstant
@@ -108,3 +109,23 @@ export type UsageResult = Readonly<{
   buckets: readonly UsageBucketResult[]
   coverage: UsageCoverage
 }>
+
+export type UsageRecordsQuery = Readonly<{
+  scope: UsageScope
+  range: Readonly<{ from: UsageInstant; to: UsageInstant }>
+  after: string | null
+  limit: number
+}>
+export type UsageRecordPage = Readonly<{ entries: readonly UsageFact[]; next: string | null }>
+
+export type ContextOccupancy =
+  | Readonly<{
+      kind: 'known'
+      used: string
+      window: string
+      percent: string
+      compactAtPercent: string | null
+      asOf: Readonly<{ at: UsageInstant; model: string | null }>
+    }>
+  | Readonly<{ kind: 'none-yet' }>
+  | Readonly<{ kind: 'unknown'; reason: 'usage-unknown' | 'window-unknown' }>

@@ -30,6 +30,7 @@ function fact(source: string, unit: string, at: string | null, work = 'exec-1'):
     durations: { toResponse: null, toFirstContent: null, total: null, generation: null },
     connectRetries: 0,
     window: null,
+    accounted: true,
   }
 }
 
@@ -61,7 +62,9 @@ function source(
       const scoped = facts.filter(item => inScope(item, input.consumer))
       const dated = scoped
         .filter(
-          item => item.at !== null && item.at >= input.range.from && item.at <= input.range.to,
+          item =>
+            item.at !== null &&
+            (input.range === null || (item.at >= input.range.from && item.at <= input.range.to)),
         )
         .sort((a, b) => ((a.at ?? '') < (b.at ?? '') ? -1 : 1))
       const start = input.after === null ? 0 : Number(input.after)
@@ -342,5 +345,143 @@ describe('a usage query refused before anything is read', () => {
       expect(() => usageOver([], undefined, limits), JSON.stringify(limits)).toThrow(
         /^usage limit (page|pages|buckets) must be a positive integer$/,
       )
+  })
+})
+
+describe('the records of a scope, page by page (C24)', () => {
+  const records = (usage: ReturnType<typeof usageOver>, changes: Record<string, unknown> = {}) =>
+    usage.records({
+      principal,
+      tenant,
+      scope: { kind: 'tenant' },
+      range: { from: FROM, to: TO },
+      after: null,
+      limit: 2,
+      ...changes,
+    } as never)
+
+  it('reads source after source in name order, a page at a time, and ends with no next', async () => {
+    const tool = source('tool', [
+      fact('tool', 't1', hour(1)),
+      fact('tool', 't2', hour(2)),
+      fact('tool', 't3', TO),
+    ])
+    const model = source('model', [fact('model', 'm1', hour(3)), fact('model', 'm2', null)])
+    const usage = usageOver([tool.self, model.self])
+    const seen: string[] = []
+    let after: string | null = null
+    for (let page = 0; page < 5; page += 1) {
+      const answer = await records(usage, { after })
+      if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
+      for (const item of answer.ok.entries) seen.push(item.unit)
+      after = answer.ok.next
+      if (after === null) break
+    }
+    expect(seen).toEqual(['m1', 't1', 't2'])
+    expect(after).toBeNull()
+  })
+
+  it('refuses a page size past the limit, a cursor of another query, and answers a failing source by its name', async () => {
+    const model = source('model', [
+      fact('model', 'm1', hour(1)),
+      fact('model', 'm2', hour(2)),
+      fact('model', 'm3', hour(3)),
+    ])
+    const usage = usageOver([model.self])
+    expect(await records(usage, { limit: 101 })).toEqual({
+      failure: { kind: 'invalid', field: 'limit', reason: 'out-of-range' },
+    })
+    expect(await records(usage, { limit: 0 })).toEqual({
+      failure: { kind: 'invalid', field: 'limit', reason: 'out-of-range' },
+    })
+    const first = await records(usage)
+    if (!('ok' in first) || first.ok.next === null) throw new Error('a first page with more')
+    const other = await records(usage, { after: first.ok.next, range: { from: FROM, to: hour(5) } })
+    expect(other).toEqual({ failure: { kind: 'invalid', field: 'after', reason: 'cursor' } })
+    for (const forged of [
+      'nope',
+      'ur1.bm90',
+      `ur1.${Buffer.from(JSON.stringify(['x', 0, 0, null])).toString('base64url')}`,
+    ])
+      expect(await records(usage, { after: forged }), forged).toEqual({
+        failure: { kind: 'invalid', field: 'after', reason: 'cursor' },
+      })
+    const broken = source('model', [], { fails: { kind: 'unavailable', diagnostic: 'disk' } })
+    expect(await records(usageOver([broken.self]))).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: { kind: 'source', name: 'model' },
+        diagnostic: 'disk',
+      },
+    })
+  })
+
+  it('keeps to the session scope and answers an absent session as not found', async () => {
+    const model = source('model', [
+      fact('model', 'mine', hour(1), 'exec-1'),
+      fact('model', 'theirs', hour(1), 'exec-9'),
+    ])
+    const found = scopeOf({
+      ok: { kind: 'found', consumers: [{ owner: 'agent', works: ['exec-1'] }] },
+    })
+    const answer = await records(usageOver([model.self], found.scope), {
+      scope: { kind: 'session', session: 's-1' },
+    })
+    expect('ok' in answer && answer.ok.entries.map(item => item.unit)).toEqual(['mine'])
+    const absent = scopeOf({ ok: { kind: 'absent' } })
+    expect(
+      await records(usageOver([model.self], absent.scope), {
+        scope: { kind: 'session', session: 's-1' },
+      }),
+    ).toEqual({
+      failure: { kind: 'not-found', what: 'session' },
+    })
+  })
+})
+
+describe('the context occupancy of a session (C23)', () => {
+  it('reads every unit of the session scope without a range and answers by the rows of T9', async () => {
+    const usageOf = (input: string) => [
+      { name: 'input', state: 'known' as const, lexeme: input, unit: 'token' },
+      { name: 'cache-read', state: 'known' as const, lexeme: '0', unit: 'token' },
+      { name: 'cache-write', state: 'known' as const, lexeme: '0', unit: 'token' },
+    ]
+    const dispatch = {
+      ...fact('model', 'm1', '2020-01-01T00:00:00.000Z', 'exec-1/step-1'),
+      usage: usageOf('500'),
+      window: { tokens: '1000', compactAtPercent: '80' },
+    }
+    const model = source('model', [dispatch])
+    const found = scopeOf({
+      ok: { kind: 'found', consumers: [{ owner: 'agent', works: ['exec-1'] }] },
+    })
+    expect(
+      await usageOver([model.self], found.scope).occupancy({ principal, tenant, session: 's-1' }),
+    ).toEqual({
+      ok: {
+        kind: 'known',
+        used: '500',
+        window: '1000',
+        percent: '50.00',
+        compactAtPercent: '80',
+        asOf: { at: dispatch.at, model: null },
+      },
+    })
+    expect(model.asked[0]).toMatchObject({
+      range: null,
+      consumer: { owner: 'agent', works: ['exec-1'] },
+    })
+    const absent = scopeOf({ ok: { kind: 'absent' } })
+    expect(
+      await usageOver([model.self], absent.scope).occupancy({ principal, tenant, session: 's-1' }),
+    ).toEqual({
+      failure: { kind: 'not-found', what: 'session' },
+    })
+    const empty = scopeOf({ ok: { kind: 'found', consumers: [] } })
+    expect(
+      await usageOver([model.self], empty.scope).occupancy({ principal, tenant, session: 's-1' }),
+    ).toEqual({
+      ok: { kind: 'none-yet' },
+    })
   })
 })
