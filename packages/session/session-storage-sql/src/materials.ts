@@ -65,6 +65,7 @@ import {
   COMPACTION_INDEX_MIGRATION,
   COMPACTION_INDEX_TABLES,
 } from './worker/compaction-index-migration.ts'
+import { CALL_LEFT_MIGRATION, CALL_LEFT_TABLES } from './worker/call-left.ts'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
 
@@ -234,6 +235,12 @@ export const HANDLERS: readonly Handler[] = [
     migrations: indexMigrations,
   },
   {
+    handler: 'session.calls-left',
+    file: 'read-calls-left',
+    tables: [...CALL_LEFT_TABLES],
+    migrations: [migrationRef, CALL_LEFT_MIGRATION],
+  },
+  {
     handler: 'session.work-reads',
     file: 'read-work-reads',
     tables: ['sl_journal', 'sl_entry', ...ATTEMPT_GRANT_TABLES, ...EXECUTION_RECORD_INDEX_TABLES],
@@ -264,6 +271,27 @@ export const HANDLERS: readonly Handler[] = [
     migrations: factMigrations,
   },
   { handler: 'session.pending', file: 'read-pending', tables: ['sl_pending_idx'] },
+  {
+    handler: 'session.search-sessions',
+    file: 'read-search-sessions',
+    tables: ['sl_journal', 'sl_session_list'],
+    migrations: [...factMigrations, sessionListMigrationRef],
+    maxRowsRead: 40_010,
+  },
+  {
+    handler: 'session.search-stamp',
+    file: 'read-search-stamp',
+    tables: ['sl_journal', 'sl_session_list'],
+    migrations: [...factMigrations, sessionListMigrationRef],
+    maxRowsRead: 4,
+  },
+  {
+    handler: 'session.search-entries',
+    file: 'read-search-entries',
+    tables: ['sl_journal', 'sl_entry', 'sl_blob', 'sl_commit_time'],
+    migrations: [...factMigrations, sessionListMigrationRef],
+    maxRowsRead: 4000,
+  },
   {
     handler: 'session.list',
     file: 'read-session-list',
@@ -448,6 +476,7 @@ export function sessionStorageMaterials(
         ownedTables: [
           ...SESSION_TABLES,
           ...COMPACTION_INDEX_TABLES,
+          ...CALL_LEFT_TABLES,
           ...PERMISSION_CURRENT_TABLES,
           ...AUTHORIZATION_CONTEXT_TABLES,
           ...EXECUTION_INDEX_TABLES,
@@ -496,6 +525,7 @@ export function sessionStorageMaterials(
       migrationOf(AUTHORIZATION_CONTEXT_MIGRATION, 'authorization-context-migration', [
         PERMISSION_CURRENT_MIGRATION,
       ]),
+      migrationOf(CALL_LEFT_MIGRATION, 'call-left-migration', [migrationRef]),
       migrationOf(preadmissionMigrationRef, 'preadmission-migration', [recordMigrationRef]),
       migrationOf(admissionAttemptMigrationRef, 'admission-attempt-migration', [
         recordMigrationRef,

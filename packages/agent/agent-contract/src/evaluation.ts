@@ -143,8 +143,18 @@ export type PendingCall = PendingCommon &
 export type ActionJudgment =
   | Readonly<{ kind: 'pending'; passage: PassageId }>
   | Readonly<{ kind: 'waiting'; passage: PassageId; cards: readonly DurableEvidence[] }>
-  | Readonly<{ kind: 'denied'; evidence: DurableEvidence; answer?: DurableEvidence }>
-  | Readonly<{ kind: 'allowed'; evidence: DurableEvidence; request: DurableEvidence }>
+  | Readonly<{
+      kind: 'denied'
+      evidence: DurableEvidence
+      answer?: DurableEvidence
+      notice?: string
+    }>
+  | Readonly<{
+      kind: 'allowed'
+      evidence: DurableEvidence
+      request: DurableEvidence
+      notice?: string
+    }>
 export type ActionToolCall = ToolCallPart
 export type Action = Readonly<{
   id: ActionId

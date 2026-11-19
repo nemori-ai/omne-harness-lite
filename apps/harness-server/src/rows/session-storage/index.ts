@@ -17,14 +17,18 @@ import type { SessionCursorSigning } from '@omne-harness/session-cordis-contract
 import {
   SessionDelegatedTransactionsService,
   SessionPrincipalBindingsService,
+  SessionHistoryLogService,
   SessionScopeOwnersService,
+  SessionSearchCursorsService,
   SessionTransactionPortService,
   sessionAccessCheckKey,
   sessionClockKey,
   sessionCursorSigningKey,
   sessionDelegatedTransactionsKey,
   sessionPrincipalBindingsKey,
+  sessionHistoryLogKey,
   sessionScopeOwnersKey,
+  sessionSearchCursorsKey,
   sessionTransactionsKey,
   sessionDerivedInputsKey,
   sessionInputSourcesKey,
@@ -34,7 +38,9 @@ import { createIntakeBudgetReader } from '@omne-harness/session-adapters/cordis'
 import { createSessionCommitNotifier } from '@omne-harness/session-cordis/cordis'
 import {
   createSessionPrincipalBindings,
+  createSearchCursorSeal,
   createSessionScopeOwners,
+  createSessionSearchLog,
   createSessionStorage,
   registerSessionNotifier,
   type SessionStorageOptions,
@@ -208,6 +214,7 @@ function unregisteredTenantIsAbsent<P>(
     commit: commit as SessionTransactionPort<P>['commit'],
     readWork: guard('readWork', view.readWork),
     readCurrentScope: guard('readCurrentScope', view.readCurrentScope),
+    readCall: guard('readWork', view.readCall),
     readInput: guard('readInput', view.readInput),
     queryOperation: guard('queryOperation', view.queryOperation),
     queryControlOperation: guard('queryControlOperation', view.queryControlOperation),
@@ -283,6 +290,7 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
   readonly commit: SessionTransactionPort<unknown>['commit']
   readonly readWork: SessionTransactionPort<unknown>['readWork']
   readonly readCurrentScope: SessionTransactionPort<unknown>['readCurrentScope']
+  readonly readCall: SessionTransactionPort<unknown>['readCall']
   readonly readInput: SessionTransactionPort<unknown>['readInput']
   readonly queryOperation: SessionTransactionPort<unknown>['queryOperation']
   readonly queryControlOperation: SessionTransactionPort<unknown>['queryControlOperation']
@@ -300,6 +308,7 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
     this.commit = port.commit
     this.readWork = port.readWork
     this.readCurrentScope = port.readCurrentScope
+    this.readCall = port.readCall
     this.readInput = port.readInput
     this.queryOperation = port.queryOperation
     this.queryControlOperation = port.queryControlOperation
@@ -357,6 +366,22 @@ class TenantDomainRegistrationImpl extends TenantDomainRegistrationService {
       const registered = await directory.ensureRegistered(input.tenant)
       return registered.kind === 'ready' ? { kind: 'ready' } : registered
     }
+  }
+}
+
+class HistoryLogImpl extends SessionHistoryLogService {
+  readonly log: SessionHistoryLogService['log']
+  constructor(ctx: Context, log: SessionHistoryLogService['log']) {
+    super(ctx)
+    this.log = log
+  }
+}
+
+class SearchCursorsImpl extends SessionSearchCursorsService {
+  readonly seal: SessionSearchCursorsService['seal']
+  constructor(ctx: Context, seal: SessionSearchCursorsService['seal']) {
+    super(ctx)
+    this.seal = seal
   }
 }
 
@@ -474,6 +499,9 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   new PrincipalBindingsImpl(ctx, bindings)
   const scopeOwners = createSessionScopeOwners({ storage, domains: directory.access })
   new ScopeOwnersImpl(ctx, input => scopeOwners.lookup(input))
+  // The history search reads the logs through the read handlers, and seals its cursors as the others are.
+  new HistoryLogImpl(ctx, createSessionSearchLog({ storage, domains: directory.access }))
+  new SearchCursorsImpl(ctx, createSearchCursorSeal({ signing: lateBoundCursorSigning(ctx) }))
   return {
     stop: deadline => {
       active = false
@@ -497,6 +525,8 @@ export const sessionStorageRow = defineRow({
       tenantDomainRegistrationKey,
       sessionPrincipalBindingsKey,
       sessionScopeOwnersKey,
+      sessionHistoryLogKey,
+      sessionSearchCursorsKey,
     ],
     injects: [storageKey, sessionAccessCheckKey],
     sameProviderGroup: null,

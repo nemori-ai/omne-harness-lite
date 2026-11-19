@@ -39,6 +39,10 @@ const documentedPairs = {
   sessionAdoptedRequestsKey: 'SessionAdoptedRequestsService',
   sessionInputSourcesKey: 'SessionInputSourcesService',
   sessionDerivedInputsKey: 'SessionDerivedInputsService',
+  sessionHistoryIndexKey: 'SessionHistoryIndexService',
+  sessionHistoryLogKey: 'SessionHistoryLogService',
+  sessionSearchCursorsKey: 'SessionSearchCursorsService',
+  sessionSearchKey: 'SessionSearchService',
 } as const
 
 const documentedKeys = {
@@ -70,6 +74,10 @@ const documentedKeys = {
   sessionAdoptedRequestsKey: 'sessionAdoptedRequests',
   sessionInputSourcesKey: 'sessionInputSources',
   sessionDerivedInputsKey: 'sessionDerivedInputs',
+  sessionHistoryIndexKey: 'sessionHistoryIndex',
+  sessionHistoryLogKey: 'sessionHistoryLog',
+  sessionSearchCursorsKey: 'sessionSearchCursors',
+  sessionSearchKey: 'sessionSearch',
 } as const
 
 describe('the ./cordis entry', () => {
@@ -127,6 +135,8 @@ describe('the ./cordis entry', () => {
         undefined) as unknown as SessionTransactionPortService<string>['readWork']
       readonly readCurrentScope = (() =>
         undefined) as unknown as SessionTransactionPortService<string>['readCurrentScope']
+      readonly readCall = (() =>
+        undefined) as unknown as SessionTransactionPortService<string>['readCall']
       readonly readInput = (() =>
         undefined) as unknown as SessionTransactionPortService<string>['readInput']
       readonly queryOperation = (() =>

@@ -182,8 +182,11 @@
 - `SessionAuthorization` · 包 `@omne-harness/session-contract`
 - `SessionBatchRecord` · 包 `@omne-harness/session-contract`
 - `SessionBlockDeclaration` · 包 `@omne-harness/session-contract`
+- `SessionCall` · 包 `@omne-harness/session-contract`
+- `SessionCallBinding` · 包 `@omne-harness/session-contract`
 - `SessionCallControl` · 包 `@omne-harness/session-contract`
 - `SessionCallEntryReferences` · 包 `@omne-harness/session-contract`
+- `SessionCallKeys` · 包 `@omne-harness/session-contract`
 - `SessionCallLookup` · 包 `@omne-harness/session-contract`
 - `SessionCallRecord` · 包 `@omne-harness/session-contract`
 - `SessionCallRegistration` · 包 `@omne-harness/session-contract`
@@ -241,6 +244,7 @@
 - `SessionIntakeBudget` · 包 `@omne-harness/session-contract`
 - `SessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `SessionInternalPrincipals` · 包 `@omne-harness/session-contract`
+- `SessionLateCallFact` · 包 `@omne-harness/session-contract`
 - `SessionListItem` · 包 `@omne-harness/session-contract`
 - `SessionListPage` · 包 `@omne-harness/session-contract`
 - `SessionLogCommitObservation` · 包 `@omne-harness/session-contract`
@@ -277,6 +281,7 @@
 - `SessionWork` · 包 `@omne-harness/session-contract`
 - `SessionWorkEntryIndex` · 包 `@omne-harness/session-contract`
 - `SessionWorkPrincipals` · 包 `@omne-harness/session-contract`
+- `SettledCallLookup` · 包 `@omne-harness/session-contract`
 - `SourceAdmission` · 包 `@omne-harness/session-contract`
 - `SourceRefusal` · 包 `@omne-harness/session-contract`
 - `SourceRequest` · 包 `@omne-harness/session-contract`
@@ -304,13 +309,20 @@
 - `backgroundCallView` · 包 `@omne-harness/session-contract`
 - `backgroundCalls` · 包 `@omne-harness/session-contract`
 - `backgroundInputId` · 包 `@omne-harness/session-contract`
+- `batchCallKeys` · 包 `@omne-harness/session-contract`
 - `batchEvidence` · 包 `@omne-harness/session-contract`
+- `bindingOf` · 包 `@omne-harness/session-contract`
+- `boundCall` · 包 `@omne-harness/session-contract`
 - `budgetTermsOf` · 包 `@omne-harness/session-contract`
+- `callKeysIn` · 包 `@omne-harness/session-contract`
+- `callKeysOutside` · 包 `@omne-harness/session-contract`
+- `callWithLate` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
 - `commandInput` · 包 `@omne-harness/session-contract`
 - `commitWithinBudget` · 包 `@omne-harness/session-contract`
 - `compactionCallChangeOf` · 包 `@omne-harness/session-contract`
 - `compactionContextForView` · 包 `@omne-harness/session-contract`
+- `consumptionIdOf` · 包 `@omne-harness/session-contract`
 - `contextScopeOf` · 包 `@omne-harness/session-contract`
 - `contextScopesOf` · 包 `@omne-harness/session-contract`
 - `controlAnswer` · 包 `@omne-harness/session-contract`
@@ -344,6 +356,7 @@
 - `judgeRunStart` · 包 `@omne-harness/session-contract`
 - `judgeSessionIntake` · 包 `@omne-harness/session-contract`
 - `judgeWaiting` · 包 `@omne-harness/session-contract`
+- `lendCalls` · 包 `@omne-harness/session-contract`
 - `mutationAccessRequest` · 包 `@omne-harness/session-contract`
 - `onceAuthorizationOf` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
@@ -398,6 +411,8 @@
 - `SessionDelegatedTransactionsService` · `cordis.d.ts`
 - `SessionDerivedInputsService` · `cordis.d.ts`
 - `SessionEvidenceBridgeService` · `cordis.d.ts`
+- `SessionHistoryIndexService` · `history-search.d.ts`
+- `SessionHistoryLogService` · `history-search.d.ts`
 - `SessionIdentityBridgeService` · `cordis.d.ts`
 - `SessionIdleInputService` · `cordis.d.ts`
 - `SessionInputSourcesService` · `cordis.d.ts`
@@ -409,6 +424,8 @@
 - `SessionReplayFactsService` · `cordis.d.ts`
 - `SessionScopeLookupService` · `cordis.d.ts`
 - `SessionScopeOwnersService` · `cordis.d.ts`
+- `SessionSearchCursorsService` · `history-search.d.ts`
+- `SessionSearchService` · `history-search.d.ts`
 - `SessionService` · `cordis.d.ts`
 - `SessionTenantSource` · `cordis.d.ts`
 - `SessionTenantSourceService` · `cordis.d.ts`
@@ -427,6 +444,8 @@
 - `sessionDelegatedTransactionsKey` · `cordis.d.ts`
 - `sessionDerivedInputsKey` · `cordis.d.ts`
 - `sessionEvidenceKey` · `cordis.d.ts`
+- `sessionHistoryIndexKey` · `history-search.d.ts`
+- `sessionHistoryLogKey` · `history-search.d.ts`
 - `sessionIdentityKey` · `cordis.d.ts`
 - `sessionIdleInputKey` · `cordis.d.ts`
 - `sessionInputSourcesKey` · `cordis.d.ts`
@@ -440,6 +459,8 @@
 - `sessionScopeLookupKey` · `cordis.d.ts`
 - `sessionScopeOwnersKey` · `cordis.d.ts`
 - `sessionScopeReleaseKey` · `cordis.d.ts`
+- `sessionSearchCursorsKey` · `history-search.d.ts`
+- `sessionSearchKey` · `history-search.d.ts`
 - `sessionTenantsKey` · `cordis.d.ts`
 - `sessionTransactionsKey` · `cordis.d.ts`
 - `sessionWorkPrincipalsKey` · `cordis.d.ts`
@@ -534,6 +555,7 @@ import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, Sessi
 import type { SessionAdoptedRequests } from './adopted-request.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts';
+export * from './history-search.ts';
 export type SessionIntercept = Readonly<{
     caller: SessionCallerClass;
 }>;
@@ -559,6 +581,7 @@ export declare abstract class SessionTransactionPortService<P = unknown> extends
     abstract readonly commit: SessionTransactionPort<P>['commit'];
     abstract readonly readWork: SessionTransactionPort<P>['readWork'];
     abstract readonly readCurrentScope: SessionTransactionPort<P>['readCurrentScope'];
+    abstract readonly readCall: SessionTransactionPort<P>['readCall'];
     abstract readonly readInput: SessionTransactionPort<P>['readInput'];
     abstract readonly queryOperation: SessionTransactionPort<P>['queryOperation'];
     abstract readonly queryControlOperation: SessionTransactionPort<P>['queryControlOperation'];
@@ -811,6 +834,45 @@ export interface SessionCursorSigning {
         payload: Uint8Array;
         signature: SessionCursorSignature;
     }>): Promise<SessionCursorVerifyResult>;
+}
+```
+
+## 声明文件 `history-search.d.ts`
+
+```ts
+import { type Context, Service } from '@deepseek-ai/cordis';
+import type { HistoryIndex, HistoryLogReader, HistorySearch, SearchCursorSeal } from '@omne-harness/session-search';
+export declare abstract class SessionHistoryIndexService extends Service {
+    static readonly provide = "sessionHistoryIndex";
+    constructor(ctx: Context);
+    abstract readonly index: HistoryIndex;
+}
+export declare const sessionHistoryIndexKey = "sessionHistoryIndex";
+export declare abstract class SessionHistoryLogService extends Service {
+    static readonly provide = "sessionHistoryLog";
+    constructor(ctx: Context);
+    abstract readonly log: HistoryLogReader;
+}
+export declare const sessionHistoryLogKey = "sessionHistoryLog";
+export declare abstract class SessionSearchCursorsService extends Service {
+    static readonly provide = "sessionSearchCursors";
+    constructor(ctx: Context);
+    abstract readonly seal: SearchCursorSeal;
+}
+export declare const sessionSearchCursorsKey = "sessionSearchCursors";
+export declare abstract class SessionSearchService<P = unknown> extends Service implements HistorySearch<P> {
+    static readonly provide = "sessionSearch";
+    constructor(ctx: Context);
+    abstract readonly search: HistorySearch<P>['search'];
+}
+export declare const sessionSearchKey = "sessionSearch";
+declare module '@deepseek-ai/cordis' {
+    interface Context {
+        sessionHistoryIndex: SessionHistoryIndexService;
+        sessionHistoryLog: SessionHistoryLogService;
+        sessionSearchCursors: SessionSearchCursorsService;
+        sessionSearch: SessionSearchService<unknown>;
+    }
 }
 ```
 

@@ -345,6 +345,8 @@
 | [UL-execution-frame](terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame) | 执行帧 | Execution Frame | **一条 `ToolInternalMessage` 的到达增量**，走与模型回复同一套到达语法 |
 | [UL-tool-output](terms/execution-and-outcome.md#ul-tool-output--工具产出--tool-output) | 工具产出 | Tool Output | 三部分，**读者不同**；帧只给人看，agent 看不到 |
 | [UL-call-account](terms/execution-and-outcome.md#ul-call-account--调用账目--call-account) | 调用账目 | Call Account | 一次调用或执行花了什么、产出多少的账；**进日志不进上下文**，费用拿不到记未知 |
+| [UL-usage-fact](terms/execution-and-outcome.md#ul-usage-fact--用量事实--usage-fact) | 用量事实 | Usage Fact | 一次发出或一次工具执行给统计看的那一面；**只有数与标识**，由产生方保管，清理后仍在 |
+| [UL-context-occupancy](terms/execution-and-outcome.md#ul-context-occupancy--上下文占比--context-occupancy) | 上下文占比 | Context Occupancy | 最近一次主循环请求的全部输入占模型窗口的比例；**是读数不是用量**，不求实时 |
 | [UL-attachment](terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 附件 | Attachment | 存进存储、不进对话，agent 自己去取 |
 | [UL-result-offloading](terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading) | 结果卸载 | Result Offloading | 另存模型正文，首次消息呈现作者摘要或机械预览和有限期读回引用 |
 | [UL-offloaded-result](terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 被卸载的原始结果 | Offloaded Result | 卸载后另存的完整模型正文，不含程序值与原生资源目标 |
@@ -395,11 +397,12 @@
 | [UL-hitl](terms/interaction-and-dispatch.md#ul-hitl--人在回路--human-in-the-loop) | 人在回路 | Human in the Loop | 停下来等人，**没有上限** |
 | [UL-run-wait-state](terms/interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state) | 运行等待态 | Run Wait State | 系统算出来的、**直接把 run 停住**的那种等 |
 | [UL-decision-card](terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) | 决策卡片 | Decision Card | 让人**当场**就能判断；**一张只能答一次**；来源三种：agent / 系统 / 拓展件 |
+| [UL-release-detail](terms/interaction-and-dispatch.md#ul-release-detail--放行详情--release-detail) | 放行详情 | Release Detail | 放行卡片上讲这一次调用具体要做什么的那一块；由能力的实现方算；条目必有，带种类的值可选 |
 | [UL-card-batch](terms/interaction-and-dispatch.md#ul-card-batch--一批卡片--card-batch) | 一批卡片 | Card Batch | 一次停下来产生的那批卡片，全了才解除阻塞 |
 | [UL-decision-pool](terms/interaction-and-dispatch.md#ul-decision-pool--决策池--decision-pool) | 决策池 | Decision Pool | 租户内所有等着的卡片，**是陈列不是主体** |
 | [UL-admission-decision](terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision) | 放行判断 | Admission Decision | 一个函数，**既是判官也是撰稿人**；三样输入合起来 |
 | [UL-inquiry](terms/interaction-and-dispatch.md#ul-inquiry--问询--inquiry) | 问询 | Inquiry | agent 主动问人，**一次问全** |
-| [UL-approval-request](terms/interaction-and-dispatch.md#ul-approval-request--请示--approval-request) | 请示 | Approval Request | 动手之前请人准不准，**固定两个选项** |
+| [UL-approval-request](terms/interaction-and-dispatch.md#ul-approval-request--请示--approval-request) | 请示 | Approval Request | **已弃用**：agent 不向人要授权；许不许由放行判断对真正的动作决定，需要人点头时系统出放行卡片 |
 | [UL-session-authorization-context](terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | 会话授权上下文 | Session Authorization Context | 会话承载的一次或本会话授权表达，**按序保存**；**是数据不是结论**，归档不丢 |
 | [UL-authorization-expression](terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | 授权表达 | Authorization Expression | 可指认的授权表达：来源 × 方向 × 作用域；一次/本会话追加流水，全局按资格写设置；「决策记录」是弃用说法 |
 | [UL-inbound-arrival](terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | 入站到达 | Inbound Arrival | 外面送进一个会话、**被受理之后**的那条事实；**不是消息**，**裸写「到达」不作数** |

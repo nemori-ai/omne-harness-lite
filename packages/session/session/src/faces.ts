@@ -222,6 +222,10 @@ export function createFaces<P>(
     listTodos: value => reads.session(caller, 'listTodos', value, view => listTodos(view, value)),
     accept: mutation('accept'),
     ...snapshotReads(reads, caller, dependencies.callStates),
+    readCall: value =>
+      reads.session(caller, 'readWork', value, view =>
+        view.readCall({ ...accessOf(value), producer: value.producer }),
+      ),
     readInput: value =>
       reads.session(caller, 'readInput', value, view =>
         view.readInput({ ...accessOf(value), input: value.input }),

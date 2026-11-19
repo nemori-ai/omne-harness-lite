@@ -31,6 +31,8 @@ import type {
   SessionId,
   SessionTransactionPort,
   WorkSnapshot,
+  ProducerRef,
+  SessionCallBinding,
 } from '@omne-harness/session-contract'
 import { sessionKey, sessionTransactionsKey } from '@omne-harness/session-cordis-contract/cordis'
 import {
@@ -91,6 +93,7 @@ type Step = Readonly<{ kind: 'item'; item: SessionEntriesItem }> | Readonly<{ ki
 
 type Ports = Readonly<{
   readWork(access: SessionAccess<unknown>): Reply<WorkSnapshot>
+  readCall(access: SessionAccess<unknown>, producer: ProducerRef): Reply<SessionCallBinding | null>
   load: AgentJournal<unknown>['load']
   entries: AgentJournalEntries<unknown>['read']
   receivedOf: AgentJournalEntries<unknown>['receivedOf']
@@ -296,11 +299,11 @@ function createToolLogConsumption(
       return call.failure.kind === 'malformed'
         ? invalid(`${field}.delivery.key.reference`, 'not a Tool invocation reference')
         : denied()
-    const bound = work.consumptions.find(
-      item => item.binding.producer.kind === 'tool' && item.binding.producer.call === key.reference,
-    )
-    if (bound === undefined) return succeed({ kind: 'unbound' })
-    if (!sameText(bound.id, entry.consumption))
+    const asked = await ports.readCall(access, { kind: 'tool', call: key.reference })
+    if ('failure' in asked) return asked
+    const bound = asked.ok
+    if (bound === null) return succeed({ kind: 'unbound' })
+    if (!sameText(bound.consumption, entry.consumption))
       return invalid(`${field}.consumption`, 'not the consumption Session bound to the call')
     if (canonical(bound.binding.consumer) !== canonical(entry.consumer))
       return invalid(`${field}.consumer`, 'not the consumer Session bound to the call')
@@ -495,6 +498,7 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
           input,
           {
             readWork: access => session.work.readWork(access),
+            readCall: (access, producer) => session.work.readCall({ ...access, producer }),
             load: value => journal.load(value),
             entries: value => entries.read(value),
             receivedOf: value => entries.receivedOf(value),

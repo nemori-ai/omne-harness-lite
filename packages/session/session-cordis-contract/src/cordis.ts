@@ -42,6 +42,8 @@ import type { SessionAdoptedRequests } from './adopted-request.ts'
 import type { SessionCursorSigning } from './cursor-signing.ts'
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts'
 
+export * from './history-search.ts'
+
 export type SessionIntercept = Readonly<{ caller: SessionCallerClass }>
 
 /** @owner packages/session/session-contract */
@@ -85,6 +87,7 @@ export abstract class SessionTransactionPortService<P = unknown>
   abstract readonly commit: SessionTransactionPort<P>['commit']
   abstract readonly readWork: SessionTransactionPort<P>['readWork']
   abstract readonly readCurrentScope: SessionTransactionPort<P>['readCurrentScope']
+  abstract readonly readCall: SessionTransactionPort<P>['readCall']
   abstract readonly readInput: SessionTransactionPort<P>['readInput']
   abstract readonly queryOperation: SessionTransactionPort<P>['queryOperation']
   abstract readonly queryControlOperation: SessionTransactionPort<P>['queryControlOperation']

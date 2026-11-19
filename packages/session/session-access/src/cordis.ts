@@ -5,11 +5,13 @@ import type { SessionDirectory, SessionManagement } from '@omne-harness/session-
 import {
   sessionInputSourcesKey,
   sessionKey,
+  sessionSearchKey,
   type SessionService,
 } from '@omne-harness/session-cordis-contract/cordis'
 import type { SessionObservation } from '@omne-harness/session-observation'
 import { sessionObservationKey } from '@omne-harness/session-observation/cordis'
 import { sessionProtocol } from '@omne-harness/session-protocol'
+import type { HistorySearch } from '@omne-harness/session-search'
 import { createSessionContribution } from './contribution.ts'
 import { MEMBER_INPUT_SOURCE } from './member-source.ts'
 import type {
@@ -113,6 +115,7 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
                 const directory = sessionOf(ctx, 'reader')?.directory
                 return directory === undefined ? undefined : input.listing(directory)
               },
+              searching: () => provide(sessionSearchKey) as HistorySearch<Principal> | undefined,
               causes: () => input.causes?.(ctx),
               modelTargets: () => input.modelTargets?.(ctx),
               permissionModes: () => input.permissionModes?.(ctx),

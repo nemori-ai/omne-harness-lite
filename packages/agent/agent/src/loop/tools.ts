@@ -103,6 +103,7 @@ export type ToolAdmission =
       action: Action
       evidence: DurableEvidence
       request: ToolInvokeRequest
+      notice?: string
     }>
   | Readonly<{ kind: 'asked'; action: Action; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
@@ -123,6 +124,9 @@ function notAnswered(owner: string, failure: Failure): Outcome<ToolAdmission, Fa
   return fail(failure)
 }
 
+const noticed = (notice: string | undefined): Readonly<{ notice?: string }> =>
+  notice === undefined ? {} : { notice }
+
 function notAllowed(
   action: Action,
   decision: Exclude<AdmissionDecision, { kind: 'allow' }>,
@@ -130,7 +134,10 @@ function notAllowed(
   if (decision.kind === 'deny')
     return succeed({
       kind: 'denied',
-      action: { ...action, judgment: { kind: 'denied', evidence: decision.evidence } },
+      action: {
+        ...action,
+        judgment: { kind: 'denied', evidence: decision.evidence, ...noticed(decision.notice) },
+      },
       category: decision.category,
     })
   if (decision.kind === 'unavailable')
@@ -195,7 +202,13 @@ export async function admitToolAction<P>(
   if ('failure' in prepared) return notAnswered('agentToolRequests', prepared.failure)
   const request = checkedRequest(prepared.ok, definition, input.consumer, action, original)
   if ('failure' in request) return request
-  return succeed({ kind: 'allowed', action, evidence: admitted.ok.evidence, request: request.ok })
+  return succeed({
+    kind: 'allowed',
+    action,
+    evidence: admitted.ok.evidence,
+    request: request.ok,
+    ...noticed(admitted.ok.notice),
+  })
 }
 
 async function answered<P>(
@@ -240,7 +253,10 @@ export async function preserveAllowedRequest<P>(
     value: { kind: 'facts', schema: fixedToolRequestSchema, value: json(request) },
   })
   if ('failure' in stored) return stored
-  return succeed({ ...action, judgment: { kind: 'allowed', evidence, request: stored.ok } })
+  return succeed({
+    ...action,
+    judgment: { kind: 'allowed', evidence, request: stored.ok, ...noticed(allowed.notice) },
+  })
 }
 
 function uncheckedRecord(execution: AgentExecutionId, batch: ActionBatch): string {
@@ -514,6 +530,20 @@ function toolMessageId(execution: AgentExecutionId, action: Action): Message['id
   return `msg_${body.slice(0, 40)}_tool` as Message['id']
 }
 
+function noticeOf(action: Action): readonly MessageBlock[] {
+  const { judgment } = action
+  const settled = judgment.kind === 'allowed' || judgment.kind === 'denied'
+  if (!settled || judgment.notice === undefined) return []
+  return [
+    {
+      kind: 'text',
+      id: `${action.id}/notice` as BlockId,
+      visibility: VISIBLE,
+      text: judgment.notice,
+    },
+  ]
+}
+
 function toolMessage(
   execution: AgentExecutionId,
   action: Action,
@@ -525,7 +555,11 @@ function toolMessage(
     visibility: VISIBLE,
     callId: action.original.callId,
   }
-  return { id: toolMessageId(execution, action), role: 'tool', blocks: [marker, ...body] }
+  return {
+    id: toolMessageId(execution, action),
+    role: 'tool',
+    blocks: [marker, ...body, ...noticeOf(action)],
+  }
 }
 
 export function toolResultCandidate(

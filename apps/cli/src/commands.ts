@@ -1,5 +1,6 @@
+import { modelProtocol } from '@omne-harness/model-protocol'
 import { identityProtocol } from '@omne-harness/identity-protocol'
-import { encodeTenantText, ruleCodec, type TenantId } from '@omne-harness/public-contract'
+import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import {
   sessionProtocol,
   userTextMessage,
@@ -21,12 +22,14 @@ import {
   unrecognized,
   usageError,
   withoutProof,
+  instantOption,
   type Option,
 } from './command-support.ts'
 import { runReadSessionDiagnostics } from './diagnostics-command.ts'
 import { governanceCommands } from './governance-commands.ts'
 import { hitlCommands } from './hitl-commands.ts'
 import { runReadHistory } from './history-command.ts'
+import { runSearch } from './search-command.ts'
 import { writeLoginState } from './login-state.ts'
 import { openLink, type CallResult, type Link } from './link.ts'
 import { readOptions } from './options.ts'
@@ -112,6 +115,7 @@ interface SessionContext {
 type Built = {
   readonly send: (link: Link) => Promise<CallResult | undefined>
   readonly echo: RequestEcho
+  readonly note?: () => string | null
 }
 
 interface SessionCommandBase<Parsed> {
@@ -146,6 +150,53 @@ type SessionCommand<Parsed> =
   | ExistingCommand<Parsed>
   | TenantCommand<Parsed>
 
+type Login = Exclude<ReturnType<typeof loadLogin>, { kind: 'exit' }>
+type Prepared =
+  | Readonly<{ built: Built; owners: ReadonlyMap<string, string> }>
+  | Readonly<{ exit: ExitCode }>
+const NO_OWNERS: ReadonlyMap<string, string> = new Map()
+
+function prepare<Parsed>(
+  command: SessionCommand<Parsed>,
+  parsed: Parsed,
+  login: Login,
+  context: Readonly<{ newId: () => string }>,
+  output: CliOutput,
+): Prepared {
+  const { directory, tenant: loginTenant } = login
+  if (command.kind === 'creating') {
+    // The records are read before anything is sent, so a damaged file stops the command before a
+    // session exists that the file cannot take.
+    const records = readSessionOwners(directory)
+    if (records.kind === 'failure') return { exit: localFailure(output, records.message) }
+    return { built: command.build(parsed, { ...context, loginTenant }), owners: records.owners }
+  }
+  if (command.kind === 'tenant') {
+    const tenant = command.tenant(parsed) ?? loginTenant
+    return { built: command.build(parsed, { ...context, tenant }), owners: NO_OWNERS }
+  }
+  const { session, tenant: given } = command.target(parsed)
+  const resolved = resolveOwner(command.name, session, given, directory, output)
+  if (resolved.kind === 'exit') return { exit: resolved.code }
+  return { built: command.build(parsed, { ...context, owner: resolved.owner }), owners: NO_OWNERS }
+}
+
+function recordCreated(
+  name: string,
+  session: string,
+  owners: ReadonlyMap<string, string>,
+  login: Login,
+  output: CliOutput,
+): ExitCode | null {
+  const owner = encodeTenantText(login.tenant)
+  const saved = writeSessionOwners(login.directory, new Map(owners).set(session, owner))
+  if (saved.kind === 'written') return null
+  const reason = saved.code === undefined ? '' : `: ${saved.code}`
+  output.stderr(`omne ${name}: cannot write session records ${saved.path}${reason}
+`)
+  return 1
+}
+
 async function runSession<Parsed>(
   command: SessionCommand<Parsed>,
   args: readonly string[],
@@ -161,59 +212,42 @@ async function runSession<Parsed>(
 
   const loaded = loadLogin(read.values, output, environment)
   if (loaded.kind === 'exit') return loaded.code
-  const { directory, link, tenant: loginTenant } = loaded
-
-  const context = { newId: environment.services.newId }
-  let built: Built
-  let owners: ReadonlyMap<string, string> = new Map()
-  if (command.kind === 'creating') {
-    // The records are read before anything is sent, so a damaged file stops the command before a
-    // session exists that the file cannot take.
-    const records = readSessionOwners(directory)
-    if (records.kind === 'failure') return localFailure(output, records.message)
-    owners = records.owners
-    built = command.build(parsed, { ...context, loginTenant })
-  } else if (command.kind === 'tenant') {
-    built = command.build(parsed, { ...context, tenant: command.tenant(parsed) ?? loginTenant })
-  } else {
-    const { session, tenant: given } = command.target(parsed)
-    const resolved = resolveOwner(name, session, given, directory, output)
-    if (resolved.kind === 'exit') return resolved.code
-    built = command.build(parsed, { ...context, owner: resolved.owner })
-  }
-  const result = await built.send(link)
+  const prepared = prepare(command, parsed, loaded, { newId: environment.services.newId }, output)
+  if ('exit' in prepared) return prepared.exit
+  const { built, owners } = prepared
+  const result = await built.send(loaded.link)
   if (result === undefined) return usageError(output, unrecognized(name))
   const code = report(name, result, built.echo, output)
+  const note = built.note?.() ?? null
+  if (note !== null) output.stderr(`omne ${name}: ${note}\n`)
   if (command.kind !== 'creating') return code
 
   const session =
     result.kind === 'response' && result.outcome === 'succeeded' ? text(result.body, 'session') : ''
   if (session === '') return code
-  const saved = writeSessionOwners(
-    directory,
-    new Map(owners).set(session, encodeTenantText(loginTenant)),
-  )
-  if (saved.kind === 'written') return code
-  const reason = saved.code === undefined ? '' : `: ${saved.code}`
-  output.stderr(`omne ${name}: cannot write session records ${saved.path}${reason}
-`)
-  return 1
+  return recordCreated(name, session, owners, loaded, output) ?? code
 }
 
 const createSession: CreatingCommand<{
   definition: string
   purpose: string
+  model: string | undefined
   createCallId: string | undefined
 }> = {
   kind: 'creating',
   name: 'create-session',
-  accepted: ['--definition', '--purpose', '--create-call-id', serverOption],
+  accepted: ['--definition', '--purpose', '--model', '--create-call-id', serverOption],
   required: ['--definition'],
-  parse: values => ({
-    definition: values.get('--definition') ?? '',
-    purpose: values.get('--purpose') ?? '',
-    createCallId: values.get('--create-call-id'),
-  }),
+  parse: values => {
+    const model = values.get('--model')
+    if (model === '') return undefined
+    return {
+      definition: values.get('--definition') ?? '',
+      purpose: values.get('--purpose') ?? '',
+      model,
+      createCallId: values.get('--create-call-id'),
+    }
+  },
   build: (parsed, { loginTenant, newId }) => {
     const messageId = newId()
     const createCallId = parsed.createCallId ?? newId()
@@ -222,7 +256,12 @@ const createSession: CreatingCommand<{
         link.call(
           sessionProtocol,
           'create-session',
-          { createCallId, definition: parsed.definition, purpose: parsed.purpose },
+          {
+            createCallId,
+            definition: parsed.definition,
+            purpose: parsed.purpose,
+            ...(parsed.model === undefined ? {} : { model: parsed.model }),
+          },
           messageId,
         ),
       echo: { messageId, createCallId, tenant: encodeTenantText(loginTenant) },
@@ -245,6 +284,7 @@ function targeted(values: Option): Targeted | undefined {
 type InputCommand = ExistingCommand<
   Omit<Targeted, 'controlId'> & {
     text: string
+    model: string | undefined
     acceptId: string | undefined
     inputId: string | undefined
   }
@@ -254,15 +294,25 @@ type InputCommand = ExistingCommand<
 const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => ({
   kind: 'existing',
   name,
-  accepted: ['--session', '--text', '--tenant', '--accept-id', '--input-id', serverOption],
+  accepted: [
+    '--session',
+    '--text',
+    '--model',
+    '--tenant',
+    '--accept-id',
+    '--input-id',
+    serverOption,
+  ],
   required: ['--session', '--text'],
   parse: values => {
     const target = targeted(values)
-    if (target === undefined) return undefined
+    const model = values.get('--model')
+    if (target === undefined || model === '') return undefined
     return {
       session: target.session,
       tenant: target.tenant,
       text: values.get('--text') ?? '',
+      model,
       acceptId: values.get('--accept-id'),
       inputId: values.get('--input-id'),
     }
@@ -272,21 +322,27 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
     const messageId = newId()
     const acceptId = parsed.acceptId ?? newId()
     const inputId = parsed.inputId ?? newId()
+    const { session, model } = parsed
+    let unselected = false
     return {
-      send: async link =>
-        link.call(
+      // A model is selected first, under a control identity the accept identity gives.
+      send: async link => {
+        if (model !== undefined) {
+          const select = { tenant, session, controlId: `model:${acceptId}`, model }
+          const selected = await link.call(sessionProtocol, 'select-model', select, newId())
+          unselected = selected?.kind !== 'response' || selected.outcome !== 'succeeded'
+          if (unselected) return selected
+        }
+        const message = await userTextMessage(parsed.text, inputId)
+        return link.call(
           sessionProtocol,
           name,
-          {
-            tenant,
-            session: parsed.session,
-            acceptId,
-            inputId,
-            message: await userTextMessage(parsed.text, inputId),
-          },
+          { tenant, session, acceptId, inputId, message },
           messageId,
-        ),
+        )
+      },
       echo: { messageId, acceptId, inputId, tenant: encodeTenantText(tenant) },
+      note: () => (unselected ? 'the model was not selected; the input was not sent' : null),
     }
   },
 })
@@ -482,24 +538,6 @@ type By = NonNullable<ArchivedFilters['by']>
 const BY = ['person', 'auto', 'parent'] as const
 const LIMIT = /^[1-9][0-9]*$/
 
-type Instant = NonNullable<ArchivedFilters['from']>
-const instantRule = ruleCodec({ kind: 'instant' })
-const LEAF_LIMITS = {
-  maxBytes: 1024,
-  maxDepth: 1,
-  maxItems: 1,
-  maxMembers: 1,
-  maxStringLength: 1024,
-  maxNumberLength: 1,
-}
-
-function instantOption(values: Option, option: string): Instant | null | undefined {
-  const given = values.get(option)
-  if (given === undefined) return null
-  const read = instantRule.read({ kind: 'string', value: given }, LEAF_LIMITS)
-  return read.ok ? (read.value as Instant) : undefined
-}
-
 function archivedFilters(
   values: Option,
 ): (ArchivedFilters & { given: TenantId | undefined }) | undefined {
@@ -610,6 +648,47 @@ const selectModel: ExistingCommand<Targeted & { model: string }> = {
   },
 }
 
+const readModelSelection: ExistingCommand<Targeted> = {
+  kind: 'existing',
+  name: 'read-model-selection',
+  accepted: ['--session', '--tenant', serverOption],
+  required: ['--session'],
+  parse: targeted,
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { owner: tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'read-model-selection',
+          { tenant, session: parsed.session },
+          messageId,
+        ),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
+const listModels: TenantCommand<{ given: TenantId | undefined }> = {
+  kind: 'tenant',
+  name: 'list-models',
+  accepted: ['--tenant', serverOption],
+  required: [],
+  parse: values => {
+    const given = tenantOption(values)
+    return given === null ? undefined : { given }
+  },
+  tenant: parsed => parsed.given,
+  build: (_parsed, { tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link => link.call(modelProtocol, 'list-models', { tenant }, messageId),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
 export const productionCommands: readonly CommandSpec[] = [
   {
     name: 'register',
@@ -625,19 +704,19 @@ export const productionCommands: readonly CommandSpec[] = [
   },
   {
     name: 'create-session',
-    usage: '--definition <name>',
+    usage: '--definition <name> [--model <route>]',
     summary: 'Create a session.',
     run: (args, output, environment) => runSession(createSession, args, output, environment),
   },
   {
     name: 'send-input',
-    usage: '--session <id> --text <text>',
+    usage: '--session <id> --text <text> [--model <route>]',
     summary: 'Send a user message to a session.',
     run: (args, output, environment) => runSession(sendInput, args, output, environment),
   },
   {
     name: 'interrupt-input',
-    usage: '--session <id> --text <text>',
+    usage: '--session <id> --text <text> [--model <route>]',
     summary: 'Send an urgent user message: it releases what the run waits for, or is ordinary.',
     run: (args, output, environment) => runSession(interruptInput, args, output, environment),
   },
@@ -646,6 +725,12 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id>',
     summary: 'Read the whole history of a session.',
     run: runReadHistory,
+  },
+  {
+    name: 'search',
+    usage: '(--text <literal> | --words <words> | --regex <pattern>)',
+    summary: 'Search the history of all sessions of the tenant.',
+    run: runSearch,
   },
   {
     name: 'read-session-diagnostics',
@@ -688,6 +773,18 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id> --model <route>',
     summary: 'Select the model of a session: the next model request uses it.',
     run: (args, output, environment) => runSession(selectModel, args, output, environment),
+  },
+  {
+    name: 'read-model-selection',
+    usage: '--session <id>',
+    summary: 'Read the model a session stands at now.',
+    run: (args, output, environment) => runSession(readModelSelection, args, output, environment),
+  },
+  {
+    name: 'list-models',
+    usage: '[--tenant <tenant>]',
+    summary: 'List the models of the tenant: which can be selected, and why one cannot.',
+    run: (args, output, environment) => runSession(listModels, args, output, environment),
   },
   {
     name: 'archive-session',

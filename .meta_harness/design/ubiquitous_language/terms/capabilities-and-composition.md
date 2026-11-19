@@ -620,7 +620,7 @@
 > no asset summary and the interface shows only the name of the asset.
 
 - **形态**：属性
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 3）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 4）
 - **别混**：不是类别的显示声明：那是一类资产的名字与说明，这一条说的是一份资产的一个版本。不是[包的清单](#ul-package-manifest--包的清单--package-manifest)：清单列文件，简介是给人看的摘要
 
 ### UL-asset-upload · 资产上传 · Asset Upload
@@ -639,7 +639,7 @@
 > sending the files again; no published fact is lost.
 
 - **形态**：对象
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 3） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 4） · [资产包组规格「资产上传」](../../../../packages/assets/SPEC.md#资产上传)
 - **别混**：不是[资产版本](#ul-asset-version--资产版本--asset-version)，也不是草稿：它没有版本线，不能被持有或选用。不是发布流程内部的暂存：那是发布自己换入之前的落脚处
 
 ### UL-skill-package · Skill 包 · Skill Package
@@ -750,7 +750,7 @@
 > **EN**: The actions an agent can recognize and attempt in a session. It has two sources: resident entries placed in the context, which are a record fixed at the adoption point and only grow within a session; and entries discoverable through the access entry point, computed from the subject's facts at that moment and never stored as a set. A resident entry becomes unavailable, and keeps its identity, when its definition changes or it is disabled, unloaded or revoked. An attempt is not execution authorization; an unavailable entry returns its reason through a stand-in.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 10） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 11） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
 - **别混**：能力身份可见不等于定义内容、实现绑定或可执行集合不变；也不要求每次提示词包含全部已知能力。能发现的那部分就是[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)与此刻合法可用的 Skill，主体此刻没有使用资格的不出现。
 - **注意**：封存的 PF-004 把它写成「由合法纳入会话的能力条目投影、整体单调增加」。现行产品里只有常驻那部分是这样，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
@@ -792,12 +792,12 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 10） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 10）
+- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 11） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 11）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
   [权限照常作用在命令这一级](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)——
   **一条命令可以被关掉，而那扇门关不掉**。
   典型：会话运行模式是 [`never`](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode) 时，
-  `Ask().request_approval` 不可用，**而 `Ask()` 还在**
+  一个工具里权限为询问的命令被拒，**而这个工具的门还在**，它权限为自动的命令照常可用
 - **注意 ②**：**「必定常驻」不是产品选择，是结构逼出来的**——
   **够到非常驻能力的唯一途径就是 meta**，若它自己也不常驻，就永远够不着它。
   **自指的闭环必须有一个不动点**
@@ -829,7 +829,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 10）
+- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 11）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 
@@ -1184,7 +1184,7 @@
 > **EN**: A pluggable capability for creating and managing work arranged over time, scheduling due work, and triggering execution or notification actions, supporting the system’s own mechanical work as well as short-, medium-, and long-term undertakings for harness agents and users.
 
 - **形态**：总称
-- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 5）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 6）
 - **别混**：能力本身不同于一份 Schedule。
 
 ### UL-routine · 工作例程 · Routine
@@ -1194,7 +1194,7 @@
 > **EN**: The work-description data held within a schedule, specifying the mechanical action or agent objective and applicable notification content and target tenant for its jobs. It excludes timing rules and per-job progress or results, and has no independent identity or lifecycle. Factory-provided forms are preset descriptions used to populate this data.
 
 - **形态**：属性
-- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 5）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 6）
 - **别混**：各次 Job 共用工作定义，不共享执行状态；不同 Schedule 不共同引用一个可变 Routine 对象。
 
 ### UL-calendar-service · 日历服务 · Calendar Service
@@ -1214,7 +1214,7 @@
 > **EN**: The capability that lets a recipient know about something that has happened. A source hands over an event. The notification domain uses the recipient's notification subscriptions to decide who gets it and how urgently, puts it in the recipient's inbox, and then delivers it to the recipient's destinations. A recipient is a person or an entrusted agent.
 
 - **形态**：总称
-- **出处**：[通知：产品需求](../../product/notifications/design.md#产品需求描述)（rev 4）
+- **出处**：[通知：产品需求](../../product/notifications/design.md#产品需求描述)（rev 5）
 - **别混**：不是成果上报、普通会话回复或复制通知邀约本身。要一个人做决定归人在回路；交出一份要验收的工作归日程与作业。
 
 
@@ -1225,7 +1225,7 @@
 > **EN**: A versioned definition of a recurring product feature, specifying its work template, timing, controllability, parameter defaults, and applicability. Schedule subscriptions adopt the definition and produce work independently.
 
 - **形态**：对象
-- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 5）
+- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 6）
 - **别混**：它不是平台机械维护的系统日程，也不是某份 Schedule 内无独立身份的 Routine 属性。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

@@ -106,6 +106,16 @@
       "config": {}
     },
     {
+      "id": "session-history-index",
+      "plugin": "sessionHistoryIndexRow",
+      "config": {}
+    },
+    {
+      "id": "session-search",
+      "plugin": "sessionSearchRow",
+      "config": {}
+    },
+    {
       "id": "asset-categories",
       "plugin": "assetCategoriesRow",
       "config": {}
@@ -211,7 +221,7 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/15"
+        "combinationVersion": "session-composite/17"
       }
     },
     {
@@ -223,7 +233,7 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/15"
+        "combinationVersion": "session-composite/17"
       }
     },
     {
@@ -689,6 +699,11 @@
     {
       "id": "tool-access",
       "plugin": "toolAccessRow",
+      "config": {}
+    },
+    {
+      "id": "model-access",
+      "plugin": "modelAccessRow",
       "config": {}
     }
   ]

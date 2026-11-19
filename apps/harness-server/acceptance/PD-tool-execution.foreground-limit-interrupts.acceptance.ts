@@ -74,9 +74,24 @@ it.skipIf(process.platform !== 'linux')(
           const facts = await until(
             'the real end of the command as a late version beside the interrupted result',
             call,
-            found => (found?.accounts.length ?? 0) >= 2,
+            found => found?.results.includes('late') === true && found.receipts.includes('late'),
           )
-          observed['accounts'] = facts?.accounts
+          observed['ledger'] = {
+            results: facts?.results,
+            accounts: facts?.accounts,
+            receipts: facts?.receipts,
+            durations: facts?.durations,
+          }
+          assert.deepEqual(
+            [...(facts?.results ?? [])].sort(),
+            ['late', 'original'],
+            'the real result is kept as a late version beside the interrupted one',
+          )
+          assert.deepEqual(
+            facts?.receipts,
+            ['late'],
+            'the call keeps one account, its next revision marked late',
+          )
           assert.equal(facts?.starts, 1, 'the command starts once')
           const kept = (await history(tree, session))
             .filter(entry => entry.kind === 'message.tool')
