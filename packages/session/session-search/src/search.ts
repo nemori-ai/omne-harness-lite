@@ -92,35 +92,48 @@ function lagOf(
   return same ? known.behind : behindOf(sessions, covered)
 }
 
+type IndexSide = Readonly<{
+  held: Remembered | undefined
+  known: Remembered | undefined
+  found: Indexed | null
+}>
+
+async function readIndex(
+  deps: SearchDeps,
+  input: SearchInput,
+  state: Exclude<IndexState, { kind: 'broken' }>,
+): Promise<Outcome<IndexSide, SearchFailure>> {
+  const generation = state.kind === 'absent' ? null : state.generation
+  if (staleFor(input.cursor, generation, input.digest)) return fail('cursor-stale')
+  const held = deps.memo?.get(input.tenant)
+  const known = held?.generation === generation ? held : undefined
+  if (generation === null) return succeed({ held, known, found: null })
+  const indexed = await firstCandidates(deps, input, generation, known)
+  return 'failure' in indexed ? indexed : succeed({ held, known, found: indexed.ok })
+}
+
 // The index is read first and the log heads after: a sound cover is behind them.
 async function open(deps: SearchDeps, input: SearchInput): Promise<Outcome<Opened, SearchFailure>> {
   const { tenant } = input
   const state = await deps.index.state(tenant)
   if (state.kind === 'broken') return fail('index-broken')
-  const generation = state.kind === 'absent' ? null : state.generation
-  if (staleFor(input.cursor, generation, input.digest)) return fail('cursor-stale')
-  const held = deps.memo?.get(tenant)
-  const known = held?.generation === generation ? held : undefined
-  const indexed = generation === null ? null : await firstCandidates(deps, input, generation, known)
-  if (indexed !== null && 'failure' in indexed) return indexed
+  const read = await readIndex(deps, input, state)
+  if ('failure' in read) return read
+  const { held, known, found } = read.ok
   const logs = await headsNow(deps, tenant, held)
   if (logs === null) return fail('unavailable')
-  const found = indexed?.ok
-  const behind = lagOf(known, found?.covered, logs.sessions)
-  if (found !== undefined) {
-    const { heads, sessions } = logs
-    const { generation: at, stamp } = found.index
-    deps.memo?.set(tenant, {
-      generation: at,
-      stamp,
-      covered: found.covered,
-      heads,
-      sessions,
-      behind,
-    })
+  const { heads, sessions } = logs
+  if (found === null) {
+    const behind = lagOf(known, undefined, sessions)
+    return behind === 'broken'
+      ? fail('index-broken')
+      : succeed({ state, index: null, sessions, behind })
   }
-  if (behind === 'broken') return fail('index-broken')
-  return succeed({ state, index: found?.index ?? null, sessions: logs.sessions, behind })
+  const { index, covered } = found
+  const behind = lagOf(known, covered, sessions)
+  const { generation, stamp } = index
+  deps.memo?.set(tenant, { generation, stamp, covered, heads, sessions, behind })
+  return behind === 'broken' ? fail('index-broken') : succeed({ state, index, sessions, behind })
 }
 
 type Ends =
@@ -185,23 +198,15 @@ function tailsOf(run: Run, frozen: readonly FrozenCover[]): TailEnd | Promise<Ta
   return from === null ? { kind: 'done' } : scanTails(run, frozen, from)
 }
 
-export async function searchHistory(
-  deps: SearchDeps,
-  input: SearchInput,
+// The tails are through, and a page they had filled would have stopped in them: the walk goes on.
+async function walkPart(
+  run: Run,
+  opened: Opened,
+  frozen: readonly FrozenCover[],
 ): Promise<Outcome<SearchPage, SearchFailure>> {
-  const opened = await open(deps, input)
-  if ('failure' in opened) return opened
-  const { index, sessions } = opened.ok
-  const { cursor } = input
-  const inScope = scopeOf(input.query, sessions)
-  const run = runOf(deps, input, inScope)
-  const frozen = cursor?.frozen ?? opened.ok.behind.filter(([session]) => inScope(session))
-  const tail = await tailsOf(run, frozen)
-  if (tail.kind === 'unavailable') return fail('unavailable')
-  if (tail.kind === 'stale') return fail('cursor-stale')
-  if (tail.kind === 'stopped') return succeed(pageOf(run, opened.ok, frozen, { tail }))
-  // The tails are through, and a page they had filled would have stopped in them: the walk goes on.
-  if (index === null) return succeed(pageOf(run, opened.ok, frozen, THROUGH))
+  const { index } = opened
+  if (index === null) return succeed(pageOf(run, opened, frozen, THROUGH))
+  const { cursor } = run.input
   const { generation, stamp, rows: first } = index
   const walk = await walkIndex(run, {
     generation,
@@ -212,5 +217,21 @@ export async function searchHistory(
   })
   if (walk.kind === 'unavailable') return fail('unavailable')
   if (walk.kind === 'stale') return fail(cursor === null ? 'unavailable' : 'cursor-stale')
-  return succeed(pageOf(run, opened.ok, frozen, { tail, walk }))
+  return succeed(pageOf(run, opened, frozen, { tail: { kind: 'done' }, walk }))
+}
+
+export async function searchHistory(
+  deps: SearchDeps,
+  input: SearchInput,
+): Promise<Outcome<SearchPage, SearchFailure>> {
+  const opened = await open(deps, input)
+  if ('failure' in opened) return opened
+  const inScope = scopeOf(input.query, opened.ok.sessions)
+  const run = runOf(deps, input, inScope)
+  const frozen = input.cursor?.frozen ?? opened.ok.behind.filter(([session]) => inScope(session))
+  const tail = await tailsOf(run, frozen)
+  if (tail.kind === 'unavailable') return fail('unavailable')
+  if (tail.kind === 'stale') return fail('cursor-stale')
+  if (tail.kind === 'stopped') return succeed(pageOf(run, opened.ok, frozen, { tail }))
+  return walkPart(run, opened.ok, frozen)
 }

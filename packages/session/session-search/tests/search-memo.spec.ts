@@ -188,7 +188,7 @@ describe('the stamp of the log heads and the memory itself', () => {
     const listed = [
       { session: S1, tail: '3', archived: false },
       { session: S2, tail: '5', archived: true },
-    ] as Parameters<typeof headsOf>[0]
+    ] as unknown as Parameters<typeof headsOf>[0]
     expect(headsOf(listed)).toEqual({ sessions: 2, total: '8', archived: 1 })
     expect(headsOf([])).toEqual({ sessions: 0, total: '0', archived: 0 })
   })
