@@ -1,6 +1,7 @@
 import type { BackgroundCallResolution, BackgroundCallView } from './background-calls.ts'
 import type { ArchiveCollapse } from './call-control.ts'
 import type { ContextScopeBinding } from './values.ts'
+import type { SessionCallBinding } from './call-settlement.ts'
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -146,6 +147,9 @@ export interface SessionWork<P> {
   resolveBackgroundCall(
     input: SessionAccess<P> & Readonly<{ id: string }>,
   ): Reply<BackgroundCallResolution>
+  readCall(
+    input: SessionAccess<P> & Readonly<{ producer: ProducerRef }>,
+  ): Reply<SessionCallBinding | null>
   readInput(
     input: SessionAccess<P> & Readonly<{ input: InputId }>,
   ): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>

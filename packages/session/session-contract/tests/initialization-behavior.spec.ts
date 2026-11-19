@@ -182,7 +182,7 @@ describe('trusted initialization admission and atomic creation', () => {
       [],
     ])
     const rebuilt = reduce(null, { revision: state.revision, entries: log })
-    expect(rebuilt).toEqual({ kind: 'reduced', snapshot: state })
+    expect(rebuilt).toEqual({ kind: 'reduced', snapshot: state, settled: [], late: [] })
     const duplicate = s.complete(ready('context', 'a'), 'different-result-operation')
     const receipt = succeeded(
       await s.port.commit({

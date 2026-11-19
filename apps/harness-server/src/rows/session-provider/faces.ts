@@ -68,6 +68,7 @@ const UNIMPLEMENTED_HISTORY = {
 const UNIMPLEMENTED_WORK = {
   readWork: unimplemented,
   readCurrentScope: unimplemented,
+  readCall: unimplemented,
   readWaiting: unimplemented,
   readBackgroundCalls: unimplemented,
   resolveBackgroundCall: unimplemented,

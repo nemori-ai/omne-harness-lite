@@ -1,4 +1,5 @@
 import type { ContextScopeBinding } from './values.ts'
+import type { SessionCallBinding } from './call-settlement.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -304,6 +305,10 @@ export interface SessionTransactionPort<P> {
   ): ReturnType<Mutations[K]>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
   readCurrentScope(input: SessionAccess<P>): Reply<ContextScopeBinding | null>
+  /** The binding of the call of one producer, in the snapshot or after it left; null when there is none. */
+  readCall(
+    input: SessionAccess<P> & Readonly<{ producer: ProducerRef }>,
+  ): Reply<SessionCallBinding | null>
   readInput(
     input: SessionAccess<P> & Readonly<{ input: InputId }>,
   ): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>

@@ -65,6 +65,7 @@ import {
   COMPACTION_INDEX_MIGRATION,
   COMPACTION_INDEX_TABLES,
 } from './worker/compaction-index-migration.ts'
+import { CALL_LEFT_MIGRATION, CALL_LEFT_TABLES } from './worker/call-left.ts'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
 
@@ -232,6 +233,12 @@ export const HANDLERS: readonly Handler[] = [
     file: 'read-work-index',
     tables: ['sl_journal', 'sl_entry', ...ATTEMPT_GRANT_TABLES, ...EXECUTION_RECORD_INDEX_TABLES],
     migrations: indexMigrations,
+  },
+  {
+    handler: 'session.calls-left',
+    file: 'read-calls-left',
+    tables: [...CALL_LEFT_TABLES],
+    migrations: [migrationRef, CALL_LEFT_MIGRATION],
   },
   {
     handler: 'session.work-reads',
@@ -469,6 +476,7 @@ export function sessionStorageMaterials(
         ownedTables: [
           ...SESSION_TABLES,
           ...COMPACTION_INDEX_TABLES,
+          ...CALL_LEFT_TABLES,
           ...PERMISSION_CURRENT_TABLES,
           ...AUTHORIZATION_CONTEXT_TABLES,
           ...EXECUTION_INDEX_TABLES,
@@ -517,6 +525,7 @@ export function sessionStorageMaterials(
       migrationOf(AUTHORIZATION_CONTEXT_MIGRATION, 'authorization-context-migration', [
         PERMISSION_CURRENT_MIGRATION,
       ]),
+      migrationOf(CALL_LEFT_MIGRATION, 'call-left-migration', [migrationRef]),
       migrationOf(preadmissionMigrationRef, 'preadmission-migration', [recordMigrationRef]),
       migrationOf(admissionAttemptMigrationRef, 'admission-attempt-migration', [
         recordMigrationRef,

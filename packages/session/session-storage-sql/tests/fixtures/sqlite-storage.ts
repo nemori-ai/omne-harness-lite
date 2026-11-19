@@ -1,4 +1,5 @@
 import readPermissionMode from '../../src/worker/read-permission-mode.ts'
+import callLeftMigration from '../../src/worker/call-left-migration.ts'
 import compactionIndexMigration from '../../src/worker/compaction-index-migration.ts'
 import readEntryMessage from '../../src/worker/read-entry-message.ts'
 import readCompactionContext from '../../src/worker/read-compaction-context.ts'
@@ -70,6 +71,7 @@ import readPreadmission from '../../src/worker/read-preadmission.ts'
 import readReferences from '../../src/worker/read-references.ts'
 import readReleasedScopes from '../../src/worker/read-released-scopes.ts'
 import readWorkIndex from '../../src/worker/read-work-index.ts'
+import readCallsLeft from '../../src/worker/read-calls-left.ts'
 import readWorkReads from '../../src/worker/read-work-reads.ts'
 import readWorkVersion from '../../src/worker/read-work-version.ts'
 import readWork from '../../src/worker/read-work.ts'
@@ -94,6 +96,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readWorkVersion,
   readBinding,
   readWorkIndex,
+  readCallsLeft,
   readWorkReads,
   readInput,
   readModelSelection,
@@ -145,6 +148,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   factBlobMigration,
   itemMigration,
   compactionIndexMigration,
+  callLeftMigration,
 ]
 
 export type StorageCall =
