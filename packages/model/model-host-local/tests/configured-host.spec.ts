@@ -241,11 +241,7 @@ it('rejects every missing or invalid numeric setting through the Cordis configur
         ).rejects.toThrow()
       }
       for (const field of Object.keys(values)) {
-        const lower = [
-          'scanIntervalMs',
-          'outputBatchDelayMs',
-          'maxRedeliveries',
-        ].includes(field)
+        const lower = ['scanIntervalMs', 'outputBatchDelayMs', 'maxRedeliveries'].includes(field)
           ? 0
           : 1
         for (const value of [
