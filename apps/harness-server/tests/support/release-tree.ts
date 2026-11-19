@@ -463,20 +463,31 @@ export type ToolCallFacts = Readonly<{
   accounts: readonly string[]
   /** The duration of each account the ledger holds for the call, as stored. */
   durations: readonly unknown[]
+  /** The receipt of each account: `received`, or `late` once a late version took the next revision. */
+  receipts: readonly string[]
+  /** The relation of each result version: `original`, or `late` for a real end after the logical one. */
+  results: readonly string[]
 }>
 
-/** Per call of the Tool ledger: its admitted effective arguments, its start operations and its account events. */
+/** Per call of the Tool ledger: its admitted effective arguments, its start operations, its accounts and its result versions. */
 export function toolCallFacts(storageRoot: string): ReadonlyMap<string, ToolCallFacts> {
   const args = new Map<string, string>()
   const starts = new Map<string, number>()
   const accounts = new Map<string, string[]>()
   const durations = new Map<string, unknown[]>()
+  const receipts = new Map<string, string[]>()
+  const results = new Map<string, string[]>()
   for (const row of ledgerRows(storageRoot)) {
     const record = row.record as {
       kind: string
       call?: { call: string; request: { arguments: { effective: string } } }
       operation?: { call: string; operation: string }
-      account?: { call: string; event: string; value?: { duration?: unknown } }
+      account?: {
+        call: string
+        event: string
+        value?: { duration?: unknown; receipt?: string }
+      }
+      result?: { call: string; relation: string }
     }
     if (record.kind === 'call' && record.call !== undefined)
       args.set(record.call.call, record.call.request.arguments.effective)
@@ -491,7 +502,16 @@ export function toolCallFacts(storageRoot: string): ReadonlyMap<string, ToolCall
         ...(durations.get(record.account.call) ?? []),
         record.account.value?.duration,
       ])
+      receipts.set(record.account.call, [
+        ...(receipts.get(record.account.call) ?? []),
+        String(record.account.value?.receipt),
+      ])
     }
+    if (record.kind === 'result' && record.result !== undefined)
+      results.set(record.result.call, [
+        ...(results.get(record.result.call) ?? []),
+        record.result.relation,
+      ])
   }
   return new Map(
     [...args].map(([call, value]) => [
@@ -501,6 +521,8 @@ export function toolCallFacts(storageRoot: string): ReadonlyMap<string, ToolCall
         starts: starts.get(call) ?? 0,
         accounts: accounts.get(call) ?? [],
         durations: durations.get(call) ?? [],
+        receipts: receipts.get(call) ?? [],
+        results: results.get(call) ?? [],
       },
     ]),
   )
