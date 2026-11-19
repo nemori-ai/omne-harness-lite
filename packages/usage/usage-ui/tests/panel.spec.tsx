@@ -3,7 +3,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { ShellAssemblyError } from '@omne-harness/shell-contract'
 import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   createUsageUiModule,
   memoryLayoutStore,
@@ -334,5 +334,49 @@ describe('the details of editing (C28)', () => {
     })
     await settle()
     expect(fake.calls.length).toBeGreaterThan(before)
+  })
+})
+
+describe('what the panel leaves alone', () => {
+  it('lists none of the widgets already in a layout of several, and adds no note when the chosen presentation is there', async () => {
+    const store = memoryLayoutStore({
+      tenant: [
+        { widget: 'usage.summary', width: 3, presentation: null },
+        { widget: 'usage.tokens', width: 2, presentation: 'usage.line' },
+      ],
+    })
+    await page({ store })
+    expect(card('usage.tokens')?.textContent).not.toContain('所选的画法不在了')
+    expect(card('usage.tokens')?.querySelector('.recharts-line')).not.toBeNull()
+    await click('编辑面板')
+    const adding = [...document.querySelectorAll('label')].find(node =>
+      node.textContent?.startsWith('加一张卡片'),
+    )
+    const offered = [...(adding?.querySelectorAll('option') ?? [])].map(option => option.value)
+    expect(offered).not.toContain('usage.summary')
+    expect(offered).not.toContain('usage.tokens')
+  })
+
+  it('reads at the interval only while the page is visible, and stops when the panel is gone', async () => {
+    const { fake } = await page({ refreshMs: 30 })
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+    try {
+      const before = fake.calls.length
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      })
+      expect(fake.calls.length).toBe(before)
+    } finally {
+      Reflect.deleteProperty(document, 'visibilityState')
+    }
+    const cleared = vi.spyOn(globalThis, 'clearInterval')
+    cleanup()
+    expect(cleared).toHaveBeenCalled()
+    cleared.mockRestore()
+    const after = fake.calls.length
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    })
+    expect(fake.calls.length).toBe(after)
   })
 })
