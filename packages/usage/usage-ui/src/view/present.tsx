@@ -2,15 +2,10 @@ import type { PointHost } from '@omne-harness/shell-contract'
 import { createContext, useContext, useEffect } from 'react'
 import { pick, type Shape } from '../model/layout.ts'
 import type { ShapeData } from '../model/shapes.ts'
-import { usagePresentation, type WidgetSubject } from '../points.ts'
+import { usagePresentation } from '../points.ts'
 import type { UsageReads } from './reads.ts'
 
-export type PanelValue = Readonly<{
-  shell: PointHost
-  reads: UsageReads
-  tenant: string
-  subject: WidgetSubject
-}>
+export type PanelValue = Readonly<{ shell: PointHost; reads: UsageReads; tenant: string }>
 export const PanelContext = createContext<PanelValue | null>(null)
 
 export type ItemValue = Readonly<{ presentation: string | null; report: (shape: Shape) => void }>

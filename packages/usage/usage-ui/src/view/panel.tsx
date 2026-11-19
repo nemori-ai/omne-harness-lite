@@ -109,16 +109,17 @@ function CardSlot({
   readonly save: Edit
 }): ReactNode {
   const { index } = placed
+  const missing = entry === undefined
   return (
     <article className="usage-card" data-width={placed.item.width} data-widget={placed.item.widget}>
-      {placed.kind === 'missing' || entry === undefined ? (
+      {missing ? (
         <p className="usage-card-note">这张卡片不可用：带来它的模块不在了。</p>
       ) : (
         <ItemContext.Provider value={item}>
           <CardBoundary>{entry.node}</CardBoundary>
         </ItemContext.Provider>
       )}
-      {editing || placed.kind === 'missing' ? (
+      {editing || missing ? (
         <div
           className="usage-edit"
           role="group"
@@ -227,7 +228,7 @@ export function Panel({
   const [shapes, setShapes] = useState<Readonly<Record<number, Shape>>>({})
   const layout = layoutOf(position, { module: sources.module, assembly: sources.assembly, user })
   const subject: WidgetSubject = useMemo(() => ({ session, range }), [session, range])
-  const panel = useMemo(() => ({ shell, reads, tenant, subject }), [shell, reads, tenant, subject])
+  const panel = useMemo(() => ({ shell, reads, tenant }), [shell, reads, tenant])
   const save: Edit = next => {
     const { [position]: _dropped, ...rest } = user
     const layouts: Layouts = next === undefined ? rest : { ...rest, [position]: next }

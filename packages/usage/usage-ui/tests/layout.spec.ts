@@ -69,6 +69,10 @@ describe('editing a layout', () => {
     expect(moveAt(layout, 0, -1)).toBe(layout)
     expect(moveAt(layout, 2, 1)).toBe(layout)
     expect(moveAt(layout, 5, -1)).toBe(layout)
+    expect(moveAt(layout, 3, -1)).toBe(layout)
+    expect(moveAt(layout, -1, 1)).toBe(layout)
+    expect(presentAt(layout, 0, 'lines').slice(1)).toEqual(layout.slice(1))
+    expect(resizeAt(layout, 2, 3).slice(0, 2)).toEqual(layout.slice(0, 2))
     expect(resizeAt(layout, 2, 3)[2]).toEqual({ widget: 'c', width: 3, presentation: null })
     expect(presentAt(layout, 0, 'lines')[0]).toEqual({
       widget: 'a',
@@ -88,12 +92,21 @@ describe('editing a layout', () => {
       }),
     ).toEqual({ tenant: [item('a', 'lines'), { widget: 'b', width: 2, presentation: null }] })
     for (const broken of [null, 'x', 3, [{ widget: '' }]]) expect(layoutsOf(broken)).toEqual({})
+    for (const bad of [
+      null,
+      5,
+      'a',
+      { widget: '', width: 1, presentation: null },
+      { widget: 7, width: 1, presentation: null },
+    ])
+      expect(layoutsOf({ tenant: [item('a'), bad] }), JSON.stringify(bad)).toEqual({})
     expect(layoutsOf({ tenant: [{ widget: 'a', width: 1, presentation: 5 }] })).toEqual({})
   })
 })
 
 describe('layouts kept in a preference store', () => {
   it('writes them under one key and reads them back, a broken or unreadable value as none', () => {
+    expect(USAGE_LAYOUTS_KEY).toBe('omne.usage-layouts')
     const kept = new Map<string, string>()
     const store = {
       getItem: (key: string) => kept.get(key) ?? null,

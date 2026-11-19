@@ -67,6 +67,9 @@ describe('the usage interface module in its three places (C27)', () => {
     render(<>{anchored(shell, 'session.status')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
     await settle()
     expect(screen.getByRole('meter', { name: '上下文' }).getAttribute('aria-valuenow')).toBe('0.75')
+    expect(
+      document.querySelector('.usage-panel[data-position="status"] .usage-panel-bar'),
+    ).toBeNull()
     expect(fake.calls.at(-1)).toMatchObject({
       operation: 'read-context-occupancy',
       body: { session: SESSION },

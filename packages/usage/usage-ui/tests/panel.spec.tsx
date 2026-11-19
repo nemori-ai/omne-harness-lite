@@ -2,6 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { ShellAssemblyError } from '@omne-harness/shell-contract'
+import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   createUsageUiModule,
@@ -222,6 +223,116 @@ describe('a read that is refused', () => {
     const { fake } = await page()
     const before = fake.calls.length
     await click('刷新')
+    expect(fake.calls.length).toBeGreaterThan(before)
+  })
+})
+
+describe('the details of editing (C28)', () => {
+  const fieldOf = (label: string, within?: HTMLElement | null) =>
+    [...(within ?? document.body).querySelectorAll('label')]
+      .find(node => node.textContent?.startsWith(label))
+      ?.querySelector('select') ?? null
+
+  it('shows the controls only while editing, labelled by the widget, and names a missing one by its id', async () => {
+    const store = memoryLayoutStore({
+      tenant: [
+        { widget: 'usage.summary', width: 3, presentation: null },
+        { widget: 'gone.widget', width: 1, presentation: null },
+      ],
+    })
+    await page({ store })
+    expect(card('usage.summary')?.querySelector('.usage-edit')).toBeNull()
+    expect(card('gone.widget')?.querySelector('.usage-edit')?.getAttribute('aria-label')).toBe(
+      '编辑「gone.widget」',
+    )
+    await click('编辑面板')
+    expect(document.body.textContent).toContain('完成')
+    expect(card('usage.summary')?.querySelector('.usage-edit')?.getAttribute('aria-label')).toBe(
+      '编辑「概览」',
+    )
+    expect(
+      [...(fieldOf('宽度', card('usage.summary'))?.options ?? [])].map(option => option.text),
+    ).toEqual(['窄', '中', '宽'])
+  })
+
+  it('offers no presentation for a widget that draws itself, and the default first for one that does not', async () => {
+    const { store } = await page()
+    await click('编辑面板')
+    expect(fieldOf('画法', card('usage.summary'))).toBeNull()
+    const drawing = fieldOf('画法', card('usage.tokens'))
+    expect(drawing?.value).toBe('')
+    expect([...(drawing?.options ?? [])].map(option => option.text)).toEqual([
+      '缺省',
+      '堆叠柱',
+      '折线',
+      '面积',
+    ])
+    await choose('画法', 'usage.line', card('usage.tokens'))
+    await choose('画法', '', card('usage.tokens'))
+    expect(
+      store.read().tenant?.find(item => item.widget === 'usage.tokens')?.presentation,
+    ).toBeNull()
+  })
+
+  it('offers to add only the widgets not in the layout, by label or else id, and adds nothing for the prompt', async () => {
+    const store = memoryLayoutStore({
+      tenant: [{ widget: 'usage.summary', width: 3, presentation: null }],
+    })
+    await page({ store }, undefined, ctx =>
+      usageWidget.contribute(ctx.shell, 'tenant', {
+        id: 'test.nameless',
+        order: 9,
+        render: () => null,
+      }),
+    )
+    await click('编辑面板')
+    const adding = fieldOf('加一张卡片')
+    expect([...(adding?.options ?? [])].map(option => option.text)).toEqual([
+      '选一张',
+      '按时间的 token',
+      '按模型的 token',
+      '缓存读写',
+      '延迟',
+      '工具执行',
+      'test.nameless',
+    ])
+    await choose('加一张卡片', '')
+    expect(widgets()).toEqual(['usage.summary'])
+  })
+
+  it('takes the position out of the stored layouts on reset, leaving the others', async () => {
+    const store = memoryLayoutStore({
+      tenant: [{ widget: 'usage.summary', width: 3, presentation: null }],
+      session: [{ widget: 'usage.tokens', width: 3, presentation: null }],
+    })
+    await page({ store })
+    await click('编辑面板')
+    await click('恢复缺省')
+    expect(Object.keys(store.read())).toEqual(['session'])
+  })
+
+  it('reads again for another range, and at the interval the assembly gives while the page is visible', async () => {
+    const { fake } = await page({ refreshMs: 50 })
+    const ranges = () =>
+      new Set(fake.calls.map(call => encodeInstant((call.body['range'] as { from: Instant }).from)))
+    expect(ranges().size).toBe(1)
+    const thirty = [...document.querySelectorAll('[data-segment]')].find(
+      node => node.textContent === '30 天',
+    )
+    fireEvent.click(thirty as Element)
+    await settle()
+    expect(ranges().size).toBe(2)
+    expect([...document.querySelectorAll('[data-segment]')].map(node => node.textContent)).toEqual([
+      '今天',
+      '7 天',
+      '30 天',
+      '90 天',
+    ])
+    const before = fake.calls.length
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 120))
+    })
+    await settle()
     expect(fake.calls.length).toBeGreaterThan(before)
   })
 })

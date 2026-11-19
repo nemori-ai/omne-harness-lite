@@ -76,6 +76,13 @@ describe('the data a native widget draws', () => {
       buckets: [bucket('d1', measures()), bucket('d2', measures({ calls: 0 }))],
     })
     const tokens = tokensByBucket(two, label)
+    expect(tokens.series.map(item => item.label)).toEqual([
+      '输入',
+      '缓存读',
+      '缓存写',
+      '输出',
+      '推理',
+    ])
     expect(tokens.series.map(item => item.key)).toEqual([
       'input',
       'cache-read',
@@ -92,6 +99,10 @@ describe('the data a native widget draws', () => {
       values: { 'cache-read': 50, 'cache-write': null },
     })
     expect(latencyByBucket(two, label).rows[0]?.values).toEqual({ first: 300, whole: 900 })
+    expect(latencyByBucket(two, label).series).toEqual([
+      { key: 'first', label: '首字延迟（中位，毫秒）' },
+      { key: 'whole', label: '整次耗时（中位，毫秒）' },
+    ])
   })
 
   it('counts the tool executions of each bucket from its tool group, zero when it has none', () => {
@@ -101,6 +112,7 @@ describe('the data a native widget draws', () => {
       buckets: [bucket('d1', measures(), [model, tool]), bucket('d2', measures(), [model])],
     })
     expect(toolsByBucket(answer, label).rows.map(row => row.values['calls'])).toEqual([4, 0])
+    expect(toolsByBucket(answer, label).series).toEqual([{ key: 'calls', label: '工具执行' }])
   })
 
   it('splits the input and output tokens by model, an unknown model named so', () => {
@@ -119,6 +131,10 @@ describe('the data a native widget draws', () => {
       { key: 'm-a', label: 'm-a', value: 110 },
       { key: '', label: '未知型号', value: null },
     ])
+    const half = measures({ tokens: { ...measures().tokens, input: sum('0', 1) } })
+    expect(
+      tokensByModel(result({ groups: [{ key: ['m'], measures: half }] })).parts[0]?.value,
+    ).toBe(10)
   })
 
   it('reads the occupancy as a percent with the compaction mark, or says why there is none', () => {
@@ -140,6 +156,22 @@ describe('the data a native widget draws', () => {
       mark: null,
       unknownReason: '还没有收场的请求',
     })
+    expect(occupancyReading({ kind: 'unknown', reason: 'usage-unknown' }, String)).toMatchObject({
+      unknownReason: '这一次请求的用量未知',
+    })
+    expect(
+      occupancyReading(
+        {
+          kind: 'known',
+          used: '1',
+          window: '2',
+          percent: '50.00',
+          compactAtPercent: null,
+          asOf: { at: 'T' as never, model: null },
+        },
+        String,
+      ),
+    ).toEqual({ percent: 50, mark: null, caption: '截至上一次请求（T）' })
     expect(occupancyReading({ kind: 'unknown', reason: 'window-unknown' }, String)).toMatchObject({
       percent: null,
       unknownReason: '这个型号的窗口未知',
