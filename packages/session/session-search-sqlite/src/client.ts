@@ -79,7 +79,10 @@ const isFailure = (answer: unknown): answer is StoreFailure => typeof answer ===
 function candidatesOf(found: StoreCandidates): Candidates {
   return {
     covered: new Map(
-      found.covered.map(row => [row.session as SessionId, row.position as SessionRevision]),
+      found.covered.map(row => [
+        row.session as SessionId,
+        { through: row.through as SessionRevision, at: row.at },
+      ]),
     ),
     rows: found.rows.map(row => ({
       doc: row.doc,
@@ -134,6 +137,13 @@ export function createSqliteHistoryIndex(options: SqliteHistoryIndexOptions): Sq
       if (tenant === null) return fail('unavailable')
       const found = await answered(() => reads.call('candidates', { ...input, tenant }))
       return 'failure' in found ? found : succeed(candidatesOf(found.ok))
+    },
+    async covers(tenant, generation) {
+      const text = textOf(tenant)
+      if (text === null) return fail('unavailable')
+      const found = await answered(() => reads.call('covers', text, generation))
+      if ('failure' in found) return found
+      return succeed(candidatesOf({ covered: found.ok, rows: [] }).covered)
     },
     async append(input) {
       const tenant = textOf(input.tenant)

@@ -71,6 +71,9 @@ function firstPast(port: ReadPort, scope: readonly [string, string], after: bigi
   return found
 }
 
+const sizeOf = (rows: readonly Row[]): number =>
+  rows.reduce((sum, row) => sum + Number(row['bytes']), 0)
+
 function range(port: ReadPort, input: Range) {
   if (!named(input.session) || !strings(input.kinds, MAX_KINDS) || input.kinds.length === 0)
     throw new Error('invalid input')
@@ -84,7 +87,7 @@ function range(port: ReadPort, input: Range) {
   if (journal === undefined) return { kind: 'absent' }
   const tail = String(journal['tail'])
   const start = firstPast(port, scope, BigInt(input.after))
-  if (start === null) return { kind: 'page', entries: [], through: tail, exhausted: true }
+  if (start === null) return { kind: 'page', entries: [], through: tail, exhausted: true, bytes: 0 }
   const rows = rowsOf(
     port,
     `SELECT ${COLUMNS} FROM sl_entry
@@ -107,6 +110,7 @@ function range(port: ReadPort, input: Range) {
       entries: rows.map(row => shown(port, ...scope, row)),
       through: tail,
       exhausted: true,
+      bytes,
     }
   // The page ends inside the log: keep whole commits only, and say how far they reach.
   const cut = big(rows[taken]!['revision'])
@@ -117,6 +121,7 @@ function range(port: ReadPort, input: Range) {
     entries: whole.map(row => shown(port, ...scope, row)),
     through: String(cut - 1n),
     exhausted: false,
+    bytes: sizeOf(whole),
   }
 }
 
@@ -136,6 +141,7 @@ function oneCommit(
     entries: own.map(row => shown(port, ...scope, row)),
     through: exhausted ? at.tail : String(at.cut),
     exhausted,
+    bytes: sizeOf(own),
   }
 }
 

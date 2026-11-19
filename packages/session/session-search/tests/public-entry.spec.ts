@@ -15,12 +15,32 @@ it('exports the query compiler, the text rules, the plan reference and the hit',
     'documentRow',
     'documentsOf',
     'foldText',
+    'followSession',
     'isSearchableKind',
     'kindMarker',
     'matchEntry',
+    'parseCursor',
     'planAdmits',
+    'queryDigest',
+    'searchHistory',
     'searchableKindOf',
     'snippetOf',
     'visibilityMarker',
+  ])
+})
+
+it('exports the doubles of its two ports from the testing entry only', async () => {
+  const testing = (await import('@omne-harness/session-search/testing')) as Record<string, unknown>
+  expect(Object.keys(testing).sort()).toEqual([
+    'ALPHABET',
+    'createMemoryIndex',
+    'createMemoryLog',
+    'indexThrough',
+    'random',
+    'randomCommit',
+    'randomQuery',
+    'randomText',
+    'testEntry',
+    'tree',
   ])
 })

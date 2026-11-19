@@ -57,7 +57,13 @@ describe('the history index through its two threads', () => {
       building: 1,
       progress: { indexed: 0, total: 2 },
     })
-    const batch = { tenant: TENANT, generation: 1, session: S1, through: '3' as SessionRevision }
+    const batch = {
+      tenant: TENANT,
+      generation: 1,
+      session: S1,
+      through: '3' as SessionRevision,
+      at: 1003,
+    }
     expect(
       await index.append({ ...batch, documents: [at(1, 'needle one'), at(3, 'needle three')] }),
     ).toEqual({ ok: null })
@@ -69,7 +75,7 @@ describe('the history index through its two threads', () => {
       [S1, '3'],
       [S1, '1'],
     ])
-    expect([...found.ok.covered]).toEqual([[S1, '3']])
+    expect([...found.ok.covered]).toEqual([[S1, { through: '3', at: 1003 }]])
     await index.compact(TENANT, 8)
     expect((await index.candidates(request(1, gram('nee')))) satisfies object).toMatchObject({
       ok: {},
@@ -85,6 +91,7 @@ describe('the history index through its two threads', () => {
       generation: 1,
       session: S1,
       through: '1' as SessionRevision,
+      at: 1001,
       documents: [at(1, 'needle')],
     })
     expect(await index.state(OTHER)).toEqual({ kind: 'absent' })
@@ -102,6 +109,7 @@ describe('the history index through its two threads', () => {
         generation: 4,
         session: S1,
         through: '1' as SessionRevision,
+        at: 1001,
         documents: [],
       }),
     ).toEqual({ failure: 'generation-gone' })
@@ -117,6 +125,7 @@ describe('the history index through its two threads', () => {
       generation: 1,
       session: S1,
       through: '1' as SessionRevision,
+      at: 1001,
       documents: [at(1, 'needle')],
     })
     await index.close()
@@ -137,9 +146,9 @@ describe('a process killed between the rows of a batch and its cover (SH-2)', ()
       const doc = (position) => ({ position: String(position), revision: String(position), at: 1000 + position, document: { visibility: 'model', text: 'needle', markers: [] } })
       const { generation } = store.beginRebuild('t', 0)
       store.adopt('t', generation)
-      store.append({ tenant: 't', generation, session: 's', through: '1', documents: [doc(1)] })
+      store.append({ tenant: 't', generation, session: 's', through: '1', at: 1001, documents: [doc(1)] })
       store.append(
-        { tenant: 't', generation, session: 's', through: '3', documents: [doc(2), doc(3)] },
+        { tenant: 't', generation, session: 's', through: '3', at: 1003, documents: [doc(2), doc(3)] },
         { afterRows: () => process.kill(process.pid, 'SIGKILL') },
       )
     `
@@ -160,7 +169,7 @@ describe('a process killed between the rows of a batch and its cover (SH-2)', ()
       }
       expect(reopened.state('t')).toEqual({ kind: 'ready', generation: 1 })
       expect(reopened.candidates(ask)).toMatchObject({
-        covered: [{ session: 's', position: '1' }],
+        covered: [{ session: 's', through: '1', at: 1001 }],
         rows: [{ session: 's', position: '1' }],
       })
       const again = {
@@ -168,6 +177,7 @@ describe('a process killed between the rows of a batch and its cover (SH-2)', ()
         generation: 1,
         session: 's',
         through: '3',
+        at: 1003,
         documents: [2, 3].map(position => ({
           position: String(position),
           revision: String(position),

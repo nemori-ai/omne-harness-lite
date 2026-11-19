@@ -18,10 +18,11 @@ export type StoreAppendRequest = Readonly<{
   generation: number
   session: string
   through: string
+  at: number
   documents: readonly Readonly<{
     position: string
     revision: string
-    at: number | null
+    at: number
     document: IndexDocument
   }>[]
 }>
@@ -48,12 +49,9 @@ function writeBatch(
   prepare('INSERT OR IGNORE INTO session (id, covered, last_at) VALUES (?, 0, 0)').run(
     request.session,
   )
-  const row = prepare('SELECT ordinal, covered, last_at FROM session WHERE id = ?').get(
-    request.session,
-  )!
+  const row = prepare('SELECT ordinal, covered FROM session WHERE id = ?').get(request.session)!
   const ordinal = Number(row['ordinal'])
   const covered = row['covered'] as bigint
-  let lastAt = row['last_at'] as bigint
   const marker = sessionMarker(ordinal)
   const serials = new Map<bigint, bigint>()
   const top = prepare('SELECT max(id) AS top FROM doc WHERE id >= ? AND id < ?')
@@ -63,8 +61,7 @@ function writeBatch(
     // At or behind the cover: this commit was written before. Writing it again would double it.
     if (BigInt(item.revision) <= covered) continue
     const position = BigInt(item.position)
-    if (item.at !== null) lastAt = BigInt(item.at)
-    const base = lastAt * SERIALS
+    const base = BigInt(item.at) * SERIALS
     const taken = serials.get(base) ?? (top.get(base, base + SERIALS)?.['top'] as bigint | null)
     const id = taken === null || taken === undefined ? base : taken + 1n
     serials.set(base, id)
@@ -76,7 +73,7 @@ function writeBatch(
   if (through > covered)
     prepare('UPDATE session SET covered = ?, last_at = ? WHERE ordinal = ?').run(
       through,
-      lastAt,
+      BigInt(request.at),
       ordinal,
     )
 }

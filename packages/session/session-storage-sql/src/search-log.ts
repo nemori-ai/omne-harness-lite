@@ -89,6 +89,7 @@ export function createSessionSearchLog(options: SessionSearchLogOptions): Histor
           entries: (out['entries'] as Shown[]).map(loggedOf),
           through: String(out['through']) as SessionRevision,
           exhausted: out['exhausted'] === true,
+          bytes: Number(out['bytes'] ?? 0),
         })
       } catch {
         return UNAVAILABLE

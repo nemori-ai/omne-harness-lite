@@ -25,7 +25,7 @@ export type StoreState =
 
 export type StoreFailure = 'generation-gone' | 'unavailable'
 export type StoreCandidates = Readonly<{
-  covered: readonly Readonly<{ session: string; position: string }>[]
+  covered: readonly Readonly<{ session: string; through: string; at: number }>[]
   rows: readonly Readonly<{ doc: string; session: string; position: string }>[]
 }>
 export type StoreCandidateRequest = Readonly<{
@@ -123,6 +123,31 @@ function idsOf(
   return rows.map(row => row['id'] as bigint)
 }
 
+type CoverRow = StoreCandidates['covered'][number]
+
+/** The covers of a generation that is current or being built. */
+export function coversOf(
+  context: ReadContext,
+  tenant: string,
+  generation: number,
+): readonly CoverRow[] | StoreFailure {
+  const directory = directoryOf(context.root, tenant)
+  const known = [pointerOf(directory)?.generation, buildingOf(directory)?.generation]
+  if (!known.includes(generation)) return 'generation-gone'
+  try {
+    return context.handles
+      .prepared(fileOf(directory, generation), 'SELECT id, covered, last_at FROM session')
+      .all()
+      .map(row => ({
+        session: String(row['id']),
+        through: String(row['covered']),
+        at: Number(row['last_at']),
+      }))
+  } catch {
+    return 'unavailable'
+  }
+}
+
 // The cover first, the rows after, in one read transaction: a row is never read without the cover
 // that vouches for it.
 function readCandidates(
@@ -132,10 +157,13 @@ function readCandidates(
   faults: CandidateFaults,
 ): StoreCandidates {
   const { handles } = context
-  const sessions = handles.statement(handle, 'SELECT ordinal, id, covered FROM session').all()
+  const sessions = handles
+    .statement(handle, 'SELECT ordinal, id, covered, last_at FROM session')
+    .all()
   const covered = sessions.map(row => ({
     session: String(row['id']),
-    position: String(row['covered']),
+    through: String(row['covered']),
+    at: Number(row['last_at']),
   }))
   const ordinals = new Map(sessions.map(row => [String(row['id']), Number(row['ordinal'])]))
   const scope =

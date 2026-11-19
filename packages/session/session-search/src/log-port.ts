@@ -17,12 +17,12 @@ export type LoggedSession = Readonly<{
 /** A log entry with the time of the commit that wrote it, in epoch milliseconds, if recorded. */
 export type LoggedEntry = Readonly<{ entry: HistoryEntry; at: number | null }>
 
+/** Whole commits of searchable entries in log order, up to `through`; `bytes` is their stored size. */
 export type EntryPage = Readonly<{
-  /** The searchable entries of whole commits, in log order. */
   entries: readonly LoggedEntry[]
-  /** Every commit up to this revision is in this page or the pages before it. */
   through: SessionRevision
   exhausted: boolean
+  bytes: number
 }>
 
 export type LogPoint = Readonly<{ session: SessionId; position: EntryId }>

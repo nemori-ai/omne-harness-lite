@@ -31,7 +31,7 @@ const document = (text: string, kind = 'u'): IndexDocument => ({
   text,
   markers: [`\u0002k${kind}`, '\u0002m1'],
 })
-const item = (position: number, text: string, at: number | null = 1000 + position) => ({
+const item = (position: number, text: string, at = 1000 + position) => ({
   position: String(position),
   revision: String(position),
   at,
@@ -81,6 +81,7 @@ describe('the states of the index of a tenant', () => {
         generation: 1,
         session: 's1',
         through: '2',
+        at: 1002,
         documents: [item(1, 'hello')],
       }),
     ).toBeNull()
@@ -99,6 +100,7 @@ describe('the states of the index of a tenant', () => {
       generation: first,
       session: 's1',
       through: '1',
+      at: 1001,
       documents: [item(1, 'old text')],
     })
     expect(store.beginRebuild(TENANT, 1)).toEqual({ generation: 2 })
@@ -117,6 +119,7 @@ describe('the states of the index of a tenant', () => {
       generation: 2,
       session: 's1',
       through: '1',
+      at: 1001,
       documents: [item(1, 'new text')],
     })
     expect(store.adopt(TENANT, 2)).toBeNull()
@@ -129,7 +132,13 @@ describe('the states of the index of a tenant', () => {
 
   it('answers each operation in each state: nothing is written to, or read from, a generation that is not there', () => {
     const store = storeOf(rootOf())
-    const batch = { tenant: TENANT, session: 's1', through: '1', documents: [item(1, 'text')] }
+    const batch = {
+      tenant: TENANT,
+      session: 's1',
+      through: '1',
+      at: 1001,
+      documents: [item(1, 'text')],
+    }
     expect(store.candidates(ask(1, ANY))).toBe('generation-gone')
     expect(store.append({ ...batch, generation: 1 })).toBe('generation-gone')
     expect(store.adopt(TENANT, 1)).toBe('generation-gone')
@@ -182,6 +191,7 @@ describe('the candidates of a plan', () => {
       generation,
       session: 's1',
       through: '4',
+      at: 1004,
       documents: [
         item(1, 'the needle one'),
         item(2, 'nothing here'),
@@ -194,6 +204,7 @@ describe('the candidates of a plan', () => {
       generation,
       session: 's2',
       through: '2',
+      at: 1002,
       documents: [item(1, 'needle in another', 5000), item(2, '受理x and 受理y', 5001)],
     })
     return { store, generation }
@@ -208,8 +219,8 @@ describe('the candidates of a plan', () => {
       's1:1',
     ])
     expect(answer.covered).toEqual([
-      { session: 's1', position: '4' },
-      { session: 's2', position: '2' },
+      { session: 's1', through: '4', at: expect.any(Number) },
+      { session: 's2', through: '2', at: expect.any(Number) },
     ])
     const docs = answer.rows.map(row => BigInt(row.doc))
     expect(docs).toEqual([...docs].sort((left, right) => (left > right ? -1 : 1)))
@@ -291,6 +302,7 @@ describe('the candidates of a plan', () => {
       generation,
       session: 's1',
       through: '3',
+      at: 1003,
       documents: [item(1, 'aba abb abc'), item(2, 'no such'), item(3, 'abd')],
     })
     expect(positions(store, ask(generation, { kind: 'short', prefix: 'ab' }))).toEqual([
@@ -308,6 +320,7 @@ describe('the candidates of a plan', () => {
       generation,
       session: 's1',
       through: '2',
+      at: 1002,
       documents: [
         { position: '1', revision: '1', at: 1, document: document('needle', 'u') },
         { position: '2', revision: '2', at: 2, document: document('needle', 'a') },
@@ -317,7 +330,7 @@ describe('the candidates of a plan', () => {
     expect(positions(store, ask(generation, plan))).toEqual(['s1:2'])
   })
 
-  it('order documents without a commit time after the last one of their session that had one', () => {
+  it('order documents of one millisecond by when they were written, later ones first', () => {
     const store = storeOf(rootOf())
     const generation = ready(store)
     store.append({
@@ -325,19 +338,70 @@ describe('the candidates of a plan', () => {
       generation,
       session: 's1',
       through: '3',
-      documents: [item(1, 'needle a', 7000), item(2, 'needle b', null), item(3, 'needle c', null)],
+      at: 7000,
+      documents: [item(1, 'needle a', 7000), item(2, 'needle b', 7000), item(3, 'needle c', 7000)],
     })
     store.append({
       tenant: TENANT,
       generation,
       session: 's1',
       through: '4',
-      documents: [item(4, 'needle d', null)],
+      at: 7000,
+      documents: [item(4, 'needle d', 7000)],
     })
     expect(positions(store, ask(generation, gram('nee')))).toEqual(['s1:4', 's1:3', 's1:2', 's1:1'])
     expect(
       positions(store, ask(generation, gram('nee'), { window: { from: 7000, to: 7000 } })),
     ).toHaveLength(4)
+  })
+
+  it('records the last commit time it is told with the cover, documents or none', () => {
+    const store = storeOf(rootOf())
+    const generation = ready(store)
+    store.append({
+      tenant: TENANT,
+      generation,
+      session: 's1',
+      through: '2',
+      at: 8200,
+      documents: [],
+    })
+    expect(found(store, ask(generation, ANY)).covered).toEqual([
+      { session: 's1', through: '2', at: 8200 },
+    ])
+  })
+})
+
+describe('the covers of a generation', () => {
+  it('are read from the current generation and from the one being built, not from a gone one', () => {
+    const store = storeOf(rootOf())
+    const first = ready(store)
+    store.append({
+      tenant: TENANT,
+      generation: first,
+      session: 's1',
+      through: '4',
+      at: 77,
+      documents: [],
+    })
+    expect(store.covers(TENANT, first)).toEqual([{ session: 's1', through: '4', at: 77 }])
+    const begun = store.beginRebuild(TENANT, 1)
+    if (begun === 'unavailable') throw new Error('begin')
+    expect(store.covers(TENANT, begun.generation)).toEqual([])
+    store.append({
+      tenant: TENANT,
+      generation: begun.generation,
+      session: 's2',
+      through: '2',
+      at: 5,
+      documents: [],
+    })
+    expect(store.covers(TENANT, begun.generation)).toEqual([{ session: 's2', through: '2', at: 5 }])
+    expect(store.covers(TENANT, first)).toEqual([{ session: 's1', through: '4', at: 77 }])
+    expect(store.adopt(TENANT, begun.generation)).toBeNull()
+    expect(store.covers(TENANT, first)).toBe('generation-gone')
+    expect(store.covers(TENANT, 99)).toBe('generation-gone')
+    expect(store.covers('tenant-none', 1)).toBe('generation-gone')
   })
 })
 
@@ -350,6 +414,7 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
       generation,
       session: 's1',
       through: '2',
+      at: 1002,
       documents: [item(1, 'needle'), item(2, 'needle')],
     }
     expect(store.append(batch)).toBeNull()
@@ -357,7 +422,7 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
     expect(store.append({ ...batch, through: '1', documents: [item(1, 'needle')] })).toBeNull()
     const answer = found(store, ask(generation, gram('nee')))
     expect(answer.rows.map(row => row.position)).toEqual(['2', '1'])
-    expect(answer.covered).toEqual([{ session: 's1', position: '2' }])
+    expect(answer.covered).toEqual([{ session: 's1', through: '2', at: expect.any(Number) }])
   })
 
   it('writes only what lies past the cover of a batch that overlaps it', () => {
@@ -368,6 +433,7 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
       generation,
       session: 's1',
       through: '2',
+      at: 1002,
       documents: [item(1, 'needle'), item(2, 'needle')],
     })
     store.append({
@@ -375,11 +441,12 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
       generation,
       session: 's1',
       through: '5',
+      at: 1005,
       documents: [item(2, 'needle'), item(4, 'needle')],
     })
     const answer = found(store, ask(generation, gram('nee')))
     expect(answer.rows.map(row => row.position)).toEqual(['4', '2', '1'])
-    expect(answer.covered).toEqual([{ session: 's1', position: '5' }])
+    expect(answer.covered).toEqual([{ session: 's1', through: '5', at: expect.any(Number) }])
   })
 
   it('counts the cover in commits: entries of one commit share a revision, and are skipped together', () => {
@@ -394,6 +461,7 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
       generation,
       session: 's1',
       through: '1',
+      at: 1001,
       documents: [entry(1, 1), entry(2, 1)],
     })
     store.append({
@@ -401,21 +469,29 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
       generation,
       session: 's1',
       through: '2',
+      at: 1002,
       documents: [entry(1, 1), entry(2, 1), entry(3, 2), entry(4, 2)],
     })
     const answer = found(store, ask(generation, gram('nee')))
     expect(answer.rows.map(row => row.position)).toEqual(['4', '3', '2', '1'])
-    expect(answer.covered).toEqual([{ session: 's1', position: '2' }])
+    expect(answer.covered).toEqual([{ session: 's1', through: '2', at: expect.any(Number) }])
   })
 
   it('moves the cover of a batch without documents: the entries it read had nothing to search', () => {
     const store = storeOf(rootOf())
     const generation = ready(store)
     expect(
-      store.append({ tenant: TENANT, generation, session: 's1', through: '9', documents: [] }),
+      store.append({
+        tenant: TENANT,
+        generation,
+        session: 's1',
+        through: '9',
+        at: 1009,
+        documents: [],
+      }),
     ).toBeNull()
     expect(found(store, ask(generation, ANY))).toEqual({
-      covered: [{ session: 's1', position: '9' }],
+      covered: [{ session: 's1', through: '9', at: expect.any(Number) }],
       rows: [],
     })
   })
@@ -428,6 +504,7 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
       generation,
       session: 's1',
       through: '1',
+      at: 1001,
       documents: [item(1, 'needle')],
     })
     const stopped = store.append(
@@ -436,6 +513,7 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
         generation,
         session: 's1',
         through: '3',
+        at: 1003,
         documents: [item(2, 'needle'), item(3, 'needle')],
       },
       {
@@ -446,7 +524,7 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
     )
     expect(stopped).toBe('unavailable')
     expect(found(store, ask(generation, gram('nee')))).toMatchObject({
-      covered: [{ session: 's1', position: '1' }],
+      covered: [{ session: 's1', through: '1', at: expect.any(Number) }],
       rows: [{ position: '1' }],
     })
     expect(
@@ -455,6 +533,7 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
         generation,
         session: 's1',
         through: '3',
+        at: 1003,
         documents: [item(2, 'needle'), item(3, 'needle')],
       }),
     ).toBeNull()
@@ -474,6 +553,7 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
       generation,
       session: 's1',
       through: '10',
+      at: 1010,
       documents: [item(5, 'needle')],
     })
     const reader = storeOf(root, { readOnly: true })
@@ -484,12 +564,13 @@ describe('a batch of documents and the cover of its session (SH-2)', () => {
           generation,
           session: 's1',
           through: '20',
+          at: 1020,
           documents: [item(15, 'needle')],
         })
       },
     })
     if (typeof answer === 'string') throw new Error(answer)
-    const cover = BigInt(answer.covered.find(row => row.session === 's1')!.position)
+    const cover = BigInt(answer.covered.find(row => row.session === 's1')!.through)
     // Whatever the cover says is indexed must be among the rows: 15 is, only if the cover reached it.
     const seen = answer.rows.map(row => BigInt(row.position))
     if (cover >= 15n) expect(seen).toContain(15n)

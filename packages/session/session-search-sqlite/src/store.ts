@@ -1,6 +1,7 @@
 import { createHandles } from './handles.ts'
 import {
   candidatesOf,
+  coversOf,
   stateOf,
   type CandidateFaults,
   type ReadContext,
@@ -32,6 +33,7 @@ export function createStore(options: StoreOptions) {
     state: (tenant: string) => stateOf(context, tenant),
     candidates: (request: StoreCandidateRequest, faults?: CandidateFaults) =>
       candidatesOf(context, request, faults),
+    covers: (tenant: string, generation: number) => coversOf(context, tenant, generation),
     append: (request: StoreAppendRequest, faults?: AppendFaults) =>
       appendTo(context, request, faults),
     beginRebuild: (tenant: string, total: number) => beginRebuild(context, tenant, total),

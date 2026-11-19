@@ -14,12 +14,21 @@ export {
   type IndexDocument,
   type SearchableKind,
 } from './extract.ts'
+export {
+  parseCursor,
+  queryDigest,
+  type FrozenCover,
+  type SearchCursor,
+  type TailPoint,
+} from './cursor.ts'
 export { foldText } from './fold.ts'
+export { followSession, type FollowInput, type FollowStep } from './follow.ts'
 export type {
   AppendRequest,
   CandidateRequest,
   CandidateRow,
   Candidates,
+  Cover,
   DocId,
   HistoryIndex,
   IndexFailure,
@@ -48,3 +57,5 @@ export {
   type SearchScope,
 } from './query.ts'
 export type { Span } from './regex.ts'
+export type { SearchDeps, SearchInput, SearchLimits } from './search-run.ts'
+export { searchHistory, type Incomplete, type SearchFailure, type SearchPage } from './search.ts'

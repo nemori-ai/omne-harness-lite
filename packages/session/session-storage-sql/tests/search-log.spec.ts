@@ -174,6 +174,7 @@ describe('the commits of a session after a revision', () => {
       entries: [],
       through: '3',
       exhausted: true,
+      bytes: 0,
     })
   })
 
@@ -214,6 +215,11 @@ describe('the commits of a session after a revision', () => {
     const third = await entriesOf(log, SEEDED, second.through, 250)
     expect(textsOf(third.entries)).toEqual(['eight'])
     expect(third).toMatchObject({ through: '5', exhausted: true })
+    // Each page says what it cost to read: the stored size of its entries.
+    const whole = await entriesOf(log, SEEDED)
+    expect([first, second, third].every(page => page.bytes > 0)).toBe(true)
+    expect(first.bytes + second.bytes + third.bytes).toBe(whole.bytes)
+    expect(first.bytes).toBeLessThanOrEqual(250)
   })
 
   it('reads every entry once, whatever the page size and wherever it starts', async () => {
