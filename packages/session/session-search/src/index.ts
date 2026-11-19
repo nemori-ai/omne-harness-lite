@@ -15,6 +15,17 @@ export {
   type SearchableKind,
 } from './extract.ts'
 export { foldText } from './fold.ts'
+export type {
+  AppendRequest,
+  CandidateRequest,
+  CandidateRow,
+  Candidates,
+  DocId,
+  HistoryIndex,
+  IndexFailure,
+  IndexState,
+  Progress,
+} from './index-port.ts'
 export { SNIPPET_CONTEXT, SNIPPET_MATCH, snippetOf, type SearchHit, type Snippet } from './hit.ts'
 export { ANY, planAdmits, type GramPlan, type PlanLimits } from './plan.ts'
 export {

@@ -1,0 +1,169 @@
+import { mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { documentRow, type IndexDocument } from '@omne-harness/session-search'
+import {
+  buildingFile,
+  buildingOf,
+  currentFile,
+  directoryOf,
+  fileOf,
+  pointerOf,
+  writeJson,
+} from './files.ts'
+import type { Handle } from './handles.ts'
+import { sessionMarker } from './match.ts'
+import { SERIALS, type ReadContext, type StoreFailure } from './reading.ts'
+
+export type StoreAppendRequest = Readonly<{
+  tenant: string
+  generation: number
+  session: string
+  through: string
+  documents: readonly Readonly<{ position: string; at: number | null; document: IndexDocument }>[]
+}>
+/** Testing only: called inside an append, after the rows and before the cover. */
+export type AppendFaults = Readonly<{ afterRows?: () => void }>
+
+const SCHEMA = [
+  `CREATE VIRTUAL TABLE grams USING fts5(row, tokenize = 'trigram case_sensitive 1', detail = none, content = '', columnsize = 0)`,
+  `CREATE VIRTUAL TABLE vocab USING fts5vocab(grams, 'row')`,
+  `CREATE TABLE session (ordinal INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, covered INTEGER NOT NULL, last_at INTEGER NOT NULL) STRICT`,
+  `CREATE TABLE doc (id INTEGER PRIMARY KEY, session INTEGER NOT NULL, position INTEGER NOT NULL) STRICT`,
+  `CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT`,
+  // Merging is done in small steps by `compact`, not inside whichever append trips over it.
+  `INSERT INTO grams(grams, rank) VALUES ('automerge', 0)`,
+]
+
+function writeBatch(
+  context: ReadContext,
+  handle: Handle,
+  request: StoreAppendRequest,
+  faults: AppendFaults,
+): void {
+  const prepare = (sql: string) => context.handles.statement(handle, sql)
+  prepare('INSERT OR IGNORE INTO session (id, covered, last_at) VALUES (?, 0, 0)').run(
+    request.session,
+  )
+  const row = prepare('SELECT ordinal, covered, last_at FROM session WHERE id = ?').get(
+    request.session,
+  )!
+  const ordinal = Number(row['ordinal'])
+  const covered = row['covered'] as bigint
+  let lastAt = row['last_at'] as bigint
+  const marker = sessionMarker(ordinal)
+  const serials = new Map<bigint, bigint>()
+  const top = prepare('SELECT max(id) AS top FROM doc WHERE id >= ? AND id < ?')
+  const addDoc = prepare('INSERT INTO doc (id, session, position) VALUES (?, ?, ?)')
+  const addRow = prepare('INSERT INTO grams (rowid, row) VALUES (?, ?)')
+  for (const item of request.documents) {
+    const position = BigInt(item.position)
+    // At or behind the cover: this batch was written before. Writing it again would double it.
+    if (position <= covered) continue
+    if (item.at !== null) lastAt = BigInt(item.at)
+    const base = lastAt * SERIALS
+    const taken = serials.get(base) ?? (top.get(base, base + SERIALS)?.['top'] as bigint | null)
+    const id = taken === null || taken === undefined ? base : taken + 1n
+    serials.set(base, id)
+    addDoc.run(id, ordinal, position)
+    addRow.run(id, documentRow(item.document, [marker]))
+  }
+  faults.afterRows?.()
+  const through = BigInt(request.through)
+  if (through > covered)
+    prepare('UPDATE session SET covered = ?, last_at = ? WHERE ordinal = ?').run(
+      through,
+      lastAt,
+      ordinal,
+    )
+}
+
+/** Rows and cover in one transaction: either both are there afterwards, or neither. */
+export function appendTo(
+  context: ReadContext,
+  request: StoreAppendRequest,
+  faults: AppendFaults = {},
+): null | StoreFailure {
+  const directory = directoryOf(context.root, request.tenant)
+  const known = [pointerOf(directory)?.generation, buildingOf(directory)?.generation]
+  if (!known.includes(request.generation)) return 'generation-gone'
+  let handle: Handle
+  try {
+    handle = context.handles.handleOf(fileOf(directory, request.generation))
+    handle.db.exec('BEGIN IMMEDIATE')
+  } catch {
+    return 'unavailable'
+  }
+  try {
+    writeBatch(context, handle, request, faults)
+    handle.db.exec('COMMIT')
+    return null
+  } catch {
+    handle.db.exec('ROLLBACK')
+    return 'unavailable'
+  }
+}
+
+export function beginRebuild(
+  context: ReadContext,
+  tenant: string,
+  total: number,
+): Readonly<{ generation: number }> | 'unavailable' {
+  try {
+    const directory = directoryOf(context.root, tenant)
+    mkdirSync(directory, { recursive: true })
+    const building = buildingOf(directory)
+    if (building !== null) return { generation: building.generation }
+    const taken = readdirSync(directory).map(name => Number(/^g(\d+)\.db$/u.exec(name)?.[1] ?? 0))
+    const generation = Math.max(pointerOf(directory)?.generation ?? 0, ...taken) + 1
+    const file = fileOf(directory, generation)
+    const { db } = context.handles.handleOf(file)
+    db.exec('BEGIN')
+    for (const sql of SCHEMA) db.exec(sql)
+    context.handles
+      .prepared(file, `INSERT INTO meta (key, value) VALUES ('extraction', ?)`)
+      .run(String(context.extraction))
+    db.exec('COMMIT')
+    writeJson(buildingFile(directory), { generation, total })
+    return { generation }
+  } catch {
+    return 'unavailable'
+  }
+}
+
+export function adopt(
+  context: ReadContext,
+  tenant: string,
+  generation: number,
+): null | StoreFailure {
+  const directory = directoryOf(context.root, tenant)
+  if (buildingOf(directory)?.generation !== generation) return 'generation-gone'
+  try {
+    const earlier = pointerOf(directory)?.generation
+    writeJson(currentFile(directory), { generation, extraction: context.extraction })
+    rmSync(buildingFile(directory), { force: true })
+    // A search bound to the earlier generation keeps its open file; new ones cannot bind to it.
+    if (earlier !== undefined && earlier !== generation) {
+      const file = fileOf(directory, earlier)
+      context.handles.release(file)
+      for (const suffix of ['', '-wal', '-shm']) rmSync(file + suffix, { force: true })
+    }
+    return null
+  } catch {
+    return 'unavailable'
+  }
+}
+
+export function compact(context: ReadContext, tenant: string, pages: number): void {
+  const directory = directoryOf(context.root, tenant)
+  for (const generation of [pointerOf(directory)?.generation, buildingOf(directory)?.generation])
+    if (generation !== undefined)
+      try {
+        context.handles
+          .prepared(
+            fileOf(directory, generation),
+            `INSERT INTO grams(grams, rank) VALUES ('merge', ?)`,
+          )
+          .run(pages)
+      } catch {
+        // A merge that cannot run now runs with a later batch.
+      }
+}

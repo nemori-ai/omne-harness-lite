@@ -122,6 +122,19 @@ describe('the plan of a query: what the index is asked for', () => {
     expect(plan.of).toHaveLength(LIMITS.maxGramsPerLiteral)
   })
 
+  it('finds the first of several literals, and refuses a window only when both ends are given', () => {
+    const entry = entryOf('message.user', [{ text: 'bb then aa' }])
+    const query = compiled(queryOf({ content: literals(['aa', 'bb']) }))
+    expect(matchEntry(query, entry)?.span).toEqual({ start: 0, end: 2 })
+    expect(typeof compileQuery(queryOf({ content: literals(['abc']), from: 9 }), LIMITS)).toBe(
+      'object',
+    )
+    expect(typeof compileQuery(queryOf({ content: literals(['abc']), to: 0 }), LIMITS)).toBe(
+      'object',
+    )
+    expect(contentPlan(regex('(foo|x)baz', true))).toEqual(gram('baz'))
+  })
+
   it('adds the filters as markers: the kinds asked for, and model-readable only when asked', () => {
     const content = literals(['abc'])
     expect(compiled(queryOf({ content })).plan).toEqual(
