@@ -399,7 +399,7 @@
 }
 .omne-search-hit-text mark {
   border-radius: 2px;
-  background: var(--omne-line-focus);
+  background: color-mix(in srgb, var(--omne-accent) 18%, transparent);
   color: inherit;
 }
 .omne-transcript-row[data-found='true'] {

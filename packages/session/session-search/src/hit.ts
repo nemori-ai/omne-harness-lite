@@ -9,7 +9,7 @@ export type SearchHit = Readonly<{
   /** The entry of the message: a start for reading the history around it. */
   position: EntryId
   kind: SearchableKind
-  /** Commit time in epoch milliseconds; null when the log recorded none. */
+  /** The time it counts at: its commit's, or the last one recorded before it; null: none was. */
   at: number | null
   snippet: Snippet
 }>

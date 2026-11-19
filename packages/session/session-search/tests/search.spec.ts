@@ -233,7 +233,7 @@ describe('one message, one hit (SH-6)', () => {
         session: S1,
         position: '2',
         kind: 'message.user',
-        at: null,
+        at: 1234,
         snippet: { before: 'a ', match: 'needle', after: ' with no time' },
       },
       {
@@ -244,6 +244,33 @@ describe('one message, one hit (SH-6)', () => {
         snippet: { before: 'before the ', match: 'needle', after: ' after' },
       },
     ])
+  })
+})
+
+describe('the order and the time of the hits', () => {
+  it('lists newest first, tail and index alike; an entry with no time of its own counts at the one before', async () => {
+    const w = world()
+    const generation = w.index.ready()
+    w.log.commit(S1, [said('needle a')], 1000)
+    w.log.commit(S1, [said('needle b')], null)
+    w.log.commit(S1, [said('needle c')], 2000)
+    w.log.commit(S1, [said('needle d')], null)
+    w.log.commit(S2, [said('needle before any time')], null)
+    const expected = [
+      ['session-1#4', 2000],
+      ['session-1#3', 2000],
+      ['session-1#2', 1000],
+      ['session-1#1', 1000],
+      ['session-2#1', null],
+    ]
+    const shown = async () =>
+      (await w.page(NEEDLE)).hits.map(hit => [`${hit.session}#${hit.position}`, hit.at])
+    expect(await shown()).toEqual(expected)
+    // Partly indexed: what the index has not reached comes first, then what it has.
+    await w.follow(generation, S1, '2')
+    expect(await shown()).toEqual([expected[0], expected[1], expected[4], expected[2], expected[3]])
+    await w.followAll(generation)
+    expect(await shown()).toEqual(expected)
   })
 })
 

@@ -244,6 +244,25 @@ describe('the search page', () => {
     expect(screen.getByRole('button', { name: '更多' })).toBeTruthy()
   })
 
+  it('keeps every change of the form when two of them come in one task', async () => {
+    const { search } = shown([found([])])
+    const box = screen.getByLabelText('要找的词或正则') as HTMLInputElement
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+    // No render between the three: each handler must build on the state as it is, not as it was drawn.
+    await act(async () => {
+      screen.getByRole('button', { name: '正则' }).click()
+      screen.getByRole('checkbox', { name: '只看我说的' }).click()
+      setValue.call(box, 'a+b')
+      box.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    fireEvent.click(screen.getByRole('button', { name: '搜' }))
+    await settle()
+    expect(search.mock.calls[0]![0]).toMatchObject({
+      content: { kind: 'regex', pattern: 'a+b' },
+      kinds: ['message.user'],
+    })
+  })
+
   it('shows a refusal as an alert, in words', async () => {
     const { ask } = shown([
       { outcome: 'invalid', body: { field: 'query', reason: 'pattern-invalid' } },

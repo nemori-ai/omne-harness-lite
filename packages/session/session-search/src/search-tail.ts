@@ -43,8 +43,8 @@ export async function scanTails(
   let [index, scan] = start
   let reads = 0
   const end = (spent: boolean): TailEnd => {
-    // Newest first within the page; the scan itself goes session by session in log order.
-    found.sort((left, right) => right.when - left.when)
+    // Newest first within the page: the scan went in log order, so it is turned round first.
+    found.reverse().sort((left, right) => right.when - left.when)
     for (const { hit } of found) run.hits.push(hit)
     if (index === frozen.length) return { kind: 'done' }
     const position = String(scan.position) as TailPoint['position']
@@ -76,7 +76,14 @@ export async function scanTails(
         scan.position = BigInt(entry.id)
         const match = inWindow(input.query.window, scan.carried) && matchEntry(input.query, entry)
         if (!match) continue
-        const hit = { session, position: entry.id, kind: match.kind, at, snippet: snippetOf(match) }
+        const when = scan.carried === 0 ? null : scan.carried
+        const hit = {
+          session,
+          position: entry.id,
+          kind: match.kind,
+          at: when,
+          snippet: snippetOf(match),
+        }
         found.push({ hit, when: scan.carried })
         if (found.length >= input.pageSize) return end(false)
       }

@@ -77,6 +77,8 @@ export function HistorySearchPage({ store, tenant, nameOf, onOpen }: Props) {
     caseSensitive: false,
     onlyMine: false,
   })
+  // Each change builds on the form as it is now: two of them may come before the next render.
+  const change = (part: Partial<SearchAsk>) => setAsk(current => ({ ...current, ...part }))
   const hits = view.kind === 'idle' ? [] : view.hits
   return (
     <section className="omne-search" aria-label="搜历史">
@@ -92,7 +94,7 @@ export function HistorySearchPage({ store, tenant, nameOf, onOpen }: Props) {
           placeholder={ask.mode === 'regex' ? '一条正则' : '一个或几个词，用空格分开'}
           value={ask.text}
           maxLength={512}
-          onChange={event => setAsk({ ...ask, text: event.target.value })}
+          onChange={event => change({ text: event.target.value })}
         />
         <Button type="submit" size="compact" disabled={view.kind === 'searching'}>
           搜
@@ -101,19 +103,19 @@ export function HistorySearchPage({ store, tenant, nameOf, onOpen }: Props) {
           label="按词还是按正则"
           options={MODES}
           value={ask.mode}
-          onValueChange={mode => setAsk({ ...ask, mode })}
+          onValueChange={mode => change({ mode })}
         />
         <label className="omne-search-option">
           <Checkbox
             checked={ask.onlyMine}
-            onCheckedChange={checked => setAsk({ ...ask, onlyMine: checked === true })}
+            onCheckedChange={checked => change({ onlyMine: checked === true })}
           />
           只看我说的
         </label>
         <label className="omne-search-option">
           <Checkbox
             checked={ask.caseSensitive}
-            onCheckedChange={checked => setAsk({ ...ask, caseSensitive: checked === true })}
+            onCheckedChange={checked => change({ caseSensitive: checked === true })}
           />
           区分大小写
         </label>

@@ -22,6 +22,12 @@ export type WalkStart = Readonly<{
   last: SearchCursor['last']
 }>
 
+// The time a row was appended with is the high part of its number; 0 says none was recorded.
+function timeOf(doc: DocId): number | null {
+  const at = Number(BigInt(doc) >> 20n)
+  return at === 0 ? null : at
+}
+
 const keyOf = (session: SessionId, position: string): string => `${session}\u0000${position}`
 
 export async function walkIndex(run: Run, start: WalkStart): Promise<WalkEnd> {
@@ -41,7 +47,7 @@ export async function walkIndex(run: Run, start: WalkStart): Promise<WalkEnd> {
     const match = matchEntry(input.query, logged.entry)
     if (match === null) return null
     const { session, position } = row
-    return { session, position, kind: match.kind, at: logged.at, snippet: snippetOf(match) }
+    return { session, position, kind: match.kind, at: timeOf(row.doc), snippet: snippetOf(match) }
   }
   for (let rows = start.first; ;) {
     for (let from = 0; from < rows.length; from += limits.verifyBatch) {
