@@ -3,16 +3,23 @@ import type {
   AssetsHoldingResult,
   AssetsVersionResult,
 } from '@omne-harness/assets-local'
-import type { AssetTarget } from '@omne-harness/settings'
+import type { AssetTarget, SettingDefinitions, SettingsDefinitionRef } from '@omne-harness/settings'
 import { canonicalDigest } from '@omne-harness/tool'
 import { TOOL_GOVERNANCE_OWNER } from '../../entry/tool-permission-release.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import type { ToolReleaseEntry } from '../../entry/tool-release-manifest.ts'
 import { toolAssetPublication } from './tool-assets.ts'
 
+export type ReplacedSettings =
+  | Readonly<{
+      kind: 'declared'
+      definition: SettingDefinitions
+      definitionRef: SettingsDefinitionRef
+    }>
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'unreadable' }>
 export type ToolAssetInstallation =
-  | Readonly<{ kind: 'ready'; target: AssetTarget }>
-  | Readonly<{ kind: 'inactive'; target: AssetTarget }>
+  | Readonly<{ kind: 'ready' | 'inactive'; target: AssetTarget; replaced?: ReplacedSettings }>
   | Readonly<{ kind: 'unavailable'; phase: 'publication' | 'holding' }>
 
 type Installation = Readonly<{
@@ -89,16 +96,29 @@ async function hold(input: Installation, publication: Publication, target: Asset
   return current
 }
 
+type Holding = Extract<AssetsHoldingResult, { kind: 'holding' }>
+
+async function replacedSettings(input: Installation, current: Holding): Promise<ReplacedSettings> {
+  if (current.selected === null) return { kind: 'unreadable' }
+  const read = await input.owner.readVersion({
+    assetRef: current.holding.assetRef,
+    version: current.selected.version,
+  })
+  return read.kind === 'version' ? read.version.declaration : { kind: 'unreadable' }
+}
+
 async function select(
   input: Installation,
   publication: Publication,
   target: AssetTarget,
-  current: Extract<AssetsHoldingResult, { kind: 'holding' }>,
+  current: Holding,
 ): Promise<ToolAssetInstallation> {
   if (current.holding.assetRef !== publication.assetRef)
     return { kind: 'unavailable', phase: 'holding' }
   if (current.holding.state === 'removed') return { kind: 'inactive', target }
+  const kind = current.holding.enabled ? 'ready' : 'inactive'
   if (current.selected?.version !== publication.pinned.version) {
+    const replaced = await replacedSettings(input, current)
     const command = {
       holdingRef: target.holdingRef,
       scopeRef: target.scopeRef,
@@ -113,8 +133,9 @@ async function select(
       operationId: canonicalDigest({ owner: TOOL_GOVERNANCE_OWNER, command }),
     })
     if (result.kind !== 'committed') return { kind: 'unavailable', phase: 'holding' }
+    return { kind, target, replaced }
   }
-  return current.holding.enabled ? { kind: 'ready', target } : { kind: 'inactive', target }
+  return { kind, target }
 }
 
 export async function installToolAsset(input: Installation): Promise<ToolAssetInstallation> {

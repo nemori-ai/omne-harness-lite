@@ -34,10 +34,14 @@ it('installs and adopts a real asset without inventing an organization Settings 
     service: w.service,
     assets: w.owner,
     organizationTargets,
+    releaseSettings: { rebase: vi.fn() },
+    warn: vi.fn(),
   }
   expect(await installToolGovernance(input)).toEqual({ kind: 'installed' })
   expect(await installToolGovernance(input)).toEqual({ kind: 'installed' })
   expect(reads).not.toHaveBeenCalled()
+  expect(input.releaseSettings.rebase).not.toHaveBeenCalled()
+  expect(input.warn).not.toHaveBeenCalled()
   const target = toolAssetTarget(w.entry, w.scope.tenantRef)
   expect(
     await w.owner.readHolding({ holdingRef: target.holdingRef, scopeRef: target.scopeRef }),

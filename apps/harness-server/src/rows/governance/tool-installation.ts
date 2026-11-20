@@ -17,6 +17,11 @@ import type { ToolRelease } from '../../entry/tool-release.ts'
 import { TOOL_GOVERNANCE_OWNER } from '../../entry/tool-permission-release.ts'
 import { installToolAsset } from './tool-installation-assets.ts'
 import { installToolOrganizationSource } from './tool-installation-source.ts'
+import {
+  rebaseReplacedSettings,
+  type ReleaseSettingsMaintenance,
+  type ReplacedToolSettings,
+} from './tool-settings-rebase.ts'
 
 type TrustedRelease = Extract<ToolRelease, { kind: 'trusted' }>
 type Service = GovernanceContributions<
@@ -32,6 +37,8 @@ type Options = Readonly<{
   service: Service
   assets: AssetsLocal
   organizationTargets: ReturnType<typeof createStandaloneSettingsOwner>
+  releaseSettings: ReleaseSettingsMaintenance
+  warn(message: string): void
 }>
 export type ToolInstallationResult =
   | Readonly<{ kind: 'installed' }>
@@ -152,7 +159,11 @@ async function installEntry(
   entry: TrustedRelease['manifest']['entries'][number],
   organizationId: string,
 ): Promise<
-  | { kind: 'member'; member: GovernanceCollectionMember }
+  | {
+      kind: 'member'
+      member: GovernanceCollectionMember
+      replaced: ReplacedToolSettings | undefined
+    }
   | Extract<ToolInstallationResult, { kind: 'unavailable' }>
 > {
   const asset = await installToolAsset({
@@ -197,6 +208,10 @@ async function installEntry(
       definition: declaration.reference,
       selectedTargets: asset.kind === 'ready' && sourceReady ? [asset.target] : [],
     },
+    replaced:
+      asset.replaced === undefined
+        ? undefined
+        : { target: asset.target, replaced: asset.replaced, next: definition },
   }
 }
 
@@ -204,10 +219,13 @@ export async function installToolGovernance(input: Options): Promise<ToolInstall
   const organization = organizationCodec.encode(input.principal.tenant.organization)
   if (!organization.ok) return { kind: 'unavailable', phase: 'identity' }
   const members: GovernanceCollectionMember[] = []
+  const replaced: ReplacedToolSettings[] = []
   for (const entry of input.release.manifest.entries) {
     const result = await installEntry(input, entry, organization.value)
     if (result.kind !== 'member') return result
     members.push(result.member)
+    if (result.replaced !== undefined) replaced.push(result.replaced)
   }
+  for (const settings of replaced) await rebaseReplacedSettings(input, settings)
   return adopt(input, members)
 }
