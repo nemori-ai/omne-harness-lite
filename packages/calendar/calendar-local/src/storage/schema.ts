@@ -22,7 +22,13 @@ export const AUTHORITY_FACT = {
   protocol: 'calendar-persistence-authority/1',
 } as const
 export const RESULT_FACT = { key: 'calendar.persistence-result', protocol: PROTOCOL } as const
-export const TABLES = ['ca_current', 'ca_versions', 'ca_candidates', 'ca_outbox'] as const
+export const TABLES = [
+  'ca_current',
+  'ca_versions',
+  'ca_snapshots',
+  'ca_candidates',
+  'ca_outbox',
+] as const
 export const MIGRATION = { owner: PARTICIPANT, id: 'calendar-schema-1' } as const
 export const PAGE_LIMIT = 100
 const text = z.string().min(1)
@@ -112,6 +118,7 @@ export const candidateRecordSchema = z.strictObject({
   command: commandSchema,
   receipt: receiptSchema,
 })
+export const candidateRowSchema = z.strictObject({ candidateRef: text, receipt: receiptSchema })
 export const ackSchema: z.ZodType<CalendarReactionAcknowledgement> = z.strictObject({
   acknowledgementKey: z
     .string()
