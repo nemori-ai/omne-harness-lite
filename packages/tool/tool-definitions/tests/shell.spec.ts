@@ -307,3 +307,23 @@ it('checks a start against the files of the call before it starts, and names the
     refusal('/tmp', 'write'),
   )
 })
+
+it('judges a segment of a retained terminal by the system of its host, not by the one-shot program', async () => {
+  const fixture = shellFixture()
+  const author = value(createShellAuthor(fixture.config))
+  const scope = { read: '/srv/blog', write: '/srv/blog' }
+  const onDarwin = {
+    ...fixture.environment,
+    directory: '/srv/blog',
+    scope,
+    facts: { ...fixture.environment.facts, os: 'darwin' },
+  }
+  const made = await run(author, 'create_session', {}, onDarwin)
+  const terminal = JSON.parse(made.slice(made.indexOf('terminal=') + 9).split('\n')[0]!)
+  expect(await run(author, 'execute', { terminal, script: 'cat /etc/hosts' }, onDarwin)).toContain(
+    'reason=outsideScope path="/etc/hosts" effect=read',
+  )
+  const onWindows = { ...onDarwin, facts: { ...onDarwin.facts, os: 'windows' } }
+  await run(author, 'execute', { terminal, script: 'cat /etc/hosts' }, onWindows)
+  expect(fixture.executions.map(execution => execution.script)).toEqual(['cat /etc/hosts'])
+})

@@ -73,8 +73,7 @@ function word(script: string, at: number): Readonly<{ value: Word; next: number 
     text += next.text
     i = next.next
   }
-  const grouping = (text === '{' || text === '}') && i - at === 1
-  if (script[i] === '(' || script[i] === ')' || grouping) return undefined
+  if ((text === '{' || text === '}') && i - at === 1) return undefined
   return { value: { text, opaque }, next: i }
 }
 

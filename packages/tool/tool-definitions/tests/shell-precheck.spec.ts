@@ -76,6 +76,15 @@ describe('the words of a POSIX script', () => {
       { kind: 'opaque' },
       literal('~/notes'),
     ])
+    expect(shellWords('echo a \\\n  b # c\nls')).toEqual([
+      literal('echo', 'command'),
+      literal('a'),
+      literal('b'),
+      literal('ls', 'command'),
+    ])
+    expect(shellWords('echo > ; ls')).toBeUndefined()
+    expect(shellWords('echo > > x')).toBeUndefined()
+    expect(shellWords('cat <<< /etc/x')).toEqual([literal('cat', 'command')])
     expect(shellWords("cat 'a$b' a#b")).toEqual([
       literal('cat', 'command'),
       literal('a$b'),
@@ -83,8 +92,48 @@ describe('the words of a POSIX script', () => {
     ])
   })
 
+  it('breaks words at tabs and operators written without spaces, and reads each redirection operator', () => {
+    expect(shellWords('cat\ta|grep b&&ls>o 1&>x')).toEqual([
+      literal('cat', 'command'),
+      literal('a'),
+      literal('grep', 'command'),
+      literal('b'),
+      literal('ls', 'command'),
+      { kind: 'redirect', effect: 'write', text: 'o' },
+      literal('1'),
+      { kind: 'redirect', effect: 'write', text: 'x' },
+    ])
+    expect(shellWords('cmd >&out2 2>&10 <&in >2x')).toEqual([
+      literal('cmd', 'command'),
+      { kind: 'redirect', effect: 'write', text: 'out2' },
+      { kind: 'redirect', effect: 'read', text: 'in' },
+      { kind: 'redirect', effect: 'write', text: '2x' },
+    ])
+  })
+
+  it('marks globs and unquoted expansions opaque, but not a quoted brace or a later quoted tilde', () => {
+    expect(shellWords('ls a? b[c] {d,e} x} "{" a"~b" "\\$x" "\\`y"')).toEqual([
+      literal('ls', 'command'),
+      { kind: 'opaque' },
+      { kind: 'opaque' },
+      { kind: 'opaque' },
+      { kind: 'opaque' },
+      literal('{'),
+      literal('a~b'),
+      literal('$x'),
+      literal('`y'),
+    ])
+  })
+
   it('does not split what it does not read: substitutions, here-documents, groups, open quotes', () => {
     for (const script of [
+      'cat "$(pwd)"',
+      'cat "`pwd`"',
+      'echo a(b',
+      '{ ls',
+      'ls {',
+      'ls; }',
+      'ls }',
       'cat $(pwd)/x',
       'cat `pwd`/x',
       'cat <<EOF\n/etc/x\nEOF',
@@ -129,7 +178,15 @@ describe('the precheck of a start (table three)', () => {
   it('row 4: a literal write target outside the write scope does not start, a device does', () => {
     expect(check(both, 'echo x > /etc/motd')).toEqual(outside('/etc/motd', 'write'))
     expect(check(writeOnly, 'echo x >> ../shop/log')).toEqual(outside('/srv/shop/log', 'write'))
-    for (const device of ['/dev/null', '/dev/stdout', '/dev/stderr', '/dev/tty', '/dev/fd/3'])
+    for (const device of [
+      '/dev/null',
+      '/dev/zero',
+      '/dev/stdin',
+      '/dev/stdout',
+      '/dev/stderr',
+      '/dev/tty',
+      '/dev/fd/3',
+    ])
       expect(check(both, `echo x > ${device}`), device).toEqual(start)
     expect(check(both, 'echo x > out.txt')).toEqual(start)
     expect(check({ read: ws }, 'echo x > /etc/motd')).toEqual(start)
@@ -206,7 +263,17 @@ it('judges a path as the files fence does: the same answers on the same paths (C
 })
 
 it('tells the POSIX family of shells by the name of the program', () => {
-  for (const name of ['sh', 'bash', '/bin/zsh', '/usr/local/bin/dash', 'ksh', 'ash'])
+  for (const name of [
+    'sh',
+    'bash',
+    '/bin/zsh',
+    '/usr/local/bin/dash',
+    'ksh',
+    'ash',
+    'mksh',
+    'yash',
+    'C:\\Git\\bin\\bash.exe',
+  ])
     expect(isPosixShell(name), name).toBe(true)
   for (const name of ['pwsh', 'powershell.exe', 'C:\\Windows\\System32\\cmd.exe', 'fish', 'python'])
     expect(isPosixShell(name), name).toBe(false)
