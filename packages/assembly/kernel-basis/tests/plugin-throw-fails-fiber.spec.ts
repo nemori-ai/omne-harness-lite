@@ -59,4 +59,25 @@ describe('plugin-throw-fails-fiber', () => {
     expect(fiber.state as number).toBe(FIBER_STATE.ACTIVE)
     expect(received).toEqual({ ttl: 5 })
   })
+  it('FAILED 的 fiber 不因提供者换代重跑插件体', async () => {
+    const ctx = new Context()
+    let runs = 0
+    const first = await ctx.plugin(plugin('first', inner => inner.provide('svc', 1)))
+    const consumer = ctx.plugin(
+      plugin(
+        'fails-once',
+        () => {
+          runs += 1
+          if (runs === 1) throw new Error('first run fails')
+        },
+        ['svc'],
+      ),
+    )
+    await expect(consumer).rejects.toThrow('first run fails')
+    await first.dispose()
+    await ctx.plugin(plugin('second', inner => inner.provide('svc', 2)))
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(runs).toBe(1)
+    expect(consumer.state as number).toBe(FIBER_STATE.FAILED)
+  })
 })

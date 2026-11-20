@@ -162,7 +162,7 @@ describe('the session-ad06 row: declaration', () => {
   })
 })
 
-describe('the session-ad06 row: on real Cordis 4.0.4', () => {
+describe('the session-ad06 row: on real Cordis 4.1.0', () => {
   it('keeps the newer generation available after the older generation is disposed', async () => {
     const declaration = rowDeclarationOf(sessionAd06Row)
     if (declaration === undefined) throw new Error('session-ad06 must declare its dependencies')

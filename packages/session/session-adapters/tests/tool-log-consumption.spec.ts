@@ -1066,7 +1066,7 @@ describe('AD-06 trigger: the event of the Journal plugin wakes the consumption',
   })
 })
 
-describe('loading and stopping on real Cordis 4.0.4', () => {
+describe('loading and stopping on real Cordis 4.1.0', () => {
   it.each(ALL)('stays pending while %s is absent, and works once it arrives', async missing => {
     const s = await toolScene(`absent-${missing}`)
     await receive(s, s.result, 'result')

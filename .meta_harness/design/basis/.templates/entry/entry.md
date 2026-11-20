@@ -1,7 +1,7 @@
 ---
 id: {{kebab-case-主谓宾；否定事实照直写，如 async-control-not-bail}}
 upstream: {{cordis 或具体 fork 名}}
-version: {{实际读的采用版本，如 4.0.4}}
+version: {{实际读的采用版本，如 4.1.0}}
 kind: {{positive 提供什么 / negative 不提供什么}}
 symbols:
   - "{{稳定的符号或语义位置；绑定靠它，不靠行号}}"

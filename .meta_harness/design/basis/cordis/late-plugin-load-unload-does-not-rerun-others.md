@@ -1,22 +1,22 @@
 ---
 id: late-plugin-load-unload-does-not-rerun-others
 upstream: cordis
-version: 4.0.4
+version: 4.1.0
 kind: negative
 symbols:
   - "fiber.ts: Fiber 构造时向父 fiber 登记 ctx.plugin() effect，撤除函数即这条 effect 的 disposer"
-  - "fiber.ts: _updateState 只对本 fiber 提供的服务键调用 reflect.notify"
-  - "fiber.ts: _refresh 的 epoch 只由本 fiber inject 的各提供者 fiber uid 拼成"
+  - "fiber.ts: _updateState 只对 impl.ctx.fiber 是本 fiber 的服务键，经 ctx.isolate(impl.name, impl.isolate).reflect.notify 通知"
+  - "fiber.ts: _refresh 的 epoch 只由本 fiber 的 _revision 与它 inject 的各份实现的 Impl.uid 拼成"
   - "fiber.ts: Fiber.effect 的 disposer 在本 fiber 卸载时运行"
   - "reflect.ts: notify 只刷新 inject 了被通知键的 fiber"
 lines:
-  - "fiber.ts:265-297"
-  - "fiber.ts:418-560, 675-686"
-  - "fiber.ts:581-595"
-  - "fiber.ts:611-623"
-  - "reflect.ts:314-330"
+  - "fiber.ts:271-303"
+  - "fiber.ts:424-566, 720-730"
+  - "fiber.ts:587-601"
+  - "fiber.ts:617-628"
+  - "reflect.ts:335-348"
 probe: packages/assembly/kernel-basis/tests/late-plugin-load-unload-does-not-rerun-others.spec.ts
-checked: 2026-11-15
+checked: 2026-11-20
 ---
 
 # 根已 ACTIVE 后装载并撤除一个带登记的插件，不重跑其他插件体
@@ -34,9 +34,9 @@ fiber 的状态是 `DISPOSED`。整个过程中，注册表提供者与已有消
 想当然的理解：根已经运行后再装载或撤除插件，会使整棵树重新求值，
 或至少使 inject 了同一服务的其他消费者重跑。撤除插件后，注册表要自己清理这个插件的登记。
 
-实际（4.0.4 取证）：fiber 状态变化只通知本 fiber 提供的服务键。
+实际（4.1.0 取证）：fiber 状态变化只通知本 fiber 提供的服务键。
 不提供服务键的插件，装载和撤除都不通知任何其他 fiber。
-消费者的 epoch 只由它 inject 的提供者 fiber uid 组成。新插件只是读取注册表，
+消费者的 epoch 只由它自己的修订号与它 inject 的各份实现的标识（`Impl.uid`，每次 provide 递增）组成。新插件只是读取注册表，
 所以注册表的提供者 fiber 不变，其他消费者的 epoch 也不变。
 登记由插件自己 fiber 上的 effect 持有。fiber 卸载时运行 effect 的 disposer，登记随之删除。
 
@@ -44,15 +44,15 @@ fiber 的状态是 `DISPOSED`。整个过程中，注册表提供者与已有消
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `fiber.ts` 构造函数 | `this.dispose = parent.fiber.effect(...)`；disposer 把 uid 置空并卸载本 fiber | 读源码 265–297 行 |
-| `fiber.ts` `_updateState` | 只在 ACTIVE 与非 ACTIVE 之间变化时，对 `impl.fiber === this` 的键调用 `notify` | 读源码 581–595 行 |
-| `fiber.ts` `_refresh` | epoch 由 inject 的各键对应的提供者 fiber uid 拼成 | 读源码 611–623 行 |
-| `reflect.ts` `notify` | 只刷新 inject 里含被通知键的 fiber | 读源码 314–330 行 |
-| `fiber.ts` `effect` | disposer 在显式撤除或 fiber 卸载时运行 | 读源码 418–560 行（登记）与 675–686 行（卸载时运行），或跑探针 |
+| `fiber.ts` 构造函数 | `this.dispose = parent.fiber.effect(...)`；disposer 把 uid 置空并卸载本 fiber | 读源码 271–303 行 |
+| `fiber.ts` `_updateState` | 只在 ACTIVE 与非 ACTIVE 之间变化时，对 `impl.ctx.fiber === this` 的键调用 `notify` | 读源码 587–601 行 |
+| `fiber.ts` `_refresh` | epoch 由本 fiber 的 `_revision` 与 inject 的各键对应的 `Impl.uid` 拼成 | 读源码 617–628 行 |
+| `reflect.ts` `notify` | 只刷新 inject 里含被通知键的 fiber | 读源码 335–348 行 |
+| `fiber.ts` `effect` | disposer 在显式撤除或 fiber 卸载时运行 | 读源码 424–566 行（登记）与 720–730 行（卸载时运行），或跑探针 |
 
 ## 探针断言什么
 
-探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.1.0 核对：
 
 1. 根、注册表提供者和已有消费者都是 `ACTIVE`，两者的插件体各运行一次。
 2. 装载后插件 fiber 是 `ACTIVE`，插件体运行一次，Map 里有它的登记。注册表提供者与消费者的运行次数仍是一次。

@@ -1,21 +1,21 @@
 ---
 id: service-method-ctx-is-caller
 upstream: cordis
-version: 4.0.4
+version: 4.1.0
 kind: positive
 symbols:
   - "service.ts: Service 构造时设 tracker，property 为 'ctx'"
   - "reflect.ts: ctx.get(name) 返回 getTraceable(this.ctx, 实现)，this.ctx 是发起读取的那个上下文"
-  - "utils.ts: getTraceable 只包装带 tracker 的值；createTraceable 的代理在读 tracker.property 时返回调用方的 ctx"
+  - "utils.ts: getTraceable 只包装带 tracker 的值；createTraceable 的代理在读 tracker.property 时返回使用处的 ctx（服务被消费的那个上下文，即调用方；effect 归它），读 symbols.caller 时返回定义处的 ctx"
   - "fiber.ts: ctx.effect 返回撤除函数"
 lines:
   - "service.ts:42-58"
-  - "reflect.ts:233-235"
-  - "utils.ts:117-124"
-  - "utils.ts:165-176"
-  - "fiber.ts:415-418"
+  - "reflect.ts:247-249"
+  - "utils.ts:118-125"
+  - "utils.ts:167-177"
+  - "fiber.ts:421-424"
 probe: packages/assembly/kernel-basis/tests/service-method-ctx-is-caller.spec.ts
-checked: 2026-11-15
+checked: 2026-11-20
 ---
 
 # 经调用方取到的 `Service`，方法里的 `this.ctx` 是调用方的上下文
@@ -35,7 +35,7 @@ checked: 2026-11-15
 
 **想当然的理解**：服务方法里的 `this.ctx` 就是服务自己装载时的那个上下文，登记会挂在服务的 fiber 上、随服务一起撤。
 
-**实际（4.0.4 取证）**：`Service` 构造时设了 `tracker`（`property: 'ctx'`），`ctx.get` 用 `getTraceable(this.ctx, …)` 包装，
+**实际（4.1.0 取证）**：`Service` 构造时设了 `tracker`（`property: 'ctx'`），`ctx.get` 用 `getTraceable(this.ctx, …)` 包装，
 代理在读 `ctx` 这个属性时返回发起读取的上下文。
 
 ## 证据
@@ -43,13 +43,13 @@ checked: 2026-11-15
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
 | `service.ts` 构造函数 | `tracker = { associate: name, property: 'ctx' }`，挂到实例上 | 读源码 42–58 行 |
-| `reflect.ts` `get` | `return getTraceable(this.ctx, this._getImpl(name, strict)?.value)` | 读源码 233–235 行 |
-| `utils.ts` `getTraceable`／`createTraceable` | 无 tracker 原样返回；代理的 `get` 在 `prop === tracker.property` 时返回调用方 ctx | 读源码 117–124、165–176 行 |
-| `fiber.ts` `effect` | 返回 `Disposable`／`AsyncDisposable` | 读源码 415–418 行，或跑探针第 2 条 |
+| `reflect.ts` `get` | `return getTraceable(this.ctx, this._getImpl(name, strict)?.value)` | 读源码 247–249 行 |
+| `utils.ts` `getTraceable`／`createTraceable` | 无 tracker 原样返回；代理的 `get` 在 `prop === tracker.property` 时返回使用处的 ctx（`useSite`），也就是调用方 | 读源码 118–125、167–177 行 |
+| `fiber.ts` `effect` | 返回 `Disposable`／`AsyncDisposable` | 读源码 421–424 行，或跑探针第 2 条 |
 
 ## 探针断言什么
 
-探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.1.0 核对：
 
 1. 注册表 `Service` 的 `register(entry)` 写成 `this.ctx.effect(() => { 加入; return 移除 })`；
    一个 inject 了它的贡献者插件登记一条，撤除贡献者后这条不在了，注册表的 fiber 仍是 `ACTIVE`。

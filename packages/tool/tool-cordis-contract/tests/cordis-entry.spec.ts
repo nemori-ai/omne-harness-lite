@@ -119,7 +119,7 @@ describe('cordis definition entry has no Tool implementation', () => {
   })
 })
 
-describe('under Cordis 4.0.4', () => {
+describe('under Cordis 4.1.0', () => {
   const allow: ToolPublicationAuthority<string> = { check: () => ({ ok: undefined }) }
 
   it('resolves a provider through the abstract definition key', async () => {

@@ -46,7 +46,7 @@ flowchart TB
 
 三种 runtime 各为独立协程。每个在场实例由本域执行宿主创建贡献 fiber；fiber 管理登记和本实例资源，业务身份及未完责任继续保存在领域提供者。Session 是工作治理服务，不被画成拥有三种执行寿命的父协程。
 
-Cordis 4.0.4 的 Service 方法 `this.ctx` 是调用方 Context。Model/Tool 的 schedule 若直接在此处 `this.ctx.plugin(...)`，从 Agent 调用时会生成 Agent 子 fiber，违反独立寿命。采用的宿主设计在构造时捕获执行宿主自己的 Context，schedule 将显式业务身份交入该宿主，由其在自己 Context 上建立实例贡献 fiber。实际注册在该实例插件内调用目录 Service.register，继续遵守 IC-13 的 caller-fiber 归属。捕获宿主只用于生命周期，不用于推断租户或绕过当前资格。
+Cordis 4.1.0 的 Service 方法 `this.ctx` 是调用方 Context。Model/Tool 的 schedule 若直接在此处 `this.ctx.plugin(...)`，从 Agent 调用时会生成 Agent 子 fiber，违反独立寿命。采用的宿主设计在构造时捕获执行宿主自己的 Context，schedule 将显式业务身份交入该宿主，由其在自己 Context 上建立实例贡献 fiber。实际注册在该实例插件内调用目录 Service.register，继续遵守 IC-13 的 caller-fiber 归属。捕获宿主只用于生命周期，不用于推断租户或绕过当前资格。
 
 注册表用 `this.ctx.effect` 配对登记与条件撤除。登记项带目录键（Model/Tool 为稳定工作键，Agent 为租户加实例身份）、实例身份、代次及 contribution token。受信宿主必须先证明该实例合法在场；冲突登记拒绝，仅同一 fiber 的原贡献同值认回；新贡献先等旧贡献明确撤除（Agent 的后继登记按其 SPEC 原子取代旧登记）。精确 register 输入、资格依赖、回执和撤除方式归三份成员集成页。旧撤除仅在 token 与当前项一致时移除，不能撤新实例。查询核当前身份/tenant/资源动作，返回受限句柄或无活体路由；无活体不证明事实不存在。除 IC-13 允许的目录写法外，注册表不另记贡献者清单或等待用户手动注销。
 
