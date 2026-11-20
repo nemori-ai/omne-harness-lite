@@ -193,6 +193,7 @@ describe('导航上的张数', () => {
     const view = render(<PendingBadge hub={hub} tenant={TENANT} />)
     await answer(fake, 'list-cards', page([questionItem(), extensionItem()]))
     expect(view.container.textContent).toBe('2')
+    expect(view.container.querySelector('[data-count-pill]')?.textContent).toBe('2')
     fake.observations[0]!.frame()
     await answer(fake, 'list-cards', page([]))
     expect(view.container.innerHTML).toBe('')
@@ -215,7 +216,7 @@ describe('导航上的张数', () => {
       </>,
     )
     await answer(fake, 'list-cards', page([questionItem()]))
-    expect(view.container.querySelector('.hitl-badge')?.textContent).toBe('1')
+    expect(view.container.querySelector('[data-count-pill]')?.textContent).toBe('1')
     expect(count(fake, 'list-cards')).toBe(1)
     expect(fake.observations).toHaveLength(1)
   })

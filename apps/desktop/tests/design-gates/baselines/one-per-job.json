@@ -5,7 +5,6 @@
     "packages/frontend/ui-kit/src/charts/frame.tsx | home-made empty state": 1,
     "packages/frontend/ui-kit/src/charts/frame.tsx | native disclosure": 1,
     "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | native disclosure": 1,
-    "packages/human-intervention/human-intervention-ui/src/view/human-intervention-ui.css | own pill or badge .hitl-badge": 1,
     "packages/identity/identity-ui/src/view/account-block.tsx | bare loading text": 1,
     "packages/session/session-ui/src/view/background-pane.tsx | bare loading text": 1,
     "packages/session/session-ui/src/view/background-pane.tsx | home-made empty state": 3,
