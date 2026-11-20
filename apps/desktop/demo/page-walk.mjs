@@ -804,7 +804,11 @@ async function walk(browser, origin, proofs, elsewhere) {
       phase = 'asked'
     },
     `
+    const shown = id => document.querySelector('section[data-page=' + id + ']')?.hidden === false
     await goHome()
+    await wait('the home to go to the decisions page while answers wait', () => shown('decisions'))
+    ;(await wait('the open session in the list', () => document.querySelector('.omne-session-item[aria-current=true]'))).click()
+    await wait('the conversation page', () => shown('conversation'))
     const area = await wait('the cards of this session', () => dock())
     const showing = () => shownCard(area)?.getAttribute('aria-label')
     const stage = area.querySelector('.hitl-area')
@@ -848,6 +852,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
     await wait('the pool empty', () => page.textContent.includes('现在没有要你决定的事'))
     await goHome()
+    await wait('the home to go to the conversation once nothing waits', () => shown('conversation'))
     return { answered: steps, transcript: transcript().slice(-160) }`,
   )
   phase = 'pool'
