@@ -34,12 +34,16 @@ export type TenantBindingPorts = Readonly<{
 /** The metadata of a tenant's media lives in its own domain. A binding that was had is not asked again. */
 export function createTenantBindings(ports: TenantBindingPorts) {
   const bound = new Map<string, Promise<TenantBinding | null>>()
+  let combination: Promise<Combination> | undefined
 
   async function open(tenant: string): Promise<TenantBinding | null> {
     const registration = ports.registration()
     const domain = await tenantDomainOf({ lookup: ports.lookup, registration }, tenant)
     if (domain === undefined) return null
-    const fixed = await ports.combination()
+    const fixed = await (combination ??= ports.combination()).catch(error => {
+      combination = undefined
+      throw error
+    })
     const { scope, transactionDomain } = domain
     const registered = await ports.storage.registerCombination({
       scope,
