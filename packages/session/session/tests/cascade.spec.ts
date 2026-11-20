@@ -170,6 +170,27 @@ describe('the cascade of an archive', () => {
     await handle.release()
   })
 
+  it.each([
+    ['invalid', { kind: 'invalid', field: 'intent', reason: 'no' }],
+    ['not-found', { kind: 'not-found' }],
+  ] as const)(
+    'takes a child that answers %s for a refusal, with that reason',
+    async (reason, failure) => {
+      const h = await tree()
+      const seen = childControls(h, session =>
+        session === sessionId('child-2') ? (failure as SessionFailure) : null,
+      )
+      succeeded(await archive(h), 'archive')
+      await settle()
+      expect(cascades(await read(h, 'parent'))).toMatchObject([
+        { child: 'child-2', state: 'denied' },
+      ])
+      expect(seen.facts).toContainEqual(
+        expect.objectContaining({ child: 'child-2', refusal: { reason } }),
+      )
+    },
+  )
+
   it('drives a child again under the same identity when the result of its archive is not known', async () => {
     const h = await tree()
     const seen = childControls(h, (session, attempt) =>
