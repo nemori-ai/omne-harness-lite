@@ -137,6 +137,8 @@ it('mounts one real producer per tenant through the production authority and wit
       modes.prepareInitial({ ...input, principal }, initial.blocks[0]!.block)
     expect(await asPart(part)).toHaveProperty('ok')
     expect(await asPart(structuredClone(part))).toHaveProperty('failure')
+    // A verified principal that acts for another tenant is not a system part: it prepares as itself and is refused.
+    expect(await asPart(principals.forTenant(fixtureTenant('b')))).toHaveProperty('failure')
     const tampered = {
       ...command,
       input: {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { AGENT_TYPES, SUMMARY_LIMITS, judgeAgentDefinition } from '@omne-harness/agent-contract'
+import {
+  AGENT_TYPES,
+  SUMMARY_LIMITS,
+  definitionListing,
+  judgeAgentDefinition,
+} from '@omne-harness/agent-contract'
 
 const base = {
   category: 'AgentDefinition',
@@ -53,5 +58,16 @@ describe('the type and the summary of an Agent definition', () => {
       ...malformed,
       detail: `summary: 1001 UTF-8 bytes exceed ${limit}`,
     })
+  })
+
+  it('lists a definition by its name, its type and its summary, and nothing else', async () => {
+    const judged = await judgeAgentDefinition({
+      ...base,
+      instructions: [{ id: 'role', text: 'You review.' }],
+    })
+    if (judged.kind !== 'accepted') throw new Error(judged.reason)
+    const listed = definitionListing(judged.value)
+    expect(listed).toEqual({ name: 'reviewer', type: 'non-master', summary: base.summary })
+    expect(Object.isFrozen(listed)).toBe(true)
   })
 })

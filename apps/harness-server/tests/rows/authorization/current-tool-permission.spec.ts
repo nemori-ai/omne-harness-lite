@@ -29,7 +29,6 @@ import type { PermissionBasisReading, PermissionBasisRequest } from '@omne-harne
 import { loadProductionRelease, TOOL_RELEASE_TENANT } from '../../../src/entry/tool-release.ts'
 import {
   createCurrentToolPermission,
-  NOBODY_TO_ASK,
   declaredPermission,
   type ToolPermissionAction,
   type ToolPermissionPorts,
@@ -824,7 +823,8 @@ it('denies an asking gate and says why when the session has nobody to ask', asyn
     kind: 'deny',
     category: 'rule',
     reason: 'nobody-to-ask',
-    notice: NOBODY_TO_ASK,
+    notice:
+      'This action needs the approval of a person, and no person can be asked here. Continue without it, or stop and report what you need.',
   })
   const refuse = { onAsk: 'deny' } as const
   const never = { ...w.inquiry, inquiry: { ...w.inquiry.inquiry, policy: refuse } }

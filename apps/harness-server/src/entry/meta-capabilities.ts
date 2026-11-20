@@ -33,7 +33,8 @@ const CONDITIONS: Readonly<Record<string, Condition>> = Object.freeze({
 const NOTHING: ReadonlySet<string> = new Set()
 
 export function heldConditions(facts: SessionFacts): ReadonlySet<string> {
-  return new Set(Object.keys(CONDITIONS).filter(name => CONDITIONS[name]?.holds(facts) === true))
+  const held = Object.entries(CONDITIONS).filter(([, condition]) => condition.holds(facts))
+  return new Set(held.map(([name]) => name))
 }
 
 /** True when some call of this tool needs a condition, so the facts of the session must be read. */

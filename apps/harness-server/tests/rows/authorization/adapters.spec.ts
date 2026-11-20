@@ -1879,6 +1879,17 @@ describe('a part of another domain works in a tenant by the three purposes (ID-5
     )
   })
 
+  it('denies a system part that names no tenant', async () => {
+    const w = world()
+    const request = mutate(w.system('dispatch'), 'create')
+    const { tenant: _tenant, ...access } = request.access as {
+      tenant: TenantId
+      principal: unknown
+    }
+    expect((await w.session.check({ ...request, access } as never)).kind).not.toBe('allowed')
+    expect(w.seen.matrix).toEqual([])
+  })
+
   it('answers an allowed input of a system part as a system subject, never as a member', async () => {
     const w = world()
     const decided = await w.session.check(mutate(w.system('dispatch'), 'accept', ordinaryValue))

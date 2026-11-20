@@ -281,6 +281,12 @@ it('translates the default co-work into an open interaction, selected with its b
     source: input.defaults.source,
     translation: SESSION_COLLABORATION_MODE_TRANSLATION,
   })
+  expect(SESSION_COLLABORATION_MODE_TRANSLATION).toMatchObject({
+    owner: '@omne-harness/session-adapters',
+    name: 'collaboration-mode',
+    revision: '3',
+    digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u),
+  })
   const selected = sessionInteractionBinding.translate(result.value)
   expect(selected).toEqual({ interaction: result.value.interaction, basis: result.value.basis })
   expect(sessionInteractionBinding.need.consumer).toBe('coordinator')

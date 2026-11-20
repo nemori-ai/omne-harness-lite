@@ -323,7 +323,7 @@ function guardedCondition(
   return { ...condition, commands: [...commands, guard] }
 }
 
-export const NOBODY_TO_ASK =
+const NOBODY_TO_ASK =
   'This action needs the approval of a person, and no person can be asked here. Continue without it, or stop and report what you need.'
 
 function releaseDecision(decided: ReleaseDecision, found: Found): ToolPermissionDecision {

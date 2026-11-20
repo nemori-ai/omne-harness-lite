@@ -100,6 +100,32 @@ describe('a call is judged by the conditions its command declares', () => {
     })
   })
 
+  it('names every condition that does not hold, and says "this tool" for a tool without commands', async () => {
+    const both = {
+      kind: 'commands',
+      name: 'Fixture',
+      commands: [{ name: 'page', conditions: ['person-present', 'person-answers'] }],
+    } as unknown as ToolDefinition
+    expect(await judgeCallConditions(reads(CHILD).read, access, both, 'page')).toEqual({
+      kind: 'closed',
+      answer:
+        'Fixture: the command "page" is not available here: no person attends this session; no person can be asked for an answer in this session now. Continue without it, or stop and report what you need.',
+    })
+    const fn = { kind: 'function', name: 'Report', conditions: ['dispatched'] }
+    expect(
+      await judgeCallConditions(
+        reads(ATTENDED).read,
+        access,
+        fn as unknown as ToolDefinition,
+        null,
+      ),
+    ).toEqual({
+      kind: 'closed',
+      answer:
+        'Report: this tool is not available here: this session was not dispatched by another agent. Continue without it, or stop and report what you need.',
+    })
+  })
+
   it('answers unreadable when the session cannot be read', async () => {
     const { read } = reads('unreadable')
     expect(await judgeCallConditions(read, access, tool, 'ask')).toEqual({

@@ -1,7 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { agentEvaluator } from '@omne-harness/agent'
 import {
-  definitionListing,
   judgeAdoption,
   type AgentAdoptions,
   type AgentDefinitionListing,
@@ -19,16 +18,13 @@ import type { MappingTable } from './table.ts'
 
 /** Every definition of the release is the product's own, so every tenant sees the whole table. */
 export class AgentDefinitionCatalogImpl extends AgentDefinitionCatalogService {
-  private readonly table: MappingTable
+  private readonly listings: readonly AgentDefinitionListing[]
   constructor(ctx: Context, table: MappingTable) {
     super(ctx)
-    this.table = table
+    this.listings = table.listings
   }
   visibleTo(): readonly AgentDefinitionListing[] {
-    return this.table.mappings.entries().flatMap(entry => {
-      const side = this.table.agentSide(entry.candidate)
-      return side === undefined ? [] : [definitionListing(side.definition)]
-    })
+    return this.listings
   }
 }
 
