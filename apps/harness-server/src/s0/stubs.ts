@@ -263,7 +263,9 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     group: 'agent-journal',
   },
-  'agent-adoptions': { provides: ['agentAdoptions', 'definitionMappings'] },
+  'agent-adoptions': {
+    provides: ['agentAdoptions', 'definitionMappings', 'agentDefinitionCatalog'],
+  },
   'adoption-sources': {
     provides: ['sessionAdoptionSource'],
     injects: ['definitionMappings', 'sessionWorkPrincipals'],

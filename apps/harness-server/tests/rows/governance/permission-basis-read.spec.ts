@@ -101,6 +101,8 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
     entryConfig('alpha', {
       definition: {
         category: 'AgentDefinition',
+        type: 'master',
+        summary: 'Works on what the person asks for.',
         name: 'alpha',
         references: [],
         attributes: [],

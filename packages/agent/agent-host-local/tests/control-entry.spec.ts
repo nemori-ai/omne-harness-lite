@@ -118,7 +118,14 @@ async function running() {
   })
   opened.push(host)
   host.controls.adoptions.define(definitions.first, {
-    definition: { category: 'AgentDefinition', name: 'control', references: [], attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'control',
+      references: [],
+      attributes: [],
+    },
     evaluator: agentEvaluator,
     extensions: [],
   })

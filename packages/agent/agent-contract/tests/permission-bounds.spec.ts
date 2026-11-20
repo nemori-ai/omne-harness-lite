@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { readBodyText } from '@omne-harness/assets'
 import { agentBodyContract, judgeAgentDefinition } from '@omne-harness/agent-contract'
 
-const base = { name: 'bounded-agent', references: [], attributes: [] }
+const base = {
+  name: 'bounded-agent',
+  type: 'non-master',
+  summary: 'Works within the bounds it states.',
+  references: [],
+  attributes: [],
+}
 const bound = { capabilityId: 'Shell', enforcementKey: 'tool.invoke', allowedSet: ['ask'] }
 const limits = {
   maxBytes: 100_000,

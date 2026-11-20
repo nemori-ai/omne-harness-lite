@@ -129,7 +129,14 @@ async function waitingAtM1(given: HostOptions = {}) {
   opened.push(host)
   await host.host
   host.controls.adoptions.define(definitions.first, {
-    definition: { category: 'AgentDefinition', name: 'reception', references: [], attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'reception',
+      references: [],
+      attributes: [],
+    },
     evaluator: agentEvaluator,
     extensions: [],
   })

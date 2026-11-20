@@ -695,7 +695,12 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   const adoptions = createTableAdoptions<unknown>()
   const run = creation().definition.candidate
   adoptions.define(run, {
-    definition: { category: 'AgentDefinition', name: 'assistant' } as never,
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'assistant',
+    } as never,
     evaluator: agentEvaluator,
     extensions: [],
   })

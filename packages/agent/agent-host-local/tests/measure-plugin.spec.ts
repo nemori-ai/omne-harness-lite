@@ -62,7 +62,12 @@ async function invokeThrough(plugin: ReturnType<typeof createAgentHostLocalPlugi
   opened.push(made)
   const execution = ok(decodeAgentExecutionId('measured-execution'))
   made.controls.adoptions.define(definitions.first, {
-    definition: { category: 'AgentDefinition', name: 'test' } as never,
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'test',
+    } as never,
     evaluator: agentEvaluator,
     extensions: [],
   })

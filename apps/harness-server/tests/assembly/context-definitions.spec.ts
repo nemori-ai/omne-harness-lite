@@ -142,14 +142,20 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
     for (const entry of mappings) {
       expect(Object.keys(entry.definition).sort()).toEqual(
         entry.name === 'coding'
-          ? ['attributes', 'category', 'instructions', 'name', 'references']
-          : ['attributes', 'category', 'name', 'references'],
+          ? ['attributes', 'category', 'instructions', 'name', 'references', 'summary', 'type']
+          : ['attributes', 'category', 'name', 'references', 'summary', 'type'],
       )
-      expect(entry.definition).toMatchObject({ category: 'AgentDefinition', name: entry.name })
+      expect(entry.definition).toMatchObject({
+        category: 'AgentDefinition',
+        type: entry.name === 'coding' ? 'master' : 'non-master',
+        name: entry.name,
+      })
     }
     const assistant = mappings.find(entry => entry.name === 'assistant')
     expect(assistant?.definition).toEqual({
       category: 'AgentDefinition',
+      type: 'non-master',
+      summary: expect.stringMatching(/^A general assistant without tools\./u),
       name: 'assistant',
       references: [],
       attributes: [],
