@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { build } from 'vite'
+import { createClient } from '@omne-harness/sdk/core'
+import { domainProtocols } from '../dist/shared/protocols.js'
 import {
   devtools,
   evaluate,
@@ -20,17 +22,20 @@ const USAGE = `usage: node apps/desktop/demo/visual-walk.mjs [options]
 
 The acceptance walk of the page's look: a server on a fresh state directory with a scripted model, the standalone
 forwarding process and a headless Chromium; it seeds the acceptance data, then shoots every scene in every theme,
-window and size asked for, named <scene>-<theme>-<width>[-<size>].png. Each shot prints how far the page
-scrolls sideways; the specimen scene prints the page policy violations it saw.
+window and size asked for, named <scene>-<theme>-<width>[-<size>].png. A scene that means something only in some
+windows says which; in the others it prints SKIP <scene> <width>. Each shot prints how far the page scrolls
+sideways; the specimen scene prints the page policy violations it saw. The scenes that end the login (A2-expired)
+or stop the walk's own server (A7-disconnected) run after the other signed-in scenes, the server one last.
 
   --shots <dir>        where the pictures go (a fresh temporary folder by default)
-  --scenes <a,b>       only these scenes (by id); --list prints them
+  --scenes <a,b>       only these scenes (by id); --list prints them, ※ marks the ones the acceptance asks
+                       to see in every size
   --themes <a,b>       light,dark (default both)
   --widths <a,b>       1440x900,1100x760,720x480 (default 1440x900,1100x760)
-  --sizes <a,b>        medium,small,large,reading: the extra sizes for the scenes marked ※ (default none)
+  --sizes <a,b>        medium,small,large,reading: the sizes besides medium, for every scene (default none)
   --scale <n>          device pixels per CSS pixel (default 1)
-  --series <a,b>       record these frame series instead of the scenes, once per theme, each on a fresh
-                       specimen page (--list prints them)
+  --series <a,b>       record these frame series instead of the scenes, once per theme (--list prints them);
+                       the ink series each run on a fresh specimen page, the app series in the app, signed in
   --reduced            emulate prefers-reduced-motion: reduce for everything shot or recorded
 
 Needs \`pnpm run build\` in apps/desktop and apps/harness-server first. The specimen page (demo/specimen/) is built
@@ -55,14 +60,21 @@ if (args.includes('--help')) {
 const print = line => process.stdout.write(`${line}\n`)
 const shots = resolve(option('--shots', mkdtempSync(join(tmpdir(), 'visual-walk-'))))
 const themes = list('--themes', 'light,dark')
-const widths = list('--widths', '1440x900,1100x760').map(text => {
+const windowOf = text => {
   const [width, height = 900] = text.split('x').map(Number)
   return { name: String(width), width, height }
-})
+}
+const widths = list('--widths', '1440x900,1100x760').map(windowOf)
 const sizes = list('--sizes', '')
 const scale = Number(option('--scale', '1'))
 const reduced = args.includes('--reduced')
 const ACCOUNT = { loginIdentifier: 'visual', credential: 'visual-walk-pw-3b81' }
+/** The window every scene's way in runs at: the sidebar's links are there only from 768 up. */
+const WAY_IN = windowOf('1440x900')
+/** How long a scene stays still after its animations ended, before the shot. */
+const SETTLE_MS = 600
+/** What the strong notification of the told note says (its source and type follow it). */
+const TOLD_TITLE = '22:57 了，该把窗户关上啦'
 
 const REPLY_MARKDOWN = [
   '## 这一轮做了什么',
@@ -211,6 +223,110 @@ const HELPERS = `
     link.click()
     await sleep(300)
   }
+  const signIn = async (mode, account) => {
+    await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))
+    await press('button', mode)
+    fill(document.querySelector('input[name=loginIdentifier]'), account.loginIdentifier)
+    fill(document.querySelector('input[name=credential]'), account.credential)
+    await press('button[type=submit]', mode === '第一次使用' ? '注册并登录' : '登录')
+    await wait('the sidebar', () => document.querySelector('.shell-sidebar'))
+  }
+  const shown = element => element !== null && element !== undefined && element.getClientRects().length > 0
+  const centre = element => {
+    const box = element.getBoundingClientRect()
+    return [box.left + box.width / 2, box.top + box.height / 2]
+  }
+  /** The seat the figure sits on: the shown seat nearest its centre, once it has stopped flying. */
+  const seatOf = () => {
+    const body = document.querySelector('.omne-figure-carried')
+    if (!body || body.dataset.phase !== 'seated') return undefined
+    const [x, y] = centre(body)
+    let nearest
+    for (const seat of document.querySelectorAll('[data-figure-seat]')) {
+      if (!shown(seat)) continue
+      const [left, top] = centre(seat)
+      const away = Math.hypot(left - x, top - y)
+      if (nearest === undefined || away < nearest.away) nearest = { name: seat.dataset.figureSeat, away }
+    }
+    return nearest?.name
+  }
+  /** The running animations that end: not the looping marks, not the ones a scroll drives (the code edges). */
+  const ending = () => document.getAnimations().filter(animation =>
+    animation.playState === 'running' && animation.timeline === document.timeline &&
+    animation.effect?.getTiming().iterations !== Infinity)
+  /** Every animation that ends has ended, then a still moment. */
+  const settle = async () => {
+    try {
+      await wait('the animations to end', () => ending().length === 0)
+    } catch (failure) {
+      const names = ending().map(animation =>
+        (animation.animationName ?? animation.transitionProperty ?? animation.id ?? '?') + ' on ' +
+        (animation.effect?.target?.className || animation.effect?.target?.tagName))
+      throw new Error(failure.message + ': ' + names.join('; '))
+    }
+    await sleep(${SETTLE_MS})
+  }
+  const seated = async name => {
+    await wait('the figure seated at ' + name, () => seatOf() === name)
+    await settle()
+  }
+  const narrow = () => !window.matchMedia('(min-width: 768px)').matches
+  /** Still, with the figure on the seat this screen gives it: the gate, the conversation's header or home. */
+  const rest = async () => {
+    if (document.querySelector('input[name=loginIdentifier]')) return await seated('gate')
+    if (document.querySelector('section[data-page=conversation]:not([hidden])')) return await seated('header')
+    if (narrow() && document.querySelector('.shell-sheet') === null) return await settle()
+    await seated('home')
+  }
+  const escape = target => target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  const openDrawer = async () => {
+    if (document.querySelector('.shell-sheet') === null)
+      (await wait('the menu button', () => document.querySelector('.shell-menu'))).click()
+    await wait('the drawer', () => document.querySelector('.shell-sheet[data-state=open]'))
+    await seated('home')
+  }
+  const closeDrawer = async () => {
+    const sheet = document.querySelector('.shell-sheet')
+    if (sheet === null) return
+    escape(sheet)
+    await wait('the drawer to close', () => document.querySelector('.shell-sheet') === null)
+  }
+  const openAppearance = async () => {
+    if (narrow()) await openDrawer()
+    const within = document.querySelector('.shell-sheet') ?? document.querySelector('.shell-sidebar')
+    const trigger = await wait('the appearance control', () => within.querySelector('[data-appearance]'))
+    trigger.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))
+    await wait('the appearance menu', () => document.querySelector('[role=menu][data-state=open]'))
+    await settle()
+  }
+  const closeMenu = async () => {
+    const menu = document.querySelector('[role=menu]')
+    if (menu === null) return
+    escape(menu)
+    await wait('the menu to close', () => document.querySelector('[role=menu]') === null)
+  }
+  const fold = async width => {
+    const sidebar = await wait('the sidebar', () => document.querySelector('.shell-sidebar'))
+    if (sidebar.dataset.width !== width) sidebar.querySelector('.shell-fold').click()
+    const labels = width === 'rail' ? 'hidden' : 'shown'
+    await wait('the sidebar ' + width, () => sidebar.dataset.width === width && sidebar.dataset.labels === labels)
+    await settle()
+  }
+  const sideControl = () =>
+    document.querySelector('section[data-page=conversation]:not([hidden]) button.omne-session-figure')
+  const bubble = () => document.querySelector('.omne-session-side[data-presentation=bubble]')
+  const openSide = async () => {
+    const control = await wait('the figure and name in the header as a control', sideControl)
+    if (control.getAttribute('aria-expanded') !== 'true') control.click()
+    await wait('the light ink bubble written', () => bubble()?.dataset.ink === 'open')
+    await settle()
+  }
+  const closeSide = async () => {
+    const control = sideControl()
+    if (control?.getAttribute('aria-expanded') === 'true') control.click()
+    await wait('the bubble folded away', () => bubble() === null)
+  }
+  const reconnecting = () => [...document.querySelectorAll('.shell-reconnecting')].find(shown)
 `
 
 const run = (browser, body) => evaluate(browser, `(async () => { ${HELPERS}\n${body} })()`)
@@ -219,12 +335,7 @@ async function seed(browser) {
   await run(
     browser,
     `
-    await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))
-    await press('button', '第一次使用')
-    fill(document.querySelector('input[name=loginIdentifier]'), ${JSON.stringify(ACCOUNT.loginIdentifier)})
-    fill(document.querySelector('input[name=credential]'), ${JSON.stringify(ACCOUNT.credential)})
-    await press('button[type=submit]', '注册并登录')
-    await wait('the sidebar', () => document.querySelector('.shell-sidebar'))
+    await signIn('第一次使用', ${JSON.stringify(ACCOUNT)})
     const fresh = async () => {
       await press('button', '新建会话')
       await wait('the composer', () => document.querySelector('textarea[aria-label="输入消息"]'))
@@ -240,25 +351,184 @@ async function seed(browser) {
   )
 }
 
+async function signInAgain(browser) {
+  await apply(browser, { theme: themes[0], width: WAY_IN, size: 'medium' })
+  await run(browser, `await signIn('登录', ${JSON.stringify(ACCOUNT)})`)
+}
+
+const client = (stack, name) =>
+  createClient(
+    domainProtocols.find(protocol => protocol.name === name),
+    stack.transport,
+  )
+
+async function tenantOf(stack) {
+  const current = await client(stack, 'identity')['query-current-tenant']({})
+  if (current.outcome !== 'succeeded')
+    throw new Error(`query-current-tenant answered ${JSON.stringify(current)}`)
+  return current.body.tenantId
+}
+
+/** The login ends on the server, as when it is revoked elsewhere: every valid login of the account. */
+async function revokeLogins(stack) {
+  const identity = client(stack, 'identity')
+  const valid = await identity['query-own-valid-logins']({})
+  if (valid.outcome !== 'succeeded')
+    throw new Error(`query-own-valid-logins answered ${JSON.stringify(valid)}`)
+  for (const { loginId } of valid.body.logins) {
+    const revoked = await identity['revoke-login']({ targetLoginId: loginId })
+    if (revoked.outcome !== 'succeeded' && revoked.outcome !== 'no-change')
+      throw new Error(`revoke-login answered ${JSON.stringify(revoked)}`)
+  }
+  print(`revoked ${valid.body.logins.length} login(s) on the server`)
+}
+
+let told = 0
+/** The owner writes one to themselves (source owner.posts, type post): strong for the person by default. */
+async function tellStrong(stack) {
+  told += 1
+  const sent = await client(stack, 'notification').send({
+    tenant: await tenantOf(stack),
+    source: 'owner.posts',
+    event: `visual-walk-told-${told}`,
+    type: 'post',
+    subject: null,
+    title: TOLD_TITLE,
+    body: '',
+    locator: null,
+    replaceKey: null,
+    renotify: false,
+    named: [],
+  })
+  if (sent.outcome !== 'succeeded')
+    throw new Error(`notification send answered ${JSON.stringify(sent)}`)
+  print(`sent strong notification ${told}`)
+}
+
+const ON_ASSETS = `await goTo('资产'); await seated('home')`
+const WIDE_ONLY = ['1440', '1100']
+
+/**
+ * A scene: `act` brings the app there once, at the way-in window; `each` brings what does not outlast a change of
+ * window, theme or size again before every shot (by default: still, with the figure seated); `leave` puts the app
+ * back for the next scene. A step is a script run in the page with the helpers above, or a function of the walk
+ * run outside the page. `widths` names the windows the scene means something in; `breaks` says it ends the login
+ * or stops the server, so it runs after the others.
+ */
 const SCENES = [
-  { id: 'A1-gate', title: '登录门', before: true, tiers: true },
+  {
+    id: 'A1-gate',
+    title: '冷启动到登录门',
+    before: true,
+    tiers: true,
+    act: `await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))`,
+  },
+  {
+    id: 'A2-login-failed',
+    title: '登录失败：表单下的一句行内通知',
+    before: true,
+    act: `
+      await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))
+      await press('button', '登录')
+      fill(document.querySelector('input[name=loginIdentifier]'), ${JSON.stringify(ACCOUNT.loginIdentifier)})
+      fill(document.querySelector('input[name=credential]'), 'not-the-password')
+      await press('button[type=submit]', '登录')
+      await wait('the failure under the form', () =>
+        document.querySelector('.shell-gate-card [role=alert]')?.textContent.includes('登录名或密码不对'))`,
+  },
+  {
+    id: 'A2-expired',
+    title: '登录失效后回到门：门上的形写出原因',
+    breaks: 'login',
+    act: [
+      ON_ASSETS,
+      walk => revokeLogins(walk.stack),
+      `
+      if (document.querySelector('.shell-sidebar') !== null) await goTo('通知')
+      await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))`,
+    ],
+    each: `
+      await rest()
+      await wait('the reason written by the figure', () =>
+        document.querySelector('.shell-gate-notice')?.dataset.ink === 'open')
+      await settle()`,
+  },
   {
     id: 'A3-rest',
     title: '登录后的静止',
     tiers: true,
-    act: `await goTo('对话'); await openSession('请总结')`,
+    act: `await openSession('请总结')`,
+  },
+  {
+    id: 'A4-rail',
+    title: '侧栏折成窄条',
+    widths: WIDE_ONLY,
+    act: ON_ASSETS,
+    each: `await fold('rail'); await rest()`,
+    leave: `await fold('expanded')`,
+  },
+  { id: 'A5-page', title: '选中「资产」一页', act: ON_ASSETS },
+  {
+    id: 'A6-appearance',
+    title: '外观菜单打开',
+    act: ON_ASSETS,
+    each: `await closeMenu(); await openAppearance()`,
+    leave: `await closeMenu(); await closeDrawer()`,
+  },
+  {
+    id: 'A7-disconnected',
+    title: '断开服务：重连那一行',
+    breaks: 'server',
+    act: [
+      ON_ASSETS,
+      async walk => {
+        await walk.stack.server.stop()
+        print('stopped the walk’s own server')
+      },
+      `await wait('the reconnecting line', reconnecting)`,
+    ],
+    each: `
+      if (narrow()) await openDrawer()
+      await wait('the reconnecting line', reconnecting)
+      await rest()`,
+  },
+  {
+    id: 'A8-drawer',
+    title: '720 宽，抽屉打开',
+    widths: ['720'],
+    act: ON_ASSETS,
+    each: `await closeDrawer(); await openDrawer()`,
+    leave: `await closeDrawer()`,
   },
   {
     id: 'B1-conversation',
     title: '长会话',
     tiers: true,
-    act: `await openSession('请总结'); await sleep(300)`,
+    act: `await openSession('请总结')`,
+  },
+  {
+    id: 'B1-side-bubble',
+    title: '1100 宽，对话头展开的淡墨框',
+    widths: ['1100'],
+    act: `await openSession('请总结')`,
+    each: `await closeSide(); await openSide()`,
+    leave: `await closeSide()`,
+  },
+  {
+    id: 'T1-told',
+    title: '一条强的通知：家旁的告知笺',
+    widths: WIDE_ONLY,
+    act: [ON_ASSETS, walk => tellStrong(walk.stack)],
+    each: `
+      await rest()
+      await wait('the told note written', () => document.querySelector('.omne-told-note')?.dataset.ink === 'open')
+      await settle()`,
   },
   {
     id: 'C1-cards',
     title: '一批问询卡',
     tiers: true,
-    act: `await goTo('对话'); await openSession('有几件事要问我')`,
+    act: `await openSession('有几件事要问我')`,
   },
   { id: 'C5-decisions', title: '待你决定', act: `await goTo('待你决定')` },
   { id: 'C6-notifications', title: '通知', act: `await goTo('通知')` },
@@ -275,6 +545,8 @@ const SCENES = [
     specimen: true,
   },
 ]
+
+const BREAKS = [undefined, 'login', 'server']
 
 async function apply(browser, { theme, width, size }) {
   await browser.send('Emulation.setDeviceMetricsOverride', {
@@ -304,17 +576,32 @@ async function apply(browser, { theme, width, size }) {
   )
 }
 
-function combinations(scene) {
-  const tiers = scene.tiers ? ['medium', ...sizes.filter(size => size !== 'medium')] : ['medium']
+async function perform(walk, steps) {
+  const all = steps === undefined ? [] : Array.isArray(steps) ? steps : [steps]
+  for (const step of all) {
+    if (typeof step === 'function') await step(walk)
+    else await run(walk.browser, `${step}\n return true`)
+  }
+}
+
+function combinations(windows) {
+  const tiers = ['medium', ...sizes.filter(size => size !== 'medium')]
   const out = []
   for (const theme of themes)
-    for (const width of widths) for (const size of tiers) out.push({ theme, width, size })
+    for (const width of windows) for (const size of tiers) out.push({ theme, width, size })
   return out
 }
 
-async function shootScene(browser, scene, done) {
-  for (const combination of combinations(scene)) {
+async function shootScene(walk, scene, done) {
+  const { browser } = walk
+  const windows = widths.filter(width => scene.widths?.includes(width.name) ?? true)
+  for (const width of widths) if (!windows.includes(width)) print(`SKIP ${scene.id} ${width.name}`)
+  if (windows.length === 0) return
+  await apply(browser, { theme: themes[0], width: WAY_IN, size: 'medium' })
+  await perform(walk, scene.act)
+  for (const combination of combinations(windows)) {
     await apply(browser, combination)
+    await perform(walk, scene.each ?? (scene.specimen ? undefined : 'await rest()'))
     const suffix = combination.size === 'medium' ? '' : `-${combination.size}`
     const file = join(
       shots,
@@ -327,6 +614,20 @@ async function shootScene(browser, scene, done) {
     )
     print(`SHOT ${file} sideways ${sideways}px`)
     done.push(file)
+  }
+  await perform(walk, scene.leave)
+}
+
+/** One scene; its failure is printed, shot and counted in the exit code, and the walk goes on to the next scene. */
+async function attempt(walk, scene, done) {
+  try {
+    await shootScene(walk, scene, done)
+    print(`SCENE ${scene.id}`)
+  } catch (failure) {
+    print(`FAILED ${scene.id}: ${failure instanceof Error ? failure.message : String(failure)}`)
+    await screenshot(walk.browser, join(shots, `${scene.id}-failed.png`)).catch(() => {})
+    await perform(walk, scene.leave).catch(() => {})
+    process.exitCode = 1
   }
 }
 
@@ -351,19 +652,38 @@ async function buildSpecimen() {
   return outDir
 }
 
-async function openSpecimen(browser, origin, page = 'index.html') {
+async function navigate(browser, url) {
   const loaded = new Promise(resolve => {
     const off = browser.on('Page.loadEventFired', () => {
       off()
       resolve()
     })
   })
-  await browser.send('Page.navigate', { url: `${origin}specimen/${page}` })
+  await browser.send('Page.navigate', { url })
   await loaded
+}
+
+async function openSpecimen(browser, origin, page = 'index.html') {
+  await navigate(browser, `${origin}specimen/${page}`)
   await run(
     browser,
     `await wait('the specimen', () => document.querySelector('[data-specimen=ready]'))`,
   )
+}
+
+/** The app itself, signed in with the walk's account: seeded the first time, back on the app page after that. */
+async function enterApp(walk) {
+  const { browser, stack } = walk
+  if ((await evaluate(browser, 'location.pathname')).startsWith('/specimen/'))
+    await navigate(browser, stack.origin)
+  if (!walk.seeded) {
+    await apply(browser, { theme: themes[0], width: WAY_IN, size: 'medium' })
+    await seed(browser)
+    walk.seeded = true
+    print('seeded the acceptance data')
+    return
+  }
+  await run(browser, `await wait('the sidebar', () => document.querySelector('.shell-sidebar'))`)
 }
 
 async function specimenViolations(browser) {
@@ -372,17 +692,45 @@ async function specimenViolations(browser) {
   if (seen.length > 0) process.exitCode = 1
 }
 
+async function recordSeries(walk, name) {
+  const { browser, stack } = walk
+  const series = SERIES[name]
+  if (series === undefined) throw new Error(`no series ${name}`)
+  for (const theme of themes) {
+    const folder = join(shots, `${name}-${theme}${reduced ? '-reduced' : ''}`)
+    const window = series.width ?? widths[0]
+    await apply(browser, { theme, width: window, size: 'medium' })
+    if (series.app) await enterApp(walk)
+    else await openSpecimen(browser, stack.origin, series.page)
+    await series.prepare?.(browser, run)
+    const frames = await record(browser, folder, started => series.act(browser, run, started), {
+      lasting: series.lasting,
+      clip: series.clip,
+      pixels: { width: window.width * scale, height: window.height * scale },
+    })
+    const timings = await series.measure?.(browser, run)
+    writeFileSync(join(folder, 'timings.json'), `${JSON.stringify(timings ?? {}, null, 2)}\n`)
+    print(
+      `SERIES ${name} ${theme}: ${frames.length} frames  ${JSON.stringify(timings ?? {})}  [${folder}]`,
+    )
+  }
+}
+
 async function main() {
   mkdirSync(shots, { recursive: true })
   if (args.includes('--list')) {
-    for (const scene of SCENES) print(`scene ${scene.id}  ${scene.title}`)
+    for (const scene of SCENES)
+      print(
+        `scene ${scene.id}${scene.tiers ? ' ※' : ''}  ${scene.title}${scene.widths === undefined ? '' : `  [${scene.widths.join(', ')}]`}`,
+      )
     for (const [name, series] of Object.entries(SERIES)) print(`series ${name}  ${series.title}`)
     return
   }
   const wanted = new Set(list('--scenes', SCENES.map(scene => scene.id).join(',')))
   const seriesWanted = list('--series', '')
   const specimenWanted =
-    seriesWanted.length > 0 || SCENES.some(item => item.specimen && wanted.has(item.id))
+    seriesWanted.some(name => SERIES[name]?.app !== true) ||
+    (seriesWanted.length === 0 && SCENES.some(item => item.specimen && wanted.has(item.id)))
   const specimenRoot = specimenWanted ? await buildSpecimen() : undefined
   const stack = await startStack({
     answer,
@@ -397,59 +745,29 @@ async function main() {
     browser = await devtools(chrome.port)
     await browser.send('Page.enable')
     await browser.send('Page.navigate', { url: stack.origin })
+    const walk = { browser, stack, seeded: false }
     const done = []
     if (seriesWanted.length > 0) {
-      for (const name of seriesWanted) {
-        const series = SERIES[name]
-        if (series === undefined) throw new Error(`no series ${name}`)
-        for (const theme of themes) {
-          const folder = join(shots, `${name}-${theme}${reduced ? '-reduced' : ''}`)
-          const window = series.width ?? widths[0]
-          await apply(browser, { theme, width: window, size: 'medium' })
-          await openSpecimen(browser, stack.origin, series.page)
-          await series.prepare?.(browser, run)
-          const frames = await record(
-            browser,
-            folder,
-            started => series.act(browser, run, started),
-            {
-              lasting: series.lasting,
-              clip: series.clip,
-              pixels: { width: window.width * scale, height: window.height * scale },
-            },
-          )
-          const timings = await series.measure?.(browser, run)
-          writeFileSync(join(folder, 'timings.json'), `${JSON.stringify(timings ?? {}, null, 2)}\n`)
-          print(
-            `SERIES ${name} ${theme}: ${frames.length} frames  ${JSON.stringify(timings ?? {})}  [${folder}]`,
-          )
-        }
-      }
+      for (const name of seriesWanted) await recordSeries(walk, name)
       return
     }
-    for (const scene of SCENES.filter(item => item.before && wanted.has(item.id))) {
-      await run(
-        browser,
-        `await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))`,
-      )
-      await shootScene(browser, scene, done)
-      print(`SCENE ${scene.id}`)
-    }
-    const signedIn = SCENES.filter(item => !item.before && !item.specimen && wanted.has(item.id))
-    if (signedIn.length > 0) {
-      await seed(browser)
-      print('seeded the acceptance data')
-      for (const scene of signedIn) {
-        await apply(browser, { theme: themes[0], width: widths[0], size: 'medium' })
-        await run(browser, `${scene.act}\n return true`)
-        await shootScene(browser, scene, done)
-        print(`SCENE ${scene.id}`)
+    for (const scene of SCENES.filter(item => item.before && wanted.has(item.id)))
+      await attempt(walk, scene, done)
+    const signedIn = SCENES.filter(
+      item => !item.before && !item.specimen && wanted.has(item.id),
+    ).sort((a, b) => BREAKS.indexOf(a.breaks) - BREAKS.indexOf(b.breaks))
+    if (signedIn.length > 0) await enterApp(walk)
+    for (const [at, scene] of signedIn.entries()) {
+      await attempt(walk, scene, done)
+      if (scene.breaks === 'login' && at < signedIn.length - 1) {
+        await signInAgain(browser)
+        print('signed in again')
       }
     }
     const specimen = SCENES.find(item => item.specimen && wanted.has(item.id))
     if (specimen !== undefined) {
       await openSpecimen(browser, stack.origin)
-      await shootScene(browser, specimen, done)
+      await shootScene(walk, specimen, done)
       await specimenViolations(browser)
       print(`SCENE ${specimen.id}`)
     }
