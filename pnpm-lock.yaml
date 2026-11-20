@@ -2669,6 +2669,9 @@ importers:
       '@omne-harness/runtime-context-contract':
         specifier: workspace:*
         version: link:../../context/runtime-context-contract
+      '@omne-harness/screen':
+        specifier: workspace:*
+        version: link:../screen
       node-pty:
         specifier: 'catalog:'
         version: 1.1.0
