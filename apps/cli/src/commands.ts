@@ -726,6 +726,28 @@ const readModelSelection: ExistingCommand<Targeted> = {
   },
 }
 
+const readWorkspaceSelection: ExistingCommand<Targeted> = {
+  kind: 'existing',
+  name: 'read-workspace-selection',
+  accepted: ['--session', '--tenant', serverOption],
+  required: ['--session'],
+  parse: targeted,
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { owner: tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'read-workspace-selection',
+          { tenant, session: parsed.session },
+          messageId,
+        ),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
 const listModels: TenantCommand<{ given: TenantId | undefined }> = {
   kind: 'tenant',
   name: 'list-models',
@@ -835,6 +857,14 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id> (--workspace <id> --instance <id> | --none)',
     summary: 'Select the workspace a session works in, or none: it is in force from the next step.',
     run: (args, output, environment) => runSession(selectWorkspace, args, output, environment),
+  },
+  {
+    name: 'read-workspace-selection',
+    usage: '--session <id>',
+    summary:
+      'Read the workspace a session stands at, and the directory and state its step works in.',
+    run: (args, output, environment) =>
+      runSession(readWorkspaceSelection, args, output, environment),
   },
   {
     name: 'read-model-selection',

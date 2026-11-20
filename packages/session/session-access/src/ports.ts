@@ -11,10 +11,12 @@ import type {
   Modes,
   SavedModelSelection,
   SessionAccess,
+  SessionFailure,
   SessionHistory,
   SessionManagement,
   SessionWork,
   WorkspaceAttachment,
+  WorkspaceSelection,
 } from '@omne-harness/session-contract'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
 import type { QueuedRequest } from './request-queue.ts'
@@ -110,6 +112,25 @@ export type SessionAccessFaces = Readonly<{
     | 'readModelSelection'
   >
   history: Pick<SessionHistory<Principal>, 'begin' | 'next'>
+}>
+
+export type HeldWorkingDirectory =
+  | Readonly<{ state: 'default' | 'attached'; directory: string }>
+  | Readonly<{ state: 'unusable'; reason: string }>
+
+export type WorkspaceSelectionReading =
+  | Readonly<{
+      kind: 'read'
+      selection: WorkspaceSelection | null
+      directory: HeldWorkingDirectory
+      revision: string
+    }>
+  | Readonly<{ kind: 'refused'; failure: SessionFailure }>
+  | Readonly<{ kind: 'unavailable' }>
+
+/** The instance a session stands at and the directory a step beginning now works in, read at each ask. */
+export type WorkspaceSelections = Readonly<{
+  read(access: SessionAccess<Principal>): Promise<WorkspaceSelectionReading>
 }>
 
 export type RunFailureCause = Readonly<{ kind: string; detail: string | null }>

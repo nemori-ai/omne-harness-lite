@@ -1,10 +1,10 @@
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import { workspaceCodec, type TenantId, type WorkspaceId } from '@omne-harness/legal-identity'
 import type { DurableEvidence } from '@omne-harness/session-contract'
-import { commitCall, refused, UNAVAILABLE, type Answer, type Body } from './answers.ts'
+import { commitCall, readCall, refused, UNAVAILABLE, type Answer, type Body } from './answers.ts'
 import type { BackgroundCallPorts } from './background-calls.ts'
 import { controlOperation } from './derivation.ts'
-import type { WorkspaceTargetCheck, WorkspaceTargets } from './ports.ts'
+import type { WorkspaceSelections, WorkspaceTargetCheck, WorkspaceTargets } from './ports.ts'
 
 export type SelectWorkspacePorts = BackgroundCallPorts &
   Readonly<{ workspaces: () => WorkspaceTargets | undefined }>
@@ -82,4 +82,38 @@ export async function selectWorkspace(
   if (result === 'unknown') return { outcome: 'unknown' }
   if ('failure' in result) return refused('select-workspace', result.failure)
   return { outcome: 'succeeded', body: { controlId, directory } }
+}
+
+export type ReadWorkspaceSelectionPorts = Pick<SelectWorkspacePorts, 'admit'> &
+  Readonly<{ selections: () => WorkspaceSelections | undefined }>
+
+/** The workspace a session stands at, with the directory and state its current step works in. */
+export async function readWorkspaceSelection(
+  ports: ReadWorkspaceSelectionPorts,
+  login: LoginIdentity,
+  body: Body<'read-workspace-selection'>,
+): Promise<Answer<'read-workspace-selection'>> {
+  const admitted = await ports.admit(login, body.tenant, body.session)
+  if ('outcome' in admitted) return admitted
+  const selections = ports.selections()
+  if (selections === undefined) return UNAVAILABLE
+  const read = await readCall(() => selections.read(admitted.access))
+  if (read === 'basis-unavailable' || read.kind === 'unavailable') return UNAVAILABLE
+  if (read.kind === 'refused') return refused('read-workspace-selection', read.failure)
+  const { selection, directory, revision } = read
+  const text = selection === null ? null : workspaceCodec.encode(selection.workspace)
+  if (text !== null && !text.ok) return UNAVAILABLE
+  return {
+    outcome: 'succeeded',
+    body: {
+      workspace:
+        selection === null || text === null
+          ? null
+          : { workspace: text.value, instance: selection.attachment.instance },
+      state: directory.state,
+      directory: directory.state === 'unusable' ? null : directory.directory,
+      reason: directory.state === 'unusable' ? directory.reason : null,
+      revision,
+    },
+  }
 }

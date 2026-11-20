@@ -39,6 +39,7 @@ import { accessIdentityOfCall, memberActingOfCall } from '../server-entry/identi
 import { runFailureCauses } from './causes.ts'
 import { modelTargets } from './model-targets.ts'
 import { workspaceTargets } from './workspace-targets.ts'
+import { workspaceSelections } from './workspace-selections.ts'
 import { sessionPermissionModes } from './permission-modes.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -164,6 +165,7 @@ const plugin = createSessionAccessPlugin({
   causes: runFailureCauses,
   modelTargets,
   workspaceTargets,
+  workspaceSelections,
   permissionModes: sessionPermissionModes,
   prepareCreation,
 })

@@ -16,6 +16,7 @@ export {
 export { heldBlock, type HeldBlock } from './cordis/context-records.ts'
 export {
   createStepDirectory,
+  directoryInForce,
   type StepDirectory,
   type StepDirectoryInput,
   type StepDirectoryPorts,

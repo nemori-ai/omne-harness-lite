@@ -420,7 +420,8 @@
         "principalIssuer",
         "tenantStanding",
         "definitionMappings",
-        "sessionModesInstallation"
+        "sessionModesInstallation",
+        "sessionWorkingDirectory"
       ]
     },
     {
