@@ -166,7 +166,7 @@
 > lower layer can shadow it with a Skill of the same name.
 
 - **形态**：变体（父：[技能](#ul-skill--技能--skill)）
-- **出处**：[Skill 产品：元技能](../../product/skills/design.md#元技能)（rev 5）
+- **出处**：[Skill 产品：元技能](../../product/skills/design.md#元技能)（rev 6）
 - **⚠️ 别混**：**不是 [meta 能力](#ul-meta-capability--meta-能力--meta-capability)**——meta 能力是一整类能力的统一入口（`Tools()`、`Skills()` 这类元工具）；元技能是那扇门后的一份方法，经 `Skills()` 读取。名字只差一个字，跨 topic 引用写全称
 - **注意**：它的「不可替换」来自它自己的 `immutable` 声明，不是 meta 能力的那条规则。租户自己写的、同样教人写 Skill 的 Skill 不是元技能
 
@@ -221,7 +221,7 @@
 > The far-side service runs outside this system, which talks to it only by its address.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
+- **出处**：[PF-001 §4 资产的种类](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#资产的种类)（rev 26） · [PF-002 §4 MCP](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#mcp)（rev 32） · [PF-006 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#613-mcp-接入点带来的动作)（rev 24） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 4）
 - **别混**：Tool 是**一个动作**，MCP 是**一批动作的来源**——**MCP 本身不可被调用**
 - **注意**：它连对端用的是 [MCP 凭据](#ul-mcp-credential--mcp-凭据--mcp-credential)，挂在持有上，不是[模型凭据](#ul-model-credential--模型凭据--model-credential)
 - **注意 ②**：正文里的「接入点」「MCP 接入点」指的就是本条。命令型（stdio）接入不在 `0.0.0 → 0.1.0` 阶段，见出处
@@ -656,7 +656,7 @@
 > The format rules inside the package belong to the skill kind.
 
 - **形态**：属性
-- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 5） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 5）
+- **出处**：[Skill 产品页 J-SK01](../../product/skills/design.md#j-sk01-将合法方法来源交给消费者) · [J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 6） · [工作区产品页 J-WS04](../../product/workspaces/design.md#j-ws04-从共享与实例本地来源取得可解释的材料)（rev 5）
 - **别混 ①**：**不是技能的身份**。身份是[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)（类别 ＋ name）。同一个身份下，不同层、不同版本的内容可以是不同的 Skill 包
 - **别混 ②**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本说的是哪一次发布定下的内容；Skill 包说的是技能内容的形式
 - **别混 ③**：**不是[插件](#ul-plugin--插件--plugin)，也不是代码仓库里的成员包**（例如 `packages/skills` 下的成员）。插件打包分发若干资产；一个 Skill 包只是一个技能的内容
@@ -677,7 +677,7 @@
 > content, so a reference to a snapshot needs only its content digest.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 5）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决。已发布版本一侧的文件清单见[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 9），那是[包的清单](#ul-package-manifest--包的清单--package-manifest)的出处
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 6）只要求一次读取对应一个可成立的版本和范围，不把旧正文与新资源拼成成功。条目清单与内容摘要的做法来自 Skill 与 MCP 领域的候选技术设计，那不是本词表的合法出处。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 包快照，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决。已发布版本一侧的文件清单见[资产与规则：已发布的内容由资产存放，类别经读口读取](../../product/assets-and-rules/design.md#content-storage)（rev 9），那是[包的清单](#ul-package-manifest--包的清单--package-manifest)的出处
 - **别混 ①**：**不是[资产版本](#ul-asset-version--资产版本--asset-version)**。资产版本按发布计数，内容摘要按内容计算。工作区目录中的技能没有发布，也有 Skill 包快照
 - **别混 ②**：**不是[上下文快照提醒](record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)**，与 runtime context 的快照无关
 - **注意 ①**：**这里的「内容摘要」指按内容算出的散列值（digest），不是文字摘要**。不要裸写「摘要」指它，见 [C-82](../conflicts.md#c-82摘要的两种意思)
@@ -706,7 +706,7 @@
 > source layer and content digest identify the same material.
 
 - **形态**：属性
-- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 5）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-83](../conflicts.md#c-83工作区目录技能的-skill-材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
+- **出处**：缺产品原文。[Skill 产品页 J-SK03](../../product/skills/design.md#j-sk03-按需读取正文或指定资源)（rev 6）只要求读取返回实际取得内容的来源、版本及范围，并要求「历史可见性不授予新的访问」。把版本写成能力标识、来源层、资产版本与内容摘要四项，并交给调用方带回，这一做法来自 Skill 组的技术设计，那不是本词表的合法出处。工作区来源的资产版本可以缺省，这一点是负责人对 [C-83](../conflicts.md#c-83工作区目录技能的-skill-材料依据中的资产版本) 的裁定（2026-11-03）。出处缺口由产品负责人闭合：在 Skill 产品页写出 Skill 材料依据，或裁定它只是技术概念并在[现行词义](../index.md#现行词义)记下裁决
 - **⚠️ 别混 ①**：**不是[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)**。采用依据是一次执行在采用时实际取用了什么的记录，由系统保留。Skill 材料依据是一次读取交给调用方的值，由调用方保管与带回
 - **别混 ②**：**不是 [Skill 包快照](#ul-package-snapshot--skill-包快照--skill-package-snapshot)本身**。Skill 包快照是全部条目的清单；Skill 材料依据只带它的内容摘要，另带能力标识、来源层与资产版本
 - **别混 ③**：**不是 Skill 包的位置**。位置不在 Skill 材料依据里，调用方不能用它指定从哪里读取
@@ -750,7 +750,7 @@
 > **EN**: The actions an agent can recognize and attempt in a session. It has two sources: resident entries placed in the context, which are a record fixed at the adoption point and only grow within a session; and entries discoverable through the access entry point, computed from the subject's facts at that moment and never stored as a set. A resident entry becomes unavailable, and keeps its identity, when its definition changes or it is disabled, unloaded or revoked. An attempt is not execution authorization; an unavailable entry returns its reason through a stand-in.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 12） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 11） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 13） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
 - **别混**：能力身份可见不等于定义内容、实现绑定或可执行集合不变；也不要求每次提示词包含全部已知能力。能发现的那部分就是[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)与此刻合法可用的 Skill，主体此刻没有使用资格的不出现。
 - **注意**：封存的 PF-004 把它写成「由合法纳入会话的能力条目投影、整体单调增加」。现行产品里只有常驻那部分是这样，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
@@ -792,7 +792,7 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 12） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 12）
+- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 13） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 13）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
   [权限照常作用在命令这一级](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)——
   **一条命令可以被关掉，而那扇门关不掉**。
@@ -829,7 +829,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 12）
+- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 13）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 
@@ -1184,7 +1184,7 @@
 > **EN**: A pluggable capability for creating and managing work arranged over time, scheduling due work, and triggering execution or notification actions, supporting the system’s own mechanical work as well as short-, medium-, and long-term undertakings for harness agents and users.
 
 - **形态**：总称
-- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 6）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 7）
 - **别混**：能力本身不同于一份 Schedule。
 
 ### UL-routine · 工作例程 · Routine
@@ -1194,7 +1194,7 @@
 > **EN**: The work-description data held within a schedule, specifying the mechanical action or agent objective and applicable notification content and target tenant for its jobs. It excludes timing rules and per-job progress or results, and has no independent identity or lifecycle. Factory-provided forms are preset descriptions used to populate this data.
 
 - **形态**：属性
-- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 6）
+- **出处**：[日程与作业：产品需求](../../product/schedules-and-jobs/design.md#产品需求描述)（rev 7）
 - **别混**：各次 Job 共用工作定义，不共享执行状态；不同 Schedule 不共同引用一个可变 Routine 对象。
 
 ### UL-calendar-service · 日历服务 · Calendar Service
@@ -1214,7 +1214,7 @@
 > **EN**: The capability that lets a recipient know about something that has happened. A source hands over an event. The notification domain uses the recipient's notification subscriptions to decide who gets it and how urgently, puts it in the recipient's inbox, and then delivers it to the recipient's destinations. A recipient is a person or an entrusted agent.
 
 - **形态**：总称
-- **出处**：[通知：产品需求](../../product/notifications/design.md#产品需求描述)（rev 6）
+- **出处**：[通知：产品需求](../../product/notifications/design.md#产品需求描述)（rev 7）
 - **别混**：不是成果上报、普通会话回复或复制通知邀约本身。要一个人做决定归人在回路；交出一份要验收的工作归日程与作业。
 
 
@@ -1225,7 +1225,7 @@
 > **EN**: A versioned definition of a recurring product feature, specifying its work template, timing, controllability, parameter defaults, and applicability. Schedule subscriptions adopt the definition and produce work independently.
 
 - **形态**：对象
-- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 6）
+- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 7）
 - **别混**：它不是平台机械维护的系统日程，也不是某份 Schedule 内无独立身份的 Routine 属性。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

@@ -332,6 +332,7 @@
 | [UL-tool-definition](terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition) | 工具定义 | Tool Definition | 一个工具在模型与执行面前的完整表示，**装载时由资产与实现派生**，是视图 |
 | [UL-tool-programmability](terms/execution-and-outcome.md#ul-tool-programmability--工具可编程调用许可--tool-programmability) | 工具可编程调用许可 | Tool Programmability | 工具定义的 `programmable` 属性，只有显式 true 允许 Agent 脚本组合或编排调用 |
 | [UL-tool-execution](terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) | 工具执行 | Tool Execution | 一次执行，**计算资源，绑会话不绑实例** |
+| [UL-call-acceptance](terms/execution-and-outcome.md#ul-call-acceptance--调用受理--call-acceptance) | 调用受理 | Call Acceptance | Tool 收下一次调用：核参数、可用、资格与环境，写受理记录；**不判许不许**，那是放行判断 |
 | [UL-background-execution](terms/execution-and-outcome.md#ul-background-execution--后台执行--background-execution) | 后台执行 | Background Execution | 不占当前这一轮地跑，**不声明就是不能** |
 | [UL-call-intent](terms/execution-and-outcome.md#ul-call-intent--调用意图--call-intent) | 调用意图 | Call Intent | 发起一次工具调用时写的一句「为什么」；**只用来辨认，不参与任何裁决**；可能转后台的调用必须带 |
 | [UL-foreground-time-limit](terms/execution-and-outcome.md#ul-foreground-time-limit--前台上限--foreground-time-limit) | 前台上限 | Foreground Time Limit | 一次执行在前台最多跑多久，**等待态不算**；到点允许后台的转后台、不许的被中断，**不是失败** |
@@ -405,7 +406,7 @@
 | [UL-approval-request](terms/interaction-and-dispatch.md#ul-approval-request--请示--approval-request) | 请示 | Approval Request | **已弃用**：agent 不向人要授权；许不许由放行判断对真正的动作决定，需要人点头时系统出放行卡片 |
 | [UL-session-authorization-context](terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | 会话授权上下文 | Session Authorization Context | 会话承载的一次或本会话授权表达，**按序保存**；**是数据不是结论**，归档不丢 |
 | [UL-authorization-expression](terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | 授权表达 | Authorization Expression | 可指认的授权表达：来源 × 方向 × 作用域；一次/本会话追加流水，全局按资格写设置；「决策记录」是弃用说法 |
-| [UL-grant-reference](terms/interaction-and-dispatch.md#ul-grant-reference--授权引用--grant-reference) | 授权引用 | Grant Reference | 一次放行点名它凭的那一份授权：哪一层、归谁、哪一笔或哪一次裁定；要依据的领域原样存，寿命跟着那一层 |
+| [UL-grant-reference](terms/interaction-and-dispatch.md#ul-grant-reference--授权引用--grant-reference) | 授权引用 | Grant Reference | 一次放行点名它凭的那一份授权：哪一层、归谁、哪一笔或哪一次裁定；**只记在放行判断的记录里**，寿命跟着那一层 |
 | [UL-inbound-arrival](terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | 入站到达 | Inbound Arrival | 外面送进一个会话、**被受理之后**的那条事实；**不是消息**，**裸写「到达」不作数** |
 | [UL-background-result-eligibility](terms/interaction-and-dispatch.md#ul-background-result-eligibility--后台结果投递资格--background-result-eligibility) | 后台结果投递资格 | Background Result Eligibility | 转了后台的执行，真实结局还能不能作为入站到达进入原会话；只有归档撤销，单独停止与取消 Run 都不撤销 |
 | [UL-non-waking-input](terms/interaction-and-dispatch.md#ul-non-waking-input--不叫醒的输入--non-waking-input) | 不叫醒的输入 | Non-waking Input | 已受理、但**不能单独使会话开始一轮**的入站到达；停止提醒与被停调用的结局 |
