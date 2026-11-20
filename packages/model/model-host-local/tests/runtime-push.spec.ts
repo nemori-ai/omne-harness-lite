@@ -741,6 +741,7 @@ it('redelivers the same key and frozen payload after an unknown outcome and ackn
   const [first, ...again] = scripted.pushes
   for (const delivery of again) expect(delivery).toEqual(first)
   expect(w.handoffs).toHaveLength(1)
+  expect(w.messages.some(text => text.includes('receipt-mismatch'))).toBe(false)
 })
 
 it.each(['unavailable', 'backpressured'] as const)(
