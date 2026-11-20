@@ -10,7 +10,13 @@ import {
 } from './activation-schema.ts'
 import { GOVERNANCE_OWNER } from './migration.ts'
 import { bootstrapScope, closeScope } from './scope.ts'
-import { acceptOperation, boundOperation, sealOperation, submitOperation } from './operation.ts'
+import {
+  acceptOperation,
+  boundOperation,
+  releaseOperation,
+  sealOperation,
+  submitOperation,
+} from './operation.ts'
 import {
   prepareGovernanceStanding,
   recordGovernanceHeld,
@@ -82,6 +88,8 @@ function metadata(port: ParticipantPort, request: ControlRequest) {
     case 'bootstrap':
       return bootstrapScope(port, request.input)
     case 'close-scope':
+      for (const key of request.released)
+        releaseOperation(port, { scope: request.input.scope, ...key })
       return closeScope(port, request.input)
     case 'retire-contribution':
       return retireContribution(port, request.binding)

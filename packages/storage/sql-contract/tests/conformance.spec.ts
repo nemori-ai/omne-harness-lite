@@ -212,6 +212,15 @@ describe('violating providers are caught', () => {
     expect(ids).toContain('C07')
   })
 
+  it('C25: a provider that drops the releases of a commit', async () => {
+    const ids = await failedIds(
+      subjectWith(inner => ({
+        commit: ({ releases: _dropped, ...input }, options) => inner.commit(input, options),
+      })),
+    )
+    expect(ids).toContain('C25')
+  })
+
   it('C12: a provider that ignores a signal that is already aborted', async () => {
     const ids = await failedIds(subjectWith(inner => ({ commit: input => inner.commit(input) })))
     expect(ids).toContain('C12')

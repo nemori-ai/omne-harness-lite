@@ -17,6 +17,7 @@ import {
 import { OPERATION_HANDLER } from './operation-read.ts'
 import { STAGE_HANDLER } from './sql-stage-read.ts'
 import { RECOVERY_HANDLER } from './recovery-read.ts'
+import { RELEASE_HANDLER, RELEASE_PAGE } from './release-read.ts'
 import { CATALOG_CURRENT, CATALOG_SNAPSHOT } from './catalog-schema.ts'
 import { SCOPE_HANDLER } from './scope.ts'
 import { OPERATION_REFERENCE_HANDLER } from './operation-reference-read.ts'
@@ -135,6 +136,15 @@ export function governanceSqlMaterials(): Pick<
         requiresMigrations: [GOVERNANCE_MIGRATION],
         maxOutputBytes: 4 * 1024 * 1024 + 1024,
         maxRowsRead: 4,
+      },
+      {
+        ...RELEASE_HANDLER,
+        ...participantFile('release-read'),
+        ordering: 'domain-serial',
+        readTables: ['gc_operation'],
+        requiresMigrations: [GOVERNANCE_MIGRATION],
+        maxOutputBytes: 256 * 1024,
+        maxRowsRead: RELEASE_PAGE + 1,
       },
     ],
     participants: [

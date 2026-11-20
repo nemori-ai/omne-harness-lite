@@ -7,9 +7,11 @@ import {
   DOMAIN_BYTES,
   clipDiagnostic,
   decodeIdentity,
+  decodeReleases,
   decodeScope,
   isDigest,
   isName,
+  releasesInDomain,
   scopeKey,
 } from '../fields.ts'
 import { combinationManifest, manifestDigest } from '../manifest.ts'
@@ -406,14 +408,17 @@ class MemorySqlStorage implements SqlStorage {
           (command as { facts?: unknown }).facts !== null &&
           !Array.isArray((command as { facts?: unknown }).facts),
       )
+    const releases = decodeReleases(input.releases)
     if (
       decoded.fields === null ||
       !isName(input.combinationVersion) ||
       !isDigest(input.manifestDigest) ||
-      !commandsOk
+      !commandsOk ||
+      releases === null
     )
       return reject('field_missing')
-    if (decoded.protocol !== '2') return reject('unsupported_protocol')
+    if (decoded.protocol !== '2' || decoded.identity === null) return reject('unsupported_protocol')
+    if (!releasesInDomain(decoded.identity, releases)) return reject('release_outside_domain')
     const list = commands as CommitRequestV2['commands'][number][]
     if (new Set(list.map(command => command.participant)).size !== list.length)
       return reject('participant_repeated')
@@ -508,6 +513,8 @@ class MemorySqlStorage implements SqlStorage {
       manifestDigest: input.manifestDigest,
       responses: entries,
     } as unknown as ReceiptV2
+    for (const released of decodeReleases(input.releases) ?? [])
+      if (keepsReceipt(released)) domain.receipts.delete(receiptKey(released))
     if (keepsReceipt(identity)) domain.receipts.set(receiptKey(identity), receipt)
     return { ...receipt, recalled: false }
   }

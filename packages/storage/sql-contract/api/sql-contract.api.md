@@ -205,7 +205,9 @@ export type DecodedIdentity = Readonly<{
     protocol: unknown;
 }>;
 export declare function decodeIdentity(value: unknown): DecodedIdentity;
+export declare function decodeReleases(value: unknown): SqlIdentity[] | null;
 export declare function scopeKey(scope: StorageScope): string;
+export declare function releasesInDomain(identity: SqlIdentity, releases: readonly SqlIdentity[]): boolean;
 export declare function clipDiagnostic(text: string, limit: number): string;
 ```
 
@@ -428,6 +430,7 @@ export type CommitRequestV2 = Readonly<{
     combinationVersion: string;
     manifestDigest: string;
     commands: readonly FactCommandV2[];
+    releases?: readonly SqlIdentity[];
 }>;
 export type CommitOptions = Readonly<{
     signal?: AbortSignal;
@@ -493,7 +496,7 @@ export type IdentityConflictV2 = Readonly<{
     identity: SqlIdentity;
     existing: ReceiptV2;
 }>;
-export type CommitRejectReason = 'closing' | 'cancelled' | 'field_missing' | 'unsupported_protocol' | 'participant_repeated' | 'facts_not_json' | 'command_limit' | 'queue_full' | 'writer_not_current' | 'domain_unavailable' | 'combination_unregistered' | 'manifest_mismatch' | 'material_unavailable' | 'participant_not_in_combination' | 'participant_dependency_missing';
+export type CommitRejectReason = 'closing' | 'cancelled' | 'field_missing' | 'unsupported_protocol' | 'release_outside_domain' | 'participant_repeated' | 'facts_not_json' | 'command_limit' | 'queue_full' | 'writer_not_current' | 'domain_unavailable' | 'combination_unregistered' | 'manifest_mismatch' | 'material_unavailable' | 'participant_not_in_combination' | 'participant_dependency_missing';
 export type PreDecodeRejectReason = 'closing' | 'cancelled' | 'field_missing' | 'unsupported_protocol';
 export type CommitRejectedV2 = Readonly<{
     kind: 'rejected_before_accept';

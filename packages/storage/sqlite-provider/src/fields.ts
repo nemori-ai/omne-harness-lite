@@ -61,6 +61,13 @@ export function decodeIdentity(value: unknown): DecodedIdentity {
   return { fields, identity, protocol }
 }
 
+export function decodeReleases(value: unknown): SqlIdentity[] | null {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) return null
+  const identities = value.map(item => decodeIdentity(item).identity)
+  return identities.every(item => item !== null) ? identities : null
+}
+
 export function scopeKey(scope: StorageScope): string {
   return scope.kind === 'system' ? 'system' : `tenant:${scope.tenant}`
 }

@@ -10,6 +10,7 @@ const COMMIT_NATURE: Readonly<Record<CommitRejectReason, RejectionNature>> = {
   cancelled: 'temporary',
   field_missing: 'definite',
   unsupported_protocol: 'definite',
+  release_outside_domain: 'definite',
   participant_repeated: 'definite',
   facts_not_json: 'definite',
   command_limit: 'definite',

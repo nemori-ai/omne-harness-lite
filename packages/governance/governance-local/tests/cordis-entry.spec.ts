@@ -76,8 +76,8 @@ it('binds contributions to actual caller fibers and preserves sibling and borrow
   await provider.dispose()
   expect(world.observed).toContainEqual({ kind: 'closed' })
   expect(world.ctx.get(governanceContributionsKey)).toBeUndefined()
-  expect(await world.w.services().sql.observe(world.w.binding('first'))).toMatchObject({
-    record: { state: 'committed' },
+  expect(await world.w.services().sql.observe(world.w.binding('first'))).toEqual({
+    kind: 'absent',
   })
 })
 
