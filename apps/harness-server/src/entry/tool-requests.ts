@@ -37,7 +37,7 @@ import {
   type ToolConsumerProfile,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
-import { commandResultModalities } from '@omne-harness/tool-contract/provider'
+import { commandAddedModalities } from '@omne-harness/tool-contract/provider'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
 import { RELEASE_REQUEST_CONTEXT, runToolScope } from '../rows/tool-runtime/scope.ts'
@@ -238,9 +238,7 @@ async function unavailableByProducts(
   { catalog, release, input, definition }: CommandQuestion,
   command: string | null,
 ): Promise<Outcome<ToolCallAnswer | null, Failure>> {
-  const own = definition.declarations.outputModalities
-  if (commandResultModalities(definition, command).every(modality => own.includes(modality)))
-    return succeed(null)
+  if (commandAddedModalities(definition, command).length === 0) return succeed(null)
   const name = definition.name
   let answer: Awaited<ReturnType<ToolCatalog<unknown>['inspect']>>
   try {

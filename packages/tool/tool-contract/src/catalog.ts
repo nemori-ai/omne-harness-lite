@@ -17,15 +17,15 @@ export function presentTool(definition: ToolDefinition): ToolPresentation {
   })
 }
 
-/** The modalities a result may carry: the tool's own, plus what the named command adds. */
-export function commandResultModalities(
+/** What the result of the named command carries beyond the modalities the tool declares. */
+export function commandAddedModalities(
   definition: ToolDefinition,
   command: string | null,
 ): readonly Modality[] {
+  if (definition.kind !== 'commands') return []
   const own = definition.declarations.outputModalities
-  if (definition.kind !== 'commands') return own
   const added = definition.commands.find(entry => entry.name === command)?.modalities ?? []
-  return [...own, ...added.filter(modality => !own.includes(modality))]
+  return added.filter(modality => !own.includes(modality))
 }
 
 type Condition = (facts: AvailabilityFacts) => readonly string[]

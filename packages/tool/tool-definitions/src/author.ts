@@ -59,6 +59,13 @@ export type StructuredCommand<E> = Readonly<{
   ) => Promise<ToolResult<ToolMessageContentBlock>>
 }>
 
+export type AuthorOptions<E> = Readonly<{
+  settings?: ToolSettingsDeclaration | null
+  gates?: CommandGates
+  /** The commands whose result is blocks, by name; every other command returns text. */
+  structured?: Readonly<Record<string, StructuredCommand<E>>>
+}>
+
 type ResultCodec = ReturnType<typeof createToolMessageResultCodec>
 
 const blocksReturns = (codec: ResultCodec) =>
@@ -105,9 +112,7 @@ export function createAuthor<E>(
     environment: E,
     execution: ToolExecutionContext,
   ) => Promise<string>,
-  settings: ToolSettingsDeclaration | null = null,
-  gates?: CommandGates,
-  structured: Readonly<Record<string, StructuredCommand<E>>> = {},
+  { settings = null, gates, structured = {} }: AuthorOptions<E> = {},
 ): ToolImplementation<E, ToolMessageContentBlock> {
   const codec = createToolMessageResultCodec(maximum)
   const menu: CommandTable = {

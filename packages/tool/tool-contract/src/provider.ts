@@ -87,7 +87,7 @@ export { judgeFixedToolRequest, judgeToolInvokeRequest } from './judge-request.t
 export { judgePreparationFact } from './judge-preparation.ts'
 export { judgeConsumerRef, judgeHandoff } from './judge-release.ts'
 export { judgeToolState } from './judge-state.ts'
-export { commandResultModalities, evaluateToolAvailability, presentTool } from './catalog.ts'
+export { commandAddedModalities, evaluateToolAvailability, presentTool } from './catalog.ts'
 export {
   TOOL_REFERENCE_MAX_LENGTH,
   decodeToolInvocationRef,

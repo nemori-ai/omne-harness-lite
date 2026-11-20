@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import {
-  commandResultModalities,
+  commandAddedModalities,
   defineCommandTool,
   defineToolOperation,
   judgeToolDefinition,
@@ -84,23 +84,24 @@ describe('a command declares the modalities its result adds to the tool’s', ()
   })
 })
 
-describe('the modalities a result may carry', () => {
-  it('are the tool’s own plus what the named command adds, each once', () => {
-    expect(commandResultModalities(commands(['image', 'text']), 'read')).toEqual(['text', 'image'])
+describe('what a command adds to the modalities of its tool', () => {
+  it('is what the command declares, without what the tool already declares for every result', () => {
+    expect(commandAddedModalities(commands(['image', 'text']), 'read')).toEqual(['image'])
+    expect(commandAddedModalities(commands(['voice', 'image']), 'read')).toEqual(['voice', 'image'])
   })
 
-  it('are the tool’s own for a command that adds none, for no command, and for a name the tool does not have', () => {
+  it('is nothing for a command that declares none, for no command, and for a name the tool does not have', () => {
     const definition = commands(['image'])
-    expect(commandResultModalities(definition, 'shell')).toEqual(['text'])
-    expect(commandResultModalities(definition, null)).toEqual(['text'])
-    expect(commandResultModalities(definition, 'missing')).toEqual(['text'])
+    expect(commandAddedModalities(definition, 'shell')).toEqual([])
+    expect(commandAddedModalities(definition, null)).toEqual([])
+    expect(commandAddedModalities(definition, 'missing')).toEqual([])
   })
 
-  it('are the tool’s own for a function tool, whatever command is named', () => {
+  it('is nothing for a function tool, whatever command is named', () => {
     const definition = {
       ...functionDefinition(),
       declarations: { ...declarations(), outputModalities: ['text', 'image'] as const },
     }
-    expect(commandResultModalities(definition, 'read')).toEqual(['text', 'image'])
+    expect(commandAddedModalities(definition, 'read')).toEqual([])
   })
 })

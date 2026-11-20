@@ -31,6 +31,7 @@ Tool 向外声明的端口（它需要别人做的）：
 | -------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `ToolEnvironment`                                        | `packages/execution`，由 `tool-host-local` 适配                     | Tool 需要为一次准备取得、查询和释放符合原环境采用的资源，并按原获取认回             |
 | `ToolDecisionBridge`                                     | `packages/human-intervention`，经应用装配适配                       | Tool 需要为一个等人决定的等待登记、查询、取回唯一有效决定，并在等待关闭时让登记失效 |
+| `ToolMediaStore`（存产出） | `packages/media`，由 `media-adapters` 适配 | Tool 需要把一次调用交出的产出存下，并由这次调用持有，拿回内容引用与媒体事实 |
 | 资格守卫、来源核验、并发范围授予、启动许可需求与请求策略 | `packages/identity`，经应用装配                                     | Tool 需要每次调用时问当前主体许不许、来源真不真、许可要不要                         |
 | `ToolCredentials` 的秘密保管                             | `packages/assets`（settings）                                       | Tool 需要按租户、组织、官方的次序解析凭据引用，并取得只在一次使用期间有效的能力     |
 | `ToolResultReceiver`                                     | 冻结在调用里的消费拥有者（如 `packages/agent`、`packages/session`） | Tool 需要把一个结果版本或一份占位推给原消费位置，取得 saved 回执                    |

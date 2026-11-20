@@ -21,7 +21,7 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolConsumerProfile, ToolDefinition } from '@omne-harness/tool-contract'
-import { commandResultModalities } from '@omne-harness/tool-contract/provider'
+import { commandAddedModalities } from '@omne-harness/tool-contract/provider'
 import { toolEnvironmentsKey, toolMediaStoreKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { SessionWork } from '@omne-harness/session-contract'
 import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/cordis'
@@ -242,9 +242,7 @@ async function judgeRelease(ctx: Context, reads: ModelReads, input: JudgeInput):
   const confirmed = release.manifest.consumer
   if (!confirmedTextConsumer(input.consumer, confirmed))
     return unavailable('consumer material is not a confirmed text consumer')
-  const beyond = commandResultModalities(input.definition, input.command).filter(
-    modality => !input.definition.declarations.outputModalities.includes(modality),
-  )
+  const beyond = commandAddedModalities(input.definition, input.command)
   const access = { principal: input.principal, tenant: input.tenant, session: work.session }
   const products = await productsOf(ctx, reads, access, beyond)
   if ('unreadable' in products) return unavailable(products.unreadable)

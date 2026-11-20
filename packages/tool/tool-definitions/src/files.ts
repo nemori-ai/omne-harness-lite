@@ -51,12 +51,13 @@ export function createFilesAuthor(
       maximum,
       'Paths are absolute or relative to the working directory of the session, the same directory where Shell starts. A call with no working directory takes absolute paths only. Resolution grants no access: a path outside the authorized files is still refused. open reads one static PNG, JPEG or WebP picture within the configured limits and returns it for the model to see; an animated, damaged or oversized picture is refused. Text is UTF-8 with original line endings. Patch preflight changes nothing. Unknown batches must be recovered by their original identity, never resubmitted. A version is an observation, not authorization. Every final text has resultMaxBytes as its byte bound. Truncation preserves head and tail when the bound can hold its marker.',
       (command, args, environment) => executeFiles(command, args, environment, maximum),
-      null,
-      FILES_GATES,
       {
-        open: {
-          modalities: ['image'],
-          execute: (args, environment) => openFile(args, environment, limits),
+        gates: FILES_GATES,
+        structured: {
+          open: {
+            modalities: ['image'],
+            execute: (args, environment) => openFile(args, environment, limits),
+          },
         },
       },
     ),
@@ -110,52 +111,42 @@ function expected(args: Arguments) {
   const version = args.optionalText('expected_version')
   return version === undefined ? {} : { expectedVersion: version }
 }
-/** Runs one command against files placed in the working directory; says so when a relative path had none. */
-async function placed(
+/** Runs one command against files placed in the working directory; the note says a relative path had none. */
+async function placed<T>(
   environment: FilesAuthorEnvironment,
   work: (
     files: FilesAuthorEnvironment['files'],
     directory: WorkingDirectory | undefined,
-  ) => Promise<string>,
-): Promise<string> {
+  ) => Promise<T>,
+): Promise<Readonly<{ value: T; note: string }>> {
   // A directory that is not an absolute path resolves nothing: relative paths are refused as with none.
   const directory =
     environment.directory === undefined ? undefined : workingDirectoryOf(environment.directory)
   const notes: PathNotes = { relativeRefused: false }
-  const text = await work(placedFiles(environment.files, directory, notes), directory)
-  return notes.relativeRefused
-    ? `${text}
-${RELATIVE_PATH_DIAGNOSTIC}`
-    : text
+  const value = await work(placedFiles(environment.files, directory, notes), directory)
+  return { value, note: notes.relativeRefused ? `\n${RELATIVE_PATH_DIAGNOSTIC}` : '' }
 }
 const headerOf = (path: string, directory: WorkingDirectory | undefined): string => {
   const resolved = placePath(path, directory)
   return `path=${JSON.stringify(path)}${resolved === path ? '' : ` resolved_path=${JSON.stringify(resolved)}`}`
 }
-function executeFiles(
+async function executeFiles(
   command: string,
   args: Arguments,
   environment: FilesAuthorEnvironment,
   maximum: number,
 ): Promise<string> {
-  return placed(environment, (files, directory) =>
+  const { value, note } = await placed(environment, (files, directory) =>
     executeCommand(command, args, files, maximum, directory),
   )
+  return `${value}${note}`
 }
 async function openFile(args: Arguments, environment: FilesAuthorEnvironment, limits: OpenLimits) {
-  let product: Awaited<ReturnType<typeof openPicture>>['product']
-  const text = await placed(environment, async (files, directory) => {
-    const path = args.text('path')
-    const opened = await openPicture(
-      path,
-      headerOf(path, directory),
-      { files, media: environment.media },
-      limits,
-    )
-    product = opened.product
-    return opened.text
-  })
-  return openResult(product === undefined ? { text } : { text, product })
+  const path = args.text('path')
+  const { value: opened, note } = await placed(environment, (files, directory) =>
+    openPicture(path, headerOf(path, directory), { files, media: environment.media }, limits),
+  )
+  return openResult({ ...opened, text: `${opened.text}${note}` })
 }
 async function executeCommand(
   command: string,

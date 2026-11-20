@@ -405,10 +405,10 @@
 - `actionPreview` · `call-label.d.ts`
 - `attachToolsCapability` · `tools-capability.d.ts`
 - `authorDecision` · `checkpointed-author.d.ts`
+- `commandAddedModalities` · `catalog.d.ts`
 - `commandArguments` · `command-call.d.ts`
 - `commandExample` · `command-call.d.ts`
 - `commandGuide` · `command-call.d.ts`
-- `commandResultModalities` · `catalog.d.ts`
 - `commandSignature` · `command-call.d.ts`
 - `createDefaultParameterCodec` · `parameter-codec.d.ts`
 - `decodeCommandCall` · `command-call.d.ts`
@@ -1417,7 +1417,7 @@ import type { AvailabilityFacts, ToolPresentation } from './authoring.ts';
 import type { Modality } from '@omne-harness/modality';
 import type { ToolAvailability, ToolDefinition } from './definitions.ts';
 export declare function presentTool(definition: ToolDefinition): ToolPresentation;
-export declare function commandResultModalities(definition: ToolDefinition, command: string | null): readonly Modality[];
+export declare function commandAddedModalities(definition: ToolDefinition, command: string | null): readonly Modality[];
 export declare function evaluateToolAvailability(facts: AvailabilityFacts): ToolAvailability;
 ```
 
@@ -3279,7 +3279,7 @@ export { judgeFixedToolRequest, judgeToolInvokeRequest } from './judge-request.t
 export { judgePreparationFact } from './judge-preparation.ts';
 export { judgeConsumerRef, judgeHandoff } from './judge-release.ts';
 export { judgeToolState } from './judge-state.ts';
-export { commandResultModalities, evaluateToolAvailability, presentTool } from './catalog.ts';
+export { commandAddedModalities, evaluateToolAvailability, presentTool } from './catalog.ts';
 export { TOOL_REFERENCE_MAX_LENGTH, decodeToolInvocationRef, decodeToolOperationRef, readToolInvocationRef, toolStreamCallCodec, } from './reference.ts';
 export { defineCommandTool, defineFunctionTool, defineToolOperation } from './registration.ts';
 export { defineToolWaitContract, WAIT_REQUEST_MAX_BYTES, WAIT_RESPONSE_MAX_BYTES, } from './wait-contract.ts';
