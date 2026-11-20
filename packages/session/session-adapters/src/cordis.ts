@@ -13,6 +13,7 @@ export {
   workingDirectoryDescriptor,
   workingDirectoryModelBinding,
 } from './cordis/working-directory-block.ts'
+export { heldBlock, type HeldBlock } from './cordis/context-records.ts'
 export {
   createStepDirectory,
   type StepDirectory,

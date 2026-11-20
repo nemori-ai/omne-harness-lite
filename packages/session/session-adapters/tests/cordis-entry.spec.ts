@@ -36,6 +36,7 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'encodeContextRegistrationChange',
     'encodeContextStepCommit',
     'encodeInitialContextRegistration',
+    'heldBlock',
     'pendingLimitOf',
     'prepareContextRegistration',
     'sessionInquiryBinding',
