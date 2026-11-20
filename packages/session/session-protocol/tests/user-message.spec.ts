@@ -118,8 +118,7 @@ it('attachments alone make a message with no text block; words alone are the tex
     attachments: [{ kind: 'file', ref: PICTURE }],
   })
   expect(blocksOf(alone)).toEqual([referring('file', `blk_${digest}_1`, PICTURE)])
-  for (const words of [text, ''])
-    expect(await userMessage({ inputId, text: words, attachments: [] })).toEqual(
-      await userTextMessage(words, inputId),
-    )
+  expect(await userMessage({ inputId, text, attachments: [] })).toEqual(expected(text, digest))
+  expect(await userMessage({ inputId, text: '', attachments: [] })).toEqual(expected('', digest))
+  expect(await userTextMessage(text, inputId)).toEqual(expected(text, digest))
 })

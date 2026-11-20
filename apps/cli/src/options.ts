@@ -15,12 +15,22 @@ export type OptionRead =
   | { readonly kind: 'unrecognized' }
   | { readonly kind: 'missing'; readonly option: string }
 
+type Taken = { values: Map<string, string>; lists: Map<string, string[]> }
+
+/** Takes one option with its value; false when the command does not take it so. */
+function take(taken: Taken, rules: OptionRules, name: string, value: string | undefined): boolean {
+  const named = (word: string) =>
+    rules.accepted.includes(word) || (rules.switches ?? []).includes(word)
+  if (!rules.accepted.includes(name) || value === undefined || named(value)) return false
+  if (!(rules.repeatable ?? []).includes(name)) taken.values.set(name, value)
+  else taken.lists.set(name, [...(taken.lists.get(name) ?? []), value])
+  return true
+}
+
 export function readOptions(args: readonly string[], rules: OptionRules): OptionRead {
-  const values = new Map<string, string>()
-  const lists = new Map<string, string[]>()
+  const taken: Taken = { values: new Map(), lists: new Map() }
+  const { values, lists } = taken
   const switches = rules.switches ?? []
-  const repeatable = rules.repeatable ?? []
-  const named = (word: string) => rules.accepted.includes(word) || switches.includes(word)
   for (let index = 0; index < args.length; index += 1) {
     const name = args[index] ?? ''
     if (values.has(name)) return { kind: 'unrecognized' }
@@ -29,11 +39,7 @@ export function readOptions(args: readonly string[], rules: OptionRules): Option
       continue
     }
     index += 1
-    const value = args[index]
-    if (!rules.accepted.includes(name) || value === undefined || named(value))
-      return { kind: 'unrecognized' }
-    if (repeatable.includes(name)) lists.set(name, [...(lists.get(name) ?? []), value])
-    else values.set(name, value)
+    if (!take(taken, rules, name, args[index])) return { kind: 'unrecognized' }
   }
   const missing = rules.required.find(name => !values.has(name))
   if (missing !== undefined) return { kind: 'missing', option: missing }

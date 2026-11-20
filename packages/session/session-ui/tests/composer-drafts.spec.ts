@@ -60,3 +60,30 @@ describe('一份草稿的附件', () => {
     expect(told).toBe(2)
   })
 })
+
+describe('草稿的边角', () => {
+  it('输入框收走：草稿换新、附件清掉并通知；没有草稿的会话不动也不通知', () => {
+    const store = new ComposerDraftStore()
+    const { draft } = store.read('s')
+    store.offer({ session: 's', draft, source: 'media', attachments: [A], ready: false })
+    let told = 0
+    store.subscribe(() => {
+      told += 1
+    })
+    store.drop('never-opened')
+    expect(told).toBe(0)
+    store.drop('s')
+    expect(told).toBe(1)
+    const next = store.read('s')
+    expect(next.draft).not.toBe(draft)
+    expect(next).toEqual({ draft: next.draft, attachments: [], ready: true })
+  })
+
+  it('对着没有草稿的会话交回：丢弃，不出错', () => {
+    const store = new ComposerDraftStore()
+    expect(() =>
+      store.offer({ session: 'nowhere', draft: 'x', source: 'm', attachments: [A], ready: false }),
+    ).not.toThrow()
+    expect(store.read('nowhere')).toMatchObject({ attachments: [], ready: true })
+  })
+})

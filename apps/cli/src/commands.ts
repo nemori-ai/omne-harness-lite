@@ -209,6 +209,9 @@ function recordCreated(
   return 1
 }
 
+const sent = (result: CallResult | Stop | undefined): result is CallResult =>
+  result !== undefined && 'kind' in result
+
 function stopped(name: string, stop: Stop | undefined, output: CliOutput): ExitCode {
   if (stop === undefined) return usageError(output, unrecognized(name))
   if ('usage' in stop) return usageError(output, `omne ${name}: ${stop.usage}\n`)
@@ -235,7 +238,7 @@ async function runSession<Parsed>(
   if ('exit' in prepared) return prepared.exit
   const { built, owners } = prepared
   const result = await built.send(loaded.link)
-  if (result === undefined || !('kind' in result)) return stopped(name, result, output)
+  if (!sent(result)) return stopped(name, result, output)
   const code = report(name, result, built.echo, output)
   const note = built.note?.() ?? null
   if (note !== null) output.stderr(`omne ${name}: ${note}\n`)

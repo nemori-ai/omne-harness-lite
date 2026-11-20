@@ -67,6 +67,7 @@ describe('上传一份媒体', () => {
     ['append-upload-part', { outcome: 'conflict', body: { reason: 'other-bytes' } }, 'conflict'],
     ['commit-upload', { outcome: 'invalid', body: { reason: 'type-mismatch' } }, '内容不是'],
     ['commit-upload', { outcome: 'invalid', body: { reason: 'over-budget' } }, '解码'],
+    ['commit-upload', { outcome: 'invalid', body: { reason: 'digest-mismatch' } }, '对不上'],
   ] as const)('%s 答 %j 时停下并说出原因', async (operation, answer, reason) => {
     const media = fakeMedia(4)
     media.once(operation, () => answer)
@@ -166,5 +167,101 @@ describe('读回一份媒体', () => {
       throw new Error('offline')
     })
     expect(await read()).toEqual({ kind: 'unreadable', reason: '连不上服务' })
+  })
+})
+
+describe('服务端说的序号与这边对不上时', () => {
+  const failedWith = async (media: FakeMedia) => {
+    const outcome = await upload(media).done
+    return outcome.kind === 'failed' ? outcome.reason : outcome.kind
+  }
+
+  it('追加答「有缺口」并给了下一个序号：从那个序号接着传', async () => {
+    const media = fakeMedia(4)
+    media.once('append-upload-part', () => ({
+      outcome: 'invalid',
+      body: { reason: 'gap', nextSequence: 0 },
+    }))
+    expect(await upload(media).done).toEqual(committed)
+    expect(media.calls.slice(1, 5).map(call => call.body['sequence'])).toEqual([0, 0, 1, 2])
+  })
+
+  it('提交答「没收齐」并给了下一个序号：回去补那一片，再提交', async () => {
+    const media = fakeMedia(4)
+    media.once('commit-upload', () => ({
+      outcome: 'invalid',
+      body: { reason: 'incomplete', nextSequence: 2 },
+    }))
+    expect(await upload(media).done).toEqual(committed)
+    expect(media.operations().slice(4)).toEqual([
+      'commit-upload',
+      'append-upload-part',
+      'commit-upload',
+    ])
+  })
+
+  it.each([
+    ['别的无效原因', { outcome: 'invalid', body: { reason: 'beyond-declared', nextSequence: 0 } }],
+    ['不是无效的答复', { outcome: 'conflict', body: { reason: 'gap', nextSequence: 0 } }],
+    ['序号不是数', { outcome: 'invalid', body: { reason: 'gap', nextSequence: '0' } }],
+    ['提交才有的原因', { outcome: 'invalid', body: { reason: 'incomplete', nextSequence: 0 } }],
+  ] as const)('追加答%s时不接着传，停下', async (_, answer) => {
+    const media = fakeMedia(4)
+    media.once('append-upload-part', () => answer)
+    expect(await failedWith(media)).toBe(`上传没有成功（${answer.outcome}）`)
+    expect(media.operations()).toEqual(['begin-upload', 'append-upload-part'])
+  })
+
+  it('整份恰好是分片的整数倍：传完就提交，不多发一片空的', async () => {
+    const media = fakeMedia(4)
+    const done = await upload(media, { bytes: BYTES.subarray(0, 8) }).done
+    expect(done.kind).toBe('committed')
+    expect(media.operations()).toEqual([
+      'begin-upload',
+      'append-upload-part',
+      'append-upload-part',
+      'commit-upload',
+    ])
+  })
+})
+
+describe('答复没到之后去问', () => {
+  it('开始的答复没到：问到还在上传，照常传完', async () => {
+    const media = fakeMedia(4)
+    media.loseAnswer('begin-upload')
+    expect(await upload(media).done).toEqual(committed)
+    expect(media.operations().slice(0, 3)).toEqual([
+      'begin-upload',
+      'query-upload',
+      'append-upload-part',
+    ])
+  })
+
+  it('开始没有发出去：说连不上，一次也不问', async () => {
+    const media = fakeMedia(4)
+    media.once('begin-upload', () => {
+      throw new Error('offline')
+    })
+    expect(await upload(media).done).toEqual({ kind: 'failed', reason: '连不上服务，没有传完' })
+    expect(media.operations()).toEqual(['begin-upload'])
+  })
+
+  it('问的时候服务端不认识这次上传：停下并说出它的答复', async () => {
+    const media = fakeMedia(4)
+    media.once('commit-upload', () => ({ outcome: 'unknown', body: {} }))
+    media.once('query-upload', () => ({ outcome: 'not-found', body: {} }))
+    expect(await upload(media).done).toEqual({
+      kind: 'failed',
+      reason: '上传没有成功（not-found）',
+    })
+  })
+
+  it('问的那一次没有发出去：说连不上', async () => {
+    const media = fakeMedia(4)
+    media.once('commit-upload', () => ({ outcome: 'unknown', body: {} }))
+    media.once('query-upload', () => {
+      throw new Error('offline')
+    })
+    expect(await upload(media).done).toEqual({ kind: 'failed', reason: '连不上服务，没有传完' })
   })
 })

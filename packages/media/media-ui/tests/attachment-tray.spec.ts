@@ -149,3 +149,76 @@ describe('一份草稿的附件区', () => {
     expect(offers).toEqual([])
   })
 })
+
+describe('附件区的边角', () => {
+  it('去掉的是点名的那一份：别的不动，只还它的预览地址；不认识的标识什么都不做', async () => {
+    const media = fakeMedia(2)
+    const { tray, shown, offers, released } = trayOver(media)
+    tray.add([A, B])
+    await settled()
+    const [, second] = tray.read()
+    tray.remove(second?.id ?? '')
+    expect(shown()).toEqual([['a.png', 'ready', 'blob:a.png']])
+    expect(released).toEqual(['blob:b.png'])
+    const before = offers.length
+    tray.remove('no-such-id')
+    expect(offers).toHaveLength(before)
+    expect(shown()).toEqual([['a.png', 'ready', 'blob:a.png']])
+  })
+
+  it('没有预览的一份去掉或随附件区收走时，不还什么地址', async () => {
+    const media = fakeMedia(2)
+    const { tray, released } = trayOver(media)
+    tray.add([
+      picked('notes.pdf', [1], 'application/pdf'),
+      picked('more.pdf', [2], 'application/pdf'),
+    ])
+    tray.remove(tray.read()[0]?.id ?? '')
+    tray.dispose()
+    expect(released).toEqual([])
+  })
+
+  it('上传中去掉之后，迟到的进度与结果不再交回任何东西', async () => {
+    const media = fakeMedia(2)
+    const { tray, offers } = trayOver(media)
+    tray.add([A])
+    tray.remove(tray.read()[0]?.id ?? '')
+    const before = offers.length
+    await settled()
+    expect(offers).toHaveLength(before)
+  })
+
+  it('失败的一份从不带着引用交回', async () => {
+    const media = fakeMedia(2)
+    media.once('begin-upload', () => ({ outcome: 'limited', body: { limit: 2 } }))
+    const { tray, offers } = trayOver(media)
+    tray.add([A])
+    await settled()
+    expect(offers.flatMap(offer => offer.attachments)).toEqual([])
+    expect(offers.every(offer => !offer.ready)).toBe(true)
+  })
+
+  it('文件读不出来：这一份失败并写明，什么都不上传', async () => {
+    const media = fakeMedia(2)
+    const { tray } = trayOver(media)
+    const unreadable: PickedFile = { ...A, read: () => Promise.reject(new Error('gone')) }
+    tray.add([unreadable])
+    await settled()
+    expect(tray.read()[0]?.state).toEqual({ kind: 'failed', reason: '这个文件读不出来' })
+    expect(media.calls).toEqual([])
+  })
+
+  it('退订之后不再收到变化', async () => {
+    const media = fakeMedia(2)
+    const { tray } = trayOver(media)
+    let told = 0
+    const stop = tray.subscribe(() => {
+      told += 1
+    })
+    tray.add([picked('notes.pdf', [1], 'application/pdf')])
+    expect(told).toBe(1)
+    stop()
+    tray.add([picked('more.pdf', [2], 'application/pdf')])
+    expect(told).toBe(1)
+  })
+})
