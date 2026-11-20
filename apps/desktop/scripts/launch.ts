@@ -11,6 +11,7 @@ import { reportedBuildProfile } from '../src/startup-signals.ts'
 import { BUNDLES, bundleDir } from './build-profile.ts'
 import { checkPackagedFuses, describeFuses } from './fuses.ts'
 import { packagedBinary } from './packaged-path.ts'
+import { powershellOutput } from './powershell.ts'
 
 export const desktopDir = resolve(import.meta.dirname, '..')
 
@@ -284,14 +285,9 @@ export function verifyBuildProfile(
 export function appProcesses(executable: string, directory: string): number[] {
   let output: string
   if (process.platform === 'win32')
-    output = execFileSync(
-      'powershell',
-      [
-        '-NoProfile',
-        '-Command',
-        'Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { $_.ExecutablePath -and [string]::Equals($_.ExecutablePath, $env:OMNE_PROCESS_EXE, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.ProcessId }',
-      ],
-      { encoding: 'utf8', env: { ...process.env, OMNE_PROCESS_EXE: executable } },
+    output = powershellOutput(
+      'Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { $_.ExecutablePath -and [string]::Equals($_.ExecutablePath, $env:OMNE_PROCESS_EXE, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.ProcessId }',
+      { OMNE_PROCESS_EXE: executable },
     )
   else
     try {

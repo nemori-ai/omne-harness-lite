@@ -10,7 +10,7 @@ import {
   type SandboxProbe,
   windowStateSwitches,
 } from '../scripts/launch.ts'
-import { screenLock, screenLockedFromIoreg } from '../scripts/session-state.ts'
+import { screenLock } from '../scripts/session-state.ts'
 import { remoteDebuggingSwitch, reportedBuildProfile } from '../src/startup-signals.ts'
 
 describe('构建档', () => {
@@ -128,12 +128,25 @@ describe('测试启动的隔离', () => {
     expect(linuxSandboxBlocker('/a/omne', off)).toContain('max_user_namespaces')
   })
 
-  it('macOS 锁屏从 ioreg 读；别的平台总当没锁', () => {
-    const xml = (locked: boolean) =>
-      `<key>IOConsoleUsers</key><key>CGSSessionScreenIsLocked</key><${locked}/>`
-    expect(screenLockedFromIoreg(xml(true))).toBe(true)
-    expect(screenLock('darwin', () => xml(false))).toEqual({ locked: false })
-    expect(screenLock('darwin', () => '')).toHaveProperty('unknown')
-    expect(screenLock('linux', () => xml(true))).toEqual({ locked: false })
+  it('macOS 锁屏只看在前台的那个会话；别的平台总当没锁', () => {
+    const fail = (): never => {
+      throw new Error('ioreg failed')
+    }
+    for (const locked of [true, false]) {
+      const front = { kCGSSessionOnConsoleKey: true, CGSSessionScreenIsLocked: locked }
+      const back = { kCGSSessionOnConsoleKey: false, CGSSessionScreenIsLocked: !locked }
+      expect(screenLock('darwin', () => [front, back])).toEqual({ locked })
+      expect(screenLock('darwin', () => [back, front])).toEqual({ locked })
+    }
+    expect(screenLock('darwin', () => [{ kCGSSessionOnConsoleKey: true }])).toEqual({
+      locked: false,
+    })
+    expect(screenLock('darwin', () => [])).toHaveProperty('unknown')
+    expect(screenLock('darwin', fail)).toHaveProperty('unknown')
+    expect(screenLock('linux', fail)).toEqual({ locked: false })
+  })
+
+  it.runIf(process.platform === 'darwin')('读得到这台 Mac 真实的会话清单', () => {
+    expect(screenLock()).toHaveProperty('locked')
   })
 })

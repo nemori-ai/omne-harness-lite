@@ -7,7 +7,7 @@ import {
   type PortFetch,
   type PortStats,
 } from '../port-fetch/index.ts'
-import type { Logger } from './log.ts'
+import { type Logger, writeStderr, writeStdout } from './log.ts'
 
 export interface ServerProcessOptions {
   utilityPath: string
@@ -60,8 +60,9 @@ function electronDeps(options: ServerProcessOptions): ServerProcessDeps {
         serviceName: 'omne-forwarding',
         env: { ...stringEnv(process.env), ...options.env },
       })
-      child.stdout?.on('data', (chunk: Buffer) => process.stdout.write(chunk))
-      child.stderr?.on('data', (chunk: Buffer) => process.stderr.write(chunk))
+      // The utility's own JSON lines, passed through a sink that survives a closed reader.
+      child.stdout?.on('data', writeStdout)
+      child.stderr?.on('data', writeStderr)
       return child
     },
     channel: () => new MessageChannelMain(),

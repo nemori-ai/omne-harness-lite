@@ -26,6 +26,7 @@ import {
   launchSpec,
   removeUserDataDir,
 } from '../scripts/launch.ts'
+import { closeApplication, type MainProcess } from './close.ts'
 
 export type Target = LaunchTarget
 export const REPLY = 'hello from the e2e gateway'
@@ -40,16 +41,15 @@ export function targetProcesses(target: Target): number[] {
   }
 }
 
-export type Launched = Readonly<{ app: ElectronApplication; page: Page; pid: number }>
+export type Launched = Readonly<{
+  app: ElectronApplication
+  page: Page
+  pid: number
+  close: () => Promise<void>
+}>
 
-const alive = (pid: number): boolean => {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch {
-    return false
-  }
-}
+// A launch whose exit is unconfirmed takes its directory off this list, so the fixture keeps it.
+const removableProfiles = new Set<string>()
 
 async function launch(target: Target, userDataDir: string, server: string): Promise<Launched> {
   const spec = launchSpec(target, 'test', { userDataDir })
@@ -61,9 +61,21 @@ async function launch(target: Target, userDataDir: string, server: string): Prom
     env: launchEnvironment(process.env, { OMNE_SERVER: server }),
     chromiumSandbox: !spec.args.includes('--no-sandbox'),
   })
-  let pid: number | undefined
+  const launcher = app.process()
+  let main: MainProcess | undefined
+  const close = () =>
+    closeApplication(app, launcher, main, () => {
+      removableProfiles.delete(userDataDir)
+      process.stderr.write(`e2e: exit unconfirmed; keeping user data in ${userDataDir}\n`)
+    })
   try {
-    pid = await app.evaluate(() => process.pid)
+    // On Windows Playwright may start Electron through a separate launcher process.
+    main = await app.evaluate(() => {
+      const created = process.platform === 'win32' ? process.getCreationTime() : null
+      return { pid: process.pid, ...(created === null ? {} : { startedAt: Math.trunc(created) }) }
+    })
+    if (main.pid !== launcher.pid && (process.platform !== 'win32' || main.startedAt === undefined))
+      throw new Error('cannot verify the identity of the launched Electron main process')
     const page = await app.firstWindow()
     const reported = await app.evaluate(() => globalThis.desktopBuildProfile)
     if (reported !== 'test')
@@ -76,20 +88,17 @@ async function launch(target: Target, userDataDir: string, server: string): Prom
       if (store !== 'basic_text')
         throw new Error(`the app keeps its secrets in ${store}, not the basic store`)
     }
-    return { app, page, pid }
+    return { app, page, pid: main.pid, close }
   } catch (failure) {
-    await app.close().catch(() => {})
-    if (pid !== undefined && alive(pid)) process.kill(pid, 'SIGKILL')
+    await close().catch((closeFailure: unknown) => {
+      process.stderr.write(`e2e: cleanup after a failed launch: ${String(closeFailure)}\n`)
+    })
     throw failure
   }
 }
 
 /** Quits the way a person does, so `before-quit` flushes the cookies, and waits for the process. */
-export async function quit({ app, pid }: Launched): Promise<void> {
-  await app.close()
-  for (let i = 0; i < 200 && alive(pid); i += 1) await new Promise(r => setTimeout(r, 50))
-  if (alive(pid)) throw new Error(`main process ${pid} still running after quit`)
-}
+export const quit = ({ close }: Launched): Promise<void> => close()
 
 /** A real server with a stand-in model gateway that answers every request with `REPLY`. */
 async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> {
@@ -158,10 +167,11 @@ export const test = base.extend<Fixtures & Options, Worker>({
   // oxlint-disable-next-line no-empty-pattern -- Playwright fixtures destructure their dependencies
   userDataDir: async ({}, provide) => {
     const directory = freshUserDataDir('e2e')
+    removableProfiles.add(directory)
     try {
       await provide(directory)
     } finally {
-      removeUserDataDir(directory)
+      if (removableProfiles.delete(directory)) removeUserDataDir(directory)
     }
   },
   launchApp: async ({ target, server, userDataDir }, provide) => {
@@ -171,8 +181,15 @@ export const test = base.extend<Fixtures & Options, Worker>({
       launched.push(app)
       return app
     })
+    const failures: unknown[] = []
     for (const app of launched)
-      if (alive(app.pid)) await quit(app).catch(() => process.kill(app.pid, 'SIGKILL'))
+      try {
+        await quit(app)
+      } catch (failure) {
+        failures.push(failure)
+      }
+    if (failures.length > 0)
+      throw new AggregateError(failures, 'could not close every test app cleanly')
   },
 })
 

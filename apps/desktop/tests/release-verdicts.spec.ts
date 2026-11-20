@@ -119,6 +119,33 @@ describe('包里的文件', () => {
     ).toEqual(['app.asar keeps a.js unpacked, outside the archive'])
   })
 
+  it.each([
+    { size: -1, offset: '0' },
+    { size: null, offset: '0' },
+    { size: '1', offset: '0' },
+    { size: 1 },
+    { size: 1, offset: '-1' },
+    { size: 0, offset: '' },
+    { size: 0, offset: false },
+    { size: 1, offset: null },
+    { size: 1, offset: '9007199254740992' },
+  ])('文件记录的大小或偏移不合法就拒绝：%j', record => {
+    const json = JSON.stringify({ files: { bad: record } })
+    const pickle = Buffer.alloc(16)
+    pickle.writeUInt32LE(4, 0)
+    pickle.writeUInt32LE(json.length + 8, 4)
+    pickle.writeUInt32LE(json.length + 4, 8)
+    pickle.writeUInt32LE(json.length, 12)
+    expect(() => readAsar(Buffer.concat([pickle, Buffer.from(json)]))).toThrow(
+      'no valid size or offset',
+    )
+  })
+
+  it('数据区末尾的空文件读得出来', () => {
+    const bytes = archive({ nonempty: 'data', empty: '' })
+    expect(asarFile(bytes, readAsar(bytes), 'empty')).toHaveLength(0)
+  })
+
   it('package.json 从主进程包进，名字与版本对得上', () => {
     const expected = { name: 'omne', productName: 'omne', version: '1.0.0' }
     expect(checkManifest({ ...expected, main: 'main/main.js' }, expected).problems).toEqual([])

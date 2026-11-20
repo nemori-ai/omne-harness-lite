@@ -83,8 +83,11 @@ function restartApp(): void {
   if (old === undefined || stopping) return
   app = undefined
   say('the main side was rebuilt; restarting the app')
-  // The single-instance lock: the new process starts after the old one is gone.
+  // The single-instance lock: the new process starts after the old one is gone, killed if it lingers.
+  const lingering = setTimeout(() => old.kill('SIGKILL'), 3000)
+  lingering.unref()
   old.once('exit', () => {
+    clearTimeout(lingering)
     if (!stopping) startApp()
   })
   old.kill('SIGTERM')

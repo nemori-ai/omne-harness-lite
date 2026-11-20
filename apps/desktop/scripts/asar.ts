@@ -19,9 +19,21 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 function entryOf(path: string, child: Record<string, unknown>): AsarEntry {
   const unpacked = child['unpacked'] === true
   if (typeof child['link'] === 'string') return { path, kind: 'link', size: 0, offset: 0, unpacked }
-  const size = Number(child['size'])
-  const offset = child['offset'] === undefined ? 0 : Number(child['offset'])
-  if (!Number.isSafeInteger(size) || !Number.isSafeInteger(offset))
+  const size = child['size']
+  // Packed offsets are decimal strings; an unpacked file has none in this archive.
+  const raw = child['offset']
+  const offset =
+    unpacked && raw === undefined
+      ? 0
+      : typeof raw === 'string' && /^\d+$/.test(raw)
+        ? Number(raw)
+        : NaN
+  if (
+    typeof size !== 'number' ||
+    !Number.isSafeInteger(size) ||
+    size < 0 ||
+    !Number.isSafeInteger(offset)
+  )
     throw new Error(`asar header: ${path} has no valid size or offset`)
   const integrity = isObject(child['integrity']) ? child['integrity']['hash'] : undefined
   return {
@@ -73,7 +85,7 @@ export function asarFile(archive: Buffer, asar: Asar, path: string): Buffer {
     throw new Error(`${path} is not a file in the archive`)
   if (entry.unpacked) throw new Error(`${path} is unpacked, outside the archive`)
   const start = asar.dataOffset + entry.offset
-  if (start + entry.size > archive.length)
+  if (!Number.isSafeInteger(start) || entry.size < 0 || entry.size > archive.length - start)
     throw new Error(`${path} runs past the end of the archive`)
   return archive.subarray(start, start + entry.size)
 }

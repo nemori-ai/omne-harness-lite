@@ -9,6 +9,7 @@ import {
   removeUserDataDir,
   verifyBuildProfile,
 } from './launch.ts'
+import { listProcesses, type LaunchOwner, reapHelpers } from './release-launch.ts'
 import { forwardSignals } from './signals.ts'
 
 const note = (line: string) => process.stderr.write(`window: ${line}\n`)
@@ -45,6 +46,9 @@ try {
 }
 note(`user data in ${userDataDir}${temporary ? ' (removed on exit)' : ''}`)
 
+const preexisting = new Set(listProcesses().map(entry => entry.pid))
+const spawnedAt =
+  /* wall-clock: observation-time -- compared with process start times the OS reports */ Date.now()
 const child = spawn(spec!.command, [...spec!.args, ...args], {
   cwd: spec!.cwd,
   env: launchEnvironment(process.env),
@@ -69,5 +73,24 @@ child.once('error', failure => fail(failure))
 child.once('close', (code, signal) => {
   if (signal !== null) note(`the app was ended by ${signal}`)
   process.exitCode = wrongBuild ? 1 : (code ?? 1)
-  if (temporary) removeUserDataDir(userDataDir)
+  if (child.pid === undefined) return
+  const owner: LaunchOwner = {
+    root: { pid: child.pid, spawnedAt, userDataDir },
+    preexisting,
+    location: { command: spec!.command, processDir: spec!.processDir },
+  }
+  // Its helpers may still use the directory: it goes only once they are confirmed gone.
+  void reapHelpers(owner, [], 3_000).then(
+    killed => {
+      if (killed.length > 0)
+        note(`stopped lingering helpers: ${killed.map(entry => entry.pid).join(', ')}`)
+      if (temporary) removeUserDataDir(userDataDir)
+    },
+    (failure: unknown) => {
+      note(
+        `cleanup failed: ${failure instanceof Error ? failure.message : String(failure)}; user data kept in ${userDataDir}`,
+      )
+      process.exitCode = 1
+    },
+  )
 })

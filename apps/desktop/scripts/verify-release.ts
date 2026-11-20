@@ -18,6 +18,7 @@ import {
   windowStateSwitches,
 } from './launch.ts'
 import { packagedBinary } from './packaged-path.ts'
+import { powershellOutput } from './powershell.ts'
 import {
   askOverPipe,
   cleanUpEverything,
@@ -31,7 +32,6 @@ import {
   killRunningTree,
   launch,
   listening,
-  powershellJson,
   releaseEnv,
   type Running,
   sleep,
@@ -249,7 +249,7 @@ async function refusedLaunch(
   try {
     const port = remote === 'remote-debugging-port' ? await freePort() : undefined
     const flag = port === undefined ? '--remote-debugging-pipe' : `--remote-debugging-port=${port}`
-    const started = launch(
+    const started = await launch(
       pkg.executable,
       [...releaseSwitches(userDataDir, gate), flag],
       pkg.location,
@@ -262,7 +262,13 @@ async function refusedLaunch(
     let [listened, answered] = [false, false]
     if (port === undefined) answered = (await askOverPipe(app, REFUSAL_TIMEOUT_MS)) !== undefined
     else {
-      while (app.isRunning() && !listened) listened = await listening(port)
+      const deadline =
+        /* wall-clock: operation-timing -- bound for polling the port */ performance.now() +
+        REFUSAL_TIMEOUT_MS
+      const open = () =>
+        /* wall-clock: operation-timing -- bound for polling the port */ performance.now() <
+        deadline
+      while (app.isRunning() && !listened && open()) listened = await listening(port)
       if (listened) app.expire()
     }
     const outcome = await app.exited
@@ -298,7 +304,7 @@ async function testPackageAnswers(remote: RemoteSwitch): Promise<{ ok: boolean; 
     }
     const port = remote === 'remote-debugging-port' ? await freePort() : undefined
     const flag = port === undefined ? '--remote-debugging-pipe' : `--remote-debugging-port=${port}`
-    const started = launch(
+    const started = await launch(
       spec.command,
       [...spec.args, flag],
       { command: spec.command, processDir: spec.processDir },
@@ -370,7 +376,7 @@ async function startWatched(pkg: Package, gate: LaunchGate, userDataDir: string)
   const settled = new Promise<void>(done => (settle = done))
   let spawnedAt =
     /* wall-clock: operation-timing -- the launch's own start, for its line times */ Date.now()
-  const started = launch(pkg.executable, releaseSwitches(userDataDir, gate), pkg.location, {
+  const started = await launch(pkg.executable, releaseSwitches(userDataDir, gate), pkg.location, {
     deadlineMs: READY_TIMEOUT_MS + QUIT_TIMEOUT_MS + 5_000,
     onLine(line) {
       const [record] = mainLogLines(line)
@@ -445,7 +451,10 @@ async function checkStartup(pkg: Package, gate: LaunchGate): Promise<CheckResult
     const quitFrom = /* wall-clock: operation-timing -- how long the quit took */ Date.now()
     let requestError: string | undefined
     if (isWindows) {
-      const asked = spawnSync('taskkill', ['/PID', String(app.pid)], { encoding: 'utf8' })
+      const asked = spawnSync('taskkill', ['/PID', String(app.pid)], {
+        encoding: 'utf8',
+        timeout: QUIT_TIMEOUT_MS,
+      })
       if (asked.status !== 0)
         requestError = `exit ${asked.status ?? asked.error?.message}: ${(asked.stderr || asked.stdout || '').trim()}`
     } else kill(app.pid, 'SIGTERM')
@@ -495,7 +504,7 @@ function signatureFacts(pkg: Package): SignatureFacts {
   if (process.platform === 'linux') return { platform: 'linux' }
   if (isWindows)
     return parseAuthenticode(
-      powershellJson(
+      powershellOutput(
         "Get-AuthenticodeSignature -LiteralPath $env:VERIFY_RELEASE_EXE | Select-Object @{n='Status';e={[string]$_.Status}},StatusMessage,@{n='Signer';e={$_.SignerCertificate.Subject}} | ConvertTo-Json -Compress",
         { VERIFY_RELEASE_EXE: pkg.executable },
       ),

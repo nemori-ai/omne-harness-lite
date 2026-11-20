@@ -12,12 +12,12 @@ export interface Logger {
 const levels: LogLevel[] = ['debug', 'info', 'warn', 'error']
 
 export type LineStream = Readonly<{
-  write(line: string): unknown
+  write(line: string | Uint8Array): unknown
   on(event: 'error', listener: (err: Error) => void): unknown
 }>
 
 /** Drops every later line once the stream fails: a reader that went away must not loop the logger. */
-export function streamSink(stream: LineStream): (line: string) => void {
+export function streamSink(stream: LineStream): (line: string | Uint8Array) => void {
   let failed = false
   stream.on('error', () => {
     failed = true
@@ -32,11 +32,19 @@ export function streamSink(stream: LineStream): (line: string) => void {
   }
 }
 
-let stdoutSink: ((line: string) => void) | undefined
+// One error listener per process stream, shared by every logger and every utility instance.
+let stdoutSink: ReturnType<typeof streamSink> | undefined
+let stderrSink: ReturnType<typeof streamSink> | undefined
+
+export const writeStdout = (chunk: string | Uint8Array): void =>
+  (stdoutSink ??= streamSink(process.stdout))(chunk)
+
+export const writeStderr = (chunk: string | Uint8Array): void =>
+  (stderrSink ??= streamSink(process.stderr))(chunk)
 
 export function createLogger(
   minimum: LogLevel = 'info',
-  output: (line: string) => void = line => (stdoutSink ??= streamSink(process.stdout))(line),
+  output: (line: string) => void = writeStdout,
 ): Logger {
   const threshold = levels.indexOf(minimum)
   const write = (level: LogLevel, data: Record<string, unknown>, msg: string) => {

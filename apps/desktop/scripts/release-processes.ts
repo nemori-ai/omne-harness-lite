@@ -12,7 +12,7 @@ export type ProcessInfo = Readonly<{
 }>
 
 export type ProcessLocation = Readonly<{ command: string; processDir: string }>
-export type LaunchRoot = Readonly<{ pid: number; spawnedAt: number }>
+export type LaunchRoot = Readonly<{ pid: number; spawnedAt: number; userDataDir?: string }>
 
 const PS_LINE =
   /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\w{3} \w{3}\s+\d{1,2} \d{2}:\d{2}:\d{2} \d{4})\s+(.*)$/

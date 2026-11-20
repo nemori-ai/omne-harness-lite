@@ -4,7 +4,7 @@ import { type Target, targetProcesses } from './desktop.ts'
 const TARGETS: readonly Target[] = ['unpackaged', 'packaged']
 
 /** Refuses to start beside a running app of this checkout, or on a locked macOS screen. */
-export default function globalSetup(): () => void {
+export default function globalSetup(): () => Promise<void> {
   const lock = screenLock()
   if ('locked' in lock && lock.locked)
     throw new Error(`e2e: not run: ${SCREEN_LOCKED_REASON}; unlock the screen and run again`)
@@ -13,13 +13,14 @@ export default function globalSetup(): () => void {
     if (running.length > 0)
       throw new Error(`the ${target} app is running (pids ${running.join(', ')}); quit it first`)
   }
-  return () => {
-    const left = TARGETS.flatMap(target => targetProcesses(target))
-    if (left.length === 0) return
-    for (const pid of left)
-      try {
-        process.kill(pid, 'SIGKILL')
-      } catch {}
-    throw new Error(`Electron processes outlived the e2e run and were killed: ${left.join(', ')}`)
+  // An instance matched by path may be one started by hand: each fixture stops what it launched.
+  return async () => {
+    let left = TARGETS.flatMap(target => targetProcesses(target))
+    for (let waited = 0; left.length > 0 && waited < 5_000; waited += 100) {
+      await new Promise(done => setTimeout(done, 100))
+      left = TARGETS.flatMap(target => targetProcesses(target))
+    }
+    if (left.length > 0)
+      throw new Error(`Electron processes still running after the e2e run: ${left.join(', ')}`)
   }
 }
