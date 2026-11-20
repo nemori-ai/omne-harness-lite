@@ -1,11 +1,12 @@
 import { defineConfig } from '@playwright/test'
 import type { Target } from './e2e/desktop.ts'
 
-// The desktop app end to end, through Playwright's Electron driver against a real server. Two
-// targets: `unpackaged` after `pnpm run build`, `packaged` after `pnpm run package` as well.
+// The desktop app end to end against a real server. Three targets: `unpackaged` after
+// `pnpm run build`, `packaged` after `pnpm run package`, `release` after `pnpm run package:release`.
 export default defineConfig<{ target: Target }>({
   testDir: 'e2e',
   testMatch: '*.spec.ts',
+  globalSetup: './e2e/global-setup.ts',
   // One app at a time: each launch is heavy, and two would share one server's state.
   workers: 1,
   fullyParallel: false,
@@ -18,5 +19,6 @@ export default defineConfig<{ target: Target }>({
   projects: [
     { name: 'unpackaged', use: { target: 'unpackaged' } },
     { name: 'packaged', use: { target: 'packaged' } },
+    { name: 'release', use: { target: 'release' } },
   ],
 })

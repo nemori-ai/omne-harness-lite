@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import type { Page } from '@playwright/test'
 import { REPLY, expect, quit, test } from './desktop.ts'
 
@@ -26,10 +28,30 @@ test('注册、发一条消息、看到回复；页面读不到登录 cookie，�
   expect(await page.evaluate('document.cookie')).toBe('')
 })
 
-test('退出应用再打开，凭 cookie 直接进工作区', async ({ launchApp }) => {
+/** Per stored cookie of the app: whether its value is on disk in plain text, or only encrypted. */
+function storedCookies(userData: string): string[] {
+  const store = new DatabaseSync(join(userData, 'Partitions', 'omne', 'Cookies'), { readOnly: true })
+  try {
+    const rows = store
+      .prepare('select length(value) as plain, length(encrypted_value) as sealed from cookies')
+      .all() as { plain: number; sealed: number }[]
+    return rows.map(({ plain, sealed }) => (plain > 0 ? 'plain' : sealed > 0 ? 'encrypted' : 'empty'))
+  } finally {
+    store.close()
+  }
+}
+
+test('退出应用再打开，凭 cookie 直接进工作区；只有发行档把 cookie 加密落盘', async ({
+  launchApp,
+  target,
+  userData,
+}) => {
   const first = await launchApp()
   await signUp(first.page)
   await quit(first)
+  const stored = storedCookies(userData)
+  expect(stored.length).toBeGreaterThan(0)
+  expect(new Set(stored)).toEqual(new Set([target === 'release' ? 'encrypted' : 'plain']))
   const { page } = await launchApp()
   await expect(page.getByRole('button', { name: '新建会话' })).toBeVisible({ timeout: 30_000 })
   await expect(page.locator('input[name=loginIdentifier]')).toHaveCount(0)

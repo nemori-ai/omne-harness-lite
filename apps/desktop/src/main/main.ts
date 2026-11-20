@@ -12,7 +12,8 @@ import type { UtilityState } from './recovery.ts'
 import { APP_PARTITION, openAppWindow, registerAppScheme, type UtilityWatch } from './window.ts'
 import { windowStateFile } from './window-state.ts'
 
-const development = process.env['OMNE_DESKTOP_DEV'] === '1'
+// An installed app is never a development run, whatever its environment says.
+const development = !app.isPackaged && process.env['OMNE_DESKTOP_DEV'] === '1'
 const log = createLogger()
 
 function focus(window: BrowserWindow | undefined): void {

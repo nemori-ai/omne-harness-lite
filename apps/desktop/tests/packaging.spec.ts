@@ -5,10 +5,12 @@ import release from '../electron-builder.release.config.mjs'
 import { packagedExecutable } from '../e2e/packaged-path.ts'
 
 describe('打包', () => {
-  it('两档只差打包后翻 fuses；名字可移植，平台不改写可执行文件名', () => {
-    const { afterPack, ...rest } = release
-    expect(rest).toEqual(base)
+  it('两档只差打包后翻 fuses 与输出目录；名字可移植，平台不改写可执行文件名', () => {
+    const { afterPack, directories, ...rest } = release
+    const { directories: baseDirectories, ...baseRest } = base
+    expect(rest).toEqual(baseRest)
     expect(typeof afterPack).toBe('function')
+    expect(directories).toEqual({ ...baseDirectories, output: 'out/release' })
     expect(base.productName).toBe(PRODUCT.productName)
     expect(JSON.stringify(base)).not.toContain('executableName')
     for (const platform of ['darwin', 'win32', 'linux'] as const)

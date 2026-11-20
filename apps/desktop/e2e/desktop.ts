@@ -1,14 +1,10 @@
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import {
-  _electron as electron,
-  type ElectronApplication,
-  type Page,
-  test as base,
-} from '@playwright/test'
+import { _electron as electron, chromium, type Page, test as base } from '@playwright/test'
 import {
   type ModelGateway,
   startModelGateway,
@@ -24,46 +20,130 @@ import {
 import { packagedExecutable } from './packaged-path.ts'
 
 /**
- * What Playwright's Electron driver starts:
+ * What the tests start:
  * - `unpackaged`: the Electron of this workspace on `dist/main/main.js`, after `pnpm run build`;
- * - `packaged`: the test profile from `pnpm run package`. The release profile turns the Node
- *   inspector off, so the driver cannot attach to it.
+ * - `packaged`: the test profile from `pnpm run package`, through Playwright's Electron driver;
+ * - `release`: the release profile from `pnpm run package:release`. Its fuses turn the Node
+ *   inspector off, so the Electron driver cannot attach; Chromium's debugging port still can.
  */
-export type Target = 'unpackaged' | 'packaged'
+export type Target = 'unpackaged' | 'packaged' | 'release'
 
 const desktop = fileURLToPath(new URL('..', import.meta.url))
+const electronBinary: string = createRequire(import.meta.url)('electron')
 export const REPLY = 'hello from the e2e gateway'
 
-function packagedBinary(): string {
+const OUT = { packaged: 'out', release: join('out', 'release') } as const
+const BUILD = {
+  unpackaged: 'pnpm run build',
+  packaged: 'pnpm run build && pnpm run package',
+  release: 'pnpm run build && pnpm run package:release',
+} as const
+
+function binary(target: Target): string {
+  if (target === 'unpackaged') return electronBinary
   const names = JSON.parse(readFileSync(join(desktop, 'dist', 'app', 'package.json'), 'utf8'))
-  return packagedExecutable(join(desktop, 'out'), names, process.platform, process.arch)
+  return packagedExecutable(join(desktop, OUT[target]), names, process.platform, process.arch)
 }
 
-export type Launched = Readonly<{ app: ElectronApplication; page: Page; pid: number }>
-
-async function launch(target: Target, userData: string, server: string): Promise<Launched> {
-  const main = join(desktop, 'dist', 'main', 'main.js')
-  const binary = target === 'packaged' ? packagedBinary() : undefined
-  const needed = binary ?? main
-  if (!existsSync(needed)) {
-    const command = target === 'packaged' ? 'pnpm run build && pnpm run package' : 'pnpm run build'
-    throw new Error(`${needed} is missing: run \`${command}\` first`)
+/** The processes of a target still running, helpers included (macOS keeps those in the bundle). */
+export function targetProcesses(target: Target): number[] {
+  let executable: string
+  try {
+    executable = binary(target)
+  } catch {
+    return []
   }
+  const directory = process.platform === 'darwin' ? resolve(executable, '../../..') : dirname(executable)
+  let output: string
+  try {
+    output =
+      process.platform === 'win32'
+        ? execFileSync(
+            'powershell',
+            [
+              '-NoProfile',
+              '-Command',
+              'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($env:E2E_DIR, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.ProcessId }',
+            ],
+            { encoding: 'utf8', env: { ...process.env, E2E_DIR: directory } },
+          )
+        : execFileSync('pgrep', ['-f', `^${directory.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/`], {
+            encoding: 'utf8',
+          })
+  } catch (failure) {
+    // pgrep answers 1 when nothing matches.
+    if ((failure as { status?: number }).status === 1) return []
+    throw failure
+  }
+  return output
+    .split(/\r?\n/)
+    .map(Number)
+    .filter(pid => pid > 0 && pid !== process.pid)
+}
+
+export type Launched = Readonly<{ page: Page; pid: number; close(): Promise<void> }>
+
+function environment(server: string): Record<string, string> {
   const env: Record<string, string> = {}
   for (const [name, value] of Object.entries(process.env))
     // Nothing from a developer's shell that changes what the app is or does.
     if (value !== undefined && !/^(OMNE_|ELECTRON_RUN_AS_NODE$|NODE_OPTIONS$)/.test(name))
       env[name] = value
   env['OMNE_SERVER'] = server
+  return env
+}
+
+async function launch(target: Target, userData: string, server: string): Promise<Launched> {
+  const main = join(desktop, 'dist', 'main', 'main.js')
+  const executable = binary(target)
+  const needed = target === 'unpackaged' ? main : executable
+  if (!existsSync(needed)) throw new Error(`${needed} is missing: run \`${BUILD[target]}\` first`)
   const args = [`--user-data-dir=${userData}`]
-  const app = await electron.launch(
-    binary === undefined
-      ? { executablePath: createRequire(import.meta.url)('electron'), args: [main, ...args], env }
-      : { executablePath: binary, args, env },
-  )
+  if (target === 'release') return attach(executable, args, userData, server)
+  const app = await electron.launch({
+    executablePath: executable,
+    args: target === 'unpackaged' ? [main, ...args] : args,
+    env: environment(server),
+  })
   const pid = await app.evaluate(() => process.pid)
   const page = await app.firstWindow()
-  return { app, page, pid }
+  // Through `app.quit()`, so `before-quit` runs as when a person quits.
+  return { page, pid, close: () => app.close() }
+}
+
+/** Starts the app itself and attaches over Chromium's debugging port, to the app's own page. */
+async function attach(
+  executable: string,
+  args: string[],
+  userData: string,
+  server: string,
+): Promise<Launched> {
+  const portFile = join(userData, 'DevToolsActivePort')
+  // A file left by an earlier start on the same user data names a port nobody listens on.
+  rmSync(portFile, { force: true })
+  const child: ChildProcess = spawn(executable, ['--remote-debugging-port=0', ...args], {
+    env: environment(server),
+    stdio: 'ignore',
+  })
+  for (let i = 0; i < 300 && !existsSync(portFile); i += 1) await new Promise(r => setTimeout(r, 100))
+  if (!existsSync(portFile)) {
+    child.kill('SIGKILL')
+    throw new Error('the release app did not open its debugging port')
+  }
+  const port = readFileSync(portFile, 'utf8').split('\n')[0]
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
+  const context = browser.contexts()[0]!
+  const isApp = (page: Page) => page.url().startsWith('omne-app://app')
+  const page = context.pages().find(isApp) ?? (await context.waitForEvent('page', { predicate: isApp }))
+  return {
+    page,
+    pid: child.pid!,
+    async close() {
+      await browser.close()
+      // SIGTERM quits Electron the way a person does: `before-quit` runs.
+      child.kill('SIGTERM')
+    },
+  }
 }
 
 const alive = (pid: number): boolean => {
@@ -76,8 +156,8 @@ const alive = (pid: number): boolean => {
 }
 
 /** Quits the way a person does, so `before-quit` flushes the cookies, and waits for the process. */
-export async function quit({ app, pid }: Launched): Promise<void> {
-  await app.close()
+export async function quit({ close, pid }: Launched): Promise<void> {
+  await close()
   for (let i = 0; i < 200 && alive(pid); i += 1) await new Promise(r => setTimeout(r, 50))
   if (alive(pid)) throw new Error(`main process ${pid} still running after quit`)
 }
@@ -128,7 +208,9 @@ async function startStack(): Promise<{ origin: string; stop(): Promise<void> }> 
 }
 
 type Fixtures = {
-  /** Starts the app on this test's own user data; every app started here is quit afterwards. */
+  /** This test's own user data directory, deleted afterwards. */
+  userData: string
+  /** Starts the app on `userData`; every app started here is quit afterwards. */
   launchApp: () => Promise<Launched>
 }
 
@@ -147,8 +229,13 @@ export const test = base.extend<Fixtures & Options, Worker>({
     },
     { scope: 'worker' },
   ],
-  launchApp: async ({ target, server }, provide) => {
-    const userData = realpathSync(mkdtempSync(join(tmpdir(), 'omne-e2e-ud-')))
+  // oxlint-disable-next-line no-empty-pattern -- Playwright fixtures destructure their dependencies
+  userData: async ({}, provide) => {
+    const directory = realpathSync(mkdtempSync(join(tmpdir(), 'omne-e2e-ud-')))
+    await provide(directory)
+    rmSync(directory, { recursive: true, force: true })
+  },
+  launchApp: async ({ target, server, userData }, provide) => {
     const launched: Launched[] = []
     await provide(async () => {
       const app = await launch(target, userData, server)
@@ -157,7 +244,6 @@ export const test = base.extend<Fixtures & Options, Worker>({
     })
     for (const app of launched)
       if (alive(app.pid)) await quit(app).catch(() => process.kill(app.pid, 'SIGKILL'))
-    rmSync(userData, { recursive: true, force: true })
   },
 })
 
