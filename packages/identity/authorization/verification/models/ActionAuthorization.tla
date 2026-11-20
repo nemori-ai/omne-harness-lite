@@ -1,31 +1,34 @@
 ------------------------- MODULE ActionAuthorization -------------------------
-(* 模型：一个动作的放行判断。                                                   *)
+(* 模型：一个动作的放行判断。许不许只在 Agent 的准入判一次，结论、用掉的单次   *)
+(* 授权与依据在准入那一次提交里记下；交给 Tool 之后，Tool 照常执行，不再判。   *)
 (* 问的是：人的答复、取消会话、别人在设置里改这一项权限、切换会话运行模式、     *)
-(* 写资格变化、服务重启、工具启动，这几件事以任何次序交错时，下面几条是不是都   *)
+(* 写资格变化、服务重启、工具开始，这几件事以任何次序交错时，下面几条是不是都   *)
 (* 成立：                                                                       *)
-(*   启动的那一刻，这个动作确实有依据：档位不是禁止，会话没被取消，并且档位是   *)
-(*   自动、或会话运行模式是跳过询问、或本会话的放行在当前依据下有效、或消费了   *)
-(*   自己的那张许可；                                                           *)
-(*   一张许可只被它绑定的那个动作消费；                                         *)
-(*   人说了不（本次不放行、始终禁止、只写了一段话），这个动作不发起、不启动；   *)
+(*   准入记下放行的那一刻，这个动作确实有依据：档位不是禁止，会话没被取消，并且 *)
+(*   档位是自动、或会话运行模式是跳过询问、或本会话的放行在当前依据下有效、或用 *)
+(*   掉了自己的那张单次授权；                                                   *)
+(*   一张单次授权只被它绑定的那个动作的准入用掉；                               *)
+(*   人说了不（本次不放行、始终禁止、只写了一段话），这个动作不发起、不开始；   *)
 (*   一批里还有动作没判完、卡没处理完时，不发起这一批里任何动作；               *)
-(*   人同意过而许可没丢；                                                       *)
+(*   人同意过而单次授权没丢；                                                   *)
+(*   已准并交出的动作，除了取消，不会在开始时被拒；                             *)
 (*   一个动作被问的次数不超过一加依据变化的次数；                               *)
 (*   每个动作最后都有结局。                                                     *)
 (*                                                                              *)
 (* 模型里的一步对应设计里的一步：                                               *)
-(*   Judge          官方准入对一个待判的动作算一次。                            *)
+(*   Judge          官方准入对一个待判的动作算一次；放行就是准入提交。会话取消  *)
+(*                  之后不再准入，Rejudge、Reconsider 同。                      *)
 (*   Answer         人在授权卡上答复：五个选项之一，或只写一段话。              *)
 (*   AppendOnce     「本次放行」：向会话授权上下文追加一笔。                    *)
-(*   Grant          按这一笔签一张一次性许可。                                  *)
+(*   Grant          这一笔成为这个动作当前可用的单次授权。                      *)
 (*   AppendSession  「本会话放行」：向会话授权上下文追加一笔，带卡上的依据。    *)
 (*   WriteAlways    「始终放行」：把租户这一层的权限值写成自动。                *)
 (*   Refuse         本次不放行、始终禁止、只写了一段话。始终禁止另写租户设置。  *)
 (*   Rejudge        人答复并落好之后，官方准入按当前事实重算。                  *)
 (*   Reconsider     卡还开着而依据变了（设置、模式、同批别的卡的答复），重判。  *)
-(*   Launch         判断屏障打开，发起工具调用。                                *)
-(*   Fence          工具的启动围栏：再算一次，要许可就消费，受理启动。一步。    *)
-(*   Cancel         取消会话。                                                  *)
+(*   Launch         判断屏障打开，把调用交给 Tool。                             *)
+(*   Start          Tool 开始执行。不判授权。                                   *)
+(*   Cancel         取消会话；还没开始的调用由控制停下。                        *)
 (*   ChangeSetting  别人在设置页或别的会话里改了这一项权限。                    *)
 (*   ChangeMode     切换会话运行模式。                                          *)
 (*   FlipWritable   这个人写租户设置的资格或组织的上界变了。                    *)
@@ -38,13 +41,13 @@ CONSTANTS ActsA, ActsB, MaxEnvChanges, MaxModeChanges, Variant
 
 VARIABLES tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
           grantRev, st, reply, applied, cardRev, cardWritable, asks,
-          onceExpr, permit, consumedBy, pc, restarts,
-          humanNo, unjust, earlyLaunch, lostApproval
+          onceExpr, permit, consumedBy, restarts,
+          humanNo, unjust, earlyLaunch, lostApproval, refused
 
 vars == <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
           grantRev, st, reply, applied, cardRev, cardWritable, asks,
-          onceExpr, permit, consumedBy, pc, restarts,
-          humanNo, unjust, earlyLaunch, lostApproval>>
+          onceExpr, permit, consumedBy, restarts,
+          humanNo, unjust, earlyLaunch, lostApproval, refused>>
 
 Acts == ActsA \cup ActsB
 Sessions == {"s1", "s2"}
@@ -81,20 +84,19 @@ Init ==
   /\ onceExpr = [a \in Acts |-> FALSE]
   /\ permit = [a \in Acts |-> "none"]
   /\ consumedBy = [a \in Acts |-> Nobody]
-  /\ pc = [a \in Acts |-> "idle"]
   /\ restarts = 0
   /\ humanNo = [a \in Acts |-> FALSE]
   /\ unjust = [a \in Acts |-> FALSE]
   /\ earlyLaunch = FALSE
   /\ lostApproval = FALSE
+  /\ refused = [a \in Acts |-> FALSE]
 
 \* 本会话的放行在当前依据下有效。
 GrantValid(s) ==
   IF Variant = "staleSessionGrant" THEN grantRev[s] # NoGrant ELSE grantRev[s] = rev
 
-\* 放行判断。官方准入与启动围栏调的是这同一个。
-\* "free" 放行且不用许可；"permit" 已获准这一次，启动时要消费许可；
-\* "ask" 仍要人决定；"deny" 拒绝。
+\* 放行判断这个纯函数。"free" 放行且不用单次授权；"permit" 凭自己的单次授权放行，
+\* 准入提交时用掉它；"ask" 仍要人决定；"deny" 拒绝。
 Decide(a) ==
   LET s == SessOf(a) IN
   IF Variant = "bypassBeatsDeny" /\ mode[s] = "bypass" THEN "free"
@@ -106,7 +108,7 @@ Decide(a) ==
   ELSE IF mode[s] = "never" THEN "deny"
   ELSE "ask"
 
-\* 启动那一刻世界上的事实是否支持这次启动。它不看模型里的判断怎么写，只看事实。
+\* 记下放行的那一刻世界上的事实是否支持它。它不看模型里的判断怎么写，只看事实。
 Just(a, ownPermit) ==
   LET s == SessOf(a) IN
   /\ ~cancelled[s]
@@ -115,20 +117,50 @@ Just(a, ownPermit) ==
 
 OpenCard(a) == [st EXCEPT ![a] = "asked"]
 
+\* 准入提交：放行的结论、用掉的单次授权与依据在同一步记下。
+Admit(a, d) ==
+  /\ st' = [st EXCEPT ![a] = "allowed"]
+  /\ IF d = "permit"
+     THEN /\ permit' = [permit EXCEPT ![a] = "consumed"]
+          /\ consumedBy' = [consumedBy EXCEPT ![a] = a]
+          /\ unjust' = [unjust EXCEPT ![a] = ~Just(a, TRUE)]
+     ELSE /\ UNCHANGED <<permit, consumedBy>>
+          /\ unjust' = [unjust EXCEPT ![a] = ~Just(a, FALSE)]
+
 Judge(a) ==
   /\ st[a] = "pending"
+  /\ ~cancelled[SessOf(a)]
   /\ LET d == Decide(a) IN
-     /\ st' = [st EXCEPT ![a] = CASE d \in {"free", "permit"} -> "allowed"
-                                  [] d = "deny" -> "notStarted"
-                                  [] OTHER -> "asked"]
-     /\ IF d = "ask"
-        THEN /\ cardRev' = [cardRev EXCEPT ![a] = rev]
-             /\ cardWritable' = [cardWritable EXCEPT ![a] = writable]
-             /\ asks' = [asks EXCEPT ![a] = @ + 1]
-        ELSE UNCHANGED <<cardRev, cardWritable, asks>>
+     IF d \in {"free", "permit"}
+     THEN /\ Admit(a, d)
+          /\ UNCHANGED <<cardRev, cardWritable, asks>>
+     ELSE IF d = "deny"
+     THEN /\ st' = [st EXCEPT ![a] = "notStarted"]
+          /\ UNCHANGED <<cardRev, cardWritable, asks, permit, consumedBy, unjust>>
+     ELSE /\ st' = OpenCard(a)
+          /\ cardRev' = [cardRev EXCEPT ![a] = rev]
+          /\ cardWritable' = [cardWritable EXCEPT ![a] = writable]
+          /\ asks' = [asks EXCEPT ![a] = @ + 1]
+          /\ UNCHANGED <<permit, consumedBy, unjust>>
   /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
-                 grantRev, reply, applied, onceExpr, permit, consumedBy, pc, restarts,
-                 humanNo, unjust, earlyLaunch, lostApproval>>
+                 grantRev, reply, applied, onceExpr, restarts, humanNo, earlyLaunch,
+                 lostApproval, refused>>
+
+\* 改坏的一种：准入用掉了别的动作的单次授权。
+Steal(a) ==
+  /\ Variant = "permitNotBound"
+  /\ st[a] \in Open
+  /\ ~cancelled[SessOf(a)]
+  /\ Decide(a) = "ask"
+  /\ \E b \in Acts \ {a} :
+     /\ permit[b] = "open"
+     /\ st' = [st EXCEPT ![a] = "allowed"]
+     /\ permit' = [permit EXCEPT ![b] = "consumed"]
+     /\ consumedBy' = [consumedBy EXCEPT ![b] = a]
+     /\ unjust' = [unjust EXCEPT ![a] = ~Just(a, FALSE)]
+  /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
+                 grantRev, reply, applied, cardRev, cardWritable, asks, onceExpr,
+                 restarts, humanNo, earlyLaunch, lostApproval, refused>>
 
 \* 落不了地的选项不给：卡生成时没有写资格，就不给两个「始终」。
 Offered(a, o) == o \in {"allowAlways", "denyAlways"} => cardWritable[a]
@@ -143,7 +175,7 @@ Answer(a, o) ==
   /\ humanNo' = [humanNo EXCEPT ![a] = o \in {"denyOnce", "denyAlways", "remark"}]
   /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
                  grantRev, cardRev, cardWritable, asks, onceExpr, permit, consumedBy,
-                 pc, restarts, unjust, earlyLaunch, lostApproval>>
+                 restarts, unjust, earlyLaunch, lostApproval, refused>>
 
 \* 这个答复按「本次放行」处理：选的就是它；或选了始终放行而此刻写不进去。
 OnceLike(a) ==
@@ -156,7 +188,7 @@ AppendOnce(a) ==
   /\ onceExpr' = [onceExpr EXCEPT ![a] = TRUE]
   /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
                  grantRev, st, reply, applied, cardRev, cardWritable, asks, permit,
-                 consumedBy, pc, restarts, humanNo, unjust, earlyLaunch, lostApproval>>
+                 consumedBy, restarts, humanNo, unjust, earlyLaunch, lostApproval, refused>>
 
 Grant(a) ==
   /\ st[a] = "answered" /\ onceExpr[a] /\ permit[a] = "none"
@@ -164,7 +196,7 @@ Grant(a) ==
   /\ applied' = [applied EXCEPT ![a] = TRUE]
   /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
                  grantRev, st, reply, cardRev, cardWritable, asks, onceExpr,
-                 consumedBy, pc, restarts, humanNo, unjust, earlyLaunch, lostApproval>>
+                 consumedBy, restarts, humanNo, unjust, earlyLaunch, lostApproval, refused>>
 
 AppendSession(a) ==
   /\ st[a] = "answered" /\ reply[a] = "allowSession" /\ ~applied[a]
@@ -172,7 +204,7 @@ AppendSession(a) ==
   /\ applied' = [applied EXCEPT ![a] = TRUE]
   /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
                  st, reply, cardRev, cardWritable, asks, onceExpr, permit, consumedBy,
-                 pc, restarts, humanNo, unjust, earlyLaunch, lostApproval>>
+                 restarts, humanNo, unjust, earlyLaunch, lostApproval, refused>>
 
 WriteAlways(a) ==
   /\ st[a] = "answered" /\ reply[a] = "allowAlways" /\ ~applied[a] /\ writable
@@ -183,7 +215,7 @@ WriteAlways(a) ==
   /\ applied' = [applied EXCEPT ![a] = TRUE]
   /\ UNCHANGED <<envChanges, writable, flips, mode, modeChanges, cancelled, grantRev,
                  st, reply, cardRev, cardWritable, asks, onceExpr, permit, consumedBy,
-                 pc, restarts, humanNo, unjust, earlyLaunch, lostApproval>>
+                 restarts, humanNo, unjust, earlyLaunch, lostApproval, refused>>
 
 \* 人说了不。始终禁止在写得进去时另写租户设置，并撤回本会话的放行。
 Refuse(a) ==
@@ -198,35 +230,48 @@ Refuse(a) ==
      ELSE UNCHANGED <<tier, rev, grantRev>>
   /\ UNCHANGED <<envChanges, writable, flips, mode, modeChanges, cancelled, reply,
                  applied, cardRev, cardWritable, asks, onceExpr, permit, consumedBy,
-                 pc, restarts, humanNo, unjust, earlyLaunch, lostApproval>>
+                 restarts, humanNo, unjust, earlyLaunch, lostApproval, refused>>
+
+\* 改坏的一种：答了放行就照答复记下放行，不按当前事实重算。
+Allowing(a) ==
+  \/ reply[a] \in {"allowOnce", "allowSession", "allowAlways"}
+  \/ Variant = "remarkApproves" /\ reply[a] = "remark"
 
 Rejudge(a) ==
   /\ st[a] = "answered" /\ applied[a]
-  /\ LET d == Decide(a) IN
-     IF d \in {"free", "permit"}
-     THEN /\ st' = [st EXCEPT ![a] = "allowed"]
-          /\ UNCHANGED <<cardRev, cardWritable, asks, reply, applied>>
-     ELSE IF d = "deny" \/ cardRev[a] = rev
-     THEN /\ st' = [st EXCEPT ![a] = "notStarted"]
-          /\ UNCHANGED <<cardRev, cardWritable, asks, reply, applied>>
-     ELSE /\ st' = OpenCard(a)
-          /\ cardRev' = [cardRev EXCEPT ![a] = rev]
-          /\ cardWritable' = [cardWritable EXCEPT ![a] = writable]
-          /\ asks' = [asks EXCEPT ![a] = @ + 1]
-          /\ reply' = [reply EXCEPT ![a] = "none"]
-          /\ applied' = [applied EXCEPT ![a] = FALSE]
+  /\ ~cancelled[SessOf(a)]
+  /\ LET d == IF Variant = "admissionTrustsAnswer" /\ Allowing(a) THEN "free" ELSE Decide(a) IN
+     /\ lostApproval' = (lostApproval \/ (d = "ask" /\ onceExpr[a] /\ permit[a] = "none"))
+     /\ IF d \in {"free", "permit"}
+        THEN /\ Admit(a, d)
+             /\ UNCHANGED <<cardRev, cardWritable, asks, reply, applied>>
+        ELSE IF d = "deny" \/ cardRev[a] = rev
+        THEN /\ st' = [st EXCEPT ![a] = "notStarted"]
+             /\ UNCHANGED <<cardRev, cardWritable, asks, reply, applied, permit,
+                            consumedBy, unjust>>
+        ELSE /\ st' = OpenCard(a)
+             /\ cardRev' = [cardRev EXCEPT ![a] = rev]
+             /\ cardWritable' = [cardWritable EXCEPT ![a] = writable]
+             /\ asks' = [asks EXCEPT ![a] = @ + 1]
+             /\ reply' = [reply EXCEPT ![a] = "none"]
+             /\ applied' = [applied EXCEPT ![a] = FALSE]
+             /\ UNCHANGED <<permit, consumedBy, unjust>>
   /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
-                 grantRev, onceExpr, permit, consumedBy, pc, restarts, humanNo, unjust,
-                 earlyLaunch, lostApproval>>
+                 grantRev, onceExpr, restarts, humanNo, earlyLaunch, refused>>
 
 \* 卡还开着，依据变了：这张卡作废，按新的结论走。
 Reconsider(a) ==
   /\ st[a] = "asked"
-  /\ Decide(a) # "ask"
-  /\ st' = [st EXCEPT ![a] = IF Decide(a) = "deny" THEN "notStarted" ELSE "allowed"]
+  /\ ~cancelled[SessOf(a)]
+  /\ LET d == Decide(a) IN
+     /\ d # "ask"
+     /\ IF d = "deny"
+        THEN /\ st' = [st EXCEPT ![a] = "notStarted"]
+             /\ UNCHANGED <<permit, consumedBy, unjust>>
+        ELSE Admit(a, d)
   /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
-                 grantRev, reply, applied, cardRev, cardWritable, asks, onceExpr, permit,
-                 consumedBy, pc, restarts, humanNo, unjust, earlyLaunch, lostApproval>>
+                 grantRev, reply, applied, cardRev, cardWritable, asks, onceExpr,
+                 restarts, humanNo, earlyLaunch, lostApproval, refused>>
 
 Launch(a) ==
   /\ st[a] = "allowed"
@@ -236,79 +281,19 @@ Launch(a) ==
   /\ st' = [st EXCEPT ![a] = "launched"]
   /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
                  grantRev, reply, applied, cardRev, cardWritable, asks, onceExpr, permit,
-                 consumedBy, pc, restarts, humanNo, unjust, lostApproval>>
+                 consumedBy, restarts, humanNo, unjust, lostApproval, refused>>
 
-FenceRest == <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
-               grantRev, reply, applied, cardRev, cardWritable, asks, onceExpr,
-               restarts, humanNo, earlyLaunch>>
-
-\* 启动围栏：判断、消费许可、受理启动，在同一步里。
-Fence(a) ==
-  /\ st[a] = "launched" /\ pc[a] = "idle"
-  /\ Variant \notin {"nonAtomicFence", "fenceTrustsAdmission"}
-  /\ LET d == Decide(a)
-         stolen == Variant = "permitNotBound" /\ d = "ask"
-                   /\ \E b \in Acts \ {a} : permit[b] = "open"
-     IN
-     IF cancelled[SessOf(a)] \/ d = "deny" \/ (d = "ask" /\ ~stolen)
-     THEN /\ st' = [st EXCEPT ![a] = "notStarted"]
-          /\ lostApproval' = (lostApproval \/
-                (d = "ask" /\ onceExpr[a] /\ permit[a] = "none" /\ ~cancelled[SessOf(a)]))
-          /\ UNCHANGED <<permit, consumedBy, unjust>>
-     ELSE IF d = "free"
-     THEN /\ st' = [st EXCEPT ![a] = "started"]
-          /\ unjust' = [unjust EXCEPT ![a] = ~Just(a, FALSE)]
-          /\ UNCHANGED <<permit, consumedBy, lostApproval>>
-     ELSE IF d = "permit"
-     THEN /\ st' = [st EXCEPT ![a] = "started"]
-          /\ permit' = [permit EXCEPT ![a] = "consumed"]
-          /\ consumedBy' = [consumedBy EXCEPT ![a] = a]
-          /\ unjust' = [unjust EXCEPT ![a] = ~Just(a, TRUE)]
-          /\ UNCHANGED lostApproval
-     ELSE \E b \in Acts \ {a} :
-          /\ permit[b] = "open"
-          /\ st' = [st EXCEPT ![a] = "started"]
-          /\ permit' = [permit EXCEPT ![b] = "consumed"]
-          /\ consumedBy' = [consumedBy EXCEPT ![b] = a]
-          /\ unjust' = [unjust EXCEPT ![a] = ~Just(a, FALSE)]
-          /\ UNCHANGED lostApproval
-  /\ UNCHANGED pc
-  /\ UNCHANGED FenceRest
-
-\* 改坏的一种：围栏相信准入的结论，不再算。
-FenceTrusting(a) ==
-  /\ Variant = "fenceTrustsAdmission"
+\* Tool 开始执行：调用到了就执行。改坏的一种里它再判一次，判出不许就拒。
+Start(a) ==
   /\ st[a] = "launched"
-  /\ st' = [st EXCEPT ![a] = "started"]
-  /\ unjust' = [unjust EXCEPT ![a] = ~Just(a, permit[a] = "open")]
-  /\ UNCHANGED <<permit, consumedBy, lostApproval, pc>>
-  /\ UNCHANGED FenceRest
-
-\* 改坏的一种：先判断并消费，让出执行权，再受理。
-FenceCheck(a) ==
-  /\ Variant = "nonAtomicFence"
-  /\ st[a] = "launched" /\ pc[a] = "idle"
-  /\ LET d == Decide(a) IN
-     IF cancelled[SessOf(a)] \/ d \in {"deny", "ask"}
+  /\ IF Variant = "startRejudges" /\ Decide(a) \in {"deny", "ask"}
      THEN /\ st' = [st EXCEPT ![a] = "notStarted"]
-          /\ UNCHANGED <<permit, consumedBy, pc>>
-     ELSE /\ pc' = [pc EXCEPT ![a] = "go"]
-          /\ IF d = "permit"
-             THEN /\ permit' = [permit EXCEPT ![a] = "consumed"]
-                  /\ consumedBy' = [consumedBy EXCEPT ![a] = a]
-             ELSE UNCHANGED <<permit, consumedBy>>
-          /\ UNCHANGED st
-  /\ UNCHANGED <<unjust, lostApproval>>
-  /\ UNCHANGED FenceRest
-
-FenceGo(a) ==
-  /\ Variant = "nonAtomicFence"
-  /\ st[a] = "launched" /\ pc[a] = "go"
-  /\ st' = [st EXCEPT ![a] = "started"]
-  /\ pc' = [pc EXCEPT ![a] = "idle"]
-  /\ unjust' = [unjust EXCEPT ![a] = ~Just(a, consumedBy[a] = a)]
-  /\ UNCHANGED <<permit, consumedBy, lostApproval>>
-  /\ UNCHANGED FenceRest
+          /\ refused' = [refused EXCEPT ![a] = TRUE]
+     ELSE /\ st' = [st EXCEPT ![a] = "started"]
+          /\ UNCHANGED refused
+  /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
+                 grantRev, reply, applied, cardRev, cardWritable, asks, onceExpr, permit,
+                 consumedBy, restarts, humanNo, unjust, earlyLaunch, lostApproval>>
 
 Cancel(s) ==
   /\ ~cancelled[s]
@@ -317,10 +302,9 @@ Cancel(s) ==
               IF SessOf(a) # s \/ st[a] \in Settled THEN st[a]
               ELSE IF Variant = "cancelLeavesCardOpen" /\ st[a] = "asked" THEN "asked"
               ELSE "notStarted"]
-  /\ pc' = [a \in Acts |-> IF SessOf(a) = s THEN "idle" ELSE pc[a]]
   /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, grantRev,
                  reply, applied, cardRev, cardWritable, asks, onceExpr, permit,
-                 consumedBy, restarts, humanNo, unjust, earlyLaunch, lostApproval>>
+                 consumedBy, restarts, humanNo, unjust, earlyLaunch, lostApproval, refused>>
 
 ChangeSetting(t) ==
   /\ envChanges < MaxEnvChanges
@@ -329,8 +313,8 @@ ChangeSetting(t) ==
   /\ rev' = rev + 1
   /\ envChanges' = envChanges + 1
   /\ UNCHANGED <<writable, flips, mode, modeChanges, cancelled, grantRev, st, reply,
-                 applied, cardRev, cardWritable, asks, onceExpr, permit, consumedBy, pc,
-                 restarts, humanNo, unjust, earlyLaunch, lostApproval>>
+                 applied, cardRev, cardWritable, asks, onceExpr, permit, consumedBy,
+                 restarts, humanNo, unjust, earlyLaunch, lostApproval, refused>>
 
 ChangeMode(s, m) ==
   /\ modeChanges < MaxModeChanges
@@ -338,8 +322,8 @@ ChangeMode(s, m) ==
   /\ mode' = [mode EXCEPT ![s] = m]
   /\ modeChanges' = modeChanges + 1
   /\ UNCHANGED <<tier, rev, envChanges, writable, flips, cancelled, grantRev, st, reply,
-                 applied, cardRev, cardWritable, asks, onceExpr, permit, consumedBy, pc,
-                 restarts, humanNo, unjust, earlyLaunch, lostApproval>>
+                 applied, cardRev, cardWritable, asks, onceExpr, permit, consumedBy,
+                 restarts, humanNo, unjust, earlyLaunch, lostApproval, refused>>
 
 FlipWritable ==
   /\ flips < 1
@@ -347,24 +331,22 @@ FlipWritable ==
   /\ flips' = flips + 1
   /\ UNCHANGED <<tier, rev, envChanges, mode, modeChanges, cancelled, grantRev, st,
                  reply, applied, cardRev, cardWritable, asks, onceExpr, permit,
-                 consumedBy, pc, restarts, humanNo, unjust, earlyLaunch, lostApproval>>
+                 consumedBy, restarts, humanNo, unjust, earlyLaunch, lostApproval, refused>>
 
-\* 重启：耐久的事实都在。改坏的一种里许可台账在内存里，重启就没了。
+\* 重启：耐久的事实都在。改坏的一种里单次授权在内存里，重启就没了。
 Restart ==
   /\ restarts < 1
   /\ restarts' = restarts + 1
-  /\ pc' = [a \in Acts |-> "idle"]
   /\ permit' = IF Variant = "volatileLedger"
                THEN [a \in Acts |-> IF permit[a] = "open" THEN "none" ELSE permit[a]]
                ELSE permit
   /\ UNCHANGED <<tier, rev, envChanges, writable, flips, mode, modeChanges, cancelled,
                  grantRev, st, reply, applied, cardRev, cardWritable, asks, onceExpr,
-                 consumedBy, humanNo, unjust, earlyLaunch, lostApproval>>
+                 consumedBy, humanNo, unjust, earlyLaunch, lostApproval, refused>>
 
 System(a) ==
   \/ Judge(a) \/ AppendOnce(a) \/ Grant(a) \/ AppendSession(a) \/ WriteAlways(a)
-  \/ Refuse(a) \/ Rejudge(a) \/ Reconsider(a) \/ Launch(a)
-  \/ Fence(a) \/ FenceTrusting(a) \/ FenceCheck(a) \/ FenceGo(a)
+  \/ Refuse(a) \/ Rejudge(a) \/ Reconsider(a) \/ Launch(a) \/ Start(a) \/ Steal(a)
 
 Human(a) == \E o \in Options : Answer(a, o)
 
@@ -390,16 +372,18 @@ TypeOK ==
   /\ permit \in [Acts -> {"none", "open", "consumed"}]
   /\ consumedBy \in [Acts -> Acts \cup {Nobody}]
 
-\* A-4、A-5、A-17、A-18：启动的那一刻确实有依据。
-NoUnjustStart == \A a \in Acts : ~unjust[a]
-\* A-6：一张许可只被它绑定的动作消费。
+\* A-4、A-5、A-17、A-18：记下放行的那一刻确实有依据。
+NoUnjustAdmission == \A a \in Acts : ~unjust[a]
+\* A-6：一张单次授权只被它绑定的动作的准入用掉。
 PermitBound == \A a \in Acts : consumedBy[a] \in {Nobody, a}
-\* A-8：人说了不，这个动作不发起、不启动。
-HumanNoNeverRuns == \A a \in Acts : humanNo[a] => st[a] \notin {"launched", "started"}
+\* A-8：人说了不，这个动作不发起、不开始。
+HumanNoNeverRuns == \A a \in Acts : humanNo[a] => st[a] \notin {"allowed", "launched", "started"}
 \* 判断屏障：同批还有没处理完的，不发起。
 BarrierHolds == ~earlyLaunch
-\* A-10：人同意过，许可没丢。
+\* A-10：人同意过，单次授权没丢。
 ApprovalNotLost == ~lostApproval
+\* 已准并交出的动作，除了取消，不在开始时被拒：撤回只影响之后的准入。
+AdmittedNotRefused == \A a \in Acts : ~refused[a]
 \* A-3：被问的次数不超过一加依据变化的次数。
 AskedBounded == \A a \in Acts : asks[a] <= 1 + rev
 \* A-20：每个动作最后都有结局。

@@ -1,7 +1,7 @@
 {
   "member": "authorization",
   "model": "models/ActionAuthorization.tla",
-  "scope": "finite model: ActionAuthorization (the release judgement of one gate in one tenant: a batch of two actions in one session, or one action in each of two sessions; the tenant setting changed by others at most once, the run mode switched at most once, write eligibility flipped at most once, one restart, each session cancelled at most once). Safety, and EveryActionSettles under weak fairness of the system steps and of the person answering. No refinement proof to the implementation; no real storage, card transport or tool start.",
+  "scope": "finite model: ActionAuthorization (the release judgement of one gate in one tenant: a batch of two actions in one session, or one action in each of two sessions; the tenant setting changed by others at most once, the run mode switched at most once, write eligibility flipped at most once, one restart, each session cancelled at most once). The admission commit records the release and consumes the once authorization in one step; Tool starts what was handed to it without judging. Safety, and EveryActionSettles under weak fairness of the system steps and of the person answering. No refinement proof to the implementation; no real storage, card transport or tool start.",
   "workers": 2,
   "timeoutSeconds": 900,
   "cases": [
@@ -20,34 +20,28 @@
   ],
   "controls": [
     {
-      "name": "bad-non-atomic-fence",
+      "name": "bad-admission-trusts-answer",
       "model": "models/ActionAuthorization.tla",
-      "config": "models/bad-non-atomic-fence.cfg",
-      "expected": "NoUnjustStart"
-    },
-    {
-      "name": "bad-fence-trusts-admission",
-      "model": "models/ActionAuthorization.tla",
-      "config": "models/bad-fence-trusts-admission.cfg",
-      "expected": "NoUnjustStart"
+      "config": "models/bad-admission-trusts-answer.cfg",
+      "expected": "NoUnjustAdmission"
     },
     {
       "name": "bad-permit-not-bound",
       "model": "models/ActionAuthorization.tla",
       "config": "models/bad-permit-not-bound.cfg",
-      "expected": "NoUnjustStart"
+      "expected": "NoUnjustAdmission"
     },
     {
       "name": "bad-stale-session-grant",
       "model": "models/ActionAuthorization.tla",
       "config": "models/bad-stale-session-grant.cfg",
-      "expected": "NoUnjustStart"
+      "expected": "NoUnjustAdmission"
     },
     {
       "name": "bad-bypass-beats-deny",
       "model": "models/ActionAuthorization.tla",
       "config": "models/bad-bypass-beats-deny.cfg",
-      "expected": "NoUnjustStart"
+      "expected": "NoUnjustAdmission"
     },
     {
       "name": "bad-remark-approves",
@@ -60,6 +54,12 @@
       "model": "models/ActionAuthorization.tla",
       "config": "models/bad-no-barrier.cfg",
       "expected": "BarrierHolds"
+    },
+    {
+      "name": "bad-start-rejudges",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/bad-start-rejudges.cfg",
+      "expected": "AdmittedNotRefused"
     },
     {
       "name": "bad-cancel-leaves-card-open",
