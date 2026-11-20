@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { CardSchema, QuestionSchema, SubmitReplySchema, decideReply } from '../src/index.ts'
+import {
+  CardSchema,
+  HITL_RELEASE_DETAIL_MAX_BYTES,
+  QuestionSchema,
+  SubmitReplySchema,
+  decideReply,
+} from '../src/index.ts'
 
 const cardRef = { request: { tenantRef: 'tenant-a', requestId: 'request-a' }, cardId: 'card-a' }
 const release = {
@@ -15,6 +21,7 @@ const release = {
     digest: 'd1',
   },
   origin: { session: 'ses_a', agent: 'exe_a' },
+  gateTitle: '执行',
   options: [
     {
       id: 'deny-once',
@@ -60,6 +67,79 @@ describe('the release card is its own kind of card', () => {
   it('takes a call with no command and no preview', () => {
     const target = { tool: 'read_file', command: null, preview: '' }
     expect(QuestionSchema.safeParse({ ...release, target }).success).toBe(true)
+  })
+})
+
+describe('what the tool said the call would do, kept on the release card', () => {
+  const rows = [
+    { label: '收件人', value: '你' },
+    { label: '标签', value: ['a', 'b'] },
+  ]
+  const typed = { kind: 'test.release@1', value: '{"title":"T"}' }
+  const takes = (detail: unknown) => QuestionSchema.safeParse({ ...release, detail }).success
+
+  it('takes rows with or without a typed value, and a detail the tool could not give', () => {
+    expect(takes({ state: 'given', rows })).toBe(true)
+    expect(takes({ state: 'given', rows, typed })).toBe(true)
+    expect(takes({ state: 'unavailable' })).toBe(true)
+  })
+
+  it.each([
+    ['no rows', { state: 'given', rows: [] }],
+    ['too many rows', { state: 'given', rows: Array.from({ length: 25 }, () => rows[0]) }],
+    ['a label over its bound', { state: 'given', rows: [{ label: 'l'.repeat(41), value: 'v' }] }],
+    ['a text over its bound', { state: 'given', rows: [{ label: 'l', value: 'v'.repeat(501) }] }],
+    ['an empty list', { state: 'given', rows: [{ label: 'l', value: [] }] }],
+    [
+      'too many items',
+      { state: 'given', rows: [{ label: 'l', value: Array.from({ length: 13 }, () => 'i') }] },
+    ],
+    [
+      'an item over its bound',
+      { state: 'given', rows: [{ label: 'l', value: ['i'.repeat(201)] }] },
+    ],
+    [
+      'a typed value over 16 KiB',
+      { state: 'given', rows, typed: { kind: 'k@1', value: 'x'.repeat(16 * 1024 + 1) } },
+    ],
+    ['rows with a detail it could not give', { state: 'unavailable', rows }],
+    ['an unknown state', { state: 'partial', rows }],
+  ])('refuses a detail with %s', (_name, detail) => {
+    expect(takes(detail)).toBe(false)
+  })
+
+  it('takes a typed value and a whole detail exactly at their bounds', () => {
+    expect(takes({ state: 'given', rows, typed: { kind: 'k@1', value: 'x'.repeat(16_384) } })).toBe(
+      true,
+    )
+    const wide = Array.from({ length: 24 }, () => ({
+      label: 'l',
+      value: Array.from({ length: 12 }, () => 'i'.repeat(55)),
+    }))
+    const withValue = (value: string) => ({
+      state: 'given',
+      rows: wide,
+      typed: { kind: 'k@1', value },
+    })
+    const room =
+      HITL_RELEASE_DETAIL_MAX_BYTES - new TextEncoder().encode(JSON.stringify(withValue(''))).length
+    expect(room).toBeGreaterThan(0)
+    expect(room).toBeLessThanOrEqual(16_384)
+    expect(takes(withValue('x'.repeat(room)))).toBe(true)
+    expect(takes(withValue('x'.repeat(room + 1)))).toBe(false)
+  })
+
+  it('refuses a detail larger than the card keeps, whatever its parts', () => {
+    const rowsOf = (each: number) =>
+      Array.from({ length: 24 }, () => ({
+        label: '标'.repeat(40),
+        value: Array.from({ length: 12 }, () => '字'.repeat(each)),
+      }))
+    expect(takes({ state: 'given', rows: rowsOf(30) })).toBe(true)
+    expect(takes({ state: 'given', rows: rowsOf(200) })).toBe(false)
+    const control = Array.from({ length: 12 }, () => '\u0001'.repeat(200))
+    const escaped = Array.from({ length: 24 }, () => ({ label: '标'.repeat(40), value: control }))
+    expect(takes({ state: 'given', rows: escaped })).toBe(false)
   })
 })
 

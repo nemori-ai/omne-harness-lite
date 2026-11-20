@@ -9,6 +9,7 @@ import { evaluatePermission, type PermissionBasisReading } from '@omne-harness/p
 import { sessionStorageMaterials } from '@omne-harness/session-storage-sql'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
+import type { ToolGate } from '@omne-harness/tool-contract'
 import {
   PERMISSION_BASIS,
   PERMISSION_BASIS_GUARD,
@@ -94,7 +95,8 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
 
   const original = await createCaptureAgent(w, candidateOf('alpha'))
   const { request } = original
-  const definition = w.declaration.permissions[0]!
+  const RUN: ToolGate = { id: 'run', title: '执行', default: 'ask' }
+  const definition = w.declaration.permissions.find(p => p.enforcementKey === 'tool.run')!
   const config = mappingConfig(
     entryConfig('alpha', {
       definition: {
@@ -181,6 +183,7 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
       operation: agentPermissionOperation(request),
       definition: request.definition,
       effectiveArguments,
+      gate: RUN,
       origin: {
         kind: 'agent-action',
         execution: request.execution,

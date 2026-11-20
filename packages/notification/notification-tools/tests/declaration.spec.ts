@@ -65,15 +65,10 @@ describe('the Notifications declaration', () => {
     if (definition.kind !== 'commands') throw new Error('commands')
     const a = caller(domain())
     const whole = await a.run('help', {})
-    expect(whole).toEqual({
-      ok: { kind: 'completed', value: `done Notifications help\n${commandGuide(definition)}` },
-    })
+    expect(whole).toEqual({ ok: `done Notifications help\n${commandGuide(definition)}` })
     const one = await a.run('help', { name: 'subscribe' })
     expect(one).toEqual({
-      ok: {
-        kind: 'completed',
-        value: `done Notifications help subscribe\n${commandGuide(definition, 'subscribe')}`,
-      },
+      ok: `done Notifications help subscribe\n${commandGuide(definition, 'subscribe')}`,
     })
     expect(commandGuide(definition, 'subscribe')).toContain('"level"')
     expect(commandGuide(definition)).toContain('You act as yourself')

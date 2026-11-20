@@ -29,7 +29,7 @@ describe('every refusal the domain can answer', () => {
     'not-subscribable': 'unsupported',
     'scope-does-not-fit': 'invalid',
     'not-own-recipient': 'unsupported',
-    'confirmation-mismatch': 'conflict',
+    'consent-required': 'unsupported',
   } as const
 
   async function refusing(reason: string) {

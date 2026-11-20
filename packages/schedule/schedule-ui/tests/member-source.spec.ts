@@ -27,6 +27,7 @@ it('S3 the member reads only its own protocol, the client side of access, the fr
     '@omne-harness/client-assembly/cordis',
     '@omne-harness/public-contract',
     '@omne-harness/sdk/core',
+    '@omne-harness/shell-contract',
     '@omne-harness/shell-contract/cordis',
     '@omne-harness/ui-kit',
     '@omne-harness/utc-instant',

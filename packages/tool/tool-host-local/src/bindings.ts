@@ -6,6 +6,7 @@ import type {
   Access,
   FixedToolRequest,
   SourceLayer,
+  ToolAvailability,
   ToolCallId,
   ToolDefinition,
 } from '@omne-harness/tool-contract'
@@ -71,6 +72,11 @@ export type ToolBindingSelection<P, E, B extends ContentBlock> = Readonly<{
 export interface LocalToolBindingRegistry<P, E, B extends ContentBlock>
   extends ToolBindingRegistry<P, E, B>, ToolListingSource<P> {
   pin(key: ToolBindingKey, call: ToolCallId): Outcome<ToolBindingPin, ToolBindingKeyFailure>
+  /** The registration a call of this availability would run, read without pinning it. */
+  peek(
+    access: Access<P>,
+    availability: Extract<ToolAvailability, { kind: 'available' }>,
+  ): Outcome<ToolLoadedRegistration<E, B>, Readonly<{ kind: 'unavailable'; diagnostic: string }>>
   selectAndPin(
     access: Access<P>,
     request: FixedToolRequest,
@@ -112,6 +118,26 @@ const tenantUnreadable = fail({
   kind: 'unavailable',
   diagnostic: 'tenant eligibility is unavailable',
 } as const)
+const noAuthor = fail({
+  kind: 'unavailable',
+  diagnostic: 'no accessible same-shape author',
+} as const)
+
+function selected<E, B extends ContentBlock>(
+  visible: readonly Row<E, B>[],
+  availability: Extract<ToolAvailability, { kind: 'available' }>,
+): Row<E, B> | undefined {
+  const key = {
+    layer: availability.layer,
+    asset: { name: availability.definition.name, adoption: availability.definition.adoption },
+  }
+  const shape = shapeOf(availability.definition)
+  const same = visible.filter(row => sameShape(row.loaded.shape, shape))
+  return (
+    same.find(candidate => sameBindingKey(candidate.key, key)) ??
+    same.find(candidate => candidate.state === 'live')
+  )
+}
 
 export function createLocalToolBindingRegistry<
   P,
@@ -255,26 +281,20 @@ export function createLocalToolBindingRegistry<
       if (row === undefined) return fail({ kind: 'unknown-key' })
       return succeed(pinRow(row, call))
     },
+    peek: (access, availability) => {
+      const visible = visibleRows(access)
+      if (visible === null) return tenantUnreadable
+      const row = selected(visible, availability)
+      return row === undefined ? noAuthor : succeed(row.loaded)
+    },
     selectAndPin: (access, request, call) => {
       const visible = visibleRows(access)
       if (visible === null) return tenantUnreadable
       const availability = request.availability
       if (availability.kind !== 'available')
         return fail({ kind: 'unavailable', diagnostic: 'the fixed tool is unavailable' })
-      const key = {
-        layer: availability.layer,
-        asset: {
-          name: availability.definition.name,
-          adoption: availability.definition.adoption,
-        },
-      }
-      const shape = shapeOf(availability.definition)
-      const same = visible.filter(row => sameShape(row.loaded.shape, shape))
-      const row =
-        same.find(candidate => sameBindingKey(candidate.key, key)) ??
-        same.find(candidate => candidate.state === 'live')
-      if (row === undefined)
-        return fail({ kind: 'unavailable', diagnostic: 'no accessible same-shape author' })
+      const row = selected(visible, availability)
+      if (row === undefined) return noAuthor
       return succeed({
         loaded: row.loaded,
         pin: pinRow(row, call),

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { combinationManifest, manifestDigest } from '@omne-harness/sql-contract'
 import { rowDeclarationOf } from '../../../src/row.ts'
+import { subscriptionConsents } from '../../../src/rows/notification/consent.ts'
 import {
-  CONFIRM_EACH,
   notificationCombination,
   notificationConfig,
   notificationRow,
@@ -83,9 +83,30 @@ describe('the notification row', () => {
   })
 })
 
-describe('the port this tree answers the same way every time', () => {
-  it('has the owner confirm each subscription of an agent', async () => {
-    expect(await CONFIRM_EACH.mode({} as never)).toEqual({ kind: 'per-request' })
+describe('the consent of a subscription', () => {
+  const agent = { kind: 'agent', recipient: { kind: 'agent', ref: 's-1' } } as const
+  const consented = {
+    kind: 'consented',
+    basis: { kind: 'granular', scope: 'session', grant: 'g' },
+  } as const
+
+  it('is what the call of the context was released on, read by tenant and call', async () => {
+    const asked: [string, string][] = []
+    const port = subscriptionConsents(async (tenant, call) => {
+      asked.push([tenant, call])
+      return consented
+    })
+    const ctx = { tenant: 't1', subject: null, actor: agent, call: 'c-1' } as never
+    expect(await port.consent(ctx)).toEqual(consented)
+    expect(asked).toEqual([['t1', 'c-1']])
+  })
+
+  it('is none for a context without a call, without reading any release', async () => {
+    const port = subscriptionConsents(async () => {
+      throw new Error('not to be read')
+    })
+    const ctx = { tenant: 't1', subject: null, actor: agent } as never
+    expect(await port.consent(ctx)).toEqual({ kind: 'none' })
   })
 })
 

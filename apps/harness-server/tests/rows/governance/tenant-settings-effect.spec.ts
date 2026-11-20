@@ -12,7 +12,7 @@ it('a deny pick of the tenant layer stops the next Shell call at its start, and 
     expect(baseline.started).toBe(true)
 
     const { principal, tenant } = await loginAccess(tree)
-    const item = { principal, tenant, owner: SHELL, item: 'invoke' }
+    const item = { principal, tenant, owner: SHELL, item: 'run' }
     const read = await face.describe(item)
     if (read.kind !== 'described') throw new Error(JSON.stringify(read))
     expect(read.item).toMatchObject({ effective: { kind: 'value', value: 'ask' } })

@@ -209,41 +209,29 @@ show('订阅之前入箱的那条不变：仍是弱', 'build-41', earlier)
 assert.equal(earlier.kind === 'done' && earlier.value.level, 'weak')
 
 const triager: RecipientRef = { kind: 'agent', ref: 'session-triage' }
-const asTriager = context('tenant-demo', { kind: 'agent', recipient: triager })
+const asTriager = {
+  ...context('tenant-demo', { kind: 'agent', recipient: triager }),
+  call: 'call-17',
+}
 const agentChange = { ...strongForRepo, recipient: triager, note: '失败了就开一张卡' } as const
-const asked = await subscriptions.set(asTriager, agentChange)
-show('受托的 agent 给自己订：owner 的方式是逐条确认，答「要 owner 确认」', agentChange, asked)
-assert.equal(asked.kind, 'needs-confirmation')
-const content = asked.kind === 'needs-confirmation' ? asked.request.content : ''
+const without = await subscriptions.set(asTriager, agentChange)
+show('受托的 agent 给自己订，这次调用的放行没带同意：拒绝，不写', agentChange, without)
+assert.deepEqual(without, { kind: 'refused', reason: 'consent-required' })
 
-const wrong = await subscriptions.set(
-  asTriager,
-  { ...agentChange, note: '失败了就直接回滚' },
-  {
-    decision: 'card-17',
-    content,
-    approved: true,
-  },
-)
-show('拿 owner 对另一份内容的同意来订：拒绝', '备注改成「失败了就直接回滚」', wrong)
-assert.deepEqual(wrong, { kind: 'refused', reason: 'confirmation-mismatch' })
+const once = '{"holder":"session-triage","via":"once"}'
+consent.set({ kind: 'consented', basis: { kind: 'granular', scope: 'session', grant: once } })
+const agreed = await subscriptions.set(asTriager, agentChange)
+show('这次调用凭一笔单次授权放行：成立，依据是逐条，存着授权引用', once, agreed)
+assert.deepEqual(agreed.kind === 'done' && agreed.value.basis, { kind: 'granular', grant: once })
 
-const agreed = await subscriptions.set(asTriager, agentChange, {
-  decision: 'card-17',
-  content,
-  approved: true,
-})
-show('带着 owner 对同一份内容的同意重提：成立，依据是这次答复', 'card-17', agreed)
-assert.deepEqual(agreed.kind === 'done' && agreed.value.basis, {
-  kind: 'granular',
-  decision: 'card-17',
-})
-
+const standing = '{"holder":"tenant-demo","layer":"tenant","via":"verdict"}'
+consent.set({ kind: 'consented', basis: { kind: 'blanket', scope: 'standing', grant: standing } })
 const lowered = await subscriptions.set(asTriager, { ...agentChange, level: 'weak' })
-show('agent 自己调低：不要同意，依据不变', '强改弱', lowered)
+show('agent 自己调低也是一次订阅：凭裁定放行，依据换成持续的全权', '强改弱', lowered)
 assert.deepEqual(lowered.kind === 'done' && lowered.value.basis, {
-  kind: 'granular',
-  decision: 'card-17',
+  kind: 'blanket',
+  scope: 'standing',
+  grant: standing,
 })
 
 // 合并
@@ -256,11 +244,7 @@ const pushed = (channel: typeof inApp) =>
   }))
 
 const strongAgain = { ...agentChange, note: '失败了就开一张卡' } as const
-const raised = await subscriptions.set(asTriager, strongAgain, {
-  decision: 'card-18',
-  content: asked.kind === 'needs-confirmation' ? asked.request.content : '',
-  approved: true,
-})
+const raised = await subscriptions.set(asTriager, strongAgain)
 assert.equal(raised.kind, 'done')
 
 clock.set('2026-11-18T06:05:00.000Z')

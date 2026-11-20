@@ -22,10 +22,10 @@ const question = {
   description: 'The tool deletes 3 files',
   declineConsequence: 'The tool does not run',
 }
-const approval = {
+const extension = {
   ...question,
-  kind: 'approval',
-  options: [{ id: 'yes', label: 'Yes', description: 'Delete', effectRef: 'effect-1' }],
+  kind: 'extension',
+  options: [{ id: 'yes', label: 'Yes', description: 'Delete' }],
 }
 const asking = {
   ...question,
@@ -38,6 +38,7 @@ const release = {
   target: { tool: 'Shell', command: null, preview: '' },
   arguments: { text: '{"cmd":"ls"}', truncated: false, digest: 'digest-1' },
   origin: { session: 'ses-1', agent: 'exe-1' },
+  gateTitle: '调用',
   options: [
     {
       id: 'deny-once',
@@ -55,6 +56,22 @@ const release = {
     },
   ],
 }
+const given = {
+  state: 'given',
+  rows: [
+    { label: '收件人', value: '你' },
+    { label: '标签', value: ['a', 'b'] },
+  ],
+  typed: { kind: 'test.release@1', value: '{"title":"T"}' },
+}
+const largest = {
+  state: 'given',
+  rows: Array.from({ length: 24 }, () => ({
+    label: '标'.repeat(40),
+    value: Array.from({ length: 12 }, () => '字'.repeat(25)),
+  })),
+  typed: { kind: 'test.release@1', value: `[${'1,'.repeat(1999)}1]` },
+}
 const submissionRef = { tenantRef: tenant, actorRef: 'actor-1', operationId: 'operation-1' }
 const decisionRef = { card: cardRef, decisionId: 'decision-1', submission: submissionRef }
 const decision = { ref: decisionRef, reply: pick, basisRef: 'basis-1', commitReceipt: 'receipt-1' }
@@ -65,7 +82,7 @@ const item = (card: object, own: object = origin) => ({
   origin: own,
   displayContext: 'a tool call in a session',
 })
-const pending = { ...head, question: approval, kind: 'pending' }
+const pending = { ...head, question: extension, kind: 'pending' }
 const decided = {
   ...head,
   question: asking,
@@ -75,7 +92,7 @@ const decided = {
 }
 const invalidated = {
   ...head,
-  question: approval,
+  question: extension,
   kind: 'invalidated',
   reason: 'origin-terminal',
   terminalEvidenceRef: 'evidence-1',
@@ -145,7 +162,7 @@ const successBodies: Readonly<Record<Name, readonly object[]>> = {
     {
       items: [
         item(pending),
-        item(decided, { kind: 'independent' }),
+        item(decided, { kind: 'admission', sessionRef: session }),
         item(invalidated, { kind: 'agent-extension', sessionRef: session }),
       ],
       next: 'cursor-2',
@@ -157,6 +174,9 @@ const successBodies: Readonly<Record<Name, readonly object[]>> = {
     { item: item(pending) },
     { item: item({ ...pending, question: asking }) },
     { item: item({ ...pending, question: release }) },
+    { item: item({ ...pending, question: { ...release, detail: given } }) },
+    { item: item({ ...pending, question: { ...release, detail: largest } }) },
+    { item: item({ ...pending, question: { ...release, detail: { state: 'unavailable' } } }) },
   ],
   'submit-reply': replyResults,
   'query-submit-reply': replyResults,
@@ -181,6 +201,14 @@ const invalidSuccess: Readonly<Record<Name, readonly object[]>> = {
       item: item({
         ...pending,
         question: { ...release, options: [{ id: 'deny-once', label: 'No', description: 'No' }] },
+      }),
+    },
+    { item: item({ ...pending, question: { ...release, detail: { ...given, rows: [] } } }) },
+    { item: item({ ...pending, question: { ...release, detail: { state: 'shown' } } }) },
+    {
+      item: item({
+        ...pending,
+        question: { ...release, detail: { state: 'given', rows: [{ label: 'l', value: [] }] } },
       }),
     },
   ],

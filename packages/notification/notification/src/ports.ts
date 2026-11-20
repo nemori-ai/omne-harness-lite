@@ -1,7 +1,7 @@
 import type {
   AuthorityAnswer,
   CallContext,
-  ConsentMode,
+  ConsentAnswer,
   Destination,
   Disclosure,
   Instant,
@@ -45,9 +45,9 @@ export async function ask(
   }
 }
 
-export interface ConsentModes {
-  /** How this tenant's owner lets agents subscribe right now. */
-  mode(ctx: CallContext): Promise<ConsentMode | 'unavailable'>
+export interface SubscriptionConsents {
+  /** What the call of this context was released on. Asked only when an agent's subscription writes. */
+  consent(ctx: CallContext): Promise<ConsentAnswer>
 }
 
 /** This group's need for standing items, in its own shape. The assembly binds the sources' blocks to it. */

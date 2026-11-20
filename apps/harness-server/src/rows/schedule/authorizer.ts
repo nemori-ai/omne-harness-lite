@@ -14,34 +14,20 @@ import {
   type ScheduleDomainError,
   type ScheduleInstant,
 } from '@omne-harness/schedule-contract'
+import type { CallConsent } from '../tool-bindings/call-consent.ts'
 import {
   decideScheduleConsent,
+  needsConsent,
   type ConsentActor,
   type ConsentCommand,
-  type ConsentConfirmation,
-  type ConsentMode,
   type ConsentSubject,
 } from './consent.ts'
 
 const OWNER = 'harness-server.schedule'
-/** The standing consent the owner gives by leaving the setting at automatic. */
-export const BLANKET_GRANT = `${OWNER}/agent-schedule-consent`
 
-export type ConsentAnswer = Readonly<{
-  /** The answer came from the tenant's own entry, not from the session that raised the card. */
-  fromOwner: boolean
-  approved: boolean
-  digest: string
-}>
 export type ConsentPorts = Readonly<{
-  /** The owner's setting, read at the moment of the decision: auto with its value revision, or draft. */
-  mode(tenantRef: string): Promise<ConsentMode>
-  /** The answer a decision reference of the call names; undefined when it cannot be read now. */
-  answer(
-    tenantRef: string,
-    decision: string,
-    call: string,
-  ): Promise<ConsentAnswer | null | undefined>
+  /** What the call that asks was released on, read at the moment of the decision. */
+  consent(tenantRef: string, call: string): Promise<CallConsent>
   now(): ScheduleInstant
 }>
 
@@ -85,12 +71,6 @@ export function commandOf(
   }
 }
 
-/** The content the owner confirms: the request without its operation key and the consent it names. */
-export function consentDigest(request: ManagementRequest): string {
-  const { meta: _meta, ...content } = request.input
-  return digestOf({ kind: request.kind, content })
-}
-
 const failure = (
   context: ScheduleCallContext,
   code: ScheduleDomainError['code'],
@@ -125,26 +105,13 @@ function authorOf(context: ScheduleCallContext): ManagementAccess['authority']['
     : { kind: 'human', actorRef: context.actor.actorRef }
 }
 
-async function confirmationOf(
-  ports: ConsentPorts,
-  context: ScheduleCallContext,
-  tenantRef: string,
-  request: ManagementRequest,
-): Promise<ConsentConfirmation> {
-  const decision = request.input.meta.consentRef
-  if (decision === null) return { kind: 'none' }
-  let answer: ConsentAnswer | null | undefined
-  try {
-    answer = await ports.answer(tenantRef, decision, context.requestId)
-  } catch {
-    return { kind: 'unreadable' }
-  }
-  if (answer === undefined) return { kind: 'unreadable' }
-  if (answer === null || !answer.fromOwner || !answer.approved) return { kind: 'foreign' }
-  return answer.digest === consentDigest(request)
-    ? { kind: 'valid', decision }
-    : { kind: 'mismatch' }
-}
+const CODES = {
+  refused: 'consent_required',
+  forbidden: 'forbidden',
+  unavailable: 'authority_unavailable',
+} as const satisfies Record<string, ScheduleDomainError['code']>
+const NOT_READ: CallConsent = { kind: 'none' }
+const UNREADABLE: CallConsent = { kind: 'unavailable' }
 
 export function createScheduleAuthorizers(ports: ConsentPorts): Readonly<{
   management: ManagementAuthorizer
@@ -169,26 +136,16 @@ export function createScheduleAuthorizers(ports: ConsentPorts): Readonly<{
     async authorize({ context, request, current }) {
       const actor = actorOf(context)
       if (actor === 'other' || context.owner.kind !== 'tenant') return failure(context, 'forbidden')
-      const tenantRef = context.owner.tenantId
-      const command = commandOf(request, current)
-      const subject = subjectOf(context, current)
-      const needsMode = actor === 'agent' && command === 'consent' && subject !== 'others'
-      let mode: ConsentMode = { kind: 'draft' }
-      if (needsMode)
-        try {
-          mode = await ports.mode(tenantRef)
-        } catch {
-          mode = { kind: 'unreadable' }
-        }
-      const confirmation =
-        needsMode && mode.kind === 'draft'
-          ? await confirmationOf(ports, context, tenantRef, request)
-          : ({ kind: 'none' } as const)
-      const decided = decideScheduleConsent({ actor, subject, command, mode, confirmation })
-      if (decided.kind !== 'allow')
-        return decided.kind === 'confirm'
-          ? failure(context, 'consent_required', { consentDigest: consentDigest(request) })
-          : failure(context, decided.kind === 'forbidden' ? 'forbidden' : 'authority_unavailable')
+      const asked = {
+        actor,
+        subject: subjectOf(context, current),
+        command: commandOf(request, current),
+      }
+      const consent = needsConsent(asked)
+        ? await ports.consent(context.owner.tenantId, context.requestId).catch(() => UNREADABLE)
+        : NOT_READ
+      const decided = decideScheduleConsent({ ...asked, consent })
+      if (decided.kind !== 'allow') return failure(context, CODES[decided.kind])
       const now = ports.now()
       const guardRef = `${OWNER}/consent`
       const { basis } = decided
@@ -203,27 +160,17 @@ export function createScheduleAuthorizers(ports: ConsentPorts): Readonly<{
             guardRef: `${OWNER}/authority`,
           },
           consent:
-            basis.kind === 'notRequired'
+            basis === null
               ? { kind: 'notRequired', guardRef }
               : {
                   kind: 'adopt',
                   guardRef,
-                  adoption:
-                    basis.kind === 'blanket'
-                      ? {
-                          grantRef: BLANKET_GRANT,
-                          generation: basis.generation,
-                          adoptionKind: 'blanket',
-                          scope: 'standing',
-                          adoptedAt: now,
-                        }
-                      : {
-                          grantRef: basis.decision,
-                          generation: 0,
-                          adoptionKind: 'granular',
-                          scope: 'session',
-                          adoptedAt: now,
-                        },
+                  adoption: {
+                    grantRef: basis.grant,
+                    adoptionKind: basis.kind,
+                    scope: basis.scope,
+                    adoptedAt: now,
+                  },
                 },
           currentStanding: {
             kind: 'ready',

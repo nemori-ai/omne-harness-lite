@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
 import { CardsHub, DecisionsPage, PendingBadge, SessionCards } from '../src/index.ts'
-import { approvalItem, page, questionItem } from './fixtures/cards.ts'
+import { extensionItem, page, questionItem } from './fixtures/cards.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 
@@ -58,7 +58,7 @@ describe('会话里的卡', () => {
   it('C1 只显示来源会话等于这个会话的卡', async () => {
     const { fake, hub } = setup()
     render(<SessionCards hub={hub} tenant={TENANT} session={SESSION} />)
-    await answer(fake, 'list-cards', page([questionItem(), OTHER_CARD, approvalItem()]))
+    await answer(fake, 'list-cards', page([questionItem(), OTHER_CARD, extensionItem()]))
     const shown = region()!
     expect(shown.className).toBe('hitl-session-cards')
     expect(within(shown).getAllByRole('article')).toHaveLength(1)
@@ -69,7 +69,7 @@ describe('会话里的卡', () => {
   it('C2 这个会话没有卡：什么都不渲染', async () => {
     const { fake, hub } = setup()
     const view = render(<SessionCards hub={hub} tenant={TENANT} session={SESSION} />)
-    await answer(fake, 'list-cards', page([OTHER_CARD, approvalItem()]))
+    await answer(fake, 'list-cards', page([OTHER_CARD, extensionItem()]))
     expect(view.container.innerHTML).toBe('')
   })
 
@@ -191,7 +191,7 @@ describe('导航上的张数', () => {
   it('B1 张数随列表变：0 张什么都不渲染', async () => {
     const { fake, hub } = setup()
     const view = render(<PendingBadge hub={hub} tenant={TENANT} />)
-    await answer(fake, 'list-cards', page([questionItem(), approvalItem()]))
+    await answer(fake, 'list-cards', page([questionItem(), extensionItem()]))
     expect(view.container.textContent).toBe('2')
     fake.observations[0]!.frame()
     await answer(fake, 'list-cards', page([]))

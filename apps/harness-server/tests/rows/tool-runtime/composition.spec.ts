@@ -324,7 +324,6 @@ function requestSource(ctx: Context) {
     release: () => releaseOf(ctx),
     operatorSettings: () => ({}),
     interaction: async () => fail('no meta command in this test'),
-    inquiry: async () => fail('no meta command in this test'),
   })
 }
 

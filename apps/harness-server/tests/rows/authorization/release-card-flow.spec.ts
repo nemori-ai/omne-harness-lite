@@ -18,6 +18,7 @@ import {
   pendingCard,
   perMessageShell,
   perMessageTodoThroughTools,
+  setGate,
 } from './release-flow-support.ts'
 
 const NOT_RELEASED = 'The tool call did not run: the person did not allow it this time.'
@@ -168,19 +169,29 @@ it('a release card the person does not release never starts the call, whatever t
 })
 
 // One action either way: a resident tool called directly, or a nonresident one carried by Tools.
+// The carried TodoItems is automatic by default; its gate is set to ask, so the call has a card.
 it.each([
-  ['directly', 'Shell', { script: perMessageShell }],
+  ['directly', 'Shell', { script: perMessageShell }, false],
   [
     'through Tools',
     'TodoItems',
     { script: perMessageTodoThroughTools, nonresident: ['TodoItems'] },
+    true,
   ],
-])(
+] as const)(
   'a call made %s and released once runs once, the start records the consumption, and the next call asks again',
-  async (_how, tool, how) => {
+  async (_how, tool, how, asks) => {
     const exit = await onReleaseTree(
       { ...how, permission: 'auto_permission', extraHistoryKinds: [ONCE] },
       async tree => {
+        if (asks)
+          await setGate(
+            tree,
+            { kind: 'asset', category: 'tool', name: tool },
+            'invoke',
+            'ask',
+            'todo-asks',
+          )
         const released = await answered(tree, 'released', ['--option', 'allow-once'])
         expect(released.question).toMatchObject({ kind: 'release', target: { tool } })
         expect(released.result).not.toContain('did not run')

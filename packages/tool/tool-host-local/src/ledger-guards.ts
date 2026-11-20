@@ -13,6 +13,7 @@ import type {
   CallAccess,
   ToolBindings,
   ToolPermitConsumption,
+  ToolStartRelease,
 } from '@omne-harness/tool-contract/provider'
 import {
   defaultResultPolicy,
@@ -40,6 +41,8 @@ export type RequestAccessVerdict =
       condition: StartCondition | null
       /** The once authorizations this start consumes; recorded with its acceptance. */
       authorizations?: readonly ToolPermitConsumption[]
+      /** What the start was released on; recorded with its acceptance. */
+      release?: ToolStartRelease
     }>
   | Exclude<AccessVerdict, { kind: 'allowed' }>
 

@@ -32,7 +32,7 @@ const subscription = {
   level: 'strong',
   note: 'open a card',
   term: { kind: 'until', at: instant },
-  basis: { kind: 'granular', decision: 'card-17' },
+  basis: { kind: 'granular' },
   expired: false,
 }
 const destination = {
@@ -250,7 +250,11 @@ describe('subscriptions and the beat', () => {
             level,
             note: null,
           })
-    for (const basis of [{ kind: 'owner' }, { kind: 'blanket', generation: 0 }])
+    for (const basis of [
+      { kind: 'owner' },
+      { kind: 'blanket', scope: 'standing' },
+      { kind: 'blanket', scope: 'session' },
+    ])
       expectRoundTrip(operations['set-subscription'].outcomes.succeeded, {
         ...subscription,
         basis,

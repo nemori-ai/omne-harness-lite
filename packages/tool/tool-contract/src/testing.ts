@@ -112,3 +112,4 @@ export {
   toolEnvironmentAllocationConformance,
   type ToolEnvironmentAllocationFixture,
 } from './testing-environment-allocation.ts'
+export { checkReleaseDescription } from './testing-release-detail.ts'

@@ -40,7 +40,7 @@ export function roundOperation(key: string, step: string): string {
 
 type Question =
   | Readonly<{
-      kind: 'admission' | 'extension'
+      kind: 'extension'
       cardId: string
       title: string
       description: string
@@ -55,10 +55,7 @@ export type RoundCards = Readonly<{
   questions: readonly Question[]
 }>
 
-const DECLINE = {
-  admission: 'The action is not admitted this time.',
-  'agent-extension': 'The extension gets no answer.',
-} as const
+const EXTENSION_DECLINE = 'The extension gets no answer.'
 
 function titleOf(explanation: string): string {
   const line = explanation.trim().split('\n', 1)[0] ?? ''
@@ -84,26 +81,28 @@ export function roundCards(
     admitted !== null && drafts.every(draft => draft.about.action === admitted)
       ? 'admission'
       : 'agent-extension'
-  return succeed({
-    kind,
-    questions: drafts.map((draft, index): Question => {
-      const cardId = `c${String(index + 1)}`
-      const release = kind === 'admission' ? releaseOf(draft) : null
-      if (release !== null) return { ...release, cardId }
-      return {
-        kind: kind === 'admission' ? 'admission' : 'extension',
+  const questions: Question[] = []
+  for (const [index, draft] of drafts.entries()) {
+    const cardId = `c${String(index + 1)}`
+    if (kind === 'admission') {
+      const release = releaseOf(draft)
+      if (release === null) return fail('an admission draft carries no release card')
+      questions.push({ ...release, cardId })
+    } else
+      questions.push({
+        kind: 'extension',
         cardId,
         title: titleOf(draft.explanation),
         description: draft.explanation,
-        declineConsequence: DECLINE[kind],
+        declineConsequence: EXTENSION_DECLINE,
         options: draft.options.map(option => ({
           id: option.id,
           label: option.label,
           description: option.label,
         })),
-      }
-    }),
-  })
+      })
+  }
+  return succeed({ kind, questions })
 }
 
 // Only an admission's own chain carries a release card; an extension's draft never becomes one.

@@ -30,7 +30,7 @@ const options = {
 
 async function shellSetting(tree: ReleaseTree) {
   const { principal, tenant } = await loginAccess(tree)
-  const read = await faceOf(tree).describe({ principal, tenant, owner: SHELL, item: 'invoke' })
+  const read = await faceOf(tree).describe({ principal, tenant, owner: SHELL, item: 'run' })
   if (read.kind !== 'described' || read.item.kind !== 'permission')
     throw new Error(JSON.stringify(read))
   return read.item.own

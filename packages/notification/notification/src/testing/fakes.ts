@@ -7,7 +7,7 @@ import {
   type CallContext,
   type ChannelContribution,
   type ChannelDelivery,
-  type ConsentMode,
+  type ConsentAnswer,
   type DeliveryResult,
   type Disclosure,
   type Instant,
@@ -18,9 +18,9 @@ import type {
   AuthorityAction,
   Clock,
   ClockHints,
-  ConsentModes,
   NotificationAuthority,
   StandingItems,
+  SubscriptionConsents,
 } from '../ports.ts'
 
 export type FakeAuthority = NotificationAuthority &
@@ -77,18 +77,21 @@ export function context(tenant = 't1', actor: Actor = { kind: 'owner' }): CallCo
   return { tenant: tenantIdSchema.parse(tenant), subject: { test: tenant }, actor }
 }
 
-export type FakeConsent = ConsentModes &
-  Readonly<{ set(mode: ConsentMode | 'unavailable' | 'throw'): void }>
+export type FakeConsent = SubscriptionConsents &
+  Readonly<{ set(answer: ConsentAnswer | 'throw'): void; asked: readonly CallContext[] }>
 
-/** The owner's consent mode. The default is per-request. */
+/** What the call was released on. The default is no consent. */
 export function fakeConsent(): FakeConsent {
-  let current: ConsentMode | 'unavailable' | 'throw' = { kind: 'per-request' }
+  let current: ConsentAnswer | 'throw' = { kind: 'none' }
+  const asked: CallContext[] = []
   return {
-    set(mode) {
-      current = mode
+    asked,
+    set(answer) {
+      current = answer
     },
-    async mode() {
-      if (current === 'throw') throw new Error('settings are down')
+    async consent(ctx) {
+      asked.push(ctx)
+      if (current === 'throw') throw new Error('the release cannot be read')
       return current
     },
   }

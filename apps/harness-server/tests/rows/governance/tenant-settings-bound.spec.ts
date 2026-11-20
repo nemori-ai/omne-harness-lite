@@ -206,10 +206,10 @@ it('an organization locked to deny and ask with a tenant pick of auto shows the 
     item: {
       kind: 'permission',
       own: 'auto',
-      effective: { kind: 'value', value: 'ask', source: 'default' },
+      effective: { kind: 'value', value: 'ask', source: 'organization' },
       bound: ['deny', 'ask'],
       editable: { kind: 'yes' },
-      default: 'ask',
+      default: 'auto',
     },
   })
 })

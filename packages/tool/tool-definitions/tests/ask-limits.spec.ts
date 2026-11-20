@@ -38,18 +38,11 @@ const question = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 const ask = (...questions: unknown[]) => ({ questions })
-const approval = {
-  action: 'Delete it',
-  reason: 'r',
-  impact: 'i',
-  reversibility: 'v',
-  fallback: 'f',
-}
 
 describe('the limits on the text of a card', () => {
   const wide = (count: number) => '😀'.repeat(count)
 
-  it('takes a title, a description, a label and an approval field of exactly the longest size, and no longer', () => {
+  it('takes a title, a description and a label of exactly the longest size, and no longer', () => {
     const cases: [string, (text: string) => unknown, number][] = [
       ['questions[0].title', text => ask(question({ title: text })), 256],
       ['questions[0].description', text => ask(question({ description: text })), 4096],
@@ -68,14 +61,6 @@ describe('the limits on the text of a card', () => {
       expect(reasonOf('ask', build(wide(max)))).toBe('accepted')
       expect(reasonOf('ask', build('x'.repeat(max + 1)))).toBe(`invalid-field:${at}`)
     }
-    expect(reasonOf('request_approval', { ...approval, action: wide(256) })).toBe('accepted')
-    expect(reasonOf('request_approval', { ...approval, action: 'x'.repeat(257) })).toBe(
-      'invalid-field:action',
-    )
-    expect(reasonOf('request_approval', { ...approval, reason: wide(1000) })).toBe('accepted')
-    expect(reasonOf('request_approval', { ...approval, reason: 'x'.repeat(1001) })).toBe(
-      'invalid-field:reason',
-    )
   })
 
   it('refuses a text that is blank or holds half of a surrogate pair, naming the field', () => {
@@ -195,7 +180,7 @@ describe('the shapes the Ask codec refuses', () => {
   it('names the field of a value that is no object, at the top and in a question and an option', () => {
     expect(reasonOf('ask', null)).toBe('invalid-field:params')
     expect(reasonOf('ask', [])).toBe('invalid-field:params')
-    expect(reasonOf('request_approval', 'text')).toBe('invalid-field:params')
+    expect(reasonOf('ask', 'text')).toBe('invalid-field:params')
     expect(reasonOf('ask', { questions: [null] })).toBe('invalid-field:questions[0]')
     expect(reasonOf('ask', { questions: [[]] })).toBe('invalid-field:questions[0]')
     expect(reasonOf('ask', { questions: [{ ...question(), options: [null, option()] }] })).toBe(
@@ -223,11 +208,6 @@ describe('the shapes the Ask codec refuses', () => {
     expect(
       reasonOf('ask', ask(question({ options: [option({ diagram: 5 }), option({ label: 'B' })] }))),
     ).toBe('invalid-field:questions[0].options[0].diagram')
-    expect(reasonOf('request_approval', { ...approval, fallback: undefined })).toBe(
-      'invalid-field:fallback',
-    )
-    expect(reasonOf('request_approval', { ...approval, impact: 3 })).toBe('invalid-field:impact')
-    expect(reasonOf('request_approval', { ...approval, extra: 'x' })).toBe('invalid-field:extra')
   })
 
   it('answers the failure of the text it cannot read as JSON, without running further', () => {
@@ -248,20 +228,17 @@ describe('the Ask result and its checkpoint', () => {
     )
   const unreadable = { failure: { kind: 'invalid', reason: 'ask-state-unreadable' } }
   const good = {
-    command: 'ask',
     questions: [{ cardId: 'q1', title: 'T', options: [{ id: 'o1', label: 'A' }] }],
   }
 
-  it('reads no checkpoint that is not a state of the Ask: null, a list, a text, no command or no questions', async () => {
+  it('reads no checkpoint that is not a state of the Ask: null, a list, a text or no questions', async () => {
     for (const text of [
       'null',
       '[]',
       '"text"',
       '5',
-      JSON.stringify({ questions: good.questions }),
-      JSON.stringify({ command: 'ask' }),
-      JSON.stringify({ command: 'other', questions: good.questions }),
-      JSON.stringify({ command: 'ask', questions: 'text' }),
+      JSON.stringify({}),
+      JSON.stringify({ questions: 'text' }),
     ])
       expect(await resume(text, { kind: 'declined' })).toEqual(unreadable)
     expect(await resume(JSON.stringify(good), { kind: 'declined' })).toMatchObject({ ok: {} })
@@ -278,39 +255,10 @@ describe('the Ask result and its checkpoint', () => {
   })
 
   it('reads no checkpoint that is not well-formed UTF-8, even when it would parse with a replacement character', async () => {
-    const head = new TextEncoder().encode('{"command":"ask","questions":[{"cardId":"q1","title":"')
+    const head = new TextEncoder().encode('{"questions":[{"cardId":"q1","title":"')
     const tail = new TextEncoder().encode('","options":[]}]}')
     const bytes = new Uint8Array([...head, 0xff, ...tail])
     expect(await resume(bytes, { kind: 'declined' })).toEqual(unreadable)
-  })
-
-  it('refuses a reply to an approval that is neither of its two options', async () => {
-    const state = JSON.stringify({
-      command: 'request_approval',
-      questions: [
-        {
-          cardId: 'approval',
-          title: 'Delete it',
-          options: [
-            { id: 'approve', label: 'yes' },
-            { id: 'reject', label: 'no' },
-          ],
-        },
-      ],
-    })
-    const reply = (optionId: string): ToolDecision<unknown> => ({
-      kind: 'answer',
-      value: { answers: [{ cardId: 'approval', kind: 'selection', optionId }] },
-    })
-    expect(await resume(state, reply('approve'))).toEqual({
-      ok: { kind: 'completed', value: 'Approved: Delete it' },
-    })
-    expect(await resume(state, reply('reject'))).toEqual({
-      ok: { kind: 'completed', value: 'Not approved: Delete it' },
-    })
-    expect(await resume(state, reply('maybe'))).toEqual({
-      failure: { kind: 'invalid', reason: 'ask-response-mismatch' },
-    })
   })
 })
 
@@ -360,7 +308,7 @@ describe('what the declared schemas close', () => {
 
   it('refuses an extra member in a reply, in one of its answers, and in a state', async () => {
     const answer = { cardId: 'q1', kind: 'selection', optionId: 'o1' }
-    const state = { command: 'ask', questions: [{ cardId: 'q1', title: 'T', options: [] }] }
+    const state = { questions: [{ cardId: 'q1', title: 'T', options: [] }] }
     expect((await check(hitlDecisionWait.response.ref, { answers: [answer] })).kind).toBe('valid')
     expect((await check(hitlDecisionWait.response.ref, { answers: [answer], x: 1 })).kind).toBe(
       'invalid',
@@ -369,7 +317,6 @@ describe('what the declared schemas close', () => {
       (await check(hitlDecisionWait.response.ref, { answers: [{ ...answer, x: 1 }] })).kind,
     ).toBe('invalid')
     const goodState = {
-      command: 'ask',
       questions: [
         {
           cardId: 'q1',

@@ -33,7 +33,7 @@ const reply = {
   ],
 } as const
 
-const originKinds = literal('tool', 'agent-extension', 'admission', 'independent')
+const originKinds = literal('tool', 'agent-extension', 'admission')
 
 const filter = object({
   states: {
@@ -71,6 +71,21 @@ const option = {
   label: { rule: text },
   description: { rule: text },
 } as const
+const releaseRow = object({
+  label: { rule: text },
+  value: { rule: { kind: 'one-of', rules: [text, { kind: 'array', item: text, nonempty: true }] } },
+})
+const releaseDetail = {
+  kind: 'one-of',
+  rules: [
+    object({
+      state: { rule: literal('given') },
+      rows: { rule: { kind: 'array', item: releaseRow, nonempty: true } },
+      typed: { rule: object({ kind: { rule: text }, value: { rule: text } }), optional: true },
+    }),
+    object({ state: { rule: literal('unavailable') } }),
+  ],
+} as const
 const questionFields = {
   cardId: { rule: text },
   title: { rule: text },
@@ -84,16 +99,6 @@ const question = {
       ...questionFields,
       kind: { rule: literal('question', 'extension') },
       options: { rule: { kind: 'array', item: object(option) } },
-    }),
-    object({
-      ...questionFields,
-      kind: { rule: literal('approval', 'admission') },
-      options: {
-        rule: {
-          kind: 'array',
-          item: object({ ...option, effectRef: { rule: text, optional: true } }),
-        },
-      },
     }),
     object({
       ...questionFields,
@@ -113,6 +118,7 @@ const question = {
         }),
       },
       origin: { rule: object({ session: { rule: text }, agent: { rule: text } }) },
+      gateTitle: { rule: text },
       gate: {
         rule: object({
           capabilityId: { rule: text },
@@ -121,6 +127,7 @@ const question = {
         }),
         optional: true,
       },
+      detail: { rule: releaseDetail, optional: true },
       options: {
         rule: {
           kind: 'array',

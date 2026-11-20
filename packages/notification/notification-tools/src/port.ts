@@ -44,7 +44,6 @@ export type BoundNotifications = Readonly<{
   posts: NotificationCallSource['posts']
   /** A name of this agent made its own: another agent that picks the same name does not meet it. */
   scoped(self: AgentRecipient, name: string): string
-  decisionRef(cardId: string): string
   causalDepth(): number
   now(): string
 }>
@@ -64,11 +63,10 @@ export function bindNotifications(source: NotificationCallSource): BoundNotifica
       const context = await (async () => source.context())().catch(() => undefined)
       if (context === undefined) return unavailable
       if (context.tenant !== source.tenant || context.actor.kind !== 'agent') return forbidden
-      return { faces, context, self: context.actor.recipient }
+      return { faces, context: { ...context, call: source.call }, self: context.actor.recipient }
     },
     posts: source.posts,
     scoped: (self, name) => `${digestOf(self.ref, 24)}.${name}`,
-    decisionRef: cardId => `tool-call/${digestOf(source.call, 48)}/${cardId}`,
     causalDepth: () => source.causalDepth(),
     now: () => source.now(),
   }

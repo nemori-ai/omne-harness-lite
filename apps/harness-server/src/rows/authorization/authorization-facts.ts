@@ -1,5 +1,9 @@
 import { AGENT_CONSUMER_OWNER } from '@omne-harness/agent'
-import { canonicalText, effectiveArgumentsOf } from '@omne-harness/authorization'
+import {
+  canonicalText,
+  effectiveArgumentsOf,
+  type DurableEvidence,
+} from '@omne-harness/authorization'
 import type { PermissionBasisRequest } from '@omne-harness/permissions'
 import type { AuthorizationConsumer, OnceAuthorization } from '@omne-harness/session-contract'
 import type { Adoption } from '@omne-harness/tool-contract'
@@ -36,11 +40,11 @@ export function onceAuthorizationFor(
 export function sessionGrantFor(
   request: PermissionBasisRequest,
   { authorizations = null }: CurrentPermissionRead,
-): string | null {
+): Readonly<{ basis: string; source: DurableEvidence }> | null {
   const found = authorizations?.session ?? null
   return found !== null &&
     found.capabilityId === request.capabilityId &&
     found.enforcementKey === request.enforcementKey
-    ? found.basis
+    ? { basis: found.basis, source: found.source }
     : null
 }

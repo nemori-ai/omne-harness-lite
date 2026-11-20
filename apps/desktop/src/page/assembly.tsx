@@ -8,7 +8,10 @@ import {
 import '@omne-harness/calendar-ui/calendar-ui.css'
 import { calendarUiModule } from '@omne-harness/calendar-ui/cordis'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
-import { createHumanInterventionUiModule } from '@omne-harness/human-intervention-ui/cordis'
+import {
+  createHumanInterventionUiModule,
+  releaseDetail,
+} from '@omne-harness/human-intervention-ui/cordis'
 import { identityUiModule } from '@omne-harness/identity-ui/cordis'
 import '@omne-harness/identity-ui/identity-ui.css'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
@@ -18,7 +21,7 @@ import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
 import '@omne-harness/notification-ui/notification-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import '@omne-harness/schedule-ui/schedule-ui.css'
-import { scheduleUiModule } from '@omne-harness/schedule-ui/cordis'
+import { createScheduleUiModule } from '@omne-harness/schedule-ui/cordis'
 import {
   sessionCallDetail,
   sessionDock,
@@ -42,7 +45,7 @@ export const assembly: Assembly = {
     sessionUiModule,
     createHumanInterventionUiModule({ sessionDock }),
     notificationUiModule,
-    scheduleUiModule,
+    createScheduleUiModule({ releaseDetail }),
     calendarUiModule,
     assetsUiModule,
     createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),

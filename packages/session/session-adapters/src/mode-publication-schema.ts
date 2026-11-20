@@ -20,7 +20,6 @@ const inquiry = z
 const interaction = z
   .strictObject({
     humanInteraction: z.boolean(),
-    requestApproval: z.boolean(),
     source: evidence,
     translation: adoption,
   })

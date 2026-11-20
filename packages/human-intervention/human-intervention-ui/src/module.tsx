@@ -13,6 +13,7 @@ import {
 import { CardsHub } from './model/cards-hub.ts'
 import { DecisionsPage } from './view/decisions-page.tsx'
 import { PendingBadge } from './view/pending-badge.tsx'
+import { DetailHost } from './view/release-detail.tsx'
 import { SessionCards } from './view/session-cards.tsx'
 
 const HITL = protocolServiceName({
@@ -38,14 +39,20 @@ function contribute(shell: ShellService, hub: CardsHub, options: HumanInterventi
     order: PAGE_ORDER,
     badge: ({ scope }) => (scope === undefined ? null : <PendingBadge hub={hub} tenant={scope} />),
     render: ({ scope }) =>
-      scope === undefined ? null : <DecisionsPage hub={hub} tenant={scope} />,
+      scope === undefined ? null : (
+        <DetailHost.Provider value={shell}>
+          <DecisionsPage hub={hub} tenant={scope} />
+        </DetailHost.Provider>
+      ),
   })
   options.sessionDock?.contribute(shell, {
     id: IN_SESSION_ID,
     order: 0,
     render: ({ scope, subject }) =>
       scope === undefined ? null : (
-        <SessionCards hub={hub} tenant={scope} session={subject.session} />
+        <DetailHost.Provider value={shell}>
+          <SessionCards hub={hub} tenant={scope} session={subject.session} />
+        </DetailHost.Provider>
       ),
   })
 }

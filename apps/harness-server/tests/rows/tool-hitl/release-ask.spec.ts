@@ -7,6 +7,8 @@ import {
   historyOf,
   onReleaseTree,
   pollUntil,
+  toolCalls,
+  toolCallsByRequest,
   toolCallsThenText,
   toolRecords,
 } from '../../support/release-tree.ts'
@@ -35,29 +37,13 @@ const ASK = JSON.stringify({
     ],
   },
 })
-const APPROVAL = JSON.stringify({
-  command: 'request_approval',
-  params: {
-    action: 'Delete the build directory',
-    reason: 'It holds stale artifacts.',
-    impact: 'The next build takes longer.',
-    reversibility: 'The build directory can be rebuilt.',
-    fallback: 'Keep it and build into a new directory.',
-  },
-})
-
 const ASK_INPUT = 'start: ask me'
-const APPROVAL_INPUT = 'start: request approval'
-const askOnce = toolCallsThenText(body => [
-  body.includes(APPROVAL_INPUT)
-    ? { id: 'call_approval', tool: 'Ask', arguments: APPROVAL }
-    : { id: 'call_ask', tool: 'Ask', arguments: ASK },
-])
+const askOnce = toolCallsThenText(() => [{ id: 'call_ask', tool: 'Ask', arguments: ASK }])
 const options = { script: askOnce, permission: 'bypass-permissions' }
 
-describe('Ask on the release tree puts its cards before a person and parks its calls', () => {
+describe('Ask on the release tree puts its cards before a person and parks its call', () => {
   it(
-    'ask and request_approval each suspend, their entries park, and the session and the pool list the same cards with their decline consequences',
+    'ask suspends, its entry parks, and the session and the pool list the same cards with their decline consequences',
     { timeout: 240_000 },
     async () => {
       await onReleaseTree(options, async world => {
@@ -66,12 +52,6 @@ describe('Ask on the release tree puts its cards before a person and parks its c
         for (const end = Date.now() + 120_000; Date.now() < end; await sleep(500)) {
           asked = await world.cards({ sessionRef: ask })
           if (asked.length === 2) break
-        }
-        const approval = await world.startSession(APPROVAL_INPUT)
-        let approving: readonly PoolItem[] = []
-        for (const end = Date.now() + 120_000; Date.now() < end; await sleep(500)) {
-          approving = await world.cards({ sessionRef: approval })
-          if (approving.length === 1) break
         }
         expect(
           asked.map(item => [
@@ -83,44 +63,25 @@ describe('Ask on the release tree puts its cards before a person and parks its c
           ['question', 'Which port should the dev server use?', '跳过此题，不作答'],
           ['question', 'Should the server reload on every file change?', '跳过此题，不作答'],
         ])
-        expect(
-          approving.map(item => [
-            item.card.question.kind,
-            item.card.question.title,
-            item.card.question.declineConsequence,
-          ]),
-        ).toEqual([['approval', 'Delete the build directory', '不作准驳，这个动作不会执行']])
-        for (const [session, items] of [
-          [ask, asked],
-          [approval, approving],
-        ] as const)
-          for (const item of items) {
-            expect(item.card.kind).toBe('pending')
-            expect(item.origin).toMatchObject({ kind: 'tool', sessionRef: session })
-          }
-        const pool = await world.cards({})
-        expect(pool).toHaveLength(asked.length + approving.length)
-        for (const [session, items] of [
-          [ask, asked],
-          [approval, approving],
-        ] as const)
-          expect(pool.filter(item => item.origin.sessionRef === session)).toEqual(items)
+        for (const item of asked) {
+          expect(item.card.kind).toBe('pending')
+          expect(item.origin).toMatchObject({ kind: 'tool', sessionRef: ask })
+        }
+        expect(await world.cards({})).toEqual(asked)
 
         let tool = toolRecords(world.storageRoot)
         for (
           const end = Date.now() + 30_000;
-          Date.now() < end && tool.stages.filter(stage => stage === 'parked').length < 2;
+          Date.now() < end && !tool.stages.includes('parked');
           await sleep(250)
         )
           tool = toolRecords(world.storageRoot)
-        expect(tool.phases).toEqual(['suspended', 'suspended'])
-        expect(tool.stages).toEqual(['parked', 'parked'])
+        expect(tool.phases).toEqual(['suspended'])
+        expect(tool.stages).toEqual(['parked'])
 
-        for (const session of [ask, approval]) {
-          const entries = await historyOf(world, session)
-          expect(entries.some(entry => entry.kind === 'message.tool')).toBe(false)
-          expect(entries.some(entry => entry.kind === 'run.terminal')).toBe(false)
-        }
+        const entries = await historyOf(world, ask)
+        expect(entries.some(entry => entry.kind === 'message.tool')).toBe(false)
+        expect(entries.some(entry => entry.kind === 'run.terminal')).toBe(false)
       })
     },
   )
@@ -200,6 +161,94 @@ describe('Ask on the release tree puts its cards before a person and parks its c
         )
       })
       expect(exit).toBe(0)
+    },
+  )
+})
+
+describe('Ask has no gate', () => {
+  it(
+    'in a session that asks a person, ask puts only its questions before the person: no release card first',
+    { timeout: 240_000 },
+    async () => {
+      await onReleaseTree({ script: askOnce, permission: 'auto_permission' }, async world => {
+        const session = await world.startSession(ASK_INPUT)
+        const cards = await pollUntil(
+          'the cards of the ask call',
+          () => world.cards({ sessionRef: session }),
+          value => value.length === 2 || value.some(item => item.card.question.kind === 'release'),
+        )
+        expect(cards.map(item => item.card.question.kind)).toEqual(['question', 'question'])
+        expect(cards.map(item => item.origin.kind)).toEqual(['tool', 'tool'])
+      })
+    },
+  )
+
+  it(
+    'a yes in an Ask answer is no permission: the Shell run the model makes next still puts a release card first',
+    { timeout: 240_000 },
+    async () => {
+      const MAY_I = 'start: may I run the build'
+      const mayI = JSON.stringify({
+        command: 'ask',
+        params: {
+          questions: [
+            {
+              title: 'May I run the build script?',
+              description: 'The build writes into ./dist.',
+              options: [
+                { label: 'Yes', description: 'Run it.' },
+                { label: 'No', description: 'Do not run it.' },
+              ],
+            },
+          ],
+        },
+      })
+      const run = JSON.stringify({
+        command: 'execute',
+        intent: 'run the build',
+        params: { script: 'echo built' },
+      })
+      const script = toolCallsByRequest(body => {
+        const last = (JSON.parse(body) as { messages?: { role: string }[] }).messages?.at(-1)
+        if (last?.role === 'user' && body.includes(MAY_I))
+          return [{ id: 'call_may_i', tool: 'Ask', arguments: mayI }]
+        if (last?.role === 'tool' && !body.includes('call_run'))
+          return [{ id: 'call_run', tool: 'Shell', arguments: run }]
+        return []
+      })
+      await onReleaseTree({ script, permission: 'auto_permission' }, async world => {
+        const session = await world.startSession(MAY_I)
+        const [asked] = await pollUntil(
+          'the question of Ask',
+          () => world.cards({ sessionRef: session, states: ['pending'] }),
+          value => value.length === 1,
+        )
+        if (asked === undefined) throw new Error('no question')
+        expect(asked.card.question.kind).toBe('question')
+        const reply = await world.cli([
+          'submit-reply',
+          '--request',
+          asked.card.ref.request.requestId,
+          '--card',
+          asked.card.ref.cardId,
+          '--revision',
+          asked.card.revision,
+          '--option',
+          'o1',
+          '--reply-id',
+          'reply-yes',
+        ])
+        expect(reply.status, reply.stderr).toBe(0)
+        const released = await pollUntil(
+          'the release card of the Shell run',
+          () => world.cards({ sessionRef: session, states: ['pending'] }),
+          value => value.some(item => item.card.question.kind === 'release'),
+        )
+        expect(released.map(item => item.card.question)).toMatchObject([
+          { kind: 'release', target: { tool: 'Shell', command: 'execute' }, gateTitle: '执行' },
+        ])
+        expect(toolCalls(world.storageRoot).filter(row => row.tool === 'Shell')).toEqual([])
+      })
     },
   )
 })

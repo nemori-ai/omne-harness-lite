@@ -12,6 +12,7 @@ import type {
   ParameterContract,
   ToolCommandDeclaration,
   ToolDefinition,
+  ToolGate,
   ToolImplementationFacts,
   ToolProgramDeclaration,
   ToolBodyDeclaration,
@@ -257,7 +258,48 @@ const commandFields = {
   }),
   returns: returnDeclaration,
 }
-const command = record(commandFields, { background: record({ unless: names(filled) }) })
+const gateId: Check<string> = (value, at) => {
+  if (typeof value !== 'string') return reject(at, 'type')
+  return /^[a-z][a-z0-9-]{0,47}$/u.test(value) ? succeed(value) : reject(at, 'gate-id')
+}
+const gate = record({ id: gateId, title: oneLine, default: literal('deny', 'ask', 'auto') })
+export const toolGates = unique(nonEmpty(list(gate)), entry => entry.id, 'id')
+const detailKind: Check<string> = (value, at) => {
+  if (typeof value !== 'string') return reject(at, 'type')
+  return /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*@[1-9][0-9]{0,5}$/u.test(value) && value.length <= 128
+    ? succeed(value)
+    : reject(at, 'detail-kind')
+}
+export const commandRelease = record(
+  { gate: nullable(gateId) },
+  { detail: record({ kind: detailKind, schema: jsonObject }) },
+)
+const command = record(commandFields, {
+  background: record({ unless: names(filled) }),
+  release: commandRelease,
+})
+
+// A command names only a gate its tool declares; a tool declaring none has no gate to name.
+export function unknownGateAt(
+  gates: readonly Pick<ToolGate, 'id'>[] | undefined,
+  commands: readonly Pick<ToolCommandDeclaration, 'release'>[],
+): number {
+  const ids = new Set((gates ?? []).map(entry => entry.id))
+  return commands.findIndex(
+    entry => typeof entry.release?.gate === 'string' && !ids.has(entry.release.gate),
+  )
+}
+
+function releasedGates(
+  gates: readonly Pick<ToolGate, 'id'>[] | undefined,
+  commands: readonly Pick<ToolCommandDeclaration, 'release'>[],
+  at: string,
+): Readonly<{ field: string; reason: string }> | undefined {
+  const index = unknownGateAt(gates, commands)
+  return index < 0
+    ? undefined
+    : { field: member(member(item(at, index), 'release'), 'gate'), reason: 'unknown-gate' }
+}
 
 // A command tool permits the background only where a command declares it, and only if the tool does.
 function backgroundDeclared(
@@ -281,7 +323,18 @@ const commandsShapeFields = {
   encoding: literal(...COMMAND_CALL_ENCODINGS),
   commands: unique(nonEmpty(list(command)), entry => entry.name, 'name'),
 }
-const commandsShapeOptional = { guide: nonBlank }
+const commandsShapeOptional = { guide: nonBlank, gates: toolGates }
+
+function gatesNamed<
+  T extends Readonly<{
+    gates?: readonly Pick<ToolGate, 'id'>[]
+    commands: readonly Pick<ToolCommandDeclaration, 'release'>[]
+  }>,
+>(check: Check<T>): Check<T> {
+  return refine(check, (value, at) =>
+    releasedGates(value.gates, value.commands, member(at, 'commands')),
+  )
+}
 
 function flatCallable<
   T extends Readonly<{
@@ -301,10 +354,12 @@ function flatCallable<
 export const toolDefinition: Check<ToolDefinition> = variant('kind', {
   function: record({ ...metadataFields, ...functionShapeFields }, metadataOptional),
   commands: refine(
-    flatCallable(
-      record(
-        { ...metadataFields, ...commandsShapeFields },
-        { ...metadataOptional, ...commandsShapeOptional },
+    gatesNamed(
+      flatCallable(
+        record(
+          { ...metadataFields, ...commandsShapeFields },
+          { ...metadataOptional, ...commandsShapeOptional },
+        ),
       ),
     ),
     (value, at) =>
@@ -317,7 +372,7 @@ const implementationFacts: Check<ToolImplementationFacts> = refine(
     ...declarationFields,
     implements: variant('kind', {
       function: record(functionShapeFields),
-      commands: flatCallable(record(commandsShapeFields, commandsShapeOptional)),
+      commands: gatesNamed(flatCallable(record(commandsShapeFields, commandsShapeOptional))),
     }),
   }),
   (value, at) =>
