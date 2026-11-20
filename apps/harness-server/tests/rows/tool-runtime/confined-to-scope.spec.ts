@@ -236,3 +236,53 @@ describe('the binding hands the retained view as both retention ledgers (#1137)'
     expect(again.ok.retention?.processes).toBe(retention?.processes)
   })
 })
+
+describe('the facility guard of a call holds the files pinned when the call was prepared', () => {
+  const bound = async (directory: Readonly<Record<string, unknown>>) => {
+    const scope = decodeScopeRef({ ref: 'session-scope:pinned-files' })
+    if ('failure' in scope) throw new Error('fixture scope')
+    const holder = toolRuntimeHolder({ root: {} } as unknown as Context)
+    const identity = { sessionWork: async () => ({ kind: 'session' }) }
+    const { input } = createReleaseEnvironment(holder, identity as unknown as ReleaseToolIdentity, {
+      workspaces: () => undefined,
+      commitAttempts: 1,
+      schemaProvider: () => null,
+    })
+    const call = `call-${Object.keys(directory).join('-')}`
+    const binding = await input.plan.binding({
+      tenant: TENANT_A,
+      call,
+      preparation: { tenant: TENANT_A, call, operation: 'prepare' },
+      request: {
+        requesterScope: scope.ok,
+        availability: { definition: { declarations: { environment: {} } } },
+        directory,
+      },
+    } as unknown as Parameters<typeof input.plan.binding>[0])
+    if ('failure' in binding) throw new Error(JSON.stringify(binding.failure))
+    return (operation: string, path: string) =>
+      input.plan.guard.authorize(
+        'files',
+        operation as never,
+        {
+          requestId: 'r',
+          access: { principal: {}, tenant: TENANT_A },
+          origin: binding.ok.origin,
+          path,
+        } as never,
+      )
+  }
+
+  it('lets the call read outside its directory when it was pinned so, and not write there', async () => {
+    const authorize = await bound({ path: ROOT, workspace: null, files: { write: ROOT } })
+    expect(await authorize('read', outside)).toBe('authorized')
+    expect(await authorize('write', outside)).toBe('notAuthorized')
+    expect(await authorize('write', inside)).toBe('authorized')
+  })
+
+  it('keeps a call pinned without files below its directory on both sides', async () => {
+    const authorize = await bound({ path: ROOT, workspace: null })
+    expect(await authorize('read', outside)).toBe('notAuthorized')
+    expect(await authorize('read', inside)).toBe('authorized')
+  })
+})

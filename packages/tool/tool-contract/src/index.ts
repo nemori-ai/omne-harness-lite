@@ -47,6 +47,7 @@ export type {
   ToolReferenceFailure,
   ToolReferenceRejection,
 } from './reference.ts'
+export { pinnedFiles } from './call-directory.ts'
 export type {
   FixedToolRequest,
   ParameterContract,

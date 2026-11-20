@@ -127,6 +127,10 @@ describe('the plan of a preparation', () => {
     const filesScope = { read: '/srv/blog', write: '/srv/blog' }
     expect(r.asked.at(-1)).toEqual({ ...bare, filesScope })
     expect(rooted).toMatchObject({ ok: { acquire: { placement: { ...placement, filesScope } } } })
+
+    // A scope pinned with the directory is asked for as it is; the setting is not read again here.
+    await r.resolve({ path: '/srv/blog', workspace: null, files: { write: '/srv/blog' } })
+    expect(r.asked.at(-1)).toEqual({ ...bare, filesScope: { write: '/srv/blog' } })
   })
 
   it('denies a caller the Tool qualification denies, and is unavailable when it cannot tell', async () => {

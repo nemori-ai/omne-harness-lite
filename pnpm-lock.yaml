@@ -5330,6 +5330,9 @@ importers:
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../common/exchange-refs
+      '@omne-harness/execution-environment-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-contract
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -6116,6 +6119,9 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+      '@omne-harness/settings':
+        specifier: workspace:*
+        version: link:../../assets/settings
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract

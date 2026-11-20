@@ -21,7 +21,7 @@ import { access, tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
 import { canonicalDigest } from '@omne-harness/tool'
-import type { ToolCallDirectory, ToolFailure } from '@omne-harness/tool-contract'
+import { pinnedFiles, type ToolCallDirectory, type ToolFailure } from '@omne-harness/tool-contract'
 import { describedAdoption } from '@omne-harness/tool-contract/provider'
 import {
   createEnvironmentResourceLedger,
@@ -238,16 +238,17 @@ export async function admittedDirectory(
   }
 }
 
-/** The files scope of a call: below its pinned directory. Null: no environment, fenced into nothing. */
+/** The files scope pinned with a call's directory. Null: no environment, fenced into nothing. */
 async function fenceOf(
   workspaces: ReleaseEnvironmentOptions['workspaces'],
   request: Preparation,
 ): Promise<Outcome<FilesScope | null, ToolFailure>> {
   if (request.request.availability.definition.declarations.environment === null)
     return succeed(null)
+  const pinned = request.request.directory
   const directory = await admittedDirectory(workspaces, request)
   if ('failure' in directory) return directory
-  return succeed(directory.ok === null ? null : { read: directory.ok, write: directory.ok })
+  return succeed(directory.ok === null || pinned === undefined ? null : pinnedFiles(pinned))
 }
 
 /** The live origins of calls: the call each belongs to, and the files scope it is fenced into. */

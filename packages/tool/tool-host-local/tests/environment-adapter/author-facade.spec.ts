@@ -63,12 +63,13 @@ describe('current file authorization', () => {
       lease,
       naming: { name },
       facts: { system: 'fixture', release: '1', architecture: 'fixture', facilities: ['files'] },
-      directory: '/srv/blog',
+      directory: { path: '/srv/blog', workspace: null, files: { write: '/srv/blog' } },
     })
     expect(value.facts.os).toBe('fixture')
     expect(value.facts.system).toBe('fixture')
-    // The default directory of the author is the directory pinned in the request.
+    // The default directory of the author is the directory pinned in the request, its files the pinned scope.
     expect(value.directory).toBe('/srv/blog')
+    expect(value.scope).toEqual({ write: '/srv/blog' })
     expect(Object.isFrozen(value)).toBe(true)
     const request = {
       path: '/authorized/new',

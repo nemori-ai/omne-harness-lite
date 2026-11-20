@@ -17,7 +17,14 @@ import { tenantEquals } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { canonicalDigest, type ToolAccessGuard, type ToolLedgerStore } from '@omne-harness/tool'
-import type { Adoption, DurableEvidence, Reply, ToolFailure } from '@omne-harness/tool-contract'
+import {
+  pinnedFiles,
+  type Adoption,
+  type DurableEvidence,
+  type Reply,
+  type ToolCallDirectory,
+  type ToolFailure,
+} from '@omne-harness/tool-contract'
 import type {
   CallAccess,
   PreparationProgress,
@@ -76,15 +83,15 @@ export type LocalEnvironmentPlanInput<P> = Readonly<{
   facts(placement: Placement): Reply<EnvironmentFacts>
 }>
 
-/** What is asked of the placement: reads and writes below the directory pinned in the request, if any. */
+/** What is asked of the placement: the files the pinned directory lets the call read and write, if any. */
 function wantedPlacement(
   scope: ScopeRef,
   requirement: EnvironmentRequirement,
-  pinned: Readonly<{ path: string }> | undefined,
+  pinned: ToolCallDirectory | undefined,
 ) {
   return pinned === undefined
     ? { scope, requirement }
-    : { scope, requirement, filesScope: { read: pinned.path, write: pinned.path } }
+    : { scope, requirement, filesScope: pinnedFiles(pinned) }
 }
 
 /** The author of a prepared call: its lease, and the directory pinned in the request as its own. */
@@ -101,7 +108,7 @@ function authorOf<P>(
     lease,
     naming,
     facts: plan.facts,
-    ...(directory === undefined ? {} : { directory: directory.path }),
+    ...(directory === undefined ? {} : { directory }),
   })
 }
 
