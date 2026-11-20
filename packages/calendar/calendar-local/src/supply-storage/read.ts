@@ -62,6 +62,18 @@ function read(input: Read, port: ReadPort): JsonValue {
             storedSchema,
           ),
         )
+    case 'run': {
+      const row = port.execute(
+        'SELECT record, completion FROM ca_supply_runs WHERE scope = ? AND operation_ref = ? LIMIT 1',
+        [input.systemScopeRef, input.operationRef],
+      ).rows[0]
+      return row === undefined
+        ? null
+        : {
+            state: row[1] === null ? 'pending' : 'completed',
+            run: z.json().parse(JSON.parse(z.string().parse(row[0]))),
+          }
+    }
     case 'pending':
       return records(
         port,

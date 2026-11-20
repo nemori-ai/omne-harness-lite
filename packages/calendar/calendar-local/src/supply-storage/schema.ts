@@ -7,7 +7,12 @@ import {
   contentHashSchema,
   instantSchema,
 } from '@omne-harness/calendar-contract'
-import { ackSchema, commandSchema, operationQuerySchema } from '../storage/schema.ts'
+import {
+  ackSchema,
+  commandSchema,
+  operationQuerySchema,
+  settledCommandSchema,
+} from '../storage/schema.ts'
 
 export const PARTICIPANT = 'calendar.supply'
 export const PROTOCOL = 'calendar-supply-storage/1'
@@ -37,6 +42,15 @@ export const text = z
 export const key = text.refine(value => Buffer.byteLength(value) <= 128)
 export const scopeSchema = z.strictObject({ systemScopeRef: text, calendarId: calendarIdSchema })
 export const runSchema = z.strictObject({ command: commandSchema, preparedAt: instantSchema })
+export const settledRunSchema = z.strictObject({
+  command: settledCommandSchema,
+  preparedAt: instantSchema,
+})
+export const storedRunSchema = z.union([runSchema, settledRunSchema])
+export const journalRunSchema = z.discriminatedUnion('state', [
+  z.strictObject({ state: z.literal('pending'), run: runSchema }),
+  z.strictObject({ state: z.literal('completed'), run: settledRunSchema }),
+])
 export const completionSchema = operationQuerySchema.extend({
   operationRef: text,
   completedAt: instantSchema,
@@ -97,6 +111,7 @@ export type Write = z.infer<typeof writeSchema>
 export const readSchema = z.discriminatedUnion('kind', [
   scopeSchema.extend({ kind: z.literal('health') }),
   z.strictObject({ kind: z.literal('material'), systemScopeRef: text, reference: text }),
+  z.strictObject({ kind: z.literal('run'), systemScopeRef: text, operationRef: text }),
   z.strictObject({
     kind: z.literal('pending'),
     systemScopeRef: text,

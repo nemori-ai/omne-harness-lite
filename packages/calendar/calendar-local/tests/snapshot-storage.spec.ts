@@ -1,16 +1,38 @@
 import { DatabaseSync } from 'node:sqlite'
 import { join } from 'node:path'
-import canonicalize from 'canonicalize'
 import { afterEach, expect, it } from 'vitest'
-import { calendarVersionIdSchema } from '@omne-harness/calendar-contract'
-import type { CalendarDispositionCommand } from '@omne-harness/calendar'
+import {
+  calendarCallContextSchema,
+  calendarVersionIdSchema,
+  instantSchema,
+} from '@omne-harness/calendar-contract'
+import {
+  createCalendarSupplyApplication,
+  type CalendarDispositionCommand,
+} from '@omne-harness/calendar'
 import { unpackText } from '@omne-harness/sql-contract/worker'
+import { openJointWorld, scope } from './joint-world.ts'
 import { command, openWorld } from './world.ts'
 
-type World = Awaited<ReturnType<typeof openWorld>>
-const open: World[] = []
+const MARKER = 'marker-of-this-snapshot'
+const systemContext = calendarCallContextSchema.parse({
+  principalRef: 'system-maintainer',
+  owner: { kind: 'system', systemScopeRef: scope },
+  actor: { kind: 'system', actorRef: 'test-runner' },
+  authContextRef: 'test-authority',
+  requestId: 'r1',
+  originatingSessionRef: null,
+})
+
+type Closable = Readonly<{ close(): Promise<void> }>
+const open: Closable[] = []
 async function world(root?: string, wrap?: Parameters<typeof openWorld>[1]) {
   const opened = await openWorld(root, wrap)
+  open.push(opened)
+  return opened
+}
+async function joint(root?: string, wrap?: Parameters<typeof openJointWorld>[1]) {
+  const opened = await openJointWorld(root, wrap)
   open.push(opened)
   return opened
 }
@@ -44,7 +66,7 @@ function bypassingReceipts() {
   })
   return { state, wrap }
 }
-async function close(w: World) {
+async function close(w: Closable) {
   open.splice(open.indexOf(w), 1)
   await w.close()
 }
@@ -89,25 +111,61 @@ const unpublished = (value: CalendarDispositionCommand) => {
   if (value.candidate.snapshot === null) throw new Error('fixture: the candidate has no snapshot')
   return value.candidate.snapshot
 }
-function probeOf(value: CalendarDispositionCommand): string {
-  const text = canonicalize(unpublished(value))
-  if (text === undefined) throw new Error('fixture: the snapshot is not JSON')
-  return text.slice(text.indexOf('"knowledgeAsOf"'), text.indexOf(',"synthesizedAt"'))
+function marked(value: CalendarDispositionCommand, marker: string): CalendarDispositionCommand {
+  const base = unpublished(value)
+  const snapshot = {
+    ...base,
+    overrides: base.overrides.map(item => ({ ...item, notes: [marker] })),
+  }
+  return {
+    ...value,
+    candidate: { ...value.candidate, snapshot },
+    disposition:
+      value.disposition.kind === 'publish' ? { kind: 'publish', snapshot } : value.disposition,
+  }
 }
+const instant = instantSchema.parse('2026-01-02T00:00:00.000Z')
+const queryOf = (value: CalendarDispositionCommand) => ({
+  address: value.address,
+  expectedFingerprint: value.expectedFingerprint,
+})
 
-it('a snapshot held by a candidate and then published is stored once, and the candidate operation is still recognized', async () => {
+it('a snapshot held by a candidate, published, and carried by a supply run is stored once after the run completes, and every operation is still recognized', async () => {
   const receipts = bypassingReceipts()
-  const w = await world(undefined, receipts.wrap)
-  const withheld = held('held')
-  const published = command('v2', 0, 'published')
+  const w = await joint(undefined, receipts.wrap)
+  const withheld = marked(held('held'), MARKER)
+  const published = marked(command('v2', 0, 'published'), MARKER)
+  const run = { command: published, preparedAt: instant }
   expect(await w.persistence.commitDisposition(withheld)).toMatchObject({
     kind: 'recorded',
     receipt: { disposition: 'withheld' },
   })
-  expect(await w.persistence.commitDisposition(published)).toMatchObject({
+  expect(await w.journal.prepareRun(run)).toEqual({ kind: 'ok', value: run })
+  const recorded = await w.persistence.commitDisposition(published)
+  expect(recorded).toMatchObject({
     kind: 'recorded',
     receipt: { disposition: 'published', current: { versionId: 'v2', publicationGeneration: 1 } },
   })
+  if (recorded.kind !== 'recorded') throw new Error('fixture: not recorded')
+  expect(
+    await w.journal.completeRun({
+      ...queryOf(published),
+      operationRef: recorded.receipt.operationRef,
+      completedAt: instant,
+      disposition: 'published',
+    }),
+  ).toEqual({ kind: 'ok', value: null })
+  const completed = await w.journal.readRun(queryOf(published))
+  expect(completed).toMatchObject({
+    kind: 'ok',
+    value: {
+      state: 'completed',
+      run: { command: { candidate: { reasons: published.candidate.reasons } } },
+    },
+  })
+  expect(
+    await w.journal.findRun({ systemScopeRef: scope, operationRef: recorded.receipt.operationRef }),
+  ).toEqual(completed)
   expect(await w.persistence.commitDisposition(published)).toMatchObject({
     kind: 'recorded',
     replayed: true,
@@ -130,8 +188,58 @@ it('a snapshot held by a candidate and then published is stored once, and the ca
   expect(receipts.state.calls).toBe(3)
   const root = w.root
   await close(w)
-  expect(probeOf(published)).toContain('"overrides":[{')
-  expect(cellsHolding(root, probeOf(published))).toEqual(['ca_snapshots.snapshot'])
+  expect(cellsHolding(root, MARKER)).toEqual(['ca_snapshots.snapshot'])
+})
+
+it('recovery after a reopen finishes a run cut after its disposition and a run cut before it; once finished, each snapshot is stored once', async () => {
+  const first = await joint()
+  const published = marked(command('v2', 0, 'published'), 'marker-of-the-published-run')
+  const later = marked(
+    { ...command('v3', 1, 'later'), disposition: { kind: 'withheld' } },
+    'marker-of-the-later-run',
+  )
+  expect(await first.journal.prepareRun({ command: published, preparedAt: instant })).toMatchObject(
+    { kind: 'ok' },
+  )
+  expect(await first.persistence.commitDisposition(published)).toMatchObject({ kind: 'recorded' })
+  expect(await first.journal.prepareRun({ command: later, preparedAt: instant })).toMatchObject({
+    kind: 'ok',
+  })
+  const root = first.root
+  await close(first)
+  expect(cellsHolding(root, 'marker-of-the-published-run')).toEqual([
+    'ca_snapshots.snapshot',
+    'ca_supply_runs.record',
+  ])
+  expect(cellsHolding(root, 'marker-of-the-later-run')).toEqual(['ca_supply_runs.record'])
+  const w = await joint(root)
+  const application = createCalendarSupplyApplication({
+    repository: w.repository,
+    persistence: w.persistence,
+    journal: w.journal,
+    materials: w.materials,
+    authority: { check: async () => ({ kind: 'allowed', authorityGuardRefs: ['fixture-grant'] }) },
+    sourceAdapters: [],
+    independenceRegistry: [],
+    clock: { now: () => instant },
+  })
+  expect(await application.recover(systemContext, { limit: 10 })).toMatchObject({
+    kind: 'ok',
+    value: [
+      { kind: 'ok', value: { kind: 'recorded', receipt: { disposition: 'published' } } },
+      { kind: 'ok', value: { kind: 'recorded', receipt: { disposition: 'withheld' } } },
+    ],
+  })
+  expect(
+    await w.journal.health({ systemScopeRef: scope, calendarId: published.address.calendarId }),
+  ).toMatchObject({ kind: 'ok', value: { pendingRuns: [] } })
+  expect(await w.journal.readRun(queryOf(later))).toMatchObject({
+    kind: 'ok',
+    value: { state: 'completed' },
+  })
+  await close(w)
+  expect(cellsHolding(root, 'marker-of-the-published-run')).toEqual(['ca_snapshots.snapshot'])
+  expect(cellsHolding(root, 'marker-of-the-later-run')).toEqual(['ca_snapshots.snapshot'])
 })
 
 it('the version, the candidate and the page of candidates read back the whole snapshot', async () => {

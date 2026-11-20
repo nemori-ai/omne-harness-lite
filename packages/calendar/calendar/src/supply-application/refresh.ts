@@ -215,7 +215,9 @@ export async function refreshCalendar(
   const existing = await deps.journal.readRun(query)
   if (existing.kind !== 'ok')
     return supplyError(context, 'provider_failure', `Prepared run ${existing.kind}`)
-  if (existing.value) return commitPrepared(deps, context, existing.value, control, signal)
+  if (existing.value?.state === 'completed')
+    return supplyError(context, 'provider_failure', 'Prepared run completed before its operation')
+  if (existing.value) return commitPrepared(deps, context, existing.value.run, control, signal)
   if (signal?.aborted || control.stopped())
     return { kind: 'ok', value: { kind: 'cancelled', phase: 'beforeCommit' } }
   return prepareRefresh(deps, context, query, policy, guards, control, signal)

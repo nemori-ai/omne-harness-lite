@@ -470,15 +470,20 @@ describe('reaction ownership and incomplete handoff', () => {
       w.deps.journal.findRun = async input => {
         const run = await find(input)
         if (run.kind !== 'ok' || !run.value) return run
+        const moved = <T extends { command: { address: object } }>(item: T): T => ({
+          ...item,
+          command: {
+            ...item.command,
+            address: { ...item.command.address, [field]: 'other-owner' },
+          },
+        })
+        const value = run.value
         return {
           kind: 'ok',
-          value: {
-            ...run.value,
-            command: {
-              ...run.value.command,
-              address: { ...run.value.command.address, [field]: 'other-owner' },
-            },
-          },
+          value:
+            value.state === 'pending'
+              ? { state: 'pending', run: moved(value.run) }
+              : { state: 'completed', run: moved(value.run) },
         }
       }
       expect(

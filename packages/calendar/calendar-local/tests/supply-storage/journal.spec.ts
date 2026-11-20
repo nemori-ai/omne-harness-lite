@@ -51,10 +51,10 @@ it('keeps the first prepared command through contention and restart', async () =
         address: first.command.address,
         expectedFingerprint: first.command.expectedFingerprint,
       }),
-    ).toEqual({ kind: 'ok', value: first })
+    ).toEqual({ kind: 'ok', value: { state: 'pending', run: first } })
     expect(
       await reopened.journal.findRun({ systemScopeRef: scope, operationRef: ref(first) }),
-    ).toEqual({ kind: 'ok', value: first })
+    ).toEqual({ kind: 'ok', value: { state: 'pending', run: first } })
     expect(await reopened.journal.pending({ systemScopeRef: scope, limit: 10 })).toEqual({
       kind: 'ok',
       value: [first],
@@ -85,10 +85,10 @@ it('retains unknown and recovers the original intent after lost observation', as
         address: run().command.address,
         expectedFingerprint: run().command.expectedFingerprint,
       }),
-    ).toMatchObject({ kind: 'unknown' })
+    ).toEqual({ kind: 'ok', value: { state: 'pending', run: run() } })
     expect(
       await world.journal.findRun({ systemScopeRef: scope, operationRef: ref(run()) }),
-    ).toMatchObject({ kind: 'unknown' })
+    ).toEqual({ kind: 'ok', value: { state: 'pending', run: run() } })
     expect(commits).toBe(1)
     hide = false
     expect(await world.journal.prepareRun(run('v2', 'v1'))).toEqual({ kind: 'ok', value: run() })
@@ -311,7 +311,7 @@ it('returns explicit capacity failure for incomplete health and keeps all pendin
     })
     expect(
       await world.journal.findRun({ systemScopeRef: scope, operationRef: ref(run('v100')) }),
-    ).toEqual({ kind: 'ok', value: run('v100') })
+    ).toEqual({ kind: 'ok', value: { state: 'pending', run: run('v100') } })
   } finally {
     await world.close()
   }

@@ -16,6 +16,7 @@ import type {
 } from '../../src/persistence.ts'
 import type {
   CalendarSupplyDependencies,
+  CalendarJournalRun,
   CalendarPreparedRun,
   CalendarStoredMaterial,
   CalendarJournalHealth,
@@ -69,6 +70,27 @@ export function world() {
   let lastSuccess: typeof at | null = null
   const key = (query: CalendarOperationQuery) => supplyDigest(query.address)
   const operationRef = (query: CalendarOperationQuery) => `calendar-operation:${key(query)}`
+  const journalRun = (run: CalendarPreparedRun): CalendarJournalRun => {
+    if (!completed.has(key(run.command))) return { state: 'pending', run }
+    const { candidate, disposition } = run.command
+    return {
+      state: 'completed',
+      run: {
+        ...run,
+        command: {
+          ...run.command,
+          candidate: {
+            ...candidate,
+            snapshot: candidate.snapshot === null ? null : supplyDigest(candidate.snapshot),
+          },
+          disposition:
+            disposition.kind === 'publish'
+              ? { kind: 'publish', snapshot: supplyDigest(disposition.snapshot) }
+              : disposition,
+        },
+      },
+    }
+  }
   const sourceBytes = (id: string): Uint8Array => {
     if (id === 'usc-6103-computed-rules')
       return new TextEncoder().encode(JSON.stringify({ start: '2025-01-01', end: '2026-12-31' }))
@@ -167,21 +189,18 @@ export function world() {
     },
     journal: {
       async findRun({ systemScopeRef, operationRef: ref }) {
-        return {
-          kind: 'ok',
-          value:
-            [...runs.values()].find(
-              run =>
-                run.command.address.systemScopeRef === systemScopeRef &&
-                operationRef(run.command) === ref,
-            ) ?? null,
-        }
+        const found = [...runs.values()].find(
+          run =>
+            run.command.address.systemScopeRef === systemScopeRef &&
+            operationRef(run.command) === ref,
+        )
+        return { kind: 'ok', value: found === undefined ? null : journalRun(found) }
       },
       async readRun(query) {
         const existing = runs.get(key(query))
         return existing && existing.command.expectedFingerprint !== query.expectedFingerprint
           ? { kind: 'conflict', reason: 'fingerprint' }
-          : { kind: 'ok', value: existing ?? null }
+          : { kind: 'ok', value: existing === undefined ? null : journalRun(existing) }
       },
       async prepareRun(run) {
         const previous = runs.get(key(run.command))

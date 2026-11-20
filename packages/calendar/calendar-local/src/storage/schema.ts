@@ -11,6 +11,7 @@ import type {
   CalendarDispositionCommand,
   CalendarPublicationReceipt,
   CalendarReactionAcknowledgement,
+  CalendarSettledCommand,
 } from '@omne-harness/calendar'
 
 export const PARTICIPANT = 'calendar.persistence'
@@ -66,40 +67,46 @@ const sourceSchema = z.strictObject({
   rawHash: contentHashSchema,
   rawReference: text,
 })
-export const commandSchema: z.ZodType<CalendarDispositionCommand> = z
-  .strictObject({
+function dispositionCommand<S extends z.ZodType>(snapshot: S) {
+  return z.strictObject({
     address: addressSchema,
     expectedFingerprint: contentHashSchema,
     expectedGeneration: z.int().nonnegative(),
     authorityGuardRefs: refs,
     policyHash: contentHashSchema,
     candidate: z.strictObject({
-      snapshot: unpublishedSnapshot.nullable(),
+      snapshot: snapshot.nullable(),
       semanticBoundary: text,
       sources: z.array(sourceSchema).readonly(),
       differences: z.array(z.string()).readonly(),
       reasons: z.array(z.string()).readonly(),
     }),
     disposition: z.discriminatedUnion('kind', [
-      z.strictObject({ kind: z.literal('publish'), snapshot: unpublishedSnapshot }),
+      z.strictObject({ kind: z.literal('publish'), snapshot }),
       z.strictObject({ kind: z.enum(['noChange', 'withheld', 'rejected']) }),
     ]),
   })
-  .superRefine((command, context) => {
-    const snapshots = [
-      command.candidate.snapshot,
-      command.disposition.kind === 'publish' ? command.disposition.snapshot : null,
-    ]
-    if (
-      snapshots.some(
-        snapshot => snapshot !== null && snapshot.calendarId !== command.address.calendarId,
-      )
+}
+export const settledCommandSchema: z.ZodType<CalendarSettledCommand> = dispositionCommand(
+  z.string().regex(/^[a-f0-9]{64}$/),
+)
+export const commandSchema: z.ZodType<CalendarDispositionCommand> = dispositionCommand(
+  unpublishedSnapshot,
+).superRefine((command, context) => {
+  const snapshots = [
+    command.candidate.snapshot,
+    command.disposition.kind === 'publish' ? command.disposition.snapshot : null,
+  ]
+  if (
+    snapshots.some(
+      snapshot => snapshot !== null && snapshot.calendarId !== command.address.calendarId,
     )
-      context.addIssue({
-        code: 'custom',
-        message: 'Candidate calendar differs from operation address',
-      })
-  })
+  )
+    context.addIssue({
+      code: 'custom',
+      message: 'Candidate calendar differs from operation address',
+    })
+})
 export const publishedSchema = z.strictObject({
   versionId: calendarVersionIdSchema,
   publicationGeneration: z.int().positive(),

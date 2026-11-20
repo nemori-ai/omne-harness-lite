@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { CalendarDispositionCommand } from '@omne-harness/calendar'
+import type { CalendarDispositionCommand, CalendarSettledCommand } from '@omne-harness/calendar'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ReadPort, SqlCell, SqlValue } from '@omne-harness/sql-contract/worker'
 import { canonical, digest } from './encoding.ts'
@@ -23,16 +23,28 @@ export function saveSnapshot(port: ReadPort, snapshot: JsonValue): string {
   return key
 }
 
-export function storedCommand(command: CalendarDispositionCommand): string {
-  const { snapshot } = command.candidate
-  return canonical({
+const settledSnapshot = (snapshot: JsonValue): string =>
+  typeof snapshot === 'string' ? snapshot : digest(snapshot)
+
+export function settledCommand(
+  command: CalendarDispositionCommand | CalendarSettledCommand,
+): CalendarSettledCommand {
+  const { candidate, disposition } = command
+  return {
     ...command,
-    candidate: { ...command.candidate, snapshot: snapshot === null ? null : digest(snapshot) },
+    candidate: {
+      ...candidate,
+      snapshot: candidate.snapshot === null ? null : settledSnapshot(candidate.snapshot),
+    },
     disposition:
-      command.disposition.kind === 'publish'
-        ? { kind: 'publish', snapshot: digest(command.disposition.snapshot) }
-        : command.disposition,
-  })
+      disposition.kind === 'publish'
+        ? { kind: 'publish', snapshot: settledSnapshot(disposition.snapshot) }
+        : disposition,
+  }
+}
+
+export function storedCommand(command: CalendarDispositionCommand): string {
+  return canonical(settledCommand(command))
 }
 
 function resolved(reference: JsonValue | undefined, snapshot: StoredSnapshot): JsonValue {

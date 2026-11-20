@@ -84,7 +84,10 @@ it.each([
             address: run().command.address,
             expectedFingerprint: run().command.expectedFingerprint,
           }),
-        ).toEqual({ kind: 'ok', value: expected === 1 ? run() : null })
+        ).toEqual({
+          kind: 'ok',
+          value: expected === 1 ? { state: 'pending', run: run() } : null,
+        })
       else {
         const query = {
           systemScopeRef: scope,
