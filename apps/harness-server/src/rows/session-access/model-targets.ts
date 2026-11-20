@@ -1,10 +1,22 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { DurableEvidence, ProfileResolution } from '@omne-harness/model-contract'
+import type {
+  DurableEvidence,
+  ModalityRequirement,
+  ProfileResolution,
+} from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
+import {
+  nativeRequirement,
+  unmetBy,
+  type NativeRequirement,
+} from '@omne-harness/request-context-contract'
 import type { ModelTargetCheck, ModelTargets } from '@omne-harness/session-access'
+import type { ModelViewBasis, ModelViewRow, SessionId } from '@omne-harness/session-contract'
+import { sessionKey, sessionWorkPrincipalsKey } from '@omne-harness/session-cordis-contract/cordis'
+import type { TenantId } from '@omne-harness/legal-identity'
 
-/** A session selects a model for text first; other modalities are judged per request. */
+/** A selection needs words, and natively whatever the history of its session has no other form of. */
 export const SELECTION_REQUIREMENT_SOURCE: DurableEvidence = Object.freeze({
   owner: 'harness-server',
   record: 'session-access/select-model',
@@ -32,23 +44,86 @@ export function targetOf(resolution: ProfileResolution): ModelTargetCheck {
   }
 }
 
+type Message = ModelViewRow['message']
+type Located = Readonly<{ tenant: TenantId; session: SessionId }>
+/** The messages a model would read of a session now; null when they cannot be read. */
+export type SessionModelView = (session: Located) => Promise<readonly Message[] | null>
+
+const NOTHING: NativeRequirement = { modalities: [], fileTypes: [], blocks: [] }
+
+function requirementOf(needs: NativeRequirement): ModalityRequirement {
+  const others = needs.modalities.filter(modality => modality !== 'text')
+  return {
+    modalities: ['text', ...others],
+    ...(needs.fileTypes.length === 0 ? {} : { fileTypes: needs.fileTypes }),
+    source: SELECTION_REQUIREMENT_SOURCE,
+  }
+}
+
+async function needsOf(
+  view: SessionModelView | undefined,
+  session: Located,
+): Promise<NativeRequirement | null> {
+  try {
+    const messages = (await view?.(session)) ?? null
+    return messages === null ? null : nativeRequirement(messages)
+  } catch {
+    return null
+  }
+}
+
 export function modelTargetsOf(
   profiles: ModelProfiles<unknown> | undefined,
+  view?: SessionModelView,
 ): ModelTargets | undefined {
   if (profiles === undefined) return undefined
   return {
-    async check({ principal, tenant, route }) {
-      const resolved = await profiles.resolve({
-        principal,
-        tenant,
-        route,
-        required: { modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE },
-      })
-      return 'ok' in resolved ? targetOf(resolved.ok) : { kind: 'unavailable' }
+    async check({ principal, tenant, route, session }) {
+      // A history that cannot be read is not an empty history: the target is not judged without it.
+      const needs = session === undefined ? NOTHING : await needsOf(view, { tenant, session })
+      if (needs === null) return { kind: 'unavailable' }
+      const required = requirementOf(needs)
+      const resolved = await profiles.resolve({ principal, tenant, route, required })
+      if (!('ok' in resolved)) return { kind: 'unavailable' }
+      const target = targetOf(resolved.ok)
+      if (resolved.ok.kind !== 'resolved' || target.kind !== 'refused') return target
+      if (target.reason !== 'modality') return target
+      const blocks = unmetBy(needs, resolved.ok.profile.definition)
+      return { ...target, blocks: blocks.map(({ message, block }) => ({ message, block })) }
     },
   }
 }
 
+const PAGE_BYTES = 1_048_576
+const EPOCH_RETRIES = 3
+
+/** Reads the model view as the session's coordinator: a login may not, and was admitted by the caller. */
+export function sessionModelView(ctx: Context): SessionModelView {
+  return async ({ tenant, session }) => {
+    const coordinator = await ctx
+      .get(sessionWorkPrincipalsKey)
+      ?.forSession({ actor: 'coordinator', tenant, session })
+    const history = ctx.intercept(sessionKey, { caller: 'reader' }).get(sessionKey, false)?.history
+    if (coordinator === undefined || 'failure' in coordinator || history === undefined) return null
+    const access = { principal: coordinator.ok, tenant, session }
+    for (let attempt = 0; attempt < EPOCH_RETRIES; attempt += 1) {
+      const messages: Message[] = []
+      let basis: ModelViewBasis | null = null
+      let after: string | null = null
+      for (;;) {
+        const page = await history.readModelView({ ...access, basis, after, pageBytes: PAGE_BYTES })
+        if ('failure' in page) return null
+        if (page.ok.kind === 'epoch-changed') break
+        messages.push(...page.ok.rows.map(row => row.message))
+        if (page.ok.next === null) return messages
+        ;({ basis, next: after } = page.ok)
+      }
+    }
+    return null
+  }
+}
+
 export function modelTargets(ctx: Context): ModelTargets | undefined {
-  return modelTargetsOf(ctx.get(modelProfilesKey, false) as ModelProfiles<unknown> | undefined)
+  const profiles = ctx.get(modelProfilesKey, false) as ModelProfiles<unknown> | undefined
+  return modelTargetsOf(profiles, sessionModelView(ctx))
 }

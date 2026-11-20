@@ -980,6 +980,10 @@ export declare const sessionProtocol: {
                     readonly model: string;
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly blocks?: readonly {
+                        readonly block: string;
+                        readonly message: string;
+                    }[];
                     readonly reason: "excluded" | "locked" | "modality" | "scope" | "unknown-name" | "withdrawn";
                 }>;
                 readonly archived: import("@omne-harness/public-contract").Codec<{}>;

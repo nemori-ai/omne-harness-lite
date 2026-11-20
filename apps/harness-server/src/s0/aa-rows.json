@@ -442,7 +442,8 @@
         "principalIssuer",
         "tenantStanding",
         "definitionMappings",
-        "sessionModesInstallation"
+        "sessionModesInstallation",
+        "sessionWorkPrincipals"
       ]
     },
     {

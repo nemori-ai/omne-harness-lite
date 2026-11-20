@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { ModelProfile, ProfileResolution } from '@omne-harness/model-contract'
+import {
+  profileCovers,
+  type ModalityRequirement,
+  type ModelProfile,
+  type ProfileResolution,
+} from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
+import type { ModelViewRow } from '@omne-harness/session-contract'
 import {
   SELECTION_REQUIREMENT_SOURCE,
   modelTargetsOf,
@@ -102,5 +108,127 @@ describe('the port over the profiles service', () => {
     ])
     answer = { failure: { kind: 'unavailable', dependency: 'model-profiles', diagnostic: 'x' } }
     expect(await port?.check(call)).toEqual({ kind: 'unavailable' })
+  })
+})
+
+type Message = ModelViewRow['message']
+
+describe('a target judged for the history of a session', () => {
+  const visibility = { toHuman: true, toModel: true }
+  const medium = (
+    id: string,
+    mediaType: string,
+    kind = 'file',
+    transcript: string | null = null,
+  ) => ({
+    kind,
+    id,
+    visibility,
+    ref: { storage: 'local', key: `k-${id}`, mediaType, bytes: '3', digest: `sha256:${id}` },
+    transcript,
+  })
+  const message = (n: number, ...blocks: unknown[]): Message =>
+    ({ id: `msg_${String(n)}`, role: 'user', blocks }) as unknown as Message
+  const words = { kind: 'text', id: 'blk_words', visibility, text: 'look' }
+  const HISTORY = [
+    message(1, words, medium('blk_picture', 'image/png', 'image')),
+    message(2, medium('blk_described', 'image/png', 'image', 'a red circle')),
+    message(3, medium('blk_scan', 'application/pdf')),
+  ]
+  const session = 'session-1' as never
+  const call = {
+    principal: { id: 'p' } as never,
+    tenant: 't' as never,
+    route: adoption.name,
+    session,
+  }
+
+  /** Profiles whose one route takes what `definition` says: it judges the requirement as Model does. */
+  function world(definition: Pick<ModelProfile['definition'], 'input' | 'fileTypes'>) {
+    const asked: ModalityRequirement[] = []
+    const taking = { adoption, definition } as unknown as ModelProfile
+    const profiles = {
+      resolve: async (input: { required: ModalityRequirement }) => {
+        asked.push(input.required)
+        const covered = profileCovers(definition, input.required)
+        return {
+          ok: resolved({
+            profile: taking,
+            selectable: covered,
+            reasons: covered ? [] : ['modality'],
+          }),
+        }
+      },
+    } as unknown as ModelProfiles<unknown>
+    return { asked, profiles }
+  }
+  const reading = (messages: readonly Message[] | null) => {
+    const reads: unknown[] = []
+    const read = async (input: unknown) => (reads.push(input), messages)
+    return { reads, read }
+  }
+
+  it('asks Model for what the history needs natively, and names the blocks a model does not read', async () => {
+    const { asked, profiles } = world({ input: ['text'] })
+    const { reads, read } = reading(HISTORY)
+    expect(await modelTargetsOf(profiles, read)?.check(call)).toEqual({
+      kind: 'refused',
+      reason: 'modality',
+      blocks: [
+        { message: HISTORY[0]?.id, block: 'blk_picture' },
+        { message: HISTORY[2]?.id, block: 'blk_scan' },
+      ],
+    })
+    expect(reads).toEqual([{ tenant: 't', session }])
+    expect(asked).toEqual([
+      {
+        modalities: ['text', 'image'],
+        fileTypes: ['application/pdf'],
+        source: SELECTION_REQUIREMENT_SOURCE,
+      },
+    ])
+  })
+
+  it('a model that reads pictures is still stopped by the scan, and only the scan is named', async () => {
+    const { profiles } = world({ input: ['text', 'image'] })
+    expect(await modelTargetsOf(profiles, reading(HISTORY).read)?.check(call)).toMatchObject({
+      reason: 'modality',
+      blocks: [{ message: HISTORY[2]?.id, block: 'blk_scan' }],
+    })
+  })
+
+  it('a model that reads all of it is selectable; so is any model over a history of words', async () => {
+    const all = world({ input: ['text', 'image'], fileTypes: ['application/pdf'] })
+    expect((await modelTargetsOf(all.profiles, reading(HISTORY).read)?.check(call))?.kind).toBe(
+      'selectable',
+    )
+    const plain = world({ input: ['text'] })
+    const wordsOnly = reading([message(1, words), HISTORY[1] as Message])
+    expect((await modelTargetsOf(plain.profiles, wordsOnly.read)?.check(call))?.kind).toBe(
+      'selectable',
+    )
+    expect(plain.asked).toEqual([{ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE }])
+  })
+
+  it('a history that cannot be read is unavailable, never an empty history; Model is not asked', async () => {
+    const { asked, profiles } = world({ input: ['text', 'image'] })
+    expect(await modelTargetsOf(profiles, reading(null).read)?.check(call)).toEqual({
+      kind: 'unavailable',
+    })
+    expect(await modelTargetsOf(profiles)?.check(call)).toEqual({ kind: 'unavailable' })
+    const failing = async () => Promise.reject(new Error('the log is away'))
+    expect(await modelTargetsOf(profiles, failing)?.check(call)).toEqual({ kind: 'unavailable' })
+    expect(asked).toEqual([])
+  })
+
+  it('a target judged with no session, as when a session is created, needs words only', async () => {
+    const { asked, profiles } = world({ input: ['text'] })
+    const { reads, read } = reading(HISTORY)
+    const { session: _session, ...creating } = call
+    expect((await modelTargetsOf(profiles, read)?.check(creating))?.kind).toBe('selectable')
+    expect([reads, asked]).toEqual([
+      [],
+      [{ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE }],
+    ])
   })
 })
