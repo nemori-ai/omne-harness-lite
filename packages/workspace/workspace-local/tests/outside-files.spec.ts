@@ -67,6 +67,7 @@ describe('the setting for files outside the workspace', () => {
     expect(outsideFilesOf(read([]))).toBe('none')
     expect(outsideFilesOf(null)).toBeNull()
     expect(outsideFilesOf({ views: [] })).toBeNull()
+    expect(outsideFilesOf({ views: [{ definition: workspaceOutsideFilesSettings }] })).toBeNull()
     expect(
       outsideFilesOf(read([{ itemId: workspaceOutsideFilesItems.access, value: 'all' }])),
     ).toBeNull()

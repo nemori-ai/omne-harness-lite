@@ -213,11 +213,11 @@ export async function admittedDirectory(
   workspaces: ReleaseEnvironmentOptions['workspaces'],
   request: Pick<Preparation, 'principal' | 'tenant'> &
     Readonly<{ request: Readonly<{ directory?: ToolCallDirectory }> }>,
-): Promise<Outcome<string | null, ToolFailure>> {
+): Promise<Outcome<ToolCallDirectory | null, ToolFailure>> {
   const pinned = request.request.directory
   if (pinned === undefined)
     return unavailable('working-directory', 'the request pins no working directory')
-  if (pinned.workspace === null) return succeed(pinned.path)
+  if (pinned.workspace === null) return succeed(pinned)
   const instance = instanceId(pinned.workspace.instance)
   const owner = workspaces()
   if (owner === undefined || instance === null)
@@ -228,7 +228,7 @@ export async function admittedDirectory(
   })
   switch (verified.kind) {
     case 'attachable':
-      return succeed(verified.directory === pinned.path ? pinned.path : null)
+      return succeed(verified.directory === pinned.path ? pinned : null)
     case 'not-permitted':
       return succeed(null)
     case 'instance-unavailable':
@@ -245,10 +245,9 @@ async function fenceOf(
 ): Promise<Outcome<FilesScope | null, ToolFailure>> {
   if (request.request.availability.definition.declarations.environment === null)
     return succeed(null)
-  const pinned = request.request.directory
   const directory = await admittedDirectory(workspaces, request)
   if ('failure' in directory) return directory
-  return succeed(directory.ok === null || pinned === undefined ? null : pinnedFiles(pinned))
+  return succeed(directory.ok === null ? null : pinnedFiles(directory.ok))
 }
 
 /** The live origins of calls: the call each belongs to, and the files scope it is fenced into. */
