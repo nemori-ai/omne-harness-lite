@@ -1,6 +1,6 @@
 {
   "format": "omne-harness/tool-release/4",
-  "generation": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
+  "generation": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
   "artifacts": [
     {
       "package": "@omne-harness/tool-definitions",
@@ -917,6 +917,128 @@
       "digest": "sha256:6e24a9cfadab8f0604e3b517e90c557a7c5f84ada917a2fb58bde944942a7989"
     },
     {
+      "package": "@omne-harness/dispatch-tools",
+      "files": [
+        {
+          "path": "dist/author.d.ts",
+          "sha256": "29ea15b0ac2c8d212dd0822ae7f943b779fa4df9e28af2876f6f02fcda50b851"
+        },
+        {
+          "path": "dist/author.d.ts.map",
+          "sha256": "c5874e8a65f418a58ed576cafe30f7f2aa9eeeb8e1a8478eccda4d696f113ed2"
+        },
+        {
+          "path": "dist/author.js",
+          "sha256": "671a0e348b53e7ee08a28e9b13d8802ab8b9213cf65121dc6d18d36f43bdabc1"
+        },
+        {
+          "path": "dist/author.js.map",
+          "sha256": "e9e4b0725845739d4ebcfc80cd144be8e98e8f2f0c4d293d79cb9d3fba291665"
+        },
+        {
+          "path": "dist/commands.d.ts",
+          "sha256": "7d11cde3913b1fabff1a5025872c6cfe5659ae6ea7941a07aeae8b54e36cb79b"
+        },
+        {
+          "path": "dist/commands.d.ts.map",
+          "sha256": "8279df5383b8137e3b09af56c7cce60a585ec90dc319bbc217eb8a0cab3509a8"
+        },
+        {
+          "path": "dist/commands.js",
+          "sha256": "ad1ab76d17956e47bc6bbdecbd2075d0e5c8ea78263530e77df423c1a46ecf9f"
+        },
+        {
+          "path": "dist/commands.js.map",
+          "sha256": "b4aeeb9c611f85c2bc981fe045be705f11895edffffcd864b37ed1f04faa891d"
+        },
+        {
+          "path": "dist/dispatching.d.ts",
+          "sha256": "8be6f53e5aea4586cd75f3b52945adeddcba302f4d8ad10aee047b6c41ff2e2d"
+        },
+        {
+          "path": "dist/dispatching.d.ts.map",
+          "sha256": "b47fa1856772bba0c6e12f43fe113ba94ca03c5ad3e356f54efb74ccdb4b8870"
+        },
+        {
+          "path": "dist/dispatching.js",
+          "sha256": "6134e117078ed2154fc4a6656c00d2a2ee1b9f66834f9c120b5edeb2dc72d69a"
+        },
+        {
+          "path": "dist/dispatching.js.map",
+          "sha256": "11dd62c3cb2edd772d1e658305470c85532b94c968e19792a2b7d4945da1515b"
+        },
+        {
+          "path": "dist/index.d.ts",
+          "sha256": "7f221be87c1c5292b61ee849ecec5cb4f3a62b9aba8bbb24023dbf613611ee70"
+        },
+        {
+          "path": "dist/index.d.ts.map",
+          "sha256": "d263ebb631d757f104c9413b4ebc29c1b40baaad83134e2cbe865bacd3ebfce2"
+        },
+        {
+          "path": "dist/index.js",
+          "sha256": "497a86609ec95a8a571a01ef5af8f533de25dd43c4291527a2f11c862f6f6627"
+        },
+        {
+          "path": "dist/index.js.map",
+          "sha256": "9532822a14b22274e24cacf331037a87934262ad390b6f2cca766fa41120c89d"
+        },
+        {
+          "path": "dist/port.d.ts",
+          "sha256": "65a3d145e21b21eeb5eb16934ba8985d31316af1bf1cc9f2c6a598907df17137"
+        },
+        {
+          "path": "dist/port.d.ts.map",
+          "sha256": "df161305ed3129283faa55f39561721a8b28298f86ed662bcd141a4d35716e59"
+        },
+        {
+          "path": "dist/port.js",
+          "sha256": "ce2616f6a283893a468a099f0f3a410fb68d8e8a83386f5bfe3ac2e438fa2b0e"
+        },
+        {
+          "path": "dist/port.js.map",
+          "sha256": "4ae6051b7b75ba970076d22a4b4e5db1df19edf4eeed5203c0822d0d35e7f5c6"
+        },
+        {
+          "path": "dist/protocol.d.ts",
+          "sha256": "de8f1ffb32421ae3952d92b365627bb3d660970c5446120105aa0c7bf2733cfa"
+        },
+        {
+          "path": "dist/protocol.d.ts.map",
+          "sha256": "78e1f9d96ee398a631ee86641d19d88d518de8445acf8bbe510273aa2fb73c91"
+        },
+        {
+          "path": "dist/protocol.js",
+          "sha256": "0d54917e4aa1821c13c84f8e9832ee4c2a7ce2d00b1ca36de6b3c4022438f628"
+        },
+        {
+          "path": "dist/protocol.js.map",
+          "sha256": "a2ea01849fef7ea995a8e6046d91470c30ffdbc19a72c5aea1956bb401830a44"
+        },
+        {
+          "path": "dist/results.d.ts",
+          "sha256": "ebbc0b6455e5ed99acbd79cac6c36c9ed84abbc674a6f45c0147d4ac6a2e6918"
+        },
+        {
+          "path": "dist/results.d.ts.map",
+          "sha256": "9f8e4fb3a551a62e388d2f2b5a83eb1c0ec550d0fa6bbf82c88ca4d71eb6b1e2"
+        },
+        {
+          "path": "dist/results.js",
+          "sha256": "946750f38d8c9ce8169f3d1f0d4eb74456bd3154d3f771b7bce21eb5fd2b6567"
+        },
+        {
+          "path": "dist/results.js.map",
+          "sha256": "812fd388835bd497e4598a3d36c68882477d37d2285e7da64c310ffed6ba2832"
+        },
+        {
+          "path": "package.json",
+          "sha256": "0a71f7b7cf0b394ecb644f92eaf91a1cff38e91349d7c34448626d2937c83a50"
+        }
+      ],
+      "digest": "sha256:54bb04066b9c629640aa1f49696c0ba271aeb0ad5f06d4b44c7b8652e3f69e28"
+    },
+    {
       "package": "@omne-harness/workspace-tools",
       "files": [
         {
@@ -1002,15 +1124,15 @@
     "capabilities": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/capabilities",
-      "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-      "digest": "sha256:afb62befe32f86ace6abcfa91a77d31695e3f736279dad70aab534fa74132a7e"
+      "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+      "digest": "sha256:a5fd8c28a7f312db0e8184fdcaa453c54ab71a1cec03560d2464438d421a9477"
     },
     "conversion": null,
     "attachmentAccess": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/attachment-access",
-      "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-      "digest": "sha256:fbb41d1c87184035ae5e1a60ef0080e503b7d7072525a6e8bf61337b22e6c70b"
+      "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+      "digest": "sha256:0342d045ae8cc3ba895bb517c7df753ea493b8a4b0bf51b952a0be9c64b3e298"
     }
   },
   "entries": [
@@ -1707,14 +1829,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:7a671c00e82fb43f36e55e8a183c6ac218fffd7229b89817babff9487b3ba26e"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:0b384c8ceb6ea0ad4ca40118a30ac1c01363b9b763254cb1f4038e0dbe742c07"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:4a627e72a4a5b8157bd9cf314012f7efd4692723afa3ee208cea394ca0d4ab29"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:78597d1c83e6d87f5e842ff1797086c416af56fecd6cf2576b3b939c6c8e138d"
       }
     },
     {
@@ -2415,14 +2537,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:98c3f384bf0fbfcab8513f87f71384996d29bbe657659da9225a896d65cb6128"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:a3d67cd7fd2e857f068e81721d5c535af739af42be110205d69cac6887562dcd"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:18bca69133b77e7b54106285f93f254e7538f0a3537c31ec12df16f0652477cc"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:7499bea4167837da88bb5bd639ac11ff1b8282269e01941b5da43e19f5c3439b"
       }
     },
     {
@@ -3115,14 +3237,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Tools/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:ec96f38ccf92c5394beb00d9944deb0729dcb1b0c0f7932c7313f38719fb0843"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:1c9717fb153ecbf67f1b91ea09e4e254dd7e872e612615c46a0672ce0fb63691"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Tools/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:26755f99cb64528ac3eb07ef49021243ce2ef50fcf8a56407ced7acb0be44b7f"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:520948b43f049ac74f834cff9c9fb03baf28a071673af9a28fe550b5270f437b"
       }
     },
     {
@@ -3510,14 +3632,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#TodoItems/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:7b545907da2240e1850edcb2e3b9c4d11af4dcc274d25afcdfde262e886d47f1"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:7a65fff91a535866fb4c25f91780dbab52780d035e243010777f3b4c79b10085"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#TodoItems/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:e5211f6023779552c8578dc55e9ba58466fd2c78ecb16dc95ddbd1d3f41f0802"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:fccd2363686f95923a592d294645d0dc0a8084b5519348784611b60ee459c332"
       }
     },
     {
@@ -3904,14 +4026,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#BkgToolCalls/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:acdebe43bc7e7e8a61b5a5889c9f7bfe4126f3ed039f122b4685a9ae7d5af658"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:09e11d143f5b27fbfcdff59d2edc72615cfbb9b9edfa36f96e9a0fc602a4d023"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#BkgToolCalls/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:33969640d5dbde513be86963286d8c20a7194cb0a490323b1deaee434aa9cfce"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:05d142aa16efd79db728e4a8dbf17a4c1dcefb2e88d838dfdf8c2036af8525c8"
       }
     },
     {
@@ -3969,14 +4091,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Ask/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:50cffc647959441cc14e474652a0dd5743b29a932c550816efef981f7ea345c6"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:309d5aea0266ff7740589a159e0b647b8deaff5a2846d157a1fcc06ae0b94837"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Ask/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:5f3848518310aa06908c4f686bf51bf90d05dbbdfa6e805fc86bf105a0e2877d"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:b16f95b82b435cd842428398cae84ba9b77d7373cc15fff431fed43c9536576d"
       }
     },
     {
@@ -4667,14 +4789,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Web/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:ef71e7c3447ebeb1d7a888ddc10be1adf60a16fcdd79c73a2045076f6970e451"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:1f1e95d0d2fbc3ca5cd1b59f00ea8421f1b06142492aaab7b615cf160d5b83a0"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Web/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:42a1111e18cfbc3625e95d9b2385a579ec275ffa25efe83904a11431adfb5170"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:737df0bbeb1439699c8c4a5587975078246bad1c37dd6363415eeef20f5db86b"
       }
     },
     {
@@ -5062,14 +5184,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Skills/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:16ba24772e74a8140cf27cb1f07a1262a95303a41e76c4068bb7d429de37960c"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:4c61948a1cae2a53fe18e2bd2f7cd38b7e826ee7a049fadc00af945d6694925d"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Skills/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:3efa2cdb6c1d7cf34ea748d40d51880e3791b87816173139ccb3a134b6739728"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:540b11cd3c811954579aceee6b1a97848e717e702a1ae0cfe75cf09bbdd80fc4"
       }
     },
     {
@@ -5460,14 +5582,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Calendar/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:958d9688d74280ab0753f7b20d84a71959f026aa9b3e6628a0cdf13b1300ee10"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:585c0330cc0686df2cd49c8e3418869ec45b3996b31d9247ce322f74ab3b720b"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Calendar/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:4079c2cf2dfe4c6e22b06203092f54145d65a86f7248a67aa49552ac23c3992c"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:5c3a2936250ae8ea6fbd887ad07bf107df39954f12039c81a81c6de76d6cad84"
       }
     },
     {
@@ -6477,14 +6599,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Schedules/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:c66fd880c43e0f30905f0110bde3214156525f95b9a16e4e045128e6fed03ca9"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:61c2a51cdb3bc982d77eac7ef803e329cdeb08255aa5ae0a6831b6d525f61786"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Schedules/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:6758370d0318da0a6155e7f5b77ac12b228c4edc92016341cb877598d583c482"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:b24115cc147bf4eda3317e031a686fb056d2e3d890b6736aa6770ee8a11861e0"
       }
     },
     {
@@ -6875,14 +6997,1326 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Sessions/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:b4eaec157cdc0aa734714155a5537778703bb370304e62f6b2481a9c5177fcb7"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:bee0714ea3397b2458150ca979f54e4c0ec8a3cc357e3347f8667da9be573093"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Sessions/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:8b824f16166f4df98d794935a57d5b2845ef0f777a54be14c2fe6ec56d45c53e"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:e73a65a086f99fd78c7519baea49f390d8ed6e57d8b158dce30fa30bf5e8c233"
+      }
+    },
+    {
+      "asset": {
+        "name": "Agents",
+        "adoption": {
+          "owner": "@omne-harness/harness-server",
+          "name": "Agents",
+          "revision": "0.0.0",
+          "digest": "sha256:5293d75458a41337e3aee39145cb1276e6df9774ce20a1c1519177b047ec36cc"
+        }
+      },
+      "requiredCapabilities": [
+        "dispatch"
+      ],
+      "module": {
+        "package": "@omne-harness/dispatch-tools",
+        "export": "agentsToolModule",
+        "executor": {
+          "owner": "@omne-harness/dispatch-tools",
+          "name": "Agents",
+          "revision": "1",
+          "digest": "sha256:63bd2c0d21b34c4d9cee9dc0ed53262224ab840b5bc292b37dc80792ee5f2d23"
+        },
+        "artifacts": "sha256:54bb04066b9c629640aa1f49696c0ba271aeb0ad5f06d4b44c7b8652e3f69e28"
+      },
+      "construction": [
+        "resultMaxBytes"
+      ],
+      "settings": {
+        "owner": "@omne-harness/harness-server",
+        "name": "Agents.settings",
+        "revision": "0.0.0",
+        "digest": "sha256:ee23eed95d644a485e75cd8cfc84e1caf56cfd1b9dfe5c8dc4c46737e1fc60e0"
+      },
+      "definition": "sha256:97ed0a7255ca8c70c66d4fc486afa3bcdb09e08df188b51e7b64e69ce8487eb4",
+      "gates": [
+        {
+          "id": "read",
+          "title": "查看",
+          "default": "auto",
+          "commands": [
+            "help",
+            "targets",
+            "show",
+            "list"
+          ]
+        },
+        {
+          "id": "dispatch",
+          "title": "派发与撤回",
+          "default": "auto",
+          "commands": [
+            "dispatch",
+            "withdraw"
+          ]
+        },
+        {
+          "id": "message",
+          "title": "给别的会话发消息",
+          "default": "auto",
+          "commands": [
+            "message"
+          ]
+        },
+        {
+          "id": "report",
+          "title": "交回报告",
+          "default": "auto",
+          "commands": [
+            "report"
+          ]
+        }
+      ],
+      "governance": {
+        "declaration": {
+          "reference": {
+            "ownerId": "harness-server.tool-release",
+            "definitionId": "tool.Agents",
+            "version": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa",
+            "digest": "9b2a289b2f5088fc1dd4e040860d6d6ef72e956b14d2bc4ae2a8dd0c0c79146e"
+          },
+          "origin": {
+            "kind": "asset",
+            "assetId": "harness.tool.Agents",
+            "releaseRef": "harness.tool.Agents/8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+          },
+          "settings": [
+            {
+              "providerId": "harness-server.tool-release",
+              "definitionId": "tool.Agents.permissions",
+              "version": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa",
+              "groups": [
+                {
+                  "id": "tool.Agents",
+                  "parentId": null,
+                  "title": "Agents 工具",
+                  "description": "Agents 调用的权限规则。",
+                  "order": 0
+                }
+              ],
+              "items": [
+                {
+                  "id": "read",
+                  "groupId": "tool.Agents",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Agents：查看",
+                    "description": "控制 Agents 工具里归「查看」的命令（help、targets、show、list）。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "auto",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                },
+                {
+                  "id": "dispatch",
+                  "groupId": "tool.Agents",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Agents：派发与撤回",
+                    "description": "控制 Agents 工具里归「派发与撤回」的命令（dispatch、withdraw）。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "auto",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                },
+                {
+                  "id": "message",
+                  "groupId": "tool.Agents",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Agents：给别的会话发消息",
+                    "description": "控制 Agents 工具里归「给别的会话发消息」的命令（message）。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "auto",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                },
+                {
+                  "id": "report",
+                  "groupId": "tool.Agents",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Agents：交回报告",
+                    "description": "控制 Agents 工具里归「交回报告」的命令（report）。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "auto",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                }
+              ]
+            }
+          ],
+          "permissions": [
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Agents",
+                  "releaseRef": "harness.tool.Agents/8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+                },
+                "itemId": "read",
+                "revision": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+              },
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.read",
+              "title": "Agents：查看",
+              "description": "控制 Agents 工具里归「查看」的命令（help、targets、show、list）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Agents.permissions",
+                "version": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa",
+                "itemId": "read",
+                "groupId": "tool.Agents",
+                "groupTitle": "Agents 工具",
+                "groupDescription": "Agents 调用的权限规则。"
+              }
+            },
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Agents",
+                  "releaseRef": "harness.tool.Agents/8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+                },
+                "itemId": "dispatch",
+                "revision": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+              },
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.dispatch",
+              "title": "Agents：派发与撤回",
+              "description": "控制 Agents 工具里归「派发与撤回」的命令（dispatch、withdraw）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Agents.permissions",
+                "version": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa",
+                "itemId": "dispatch",
+                "groupId": "tool.Agents",
+                "groupTitle": "Agents 工具",
+                "groupDescription": "Agents 调用的权限规则。"
+              }
+            },
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Agents",
+                  "releaseRef": "harness.tool.Agents/8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+                },
+                "itemId": "message",
+                "revision": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+              },
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.message",
+              "title": "Agents：给别的会话发消息",
+              "description": "控制 Agents 工具里归「给别的会话发消息」的命令（message）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Agents.permissions",
+                "version": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa",
+                "itemId": "message",
+                "groupId": "tool.Agents",
+                "groupTitle": "Agents 工具",
+                "groupDescription": "Agents 调用的权限规则。"
+              }
+            },
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Agents",
+                  "releaseRef": "harness.tool.Agents/8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+                },
+                "itemId": "report",
+                "revision": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+              },
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.report",
+              "title": "Agents：交回报告",
+              "description": "控制 Agents 工具里归「交回报告」的命令（report）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Agents.permissions",
+                "version": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa",
+                "itemId": "report",
+                "groupId": "tool.Agents",
+                "groupTitle": "Agents 工具",
+                "groupDescription": "Agents 调用的权限规则。"
+              }
+            }
+          ],
+          "enforcementBindings": [
+            {
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.read",
+              "implementationRef": "tool/f7f313cc255a98ba64c259a1cfb19df93b39c3676a58d05ed6bd1af851e76e54",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            {
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.dispatch",
+              "implementationRef": "tool/f7f313cc255a98ba64c259a1cfb19df93b39c3676a58d05ed6bd1af851e76e54",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            {
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.message",
+              "implementationRef": "tool/f7f313cc255a98ba64c259a1cfb19df93b39c3676a58d05ed6bd1af851e76e54",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            {
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.report",
+              "implementationRef": "tool/f7f313cc255a98ba64c259a1cfb19df93b39c3676a58d05ed6bd1af851e76e54",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            }
+          ]
+        },
+        "interpretations": [
+          {
+            "binding": {
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.read",
+              "implementationRef": "tool/f7f313cc255a98ba64c259a1cfb19df93b39c3676a58d05ed6bd1af851e76e54",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Agents",
+                  "releaseRef": "harness.tool.Agents/8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+                },
+                "itemId": "read",
+                "revision": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+              },
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.read",
+              "title": "Agents：查看",
+              "description": "控制 Agents 工具里归「查看」的命令（help、targets、show、list）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Agents.permissions",
+                "version": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa",
+                "itemId": "read",
+                "groupId": "tool.Agents",
+                "groupTitle": "Agents 工具",
+                "groupDescription": "Agents 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          },
+          {
+            "binding": {
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.dispatch",
+              "implementationRef": "tool/f7f313cc255a98ba64c259a1cfb19df93b39c3676a58d05ed6bd1af851e76e54",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Agents",
+                  "releaseRef": "harness.tool.Agents/8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+                },
+                "itemId": "dispatch",
+                "revision": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+              },
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.dispatch",
+              "title": "Agents：派发与撤回",
+              "description": "控制 Agents 工具里归「派发与撤回」的命令（dispatch、withdraw）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Agents.permissions",
+                "version": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa",
+                "itemId": "dispatch",
+                "groupId": "tool.Agents",
+                "groupTitle": "Agents 工具",
+                "groupDescription": "Agents 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          },
+          {
+            "binding": {
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.message",
+              "implementationRef": "tool/f7f313cc255a98ba64c259a1cfb19df93b39c3676a58d05ed6bd1af851e76e54",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Agents",
+                  "releaseRef": "harness.tool.Agents/8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+                },
+                "itemId": "message",
+                "revision": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+              },
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.message",
+              "title": "Agents：给别的会话发消息",
+              "description": "控制 Agents 工具里归「给别的会话发消息」的命令（message）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Agents.permissions",
+                "version": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa",
+                "itemId": "message",
+                "groupId": "tool.Agents",
+                "groupTitle": "Agents 工具",
+                "groupDescription": "Agents 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          },
+          {
+            "binding": {
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.report",
+              "implementationRef": "tool/f7f313cc255a98ba64c259a1cfb19df93b39c3676a58d05ed6bd1af851e76e54",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Agents",
+                  "releaseRef": "harness.tool.Agents/8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+                },
+                "itemId": "report",
+                "revision": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa"
+              },
+              "capabilityId": "tool.Agents",
+              "enforcementKey": "tool.report",
+              "title": "Agents：交回报告",
+              "description": "控制 Agents 工具里归「交回报告」的命令（report）。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "auto",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Agents.permissions",
+                "version": "8052b8fb31ae4b9d7512244b3427fedd859b04c14f2707081651e3a36d020ffa",
+                "itemId": "report",
+                "groupId": "tool.Agents",
+                "groupTitle": "Agents 工具",
+                "groupDescription": "Agents 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          }
+        ]
+      },
+      "holding": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#Agents/holding",
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:7f986aa52594f4a7c5a666b210bd0fed352862f0ef20e435ce226f87d2a2d07b"
+      },
+      "publication": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#Agents/publication",
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:46ec50b3ebf4195770f11cfc824e2c4e3abee3ae433924877959bded96e1b9d4"
       }
     },
     {
@@ -8192,14 +9626,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Notifications/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:0b6d564051a80775f6488ac35c2b7d182424f006c8a01806205985ddc5f94ccd"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:5f3c04e42aaa84dc584e5d94810d72825a00c0a5511bdab731dc63b52cd9e114"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Notifications/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:bd24ef8daf41e82e47c6d765bc184458e79ed49073ab6430ad8d1175379d6fed"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:43eb9c1fcf1362970aab45262c760a67aabbcba0c74b96933a240a140033bc1d"
       }
     },
     {
@@ -8583,14 +10017,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#SwitchWorkspace/holding",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:d84f843fb10816588d0aaeccbe37f9345e6c2bf3915916b1bce8562b417090ee"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:5770b97e58d50a30b1f5878a6971e15463993a8c9ce9a671bc91a5abc6f108d5"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#SwitchWorkspace/publication",
-        "revision": "sha256:4fbf1f985457f34d77bd193c9ccea48273b732b307d79b837e7045156b1a5a3b",
-        "digest": "sha256:1b7e7bc2bcca9a47161a5b5cbb34f95ffab3e206b4a9ed3d5e4c31a2e0953287"
+        "revision": "sha256:1dab7afb26d5e6f2497e779a8a21b544b0142ce016328b82677cf256a66f5faa",
+        "digest": "sha256:167fab3bd9f2be21c3787349bfb3cc2c5d1b664519537abba5b9bcbbb497ac9f"
       }
     }
   ]

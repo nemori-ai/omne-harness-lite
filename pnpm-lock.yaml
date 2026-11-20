@@ -671,6 +671,9 @@ importers:
       '@omne-harness/dispatch-tool':
         specifier: workspace:*
         version: link:../../packages/dispatch/dispatch-tool
+      '@omne-harness/dispatch-tools':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-tools
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../packages/common/exchange-refs

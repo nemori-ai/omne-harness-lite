@@ -329,6 +329,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       .parse(configOf(layer, 'tool-records')).configuration.offloading.maxInlineUtf8Bytes
     const bounds = localBounds()
     expect(Object.keys(bounds).sort()).toEqual([
+      'Agents',
       'Ask',
       'BkgToolCalls',
       'Calendar',
@@ -343,7 +344,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Tools',
       'Web',
     ])
-    for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask', 'Skills', 'Sessions'])
+    for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask', 'Skills', 'Sessions', 'Agents'])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
     for (const tool of [
       'Tools',

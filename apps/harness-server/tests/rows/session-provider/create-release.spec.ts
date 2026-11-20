@@ -85,6 +85,7 @@ const residentNames = [
   'Schedules',
   'Notifications',
   'Sessions',
+  'Agents',
   'SwitchWorkspace',
   'Skills',
 ]

@@ -175,12 +175,13 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
         { capability: { category: 'Tool', name: 'Schedules' }, resident: true },
         { capability: { category: 'Tool', name: 'Notifications' }, resident: true },
         { capability: { category: 'Tool', name: 'Sessions' }, resident: true },
+        { capability: { category: 'Tool', name: 'Agents' }, resident: true },
         { capability: { category: 'Tool', name: 'SwitchWorkspace' }, resident: true },
         { capability: { category: 'Tool', name: 'Skills' }, resident: true },
       ],
       attributes: [{ item: 'model' }],
     })
-    expect((coding.definition as { instructions?: unknown[] }).instructions).toHaveLength(10)
+    expect((coding.definition as { instructions?: unknown[] }).instructions).toHaveLength(11)
   })
 
   it('does not mistake an Agent definition for the independently adopted modes carrier', () => {

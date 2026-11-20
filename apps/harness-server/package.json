@@ -68,6 +68,7 @@
     "@omne-harness/dispatch-local": "workspace:*",
     "@omne-harness/dispatch-session": "workspace:*",
     "@omne-harness/dispatch-tool": "workspace:*",
+    "@omne-harness/dispatch-tools": "workspace:*",
     "@omne-harness/exchange-refs": "workspace:*",
     "@omne-harness/execution-environment": "workspace:*",
     "@omne-harness/execution-environment-contract": "workspace:*",
