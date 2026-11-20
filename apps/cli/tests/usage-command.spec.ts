@@ -6,6 +6,7 @@ import { commandMissing, commandUnrecognized } from './support/expected.ts'
 import {
   defaultAnswer,
   startFakeService,
+  otherTenantText,
   tenantText,
   type Answer,
   type FakeService,
@@ -112,9 +113,28 @@ describe('omne query-usage, list-usage-records and read-context-occupancy', () =
       (await cli(['list-usage-records', ...range, '--after', 'ur1.x', '--limit', '5'])).code,
     ).toBe(0)
     const instants = { from: '2026-11-19T00:00:00Z', to: '2026-11-20T00:00:00Z' }
+    expect(
+      (
+        await cli([
+          'list-usage-records',
+          ...range,
+          '--session',
+          SESSION,
+          '--tenant',
+          otherTenantText,
+        ])
+      ).code,
+    ).toBe(0)
     expect(sent(service, 'list-usage-records')).toEqual([
       { tenant: tenantText, scope: { kind: 'tenant' }, range: instants, after: null, limit: 100 },
       { tenant: tenantText, scope: { kind: 'tenant' }, range: instants, after: 'ur1.x', limit: 5 },
+      {
+        tenant: otherTenantText,
+        scope: { kind: 'session', session: SESSION },
+        range: instants,
+        after: null,
+        limit: 100,
+      },
     ])
   })
 
@@ -160,6 +180,9 @@ describe('omne query-usage, list-usage-records and read-context-occupancy', () =
     )
     expect((await cli(['query-usage', ...range])).stderr).toBe(
       commandMissing('query-usage', '--zone'),
+    )
+    expect((await cli(['list-usage-records', '--before', '2026-11-20T00:00:00Z'])).stderr).toBe(
+      commandMissing('list-usage-records', '--since'),
     )
   })
 })
