@@ -15,7 +15,7 @@ it('Cordis 入口给出界面模块、客户端服务名、三个位置标识、
     'sessionCallDetail',
     'sessionClientService',
     'sessionComposerAttachments',
-    'sessionComposerDraftsKey',
+    'sessionComposerIntakeKey',
     'sessionDock',
     'sessionModelChoicesKey',
     'sessionSide',

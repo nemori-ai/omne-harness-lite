@@ -6,7 +6,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createMediaUiModule,
-  mediaComposerDraftsKey,
+  mediaComposerIntakeKey,
   type DraftOffer,
   type MediaBlockSubject,
   type MediaDraftSubject,
@@ -53,7 +53,7 @@ async function mounted(media: FakeMedia) {
   const offers: DraftOffer[] = []
   const holder = (
     root as unknown as { get(name: string): { attach(given: unknown): () => void } }
-  ).get(mediaComposerDraftsKey)
+  ).get(mediaComposerIntakeKey)
   const detach = holder.attach({ offer: (offer: DraftOffer) => offers.push(offer) })
   return { root, shell, offers, detach }
 }
@@ -70,9 +70,9 @@ describe('界面模块', () => {
       ['session.composer-attachments', 'media'],
       ['session.block', 'media'],
     ])
-    expect(mediaComposerDraftsKey).toBe('media.composer-drafts')
+    expect(mediaComposerIntakeKey).toBe('media.composer-intake')
     expect(
-      (root as unknown as { get(name: string): unknown }).get(mediaComposerDraftsKey),
+      (root as unknown as { get(name: string): unknown }).get(mediaComposerIntakeKey),
     ).toBeDefined()
   })
 

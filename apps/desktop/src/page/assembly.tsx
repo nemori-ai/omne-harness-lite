@@ -16,7 +16,7 @@ import { identityUiModule } from '@omne-harness/identity-ui/cordis'
 import '@omne-harness/identity-ui/identity-ui.css'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
-import { createMediaUiModule, mediaComposerDraftsKey } from '@omne-harness/media-ui/cordis'
+import { createMediaUiModule, mediaComposerIntakeKey } from '@omne-harness/media-ui/cordis'
 import '@omne-harness/media-ui/media-ui.css'
 import { modelChoicesKey, modelUiModule } from '@omne-harness/model-ui/cordis'
 import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
@@ -28,7 +28,7 @@ import {
   sessionBlock,
   sessionCallDetail,
   sessionComposerAttachments,
-  sessionComposerDraftsKey,
+  sessionComposerIntakeKey,
   sessionDock,
   sessionModelChoicesKey,
   sessionSide,
@@ -71,6 +71,6 @@ export const assembly: Assembly = {
       refreshMs: USAGE_REFRESH_MS,
     }),
     createMediaUiModule({ composerAttachments: sessionComposerAttachments, block: sessionBlock }),
-    handOver(mediaComposerDraftsKey, sessionComposerDraftsKey),
+    handOver(mediaComposerIntakeKey, sessionComposerIntakeKey),
   ],
 }

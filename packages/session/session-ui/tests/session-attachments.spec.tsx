@@ -4,7 +4,7 @@ import { afterEach, expect, it } from 'vitest'
 import {
   SESSION_COMPOSER_ATTACHMENTS,
   sessionComposerAttachments,
-  sessionComposerDraftsKey,
+  sessionComposerIntakeKey,
 } from '../src/cordis.ts'
 import type { ComposerDrafts, DraftOffer } from '../src/model/composer-drafts.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
@@ -49,7 +49,7 @@ async function opened() {
   })
   await settle()
   const drafts = (mounted.root as unknown as { get(name: string): ComposerDrafts }).get(
-    sessionComposerDraftsKey,
+    sessionComposerIntakeKey,
   )
   const offer = async (ready: boolean, attachments: DraftOffer['attachments'] = [PICTURE]) => {
     const draft = seen.at(-1)?.draft ?? ''
@@ -68,10 +68,10 @@ const kindsOf = (body: unknown) => {
   return blocks.map(block => block.entries.find(each => each.key === 'kind')?.value.value)
 }
 
-it('附着位置的名字是 session.composer-attachments，交回附件的口的键是 session.composer-drafts', () => {
+it('附着位置的名字是 session.composer-attachments，交回附件的口的键是 session.composer-intake', () => {
   expect(SESSION_COMPOSER_ATTACHMENTS).toBe('session.composer-attachments')
   expect(sessionComposerAttachments.name).toBe(SESSION_COMPOSER_ATTACHMENTS)
-  expect(sessionComposerDraftsKey).toBe('session.composer-drafts')
+  expect(sessionComposerIntakeKey).toBe('session.composer-intake')
 })
 
 it('放进来的项画在输入框的表单里，收到会话标识、草稿标识与当前租户', async () => {

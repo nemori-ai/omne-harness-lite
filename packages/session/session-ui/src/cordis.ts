@@ -2,7 +2,7 @@ export {
   CONVERSATION_PAGE,
   SESSION_LIST,
   sessionClientService,
-  sessionComposerDraftsKey,
+  sessionComposerIntakeKey,
   sessionModelChoicesKey,
   sessionUiModule,
 } from './module.tsx'

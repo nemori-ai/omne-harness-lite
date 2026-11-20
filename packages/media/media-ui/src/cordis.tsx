@@ -29,7 +29,7 @@ export type MediaUiOptions = Readonly<{
 export type DraftsHolder = Readonly<{ attach(given: Drafts): () => void }>
 
 /** Where the assembly hands over what takes the attachments of a draft; the module works without. */
-export const mediaComposerDraftsKey = serviceKey<DraftsHolder>('media.composer-drafts')
+export const mediaComposerIntakeKey = serviceKey<DraftsHolder>('media.composer-intake')
 
 const MEDIA = protocolServiceName({ name: mediaProtocol.name, major: mediaProtocol.major })
 const ITEM = 'media'
@@ -53,7 +53,7 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
       const client = services[MEDIA]!
       let given: Drafts | null = null
       const drafts = () => given
-      provide(mediaComposerDraftsKey, {
+      provide(mediaComposerIntakeKey, {
         attach(next) {
           given = next
           return () => {

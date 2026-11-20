@@ -43,6 +43,6 @@ describe('媒体进了装配', () => {
   it('界面模块里有媒体的，另有一处把会话收草稿的口交给它', () => {
     const names = assembly.modules.map(module => module.name)
     expect(names).toContain('media-ui')
-    expect(names).toContain('hand-over:session.composer-drafts->media.composer-drafts')
+    expect(names).toContain('hand-over:session.composer-intake->media.composer-intake')
   })
 })

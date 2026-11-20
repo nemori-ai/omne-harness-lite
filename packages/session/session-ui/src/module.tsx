@@ -46,7 +46,7 @@ export const HISTORY_SEARCH_PAGE = 'history-search'
 export const sessionModelChoicesKey = serviceKey<ModelChoiceHolder>('session.model-choices')
 
 /** Where a contribution to the composer gives back what the message being written carries. */
-export const sessionComposerDraftsKey = serviceKey<ComposerDrafts>('session.composer-drafts')
+export const sessionComposerIntakeKey = serviceKey<ComposerDrafts>('session.composer-intake')
 
 export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionProtocol>>>({
   name: 'session-ui',
@@ -56,7 +56,7 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
     const models = new ModelSelectionStore(client)
     provide(sessionModelChoicesKey, models)
     const drafts = new ComposerDraftStore()
-    provide(sessionComposerDraftsKey, drafts)
+    provide(sessionComposerIntakeKey, drafts)
     const workspaces = new SessionWorkspaces({ client })
     const background = new BackgroundCallsStore(client)
     const archive = new ArchiveStore(client)
