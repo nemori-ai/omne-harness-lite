@@ -101,7 +101,7 @@
 > far side of an MCP access point is one tool entry.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 13） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 14） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
 - **别混 ①**：**不是[工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)**——定义是条目带着的那份内容；条目是这份内容此刻在入口里的那一项
 - **别混 ②**：**不是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)里会话已知的那一项**——那一项按会话合法纳入的能力投影、在会话内只增不减；工具条目按主体此刻的事实现算。两者的关系见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)
 - **注意**：主体此刻没有使用资格的不出现；有资格但此刻调不动的，以不可用呈现并说明原因。调一个条目就是一次工具调用
@@ -131,7 +131,7 @@
 > **EN**: The evaluated usability of a tool, skill or MCP capability: current selection and governance must permit it, and required implementations and dependencies must hold. It is evaluated from the facts at the moment on each discovery and at each attempt start, and subsequent use respects effective changes. An unavailable resident entry keeps its identity.
 
 - **形态**：视图
-- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 5） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 13） · [PF-006 §4 可用性](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
+- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 5） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 14） · [PF-006 §4 可用性](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
 - **别混**：禁用是治理输入，当下可用性是求值结果；禁用可使已知条目不可用，不能使主体此刻没有使用资格的条目凭空可见。执行权限准入仍单独适用。
 - **注意**：封存的 PF-006 把它限定为「已纳入会话的」能力。现行产品里发现不经纳入，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
@@ -298,6 +298,22 @@
   当下可用性是一样能力在一次执行尝试开始前的依赖解析结果；协议可用性只说一个协议挂没挂着。
 - **别混 ②**：不是许可。允不允许用，由领域与授权在每次调用时回答。
 - **注意**：领域的提供者暂时不在，不改变协议可用性。协议仍然挂着，调用得到「依据不可用」。
+
+### UL-invocation-condition · 调用条件 · Invocation Condition
+
+> **中**：**一个命令在自己的定义里声明的、它所在的会话此刻必须成立的事实**，例如另一头有人可以答复、本会话是被派发的。
+> **条件不成立的命令不提供给这个会话的 agent；一个入口的命令全不成立时，这个入口不装进这个会话。**
+>
+> **EN**: **A fact that a command declares, in its own definition, must hold for the session it
+> runs in** — for example that a person can answer, or that the session was dispatched. **A command
+> whose condition does not hold is not offered to that session's agent; an entry point with no
+> offered command is not assembled into that session.**
+
+- **形态**：属性
+- **出处**：[元能力：必需入口、常驻与命令可用性](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 14）
+- **别混 ①**：**不是权限。**权限答「许不许」，由治理定；条件答「这里成不成立」，由会话的事实定，对同一种会话人人相同
+- **别混 ②**：**不是[当下可用性](#ul-current-availability--当下可用性--current-availability)里的依赖缺失**——那是设施在不在，这是会话是哪一种
+- **注意**：条件写在命令的定义里，**装配不按入口或命令的名字判断**；一轮当中变得不成立时，调到它的调用不运行并得到原因
 
 ## MCP 对端够不够得着
 
