@@ -251,3 +251,23 @@ export const shellCommands: readonly Command[] = withHelp([
     fields: [],
   },
 ])
+
+export const screenCommands: readonly Command[] = withHelp([
+  {
+    name: 'screens',
+    summary: 'List the screens of the machine: identifier, name, pixels, scale and place.',
+    fields: [],
+  },
+  {
+    name: 'capture',
+    summary: 'Take a picture of one screen so the model sees it.',
+    fields: [
+      {
+        name: 'screen',
+        kind: 'string',
+        description:
+          'The identifier of a screen, as screens lists it. Omit for the primary screen.',
+      },
+    ],
+  },
+])

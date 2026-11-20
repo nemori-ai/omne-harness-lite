@@ -4,6 +4,7 @@ import type {
   Containment,
   FacilityRequest,
   FileSystemFacility,
+  ScreenFacility,
   TerminalFacility,
   TerminalRetention,
 } from '@omne-harness/execution-environment-contract'
@@ -58,4 +59,9 @@ export type ShellAuthorEnvironment = Readonly<{
     architecture: string
     facilities: readonly string[]
   }>
+}>
+
+export type ScreenAuthorEnvironment = Readonly<{
+  screen: BoundFacility<ScreenFacility<unknown>>
+  media: ToolMediaSink
 }>

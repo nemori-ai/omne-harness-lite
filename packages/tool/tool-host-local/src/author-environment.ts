@@ -11,6 +11,7 @@ import type {
   FileSystemFacility,
   ObjectToken,
   OriginRef,
+  ScreenFacility,
   TerminalFacility,
   TerminalRetention,
 } from '@omne-harness/execution-environment-contract'
@@ -54,6 +55,7 @@ export type ToolEnvironmentValue = Readonly<{
   }
   facts: EnvironmentFacts & Readonly<{ os: string }>
   media: ToolMediaSink
+  screen: AuthorFacility<ScreenFacility<unknown>>
   /** Where the call works by default: the directory pinned in its request. Absent: it has none. */
   directory?: string
 }>
@@ -90,7 +92,11 @@ function namingFailure(requestId: string, failure: ToolFailure): FacilityResult<
 
 /** The default directory of the author is the files root of the placement: one pinned value. */
 export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue {
-  const value = { ...boundFacilities(input), media: productSink(input) }
+  const value = {
+    ...boundFacilities(input),
+    media: productSink(input),
+    screen: boundScreen(input),
+  }
   const directory = input.lease.placement.filesRoot
   return Object.freeze(directory === undefined ? value : { ...value, directory })
 }
@@ -125,13 +131,37 @@ function productSink<P>(input: AuthorEnvironmentInput<P>): ToolMediaSink {
   } satisfies ToolMediaSink)
 }
 
-function boundFacilities<P>(input: AuthorEnvironmentInput<P>): Omit<ToolEnvironmentValue, 'media'> {
-  const base = (): FacilityRequest<P> => ({
+function requestOf<P>(input: AuthorEnvironmentInput<P>): FacilityRequest<P> {
+  return {
     requestId: randomUUID(),
     access: { principal: input.access.principal, tenant: input.access.tenant },
     origin: input.origin,
     binding: input.lease.placement.binding,
-  })
+  }
+}
+
+/** The screen of the placement of this call; a placement without one answers unavailable. */
+function boundScreen<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue['screen'] {
+  const over = async <T>(
+    perform: (facility: ScreenFacility<unknown>, common: FacilityRequest<P>) => Promise<T>,
+  ) => {
+    const common = requestOf(input)
+    const facility = input.lease.facility('screen')
+    return facility
+      ? perform(facility, common)
+      : ({ kind: 'rejected', requestId: common.requestId, reason: 'unavailable' } as const)
+  }
+  return Object.freeze({
+    list: () => over((facility, common) => facility.list(common)),
+    capture: ({ screen, region }) =>
+      over((facility, common) => facility.capture({ ...common, screen, region })),
+  } satisfies ToolEnvironmentValue['screen'])
+}
+
+function boundFacilities<P>(
+  input: AuthorEnvironmentInput<P>,
+): Omit<ToolEnvironmentValue, 'media' | 'screen'> {
+  const base = () => requestOf(input)
   const name = (
     operation: keyof FileSystemFacility<P>,
     path: string,

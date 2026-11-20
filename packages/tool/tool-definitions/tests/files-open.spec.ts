@@ -227,7 +227,7 @@ describe('Files open says what the store answered', () => {
     }
     const author = value(createFilesAuthor(fixture.config))
     await expect(runRaw(author, 'open', { path: '/a.png' }, fixture.environment)).rejects.toThrow(
-      /Invalid Files open block/u,
+      /Invalid picture block/u,
     )
   })
 

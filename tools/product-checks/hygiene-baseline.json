@@ -639,7 +639,7 @@
       },
       "packages/tool/tool-host-local/src/author-environment.ts": {
         "count": 1,
-        "longest": 199
+        "longest": 196
       },
       "packages/tool/tool-host-local/src/author-generations.ts": {
         "count": 1,

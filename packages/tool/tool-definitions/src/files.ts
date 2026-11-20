@@ -9,13 +9,8 @@ import { createAuthor, type CommandGates } from './author.ts'
 import { filesCommands } from './commands.ts'
 import type { FilesAuthorEnvironment } from './environment.ts'
 import { editFiles } from './files-edits.ts'
-import {
-  openLimitFields,
-  openLimits,
-  openPicture,
-  openResult,
-  type OpenLimits,
-} from './files-open.ts'
+import { openLimitFields, openLimits, openPicture, type OpenLimits } from './files-open.ts'
+import { pictureResult } from './pictures.ts'
 import {
   placedFiles,
   placePath,
@@ -146,7 +141,7 @@ async function openFile(args: Arguments, environment: FilesAuthorEnvironment, li
   const { value: opened, note } = await placed(environment, (files, directory) =>
     openPicture(path, headerOf(path, directory), { files, media: environment.media }, limits),
   )
-  return openResult({ ...opened, text: `${opened.text}${note}` })
+  return pictureResult('Files.open', { ...opened, text: `${opened.text}${note}` }, 'text')
 }
 async function executeCommand(
   command: string,
