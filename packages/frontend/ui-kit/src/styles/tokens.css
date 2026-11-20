@@ -36,6 +36,10 @@
 
   --omne-window-inset: 0px;
 
+  --omne-layer-figure: 45;
+  --omne-layer-figure-raised: 55;
+  --omne-layer-menu: 56;
+
   --kami-page: light-dark(#f5f4ed, #1c1c19);
   --kami-canvas: light-dark(#e8e6dc, #141413);
   --kami-surface: light-dark(#faf9f5, #252521);

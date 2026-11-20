@@ -79,6 +79,7 @@ export {
 } from './patterns/ai/trace.tsx'
 export { ValuePill } from './patterns/ai/value-pill.tsx'
 export { CodeSurface } from './patterns/code-surface.tsx'
+export { CountPill } from './patterns/count-pill.tsx'
 export { ImpactPanel } from './patterns/confirm/impact-panel.tsx'
 export { type ConfirmTone, InlineConfirm } from './patterns/confirm/inline-confirm.tsx'
 export { Disclosure, DisclosureContent, DisclosureTrigger } from './patterns/disclosure.tsx'

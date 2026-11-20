@@ -92,6 +92,7 @@ const REST = [
   'Checkbox',
   'CodeSurface',
   'CopyButton',
+  'CountPill',
   'Disclosure',
   'DisclosureContent',
   'DisclosureTrigger',

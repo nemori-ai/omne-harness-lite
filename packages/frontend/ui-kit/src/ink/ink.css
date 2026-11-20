@@ -17,15 +17,19 @@
 .omne-figure-layer {
   position: fixed;
   inset: 0;
-  z-index: 45;
+  z-index: var(--omne-layer-figure);
   pointer-events: none;
+}
+
+:root:has([data-keyboard-modal][data-state='open'] [data-figure-seat]) .omne-figure-layer {
+  z-index: var(--omne-layer-figure-raised);
 }
 
 .omne-figure-carried {
   position: fixed;
   left: 0;
   top: 0;
-  z-index: 45;
+  z-index: var(--omne-layer-figure);
   pointer-events: none;
   touch-action: none;
   will-change: transform;
