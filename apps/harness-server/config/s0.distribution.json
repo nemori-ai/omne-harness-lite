@@ -76,6 +76,31 @@
       "config": {}
     },
     {
+      "id": "media-storage-sql",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-image",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-storage-local",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-sweep",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "stubPlugin",
       "config": {}
@@ -397,6 +422,11 @@
     },
     {
       "id": "notification-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-access",
       "plugin": "stubPlugin",
       "config": {}
     },

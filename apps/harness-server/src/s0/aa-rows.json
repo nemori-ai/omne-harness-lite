@@ -16,6 +16,11 @@
     "schedule",
     "notification",
     "calendar-notification",
+    "media-storage-sql",
+    "media-image",
+    "media",
+    "media-storage-local",
+    "media-sweep",
     "workspace",
     "usage",
     "usage-adapters",
@@ -81,6 +86,7 @@
     "calendar-access",
     "schedule-access",
     "notification-access",
+    "media-access",
     "workspace-access",
     "tool-access",
     "model-access",
@@ -157,6 +163,20 @@
         "tenantDomainRegistration",
         "tenantDomainScannerPrincipal",
         "tenantScopePrincipals"
+      ]
+    },
+    {
+      "row": "media-storage-sql",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration"
+      ]
+    },
+    {
+      "row": "media-sweep",
+      "names": [
+        "tenantDomainScannerPrincipal"
       ]
     },
     {
@@ -461,6 +481,13 @@
     },
     {
       "row": "notification-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "media-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

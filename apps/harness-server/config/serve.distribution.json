@@ -166,6 +166,31 @@
       "config": {}
     },
     {
+      "id": "media-storage-sql",
+      "plugin": "mediaStorageSqlRow",
+      "config": {}
+    },
+    {
+      "id": "media-image",
+      "plugin": "mediaImageRow",
+      "config": {}
+    },
+    {
+      "id": "media",
+      "plugin": "mediaRow",
+      "config": {}
+    },
+    {
+      "id": "media-storage-local",
+      "plugin": "mediaStorageLocalRow",
+      "config": {}
+    },
+    {
+      "id": "media-sweep",
+      "plugin": "mediaSweepRow",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "workspaceRow",
       "config": {}
@@ -738,6 +763,11 @@
     {
       "id": "notification-access",
       "plugin": "notificationAccessRow",
+      "config": {}
+    },
+    {
+      "id": "media-access",
+      "plugin": "mediaAccessRow",
       "config": {}
     },
     {

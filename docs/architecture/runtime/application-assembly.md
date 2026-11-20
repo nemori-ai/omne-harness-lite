@@ -38,6 +38,11 @@
 | `schedule` | 应用成员的日程组合：每个租户一个 `@omne-harness/schedule-local` 应用，事务域是这个租户的域（`tenantDomainLookup` 查，未登记时经 `tenantDomainRegistration` 先登记）；本应用的同意组合（授权端口）与守卫参加者 `harness-server.schedule.guards` | `scheduleCommands`、`scheduleQueries`：按调用上下文的租户转给这个租户的应用，别的租户的存储不被问到 | `storage`、`tenantDomainLookup`、`calendarQuery`、`tenantIndependentSettings` | `tenantDomainRegistration`（受信；第一次要某个租户的日程时现取）；`composition`，行体承载。同意在授权端口读这次调用的放行的那一刻决定：端口按请求带来的调用引用读 Tool 启动受理记录里的放行来由与依据，凭裁定为自动、本会话授权或询问策略跳过放行的采用全权同意，凭单次授权放行的采用逐条同意，读不到受理记录的答没有同意。守卫参加者核需求与命令重算一致、按 owner 与作者计非终态日程的占额（容量 100），不重读。不做到点派发 | 无 |
 | `notification` | 应用成员的通知组合：`@omne-harness/notification-local` 的 `./cordis` 插件 `createNotificationLocalPlugin`，一个提供者服务全部租户；每个租户的通知存在这个租户自己的事务域里（`tenantDomainLookup` 查，未登记时经 `tenantDomainRegistration` 先登记），第一次问到时在那里登记通知的存储组合，摘要从存储目录现算。本应用在这一行接上通知留的端口：资格是一张表（owner 只管人的收件箱、只以 `owner.posts` 发送；agent 只管自己的、只以 `agent.posts` 发送）；agent 订阅的同意依据按请求带来的调用引用读 Tool 启动受理记录里的放行来由与依据；持续事项的读者经租户级作用域读绑到通知的需要上的各个块（持有者不在、没有块绑上来、有一个块读不到，都不答成「没有事项」）。行体登记本应用的来源 `owner.posts`，并向登记面 `runtime-context.tenant-blocks` 贡献通知自己的块 `notification.delivery-blocked` 与它到这个需要的绑定 | `notificationSending`、`notificationInbox`、`notificationSubscriptions`、`notificationDestinations`、`notificationCatalog`、`notificationSources`、`notificationChannels`、`notificationChanges`、`notificationStanding` | `storage`、`tenantDomainLookup`、`tenantDomains`、`tenantDomainScannerPrincipal`（受信；启动时与定期的到期扫描以部署扫描主体枚举租户） | `tenantDomainRegistration`（受信；第一次要某个租户的通知时现取）；`composition`，行体承载，停止时先停准入、等在途的各有结局，再撤登记，不删事实 | 策略 `policy`：一整份，由运维层给，发行层不写数值；缺失或无效时这一行不启动 |
 | `calendar-notification` | 行体：向通知的来源登记面登记 `@omne-harness/calendar-adapters` 的来源 `calendar.supply`（三种持续事项：覆盖到警告线、覆盖到严重线、供应失败），并向租户级登记面贡献一条不经翻译的需要绑定：通知的「一组持续事项」← 块 `calendar.supply-risk`，块本身就是通知的事项形状，不经翻译。两个登记面出现时登记、撤下时随之收回，不是必需：通知的两行不在时这一行照常启动、什么也不登记。去掉这一行，日历照常，通知没有日历的事项 | 无 | 无 | 无（`notificationSources`、`runtimeContextTenantBlocks` 出现时登记） | 无 |
+| `media-storage-sql` | 应用成员的行：把 `@omne-harness/media-storage-sql` 的 `createSqlMediaIndex` 绑成媒体的元数据服务。每个租户的媒体元数据存在这个租户自己的事务域里（`tenantDomainLookup` 查，未登记时经 `tenantDomainRegistration` 先登记），第一次问到时在那里登记媒体的存储组合，摘要从存储目录现算 | `mediaIndex` | `storage`、`tenantDomainLookup` | `tenantDomainRegistration` | 无 |
+| `media-image` | 应用成员的行：把 `@omne-harness/media-image` 的 `createImageCodec` 绑成媒体的图像服务，底下是执行环境的有界图像成员 | `mediaImage` | 无 | 无 | `maxWidth`、`maxHeight`、`maxDecodedBytes`、`concurrency`，都有缺省值 |
+| `media` | `@omne-harness/media` 的 `./cordis`：存放的登记表 `MediaStoresProvider` 与保管服务 `createMediaPlugin`。存放按名字每次调用现取：`writeTo` 指的存放不在时，开始上传与存入答依据不可用 | `mediaStores`、`media` | `mediaIndex`、`mediaImage` | 登记表里的存放 | `writeTo`、`maxBytes`（按模态）、`partBytes`、`uploadTtlMs`、`stagingTtlMs`、`variantCacheBytes`，都有缺省值 |
+| `media-storage-local` | 应用成员的行：向 `mediaStores` 登记 `@omne-harness/media-storage-local` 的本机文件存放，名字 `local`；行卸载时登记撤回 | 无公开服务 | `mediaStores` | 无 | `root`：绝对路径，本机档由运维者层给成状态目录下的 `media` |
+| `media-sweep` | 媒体的维护行：启动时与之后每个节拍，枚举有事务域的租户，逐个调 `media` 的 `custody.sweep`（到期的先标记删除，再接着删停在删除中的对象），一个节拍没跑完不起下一个 | 无公开服务 | `media`、`tenantDomains`、`tenantDomainScannerPrincipal` | 无 | `intervalMs`、`limit`，都有缺省值；批量 1–1000 |
 | `workspace` | 应用成员的工作区组合：`@omne-harness/workspace-local` 的 `./cordis` 插件 `createWorkspaceLocalPlugin`，一个提供者服务全部租户。工作区的事实不属于任何一个租户，存在系统作用域的事务域 `system.workspace` 里，隔离靠仓储的每个入口按租户过滤；第一次用到时在那里登记工作区的存储组合，摘要从存储目录现算。本应用在这一行接上工作区留的端口：成员资格与动作准入用身份域适配（操作与目标由工作区命名，拥有者 `@omne-harness/workspace`）；身份域的服务不在时答依据不可用。行体向登记面 `workspace.types` 贡献文件系统型与拓展它的 Git 型 | `workspaceGovernance`、`workspaceInstances`、`workspaceCatalog`、`workspaceTypes` | `storage` | `principalVerifier`、`tenantStanding`（受信；每次调用现取）；`composition`，行体承载，停止时撤下提供者，不删事实 | 节点名 `node`：由运维层给，发行层不写数值；缺失或为空时这一行不启动 |
 | `usage` | 用量的查询服务与来源登记表：`@omne-harness/usage` 的 `./cordis` 插件 `UsageSourcesProvider` 与 `createUsagePlugin`。上限由本行显式给出：向来源每页至多 200 笔，一次查询至多读 2000 页、至多 1000 个时间桶。去掉这一行，核心照常，用量的查询不在 | `usage`、`usageSources` | 无 | `usageSessionScope`（范围是会话时按查询现取；缺席时答依据不可用，依据是会话范围） | 无 |
 | `usage-adapters` | `@omne-harness/usage-adapters` 的 `./cordis` 插件 `createUsageAdaptersPlugin`：装上时向 `usageSources` 登记模型与工具两个来源、提供会话范围，卸下时撤回自己那两份。会话范围读会话日志的 Run 开始与压缩消息，答出 Agent 拥有者下的执行与压缩提供者拥有者下的压缩任务；两个拥有者名由本行显式给出（`@omne-harness/agent`、`@omne-harness/context-compaction`） | `usageSessionScope` | `usageSources` | `modelDispatchFacts`、`toolAccounts`、`session`（以 `reader` 调用方）。取不到时那一个来源或会话范围答依据不可用 | 无 |
@@ -103,6 +108,7 @@
 | `calendar-access` | `@omne-harness/calendar-access` 的 `./cordis` 插件 `createCalendarAccessPlugin`：`calendar/v1` 的接入插件。装上这一行，新地址才开放 `calendar/v1` | 无。插件把 `calendar/v1` 的贡献（列日历、读生效环境、读供应健康、答日期问题 4 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `calendarQuery`、`calendarCalculator`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `schedule-access` | `@omne-harness/schedule-access` 的 `./cordis` 插件 `createScheduleAccessPlugin`：`schedule/v1` 的接入插件。装上这一行，新地址才开放 `schedule/v1` | 无。插件把 `schedule/v1` 的贡献（列、读、修订历史、视图、预览、建与认回、管理与认回 9 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | `scheduleCommands`、`scheduleQueries`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `notification-access` | `@omne-harness/notification-access` 的 `./cordis` 插件 `createNotificationAccessPlugin`：`notification/v1` 的接入插件。装上这一行，新地址才开放 `notification/v1`。登录能为租户行事时，行事者是这个租户的 owner | 无。插件把 `notification/v1` 的贡献（以一个来源发送与查一次发送，收件、订阅与节拍、去处、目录共 16 个操作，一条观察）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | 通知的五个服务面与 `notificationChanges`。服务面取不到时调用答 `basis-unavailable`，协议不撤下；变化源取不到时观察以不可用结束 | 无 |
+| `media-access` | `@omne-harness/media-access` 的 `./cordis` 插件 `createMediaAccessPlugin`：`media/v1` 的接入插件。装上这一行，新地址才开放 `media/v1` | 无。插件把 `media/v1` 的贡献（开始上传、追加分片、提交上传、认回上传、分页读字节、描述一份媒体共 6 个操作，没有观察）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | `media`。不在时每个操作答依据不可用，协议不撤下 | 无 |
 | `workspace-access` | `@omne-harness/workspace-access` 的 `./cordis` 插件 `createWorkspaceAccessPlugin`：`workspace/v1` 的接入插件。装上这一行，新地址才开放 `workspace/v1`。登录能为租户行事时，行事的主体是这个租户的成员主体 | 无。插件把 `workspace/v1` 的贡献（登记与查一次登记，列出，查看，共 4 个操作，没有观察）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `calendar-access`） | 工作区的治理面与目录面。服务面取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `tool-access` | `@omne-harness/tool-access` 的 `./cordis` 插件 `createToolAccessPlugin`：`tool/v1` 的接入插件。装上这一行，新地址才开放 `tool/v1` | 无。插件把 `tool/v1` 的贡献（按调用引用读一次调用与读结果 2 个操作、观察 `observe-call`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createMemberActing`，把登录换成为目标租户行事的主体；资格读口缺席时换不出，调用答 `basis-unavailable`） | `toolRuntime` 的查询、实例与观察。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `model-access` | `@omne-harness/model-access` 的 `./cordis` 插件 `createModelAccessPlugin`：`model/v1` 的接入插件。装上这一行，新地址才开放 `model/v1` | 无。插件把 `model/v1` 的贡献（列出模型 1 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `modelProfiles`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
@@ -158,6 +164,13 @@ flowchart LR
   storage --> notification
   session-storage -->|tenantDomainLookup| notification
   session-storage -->|tenantDomains| notification
+  storage --> media-storage-sql
+  session-storage -->|tenantDomainLookup| media-storage-sql
+  media-storage-sql -->|mediaIndex| media
+  media-image -->|mediaImage| media
+  media -->|mediaStores| media-storage-local
+  media -->|media| media-sweep
+  session-storage -->|tenantDomains| media-sweep
   storage --> workspace
   authorization --> session-storage
   session-input-sources -. sessionInputSources .-> session-storage
@@ -263,6 +276,9 @@ flowchart LR
   server-entry --> notification-access
   identity -.-> notification-access
   notification -.-> notification-access
+  server-entry --> media-access
+  identity -.-> media-access
+  media -.-> media-access
   server-entry --> workspace-access
   identity -.-> workspace-access
   workspace -.-> workspace-access
@@ -376,6 +392,8 @@ flowchart LR
 | `calendar` | `storage`、`tenantStanding`、`tenantScopePrincipals` |
 | `schedule` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration` |
 | `notification` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration`、`tenantDomainScannerPrincipal`、`tenantScopePrincipals` |
+| `media-storage-sql` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration` |
+| `media-sweep` | `tenantDomainScannerPrincipal` |
 | `workspace` | `storage`、`principalVerifier`、`tenantStanding` |
 | `authorization`         | `principalVerifier`、`tenantStanding`、`identityGovernance`、`systemActionAuthorization`、`currentToolPermission`、`sessionModesInstallation` |
 | `session-storage`       | `storage`、`tenantDomainLookup`、`sessionPrincipalBindings`、`sessionScopeOwners`、`sessionDelegatedTransactions`、`systemActionAuthorization`、`sessionPermissionBackend`、`tenantDomainRegistration`、`tenantScopePrincipals` |
@@ -416,6 +434,7 @@ flowchart LR
 | `calendar-access` | `principalIssuer`、`tenantStanding` |
 | `schedule-access` | `principalIssuer`、`tenantStanding` |
 | `notification-access` | `principalIssuer`、`tenantStanding` |
+| `media-access` | `principalIssuer`、`tenantStanding` |
 | `workspace-access` | `principalIssuer`、`tenantStanding` |
 | `tool-access` | `principalIssuer`、`tenantStanding` |
 | `model-access` | `principalIssuer`、`tenantStanding` |
@@ -495,7 +514,7 @@ flowchart LR
 | 证据桥的生产来源与保管来源 | `session-ad10` 的 `sessionProductionSource`、`sessionCustodySource` | 入口在根上装载 `SessionProductionSourceService`、`SessionCustodySourceService` 的子类。原事实拥有者的来源行交付前，每次 `prepare` 答 `unavailable`、`owner` 是该键、诊断点名来源，不给任何守卫（见缺口表）。不进插件树，不进插件配置 |
 | Agent 宿主维护主体 | `agent-host` 的 `agentHostPrincipal` | 由装配入口签发的系统主体，在根上 provide，`agent-host` 静态 `inject`。宿主用它代实例所属租户发布实例、quiesce 实例并在交清后撤登记，每件都按现行规则核 `publish`、`quiesce`、`withdraw`。被拒或不可用时不声称已发布或已回收。不进插件树，不进插件配置 |
 | 常驻引用读取主体 | `tool-residency` 的 `toolResidencyPrincipal` | 由装配入口签发的系统主体。桥接插件以调用方类 `maintainer` 调用 `references` 时出示它，作为系统作用域的读取资格。不进插件树，不进插件配置 |
-| Deployment scanner principal | `tool-body-sweep`, `tool-records`, `session-provider` and `notification` only | The entry module `tenantDomainScannerPrincipal` issues the deployment principal that enumerates tenants. The body sweep and the pending scan of the Tool ledger enumerate tenants with it. The `session-provider` row enumerates tenants with it for the startup scan of the Session provider. The `notification` row enumerates tenants with it for the scan of what is due at startup and on its interval. The sweep and the scan run as the Tool runtime and carry no other principal; the principal is not visible to ordinary tools. |
+| Deployment scanner principal | `tool-body-sweep`, `tool-records`, `session-provider`, `notification` and `media-sweep` only | The entry module `tenantDomainScannerPrincipal` issues the deployment principal that enumerates tenants. The body sweep and the pending scan of the Tool ledger enumerate tenants with it. The `session-provider` row enumerates tenants with it for the startup scan of the Session provider. The `notification` row enumerates tenants with it for the scan of what is due at startup and on its interval. The sweep and the scan run as the Tool runtime and carry no other principal; the principal is not visible to ordinary tools. The `media-sweep` row enumerates tenants with it to sweep the media of each tenant. |
 | Tool 贡献来源权威（`toolContributionAuthority`） | `tool-bindings`、`tool-host` | 入口在根上装载 `ToolContributionAuthorityService` 的子类。启动时读发行清单 `config/tool-release.json`，按包产物清单重算已安装 tool-definitions 的摘要，全等才得到带发行代次的受信快照。`verify` 只认与快照全等的官方层发行内置作者来源；`admits` 只认本运行的发行登记者。快照不可用时两方法都答 `unavailable`，不放行。不进插件树，不进插件配置 |
 | 发行登记者（`toolReleaseRegistrant`） | `tool-host`（作者闭包的 `context.access`）；`toolContributionAuthority` 的 `admits` | 由装配入口签发的系统主体加发行登记租户，在根上 provide。签发方式与常驻引用读取主体相同，二者不互借。不在维护授予表里，登记官方贡献只经 `admits` 放行。不进插件树，不进插件配置 |
 | 环境授权、可信作用域绑定与恢复授权 | `execution-environment`；AD-15 另在构造时接收恢复授权 | 入口装载 `ExecutionEnvironmentAuthorityService`、`ExecutionScopeBindingService`、`ExecutionRecoveryAuthorityService` 的子类，提供 `executionEnvironmentAuthority`、`executionScopeBinding`、`executionRecoveryAuthority`。逐次现取，缺席按[环境端口规则](../../../packages/execution/SPEC.md#cordis-装配)不可用 |

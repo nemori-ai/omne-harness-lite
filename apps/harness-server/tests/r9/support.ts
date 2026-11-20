@@ -455,6 +455,11 @@ export function operatorLayer(options: {
         id: 'session-history-index',
         config: { root: join(dirname(options.storageRoot), 'history-index') },
       },
+      {
+        kind: 'replace',
+        id: 'media-storage-local',
+        config: { root: join(dirname(options.storageRoot), 'media') },
+      },
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
       { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
       { kind: 'replace', id: 'workspace', config: { node: 'local' } },

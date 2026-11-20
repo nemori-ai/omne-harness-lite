@@ -442,6 +442,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'model-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'schedule-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'notification-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'media-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'media-storage-sql': { provides: ['mediaIndex'], injects: ['storage', 'tenantDomainLookup'] },
+  'media-image': { provides: ['mediaImage'], injects: [] },
+  media: { provides: ['mediaStores', 'media'], injects: ['mediaIndex', 'mediaImage'] },
+  'media-storage-local': { injects: ['mediaStores'] },
+  'media-sweep': { injects: ['media', 'tenantDomains', 'tenantDomainScannerPrincipal'] },
   'workspace-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }

@@ -704,6 +704,27 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../packages/common/legal-identity
+      '@omne-harness/media':
+        specifier: workspace:*
+        version: link:../../packages/media/media
+      '@omne-harness/media-access':
+        specifier: workspace:*
+        version: link:../../packages/media/media-access
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../../packages/media/media-contract
+      '@omne-harness/media-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/media/media-cordis-contract
+      '@omne-harness/media-image':
+        specifier: workspace:*
+        version: link:../../packages/media/media-image
+      '@omne-harness/media-storage-local':
+        specifier: workspace:*
+        version: link:../../packages/media/media-storage-local
+      '@omne-harness/media-storage-sql':
+        specifier: workspace:*
+        version: link:../../packages/media/media-storage-sql
       '@omne-harness/model':
         specifier: workspace:*
         version: link:../../packages/model/model
@@ -975,6 +996,9 @@ importers:
       '@omne-harness/mcp-host-local':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-host-local
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../../packages/media/media-protocol
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk

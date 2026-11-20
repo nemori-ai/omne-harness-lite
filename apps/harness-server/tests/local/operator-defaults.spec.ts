@@ -230,6 +230,9 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(configOf(layer, 'session-history-index')).toEqual({
       root: input('linux').locations.historyIndexRoot,
     })
+    expect(configOf(layer, 'media-storage-local')).toEqual({
+      root: input('linux').locations.mediaRoot,
+    })
     const without = localOperatorLayer({
       ...input('linux'),
       distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
@@ -246,6 +249,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
               'notification',
               'workspace',
               'session-history-index',
+              'media-storage-local',
             ].includes(id),
         ),
     )
