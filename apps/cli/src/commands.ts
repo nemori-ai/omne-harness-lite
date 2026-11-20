@@ -575,6 +575,11 @@ const RELATION_USAGE =
 const oneOf = <T extends string>(allowed: readonly T[], value: string | undefined) =>
   value === undefined ? null : allowed.includes(value as T) ? (value as T) : undefined
 
+const present = <T extends object>(value: T) =>
+  Object.fromEntries(Object.entries(value).filter(([, member]) => member !== undefined)) as {
+    [K in keyof T]?: Exclude<T[K], undefined>
+  }
+
 /** What both lists read alike: the tenant, the page, and the relation filters that were given. */
 function listFilters(values: Option): (ListFilters & { given: TenantId | undefined }) | undefined {
   const given = tenantOption(values)
@@ -583,17 +588,17 @@ function listFilters(values: Option): (ListFilters & { given: TenantId | undefin
   const attendance = oneOf(ATTENDANCES, values.get('--attendance'))
   if (given === null || relation === undefined || attendance === undefined) return undefined
   if (limit !== undefined && !LIMIT.test(limit)) return undefined
-  const parent = values.get('--parent')
-  const definition = values.get('--definition')
   return {
     given,
     tenant: given as TenantId,
     cursor: values.get('--cursor') ?? null,
-    ...(limit === undefined ? {} : { limit: Number(limit) }),
-    ...(relation === null ? {} : { relation }),
-    ...(parent === undefined ? {} : { parent }),
-    ...(attendance === null ? {} : { attendance }),
-    ...(definition === undefined ? {} : { definition }),
+    ...present({
+      limit: limit === undefined ? undefined : Number(limit),
+      relation: relation ?? undefined,
+      parent: values.get('--parent'),
+      attendance: attendance ?? undefined,
+      definition: values.get('--definition'),
+    }),
   }
 }
 
