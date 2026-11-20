@@ -12,6 +12,7 @@ import { ModelSelectionStore, type ModelChoiceHolder } from './model/model-selec
 import { PermissionModeStore } from './model/permission-mode.ts'
 import { SessionWorkStore } from './model/session-work.ts'
 import { SessionWorkspaces } from './model/session-workspaces.ts'
+import { WorkspaceSelectionStore, type WorkspaceChoiceHolder } from './model/workspace-selection.ts'
 import { sessionCallDetail, sessionDock, sessionSide, sessionStatus } from './points.ts'
 import { ArchiveAction, ArchivedSessions } from './view/archive.tsx'
 import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
@@ -23,6 +24,7 @@ import { PermissionModeAction } from './view/permission-mode.tsx'
 import { SessionWork } from './view/session-work.tsx'
 import { SessionListPanel } from './view/session-list-panel.tsx'
 import { SidePanel } from './view/side-panel.tsx'
+import { WorkspaceAction } from './view/workspace-selection.tsx'
 
 export const sessionClientService = protocolServiceName({
   name: sessionProtocol.name,
@@ -36,6 +38,10 @@ export const HISTORY_SEARCH_PAGE = 'history-search'
 
 /** Where a list of models is handed to the session interface; it works without one. */
 export const sessionModelChoicesKey = serviceKey<ModelChoiceHolder>('session.model-choices')
+/** Where a list of workspaces is handed to the session interface; it works without one. */
+export const sessionWorkspaceChoicesKey = serviceKey<WorkspaceChoiceHolder>(
+  'session.workspace-choices',
+)
 
 export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionProtocol>>>({
   name: 'session-ui',
@@ -44,6 +50,8 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
     const client = services[sessionClientService]!
     const models = new ModelSelectionStore(client)
     provide(sessionModelChoicesKey, models)
+    const places = new WorkspaceSelectionStore(client)
+    provide(sessionWorkspaceChoicesKey, places)
     const workspaces = new SessionWorkspaces({ client })
     const background = new BackgroundCallsStore(client)
     const archive = new ArchiveStore(client)
@@ -66,6 +74,7 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
         <SessionListPanel
           workspaces={workspaces}
           models={models}
+          places={places}
           scope={scope}
           onShow={() => shell.navigate(CONVERSATION_PAGE)}
         />
@@ -98,6 +107,7 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
               scope === undefined ? null : (
                 <>
                   <ModelAction store={models} tenant={scope} session={session} />
+                  <WorkspaceAction store={places} tenant={scope} session={session} />
                   <PermissionModeAction store={modes} tenant={scope} session={session} />
                   <ArchiveAction
                     store={archive}

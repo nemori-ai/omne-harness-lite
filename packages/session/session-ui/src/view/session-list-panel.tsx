@@ -2,6 +2,7 @@ import { AddIcon, Button, StatusPill } from '@omne-harness/ui-kit'
 import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
 import { useSyncExternalStore } from 'react'
 import type { ModelSelectionStore } from '../model/model-selection.ts'
+import type { WorkspaceSelectionStore } from '../model/workspace-selection.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import {
   sessionName,
@@ -12,6 +13,7 @@ import {
 import { createInFlight } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import { useNewSessionModel } from './model-selection.tsx'
+import { useNewSessionWorkspace } from './workspace-selection.tsx'
 import { formatMoment } from './moment.ts'
 import { NoticeLine } from './notice.tsx'
 import { useSession } from './use-session.ts'
@@ -19,30 +21,42 @@ import { useSession } from './use-session.ts'
 export type SessionListPanelProps = Readonly<{
   workspaces: SessionWorkspaces
   models: ModelSelectionStore
+  places: WorkspaceSelectionStore
   scope: string | undefined
   onShow: () => void
 }>
 
-export function SessionListPanel({ workspaces, models, scope, onShow }: SessionListPanelProps) {
+export function SessionListPanel({
+  workspaces,
+  models,
+  places,
+  scope,
+  onShow,
+}: SessionListPanelProps) {
   const handle = useSession(workspaces, scope)
   if (handle.kind !== 'ready' || scope === undefined)
     return <div className="omne-session-sidebar" />
-  return <Panel driver={handle.driver} models={models} tenant={scope} onShow={onShow} />
+  return (
+    <Panel driver={handle.driver} models={models} places={places} tenant={scope} onShow={onShow} />
+  )
 }
 
 function Panel({
   driver,
   models,
+  places,
   tenant,
   onShow,
 }: {
   readonly driver: SessionDriver
   readonly models: ModelSelectionStore
+  readonly places: WorkspaceSelectionStore
   readonly tenant: string
   readonly onShow: () => void
 }) {
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
   const { model, picker } = useNewSessionModel(models, tenant)
+  const place = useNewSessionWorkspace(places, tenant)
   const current = state.kind === 'open' || state.kind === 'unavailable' ? state.session : null
   return (
     <div className="omne-session-sidebar">
@@ -51,7 +65,10 @@ function Panel({
         size="compact"
         disabled={state.kind === 'creating'}
         onClick={() => {
-          driver.createSession(model)
+          driver.createSession({
+            ...(model === undefined ? {} : { model }),
+            ...(place.workspace === undefined ? {} : { workspace: place.workspace }),
+          })
           onShow()
         }}
       >
@@ -59,6 +76,7 @@ function Panel({
         新建会话
       </Button>
       {picker}
+      {place.picker}
       <SessionListView
         list={list}
         current={current}

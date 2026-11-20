@@ -4,6 +4,7 @@ export {
   sessionClientService,
   sessionModelChoicesKey,
   sessionUiModule,
+  sessionWorkspaceChoicesKey,
 } from './module.tsx'
 export type {
   ModelChoice,
@@ -11,6 +12,12 @@ export type {
   ModelChoiceListing,
   ModelChoiceSource,
 } from './model/model-selection.ts'
+export type {
+  WorkspaceChoice,
+  WorkspaceChoiceHolder,
+  WorkspaceChoiceListing,
+  WorkspaceChoiceSource,
+} from './model/workspace-selection.ts'
 export {
   SESSION_CALL_DETAIL,
   SESSION_DOCK,
