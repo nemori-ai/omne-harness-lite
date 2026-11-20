@@ -182,8 +182,6 @@ const REST = [
   'TableRow',
   'Textarea',
   'ToldNote',
-  'ToastItem',
-  'ToastStack',
   'Tooltip',
   'TooltipContent',
   'TooltipProvider',

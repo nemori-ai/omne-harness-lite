@@ -149,7 +149,6 @@
   --omne-meter-track-height: 6px;
   --omne-page-column-width: 1200px;
   --omne-page-column-padding: 32px 40px 48px;
-  --omne-toast-width: 360px;
   --omne-dialog-width: 480px;
   --omne-code-height: 288px;
   --omne-code-header-height: 40px;
@@ -214,7 +213,6 @@
   --omne-meter-track-height: 5px;
   --omne-page-column-width: 900px;
   --omne-page-column-padding: 24px 30px 36px;
-  --omne-toast-width: 270px;
   --omne-dialog-width: 360px;
   --omne-code-height: 216px;
   --omne-code-header-height: 30px;
@@ -275,7 +273,6 @@
   --omne-meter-track-height: 7px;
   --omne-page-column-width: 1500px;
   --omne-page-column-padding: 40px 50px 60px;
-  --omne-toast-width: 450px;
   --omne-dialog-width: 600px;
   --omne-code-height: 360px;
   --omne-code-header-height: 50px;
@@ -337,7 +334,6 @@
   --omne-meter-track-height: 9px;
   --omne-page-column-width: 1800px;
   --omne-page-column-padding: 48px 60px 72px;
-  --omne-toast-width: 540px;
   --omne-dialog-width: 720px;
   --omne-code-height: 432px;
   --omne-code-header-height: 60px;
@@ -554,4 +550,8 @@
   --leading-wrapped: var(--omne-leading-wrapped);
   --leading-reading: var(--omne-leading-reading);
   --leading-title: var(--omne-leading-title);
+}
+
+:root[data-window-chrome='mac-inset'] {
+  --omne-window-inset: 28px;
 }
