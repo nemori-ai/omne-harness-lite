@@ -10,7 +10,7 @@ import {
   insertReceipt,
   readReceipt,
   receiptOf,
-  releaseReceipts,
+  recordCommitted,
   runParticipants,
   type Outcome,
 } from './execute.ts'
@@ -231,8 +231,7 @@ export class GroupRunner {
           outcome.entries,
         )
         try {
-          releaseReceipts(db, request)
-          if (keepsReceipt(entry.job)) insertReceipt(db, receipt)
+          recordCommitted(db, request, receipt, keepsReceipt(entry.job))
           db.exec(`RELEASE ${savepoint}`)
         } catch (error) {
           stop = { kind: 'environment', entry, savepoint, error }
