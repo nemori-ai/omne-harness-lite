@@ -28,6 +28,7 @@
 | `--omne-motion-ease-loop` | linear | 一切循环：循环匀速，从不缓动 |
 | `--omne-motion-spirit-flow` | 2.6s | 无 |
 | `--omne-motion-spirit-dwell` | 2000ms | 无 |
+| `--omne-motion-travel` | 4px | 浮层进入与内容到达时位移的距离（不是时长）；按字号档分四档，小楷 3px、中楷 4px、大楷 5px、老花 6px，表里写中楷的值 |
 
 「用在哪」写「无」的 token：`tokens.css` 里还在，本技能没有规则用它们，成员不得读它们。它们的去留归共用件；删掉一个时，同一次改动删掉这张表的那一行。
 
