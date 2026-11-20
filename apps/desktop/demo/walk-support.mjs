@@ -145,7 +145,7 @@ export async function record(browser, folder, act, { lasting, clip } = {}) {
   })
   await browser.send('Page.startScreencast', { format: 'png', everyNthFrame: 1 })
   const started = await evaluate(browser, 'performance.timeOrigin + performance.now()')
-  await act()
+  await act(started)
   await new Promise(resolve => setTimeout(resolve, lasting ?? 2000))
   await browser.send('Page.stopScreencast')
   off()

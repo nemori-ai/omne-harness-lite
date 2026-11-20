@@ -29,7 +29,8 @@ scrolls sideways; the specimen scene prints the page policy violations it saw.
   --widths <a,b>       1440x900,1100x760,720x480 (default 1440x900,1100x760)
   --sizes <a,b>        medium,small,large,reading: the extra sizes for the scenes marked ※ (default none)
   --scale <n>          device pixels per CSS pixel (default 1)
-  --series <a,b>       record these frame series instead of the scenes (--list prints them)
+  --series <a,b>       record these frame series instead of the scenes, once per theme, each on a fresh
+                       specimen page (--list prints them)
   --reduced            emulate prefers-reduced-motion: reduce for everything shot or recorded
 
 Needs \`pnpm run build\` in apps/desktop and apps/harness-server first. The specimen page (demo/specimen/) is built
@@ -331,20 +332,34 @@ async function shootScene(browser, scene, done) {
 
 async function buildSpecimen() {
   const outDir = mkdtempSync(join(tmpdir(), 'visual-walk-specimen-'))
+  const root = fileURLToPath(new URL('./specimen/', import.meta.url))
   await build({
-    root: fileURLToPath(new URL('./specimen/', import.meta.url)),
+    root,
     base: '/specimen/',
     configFile: false,
     publicDir: false,
     logLevel: 'warn',
     plugins: [react(), tailwindcss()],
-    build: { outDir, emptyOutDir: true, modulePreload: { polyfill: false }, assetsInlineLimit: 0 },
+    build: {
+      outDir,
+      emptyOutDir: true,
+      modulePreload: { polyfill: false },
+      assetsInlineLimit: 0,
+      rollupOptions: { input: [join(root, 'index.html'), join(root, 'ink.html')] },
+    },
   })
   return outDir
 }
 
-async function openSpecimen(browser, origin) {
-  await browser.send('Page.navigate', { url: `${origin}specimen/index.html` })
+async function openSpecimen(browser, origin, page = 'index.html') {
+  const loaded = new Promise(resolve => {
+    const off = browser.on('Page.loadEventFired', () => {
+      off()
+      resolve()
+    })
+  })
+  await browser.send('Page.navigate', { url: `${origin}specimen/${page}` })
+  await loaded
   await run(
     browser,
     `await wait('the specimen', () => document.querySelector('[data-specimen=ready]'))`,
@@ -384,22 +399,26 @@ async function main() {
     await browser.send('Page.navigate', { url: stack.origin })
     const done = []
     if (seriesWanted.length > 0) {
-      await openSpecimen(browser, stack.origin)
       for (const name of seriesWanted) {
         const series = SERIES[name]
         if (series === undefined) throw new Error(`no series ${name}`)
-        const folder = join(shots, reduced ? `${name}-reduced` : name)
-        await apply(browser, { theme: 'light', width: widths[0], size: 'medium' })
-        await series.prepare?.(browser, run)
-        const frames = await record(browser, folder, () => series.act(browser, run), {
-          lasting: series.lasting,
-          clip: series.clip,
-        })
-        const timings = await series.measure?.(browser, run)
-        writeFileSync(join(folder, 'timings.json'), `${JSON.stringify(timings ?? {}, null, 2)}\n`)
-        print(
-          `SERIES ${name}: ${frames.length} frames  ${JSON.stringify(timings ?? {})}  [${folder}]`,
-        )
+        for (const theme of themes) {
+          const folder = join(shots, `${name}-${theme}${reduced ? '-reduced' : ''}`)
+          await apply(browser, { theme, width: series.width ?? widths[0], size: 'medium' })
+          await openSpecimen(browser, stack.origin, series.page)
+          await series.prepare?.(browser, run)
+          const frames = await record(
+            browser,
+            folder,
+            started => series.act(browser, run, started),
+            { lasting: series.lasting, clip: series.clip },
+          )
+          const timings = await series.measure?.(browser, run)
+          writeFileSync(join(folder, 'timings.json'), `${JSON.stringify(timings ?? {}, null, 2)}\n`)
+          print(
+            `SERIES ${name} ${theme}: ${frames.length} frames  ${JSON.stringify(timings ?? {})}  [${folder}]`,
+          )
+        }
       }
       return
     }
