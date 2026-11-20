@@ -165,7 +165,9 @@ function exactChecks(measure: MeterFacts, method: Adoption): readonly BudgetChec
     })
     switch (limit.metric) {
       case 'image-bytes':
-        for (const fact of images) checks.push(check(fact.reference.key, fact.bytes))
+        // A pending image is read at the send, as a version within this limit when it is over it.
+        if (measure.representation.kind === 'materialized')
+          for (const fact of images) checks.push(check(fact.reference.key, fact.bytes))
         break
       case 'image-count':
         checks.push(check('request', String(images.length)))
