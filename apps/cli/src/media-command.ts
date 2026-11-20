@@ -51,11 +51,11 @@ function call<K extends keyof Operations & string>(
 }
 
 /** The reference a person pastes from the output of `put`. Whether it is one is the contract's to say. */
-function referenceOf(text: string): Reference | undefined {
+function referenceOf(text: string): Reference {
   try {
     return JSON.parse(text) as Reference
   } catch {
-    return undefined
+    return text as unknown as Reference
   }
 }
 
@@ -108,7 +108,6 @@ async function put(context: Context, values: Option): Promise<Ending> {
 
 async function get(context: Context, values: Option): Promise<Ending> {
   const ref = referenceOf(values.get('--ref') ?? '')
-  if (ref === undefined) return { usage: '--ref is not the JSON of a content reference' }
   const out = values.get('--out') ?? ''
   const pages: Buffer[] = []
   let mediaType = ''
@@ -137,7 +136,6 @@ async function get(context: Context, values: Option): Promise<Ending> {
 
 async function describe(context: Context, values: Option): Promise<Ending> {
   const ref = referenceOf(values.get('--ref') ?? '')
-  if (ref === undefined) return { usage: '--ref is not the JSON of a content reference' }
   return {
     result: await call(context, 'describe-media', { tenant: context.tenant, ref }),
     echo: {},

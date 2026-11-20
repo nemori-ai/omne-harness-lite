@@ -127,8 +127,9 @@ describe('omne media put', () => {
       result: 'response',
       outcome: 'succeeded',
       body: { ref: REF, facts: FACTS },
-      request: { tenant: tenantText, upload },
+      request: { tenant: tenantText, upload, file: join(root, 'picture.png') },
     })
+    expect(run.stderr).toBe('')
   })
 
   it('goes on from the part the server says is next when the upload was begun before', async () => {
@@ -278,7 +279,11 @@ describe('omne media get', () => {
     const run = await cli(['media', 'get', '--ref', ref, '--out', out])
     expect(run.code).toBe(3)
     expect(existsSync(out)).toBe(false)
-    expect(printed(run)).toMatchObject({ outcome: 'not-found', body: { reason: 'material' } })
+    expect(printed(run)).toMatchObject({
+      outcome: 'not-found',
+      body: { reason: 'material' },
+      request: { tenant: tenantText, out },
+    })
   })
 
   it('refuses a reference that is not the JSON of one, and sends nothing', async () => {
@@ -328,15 +333,48 @@ describe('omne media describe', () => {
     expect(run.stderr).not.toContain('--upload')
   })
 
-  it('refuses an action it does not have, an option it does not take and a missing option', async () => {
+  it('refuses an action it does not have and an option it does not take, by the name of the command', async () => {
     const service = await serve()
-    for (const argv of [
-      ['media'],
-      ['media', 'delete'],
-      ['media', 'describe'],
-      ['media', 'put', '--file', 'a', '--x', 'y'],
-    ])
-      expect((await cli(argv)).code).toBe(2)
+    expect(await cli(['media'])).toMatchObject({
+      code: 2,
+      stderr: expect.stringContaining('omne media:'),
+    })
+    expect(await cli(['media', 'delete'])).toMatchObject({
+      code: 2,
+      stderr: expect.stringContaining('omne media:'),
+    })
+    expect(await cli(['media', 'put', '--file', 'a', '--x', 'y'])).toMatchObject({
+      code: 2,
+      stderr: expect.stringContaining('omne media put: unrecognized'),
+    })
     expect(mediaCalls(service)).toEqual([])
+  })
+
+  it.each([
+    [['media', 'put'], 'omne media put: missing --file'],
+    [['media', 'get', '--out', 'x'], 'omne media get: missing --ref'],
+    [['media', 'get', '--ref', '{}'], 'omne media get: missing --out'],
+    [['media', 'describe'], 'omne media describe: missing --ref'],
+  ])('%j says which option is missing and sends nothing', async (argv, message) => {
+    const service = await serve()
+    const run = await cli(argv)
+    expect(run.code).toBe(2)
+    expect(run.stderr).toContain(message)
+    expect(mediaCalls(service)).toEqual([])
+  })
+
+  it('sends nothing without a login, and exits 1', async () => {
+    const service = await startFakeService(seen => media()(seen) ?? defaultAnswer(seen))
+    services.push(service)
+    const run = await cli([
+      'media',
+      'describe',
+      '--ref',
+      JSON.stringify(REF),
+      '--server',
+      service.origin,
+    ])
+    expect(run.code).toBe(1)
+    expect(service.seen).toEqual([])
   })
 })
