@@ -30,27 +30,22 @@ describe('the contact answer of the local host', () => {
     gate.resolve('pass')
   })
 
-  it('answers lost for a settled call whose push gave up on a mismatched receipt while its receiver is registered', async () => {
-    const w = await started()
-    const scripted = scriptedReceiver()
-    scripted.state.next = ['foreign-key']
-    await w.register(scripted.receiver)
-    await w.admit('one')
-    await until(() => w.record('one')?.result?.standing.status === 'failed', 'the given-up push')
-    await quiet()
-    expect(unbox(await w.contact('one'))).toEqual({ kind: 'lost', evidence: lock('mcall_one') })
-  })
-
-  it('answers settled for a settled call whose push waits to try an unknown outcome again', async () => {
-    const w = await started()
-    const scripted = scriptedReceiver()
-    scripted.state.next = Array.from({ length: 20 }, () => 'unknown' as const)
-    await w.register(scripted.receiver)
-    await w.admit('one')
-    await until(() => w.record('one')?.result?.standing.status === 'unknown', 'the unknown outcome')
-    await quiet()
-    expect(unbox(await w.contact('one'))).toEqual({ kind: 'settled' })
-  })
+  it.each(['unknown', 'foreign-key'] as const)(
+    'answers settled for a settled call whose push waits to try again after %s answers',
+    async answer => {
+      const w = await started()
+      const scripted = scriptedReceiver()
+      scripted.state.next = Array.from({ length: 20 }, () => answer)
+      await w.register(scripted.receiver)
+      await w.admit('one')
+      await until(
+        () => w.record('one')?.result?.standing.status === 'unknown',
+        'the unknown outcome',
+      )
+      await quiet()
+      expect(unbox(await w.contact('one'))).toEqual({ kind: 'settled' })
+    },
+  )
 
   it('holds a woken call that waits for a free drive', async () => {
     const w = await started()

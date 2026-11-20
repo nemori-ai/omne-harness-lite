@@ -27,7 +27,6 @@ export function savedResultOf(record: ResultPushRecord): SavedResult | null {
 function refusalOf(record: ResultPushRecord): Refusal | null {
   const standing = record.result?.standing
   if (record.result === null || standing?.status !== 'failed') return null
-  if (standing.failure.kind !== 'rejected') return null
   const refusal = standing.failure.failure.kind
   if (refusal !== 'denied' && refusal !== 'invalid' && refusal !== 'conflict') return null
   return { result: record.result.delivery.key.result, refusal }
