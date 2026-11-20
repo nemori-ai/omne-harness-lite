@@ -50,8 +50,8 @@ describe('the summary widget writes what is unknown as unknown, never as zero', 
         tokens: { ...base.tokens, input: { known: '98000', unknown: 0, provisional: 0 } },
       },
       [
-        { key: ['model'], measures: { ...measures(1), calls: 3 } },
         { key: ['tool'], measures: { ...measures(1), calls: 4 } },
+        { key: ['model'], measures: { ...measures(1), calls: 3 } },
       ],
     )
     expect(figures[1]).toBe('Token（输入与输出）9.8万')

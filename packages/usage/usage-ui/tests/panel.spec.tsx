@@ -344,14 +344,32 @@ describe('the labels of the buckets', () => {
       [...(card('usage.tokens')?.querySelectorAll('table th[scope="row"]') ?? [])].map(
         row => row.textContent ?? '',
       )
-    expect(rows().length).toBeGreaterThan(0)
-    for (const row of rows()) expect(row).toMatch(/^\d{2}\/\d{2}$/u)
-    const today = [...document.querySelectorAll('[data-segment]')].find(
-      node => node.textContent === '今天',
+    const day = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' })
+    expect(rows()).toEqual(
+      ['2026-11-18T16:00:00Z', '2026-11-19T16:00:00Z'].map(at => day.format(new Date(at))),
     )
-    fireEvent.click(today as Element)
+    const segment = (name: string) =>
+      [...document.querySelectorAll('[data-segment]')].find(node => node.textContent === name)
+    fireEvent.click(segment('今天') as Element)
     await settle()
+    expect(rows().length).toBe(2)
     for (const row of rows()) expect(row).toMatch(/^\d{2}:\d{2}$/u)
+    fireEvent.click(segment('90 天') as Element)
+    await settle()
+    expect(rows().length).toBe(2)
+  })
+})
+
+describe('what each native widget asks and how it draws by default', () => {
+  it.each([
+    ['usage.summary', ['source'], null],
+    ['usage.latency', [], '.recharts-line'],
+    ['usage.tools', ['source'], '.recharts-bar'],
+  ])('%s asks for %j and draws %s', async (widget, groupBy, mark) => {
+    const store = memoryLayoutStore({ tenant: [{ widget, width: 1, presentation: null }] })
+    const { fake } = await page({ store })
+    expect(fake.calls.map(call => call.body['groupBy'])).toEqual([groupBy])
+    if (mark !== null) expect(card(widget)?.querySelector(mark)).not.toBeNull()
   })
 })
 

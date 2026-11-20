@@ -2,7 +2,14 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { definePoint } from '@omne-harness/shell-contract'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { createUsageUiModule, USAGE_IN_SESSION, USAGE_PAGE, USAGE_STATUS } from '../src/cordis.tsx'
+import {
+  createUsageUiModule,
+  USAGE_IN_SESSION,
+  USAGE_PAGE,
+  USAGE_STATUS,
+  usagePresentation,
+  usageWidget,
+} from '../src/cordis.tsx'
 import { stubDom, TENANT } from './fixtures/dom.ts'
 import { fakeUsage } from './fixtures/fake-usage.ts'
 import { startShell, type ReferenceShell } from './fixtures/reference-shell.tsx'
@@ -91,6 +98,11 @@ describe('the usage interface module in its three places (C27)', () => {
       ['usage.tokens', '3'],
       ['usage.by-model', '3'],
     ])
+    expect(
+      document.querySelector(
+        '.usage-panel[data-position="session"] .usage-card[data-widget="usage.summary"]',
+      )?.textContent,
+    ).toContain('0.0123 USD')
     cleanup()
     render(<>{anchored(shell, 'session.status')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
     await settle()
@@ -141,5 +153,46 @@ describe('the usage interface module in its three places (C27)', () => {
     expect(
       anchored(shell, 'session.side')[0]?.render({ scope: undefined, subject: SESSION }),
     ).toBeNull()
+    expect(
+      anchored(shell, 'session.status')[0]?.render({ scope: undefined, subject: SESSION }),
+    ).toBeNull()
+  })
+
+  it('keeps its places and points under names that do not change', () => {
+    expect([USAGE_PAGE, USAGE_IN_SESSION, USAGE_STATUS]).toEqual([
+      'usage',
+      'usage',
+      'usage.occupancy',
+    ])
+    expect([usageWidget.name, usagePresentation.name]).toEqual([
+      'usage.widget',
+      'usage.presentation',
+    ])
+  })
+
+  it('says it is reading until the answer comes', async () => {
+    const { root, shell } = await startShell()
+    shell.tenant = TENANT
+    root.reflect.provide(SERVICE, fakeUsage(() => new Promise<never>(() => {}) as never).client)
+    await root.plugin(createUsageUiModule({ sessionSide, sessionStatus }))
+    render(<>{shell.items('pages')[0]?.render({ scope: TENANT })}</>)
+    await settle()
+    expect(document.querySelector('.usage-card[data-widget="usage.summary"]')?.textContent).toBe(
+      '概览正在读取……',
+    )
+  })
+
+  it('reads the occupancy of the session the status item is given now', async () => {
+    const { shell, fake } = await mounted()
+    const item = anchored(shell, 'session.status')[0]
+    const view = render(<>{item?.render({ scope: TENANT, subject: SESSION })}</>)
+    await settle()
+    view.rerender(<>{item?.render({ scope: TENANT, subject: 'b'.repeat(64) })}</>)
+    await settle()
+    expect(
+      fake.calls
+        .filter(call => call.operation === 'read-context-occupancy')
+        .map(call => call.body['session']),
+    ).toEqual([SESSION, 'b'.repeat(64)])
   })
 })

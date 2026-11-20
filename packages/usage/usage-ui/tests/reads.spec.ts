@@ -41,11 +41,13 @@ describe('the reads of the usage protocol within one refresh', () => {
     await reads.query(TENANT, { session: 's1', window, groupBy: [] })
     await reads.occupancy(TENANT, 's1')
     await reads.occupancy(TENANT, 's1')
+    await reads.occupancy(TENANT, 's2')
     expect(
       fake.calls.map(call => [call.operation, call.body['scope'] ?? call.body['session']]),
     ).toEqual([
       ['query-usage', { kind: 'session', session: 's1' }],
       ['read-context-occupancy', 's1'],
+      ['read-context-occupancy', 's2'],
     ])
   })
 
