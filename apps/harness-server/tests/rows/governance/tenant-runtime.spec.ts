@@ -1162,9 +1162,12 @@ function releaseBeforeChange(
 }
 
 const CHANGED_PACKAGE = '@omne-harness/tool-definitions'
-type Upgrade = Readonly<{ enabled: boolean; permissionsChanged: boolean }>
+type Upgrade = Readonly<{
+  holding: 'enabled' | 'disabled' | 'removed'
+  permissionsChanged: boolean
+}>
 
-async function upgradedWorld({ enabled, permissionsChanged }: Upgrade) {
+async function upgradedWorld({ holding, permissionsChanged }: Upgrade) {
   const installed = await installedWorld()
   const { w, sources } = installed
   const earlier = releaseBeforeChange(
@@ -1193,16 +1196,17 @@ async function upgradedWorld({ enabled, permissionsChanged }: Upgrade) {
       target: toolAssetTarget(entry, tenantRef),
     })
   const target = toolAssetTarget(before, tenantRef)
-  if (!enabled) {
+  if (holding !== 'enabled') {
     const held = await assets.readHolding({ holdingRef: target.holdingRef, scopeRef: tenantRef })
     if (held.kind !== 'holding') throw new Error(JSON.stringify(held))
     expect(
       await assets.changeHolding({
-        operationId: 'disable-shell',
+        operationId: `${holding}-shell`,
         holdingRef: target.holdingRef,
         scopeRef: tenantRef,
         expectedRevision: held.holding.revision,
-        change: { kind: 'setEnabled', enabled: false },
+        change:
+          holding === 'disabled' ? { kind: 'setEnabled', enabled: false } : { kind: 'remove' },
       }),
     ).toMatchObject({ kind: 'committed' })
   }
@@ -1229,13 +1233,19 @@ async function upgradedWorld({ enabled, permissionsChanged }: Upgrade) {
 
 describe('an upgrade that changed an official tool, over the state the earlier release left (#1433)', () => {
   const upgrades: readonly (Upgrade & { name: string })[] = [
-    { name: 'rebuilt implementation, enabled tool', enabled: true, permissionsChanged: false },
-    { name: 'rebuilt implementation, disabled tool', enabled: false, permissionsChanged: false },
-    { name: 'changed permission items', enabled: true, permissionsChanged: true },
+    { name: 'rebuilt implementation, enabled tool', holding: 'enabled', permissionsChanged: false },
+    {
+      name: 'rebuilt implementation, disabled tool',
+      holding: 'disabled',
+      permissionsChanged: false,
+    },
+    { name: 'rebuilt implementation, removed tool', holding: 'removed', permissionsChanged: false },
+    { name: 'changed permission items', holding: 'enabled', permissionsChanged: true },
   ]
   for (const upgrade of upgrades)
     it(`opens the tenant governance and moves every changed tool to the current release: ${upgrade.name}`, async () => {
-      const { enabled, permissionsChanged } = upgrade
+      const { holding, permissionsChanged } = upgrade
+      const enabled = holding === 'enabled'
       const { w, sources, prepare, before, after, changed, target, source, settings } =
         await upgradedWorld(upgrade)
       expect(changed.map(entry => entry.asset.name)).toContain('Web')
@@ -1249,7 +1259,7 @@ describe('an upgrade that changed an official tool, over the state the earlier r
       const runtime = await prepared.open()
       if ('close' in runtime) cleanup.push(runtime.close)
       if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
-      for (const entry of changed) {
+      for (const entry of changed.filter(value => value.asset.name !== 'Shell')) {
         const current = w.release.manifest.entries.find(
           value => value.asset.name === entry.asset.name,
         )!
@@ -1267,11 +1277,15 @@ describe('an upgrade that changed an official tool, over the state the earlier r
           holdingRef: target.holdingRef,
           scopeRef: target.scopeRef,
         }),
-      ).toMatchObject({
-        kind: 'holding',
-        holding: { state: 'held', enabled },
-        selected: { version: after.governance.declaration.reference.version },
-      })
+      ).toMatchObject(
+        holding === 'removed'
+          ? { kind: 'holding', holding: { state: 'removed' } }
+          : {
+              kind: 'holding',
+              holding: { state: 'held', enabled },
+              selected: { version: after.governance.declaration.reference.version },
+            },
+      )
       expect(await sources.targets.readTarget(source.target)).toMatchObject({
         kind: 'found',
         projection: { definition: settings(after) },
