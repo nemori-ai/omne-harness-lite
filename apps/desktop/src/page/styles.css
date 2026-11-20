@@ -93,7 +93,8 @@ body,
 .shell-sidebar[data-labels='hidden'] .shell-brand-row {
   flex-direction: column;
   justify-content: center;
-  gap: 0;
+  gap: var(--omne-space-inline);
+  padding: var(--omne-space-inline) 0 0;
 }
 
 .shell-home {
@@ -138,6 +139,8 @@ body,
   flex-direction: column;
   min-height: 0;
   padding-top: var(--omne-space-inline);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .shell-navigation-content[data-expanded='false'] .shell-link-label,
@@ -163,7 +166,7 @@ body,
   flex: 1;
   flex-direction: column;
   gap: var(--omne-space-inline);
-  min-height: 0;
+  min-height: var(--omne-nav-row-height);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -217,14 +220,8 @@ body,
 }
 
 .shell-nav-badge {
+  display: inline-flex;
   margin-left: auto;
-  padding: 0 var(--omne-space-inline);
-  border-radius: var(--omne-radius-pill);
-  background: var(--omne-caution-fill);
-  color: var(--omne-caution-ink);
-  font-size: var(--omne-text-caption);
-  font-variant-numeric: tabular-nums;
-  line-height: var(--omne-leading-ui);
 }
 
 .shell-nav-badge:empty {
@@ -235,12 +232,6 @@ body,
   position: absolute;
   top: calc(var(--omne-space-inline) / 2);
   right: calc(var(--omne-space-inline) / 2);
-  width: var(--omne-space-inline);
-  height: var(--omne-space-inline);
-  padding: 0;
-  background: var(--omne-caution-ink);
-  color: transparent;
-  font-size: 0;
 }
 
 .shell-navigation-content[data-expanded='false']
@@ -366,6 +357,9 @@ body,
 }
 
 .shell-gate-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   align-self: stretch;
   text-align: start;
 }

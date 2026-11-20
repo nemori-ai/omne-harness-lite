@@ -1,7 +1,6 @@
 {
   "gate": "one-per-job",
   "entries": {
-    "apps/desktop/src/page/styles.css | own pill or badge .shell-nav-badge": 1,
     "packages/frontend/ui-kit/src/charts/frame.tsx | home-made empty state": 1,
     "packages/frontend/ui-kit/src/charts/frame.tsx | native disclosure": 1,
     "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | native disclosure": 1,
