@@ -24,9 +24,14 @@ export async function ask(
 /** A read either returns the fact or says it could not read. It never answers empty instead. */
 export type PortRead<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kind: 'unavailable' }>
 
+export type ContextMoment =
+  | Readonly<{ kind: 'moment'; moment: string }>
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'too-large' }>
+
 export interface ContextCopies {
-  /** Whether the copy of the model request the dispatching call was made in can be given. */
-  available(tenant: TenantId, dispatcher: SessionRef, call: string): Promise<boolean>
+  /** Fixes the moment of the dispatcher's conversation the dispatching call was made in: the copy read later by it is the same. */
+  moment(tenant: TenantId, dispatcher: SessionRef, call: string): Promise<PortRead<ContextMoment>>
 }
 
 export interface AgentDefinitions {

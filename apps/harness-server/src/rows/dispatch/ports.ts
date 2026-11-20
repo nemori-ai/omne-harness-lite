@@ -67,5 +67,9 @@ export function definitionsOf(catalog: () => AgentDefinitionCatalog | undefined)
   }
 }
 
-/** The copy of the model request of a dispatching call: not given yet, so every `spawn` is refused with that reason. */
-export const NO_COPIES: ContextCopies = { available: () => Promise.resolve(false) }
+/** The context copies as they are mounted now: unreadable while the row that knows Session is not started. */
+export function lateCopies(holder: DispatchHolder): ContextCopies {
+  return {
+    moment: (...input) => holder.copies?.moment(...input) ?? Promise.resolve(UNAVAILABLE),
+  }
+}

@@ -2646,6 +2646,9 @@ importers:
       '@omne-harness/dispatch-contract':
         specifier: workspace:*
         version: link:../dispatch-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity

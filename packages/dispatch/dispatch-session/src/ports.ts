@@ -4,6 +4,7 @@ import type {
   HistoryPage,
   InputFate,
   InputId,
+  ModelViewRow,
   Modes,
   RoutedInput,
   RunId,
@@ -30,6 +31,11 @@ export type CreationOfDispatch = Readonly<{
   modes: Modes | null
 }>
 
+export type ModelView = Readonly<{
+  epoch: string
+  rows: readonly Pick<ModelViewRow, 'seq' | 'bytes' | 'message'>[]
+}>
+
 /** The calls of Session a dispatch makes. The first three are made as the system principal of dispatch;
  * the rest as the work principal of the session they read or control, which the assembly issues. */
 export type SessionCalls = Readonly<{
@@ -42,4 +48,6 @@ export type SessionCalls = Readonly<{
   history(
     input: At & Readonly<{ kinds: readonly string[]; cursor: string | null; pageBytes: number }>,
   ): Promise<Called<HistoryPage>>
+  /** The view up to a moment, or all of it for null. `gone`: the view of that moment was replaced since. */
+  view(input: At & Readonly<{ moment: string | null }>): Promise<PortRead<ModelView | 'gone'>>
 }>

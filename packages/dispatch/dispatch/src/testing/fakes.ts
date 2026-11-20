@@ -13,6 +13,7 @@ import type {
   AuthorityAnswer,
   Clock,
   ContextCopies,
+  ContextMoment,
   DispatchAuthority,
 } from '../ports.ts'
 import type {
@@ -227,7 +228,18 @@ export function fakeDefinitions(
   }
 }
 
-export function fakeCopies(): ContextCopies & Readonly<{ available_(on: boolean): void }> {
-  let on = true
-  return { available_: next => void (on = next), available: async () => on }
+type CopyAnswer = ContextMoment | 'unreadable'
+
+export function fakeCopies(): ContextCopies &
+  Readonly<{ answer(next: CopyAnswer): void; asked: readonly (readonly string[])[] }> {
+  let next: CopyAnswer = { kind: 'moment', moment: 'moment-1' }
+  const asked: string[][] = []
+  return {
+    asked,
+    answer: given => void (next = given),
+    moment: async (tenant, dispatcher, call) => {
+      asked.push([tenant, dispatcher, call])
+      return next === 'unreadable' ? { kind: 'unavailable' } : { kind: 'read', value: next }
+    },
+  }
 }

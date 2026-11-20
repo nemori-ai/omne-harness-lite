@@ -77,6 +77,8 @@ export const dispatchSchema = z
     agent: z.string().min(1).max(200),
     instruction: text,
     expectation: z.string().max(4000).nullable(),
+    /** The moment of the dispatcher's conversation a spawn copies, as the owner of the copy names it. */
+    context: z.string().min(1).max(400).nullable(),
     session: sessionRefSchema,
     state: stateSchema,
     report: reportSchema.nullable(),

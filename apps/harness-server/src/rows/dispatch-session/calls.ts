@@ -14,6 +14,7 @@ import {
   definitionResolverOf,
 } from '../agent-adoptions/definition-mappings.ts'
 import { sessionModesInstallationKey } from '../session-ad03/modes.ts'
+import { readModelViewTo } from './model-view.ts'
 
 const OWNER = 'harness-server/dispatch-session'
 const absent = (what: string): { failure: SessionFailure } => ({
@@ -120,6 +121,13 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
       return cursor === null
         ? service.history.begin({ ...access, kinds, from: null, direction: 'backward', pageBytes })
         : service.history.next({ ...access, cursor })
+    },
+    async view({ tenant, session, moment }) {
+      const as = await asSession(tenant, session)
+      const service = reader()
+      if (typeof as === 'string' || service === undefined) return UNAVAILABLE
+      const access = { principal: as.principal, tenant, session }
+      return readModelViewTo(input => service.history.readModelView(input), access, moment)
     },
   }
 }

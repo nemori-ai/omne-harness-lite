@@ -30,6 +30,7 @@ export function acceptedDispatch(number: number, change: Partial<Dispatch> = {})
     agent: 'helper',
     instruction: `work ${number}`,
     expectation: null,
+    context: null,
     session: `conformance-child-${number}` as SessionRef,
     state: 'accepted',
     report: null,

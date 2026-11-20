@@ -67,6 +67,7 @@ describe('the dispatch command: the first segment', () => {
     ['too-deep', 'unsupported'],
     ['too-many-open', 'capacity'],
     ['context-unavailable', 'unsupported'],
+    ['context-too-large', 'capacity'],
     ['dispatcher-archived', 'unsupported'],
     ['conflict', 'conflict'],
     ['not-permitted', 'unsupported'],

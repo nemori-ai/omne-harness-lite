@@ -14,7 +14,7 @@ export type SessionToCreate = Readonly<{
   session: SessionRef
   dispatch: Pick<
     Dispatch,
-    'id' | 'mode' | 'dispatcher' | 'call' | 'agent' | 'instruction' | 'expectation'
+    'id' | 'mode' | 'dispatcher' | 'call' | 'agent' | 'instruction' | 'expectation' | 'context'
   >
   permission: string
 }>

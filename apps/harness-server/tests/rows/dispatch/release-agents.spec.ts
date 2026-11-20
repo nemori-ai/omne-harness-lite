@@ -98,6 +98,68 @@ const lateDispatch = (body: string) =>
 
 describe('the Agents tool on the release tree', () => {
   it(
+    'spawns an agent that starts from the conversation as it was when the work was dispatched, and from nothing said after',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const seen = { child: '' }
+      const spawn = (id: string, instruction: string) =>
+        call(id, 'dispatch', { mode: 'spawn', agent: 'coding', instruction })
+      const script = toolCallsByRequest(body => {
+        if (body.includes(DISPATCHED)) {
+          seen.child ||= body
+          return answered(body) ? [] : [call('c_report', 'report', { text: 'I know the word' })]
+        }
+        if (body.includes('agents: spawn now') && !answered(body))
+          return [spawn('c_spawn', 'Tell me the code word.')]
+        return []
+      })
+      const exitCode = await onReleaseTree({ ...OPTIONS, script }, async tree => {
+        const parent = await tree.startSession('Remember: the code word is HERON.')
+        await settled(tree, parent)
+        const sent = await tree.cli([
+          'send-input',
+          '--session',
+          parent,
+          '--text',
+          'agents: spawn now',
+        ])
+        expect(sent.status, sent.stderr).toBe(0)
+        const { results } = await settled(tree, parent, 2)
+        expect(results).toContain('"report":"I know the word"')
+        const [dispatch] = await (await registryAs(tree, parent)).made()
+        if (dispatch === undefined) throw new Error('no dispatch')
+        expect(dispatch).toMatchObject({ mode: 'spawn', state: 'reported' })
+        expect(dispatch.context).toMatch(/^\["[^"]+","\d+"\]$/u)
+
+        const child = await historyOf(tree, dispatch.session)
+        const [starting] = reminders(child)
+        expect(child[0]?.kind).toBe('message.system_reminder')
+        expect(starting).toContain(
+          'It starts from a copy of the conversation of the dispatching session',
+        )
+        expect(starting).toContain('User:\\nRemember: the code word is HERON.')
+        expect(starting).toContain('User:\\nagents: spawn now')
+        expect(starting).toContain('Work:\\nTell me the code word.')
+        expect(starting).not.toContain('called the tool Agents')
+        expect(seen.child).toContain('the code word is HERON')
+
+        const said = await tree.cli([
+          'send-input',
+          '--session',
+          parent,
+          '--text',
+          'The word changed to EGRET.',
+        ])
+        expect(said.status, said.stderr).toBe(0)
+        await settled(tree, parent, 3)
+        expect(JSON.stringify(await historyOf(tree, dispatch.session))).not.toContain('EGRET')
+        expect(JSON.stringify(await historyOf(tree, parent))).not.toContain(dispatch.session + '/')
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
     'lets the dispatched agent run its own tools while the dispatching call waits for the report',
     { tags: ['slow'], timeout: 120_000 },
     async () => {

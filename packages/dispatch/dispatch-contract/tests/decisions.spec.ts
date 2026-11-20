@@ -19,7 +19,7 @@ const sound: AcceptFacts = {
   agentType: 'non-master',
   open: 0,
   maxOpen: 4,
-  contextCopy: true,
+  contextCopy: 'given',
 }
 const accept = (change: Partial<AcceptFacts>) => decideAccept({ ...sound, ...change })
 const refuse = (reason: string) => ({ kind: 'refuse', reason })
@@ -43,8 +43,13 @@ describe('a request that does not hold when it is asked for is refused with its 
     ['as many open dispatches as the limit', { open: 4 }, 'too-many-open'],
     [
       'a spawn whose context copy cannot be given',
-      { mode: 'spawn', contextCopy: false },
+      { mode: 'spawn', contextCopy: 'none' },
       'context-unavailable',
+    ],
+    [
+      'a spawn whose context is longer than a copy carries',
+      { mode: 'spawn', contextCopy: 'too-large' },
+      'context-too-large',
     ],
   ] as const)('%s', (_label, change, reason) => {
     expect(accept(change)).toEqual(refuse(reason))
@@ -59,7 +64,10 @@ describe('a request that does not hold when it is asked for is refused with its 
   })
 
   it('needs no context copy for a delegate or a handoff, and one less than the limit is open', () => {
-    expect(accept({ contextCopy: false })).toEqual({ kind: 'accept' })
+    expect(accept({ contextCopy: 'none' })).toEqual({ kind: 'accept' })
+    expect(accept({ mode: 'handoff', agentType: 'master', contextCopy: 'too-large' })).toEqual({
+      kind: 'accept',
+    })
     expect(accept({ open: 3 })).toEqual({ kind: 'accept' })
   })
 

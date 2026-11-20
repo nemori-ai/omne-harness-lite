@@ -6,9 +6,9 @@ import { tenantCodec, type TenantId as LegalTenant } from '@omne-harness/legal-i
 import { SESSION_WORK_OWNER } from '../../../src/rows/authorization/principals.ts'
 import type { DispatchHolder } from '../../../src/rows/dispatch/holder.ts'
 import {
-  NO_COPIES,
   createDispatchAuthority,
   definitionsOf,
+  lateCopies,
   lateSessions,
   lateWaits,
 } from '../../../src/rows/dispatch/ports.ts'
@@ -144,7 +144,7 @@ describe('the ports the contributing rows mount', () => {
   const started = { id: D, session: S }
 
   it('answers every read as unavailable and makes no write while no row has mounted its port', async () => {
-    const holder: DispatchHolder = { sessions: null, waits: null }
+    const holder: DispatchHolder = { sessions: null, waits: null, copies: null }
     const sessions = lateSessions(holder)
     expect(await sessions.row(T, S)).toEqual({ kind: 'unavailable' })
     expect(await sessions.startFate(T, started)).toEqual({ kind: 'unavailable' })
@@ -157,7 +157,7 @@ describe('the ports the contributing rows mount', () => {
   })
 
   it('reads the mounted port at each call, so a row that comes and goes is seen', async () => {
-    const holder: DispatchHolder = { sessions: null, waits: null }
+    const holder: DispatchHolder = { sessions: null, waits: null, copies: null }
     const sessions = lateSessions(holder)
     const waits = lateWaits(holder)
     const row = { kind: 'read', value: null } as const
@@ -175,7 +175,21 @@ describe('the ports the contributing rows mount', () => {
     expect(await waits.hand(T, {} as never, {} as never)).toBe('unreadable')
   })
 
-  it('gives no copy of a model request yet', async () => {
-    expect(await NO_COPIES.available(T, S, 'call-1')).toBe(false)
+  it('cannot fix the moment of a spawn while the row that knows Session is not started, and asks it when it is', async () => {
+    const holder: DispatchHolder = { sessions: null, waits: null, copies: null }
+    const copies = lateCopies(holder)
+    expect(await copies.moment(T, S, 'call-1')).toEqual({ kind: 'unavailable' })
+    const fixed = { kind: 'read', value: { kind: 'moment', moment: 'm' } } as const
+    const asked: unknown[] = []
+    holder.copies = {
+      moment: async (...input) => {
+        asked.push(input)
+        return fixed
+      },
+    }
+    expect(await copies.moment(T, S, 'call-1')).toEqual(fixed)
+    expect(asked).toEqual([[T, S, 'call-1']])
+    holder.copies = null
+    expect(await copies.moment(T, S, 'call-1')).toEqual({ kind: 'unavailable' })
   })
 })

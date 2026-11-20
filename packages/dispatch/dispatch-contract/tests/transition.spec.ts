@@ -34,6 +34,7 @@ function dispatchIn(state: DispatchState, mode: Dispatch['mode'] = 'delegate'): 
     agent: 'helper',
     instruction: 'look into it',
     expectation: null,
+    context: null,
     session: 'session-child' as SessionRef,
     state,
     report: null,

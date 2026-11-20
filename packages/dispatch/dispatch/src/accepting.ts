@@ -9,12 +9,17 @@ import {
 } from '@omne-harness/dispatch-contract'
 import { INVALID, UNAVAILABLE, UNKNOWN, done, type Environment } from './answers.ts'
 import { dispatchIdOf } from './identity.ts'
+import type { ContextMoment, PortRead } from './ports.ts'
+
+const NO_COPY: PortRead<ContextMoment> = { kind: 'read', value: { kind: 'none' } }
+
+type Judged = Readonly<{ facts: AcceptFacts; context: string | null }>
 
 async function factsOf(
   env: Environment,
   ctx: CallContext,
   request: DispatchRequest,
-): Promise<AcceptFacts | null> {
+): Promise<Judged | null> {
   const { tenant, session } = ctx
   const [row, type, open] = await Promise.all([
     env.sessions.row(tenant, session),
@@ -22,17 +27,19 @@ async function factsOf(
     env.store.openOf(tenant, session),
   ])
   if (row.kind !== 'read' || type.kind !== 'read' || open.kind !== 'read') return null
-  const contextCopy =
-    request.mode !== 'spawn' || (await env.copies.available(tenant, session, request.call))
-  return {
+  const spawn = request.mode === 'spawn'
+  const copy = spawn ? await env.copies.moment(tenant, session, request.call) : NO_COPY
+  if (copy.kind !== 'read') return null
+  const facts: AcceptFacts = {
     mode: request.mode,
     permitted: true,
     dispatcher: row.value ?? { depth: 0, archived: true },
     agentType: type.value,
     open: open.value,
     maxOpen: env.limits.maxOpen,
-    contextCopy,
+    contextCopy: copy.value.kind === 'moment' ? 'given' : copy.value.kind,
   }
+  return { facts, context: copy.value.kind === 'moment' ? copy.value.moment : null }
 }
 
 function candidate(env: Environment, ctx: CallContext, request: DispatchRequest): Dispatch {
@@ -47,6 +54,7 @@ function candidate(env: Environment, ctx: CallContext, request: DispatchRequest)
     agent: request.agent,
     instruction: request.instruction,
     expectation: request.expectation ?? null,
+    context: null,
     session: env.sessions.sessionOf(ctx.tenant, id),
     state: 'accepted',
     report: null,
@@ -67,14 +75,16 @@ export function createAccepting(env: Environment): Pick<Dispatching, 'dispatch'>
       const blocked = await env.permit(ctx, 'dispatch')
       if (blocked !== null) return blocked
       const request = parsed.data
-      const asked = candidate(env, ctx, request)
-      const known = await env.store.dispatch(ctx.tenant, asked.id)
+      const proposed = candidate(env, ctx, request)
+      const known = await env.store.dispatch(ctx.tenant, proposed.id)
       if (known.kind !== 'read') return UNAVAILABLE
+      let asked = proposed
       if (known.value === null) {
-        const facts = await factsOf(env, ctx, request).catch(() => null)
-        if (facts === null) return UNAVAILABLE
-        const decision = decideAccept(facts)
+        const judged = await factsOf(env, ctx, request).catch(() => null)
+        if (judged === null) return UNAVAILABLE
+        const decision = decideAccept(judged.facts)
         if (decision.kind === 'refuse') return { kind: 'refused', reason: decision.reason }
+        asked = Object.freeze({ ...proposed, context: judged.context })
       }
       const { maxOpen } = env.limits
       const answer = await env.store.accept(ctx.tenant, { dispatch: asked, maxOpen })

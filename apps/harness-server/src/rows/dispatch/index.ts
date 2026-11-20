@@ -39,7 +39,7 @@ import { createDomainBindings, type Combination } from '../storage/tenant-bindin
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { dispatchHolder } from './holder.ts'
 import {
-  NO_COPIES,
+  lateCopies,
   createDispatchAuthority,
   definitionsOf,
   lateSessions,
@@ -112,7 +112,7 @@ export const dispatchRow = defineRow({
         }),
         sessions: lateSessions(holder),
         waits: lateWaits(holder),
-        copies: NO_COPIES,
+        copies: lateCopies(holder),
         definitions: definitionsOf(() => ctx.get(agentDefinitionCatalogKey)),
       },
       clock: { now },

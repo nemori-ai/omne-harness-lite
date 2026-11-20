@@ -27,6 +27,7 @@
   "dependencies": {
     "@omne-harness/dispatch": "workspace:*",
     "@omne-harness/dispatch-contract": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/session-contract": "workspace:*"
   },

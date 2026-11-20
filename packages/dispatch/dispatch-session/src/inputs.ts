@@ -10,7 +10,11 @@ const hope = (expectation: string | null): string =>
   expectation === null ? '' : `\n\nThe shape the dispatcher hopes the report has:\n${expectation}`
 
 /** The starting input of a dispatched session: the work, and how its one report goes back. */
-export function instructionText(work: Work): string {
+const COPIED =
+  'It starts from a copy of the conversation of the dispatching session, as its agent saw it when it dispatched this work. The copy is for you to know what was said: the tool calls in it are told, not yours to go on with, and what that session does after the dispatch you do not see.'
+const COPY_END = 'End of the copy.'
+
+export function instructionText(work: Work, copy: string | null = null): string {
   if (work.mode === 'handoff')
     return [
       'Another agent handed this work over to this session. The work is yours from here: there is no report to hand back, and a person attends this session.',
@@ -21,6 +25,7 @@ export function instructionText(work: Work): string {
     'Another agent dispatched one piece of work to you. Nobody attends this session: do the work with what you have, and do not ask a person.',
     'When the work is done, hand back one report with the command `report` of the tool `Agents`. There is one report for this work. If your turn ends without it, your last reply is taken as the report.',
     `Dispatching session: ${work.dispatcher}\nDispatch: ${work.id}`,
+    ...(copy === null ? [] : [`${COPIED}\n\n${copy}\n\n${COPY_END}`]),
     `Work:\n${work.instruction}${hope(work.expectation)}`,
   ].join('\n\n')
 }

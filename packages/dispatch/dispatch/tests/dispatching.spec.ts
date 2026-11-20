@@ -182,13 +182,44 @@ describe('what is refused when it is asked for', () => {
     )
   })
 
-  it('a spawn whose context copy cannot be given, while a delegate needs none', async () => {
+  it('a spawn whose context copy cannot be given or is too long, while a delegate needs none', async () => {
     const w = world()
-    w.copies.available_(false)
+    w.copies.answer({ kind: 'none' })
     expect(await w.registry.dispatch(w.ctx(), { ...ASK, mode: 'spawn' })).toEqual(
       refused('context-unavailable'),
     )
+    w.copies.answer({ kind: 'too-large' })
+    expect(await w.registry.dispatch(w.ctx(), { ...ASK, mode: 'spawn' })).toEqual(
+      refused('context-too-large'),
+    )
     expect(valueOf(await w.registry.dispatch(w.ctx(), ASK)).state).toBe('started')
+    expect(w.copies.asked).toEqual([
+      [TENANT, PARENT, 'call-1'],
+      [TENANT, PARENT, 'call-1'],
+    ])
+  })
+
+  it('fixes the moment of the conversation when a spawn is accepted, and keeps it when the same call asks again', async () => {
+    const w = world()
+    w.copies.answer({ kind: 'moment', moment: 'epoch-1#4' })
+    const spawned = valueOf(await w.registry.dispatch(w.ctx(), { ...ASK, mode: 'spawn' }))
+    expect(spawned.context).toBe('epoch-1#4')
+    expect(w.sessions.created[0]?.creation.dispatch.context).toBe('epoch-1#4')
+    w.copies.answer({ kind: 'moment', moment: 'epoch-1#9' })
+    const again = await w.registry.dispatch(w.ctx(), { ...ASK, mode: 'spawn' })
+    expect(again).toMatchObject({ kind: 'done', recalled: true, value: { context: 'epoch-1#4' } })
+    expect(valueOf(await w.registry.dispatch(w.ctx(), { ...ASK, call: 'call-2' })).context).toBe(
+      null,
+    )
+  })
+
+  it('registers no spawn while the moment cannot be read', async () => {
+    const w = world()
+    w.copies.answer('unreadable')
+    expect(await w.registry.dispatch(w.ctx(), { ...ASK, mode: 'spawn' })).toEqual({
+      kind: 'basis-unavailable',
+    })
+    expect(await w.store.unfinished(TENANT)).toEqual({ kind: 'read', value: [] })
   })
 
   it('answers that its basis is unavailable when a fact it needs cannot be read', async () => {
