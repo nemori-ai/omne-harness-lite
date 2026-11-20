@@ -49,7 +49,7 @@ export interface UsageSource<P> {
   list(
     input: Access<P> &
       Readonly<{
-        /** Both ends included; null takes every dated unit. */
+        /** Both ends included, as canonical UTC text (`toISOString`); null takes every dated unit. */
         range: Readonly<{ from: UsageInstant; to: UsageInstant }> | null
         consumer: UsageConsumer | null
         after: string | null

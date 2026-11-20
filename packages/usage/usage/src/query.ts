@@ -152,10 +152,10 @@ export function createUsage<P>(deps: UsageDeps<P>): Usage<P> {
       const consumers = await consumerOf(deps, input)
       if ('failure' in consumers) return consumers
       const sources = deps.sources()
-      const { principal, tenant, range } = input
+      const { principal, tenant } = input
       const read = await readAll(
         sources,
-        { principal, tenant, range, consumers: consumers.ok },
+        { principal, tenant, range: checked.ok.range, consumers: consumers.ok },
         limits,
       )
       if ('failure' in read) return read
@@ -169,8 +169,9 @@ export function createUsage<P>(deps: UsageDeps<P>): Usage<P> {
       const consumers = await consumerOf(deps, input)
       if ('failure' in consumers) return consumers
       const sources = [...deps.sources()].sort((a, b) => (a.name < b.name ? -1 : 1))
-      const access = { principal: input.principal, tenant: input.tenant, range: input.range }
-      const to = Date.parse(input.range.to)
+      const { range } = start.ok
+      const access = { principal: input.principal, tenant: input.tenant, range }
+      const to = Date.parse(range.to)
       let position: Position | null = start.ok.at
       for (let reads = 0; position !== null && reads < limits.pages; reads += 1) {
         const step: Step<P> = stepAt(sources, consumers.ok, position)
@@ -223,20 +224,24 @@ const FIRST: Position = { source: 0, chunk: 0, cursor: null }
 function startOf<P>(
   input: Access<P> & UsageRecordsQuery,
   page: number,
-): Outcome<Readonly<{ fingerprint: string; at: Position }>, UsageFailure> {
-  const { scope, range } = input
+): Outcome<
+  Readonly<{ fingerprint: string; at: Position; range: UsageQuery['range'] }>,
+  UsageFailure
+> {
+  const { scope } = input
   const checked = checkUsageQuery(
-    { scope, range, zone: 'UTC', bucket: 'none', groupBy: [] },
+    { scope, range: input.range, zone: 'UTC', bucket: 'none', groupBy: [] },
     { buckets: 1 },
   )
   if ('failure' in checked) return checked
   if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > page)
     return fail({ kind: 'invalid', field: 'limit', reason: 'out-of-range' })
+  const { range } = checked.ok
   const fingerprint = JSON.stringify([tenantText(input.tenant), scope, range])
   const at = input.after === null ? FIRST : positionOf(fingerprint, input.after)
   return at === null
     ? fail({ kind: 'invalid', field: 'after', reason: 'cursor' })
-    : succeed({ fingerprint, at })
+    : succeed({ fingerprint, at, range })
 }
 
 type Step<P> =

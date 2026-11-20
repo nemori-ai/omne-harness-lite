@@ -101,7 +101,7 @@ export function checkUsageQuery(
     return invalid('groupBy', 'dimensions')
   const edges = edgesOf(from, to, zone, query.bucket, limits.buckets)
   if (edges === null) return fail({ kind: 'too-large', limit: 'buckets' })
-  return succeed({ ...query, zone, edges })
+  return succeed({ ...query, zone, range: { from: instantText(from), to: instantText(to) }, edges })
 }
 
 export const instantText = (at: number): UsageInstant => new Date(at).toISOString()

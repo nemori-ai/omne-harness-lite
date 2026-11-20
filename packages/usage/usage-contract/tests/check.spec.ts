@@ -19,6 +19,12 @@ const checked = (changes: Partial<UsageQuery>, buckets = 1000) => {
 }
 
 describe('a usage query checked before any read', () => {
+  it('gives the range back as canonical UTC text, whatever form the instants came in', () => {
+    expect(
+      checked({ range: { from: '2026-11-01T00:00:00Z', to: '2026-11-02T08:00:00+08:00' } }).range,
+    ).toEqual({ from: '2026-11-01T00:00:00.000Z', to: '2026-11-02T00:00:00.000Z' })
+  })
+
   it('takes an IANA zone by its canonical name and refuses offsets and unknown names', () => {
     expect(checked({ zone: 'asia/shanghai' }).zone).toBe('Asia/Shanghai')
     expect(checked({ zone: 'America/Port-au-Prince' }).zone).toBe('America/Port-au-Prince')

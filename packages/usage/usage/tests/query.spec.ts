@@ -361,6 +361,32 @@ describe('a usage query refused before anything is read', () => {
   })
 })
 
+describe('the range a source is given', () => {
+  const loose = { from: '2026-11-19T00:00:00Z', to: '2026-11-20T08:00:00+08:00' }
+
+  it('is canonical UTC text, for statistics and for records, as sources compare instants as text', async () => {
+    const tool = source('tool', [fact('tool', 't1', hour(1))])
+    const usage = usageOver([tool.self])
+    const answer = await usage.query(query({ range: loose }))
+    if (!('ok' in answer)) throw new Error(JSON.stringify(answer))
+    expect(answer.ok.total.units).toBe(1)
+    const page = await usage.records({
+      principal,
+      tenant,
+      scope: { kind: 'tenant' },
+      range: loose,
+      after: null,
+      limit: 2,
+    } as never)
+    if (!('ok' in page)) throw new Error(JSON.stringify(page))
+    expect(page.ok.entries).toHaveLength(1)
+    expect(tool.asked.map(input => input.range)).toEqual([
+      { from: FROM, to: TO },
+      { from: FROM, to: TO },
+    ])
+  })
+})
+
 describe('the records of a scope, page by page (C24)', () => {
   const records = (usage: ReturnType<typeof usageOver>, changes: Record<string, unknown> = {}) =>
     usage.records({
