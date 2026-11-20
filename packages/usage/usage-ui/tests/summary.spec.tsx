@@ -21,10 +21,13 @@ const settle = () =>
   })
 const unknownSum = { known: '0', unknown: 2, provisional: 0 }
 
-async function summaryOf(total: ReturnType<typeof measures>) {
+async function summaryOf(
+  total: ReturnType<typeof measures>,
+  groups: ReturnType<typeof result>['groups'] = [],
+) {
   const { root, shell } = await startShell()
   shell.tenant = TENANT
-  const answer = { ...result(['source']), total, groups: [] }
+  const answer = { ...result(['source']), total, groups }
   root.reflect.provide(
     'protocol:usage/v1',
     fakeUsage(() => ({ outcome: 'succeeded', body: answer })).client,
@@ -39,6 +42,29 @@ async function summaryOf(total: ReturnType<typeof measures>) {
 }
 
 describe('the summary widget writes what is unknown as unknown, never as zero', () => {
+  it('counts the model requests from the model group only, and the tokens in short form', async () => {
+    const base = measures(1)
+    const figures = await summaryOf(
+      {
+        ...base,
+        tokens: { ...base.tokens, input: { known: '98000', unknown: 0, provisional: 0 } },
+      },
+      [
+        { key: ['model'], measures: { ...measures(1), calls: 3 } },
+        { key: ['tool'], measures: { ...measures(1), calls: 4 } },
+      ],
+    )
+    expect(figures[1]).toBe('Token（输入与输出）9.8万')
+    expect(figures[2]).toBe('模型请求3')
+  })
+
+  it('adds the known side when only one of input and output is known', async () => {
+    const base = measures(1)
+    expect((await summaryOf({ ...base, tokens: { ...base.tokens, input: unknownSum } }))[1]).toBe(
+      'Token（输入与输出）200',
+    )
+  })
+
   it('reads the known figures', async () => {
     expect(await summaryOf(measures(1))).toEqual([
       '费用0.0123 USD1 笔未知',

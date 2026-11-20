@@ -125,6 +125,7 @@ describe('omne query-usage, list-usage-records and read-context-occupancy', () =
     [['query-usage', '--since', 'yesterday', '--before', '2026-11-20T00:00:00Z', '--zone', 'UTC']],
     [['list-usage-records', ...range, '--limit', '0']],
     [['list-usage-records', ...range, '--limit', '101']],
+    [['list-usage-records', ...range, '--limit', '05']],
     [['read-context-occupancy', '--session', 'not-hex']],
   ])('refuses %j as a usage error and sends nothing', async args => {
     const service = await serve()
@@ -132,6 +133,24 @@ describe('omne query-usage, list-usage-records and read-context-occupancy', () =
     expect(result.code).toBe(2)
     expect(result.stderr).toBe(commandUnrecognized(args[0] ?? ''))
     expect(service.seen.filter(seen => Object.hasOwn(answers, seen.operation))).toEqual([])
+  })
+
+  it('passes every bucket and dimension it knows', async () => {
+    const service = await serve()
+    for (const bucket of ['none', 'hour', 'day', 'week', 'month'])
+      await cli(['query-usage', ...range, '--zone', 'UTC', '--bucket', bucket])
+    for (const groupBy of ['source,model', 'provider,purpose', 'tool'])
+      await cli(['query-usage', ...range, '--zone', 'UTC', '--group-by', groupBy])
+    expect(sent(service, 'query-usage').map(body => [body['bucket'], body['groupBy']])).toEqual([
+      ['none', []],
+      ['hour', []],
+      ['day', []],
+      ['week', []],
+      ['month', []],
+      ['none', ['source', 'model']],
+      ['none', ['provider', 'purpose']],
+      ['none', ['tool']],
+    ])
   })
 
   it('names the option a read misses', async () => {

@@ -312,7 +312,7 @@ describe('the details of editing (C28)', () => {
   })
 
   it('reads again for another range, and at the interval the assembly gives while the page is visible', async () => {
-    const { fake } = await page({ refreshMs: 50 })
+    const { fake } = await page({ refreshMs: 200 })
     const ranges = () =>
       new Set(fake.calls.map(call => encodeInstant((call.body['range'] as { from: Instant }).from)))
     expect(ranges().size).toBe(1)
@@ -330,10 +330,28 @@ describe('the details of editing (C28)', () => {
     ])
     const before = fake.calls.length
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 120))
+      await new Promise(resolve => setTimeout(resolve, 450))
     })
     await settle()
     expect(fake.calls.length).toBeGreaterThan(before)
+  })
+})
+
+describe('the labels of the buckets', () => {
+  it('names a day by its date and, for today, an hour by its time', async () => {
+    await page()
+    const rows = () =>
+      [...(card('usage.tokens')?.querySelectorAll('table th[scope="row"]') ?? [])].map(
+        row => row.textContent ?? '',
+      )
+    expect(rows().length).toBeGreaterThan(0)
+    for (const row of rows()) expect(row).toMatch(/^\d{2}\/\d{2}$/u)
+    const today = [...document.querySelectorAll('[data-segment]')].find(
+      node => node.textContent === '今天',
+    )
+    fireEvent.click(today as Element)
+    await settle()
+    for (const row of rows()) expect(row).toMatch(/^\d{2}:\d{2}$/u)
   })
 })
 
@@ -379,9 +397,10 @@ describe('what the panel leaves alone', () => {
   })
 
   it('reads at the interval only while the page is visible, and stops when the panel is gone', async () => {
-    const { fake } = await page({ refreshMs: 30 })
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+    let fake: Awaited<ReturnType<typeof page>>['fake']
     try {
+      fake = (await page({ refreshMs: 30 })).fake
       const before = fake.calls.length
       await act(async () => {
         await new Promise(resolve => setTimeout(resolve, 100))

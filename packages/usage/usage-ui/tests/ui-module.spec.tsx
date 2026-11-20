@@ -76,6 +76,48 @@ describe('the usage interface module in its three places (C27)', () => {
     })
   })
 
+  it('draws the summary and the two token cards across the session tab, and the occupancy with its moment and mark', async () => {
+    const { shell } = await mounted()
+    render(<>{anchored(shell, 'session.side')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
+    await settle()
+    expect(
+      [
+        ...document.querySelectorAll<HTMLElement>(
+          '.usage-panel[data-position="session"] .usage-card',
+        ),
+      ].map(card => [card.dataset['widget'], card.dataset['width']]),
+    ).toEqual([
+      ['usage.summary', '3'],
+      ['usage.tokens', '3'],
+      ['usage.by-model', '3'],
+    ])
+    cleanup()
+    render(<>{anchored(shell, 'session.status')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
+    await settle()
+    expect(document.querySelector('.omne-meter-mark')?.getAttribute('x')).toBe('79.5')
+    expect(document.querySelector('.omne-meter-caption')?.textContent).toMatch(
+      /^截至上一次请求（\d{2}\/\d{2} \d{2}:\d{2} · openai\/gpt-5\.6-sol）$/u,
+    )
+  })
+
+  it('says why the occupancy is unknown', async () => {
+    const { root, shell } = await startShell()
+    shell.tenant = TENANT
+    root.reflect.provide(
+      SERVICE,
+      fakeUsage(() => ({
+        outcome: 'succeeded',
+        body: { kind: 'unknown', reason: 'window-unknown' },
+      })).client,
+    )
+    await root.plugin(createUsageUiModule({ sessionSide, sessionStatus }))
+    render(<>{anchored(shell, 'session.status')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
+    await settle()
+    expect(
+      document.querySelector('.omne-meter[data-state="unknown"] .omne-meter-caption')?.textContent,
+    ).toBe('这个型号的窗口未知')
+  })
+
   it('does not load without the usage protocol, unloads when it is withdrawn and loads again when it is back', async () => {
     const { root, shell } = await startShell()
     await root.plugin(createUsageUiModule({ sessionSide, sessionStatus }))
