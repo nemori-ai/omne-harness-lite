@@ -66,6 +66,7 @@ async function openFromList(
   fireEvent.click(screen.getByRole('button', { name }))
   await settle()
   ;(await fake.next('read-history')).answer({ outcome: 'succeeded', body: page([], '1') })
+  await settle()
   const read = await fake.next('read-workspace-selection')
   read.answer({ outcome: 'succeeded', body: { revision: '1', reason: null, ...selection } })
   await settle()
@@ -97,6 +98,7 @@ it('nobody lists workspaces: the interface is whole, the heading names the direc
   })
   expect(screen.getByText('工作目录：/srv/default')).toBeTruthy()
   expect(heading()).toBeNull()
+  expect(document.querySelector('.omne-session-workspace [role="status"]')).toBeNull()
 })
 
 it('a list is handed over: a new session starts in the instance picked; taken away: the rest stays', async () => {
@@ -116,6 +118,7 @@ it('a list is handed over: a new session starts in the instance picked; taken aw
   ])
   fireEvent.click(await screen.findByRole('option', { name: /shop/u }))
   await settle()
+  expect(picker()!.textContent).toContain('shop')
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
   const create = await fake.next('create-session')
   expect(create.body).toEqual({ createCallId: expect.any(String), purpose: '', workspace: SHOP })
@@ -191,6 +194,15 @@ it('the heading shows where the session works and changes it, to another instanc
   await settle()
   expect(heading()!.textContent).toContain('不选工作区')
   expect(screen.getByText('工作目录：/srv/default')).toBeTruthy()
+  fireEvent.keyDown(heading()!, { key: 'Enter' })
+  expect((await screen.findAllByRole('option')).map(option => option.textContent)).toEqual([
+    '不选工作区',
+    'blog',
+    'shop',
+    'old（实例用不了）',
+  ])
+  fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+  await settle()
 
   await pickOption(heading()!, /blog/u)
   ;(await fake.next('select-workspace')).answer({
