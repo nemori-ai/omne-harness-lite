@@ -204,21 +204,35 @@ describe('screening one input', () => {
     [
       'answers unavailable',
       () => ({ kind: 'unavailable', diagnostic: 'the store is off' }) as const,
+      'the store is off',
     ],
     [
       'throws',
       () => {
         throw new Error('broke')
       },
+      'threw: broke',
     ],
-    ['answers something else', () => ({ kind: 'maybe' }) as never],
-  ])('a processor that %s makes the input unavailable, never passed', async (_, run) => {
-    const result = await screen([
-      processor('a.one', run),
-      processor('a.two', () => ({ kind: 'pass' })),
-    ])
-    expect(result).toMatchObject({ kind: 'unavailable', processor: 'a.one' })
-  })
+    [
+      'throws something that is no error',
+      () => {
+        throw 'a word'
+      },
+      'threw: a word',
+    ],
+    ['answers something else', () => ({ kind: 'maybe' }) as never, 'no verdict'],
+    ['answers nothing', () => undefined as never, 'no verdict'],
+    ['answers a word', () => 'pass' as never, 'no verdict'],
+  ])(
+    'a processor that %s makes the input unavailable, never passed',
+    async (_, run, diagnostic) => {
+      const result = await screen([
+        processor('a.one', run),
+        processor('a.two', () => ({ kind: 'pass' })),
+      ])
+      expect(result).toEqual({ kind: 'unavailable', processor: 'a.one', diagnostic })
+    },
+  )
 })
 
 describe('what the blocks of an input must be to enter the log', () => {

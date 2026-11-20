@@ -78,16 +78,17 @@ export type Screened =
   | Readonly<{ kind: 'blocked'; processor: string; block: BlockId | null; reason: string }>
   | Readonly<{ kind: 'unavailable'; processor: string; diagnostic: string }>
 
+const VERDICTS: ReadonlySet<unknown> = new Set(['pass', 'block', 'unavailable'])
+const isVerdict = (answer: unknown): answer is IntakeVerdict =>
+  typeof answer === 'object' && answer !== null && VERDICTS.has((answer as IntakeVerdict).kind)
+
 async function verdictOf<P>(
   processor: IntakeProcessor<P>,
   input: IntakeScreening<P>,
 ): Promise<IntakeVerdict> {
   try {
-    const verdict = await processor.run(input)
-    const known = verdict?.kind === 'pass' || verdict?.kind === 'block'
-    return known || verdict?.kind === 'unavailable'
-      ? verdict
-      : { kind: 'unavailable', diagnostic: 'no verdict' }
+    const answer: unknown = await processor.run(input)
+    return isVerdict(answer) ? answer : { kind: 'unavailable', diagnostic: 'no verdict' }
   } catch (error) {
     const thrown = error instanceof Error ? error.message : String(error)
     return { kind: 'unavailable', diagnostic: `threw: ${thrown}` }
