@@ -97,9 +97,10 @@ export type ReferenceContentBlock = Readonly<{
     visibility: Visibility;
     ref: ContentReference;
     transcript: string | null;
+    facts?: MediaFacts;
 }>;
 export type ContentBlock = TextContentBlock | ThinkingContentBlock | MediaContentBlock | FileContentBlock | ReferenceContentBlock;
-export type ContentBlockRejection = 'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file' | 'ref' | 'storage' | 'key' | 'mediaType' | 'bytes' | 'digest' | 'transcript';
+export type ContentBlockRejection = 'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file' | 'ref' | 'storage' | 'key' | 'mediaType' | 'bytes' | 'digest' | 'transcript' | 'facts';
 export type ContentBlockJudgment = {
     readonly ok: ContentBlock;
 } | {

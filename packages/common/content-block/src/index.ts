@@ -61,6 +61,8 @@ export type ReferenceContentBlock = Readonly<{
   visibility: Visibility
   ref: ContentReference
   transcript: string | null
+  /** Given by whoever took the medium into custody; a block from a caller does not bring its own. */
+  facts?: MediaFacts
 }>
 
 export type ContentBlock =
@@ -85,6 +87,7 @@ export type ContentBlockRejection =
   | 'bytes'
   | 'digest'
   | 'transcript'
+  | 'facts'
 
 export type ContentBlockJudgment =
   | { readonly ok: ContentBlock }
@@ -212,7 +215,12 @@ const VISIBILITY_KEYS = ['toHuman', 'toModel'] as const
 type ReferenceKind = ReferenceContentBlock['kind']
 
 const REFERENCE_KINDS: readonly ReferenceKind[] = ['voice', 'image', 'file']
-const REFERENCE_BLOCK_KEYS = ['kind', 'id', 'visibility', 'ref', 'transcript'] as const
+const REFERENCE_BLOCK_KEYS = ['kind', 'id', 'visibility', 'ref', 'transcript', 'facts'] as const
+const FACT_KEYS = {
+  image: ['widthPixels', 'heightPixels'],
+  voice: ['durationMs', 'sampleRate', 'channels'],
+  file: [],
+} as const satisfies Record<MediaFacts['kind'], readonly string[]>
 const REFERENCE_KEYS = ['storage', 'key', 'mediaType', 'bytes', 'digest'] as const
 const DECIMAL = /^(0|[1-9][0-9]*)$/u
 
@@ -278,6 +286,19 @@ function referenceOf(
   return { ok: { storage, key, mediaType, bytes, digest } }
 }
 
+/** The facts of a medium: its kind and, for that kind, each measure as a whole number not below zero. */
+function factsOf(value: unknown): MediaFacts | undefined {
+  if (!isRecord(value) || typeof value.kind !== 'string' || !Object.hasOwn(FACT_KEYS, value.kind))
+    return undefined
+  const measures: readonly string[] = FACT_KEYS[value.kind as MediaFacts['kind']]
+  if (hasUnknownKey(value, ['kind', ...measures])) return undefined
+  const whole = (name: string) => Number.isSafeInteger(value[name]) && (value[name] as number) >= 0
+  if (!measures.every(whole)) return undefined
+  return Object.fromEntries(
+    ['kind', ...measures].map(name => [name, value[name]]),
+  ) as unknown as MediaFacts
+}
+
 function admitReference(
   kind: ReferenceKind,
   value: Record<string, unknown>,
@@ -288,7 +309,11 @@ function admitReference(
   if ('rejected' in ref) return ref
   const transcript = value.transcript
   if (transcript !== null && typeof transcript !== 'string') return { rejected: 'transcript' }
-  return { ok: { kind, id, visibility, ref: ref.ok, transcript } }
+  if (!Object.hasOwn(value, 'facts'))
+    return { ok: { kind, id, visibility, ref: ref.ok, transcript } }
+  const facts = factsOf(value.facts)
+  if (facts === undefined) return { rejected: 'facts' }
+  return { ok: { kind, id, visibility, ref: ref.ok, transcript, facts } }
 }
 
 export function judgeContentBlock(value: unknown): ContentBlockJudgment {

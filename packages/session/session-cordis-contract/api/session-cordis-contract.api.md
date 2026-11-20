@@ -34,6 +34,7 @@
 - `BackgroundDisposition` · 包 `@omne-harness/session-contract`
 - `BackgroundOutcomeJudgment` · 包 `@omne-harness/session-contract`
 - `BatchId` · 包 `@omne-harness/session-contract`
+- `BeforeIntakeRegistry` · 包 `@omne-harness/session-contract`
 - `BoundedClose` · 包 `@omne-harness/session-contract`
 - `BudgetTerms` · 包 `@omne-harness/session-contract`
 - `CONTEXT_SCOPE_KINDS` · 包 `@omne-harness/session-contract`
@@ -120,8 +121,12 @@
 - `InputSourceRegistry` · 包 `@omne-harness/session-contract`
 - `InputSources` · 包 `@omne-harness/session-contract`
 - `IntakeBasis` · 包 `@omne-harness/session-contract`
+- `IntakeBlockRefusal` · 包 `@omne-harness/session-contract`
+- `IntakeProcessor` · 包 `@omne-harness/session-contract`
+- `IntakeScreening` · 包 `@omne-harness/session-contract`
 - `IntakeSubject` · 包 `@omne-harness/session-contract`
 - `IntakeTerms` · 包 `@omne-harness/session-contract`
+- `IntakeVerdict` · 包 `@omne-harness/session-contract`
 - `ModelViewBasis` · 包 `@omne-harness/session-contract`
 - `ModelViewRead` · 包 `@omne-harness/session-contract`
 - `ModelViewRow` · 包 `@omne-harness/session-contract`
@@ -165,6 +170,7 @@
 - `ScopeReleaseDisposition` · 包 `@omne-harness/session-contract`
 - `ScopeReleasePort` · 包 `@omne-harness/session-contract`
 - `ScopeReleaseReadback` · 包 `@omne-harness/session-contract`
+- `Screened` · 包 `@omne-harness/session-contract`
 - `SessionAccess` · 包 `@omne-harness/session-contract`
 - `SessionAccessCheck` · 包 `@omne-harness/session-contract`
 - `SessionAccessDecision` · 包 `@omne-harness/session-contract`
@@ -329,6 +335,7 @@
 - `contextScopesOf` · 包 `@omne-harness/session-contract`
 - `controlAnswer` · 包 `@omne-harness/session-contract`
 - `controlRoutes` · 包 `@omne-harness/session-contract`
+- `createBeforeIntakeRegistry` · 包 `@omne-harness/session-contract`
 - `createInputSourceRegistry` · 包 `@omne-harness/session-contract`
 - `decide` · 包 `@omne-harness/session-contract`
 - `decideCompactionCommit` · 包 `@omne-harness/session-contract`
@@ -355,6 +362,7 @@
 - `judgeBackgroundOutcome` · 包 `@omne-harness/session-contract`
 - `judgeCompletion` · 包 `@omne-harness/session-contract`
 - `judgeIdle` · 包 `@omne-harness/session-contract`
+- `judgeIntakeBlocks` · 包 `@omne-harness/session-contract`
 - `judgeRunStart` · 包 `@omne-harness/session-contract`
 - `judgeSessionIntake` · 包 `@omne-harness/session-contract`
 - `judgeWaiting` · 包 `@omne-harness/session-contract`
@@ -362,6 +370,7 @@
 - `mutationAccessRequest` · 包 `@omne-harness/session-contract`
 - `onceAuthorizationOf` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
+- `originalContent` · 包 `@omne-harness/session-contract`
 - `parseInputSourceName` · 包 `@omne-harness/session-contract`
 - `pendingAcceptances` · 包 `@omne-harness/session-contract`
 - `pendingInputOf` · 包 `@omne-harness/session-contract`
@@ -387,6 +396,7 @@
 - `routeInput` · 包 `@omne-harness/session-contract`
 - `runCancelledBy` · 包 `@omne-harness/session-contract`
 - `runStartInputs` · 包 `@omne-harness/session-contract`
+- `screenInput` · 包 `@omne-harness/session-contract`
 - `sessionInputBytes` · 包 `@omne-harness/session-contract`
 - `sessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `sessionModesBlock` · 包 `@omne-harness/session-contract`

@@ -408,3 +408,44 @@ it('gives a reference block a fresh visibility instead of the caller object', ()
   given.toHuman = false
   expect(judged.ok.visibility).toEqual({ toHuman: true, toModel: false })
 })
+
+const withFacts = (extra: Record<string, unknown>) => ({
+  kind: 'image',
+  id: 'r9',
+  visibility,
+  ref,
+  transcript: null,
+  ...extra,
+})
+
+it.each([
+  [{ kind: 'image', widthPixels: 640, heightPixels: 480 }],
+  [{ kind: 'voice', durationMs: 1200, sampleRate: 16000, channels: 1 }],
+  [{ kind: 'file' }],
+])('a reference block may carry the facts of its medium: %j', facts => {
+  expect(judgeContentBlock(withFacts({ facts }))).toEqual({ ok: withFacts({ facts }) })
+})
+
+it('a reference block without facts stays without the key', () => {
+  const judged = judgeContentBlock(withFacts({}))
+  expect(judged).toEqual({ ok: withFacts({}) })
+  expect('ok' in judged && Object.hasOwn(judged.ok, 'facts')).toBe(false)
+})
+
+it.each([
+  [null],
+  ['image'],
+  [{ kind: 'video' }],
+  [{ kind: 'image', widthPixels: 640 }],
+  [{ kind: 'image', widthPixels: 640, heightPixels: -1 }],
+  [{ kind: 'image', widthPixels: 6.5, heightPixels: 4 }],
+  [{ kind: 'image', widthPixels: 640, heightPixels: 480, extra: 1 }],
+  [{ kind: 'voice', durationMs: 1200, sampleRate: '16000', channels: 1 }],
+  [{ kind: 'file', widthPixels: 1 }],
+])('refuses facts that are not the facts of a medium: %j', facts => {
+  expect(judgeContentBlock(withFacts({ facts }))).toEqual({ rejected: 'facts' })
+})
+
+it('still refuses a key of a reference block it does not know', () => {
+  expect(judgeContentBlock(withFacts({ snapshot: {} }))).toEqual({ rejected: 'extra' })
+})
