@@ -207,7 +207,9 @@ describe('the session of a spawn', () => {
     expect(input).toContain(
       'User:\nThe code word is HERON.\n\nAssistant:\nNoted.\n\nUser:\nNow hand it on.',
     )
-    expect(input?.endsWith('Work:\nCheck the word.')).toBe(true)
+    expect(input?.endsWith('Now hand it on.\n\nEnd of the copy.\n\nWork:\nCheck the word.')).toBe(
+      true,
+    )
     expect(input?.indexOf('HERON')).toBeLessThan(input?.indexOf('Work:') ?? 0)
   })
 
