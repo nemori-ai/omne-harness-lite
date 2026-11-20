@@ -322,7 +322,7 @@ export function Sidebar(
     <aside
       ref={props.sidebar}
       className="shell-sidebar"
-      data-region="sidebar"
+      data-keyboard-region="sidebar"
       tabIndex={-1}
       data-width={props.width}
       data-labels={fold.labels ? 'shown' : 'hidden'}
@@ -366,7 +366,12 @@ export function NarrowNavigation(props: SidebarProps) {
     close()
   }
   return (
-    <aside className="shell-sidebar" data-region="sidebar" tabIndex={-1} data-width="sheet">
+    <aside
+      className="shell-sidebar"
+      data-keyboard-region="sidebar"
+      tabIndex={-1}
+      data-width="sheet"
+    >
       <Sheet
         open={openedOn !== null}
         onOpenChange={open => setOpenedOn(open ? { page: props.shown } : null)}

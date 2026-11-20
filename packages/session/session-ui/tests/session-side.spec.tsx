@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import type { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
+import { moveRegion } from '@omne-harness/ui-kit'
 import { afterEach, expect, it, vi } from 'vitest'
 import { SESSION_DOCK, SESSION_SIDE, sessionDock, sessionSide } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
@@ -13,6 +14,7 @@ const TENANT =
 
 afterEach(() => {
   cleanup()
+  document.documentElement.style.removeProperty('--omne-size')
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
@@ -77,6 +79,8 @@ const panel = () => document.querySelector<HTMLElement>('.omne-session-side')
 const control = () => screen.getByRole('button', { name: 'Agent' })
 /** The side area's markup, its generated id aside: each mount names it anew. */
 const markup = () => (panel()?.outerHTML ?? '').replace(/ id="[^"]*"/, '')
+/** Folded where it docks: kept in its grid track, out of reach. */
+const folded = () => panel()?.dataset['open'] === 'false' && panel()?.inert === true
 const paneOf = (id: string) => screen.getByTestId(id).closest<HTMLElement>('[data-side-pane]')
 const tabs = () =>
   [...(panel()?.querySelectorAll<HTMLElement>('[data-segment]') ?? [])].map(tab => tab.textContent)
@@ -193,17 +197,30 @@ it('停靠时收起与展开：收起后整个侧边区藏起来不卸下，对�
   const { root } = await opened()
   await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0)))
   expect(panel()?.dataset['presentation']).toBe('docked')
-  expect(panel()?.dataset['region']).toBe('side')
+  expect(panel()?.dataset['keyboardRegion']).toBe('side')
   expect(control().getAttribute('aria-expanded')).toBe('true')
   expect(control().getAttribute('aria-controls')).toBe(panel()?.id)
+  expect(folded()).toBe(false)
   fireEvent.click(screen.getByRole('button', { name: '收起侧边区' }))
-  expect(panel()?.hidden).toBe(true)
+  expect(folded()).toBe(true)
   expect(screen.getByTestId('status')).toBeTruthy()
   expect(control().getAttribute('aria-expanded')).toBe('false')
   fireEvent.click(control())
-  expect(panel()?.hidden).toBe(false)
+  expect(folded()).toBe(false)
   fireEvent.click(control())
-  expect(panel()?.hidden).toBe(true)
+  expect(folded()).toBe(true)
+})
+
+it('停靠的侧边区收起时留在格线轨道里滑走：不藏起元素，标成收起并且不可操作', async () => {
+  stubRoom(1440)
+  const { root } = await opened()
+  await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0)))
+  const sheet = () => panel()?.querySelector(':scope > .omne-session-side-sheet')
+  expect(sheet()?.querySelector('[data-side-pane="status"]')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: '收起侧边区' }))
+  expect(panel()?.hidden).toBe(false)
+  expect(panel()?.dataset['open']).toBe('false')
+  expect(sheet()).toBeTruthy()
 })
 
 it('对话区不小于 1160 时停靠，窄于 1160 收在对话头的控件后面；量的是对话区自己的宽度，不是窗口', async () => {
@@ -224,6 +241,45 @@ it('对话区不小于 1160 时停靠，窄于 1160 收在对话头的控件后�
   expect(control().getAttribute('aria-expanded')).toBe('true')
 })
 
+it('门槛随字号档变：系数 1.25 时对话区 1300 收进墨框、1450 停靠；字号变了宽度不变也重新量', async () => {
+  document.documentElement.style.setProperty('--omne-size', '1.25')
+  const room = stubRoom(1300)
+  const { root } = await opened()
+  await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0)))
+  expect(panel()).toBeNull()
+  expect(control().getAttribute('aria-expanded')).toBe('false')
+  act(() => room.resize(1449))
+  expect(panel()).toBeNull()
+  act(() => room.resize(1450))
+  expect(panel()?.dataset['presentation']).toBe('docked')
+  act(() => room.resize(1300))
+  expect(panel()).toBeNull()
+  await act(async () => {
+    document.documentElement.style.setProperty('--omne-size', '1')
+    document.documentElement.setAttribute('data-size', 'standard')
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+  expect(panel()?.dataset['presentation']).toBe('docked')
+  document.documentElement.removeAttribute('data-size')
+})
+
+it('F6 走得到侧边区：停靠时与墨框里都是一个区；收起的停靠侧边区不算', async () => {
+  const room = stubRoom(1440, boxes)
+  const { root } = await opened()
+  await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0)))
+  act(() => void moveRegion('next'))
+  expect(panel()?.contains(document.activeElement)).toBe(true)
+  act(() => (document.activeElement as HTMLElement).blur())
+  fireEvent.click(screen.getByRole('button', { name: '收起侧边区' }))
+  expect(moveRegion('next')).toBe(false)
+  expect(document.activeElement).toBe(document.body)
+  act(() => room.resize(1100))
+  fireEvent.click(control(), { detail: 1 })
+  act(() => void moveRegion('next'))
+  expect(panel()?.dataset['presentation']).toBe('bubble')
+  expect(panel()?.contains(document.activeElement)).toBe(true)
+})
+
 const HEADER = { left: 240, top: 0, width: 900, height: 64 }
 const SEAT = { left: 674, top: 16, width: 32, height: 32 }
 const boxes = new Map([
@@ -240,7 +296,7 @@ it('窄时按对话头的控件展开淡墨框：盖在页面上，开在头部�
   fireEvent.click(control())
   const bubble = panel()!
   expect(bubble.dataset['presentation']).toBe('bubble')
-  expect(bubble.dataset['region']).toBe('side')
+  expect(bubble.dataset['keyboardRegion']).toBe('side')
   expect(bubble.dataset['inkStrength']).toBe('light')
   expect(bubble.classList.contains('omne-ink-bubble')).toBe(true)
   expect(bubble.style.top).toBe(`${HEADER.top + HEADER.height + 8}px`)
@@ -268,6 +324,65 @@ it('墨框收起：Escape 收起并把焦点还给对话头的控件；点墨框
   expect(control().getAttribute('aria-expanded')).toBe('true')
   fireEvent.pointerDown(document.querySelector('.omne-session-main')!)
   expect(control().getAttribute('aria-expanded')).toBe('false')
+})
+
+/** Enter on the focused control: the browser's keyboard activation is a keydown, then a click. */
+function openFromKeyboard(): void {
+  act(() => control().focus())
+  fireEvent.keyDown(control(), { key: 'Enter' })
+  fireEvent.click(control())
+}
+
+async function nextFrame(): Promise<void> {
+  await act(async () => {
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+  })
+}
+
+it('从键盘打开墨框，焦点进到墨框里标着的地方；Escape 收起后回到对话头的控件', async () => {
+  stubRoom(1100, boxes)
+  const { root } = await opened()
+  await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0, '状态')))
+  openFromKeyboard()
+  await nextFrame()
+  const marked = panel()?.querySelector('[data-initial-focus]')
+  expect(marked?.classList.contains('omne-session-side-body')).toBe(true)
+  expect(document.activeElement).toBe(marked)
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+  expect(control().getAttribute('aria-expanded')).toBe('false')
+  expect(document.activeElement).toBe(control())
+})
+
+it('Escape 之后用指针按形：按下先放掉键盘给的焦点；指针打开的墨框不抢焦点', async () => {
+  stubRoom(1100, boxes)
+  const { root } = await opened()
+  await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0)))
+  openFromKeyboard()
+  await nextFrame()
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+  expect(document.activeElement).toBe(control())
+  fireEvent.pointerDown(control(), { button: 0 })
+  expect(document.activeElement).not.toBe(control())
+  fireEvent.click(control(), { detail: 1 })
+  await nextFrame()
+  expect(control().getAttribute('aria-expanded')).toBe('true')
+  expect(panel()?.contains(document.activeElement)).toBe(false)
+})
+
+it('按画在座位上的形，外壳经 click() 转给控件：算指针，焦点放掉再像指针那样拿，墨框不抢焦点', async () => {
+  stubRoom(1100, boxes)
+  const { root } = await opened()
+  await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0)))
+  openFromKeyboard()
+  await nextFrame()
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+  const blur = vi.spyOn(control(), 'blur')
+  act(() => control().click())
+  await nextFrame()
+  expect(control().getAttribute('aria-expanded')).toBe('true')
+  expect(blur).toHaveBeenCalledTimes(1)
+  expect(document.activeElement).toBe(control())
+  expect(panel()?.contains(document.activeElement)).toBe(false)
 })
 
 it('墨框开着时按控件上的 Escape 也收起；变宽时墨框收起，侧边区回到停靠', async () => {

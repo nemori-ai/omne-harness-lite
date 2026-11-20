@@ -1,5 +1,5 @@
 import type { AttachedEntry } from '@omne-harness/shell-contract'
-import { Button, InkBubble, Segmented, type Box } from '@omne-harness/ui-kit'
+import { Button, focusSurface, InkBubble, Segmented, type Box } from '@omne-harness/ui-kit'
 import {
   useCallback,
   useContext,
@@ -62,12 +62,18 @@ export function SidePanel({ entries }: { readonly entries: readonly SideEntry[] 
           </h3>
         )}
         {docked && frame !== null ? (
-          <Button variant="ghost" onClick={frame.toggle}>
+          <Button variant="ghost" onClick={() => frame.toggle(false)}>
             收起侧边区
           </Button>
         ) : null}
       </div>
-      <div className="omne-session-side-body">
+      <div
+        className="omne-session-side-body"
+        role="group"
+        aria-label={titleOf(active)}
+        tabIndex={0}
+        data-initial-focus
+      >
         {entries.map(entry => (
           <div key={entry.id} data-side-pane={entry.id} hidden={entry.id !== active.id}>
             {entry.node}
@@ -76,19 +82,22 @@ export function SidePanel({ entries }: { readonly entries: readonly SideEntry[] 
       </div>
     </>
   )
-  if (docked)
+  if (docked) {
+    const open = frame === null || frame.shown
     return (
       <aside
         id={frame?.sideId}
         className="omne-session-side"
         data-presentation="docked"
-        data-region="side"
-        hidden={frame !== null && !frame.shown}
+        data-open={open}
+        data-keyboard-region="side"
+        inert={!open}
         aria-label={LABEL}
       >
-        {contents}
+        <div className="omne-session-side-sheet">{contents}</div>
       </aside>
     )
+  }
   return <SideBubble frame={frame}>{contents}</SideBubble>
 }
 
@@ -141,7 +150,7 @@ function useSeatBox(frame: SideFrame, on: boolean): SeatBox | null {
   return box
 }
 
-/** The light ink bubble out of the seat; a press elsewhere folds it, Escape folds and gives focus back. */
+/** The light ink bubble: a keyboard opening gives it the focus, Escape gives it back, a press elsewhere folds it. */
 function SideBubble({
   frame,
   children,
@@ -152,7 +161,14 @@ function SideBubble({
   const unfold = useUnfold(frame.shown)
   const bubble = useRef<HTMLElement>(null)
   const box = useSeatBox(frame, unfold.kept)
-  const { shown, close, control } = frame
+  const { shown, openedByKeyboard, close, control } = frame
+  useEffect(() => {
+    if (!shown || !openedByKeyboard) return undefined
+    const frameId = requestAnimationFrame(() => {
+      if (bubble.current !== null) focusSurface(bubble.current)
+    })
+    return () => cancelAnimationFrame(frameId)
+  }, [shown, openedByKeyboard])
   useEffect(() => {
     if (!shown) return undefined
     const pressed = (event: PointerEvent): void => {
@@ -172,7 +188,7 @@ function SideBubble({
       id={frame.sideId}
       className="omne-session-side"
       data-presentation="bubble"
-      data-region="side"
+      data-keyboard-region="side"
       aria-label={LABEL}
       inert={unfold.closing}
       ink="light"
