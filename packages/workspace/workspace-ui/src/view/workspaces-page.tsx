@@ -66,12 +66,15 @@ export type WorkspacesPageProps = Readonly<{
   client: Client
   tenant: string
   newId?: () => string
+  /** Told after each commit that changed the workspaces, so lists elsewhere are read again. */
+  onChange?: () => void
 }>
 
 export function WorkspacesPage({
   client,
   tenant,
   newId = () => crypto.randomUUID(),
+  onChange = () => {},
 }: WorkspacesPageProps): JSX.Element {
   const owner = readTenantText(tenant)
   return (
@@ -83,13 +86,18 @@ export function WorkspacesPage({
       {owner === undefined ? (
         <EmptyState role="alert" title="读不懂当前的租户。" />
       ) : (
-        <Workspaces client={client} tenant={owner} newId={newId} />
+        <Workspaces client={client} tenant={owner} newId={newId} onChange={onChange} />
       )}
     </PageColumn>
   )
 }
 
-type Props = Readonly<{ client: Client; tenant: TenantId; newId: () => string }>
+type Props = Readonly<{
+  client: Client
+  tenant: TenantId
+  newId: () => string
+  onChange: () => void
+}>
 
 function useTold(client: Client) {
   const [told, setTold] = useState<Told | null>(null)
@@ -102,12 +110,15 @@ function useTold(client: Client) {
   return { told, run, again }
 }
 
-function Workspaces({ client, tenant, newId }: Props): JSX.Element {
+function Workspaces({ client, tenant, newId, onChange }: Props): JSX.Element {
   const [round, reread] = useState(0)
   const [selected, select] = useState<string | null>(null)
   const [address, setAddress] = useState('')
   const { told, run, again } = useTold(client)
-  const changed = () => reread(value => value + 1)
+  const changed = () => {
+    reread(value => value + 1)
+    onChange()
+  }
   const list = useRead(
     () => client.list({ tenant }),
     body => (body as { workspaces: readonly WorkspaceSummaryBody[] }).workspaces,

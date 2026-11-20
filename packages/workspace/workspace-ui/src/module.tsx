@@ -23,14 +23,17 @@ export const workspaceUiModule = defineUiModule<Record<string, ClientOf<Workspac
   inject: [workspaceClientService],
   apply(shell, services, provide) {
     const client = services[workspaceClientService]!
-    provide(workspaceChoicesKey, createWorkspaceChoices(client))
+    const choices = createWorkspaceChoices(client)
+    provide(workspaceChoicesKey, choices)
     shell.contribute('pages', {
       id: WORKSPACES_PAGE_ID,
       title: '工作区',
       order: WORKSPACES_PAGE_ORDER,
       icon: 'resource',
       render: ({ scope }) =>
-        scope === undefined ? null : <WorkspacesPage client={client} tenant={scope} />,
+        scope === undefined ? null : (
+          <WorkspacesPage client={client} tenant={scope} onChange={choices.touch} />
+        ),
     })
   },
 })

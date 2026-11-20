@@ -19,6 +19,8 @@ export type WorkspaceChoiceListing = Listing<WorkspaceChoice>
 /** What the session interface needs from whoever lists workspaces. It does not know who that is. */
 export interface WorkspaceChoiceSource {
   list(tenant: string): Promise<WorkspaceChoiceListing>
+  /** Calls the listener when the lists may have changed, so they are read again; returns how to stop. */
+  changed?(listener: () => void): () => void
 }
 /** Where the application assembly hands a list of workspaces to the session interface. */
 export interface WorkspaceChoiceHolder {

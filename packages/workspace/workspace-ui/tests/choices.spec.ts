@@ -110,3 +110,17 @@ describe('the instances a tenant can work in', () => {
     expect(asked).toEqual([])
   })
 })
+
+it('tells those who listen when this client changed the workspaces, until they stop', () => {
+  const choices = createWorkspaceChoices({
+    list: async () => ({}) as never,
+    describe: async () => ({}) as never,
+  })
+  const heard: string[] = []
+  const stop = choices.changed(() => heard.push('one'))
+  choices.changed(() => heard.push('two'))
+  choices.touch()
+  stop()
+  choices.touch()
+  expect(heard).toEqual(['one', 'two', 'two'])
+})

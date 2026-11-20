@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { workspaceProtocol, type WorkspaceProtocol } from '@omne-harness/workspace-protocol'
 import { afterEach, beforeAll, expect, it } from 'vitest'
@@ -46,4 +46,24 @@ it('no tenant yet: nothing is drawn and nothing is read', async () => {
   const drawn = render(<>{shell.items('pages')[0]!.render({ scope: tenant })}</>)
   expect(drawn.getByRole('heading', { name: '工作区' })).toBeTruthy()
   expect(fake.calls.map(call => call.operation)).toEqual(['list'])
+})
+
+it('a change made on the page is told to whoever listens to the list of instances', async () => {
+  const { root, shell } = await startShell()
+  const fake = createFakeClient<ClientOf<WorkspaceProtocol>>(OPERATIONS)
+  root.reflect.provide(workspaceClientService, fake.client)
+  await root.plugin(workspaceUiModule)
+  let told = 0
+  ;(choicesOf(root) as { changed(listener: () => void): () => void }).changed(() => (told += 1))
+  const tenant =
+    '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
+  render(<>{shell.items('pages')[0]!.render({ scope: tenant })}</>)
+  ;(await fake.next('list')).answer({ outcome: 'succeeded', body: { workspaces: [] } })
+  fireEvent.change(await screen.findByLabelText('要登记的目录'), { target: { value: '/srv/blog' } })
+  fireEvent.click(screen.getByRole('button', { name: '登记' }))
+  ;(await fake.next('register')).answer({ outcome: 'succeeded', body: {} })
+  await act(async () => {
+    await tick()
+  })
+  expect(told).toBe(1)
 })

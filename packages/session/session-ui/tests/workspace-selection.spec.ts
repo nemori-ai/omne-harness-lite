@@ -97,6 +97,32 @@ describe('the choices handed over, and which one a session stands at', () => {
     expect(store.choices(TENANT)).toEqual({ kind: 'absent' })
   })
 
+  it('reads the lists again when the source says they changed, and stops listening once taken away', async () => {
+    const { store } = storeWith([])
+    const choice = { ...SHOP, label: 'shop', selectable: true, note: null }
+    let listed: readonly (typeof choice)[] = []
+    let tell: () => void = () => {}
+    let stopped = 0
+    const withdraw = store.attach({
+      list: async () => ({ kind: 'listed', choices: listed }),
+      changed: listener => {
+        tell = listener
+        return () => void (stopped += 1)
+      },
+    })
+    store.subscribeChoices(TENANT, () => {})
+    await store.loadChoices(TENANT)
+    expect(store.choices(TENANT)).toEqual({ kind: 'listed', choices: [] })
+    listed = [choice]
+    tell()
+    await vi.waitFor(() =>
+      expect(store.choices(TENANT)).toEqual({ kind: 'listed', choices: [choice] }),
+    )
+    withdraw()
+    expect(stopped).toBe(1)
+    expect(store.choices(TENANT)).toEqual({ kind: 'absent' })
+  })
+
   it('keeps each session apart, and a listener that left hears nothing more', async () => {
     const { store } = storeWith([read('/srv/a'), read('/srv/b'), read('/srv/a2')])
     const heard = vi.fn()

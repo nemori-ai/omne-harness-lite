@@ -25,6 +25,8 @@ export type WorkspaceChoiceListing =
 /** The instances a tenant can work in, for whoever shows a choice of them. */
 export interface WorkspaceChoices {
   list(tenant: string): Promise<WorkspaceChoiceListing>
+  /** Calls the listener when this client changed the workspaces; returns how to stop. */
+  changed(listener: () => void): () => void
 }
 
 const noteOf = (availability: WorkspaceInstanceBody['availability']): string | null =>
@@ -42,8 +44,16 @@ const choicesOf = (view: WorkspaceViewBody): readonly WorkspaceChoice[] =>
 const unavailable = (reason: string) => ({ kind: 'unavailable', reason }) as const
 
 // Each workspace is described to learn its instances; one that cannot be read leaves no list.
-export function createWorkspaceChoices(client: Client): WorkspaceChoices {
+export function createWorkspaceChoices(client: Client): WorkspaceChoices & { touch(): void } {
+  const listeners = new Set<() => void>()
   return {
+    changed(listener) {
+      listeners.add(listener)
+      return () => void listeners.delete(listener)
+    },
+    touch() {
+      for (const listener of listeners) listener()
+    },
     async list(tenant) {
       const owner = readTenantText(tenant)
       if (owner === undefined) return unavailable('租户读不懂')

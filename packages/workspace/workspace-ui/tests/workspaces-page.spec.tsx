@@ -109,6 +109,25 @@ describe('the workspaces page', () => {
     expect(screen.getByText('拥有者')).toBeTruthy()
   })
 
+  it('says a change was made only after a commit that changed something', async () => {
+    const fake = createFakeClient<ClientOf<WorkspaceProtocol>>(OPERATIONS)
+    let changes = 0
+    render(<WorkspacesPage client={fake.client} tenant={TENANT} onChange={() => (changes += 1)} />)
+    ;(await fake.next('list')).answer({ outcome: 'succeeded', body: { workspaces: [] } })
+    await settle()
+    type('要登记的目录', '/srv/blog')
+    for (const answer of [
+      { outcome: 'invalid', body: { reason: 'occupied' } },
+      { outcome: 'succeeded', body: {} },
+      { outcome: 'no-change', body: {} },
+    ]) {
+      fireEvent.click(screen.getByRole('button', { name: '登记' }))
+      ;(await fake.next('register')).answer(answer)
+      await settle()
+    }
+    expect(changes).toBe(2)
+  })
+
   it('a list shown is read again after a change, and said to be read meanwhile', async () => {
     const fake = await shown([BLOG])
     type('要登记的目录', '/srv/shop')

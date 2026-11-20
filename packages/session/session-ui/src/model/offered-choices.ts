@@ -46,10 +46,16 @@ export class Cells<V> {
   }
 }
 
+/** A source of choices; one that can say its lists changed is read again when it does. */
+export type ChoiceSource<C> = Readonly<{
+  list(tenant: string): Promise<Listing<C>>
+  changed?(listener: () => void): () => void
+}>
+
 /** The lists one handed-over source gives, per tenant; a source taken away lists nothing. */
 export class OfferedChoices<C> {
   private readonly lists = new Cells<Exclude<ChoicesView<C>, { kind: 'absent' }>>(UNREAD)
-  private source: { list(tenant: string): Promise<Listing<C>> } | null = null
+  private source: ChoiceSource<C> | null = null
 
   choices(tenant: string): ChoicesView<C> {
     return this.source === null ? ABSENT : this.lists.read(tenant)
@@ -68,15 +74,19 @@ export class OfferedChoices<C> {
     if (this.source === source) this.lists.show(tenant, listing)
   }
 
-  attach(source: { list(tenant: string): Promise<Listing<C>> }): () => void {
+  attach(source: ChoiceSource<C>): () => void {
     this.replace(source)
+    const stop = source.changed?.(() => {
+      for (const tenant of this.lists.keys()) void this.load(tenant)
+    })
     return () => {
+      stop?.()
       if (this.source === source) this.replace(null)
     }
   }
 
   // What an earlier source listed is not shown as the list of the next one.
-  private replace(source: { list(tenant: string): Promise<Listing<C>> } | null): void {
+  private replace(source: ChoiceSource<C> | null): void {
     this.source = source
     for (const tenant of this.lists.keys()) {
       this.lists.show(tenant, UNREAD)
