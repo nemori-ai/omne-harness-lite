@@ -326,14 +326,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     group: 'model-records',
   },
   'tool-records': {
-    provides: [
-      'toolCommands',
-      'toolReads',
-      'toolStartAuthority',
-      'toolStartFence',
-      'toolStartReleases',
-      'toolInvocationQualification',
-    ],
+    provides: ['toolCommands', 'toolReads', 'toolStartAuthority', 'toolStartFence'],
     injects: [
       'storage',
       'tenantDomainLookup',

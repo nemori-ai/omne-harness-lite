@@ -4,11 +4,7 @@ import {
   PERMISSION_CURRENT_MIGRATION,
   PERMISSION_CURRENT_TABLES,
 } from './worker/permission-current-schema.ts'
-import {
-  SESSION_AUTHORIZATION_GUARD,
-  SESSION_PERMISSION_CURRENT_FACT,
-  SESSION_PERMISSION_GUARD,
-} from './permission-current.ts'
+import { SESSION_PERMISSION_CURRENT_FACT, SESSION_PERMISSION_GUARD } from './permission-current.ts'
 import {
   SESSION_ORDINARY_BASIS,
   SESSION_COMMIT_BASIS,
@@ -457,7 +453,6 @@ export function sessionStorageMaterials(
       guardOf(SESSION_PERMISSION_GUARD, 'permission-current-guard', PERMISSION_CURRENT_TABLES, [
         SESSION_PERMISSION_CURRENT_FACT,
       ]),
-      guardOf(SESSION_AUTHORIZATION_GUARD, 'authorization-guard', AUTHORIZATION_CONTEXT_TABLES, []),
       {
         participant: EXECUTION_RECORD_PARTICIPANT,
         protocol: EXECUTION_RECORD_PROTOCOL,

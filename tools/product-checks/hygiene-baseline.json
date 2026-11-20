@@ -92,7 +92,7 @@
       "packages/session/session-storage-sql/src/worker/participant.ts": 1119,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
-      "packages/tool/tool-host-local/src/start-coordinator.ts": 1055,
+      "packages/tool/tool-host-local/src/start-coordinator.ts": 1037,
       "packages/tool/tool/src/ledger.ts": 2012,
       "tools/repo-toolchain/src/arch/extract.ts": 1098
     },
@@ -629,10 +629,6 @@
         "count": 2,
         "longest": 299
       },
-      "packages/tool/tool-contract/src/testing-start-authority.ts": {
-        "count": 1,
-        "longest": 186
-      },
       "packages/tool/tool-cordis-contract/src/testing.ts": {
         "count": 2,
         "longest": 318
@@ -671,11 +667,11 @@
       },
       "packages/tool/tool-host-local/src/invocation-forwarding.ts": {
         "count": 1,
-        "longest": 297
+        "longest": 293
       },
       "packages/tool/tool-host-local/src/invocation-source.ts": {
         "count": 1,
-        "longest": 292
+        "longest": 281
       },
       "packages/tool/tool-host-local/src/recovery-scans.ts": {
         "count": 1,
@@ -707,7 +703,7 @@
       },
       "packages/tool/tool-host-local/src/start-coordinator.ts": {
         "count": 1,
-        "longest": 486
+        "longest": 471
       },
       "packages/tool/tool-host-local/src/tool-forwarding.ts": {
         "count": 2,

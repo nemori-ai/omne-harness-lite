@@ -7,16 +7,11 @@ import {
   type ToolLedgerStore,
 } from '@omne-harness/tool'
 import type { ToolClock } from '@omne-harness/tool-contract/provider'
-import {
-  createLocalToolClock,
-  type LocalToolForwarding,
-  type LocalInvocationQualifier,
-} from '@omne-harness/tool-host-local'
+import { createLocalToolClock, type LocalToolForwarding } from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
 import { randomBytes } from 'node:crypto'
 
-type StartConditionalCommit = LocalToolRuntimeInput['conditionalCommit']
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import {
   decodeToolInstant,
@@ -29,15 +24,11 @@ import type { SchemaProvider } from '@omne-harness/schema-provider'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
 import { createDueTenants, type DueTenants } from './body-sweep.ts'
 
-export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins> &
-  Readonly<{
-    qualification: LocalInvocationQualifier<unknown>
-  }>
+export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
 
 export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore
   bodies: NonNullable<LocalToolRuntimeInput['bodies']>
-  conditional: StartConditionalCommit
 }>
 
 type Witnessed = { execution: string; sources: Set<string> }
@@ -186,20 +177,6 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
       return answer
     },
   } satisfies ToolLedgerStore)
-}
-
-export function lateConditional(holder: ToolRuntimeHolder): StartConditionalCommit {
-  const conditional: StartConditionalCommit = {
-    async commit(input) {
-      const sql = holder.sql
-      if (sql === null)
-        return unavailableRead('tool-records: no SQL conditional commit is installed')
-      const answer = await sql.conditional.commit(input)
-      if (answer.kind !== 'condition-failed') noteDue(holder, input.ledger, answer)
-      return answer
-    },
-  }
-  return Object.freeze(conditional)
 }
 
 export function witnessed(

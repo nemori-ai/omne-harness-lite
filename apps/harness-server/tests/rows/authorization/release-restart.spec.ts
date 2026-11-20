@@ -1,7 +1,8 @@
 // @module-tag slow
 // Restarts the release tree at the points between a person's release and the start of the call.
 import { expect, it } from 'vitest'
-import { toolTargetPolicyOf } from '../../../src/rows/authorization/tool-target-policy.ts'
+import { toolStartAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
+import type { ToolStartAuthority } from '@omne-harness/tool-contract/provider'
 import {
   historyOf,
   hostRecords,
@@ -13,7 +14,13 @@ import {
   toolResults,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
-import { ONCE, answerCard, pendingCard, perMessageShell } from './release-flow-support.ts'
+import {
+  ONCE,
+  admittedReleases,
+  answerCard,
+  pendingCard,
+  perMessageShell,
+} from './release-flow-support.ts'
 
 const options = {
   script: perMessageShell,
@@ -60,7 +67,9 @@ async function ranOnce(tree: ReleaseTree, session: string, label: string) {
   expect(toolResults(entries).join('\n')).toContain(`${label}-done`)
   expect(entries.filter(entry => entry.kind === ONCE)).toHaveLength(1)
   expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(1)
-  expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toHaveLength(1)
+  expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toHaveLength(0)
+  const once = admittedReleases(tree.storageRoot).filter(release => release.by === 'once')
+  expect(once).toHaveLength(1)
 }
 
 it(
@@ -124,26 +133,25 @@ it(
     let session = ''
     await onReleaseTreeRuns(options, [
       async tree => {
-        const policy = toolTargetPolicyOf(tree.scope)
-        if (policy === undefined) throw new Error('no target policy installed')
-        const qualify = policy.qualify.bind(policy)
+        const authority = tree.scope.get(toolStartAuthorityKey) as
+          | ToolStartAuthority<unknown>
+          | undefined
+        if (authority === undefined) throw new Error('no start authority installed')
+        const prepare = authority.prepare.bind(authority)
         const stopped = counted()
-        let released = false
-        let asked = 0
-        // Once released, the Tool asks when it takes the call, then again when it would start it.
-        Object.assign(policy, {
-          qualify: (input: Parameters<typeof qualify>[0]) => {
-            if (!released || input.request.availability.definition.name !== 'Shell')
-              return qualify(input)
-            asked += 1
-            if (asked === 1) return qualify(input)
+        Object.assign(authority, {
+          prepare: async (input: Parameters<typeof prepare>[0]) => {
+            if (input.request.availability.definition.name !== 'Shell') return prepare(input)
             stopped.enter()
-            return { kind: 'unavailable', diagnostic: NOT_NOW } as const
+            const failure = {
+              kind: 'unavailable',
+              dependency: 'toolStartAuthority',
+              diagnostic: NOT_NOW,
+            }
+            return { failure } as Awaited<ReturnType<typeof prepare>>
           },
         })
-        session = await releaseOnce(tree, 'taken', () => {
-          released = true
-        })
+        session = await releaseOnce(tree, 'taken', () => {})
         await pollUntil(
           'the Tool to reach the start',
           async () => stopped.entered(),

@@ -302,7 +302,7 @@ export async function history(
   return []
 }
 
-function sqliteFiles(storageRoot: string): string[] {
+export function sqliteFiles(storageRoot: string): string[] {
   const files: string[] = []
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {

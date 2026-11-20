@@ -9,11 +9,4 @@ export {
   type SqlToolBodyStore,
   type SqlToolBodyStoreOptions,
 } from './body-store.ts'
-export {
-  createSqlToolConditionalCommit,
-  type SqlToolCondition,
-  type SqlToolConditionalCommit,
-  type SqlToolConditionalCommitInput,
-  type SqlToolConditionalCommitResult,
-} from './conditional-commit.ts'
 export { TOOL_PARTICIPANT, toolStorageMaterials, type ToolStorageMaterials } from './materials.ts'

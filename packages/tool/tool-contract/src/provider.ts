@@ -226,15 +226,7 @@ export type {
   ToolStartAuthority,
   ToolTask,
 } from './records.ts'
-export type {
-  ToolPermitConsumption,
-  ToolPermitRef,
-  ToolStartAcceptance,
-  ToolStartFence,
-  ToolStartRelease,
-  ToolStartReleaseReading,
-  ToolStartReleases,
-} from './records.ts'
+export type { ToolStartAcceptance, ToolStartFence } from './records.ts'
 export type {
   AccountScope,
   ToolAccounts,

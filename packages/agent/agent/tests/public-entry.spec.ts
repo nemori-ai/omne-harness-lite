@@ -30,7 +30,6 @@ it('root entry exports the factory, evaluator, checkpoint, control advance, step
     'createAgentModelReceiver',
     'createAgentRuntime',
     'createAgentTelemetry',
-    'createAgentToolQualification',
     'createAgentToolReceiver',
     'createModelReceiverState',
     'createToolReceiverState',

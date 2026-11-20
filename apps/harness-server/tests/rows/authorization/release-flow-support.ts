@@ -1,15 +1,72 @@
+import { DatabaseSync } from 'node:sqlite'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import { expect } from 'vitest'
 import { SHELL, faceOf } from '../../governance/tenant-settings-support.ts'
 import { loginAccess } from '../../model/public-stream-support.ts'
 import {
   historyOf,
   pollUntil,
+  sqliteFiles,
   toolCallsByRequest,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
 
 /** The history kind of an authorization a person expressed on a card. */
 export const ONCE = 'session.authorization-expressed'
+
+const RELEASED = 'action-current-permission'
+
+export type AdmittedRelease = Readonly<{
+  by: string
+  grant: Readonly<{ via: string; source?: Readonly<Record<string, unknown>> }> | null
+}>
+
+function storedText(cell: unknown): string | null {
+  if (typeof cell === 'string') return cell
+  if (!(cell instanceof Uint8Array)) return null
+  try {
+    return unpackText(cell)
+  } catch {
+    return null
+  }
+}
+
+function storedJson(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
+  }
+}
+
+export function admittedReleases(storageRoot: string): readonly AdmittedRelease[] {
+  const found = new Map<string, AdmittedRelease>()
+  const visit = (value: unknown): void => {
+    if (typeof value !== 'object' || value === null) return
+    const record: unknown = Reflect.get(value, 'record')
+    if (typeof record === 'string' && record.includes(RELEASED)) {
+      const parsed = storedJson(record) as (AdmittedRelease & { decision?: string }) | undefined
+      if (parsed?.decision === RELEASED)
+        found.set(record, { by: parsed.by, grant: parsed.grant ?? null })
+    }
+    for (const member of Object.values(value)) visit(member)
+  }
+  for (const file of sqliteFiles(storageRoot)) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all()
+      for (const table of tables)
+        for (const row of db.prepare(`SELECT * FROM "${String(table['name'])}"`).all())
+          for (const cell of Object.values(row)) {
+            const text = storedText(cell)
+            if (text?.includes(RELEASED)) visit(storedJson(text))
+          }
+    } finally {
+      db.close()
+    }
+  }
+  return [...found.values()]
+}
 
 // Each new user message asks for one call, so one session holds several calls of the same tool.
 const perMessage = (through: 'Shell' | 'Tools') =>

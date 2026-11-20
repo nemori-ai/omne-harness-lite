@@ -60,7 +60,6 @@ function admissionFor(config: unknown, currentPermission = true) {
         ? {
             check: async input => ({
               kind: 'allow',
-              condition: null,
               release: VERDICT_RELEASE,
               evidence: decisionEvidence('current-permission-fixture', '1', input.operation),
             }),

@@ -72,7 +72,6 @@
 - `AgentRuntime` · `execution.d.ts`
 - `AgentRuntimeControl` · `execution.d.ts`
 - `AgentState` · `execution.d.ts`
-- `AgentToolQualification` · `tool-qualification.d.ts`
 - `AssetReference` · `definition.d.ts`
 - `AttributeDeclaration` · `definition.d.ts`
 - `AttributeItem` · `definition.d.ts`
@@ -293,8 +292,6 @@
 - `TerminalParticipantFacts` · `finishing.d.ts`
 - `ToolAssociationRecord` · `finishing.d.ts`
 - `ToolIntentKey` · `finishing.d.ts`
-- `ToolQualification` · `tool-qualification.d.ts`
-- `ToolQualificationRequest` · `tool-qualification.d.ts`
 - `ToolReceptionTarget` · `receiving.d.ts`
 - `ToolReceptionTargets` · `receiving.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
@@ -2583,7 +2580,6 @@ export type * from './receiving.ts';
 export type * from './request.ts';
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts';
 export type * from './action-qualification.ts';
-export type * from './tool-qualification.ts';
 ```
 
 ## 声明文件 `journal.d.ts`
@@ -4508,29 +4504,4 @@ export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-r
 export { agentJournalReplayConformance, agentJournalReplayTraces, agentJournalViolatingTraces, replayJournalTrace, type JournalReplayState, type JournalReplayStep, type JournalReplayTrace, } from './testing-journal-replay.ts';
 export { describeMaterial, entryPage, materialDigest, receivedEntriesOf, } from './testing-journal-reads.ts';
 export { sampleCompactionInput, sampleCompactionAdoption } from './testing-compaction.ts';
-```
-
-## 声明文件 `tool-qualification.d.ts`
-
-```ts
-import type { ToolCallId, ToolInvokeRequest, ToolOperationId } from '@omne-harness/tool-contract';
-import type { Access, Adoption, AgentExecutionId, DurableEvidence, ExecutionRevision } from './identity.ts';
-import type { Reply } from './evaluation.ts';
-export type ToolQualificationRequest<P> = Access<P> & Readonly<{
-    call: ToolCallId;
-    admission: ToolOperationId;
-    request: ToolInvokeRequest;
-}>;
-export type ToolQualification = Readonly<{
-    version: 1;
-    request: Omit<ToolQualificationRequest<unknown>, 'principal'>;
-    execution: AgentExecutionId;
-    association: 'intent' | 'associated';
-    agentDefinition: Adoption;
-    revision: ExecutionRevision;
-    history: DurableEvidence;
-}>;
-export interface AgentToolQualification<P> {
-    qualify(input: ToolQualificationRequest<P>): Reply<ToolQualification>;
-}
 ```

@@ -1,19 +1,14 @@
 import { releasedDeclaration } from '../../../src/entry/permission-declarations.ts'
 // @module-tag slow
-import { randomUUID } from 'node:crypto'
 import { afterEach, expect, it } from 'vitest'
 import { effectiveArgumentsOf } from '@omne-harness/authorization'
 import { createGovernanceCollection } from '@omne-harness/governance-local'
 import type { TenantStandingReading } from '@omne-harness/identity'
 import { evaluatePermission, type PermissionBasisReading } from '@omne-harness/permissions'
 import { sessionStorageMaterials } from '@omne-harness/session-storage-sql'
-import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
-import type { FactCommandV2 } from '@omne-harness/sql-contract'
 import type { ToolGate } from '@omne-harness/tool-contract'
 import {
   PERMISSION_BASIS,
-  PERMISSION_BASIS_GUARD,
-  permissionBasisGuardParticipant,
   permissionBasisParticipant,
 } from '../../../dist/rows/governance/permission-basis.js'
 import { createPermissionBasisRead } from '../../../src/rows/governance/permission-basis-read.ts'
@@ -37,15 +32,11 @@ const current = (reading: PermissionBasisReading) => {
   return reading
 }
 
-it('reads the basis of a real Agent action and guards a later commit with it', async () => {
+it('reads the basis of a real Agent action without a commit, and reads none once the contribution is withdrawn', async () => {
   const session = sessionStorageMaterials({ readOutputLimitBytes: 4 * 1024 * 1024 })
   const w = await settingsPreparationWorld({
     sessionWork: 'owner-session',
-    extraParticipants: [
-      ...session.participants,
-      permissionBasisParticipant(),
-      permissionBasisGuardParticipant(),
-    ],
+    extraParticipants: [...session.participants, permissionBasisParticipant()],
     extraMigrations: session.migrations,
     extraReadHandlers: session.readHandlers,
     projectionMembers: [
@@ -57,13 +48,6 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
     ],
   })
   worlds.push(w)
-  const condition = await w.register('basis-condition', [
-    ...w.snapshotParticipants,
-    ...SESSION_LOG_PARTICIPANTS,
-    'session-permission-guard',
-    PERMISSION_BASIS.participant,
-    PERMISSION_BASIS_GUARD.participant,
-  ])
   const catalog = await w.service.readCatalog(w.access, {
     scope: w.scope,
     mode: 'management',
@@ -149,7 +133,6 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
         },
       },
       read: w.extendedRead,
-      conditions: { mapped: condition, unmapped: condition },
       origins: () => ({
         action: {
           async qualify(input) {
@@ -170,8 +153,6 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
             return result
           },
         },
-        tool: null as never,
-        toolAgent: null as never,
         adoptions: agent,
       }),
       accepting: () => true,
@@ -193,17 +174,6 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
         original: request.original,
       },
     })
-    const commit = (commands: unknown) =>
-      w.storage.commit({
-        identity: {
-          ...w.domain,
-          operation: 'fixture.start',
-          protocolVersion: '2',
-          operationKey: randomUUID(),
-        },
-        ...condition,
-        commands: commands as readonly FactCommandV2[],
-      })
 
     const first = await read.readCurrent(action())
     expect(first.request).not.toBeNull()
@@ -215,7 +185,7 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
     expect(basis.evaluation.constraints).toMatchObject([
       { id: 'agent-definition', kind: 'available', effect: { kind: 'bound', allowedSet: [] } },
     ])
-    expect(first.condition).toMatchObject(condition)
+    expect(Object.keys(first).sort()).toEqual(['authorizations', 'consumer', 'reading', 'request'])
     const inPass = action()
     const passed = await read.readCurrent({
       ...inPass,
@@ -236,10 +206,7 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
 
     const published = inquiry
     inquiry = { ...inquiry, basis: { ...inquiry.basis, permissionRevision: '999' } }
-    expect(await read.readCurrent(action())).toMatchObject({
-      reading: { kind: 'unavailable' },
-      condition: null,
-    })
+    expect(await read.readCurrent(action())).toMatchObject({ reading: { kind: 'unavailable' } })
     inquiry = published
 
     advanceAfterQualification = true
@@ -256,34 +223,26 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
     expect(await read.readCurrent(action(CHANGED))).toEqual({
       request: null,
       reading: { kind: 'denied' },
-      condition: null,
       authorizations: null,
       consumer: null,
     })
     standing = { kind: 'unavailable', diagnostic: 'fixture' }
     expect(await read.readCurrent(action(CHANGED))).toMatchObject({
       reading: { kind: 'unavailable' },
-      condition: null,
     })
     standing = undefined
     expect(standingReads).toBe(reads + 2)
 
+    expect((await read.readCurrent(action(CHANGED))).reading).toMatchObject({ kind: 'current' })
     expect(commits).toBe(0)
-
-    const held = await read.readCurrent(action(CHANGED))
-    expect(held.condition).not.toBeNull()
-    expect(await commit(held.condition!['commands'])).toMatchObject({ kind: 'committed' })
     expect(
       await w.service.withdraw(w.access, {
         operationId: 'basis-read-withdraw',
         contribution: complete[0]!.contribution,
       }),
     ).toMatchObject({ kind: 'released' })
-    const stopped = await commit(held.condition!['commands'])
-    expect(stopped.kind).toBe('rolled_back')
     expect(await read.readCurrent(action(CHANGED))).toMatchObject({
       reading: { kind: 'unavailable' },
-      condition: null,
     })
   })
 }, 30_000)

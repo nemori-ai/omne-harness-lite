@@ -23,7 +23,6 @@ describe('public entries', () => {
       'TOOL_PARTICIPANT',
       'TOOL_STORAGE_OWNER',
       'createSqlToolBodyStore',
-      'createSqlToolConditionalCommit',
       'createSqlToolLedgerStore',
       'toolStorageMaterials',
     ])

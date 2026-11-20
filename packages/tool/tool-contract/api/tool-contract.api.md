@@ -355,8 +355,6 @@
 - `ToolOperationIdentities` · `ports.d.ts`
 - `ToolOperationParameters` · `authoring.d.ts`
 - `ToolOperationSpec` · `authoring.d.ts`
-- `ToolPermitConsumption` · `records.d.ts`
-- `ToolPermitRef` · `records.d.ts`
 - `ToolPlannedFinal` · `materials.d.ts`
 - `ToolPresentation` · `authoring.d.ts`
 - `ToolPrimitiveFailure` · `author-context.d.ts`
@@ -382,9 +380,6 @@
 - `ToolStartAuthority` · `records.d.ts`
 - `ToolStartFence` · `records.d.ts`
 - `ToolStartLookup` · `ports.d.ts`
-- `ToolStartRelease` · `records.d.ts`
-- `ToolStartReleaseReading` · `records.d.ts`
-- `ToolStartReleases` · `records.d.ts`
 - `ToolTask` · `records.d.ts`
 - `ToolValueSchema` · `definitions.d.ts`
 - `ToolWaitContract` · `author-context.d.ts`
@@ -467,7 +462,6 @@
 - `Completion` · `testing-case.d.ts`
 - `ConformanceCase` · `testing-case.d.ts`
 - `CrossTenantAnswers` · `testing-case.d.ts`
-- `MemoryAuthorizedToolStartAuthority` · `testing-start-authority.d.ts`
 - `MemoryEnvironment` · `testing-environment.d.ts`
 - `MemoryToolBodyStore` · `testing-body-store.d.ts`
 - `MemoryToolClock` · `testing-clock.d.ts`
@@ -487,12 +481,9 @@
 - `ToolEnvironmentAllocationFixture` · `testing-environment-allocation.d.ts`
 - `ToolEnvironmentFixture` · `testing-environment.d.ts`
 - `ToolExecutorBindingFixture` · `testing-executor-binding.d.ts`
-- `ToolPermitReading` · `testing-start-authority.d.ts`
 - `ToolResourceResponsesFixture` · `testing-resource-responses.d.ts`
 - `ToolResultReceiverFixture` · `testing-result-receiver.d.ts`
 - `ToolStartAuthorityFixture` · `testing-start-authority.d.ts`
-- `ToolStartAuthorizationFixture` · `testing-start-authorization.d.ts`
-- `ToolStartAuthorizationHandles` · `testing-start-authority.d.ts`
 - `ToolStartFenceFixture` · `testing-start-fence.d.ts`
 - `checkReleaseDescription` · `testing-release-detail.d.ts`
 - `clockAnswers` · `testing-clock.d.ts`
@@ -500,7 +491,6 @@
 - `completedFinalEnvelope` · `testing-executor-binding.d.ts`
 - `completionOf` · `testing-case.d.ts`
 - `createManualInstantClock` · `testing-body-store.d.ts`
-- `createMemoryAuthorizedToolStartAuthority` · `testing-start-authority.d.ts`
 - `createMemoryToolBodyStore` · `testing-body-store.d.ts`
 - `createMemoryToolClock` · `testing-clock.d.ts`
 - `createMemoryToolDecisionBridge` · `testing-decision-bridge.d.ts`
@@ -525,7 +515,6 @@
 - `memoryToolResourceResponsesFixture` · `testing-resource-responses.d.ts`
 - `memoryToolResultReceiverFixture` · `testing-result-receiver.d.ts`
 - `memoryToolStartAuthorityFixture` · `testing-start-authority.d.ts`
-- `memoryToolStartAuthorizationFixture` · `testing-start-authorization.d.ts`
 - `memoryToolStartFenceFixture` · `testing-start-fence.d.ts`
 - `ordinaryReturnFixture` · `testing-returns.d.ts`
 - `resendRecalls` · `testing-case.d.ts`
@@ -547,7 +536,6 @@
 - `toolResourceResponsesConformance` · `testing-resource-responses.d.ts`
 - `toolResultReceiverConformance` · `testing-result-receiver.d.ts`
 - `toolStartAuthorityConformance` · `testing-start-authority.d.ts`
-- `toolStartAuthorizationConformance` · `testing-start-authorization.d.ts`
 - `toolStartFenceConformance` · `testing-start-fence.d.ts`
 
 ## 声明文件 `adoption.d.ts`
@@ -3236,7 +3224,7 @@ export type { ResultPolicy, TextRenderer, ToolCommands, ToolExecutor, ToolRecove
 export type { PreparedEnvironment, ToolBindings, ToolClock, ToolDecisionBridge, ToolDriver, ToolEnvironment, ToolExecutionFact, ToolExecutorBinding, ToolInstanceHost, ToolInstanceIdentities, ToolInvocationSourceIssuer, ToolInvocationSourceOutcome, ToolLiveExecution, ToolOperationIdentities, ToolProvider, ToolStartLookup, } from './ports.ts';
 export type { AvailabilityFacts, OutputCodec, ParameterCodec, TextResultFactory, ToolAuthor, ToolAuthorExecutor, ToolAuthority, ToolBindingDrain, ToolBindingEntry, ToolBindingKey, ToolBindingKeyFailure, ToolBindingRegistry, ToolBindingScope, ToolContribution, ToolContributionFailure, ToolImplementation, ToolImplementationDeclaration, ToolImplementationModule, ToolLoadedRegistration, ToolLoader, ToolOperation, ToolOperationParameters, ToolOperationSpec, ToolPresentation, ToolProgramContract, ToolProgramOutput, ToolReturnValidator, ToolShape, ToolShapeParameters, } from './authoring.ts';
 export type { Checkpoint, ControlDispatch, DrainState, ExternalOperationResolution, FactBatch, FactProgress, FactReceipt, PreparationProgress, PreparationRecord, ProgramScheduling, ReleaseProgress, ReleaseRecord, StartGuard, StartPermit, StartProgress, SuspensionProgress, SuspensionRecord, TaskResolution, ToolRecoveryBinding, ToolResourceResponses, ToolStartAuthority, ToolTask, } from './records.ts';
-export type { ToolPermitConsumption, ToolPermitRef, ToolStartAcceptance, ToolStartFence, ToolStartRelease, ToolStartReleaseReading, ToolStartReleases, } from './records.ts';
+export type { ToolStartAcceptance, ToolStartFence } from './records.ts';
 export type { AccountScope, ToolAccounts, ToolContentReader, ToolOffloader, ToolReads, } from './custody.ts';
 export type { ChildPosition, ChildReservation, ChildState, ProgramClosure, ProgramEnd, ProgramToolResult, ProgramTools, ToolChildren, } from './program.ts';
 export { projectToolBackgroundCalls } from './background-calls-projection.ts';
@@ -3408,46 +3396,15 @@ export interface ToolStartAuthority<P> {
     }>): Reply<DurableEvidence>;
 }
 export type ToolStartFence<P> = Pick<ToolStartAuthority<P>, 'invalidate'>;
-export type ToolPermitRef = Readonly<{
-    tenant: TenantId;
-    permit: string;
-}>;
-export type ToolPermitConsumption = Readonly<{
-    permit: ToolPermitRef;
-    consumer: Readonly<{
-        owner: string;
-        work: string;
-        position: string;
-    }>;
-    evidence: DurableEvidence;
-}>;
 export type ToolStartAcceptance = Readonly<{
     tenant: TenantId;
     call: ToolCallId;
     start: ToolStartRecord;
     permit: DurableEvidence;
     guards: readonly StartGuard[];
-    authorizations: readonly ToolPermitConsumption[];
     executorReceipt: DurableEvidence;
     acceptance: DurableEvidence;
-    release?: ToolStartRelease;
 }>;
-export type ToolStartRelease = Readonly<{
-    by: 'verdict' | 'once' | 'session' | 'skip-ask';
-    grant: string;
-} | {
-    by: 'carrier' | 'ungated';
-    grant: null;
-}>;
-export type ToolStartReleaseReading = Readonly<{
-    kind: 'released';
-    release: ToolStartRelease;
-}> | Readonly<{
-    kind: 'absent';
-}>;
-export interface ToolStartReleases<P> {
-    releaseOf(input: CallAccess<P>): Reply<ToolStartReleaseReading>;
-}
 export type WaitIntent = Readonly<{
     wait: ToolWaitId;
     resume: DurableEvidence;
@@ -5167,8 +5124,8 @@ export declare function structuredReturnFixture(contract: Adoption): Extract<Too
 
 ```ts
 import type { FixedToolRequest } from './definitions.ts';
-import type { Access, DurableEvidence, ToolCallId } from './identity.ts';
-import type { ToolPermitConsumption, ToolPermitRef, ToolStartAcceptance, ToolStartAuthority } from './records.ts';
+import type { Access } from './identity.ts';
+import type { ToolStartAuthority } from './records.ts';
 import { type ConformanceCase } from './testing-case.ts';
 export interface ToolStartAuthorityFixture<P> {
     readonly authority: ToolStartAuthority<P>;
@@ -5216,58 +5173,7 @@ export declare const MEMORY_START_GUARD: Readonly<{
     resource: "start-fence";
 }>;
 export declare function createMemoryToolStartAuthority<P>(): MemoryToolStartAuthority<P>;
-export type ToolPermitReading = Readonly<{
-    kind: 'open';
-}> | Readonly<{
-    kind: 'consumed';
-    fact: ToolPermitConsumption;
-}> | Readonly<{
-    kind: 'unknown';
-}> | Readonly<{
-    kind: 'unavailable';
-}>;
-export interface ToolStartAuthorizationHandles<P> {
-    bind(input: Readonly<{
-        access: Access<P>;
-        call: ToolCallId;
-        permit?: ToolPermitRef;
-    }>): Promise<ToolPermitRef>;
-    revoke(input: Readonly<{
-        access: Access<P>;
-        call: ToolCallId;
-    }>): Promise<void>;
-    read(permit: ToolPermitRef): Promise<ToolPermitReading>;
-    outage?(input: Readonly<{
-        access: Access<P>;
-        call: ToolCallId;
-        dependency: 'ledger' | 'admission';
-    }>): Promise<void>;
-    restore?(input: Readonly<{
-        access: Access<P>;
-        call: ToolCallId;
-        dependency: 'ledger' | 'admission';
-    }>): Promise<void>;
-}
-export interface MemoryAuthorizedToolStartAuthority<P> extends MemoryToolStartAuthority<P> {
-    readonly authorization: ToolStartAuthorizationHandles<P>;
-    acceptanceOf(acceptance: DurableEvidence): ToolStartAcceptance | null;
-}
-export declare function createMemoryAuthorizedToolStartAuthority<P>(): MemoryAuthorizedToolStartAuthority<P>;
 export declare function memoryToolStartAuthorityFixture(): ToolStartAuthorityFixture<string>;
-export {};
-```
-
-## 声明文件 `testing-start-authorization.d.ts`
-
-```ts
-import { type ConformanceCase } from './testing-case.ts';
-import { type ToolStartAuthorizationHandles, type ToolStartAuthorityFixture } from './testing-start-authority.ts';
-export interface ToolStartAuthorizationFixture<P> extends ToolStartAuthorityFixture<P> {
-    readonly authorization?: ToolStartAuthorizationHandles<P>;
-}
-type Fixture<P> = ToolStartAuthorizationFixture<P>;
-export declare function toolStartAuthorizationConformance<P>(): readonly ConformanceCase<Fixture<P>>[];
-export declare function memoryToolStartAuthorizationFixture(): ToolStartAuthorizationFixture<string>;
 export {};
 ```
 
@@ -5344,9 +5250,7 @@ export { testingCallLabel } from './testing-label.ts';
 export { ordinaryReturnFixture, structuredReturnFixture } from './testing-returns.ts';
 export { NotApplicable, completionOf, crossTenantAnswers, finalAnswer, isNotApplicable, isProgress, resendRecalls, runConformanceCase, type AnswerModel, type AnswerRow, type CaseVerdict, type Completion, type ConformanceCase, type CrossTenantAnswers, } from './testing-case.ts';
 export { createMemoryToolStartAuthority, memoryToolStartAuthorityFixture, startAuthorityAnswers, toolStartAuthorityConformance, type MemoryToolStartAuthority, type ToolStartAuthorityFixture, } from './testing-start-authority.ts';
-export { createMemoryAuthorizedToolStartAuthority, type MemoryAuthorizedToolStartAuthority, type ToolPermitReading, type ToolStartAuthorizationHandles, } from './testing-start-authority.ts';
 export { memoryToolStartFenceFixture, toolStartFenceConformance, type ToolStartFenceFixture, } from './testing-start-fence.ts';
-export { memoryToolStartAuthorizationFixture, toolStartAuthorizationConformance, type ToolStartAuthorizationFixture, } from './testing-start-authorization.ts';
 export { createMemoryToolResultReceiver, memoryToolResultReceiverFixture, toolResultReceiverConformance, type MemoryToolResultReceiver, type ToolResultReceiverFixture, } from './testing-result-receiver.ts';
 export { toolCredentialsConformance, type ToolCredentialEscape, type ToolCredentialEscapeExit, type ToolCredentialsFixture, } from './testing-credentials.ts';
 export { createMemoryToolEnvironment, environmentAnswers, memoryToolEnvironmentFixture, toolEnvironmentConformance, type MemoryEnvironment, type MemoryToolEnvironment, type ToolEnvironmentFixture, } from './testing-environment.ts';

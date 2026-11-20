@@ -8,8 +8,18 @@ import {
 } from '../../../src/rows/governance/tool-installation-assets.ts'
 import { installToolOrganizationSource } from '../../../src/rows/governance/tool-installation-source.ts'
 import { openTenantAssets } from '../../../src/rows/tenant-assets/host.ts'
-import { canonicalText } from '@omne-harness/authorization'
+import { canonicalText, decisionEvidence } from '@omne-harness/authorization'
+import {
+  decodeActionId,
+  decodeAgentExecutionId,
+  decodeAgentInstanceId,
+  decodeExecutionAttachmentId,
+  decodePassageId,
+} from '@omne-harness/agent-contract'
+import { judgeBlockIdentity } from '@omne-harness/content-block'
+import { agentPermissionOperation } from '../../../src/rows/authorization/current-tool-permission.ts'
 import { CurrentPermissionService } from '../../../src/rows/governance/current-permission-service.ts'
+import { okOf } from '../../entry/support.ts'
 // @module-tag slow
 import { randomUUID } from 'node:crypto'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
@@ -836,21 +846,41 @@ it('installs the actual Tool release and adopts its original holdings before exp
   )
   const tool = w.release.manifest.entries.find(entry => entry.asset.name === 'Shell')!
   const principal = w.workPrincipal('request-session')
-  const { ledgerWorld } =
-    await import('../../../../../packages/tool/tool-storage-sql/tests/fixtures/ledger.ts')
-  const fixture = await ledgerWorld(principal.tenant)
+  const block = judgeBlockIdentity({
+    id: 'block-shell',
+    visibility: { toHuman: true, toModel: true },
+  })
+  if ('rejected' in block) throw new Error(block.rejected)
+  const execution = okOf(decodeAgentExecutionId('execution'), 'execution')
+  const position = {
+    execution,
+    passage: okOf(decodePassageId('passage'), 'passage'),
+    action: okOf(decodeActionId('action'), 'action'),
+  }
   const action = {
     principal,
     tenant: principal.tenant,
-    operation: { owner: 'tool', operationId: fixture.input.call },
+    operation: agentPermissionOperation(position),
     definition: tool.asset.adoption,
-    effectiveArguments: fixture.input.request.arguments.effective,
+    effectiveArguments: '{"command":"execute","intent":"test call","params":{"script":"echo"}}',
     gate: { id: 'run', title: '执行', default: 'ask' as const },
     origin: {
-      kind: 'tool-call' as const,
-      call: fixture.input.call,
-      admission: fixture.input.operation,
-      request: fixture.input.request,
+      kind: 'agent-action' as const,
+      ...position,
+      original: {
+        ...block.ok,
+        kind: 'tool_call' as const,
+        callId: 'shell-1',
+        name: 'Shell',
+        arguments: { kind: 'object' as const, entries: [] },
+      },
+      advance: {
+        execution,
+        executionAttachment: okOf(decodeExecutionAttachmentId('attachment'), 'attachment'),
+        instance: okOf(decodeAgentInstanceId('instance'), 'instance'),
+        generation: '1',
+        source: decisionEvidence('fixture-advance', '1', {}),
+      },
     },
   }
   if (runtime.permissionBasis === undefined) throw new Error('permission reader not installed')
@@ -880,7 +910,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
       })
     ).request,
   ).toBeNull()
-  expect(first).toMatchObject({ reading: { kind: 'unavailable' }, condition: null })
+  expect(first).toMatchObject({ reading: { kind: 'unavailable' } })
   const boundary = new Context()
   cleanup.push(() => boundary.fiber.dispose())
   const routes: string[] = []
@@ -901,14 +931,10 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect((await read({ ...action, principal: { ...principal } })).request).toBeNull()
   expect((await read({ ...action, principal: w.principal })).request).toBeNull()
   expect(routes).toHaveLength(1)
-  expect(await read(action)).toMatchObject({ reading: { kind: 'unavailable' }, condition: null })
+  expect(await read(action)).toMatchObject({ reading: { kind: 'unavailable' } })
   await provider.dispose()
   const opened = routes.length
-  expect(await read(action)).toMatchObject({
-    request: null,
-    reading: { kind: 'unavailable' },
-    condition: null,
-  })
+  expect(await read(action)).toMatchObject({ request: null, reading: { kind: 'unavailable' } })
   expect(routes).toHaveLength(opened)
   expect(await prepared.open()).toBe(runtime)
 })

@@ -194,11 +194,7 @@ export async function admitToolAction<P>(
   })
   if ('failure' in admitted) return notAnswered('agentActionAdmission', admitted.failure)
   if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)
-  const prepared = await ports.toolRequests.prepare({
-    ...input,
-    definition,
-    admission: admitted.ok.evidence,
-  })
+  const prepared = await ports.toolRequests.prepare({ ...input, definition })
   if ('failure' in prepared) return notAnswered('agentToolRequests', prepared.failure)
   const request = checkedRequest(prepared.ok, definition, input.consumer, action, original)
   if ('failure' in request) return request

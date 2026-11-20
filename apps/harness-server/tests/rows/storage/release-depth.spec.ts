@@ -310,8 +310,8 @@ async function toolRound(
         'a new real Tool result after cold restart',
         60_000,
       )
-      const before = conditionalStarts(commits.slice(0, commitOffset))
-      const after = conditionalStarts(commits.slice(commitOffset))
+      const before = toolStarts(commits.slice(0, commitOffset))
+      const after = toolStarts(commits.slice(commitOffset))
       expect(before.length).toBeGreaterThan(0)
       expect(after.length).toBeGreaterThan(0)
       expect(after.every(key => !before.includes(key))).toBe(true)
@@ -383,11 +383,11 @@ async function toolRound(
 
 const names = (commit: Commit) => commit.commands.map(command => command.participant)
 
-const conditionalStarts = (items: readonly Commit[]): string[] =>
+const toolStarts = (items: readonly Commit[]): string[] =>
   items.flatMap(commit =>
     commit.result.kind === 'committed' &&
-    names(commit).includes('harness.permission-basis-guard') &&
-    names(commit).includes('tool')
+    names(commit).includes('tool') &&
+    commit.commands.some(command => command.text.includes('executorReceipt'))
       ? [commit.result.identity.operationKey]
       : [],
   )
@@ -423,7 +423,7 @@ const MARGIN = 32
 
 describe('the storage JSON depth limit of the release, checked on the real composition', () => {
   it(
-    'reopens the original Session, checks permission again and commits each Tool start with its basis condition after cold restart',
+    'reopens the original Session, checks permission again at admission and commits each Tool start anew after cold restart',
     { timeout: 180_000 },
     async () => {
       await toolRound(releaseMaxJsonDepth(), 'restart')
@@ -445,13 +445,10 @@ describe('the storage JSON depth limit of the release, checked on the real compo
       const depths = measured(commits)
       console.log(`R2-D270 depths: ${JSON.stringify(depths)} limit ${String(limit)}`)
       expect(commits.filter(commit => commit.answer.includes('command_limit'))).toEqual([])
-      expect(conditionalStarts(commits).length).toBeGreaterThan(0)
-      expect(
-        commits.filter(
-          commit =>
-            names(commit).includes('harness.permission-basis') && !names(commit).includes('tool'),
-        ),
-      ).toEqual([])
+      expect(toolStarts(commits).length).toBeGreaterThan(0)
+      expect(commits.filter(commit => names(commit).includes('harness.permission-basis'))).toEqual(
+        [],
+      )
       expect(depths.create).toBeGreaterThan(0)
       expect(depths.intent).toBeGreaterThan(0)
       expect(depths.received).toBeGreaterThan(0)

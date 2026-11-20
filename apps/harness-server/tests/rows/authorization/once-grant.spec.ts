@@ -58,7 +58,6 @@ async function admitting(answer: Awaited<ReturnType<AuthorizationWriter['express
         input.carrier === true,
         {
           evidence,
-          condition: null,
           holders: { tenant: 'tenant', session: 'session' },
           gateRef: { capability: input.definition.name, key: input.gate.id },
           once:
@@ -180,7 +179,7 @@ describe('a person who releases the tool for this session', () => {
         checked.push(written.length)
         return input.definition.name === 'ToyEcho' && written.length === 0
           ? { kind: 'ask', evidence, gate }
-          : { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }
+          : { kind: 'allow', evidence, release: VERDICT_RELEASE }
       },
     }
     const admission = createActionAdmission({

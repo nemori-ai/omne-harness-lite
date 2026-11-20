@@ -84,4 +84,3 @@ export type * from './request.ts'
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts'
 
 export type * from './action-qualification.ts'
-export type * from './tool-qualification.ts'

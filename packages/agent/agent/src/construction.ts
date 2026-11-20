@@ -72,7 +72,7 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   toolRequests?: Readonly<{
     describe(input: ToolRequestInput<P>): Reply<ToolCallDescription>
     prepare(
-      input: ToolRequestInput<P> & Readonly<{ definition: Adoption; admission: DurableEvidence }>,
+      input: ToolRequestInput<P> & Readonly<{ definition: Adoption }>,
     ): Reply<T.ToolInvokeRequest>
   }>
   adoptions: AgentAdoptions<P>

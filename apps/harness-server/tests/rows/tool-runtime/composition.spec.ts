@@ -16,7 +16,6 @@ import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
-import type { LocalInvocationQualifier } from '@omne-harness/tool-host-local'
 import { TenantStandingSourceService, tenantStandingKey } from '@omne-harness/identity/cordis'
 import type { TenantStandingReading } from '@omne-harness/identity'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -79,12 +78,10 @@ import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
 import { createToolRecordsRow } from '../../../src/rows/tool-runtime/index.ts'
 import { acquireStateLock, lostContactBy } from '../../../src/state-lock.ts'
-import { permissionOriginsOf } from '../../../src/rows/governance/permission-origins.ts'
-import { sessionWorkOf } from '../../../src/rows/tool-runtime/session-work.ts'
 import { TOOL_BODY_SCHEMA_VOCABULARY } from '../../../src/entry/tool-body-schemas.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
 import { toolRowsOperatorConfig } from '../../r9/support.ts'
-import { compositionAuthority, compositionAuthorityWithPolicy } from './composition-authority.ts'
+import { compositionAuthority } from './composition-authority.ts'
 import { maintenancePolicy } from './maintenance-policy.ts'
 import { tenantDomainScannerPrincipal } from '../../../src/entry/tenant-domain-scanner.ts'
 import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
@@ -93,8 +90,6 @@ import {
   TENANT_A,
   TENANT_B,
   access,
-  accessPolicyRow,
-  allowAll,
   createCommand,
   createGuards,
   providerConfig,
@@ -357,11 +352,7 @@ async function requestFor(ctx: Context, principal: unknown, command: string, par
   const described = await source.describe(input)
   if ('failure' in described) throw new Error(`describe: ${JSON.stringify(described.failure)}`)
   if (described.ok.kind === 'answered') throw new Error(`describe answered: ${described.ok.text}`)
-  const prepared = await source.prepare({
-    ...input,
-    definition: described.ok.definition,
-    admission: { owner: 'test', record: `admission-${positions}`, revision: '1', digest: 'd' },
-  })
+  const prepared = await source.prepare({ ...input, definition: described.ok.definition })
   if ('failure' in prepared) throw new Error(`prepare: ${JSON.stringify(prepared.failure)}`)
   return prepared.ok
 }
@@ -778,65 +769,6 @@ describe('Tool segment B: the release rows in one process composition', () => {
       expect(counts).toEqual([{ chunks: 0, manifests: 0, due: 0, callRecords: 0 }])
     },
   )
-
-  it('qualifies the original source inside target admission without recursion and retires its read port', async () => {
-    const { storageRoot } = workspace()
-    const { rows } = rowsOf(storageRoot)
-    const policy = accessPolicyRow(allowAll)
-    const readings: Awaited<ReturnType<LocalInvocationQualifier<unknown>['qualify']>>[] = []
-    let held: LocalInvocationQualifier<unknown> | undefined
-    let original: Parameters<LocalInvocationQualifier<unknown>['qualify']>[0] | undefined
-    let calls = 0
-    const authority = compositionAuthorityWithPolicy((_ctx, env) => ({
-      async qualify(input) {
-        calls++
-        if (calls > 8) return { kind: 'unavailable', diagnostic: 'recursive target admission' }
-        held = env.readTrusted('toolInvocationQualification').get('toolInvocationQualification') as
-          | LocalInvocationQualifier<unknown>
-          | undefined
-        if (held === undefined)
-          return { kind: 'unavailable', diagnostic: 'original source read absent' }
-        original = input
-        const who = sessionWorkOf(input.principal, input.tenant)
-        if (who === undefined) return { kind: 'denied', reason: 'not-session-work' }
-        const result = await permissionOriginsOf(
-          env.readTrusted('toolInvocationQualification'),
-        ).tool.qualify({ ...input, principal: who.principal })
-        readings.push(result)
-        return 'ok' in result
-          ? { kind: 'allowed', condition: null }
-          : { kind: 'unavailable', diagnostic: 'original source rejected' }
-      },
-    }))
-    const { run } = await withLiveRows(
-      {
-        rows,
-        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
-        entryObjects: entryObjects(workPrincipalsOverStandIn).map(entry =>
-          entry.name === authority.name ? authority : entry,
-        ),
-        probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
-      },
-      async ctx => {
-        const { runtime, principal } = await ready(ctx, [])
-        const request = await requestFor(
-          ctx,
-          principal,
-          'Shell.execute',
-          '{"script":"echo source-qualified"}',
-        )
-        const result = await runtime.invoke({ principal, tenant: TENANT_A, request })
-        expect(result.kind).toBe('accepted')
-        expect(readings.length).toBeGreaterThan(0)
-        expect(readings.every(reading => 'ok' in reading)).toBe(true)
-        expect(calls).toBeLessThan(8)
-      },
-    )
-    expect(run.result.exitCode).toBe(0)
-    expect(held).toBeDefined()
-    expect(original).toBeDefined()
-    expect(await held!.qualify(original!)).toMatchObject({ failure: { kind: 'unavailable' } })
-  })
 
   it('rejects a direct Agent call to an adopted but nonresident tool before any file write', async () => {
     const { storageRoot } = workspace()

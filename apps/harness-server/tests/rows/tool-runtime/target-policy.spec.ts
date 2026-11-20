@@ -4,14 +4,14 @@ import { decodeToolOperationId, decodeToolCallId } from '@omne-harness/tool-cont
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { TOOL_FORWARDING_OWNER } from '@omne-harness/tool-host-local'
 import {
-  admittedTargetAccess,
-  currentTargetPolicy,
-  withTargetAdmissionPolicy,
+  admittedTargetResidency,
+  currentTargetResidency,
+  withTargetResidency,
 } from '../../../src/rows/tool-runtime/target-policy.ts'
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
 import { okOf } from '../../entry/support.ts'
 
-it('applies target policy to new admissions while retaining custody of an exactly admitted call', async () => {
+it('applies target residency to new admissions while retaining custody of an exactly admitted call', async () => {
   const w = await forwardWorld()
   try {
     const request = w.request('Shell')
@@ -40,9 +40,8 @@ it('applies target policy to new admissions while retaining custody of an exactl
         throw new Error('source policy must not write')
       },
     }
-    const guard = withTargetAdmissionPolicy({ verify: async () => ({ kind: 'trusted' }) }, store, {
-      qualify: async target => {
-        expect(target).toHaveProperty('admission', operation)
+    const guard = withTargetResidency({ verify: async () => ({ kind: 'trusted' }) }, store, {
+      qualify: async () => {
         checks++
         return { kind: 'denied', reason: 'current-target-denied' }
       },
@@ -101,7 +100,7 @@ it('applies target policy to new admissions while retaining custody of an exactl
       }),
     ).toMatchObject({ kind: 'forged' })
     const before = reads
-    const forged = withTargetAdmissionPolicy(
+    const forged = withTargetResidency(
       { verify: async () => ({ kind: 'forged', reason: 'source' }) },
       store,
       {
@@ -113,18 +112,18 @@ it('applies target policy to new admissions while retaining custody of an exactl
     expect(await forged.verify(input)).toEqual({ kind: 'forged', reason: 'source' })
     expect(reads).toBe(before)
     const qualified = [] as unknown[]
-    const atStart = admittedTargetAccess(store, {
+    const atStart = admittedTargetResidency(store, {
       qualify: async target => {
         qualified.push(target)
-        return { kind: 'allowed', condition: null }
+        return { kind: 'allowed' }
       },
     })
     const startInput = {
       ...input,
       operation: okOf(decodeToolOperationId('later-start'), 'operation'),
     }
-    expect(await atStart.qualify(startInput)).toEqual({ kind: 'allowed', condition: null })
-    expect(qualified).toEqual([{ ...startInput, admission: operation }])
+    expect(await atStart.qualify(startInput)).toEqual({ kind: 'allowed' })
+    expect(qualified).toEqual([startInput])
     expect(
       await atStart.qualify({ ...input, call: okOf(decodeToolCallId('another-call'), 'call') }),
     ).toMatchObject({ kind: 'denied' })
@@ -140,7 +139,7 @@ it('applies target policy to new admissions while retaining custody of an exactl
     admitted = null
     expect(await atStart.qualify(input)).toMatchObject({ kind: 'unavailable' })
     expect(qualified).toHaveLength(1)
-    const unavailable = admittedTargetAccess(
+    const unavailable = admittedTargetResidency(
       {
         ...store,
         read: async () => {
@@ -163,23 +162,11 @@ it('rechecks residency at start without withdrawing custody or restricting direc
   const w = await forwardWorld()
   try {
     let disclose = true
-    let allow = true
-    let viewReads = 0
-    const policy = currentTargetPolicy({
-      authorization: () => ({
-        qualify: async () =>
-          allow ? { kind: 'allowed', condition: null } : { kind: 'denied', reason: 'revoked' },
-      }),
-      view: () => {
-        viewReads++
-        return disclose ? w.view : undefined
-      },
-    })
+    const policy = currentTargetResidency(() => (disclose ? w.view : undefined))
     const direct = {
       principal: w.principal,
       tenant: w.tenant,
       call: w.call,
-      admission: okOf(decodeToolOperationId('direct-admission'), 'operation'),
       request: w.request('ToyEcho'),
     }
     const forwarded = {
@@ -189,7 +176,7 @@ it('rechecks residency at start without withdrawing custody or restricting direc
         consumer: { ...direct.request.consumer, owner: TOOL_FORWARDING_OWNER },
       },
     }
-    expect(await policy.qualify(forwarded)).toEqual({ kind: 'allowed', condition: null })
+    expect(await policy.qualify(forwarded)).toEqual({ kind: 'allowed' })
     expect(await policy.qualify(direct)).toEqual({
       kind: 'denied',
       reason: 'nonresident-tools-require-forwarding',
@@ -199,7 +186,7 @@ it('rechecks residency at start without withdrawing custody or restricting direc
       kind: 'denied',
       reason: 'resident-tools-require-direct-call',
     })
-    expect(await policy.qualify(direct)).toEqual({ kind: 'allowed', condition: null })
+    expect(await policy.qualify(direct)).toEqual({ kind: 'allowed' })
     w.setToyResident(false)
     expect(await policy.qualify(direct)).toMatchObject({ kind: 'denied' })
     expect(
@@ -210,19 +197,10 @@ it('rechecks residency at start without withdrawing custody or restricting direc
           consumer: { ...direct.request.consumer, owner: 'trusted-maintainer' },
         },
       }),
-    ).toEqual({ kind: 'allowed', condition: null })
+    ).toEqual({ kind: 'allowed' })
     disclose = false
     expect(await policy.qualify(direct)).toMatchObject({ kind: 'unavailable' })
     expect(await policy.qualify(forwarded)).toMatchObject({ kind: 'unavailable' })
-    allow = false
-    const before = viewReads
-    expect(await policy.qualify(forwarded)).toEqual({ kind: 'denied', reason: 'revoked' })
-    expect(viewReads).toBe(before)
-    expect(
-      await currentTargetPolicy({ authorization: () => undefined, view: () => w.view }).qualify(
-        forwarded,
-      ),
-    ).toMatchObject({ kind: 'unavailable' })
   } finally {
     await w.close()
   }

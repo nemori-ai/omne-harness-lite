@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type {
   DomainRef,
-  FactCommandV2,
   JsonValue,
   SqlStorage,
   TenantDomainListing,
@@ -40,7 +39,6 @@ import {
   ledgerAnswer,
   notJson,
   sameTenant,
-  type CommitAnswer,
   type FixedMode,
   unavailable,
   writesOf,
@@ -136,17 +134,7 @@ function keeperOf(storage: SqlStorage): LedgerKeeper {
   return keeper
 }
 
-export type LedgerCommitCondition = Readonly<{
-  combinationVersion: string
-  manifestDigest: string
-  commands: readonly FactCommandV2[]
-}>
-
-function ledgerCommitOver(
-  options: SqlToolStorageOptions,
-  condition?: LedgerCommitCondition,
-  answerOf: (answer: CommitAnswer) => LedgerCommit = ledgerAnswer,
-) {
+function ledgerCommitOver(options: SqlToolStorageOptions) {
   return async (input: LedgerCommitInput): Promise<LedgerCommit> => {
     if (!(input.asserts ?? []).every(assertion => sameTenant(input.domain, assertion.domain)))
       return { kind: 'rejected', reason: 'an assertion names a domain of another tenant' }
@@ -169,34 +157,16 @@ function ledgerCommitOver(
           ? { pending: input.pending }
           : {}),
       }
-      const request = requestOf(options, resolved.at, facts)
-      return options.storage.commit(
-        condition === undefined
-          ? request
-          : {
-              ...request,
-              combinationVersion: condition.combinationVersion,
-              manifestDigest: condition.manifestDigest,
-              commands: [...condition.commands, ...request.commands],
-            },
-      )
+      return options.storage.commit(requestOf(options, resolved.at, facts))
     }
     try {
       const answer = await sent(input.expected === INITIAL_REVISION ? 'given' : 'kept')
-      return answerOf(lacksFixed(answer) ? await sent('given') : answer)
+      return ledgerAnswer(lacksFixed(answer) ? await sent('given') : answer)
     } catch (error) {
       if (error instanceof NotJsonError) return notJson(error)
       throw error
     }
   }
-}
-
-export function conditionalLedgerCommit(
-  options: SqlToolStorageOptions,
-  condition: LedgerCommitCondition,
-  answerOf: (answer: CommitAnswer) => LedgerCommit,
-): (input: LedgerCommitInput) => Promise<LedgerCommit> {
-  return storeOver(options, ledgerCommitOver(options, condition, answerOf)).commit
 }
 
 export function createSqlToolLedgerStore(options: SqlToolLedgerStoreOptions): SqlToolLedgerStore {

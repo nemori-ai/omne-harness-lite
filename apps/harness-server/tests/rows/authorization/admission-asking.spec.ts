@@ -65,7 +65,7 @@ async function world(setup: Setup = {}) {
         setup.decide?.(input) ??
         (input.definition.name === 'ToyEcho'
           ? { kind: 'ask', evidence, gate }
-          : { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE })
+          : { kind: 'allow', evidence, release: VERDICT_RELEASE })
       )
     },
   }
@@ -224,7 +224,7 @@ describe('the detail on the card of an asked action', () => {
     }
     return { asked, details }
   }
-  const allow = { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE } as const
+  const allow = { kind: 'allow', evidence, release: VERDICT_RELEASE } as const
   const ask = { kind: 'ask', evidence, gate } as const
   const detailOf = (decision: Awaited<ReturnType<Awaited<ReturnType<typeof world>>['admit']>>) => {
     if (decision.kind !== 'need-decision') throw new Error(JSON.stringify(decision))
@@ -319,7 +319,7 @@ describe('what admission asks the current permission', () => {
   it('names the judging pass of a batch, and none for an action that comes with an answer', async () => {
     const w = await world({
       writer: true,
-      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
+      decide: () => ({ kind: 'allow', evidence, release: VERDICT_RELEASE }),
     })
     const args = echoCall(w.forward, {})
     const batch = { id: 'batch-1', pass: 'pass-1' }
@@ -334,7 +334,7 @@ describe('what admission asks the current permission', () => {
 
   it('judges a carried call as the carrier and then as its target, which names the call that carries it', async () => {
     const w = await world({
-      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
+      decide: () => ({ kind: 'allow', evidence, release: VERDICT_RELEASE }),
     })
     const carried = toolsCall(w.forward, { name: 'ToyEcho', command: 'info', arguments: {} })
     expect(await w.admit('Tools', carried)).toMatchObject({ kind: 'allow' })
@@ -348,7 +348,7 @@ describe('what admission asks the current permission', () => {
     expect(carrier).toBeUndefined()
     expect(target).toEqual({ definition: w.adoption('Tools'), effectiveArguments: carried })
     const own = await world({
-      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
+      decide: () => ({ kind: 'allow', evidence, release: VERDICT_RELEASE }),
     })
     await own.admit('ToyEcho', echoCall(own.forward, {}))
     expect(own.judged[0]?.origin).not.toHaveProperty('carrier')
@@ -357,7 +357,7 @@ describe('what admission asks the current permission', () => {
   it('lets a carrier no action rule names go on to its permission, and does not decide a target no rule names', async () => {
     const carrierOnly = await world({
       rules: rules('ToyEcho'),
-      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
+      decide: () => ({ kind: 'allow', evidence, release: VERDICT_RELEASE }),
     })
     const carried = toolsCall(carrierOnly.forward, {
       name: 'ToyEcho',
@@ -367,7 +367,7 @@ describe('what admission asks the current permission', () => {
     const unruled = await carrierOnly.admit('Tools', carried)
     expect(unruled).toMatchObject({ kind: 'allow' })
     const ruled = await world({
-      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
+      decide: () => ({ kind: 'allow', evidence, release: VERDICT_RELEASE }),
     })
     const both = await ruled.admit('Tools', carried)
     if (unruled.kind !== 'allow' || both.kind !== 'allow') throw new Error('kind')
@@ -382,7 +382,7 @@ describe('what admission asks the current permission', () => {
       decide: action =>
         action.carrier === true
           ? { kind: 'deny', category: 'rule', reason: 'permission-policy', evidence }
-          : { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE },
+          : { kind: 'allow', evidence, release: VERDICT_RELEASE },
     })
     const carried = toolsCall(w.forward, { name: 'ToyEcho', command: 'info', arguments: {} })
     expect(await w.admit('Tools', carried)).toMatchObject({
@@ -423,7 +423,7 @@ describe('an action that comes with an answer', () => {
     const w = await world({
       picks: unsaved,
       writer: true,
-      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
+      decide: () => ({ kind: 'allow', evidence, release: VERDICT_RELEASE }),
     })
     const answer = await w.admit('ToyEcho', echoCall(w.forward, {}), {
       decision: chose('allow-always'),
@@ -448,7 +448,6 @@ describe('the evidence and the refusal of a judged action', () => {
   const allowing = () => ({
     kind: 'allow' as const,
     evidence,
-    condition: null,
     release: VERDICT_RELEASE,
   })
   const target = { owner: 'agent', kind: 'action', key: canonicalText(['e', 'p', 'a']) }

@@ -1,15 +1,13 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { createAgentActionQualification, createAgentToolQualification } from '@omne-harness/agent'
+import { createAgentActionQualification } from '@omne-harness/agent'
 import {
   agentAdoptionsKey,
   agentJournalKey,
   agentJournalEntriesKey,
   agentMaterialsKey,
-  agentToolReceptionTargetsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { fail } from '@omne-harness/operation-result'
 import { releaseToolRequestsOf } from '../../entry/tool-requests.ts'
-import { toolInvocationQualificationKey } from '../tool-runtime/source-qualification.ts'
 import type { PermissionOrigins } from './permission-basis-read.ts'
 
 const unavailable = () =>
@@ -33,27 +31,6 @@ export function permissionOriginsOf(ctx: Context): PermissionOrigins {
           materials,
           toolRequests: releaseToolRequestsOf(ctx),
         }).qualify(input)
-      },
-    },
-    tool: {
-      async qualify(input) {
-        const original = ctx.get(toolInvocationQualificationKey)
-        return original === undefined
-          ? fail({
-              kind: 'unavailable',
-              dependency: 'tool-records',
-              diagnostic: 'The original Tool source is not assembled.',
-            })
-          : original.qualify(input)
-      },
-    },
-    toolAgent: {
-      async qualify(input) {
-        const journal = ctx.get(agentJournalKey)
-        const materials = ctx.get(agentMaterialsKey)
-        const targets = ctx.get(agentToolReceptionTargetsKey)
-        if (!journal || !materials || !targets) return unavailable()
-        return createAgentToolQualification({ journal, materials, targets }).qualify(input)
       },
     },
     adoptions: {

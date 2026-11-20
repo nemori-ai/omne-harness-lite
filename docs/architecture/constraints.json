@@ -415,6 +415,62 @@
       "source": "packages/tool/SPEC.md"
     },
     {
+      "id": "packages/tool/tool",
+      "paths": ["packages/tool/tool/src/**"],
+      "layer": "unknown",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool-definitions",
+      "paths": ["packages/tool/tool-definitions/src/**"],
+      "layer": "unknown",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool-host-local",
+      "paths": ["packages/tool/tool-host-local/src/**"],
+      "layer": "unknown",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool-storage-sql",
+      "paths": ["packages/tool/tool-storage-sql/src/**"],
+      "layer": "unknown",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/SPEC.md"
+    },
+    {
+      "id": "packages/assets/permissions",
+      "paths": ["packages/assets/permissions/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/SPEC.md"
+    },
+    {
+      "id": "packages/governance/governance-contract",
+      "paths": ["packages/governance/governance-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/governance/SPEC.md"
+    },
+    {
+      "id": "packages/governance/governance-local",
+      "paths": ["packages/governance/governance-local/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/governance/SPEC.md"
+    },
+    {
       "id": "packages/session/session-contract",
       "paths": ["packages/session/session-contract/src/**"],
       "layer": "contract",
@@ -1027,6 +1083,27 @@
       "from": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
       "to": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
       "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-TOOL-AUTHORIZATION",
+      "from": [
+        "packages/tool/tool",
+        "packages/tool/tool-access",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-definitions",
+        "packages/tool/tool-host-local",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-storage-sql",
+        "packages/tool/tool-ui"
+      ],
+      "to": [
+        "packages/identity/authorization",
+        "packages/assets/permissions",
+        "packages/governance/governance-contract",
+        "packages/governance/governance-local"
+      ],
+      "source": "packages/tool/SPEC.md#不变式"
     },
     {
       "id": "DIR-SESSION-MODEL",

@@ -21,7 +21,6 @@ it('root entry exports the local start coordinator, the host clock, the registry
     'createEnvironmentStateStore',
     'createLocalCallRecords',
     'createLocalGrantVerifiers',
-    'createLocalInvocationQualifier',
     'createLocalInvocationSource',
     'createLocalOperationIdentities',
     'createLocalReleaseDetails',

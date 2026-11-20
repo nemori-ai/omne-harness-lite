@@ -140,7 +140,6 @@ function world() {
   } satisfies PermissionBasisReading
   let reading: PermissionBasisReading = current
   let authorizations: SessionAuthorizations | null = null
-  const condition = { combinationVersion: 'fixture/1', commands: [] }
   let reads = 0
   const inquiry: SessionInquiryView = {
     inquiry: {
@@ -168,7 +167,7 @@ function world() {
     source: () => ({
       readCurrent: async () => {
         reads++
-        return { request, reading, condition, authorizations, consumer }
+        return { request, reading, authorizations, consumer }
       },
     }),
   }
@@ -178,7 +177,6 @@ function world() {
     request,
     current,
     inquiry,
-    condition,
     ports,
     reads: () => reads,
     set: (next: PermissionBasisReading) => {
@@ -206,7 +204,7 @@ function onceFor(w: World, overrides: Partial<NonNullable<SessionAuthorizations[
   } satisfies SessionAuthorizations
 }
 
-it('releases the action a once authorization names and gives it for the start to consume', async () => {
+it('releases the action a once authorization names, on that authorization', async () => {
   const w = world()
   w.current.evaluation.sources.tenant.rule.pick = 'ask'
   const check = createCurrentToolPermission(w.ports)
@@ -214,8 +212,7 @@ it('releases the action a once authorization names and gives it for the start to
   w.authorize(onceFor(w))
   expect(await check.check(w.input)).toMatchObject({
     kind: 'allow',
-    condition: { combinationVersion: w.condition.combinationVersion },
-    authorization: { consumer, source: decisionEvidence('card-answer', '1', {}) },
+    release: { by: 'once', grant: { source: decisionEvidence('card-answer', '1', {}) } },
   })
 })
 
@@ -247,12 +244,7 @@ it('releases an action of a gate released for the session while the basis of tha
     session: { capabilityId, enforcementKey, basis, source, ...given },
   })
   w.authorize(forSession({}))
-  const released = await check.check(w.input)
-  expect(released).toMatchObject({
-    kind: 'allow',
-    condition: { combinationVersion: w.condition.combinationVersion },
-  })
-  expect(released).not.toHaveProperty('authorization')
+  expect(await check.check(w.input)).toMatchObject({ kind: 'allow', release: { by: 'session' } })
   w.authorize(forSession({ basis: 'the basis before the setting changed' }))
   expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
   w.authorize(forSession({ capabilityId: 'another capability' }))
@@ -367,60 +359,6 @@ describe('the grant a release names', () => {
         grant: { via: 'skip-ask', holder: 'session-1', source: w.inquiry.inquiry.source },
       },
     })
-    expect(skipped.kind === 'allow' && skipped.condition).toEqual(w.condition)
-  })
-
-  it('guards the acceptance on the once or session authorization it rests on, and on nothing else', async () => {
-    const w = world()
-    const check = createCurrentToolPermission(w.ports)
-    const guards = (decision: Awaited<ReturnType<typeof check.check>>) =>
-      decision.kind === 'allow'
-        ? ((decision.condition?.['commands'] as unknown[]) ?? []).filter(
-            command =>
-              (command as { participant: string }).participant === 'session-authorization-guard',
-          )
-        : []
-    expect(guards(await check.check(w.input))).toEqual([])
-    w.current.evaluation.sources.tenant.rule.pick = 'ask'
-    w.authorize(onceFor(w))
-    const tenant = w.request.scope.tenantId
-    expect(guards(await check.check(w.input))).toEqual([
-      {
-        participant: 'session-authorization-guard',
-        facts: {
-          request: {
-            tenant,
-            session: 'session-1',
-            grant: { kind: 'once', consumer, source: decisionEvidence('card-answer', '1', {}) },
-          },
-        },
-      },
-    ])
-    const given = decisionEvidence('card-answer', '2', {})
-    const { capabilityId, enforcementKey } = w.request
-    w.authorize({
-      revision: '2',
-      once: null,
-      session: {
-        capabilityId,
-        enforcementKey,
-        basis: digestOf(w.current.evaluation),
-        source: given,
-      },
-    })
-    expect(guards(await check.check(w.input))).toEqual([
-      {
-        participant: 'session-authorization-guard',
-        facts: {
-          request: {
-            tenant,
-            session: 'session-1',
-            grant: { kind: 'session', capabilityId, enforcementKey, source: given },
-          },
-        },
-      },
-    ])
-    expect(w.condition.commands).toEqual([])
   })
 
   it('names no grant for a carrier', async () => {
@@ -435,21 +373,17 @@ it('consumes no once authorization when the gate became automatic, and refuses w
   const w = world()
   w.authorize(onceFor(w))
   const check = createCurrentToolPermission(w.ports)
-  const automatic = await check.check(w.input)
-  expect(automatic).toMatchObject({ kind: 'allow' })
-  expect(automatic).not.toHaveProperty('authorization')
+  expect(await check.check(w.input)).toMatchObject({ kind: 'allow', release: { by: 'verdict' } })
   w.current.evaluation.sources.tenant.rule.pick = 'deny'
   expect(await check.check(w.input)).toMatchObject({ kind: 'deny', category: 'rule' })
 })
 
-it('gives the condition of the reading with an allow, and with nothing else', async () => {
-  const w = world(),
-    check = createCurrentToolPermission(w.ports)
-  expect(await check.check(w.input)).toMatchObject({ kind: 'allow', condition: w.condition })
-  w.current.evaluation.sources.tenant.rule.pick = 'deny'
-  expect(await check.check(w.input)).not.toHaveProperty('condition')
-  w.set({ kind: 'unavailable', sourceRef: 'fixture' })
-  expect(await check.check(w.input)).not.toHaveProperty('condition')
+it('gives an allow only its evidence and what it was released on', async () => {
+  const w = world()
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  w.authorize(onceFor(w))
+  const released = await createCurrentToolPermission(w.ports).check(w.input)
+  expect(Object.keys(released).sort()).toEqual(['evidence', 'kind', 'release'])
 })
 
 it('reads again and refuses a newly configured prohibition', async () => {
@@ -524,7 +458,6 @@ it('answers unavailable when the source could not read the basis and gives no re
       readCurrent: async () => ({
         request: null,
         reading: { kind: 'unavailable', sourceRef: 'harness.current-permission' },
-        condition: null,
       }),
     }),
   })
@@ -617,7 +550,7 @@ it('carries the original owner context and the unchanged issued principal to the
         expect(context.principal).toBe(w.input.principal)
         expect(context.origin).toEqual(w.input.origin)
         expect(context.origin).not.toBe(w.input.origin)
-        return { request: w.request, reading: w.current, condition: null }
+        return { request: w.request, reading: w.current }
       },
     }),
   })
@@ -674,7 +607,7 @@ it('uses the same immutable published inquiry for capture and interpretation', a
       readCurrent: async context => {
         captured = context.inquiry
         policy.onAsk = 'skip-ask'
-        return { request: w.request, reading: w.current, condition: null }
+        return { request: w.request, reading: w.current }
       },
     }),
   })
@@ -755,11 +688,12 @@ it('does not let a carrier ask: the call it carries is judged for its own gate, 
   const carrier = { ...w.input, carrier: true as const }
   w.current.evaluation.sources.tenant.rule.pick = 'ask'
   expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
-  const released = await check.check(carrier)
-  expect(released).toMatchObject({ kind: 'allow', condition: w.condition })
-  expect(released).not.toHaveProperty('authorization')
+  expect(await check.check(carrier)).toMatchObject({
+    kind: 'allow',
+    release: { by: 'carrier', grant: null },
+  })
   w.authorize(onceFor(w))
-  expect(await check.check(carrier)).not.toHaveProperty('authorization')
+  expect(await check.check(carrier)).toMatchObject({ release: { by: 'carrier' } })
   w.authorize(null)
   w.current.evaluation.sources.tenant.rule.pick = 'deny'
   expect(await check.check(carrier)).toMatchObject({

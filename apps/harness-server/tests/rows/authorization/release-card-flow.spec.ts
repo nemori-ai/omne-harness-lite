@@ -14,6 +14,7 @@ import {
 } from '../../support/release-tree.ts'
 import {
   ONCE,
+  admittedReleases,
   answerCard,
   pendingCard,
   perMessageShell,
@@ -179,7 +180,7 @@ it.each([
     true,
   ],
 ] as const)(
-  'a call made %s and released once runs once, the start records the consumption, and the next call asks again',
+  'a call made %s and released once runs once, its admission records the consumption, and the next call asks again',
   async (_how, tool, how, asks) => {
     const exit = await onReleaseTree(
       { ...how, permission: 'auto_permission', extraHistoryKinds: [ONCE] },
@@ -197,17 +198,22 @@ it.each([
         expect(released.result).not.toContain('did not run')
         const granted = released.entries.filter(entry => entry.kind === ONCE)
         expect(granted).toHaveLength(1)
-        const payload = granted[0]?.payload as { expression: { scope: { consumer: unknown } } }
+        const payload = granted[0]?.payload as {
+          expression: { scope: { consumer: unknown }; source: unknown }
+        }
         const { expression } = payload
         expect(expression).toMatchObject({
           scope: { kind: 'once', consumer: { owner: '@omne-harness/agent' } },
           direction: 'grant',
         })
-        const consumed = startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)
-        expect(consumed).toHaveLength(1)
-        expect(consumed[0]?.['authorizations']).toMatchObject([
-          { consumer: expression.scope.consumer },
-        ])
+        expect(admittedReleases(tree.storageRoot)).toContainEqual({
+          by: 'once',
+          grant: expect.objectContaining({ via: 'once', source: expression.source }),
+        })
+        expect(startAcceptances(tree.storageRoot)).not.toHaveLength(0)
+        expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toEqual(
+          [],
+        )
 
         const again = await answered(tree, 'again', ['--option', 'deny-once'], released.session)
         expect(again.result).toContain(NOT_RELEASED)

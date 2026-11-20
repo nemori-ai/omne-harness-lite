@@ -1,10 +1,8 @@
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import { expectTypeOf, it } from 'vitest'
 import type {
   Access,
-  DurableEvidence,
   ToolDelivery,
   ToolDeliveryFailure,
   ToolDeliveryKey,
@@ -12,8 +10,6 @@ import type {
   ToolSavedReceipt,
 } from '@omne-harness/tool-contract'
 import type {
-  ToolPermitConsumption,
-  ToolPermitRef,
   ToolStartAcceptance,
   ToolStartAuthority,
   ToolStartFence,
@@ -72,22 +68,8 @@ it('gives the outer caller only invalidate, and lets the start authority serve t
   void fence.consume
 })
 
-declare const permitText: string & { readonly brand: 'PermitId' }
-declare const tenant: TenantId
-declare const decision: DurableEvidence & { readonly owner: 'authorization' }
-
-it('takes a permit reference and a consumption fact of the authorization shape as they are', () => {
-  const permit: ToolPermitRef = { tenant, permit: permitText }
-  const fact: ToolPermitConsumption = {
-    permit,
-    consumer: { owner: 'start-authority', work: 'call-1', position: 'call-1' },
-    evidence: decision,
-  }
-  expectTypeOf<ToolStartAcceptance['authorizations']>().toEqualTypeOf<
-    readonly ToolPermitConsumption[]
+it('keeps no authorization on a start acceptance', () => {
+  expectTypeOf<keyof ToolStartAcceptance>().toEqualTypeOf<
+    'tenant' | 'call' | 'start' | 'permit' | 'guards' | 'executorReceipt' | 'acceptance'
   >()
-  void fact
-  // @ts-expect-error TS2741: a permit reference names its tenant.
-  const bare: ToolPermitRef = { permit: permitText }
-  void bare
 })

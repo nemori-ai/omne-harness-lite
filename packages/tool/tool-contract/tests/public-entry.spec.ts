@@ -182,7 +182,6 @@ it('exports the conformance suites and the non-durable doubles on the testing en
     'completedFinalEnvelope',
     'completionOf',
     'createManualInstantClock',
-    'createMemoryAuthorizedToolStartAuthority',
     'createMemoryToolBodyStore',
     'createMemoryToolClock',
     'createMemoryToolDecisionBridge',
@@ -207,7 +206,6 @@ it('exports the conformance suites and the non-durable doubles on the testing en
     'memoryToolResourceResponsesFixture',
     'memoryToolResultReceiverFixture',
     'memoryToolStartAuthorityFixture',
-    'memoryToolStartAuthorizationFixture',
     'memoryToolStartFenceFixture',
     'ordinaryReturnFixture',
     'resendRecalls',
@@ -229,7 +227,6 @@ it('exports the conformance suites and the non-durable doubles on the testing en
     'toolResourceResponsesConformance',
     'toolResultReceiverConformance',
     'toolStartAuthorityConformance',
-    'toolStartAuthorizationConformance',
     'toolStartFenceConformance',
   ])
   const provider = await import('@omne-harness/tool-contract/provider')

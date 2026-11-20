@@ -335,7 +335,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     }
     const bundle = createLocalToolRuntimePlugins({
       store,
-      conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
       bodies: createMemoryToolBodies(),
       content: null,
       sources,

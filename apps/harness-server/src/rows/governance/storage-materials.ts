@@ -22,7 +22,7 @@ import {
   sessionPermissionBasisParticipant,
 } from './session-permission-basis.ts'
 import { targetSnapshotParticipant } from './target-snapshot.ts'
-import { permissionBasisGuardParticipant, permissionBasisParticipant } from './permission-basis.ts'
+import { permissionBasisParticipant } from './permission-basis.ts'
 import { INDEPENDENT_SETTINGS_CONFIGURATION } from './independent-settings.ts'
 import {
   HELD_SETTINGS_CONFIGURATION,
@@ -74,7 +74,6 @@ export function governanceStorageMaterials(
       sessionPermissionBasisParticipant({ mode, requiredConstraintIds: [] }),
     ),
     permissionBasisParticipant(),
-    permissionBasisGuardParticipant(),
     ...tenantSettingsCurrentParticipants(TENANT_SETTINGS_CONFIGURATION),
     ...heldSettingsCurrentParticipants(HELD_SETTINGS_CONFIGURATION),
     ...settingsStandaloneCurrentMaterials('tenant', INDEPENDENT_SETTINGS_CONFIGURATION),

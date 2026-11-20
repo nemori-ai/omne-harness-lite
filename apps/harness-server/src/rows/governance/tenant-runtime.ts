@@ -132,10 +132,6 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
             epoch: runtime.epoch,
             identity: options.identity,
             read: handler,
-            conditions: {
-              mapped: reference(combinations.toolStart),
-              unmapped: reference(combinations.toolStartUnmapped),
-            },
             origins: options.permissionOrigins ?? (() => undefined),
             accepting: () => !closed,
           })
