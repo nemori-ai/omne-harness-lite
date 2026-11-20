@@ -151,6 +151,70 @@ describe('reads', () => {
     expect(w.image.fits).toEqual([])
   })
 
+  it('pages the original for a target it is exactly within, and a version once it is over in bytes, in width or in height', async () => {
+    const w = world()
+    const { ref } = await w.staged(T1, 'up', IMAGE)
+    const exact = { mediaTypes: ['image/png'], maxBytes: 11, maxWidth: 40, maxHeight: 30 }
+    const paged = async (target: typeof exact) =>
+      ok(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8, target })).mediaType
+    expect(await paged(exact)).toBe('image/png')
+    for (const over of [{ maxBytes: 10 }, { maxWidth: 39 }, { maxHeight: 29 }]) {
+      const opened = ok(
+        await w.media.variants.open({
+          tenant: T1,
+          ref,
+          target: { ...exact, ...over, mediaTypes: ['image/png', 'image/webp'] },
+        }),
+      )
+      expect(opened.mediaType).toBe('image/webp')
+    }
+    expect(w.image.fits).toHaveLength(3)
+  })
+
+  it('a page of no bytes has no next page', async () => {
+    const w = world()
+    const { ref } = await w.staged(T1, 'up', IMAGE)
+    expect(ok(await page(w, ref as never, 0, 0))).toMatchObject({
+      part: new Uint8Array(),
+      next: null,
+    })
+  })
+
+  it('reads the whole object once to check it, and only the range after that', async () => {
+    const w = world()
+    const { ref } = await w.staged(T1, 'up', IMAGE)
+    const opens: unknown[] = []
+    w.faults.hooks.set('open', async (real, ...args) => {
+      opens.push(args[1])
+      return real(...args)
+    })
+    ok(await page(w, ref as never, 0, 8))
+    ok(await page(w, ref as never, 8, 8))
+    expect(opens).toEqual([undefined, { offset: 0, length: 8 }, { offset: 8, length: 8 }])
+  })
+
+  it('after the object was checked: a store that left is unavailable, bytes that are gone are no material', async () => {
+    const w = world()
+    const { ref } = await w.staged(T1, 'up', IMAGE)
+    ok(await page(w, ref as never, 0, 8))
+    w.withdrawStore()
+    expect(await page(w, ref as never, 0, 8)).toEqual({
+      failure: { kind: 'unavailable', dependency: 'store' },
+    })
+    w.returnStore()
+    w.medium.sealed.delete(ref.key)
+    expect(await page(w, ref as never, 0, 8)).toEqual({ failure: { kind: 'material-unavailable' } })
+  })
+
+  it('a version that cannot be made because the store is off is unavailable, not too large', async () => {
+    const w = world()
+    const { ref } = await w.staged(T1, 'up', IMAGE)
+    w.faults.methods.set('open', 'unavailable')
+    expect(
+      await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8, target: TARGET }),
+    ).toEqual({ failure: { kind: 'unavailable', dependency: 'store' } })
+  })
+
   it('answers too large for a target no version fits', async () => {
     const w = world()
     const { ref } = await w.staged(T1, 'up', IMAGE)

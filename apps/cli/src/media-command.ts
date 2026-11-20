@@ -36,7 +36,6 @@ const TYPES: Readonly<Record<string, string>> = {
   '.wav': 'audio/wav',
   '.pdf': 'application/pdf',
 }
-const REFERENCE_KEYS = ['storage', 'key', 'mediaType', 'bytes', 'digest'] as const
 const digestOf = (bytes: Uint8Array) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`
 const succeeded = (
   result: CallResult | undefined,
@@ -51,18 +50,30 @@ function call<K extends keyof Operations & string>(
   return context.link.call(mediaProtocol, operation, body, context.newId())
 }
 
-/** The reference a person pastes from the output of `put`: the JSON of its five texts. */
+/** The reference a person pastes from the output of `put`. Whether it is one is the contract's to say. */
 function referenceOf(text: string): Reference | undefined {
-  let value: unknown
   try {
-    value = JSON.parse(text)
+    return JSON.parse(text) as Reference
   } catch {
     return undefined
   }
-  if (typeof value !== 'object' || value === null) return undefined
-  const given = value as Record<string, unknown>
-  if (!REFERENCE_KEYS.every(key => typeof given[key] === 'string')) return undefined
-  return Object.fromEntries(REFERENCE_KEYS.map(key => [key, given[key]])) as Reference
+}
+
+/** Sends the parts from the one the server says is next; the first that is not taken stops it. */
+async function sendParts(
+  context: Context,
+  upload: string,
+  bytes: Uint8Array,
+  from: Readonly<{ nextSequence: number; partBytes: number }>,
+): Promise<{ result: CallResult | undefined } | null> {
+  const { partBytes } = from
+  for (let sequence = from.nextSequence; sequence * partBytes < bytes.byteLength; sequence += 1) {
+    const part = bytes.subarray(sequence * partBytes, (sequence + 1) * partBytes)
+    const { tenant } = context
+    const result = await call(context, 'append-upload-part', { tenant, upload, sequence, part })
+    if (!succeeded(result)) return { result }
+  }
+  return null
 }
 
 async function put(context: Context, values: Option): Promise<Ending> {
@@ -89,16 +100,9 @@ async function put(context: Context, values: Option): Promise<Ending> {
   const { status } = begun.body as {
     status: { kind: string; nextSequence: number; partBytes: number }
   }
-  if (status.kind === 'uploading')
-    for (
-      let sequence = status.nextSequence;
-      sequence * status.partBytes < bytes.byteLength;
-      sequence += 1
-    ) {
-      const part = bytes.subarray(sequence * status.partBytes, (sequence + 1) * status.partBytes)
-      const sent = await call(context, 'append-upload-part', { tenant, upload, sequence, part })
-      if (!succeeded(sent)) return ending(sent)
-    }
+  const stopped =
+    status.kind === 'uploading' ? await sendParts(context, upload, bytes, status) : null
+  if (stopped !== null) return ending(stopped.result)
   return ending(await call(context, 'commit-upload', { tenant, upload, digest: digestOf(bytes) }))
 }
 
@@ -151,28 +155,35 @@ const SPECS: Readonly<Record<string, Spec>> = {
   describe: { options: ['--ref'], required: ['--ref'], run: describe },
 }
 
+/** The action and its options as given; a string is the usage error. */
+function invocationOf(
+  args: readonly string[],
+): Readonly<{ name: string; spec: Spec; values: Option }> | string {
+  const [action = '', ...rest] = args
+  const name = `media ${action}`
+  const spec = Object.hasOwn(SPECS, action) ? SPECS[action] : undefined
+  if (spec === undefined) return unrecognized('media')
+  const options = readOptions(rest, {
+    accepted: [serverOption, ...spec.options],
+    required: spec.required,
+  })
+  if (options.kind === 'unrecognized') return unrecognized(name)
+  if (options.kind === 'missing') return missingOption(name, options.option)
+  return { name, spec, values: options.values }
+}
+
 async function runMedia(
   args: readonly string[],
   output: CliOutput,
   environment: CommandEnvironment,
 ): Promise<ExitCode> {
-  const [action = '', ...rest] = args
-  const name = `media ${action}`
-  const spec = Object.hasOwn(SPECS, action) ? SPECS[action] : undefined
-  if (spec === undefined) return usageError(output, unrecognized('media'))
-  const options = readOptions(rest, {
-    accepted: [serverOption, ...spec.options],
-    required: spec.required,
-  })
-  if (options.kind === 'unrecognized') return usageError(output, unrecognized(name))
-  if (options.kind === 'missing') return usageError(output, missingOption(name, options.option))
-  const loaded = loadLogin(options.values, output, environment)
+  const invocation = invocationOf(args)
+  if (typeof invocation === 'string') return usageError(output, invocation)
+  const { name, spec, values } = invocation
+  const loaded = loadLogin(values, output, environment)
   if (loaded.kind === 'exit') return loaded.code
   const { link, tenant } = loaded
-  const ending = await spec.run(
-    { name, link, tenant, newId: environment.services.newId },
-    options.values,
-  )
+  const ending = await spec.run({ name, link, tenant, newId: environment.services.newId }, values)
   if ('usage' in ending) return usageError(output, `omne ${name}: ${ending.usage}\n`)
   if ('local' in ending) return localFailure(output, `omne ${name}: ${ending.local}\n`)
   if (ending.result === undefined) return usageError(output, unrecognized(name))

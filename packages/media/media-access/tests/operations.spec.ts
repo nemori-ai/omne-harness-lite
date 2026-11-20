@@ -284,4 +284,12 @@ describe('what the domain answers becomes an outcome of the protocol', () => {
     await call(world, 'read-media-page', { ...OPERATIONS['read-media-page'].body, target })
     expect(world.calls[0]?.input).toEqual({ ...OPERATIONS['read-media-page'].input, target })
   })
+
+  it('a tenant that is no minted tenant identity is a fault of the caller', async () => {
+    const world = answering('describe-media', { ok: { state: 'held', facts } })
+    await expect(call(world, 'describe-media', { tenant: {}, ref })).rejects.toThrow(
+      'tenant is not a minted TenantId',
+    )
+    expect(world.calls).toEqual([])
+  })
 })

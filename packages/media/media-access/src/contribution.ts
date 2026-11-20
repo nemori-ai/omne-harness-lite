@@ -50,7 +50,7 @@ function settled<T, F extends { kind: string }, A>(
 ): A | typeof UNAVAILABLE {
   if ('ok' in reply) return succeeded(reply.ok)
   const { failure } = reply
-  if (failure.kind === 'unavailable' || failure.kind === 'outcome-unknown') return UNAVAILABLE
+  if (failure.kind === 'unavailable') return UNAVAILABLE
   const own = refusals as unknown as Record<string, (failure: F) => A>
   return own[failure.kind]!(failure)
 }

@@ -12,16 +12,21 @@ export type MediaSweepPorts = Readonly<{
 
 export type SweepBeat = Readonly<{ tenants: number; removed: number; failed: number }>
 
-/** One beat: every tenant that has a storage domain is swept once, up to the limit, one after another. */
-export async function sweepEveryTenant(ports: MediaSweepPorts): Promise<SweepBeat> {
-  const custody = ports.custody()
-  const listing = custody === undefined ? null : await ports.listing().catch(() => null)
-  if (custody === undefined || listing === null || listing.kind !== 'ready')
-    return { tenants: 0, removed: 0, failed: 0 }
-  const tenants = listing.entries.flatMap(({ tenant, domain }): TenantId[] => {
+/** The tenants that have a storage domain of their own now; none when the directory cannot say. */
+async function tenantsOf(ports: MediaSweepPorts): Promise<TenantId[]> {
+  const listing = await ports.listing().catch(() => null)
+  if (listing?.kind !== 'ready') return []
+  return listing.entries.flatMap(({ tenant, domain }): TenantId[] => {
     const parsed = tenantCodec.parse(tenant)
     return domain.scope.kind === 'tenant' && parsed.ok ? [parsed.value] : []
   })
+}
+
+/** One beat: every tenant that has a storage domain is swept once, up to the limit, one after another. */
+export async function sweepEveryTenant(ports: MediaSweepPorts): Promise<SweepBeat> {
+  const custody = ports.custody()
+  if (custody === undefined) return { tenants: 0, removed: 0, failed: 0 }
+  const tenants = await tenantsOf(ports)
   let removed = 0
   let failed = 0
   for (const tenant of tenants) {

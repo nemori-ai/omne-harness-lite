@@ -217,6 +217,27 @@ describe('omne media put', () => {
     expect(run.stderr).toContain(`--upload ${upload}`)
   })
 
+  it('sends no part and does not commit when the upload cannot begin', async () => {
+    const service = await serve(
+      media(seen =>
+        seen.operation === 'begin-upload' ? { outcome: 'limited', body: { limit: 8 } } : undefined,
+      ),
+    )
+    const run = await cli(['media', 'put', '--file', picture()])
+    expect(run.code).toBe(3)
+    expect(operations(service)).toEqual(['begin-upload'])
+    expect(printed(run)).toMatchObject({ outcome: 'limited', body: { limit: 8 } })
+  })
+
+  it('sends no empty part after a file that ends on a part boundary', async () => {
+    const service = await serve()
+    const file = join(root, 'even.png')
+    writeFileSync(file, BYTES.subarray(0, 32))
+    expect((await cli(['media', 'put', '--file', file])).code).toBe(0)
+    const parts = mediaCalls(service).filter(seen => seen.operation === 'append-upload-part')
+    expect(parts.map(seen => seen.body['sequence'])).toEqual([0, 1])
+  })
+
   it('sends nothing for a file it cannot read, and exits 1', async () => {
     const service = await serve()
     const run = await cli(['media', 'put', '--file', join(root, 'missing.png')])
@@ -294,6 +315,17 @@ describe('omne media describe', () => {
       outcome: 'succeeded',
       body: { state: 'staged', facts: FACTS },
     })
+  })
+
+  it('says nothing about an upload after an outcome nobody knows: there is none to go on with', async () => {
+    await serve(
+      media(seen =>
+        seen.operation === 'describe-media' ? { outcome: 'unknown', body: {} } : undefined,
+      ),
+    )
+    const run = await cli(['media', 'describe', '--ref', JSON.stringify(REF)])
+    expect(run.code).toBe(5)
+    expect(run.stderr).not.toContain('--upload')
   })
 
   it('refuses an action it does not have, an option it does not take and a missing option', async () => {

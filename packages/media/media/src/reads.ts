@@ -50,8 +50,7 @@ export function createReads(
   const verified = new Set<string>()
 
   /** The original answers a target it is already within: its row says so, no byte is read. */
-  function within(row: MediaRow, target: VariantTarget | null): boolean {
-    if (target === null) return true
+  function within(row: MediaRow, target: VariantTarget): boolean {
     const { facts } = objects.committed(row)
     return (
       target.mediaTypes.includes(row.mediaType) &&
