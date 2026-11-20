@@ -1,7 +1,10 @@
 import type { CallContext, DispatchId, SessionRef } from '@omne-harness/dispatch-contract'
 import { tenantIdSchema } from '@omne-harness/dispatch-contract'
 import { dispatchingKey } from '@omne-harness/dispatch-cordis-contract/cordis'
+import { noArguments } from '@omne-harness/authorization'
 import { tenantCodec } from '@omne-harness/legal-identity'
+import { dispatchPrincipalOf } from '../../../src/entry/principals.ts'
+import { systemActionAuthorizationKey } from '../../../src/rows/authorization/system-action-service.ts'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
 import {
   historyOf,
@@ -76,4 +79,22 @@ export async function registryAs(tree: ReleaseTree, session: string) {
         dispatch => dispatch.delivery !== null && dispatch.delivery.kind !== 'pending',
       ),
   }
+}
+
+/** Whether the system principal of dispatch may read the fate of an input of a session now: its grant at work. */
+export async function dispatchGrantAnswer(tree: ReleaseTree, session: string) {
+  const trusted = tree.env.readTrusted(systemActionAuthorizationKey)
+  const checks = trusted.get(systemActionAuthorizationKey)
+  if (checks === undefined) throw new Error('no system action authorization')
+  return checks.check({
+    principal: dispatchPrincipalOf(tree.env),
+    scope: 'system',
+    operation: { owner: 'session', name: 'readInputFate' },
+    arguments: noArguments(),
+    target: {
+      kind: 'tenant',
+      tenant: tree.registrar().tenant,
+      resource: { owner: 'session', kind: 'session', key: session },
+    },
+  })
 }

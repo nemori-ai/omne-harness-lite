@@ -28,6 +28,8 @@ import { readSystemInstant } from '../../entry/session-clock.ts'
 import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
 import { defineRow } from '../../row.ts'
 import { agentDefinitionCatalogKey } from '../agent-adoptions/definition-catalog.ts'
+import { DISPATCH_COMPONENT } from '../authorization/grants.ts'
+import { installRowGrant } from '../authorization/row-grants.ts'
 import {
   tenantDomainRegistrationKey,
   type TenantDomainRegistration,
@@ -84,6 +86,7 @@ export const dispatchRow = defineRow({
     const directory = ctx.get(tenantDomainsKey) as TenantDomains<unknown>
     const scanner: unknown = ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY)
     const system: unknown = ctx.get(DISPATCH_PRINCIPAL_KEY)
+    installRowGrant(ctx, DISPATCH_COMPONENT)
     const holder = dispatchHolder(ctx)
     const bindings = createDomainBindings<TenantId>(
       {

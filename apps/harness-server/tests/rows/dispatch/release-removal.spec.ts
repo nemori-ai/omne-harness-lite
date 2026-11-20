@@ -8,7 +8,7 @@ import {
   toolCallsThenText,
   toolResults,
 } from '../../support/release-tree.ts'
-import { call, registryAs, settled } from './release-support.ts'
+import { call, dispatchGrantAnswer, registryAs, settled } from './release-support.ts'
 
 const DISPATCH_ROWS = ['dispatch', 'dispatch-session', 'dispatch-tool']
 const todo = {
@@ -43,7 +43,12 @@ describe('the release tree without dispatch rows', () => {
         expect(JSON.stringify(talking.find(entry => entry.kind === 'run.terminal'))).toContain(
           '"outcome":"completed"',
         )
-        const working = await ended(await tree.startSession('note it'))
+        const noted = await tree.startSession('note it')
+        const working = await ended(noted)
+        expect(await dispatchGrantAnswer(tree, noted)).toMatchObject({
+          kind: 'denied',
+          reason: 'grant-revoked',
+        })
         expect(toolResults(working).join('\n')).toContain('"ok":{"receipt"')
         expect(seen.requests).toBeGreaterThan(1)
         expect(toolResults(working).join('\n')).toContain(
@@ -78,10 +83,12 @@ describe('the release tree without dispatch rows', () => {
         const started = rowsOf(tree.records).filter(id => DISPATCH_ROWS.includes(id))
         expect(started).toEqual(DISPATCH_ROWS.filter(id => id !== row))
         expect(tree.scope.get(dispatchingKey)).toBeDefined()
-        const plain = await settled(tree, await tree.startSession('hello'))
+        const greeted = await tree.startSession('hello')
+        const plain = await settled(tree, greeted)
         expect(
           JSON.stringify(plain.entries.find(entry => entry.kind === 'run.terminal')),
         ).toContain('"outcome":"completed"')
+        expect(await dispatchGrantAnswer(tree, greeted)).toMatchObject({ kind: 'allowed' })
         if (row !== 'dispatch-session') return
         const parent = await tree.startSession('agents: delegate')
         const { results } = await settled(tree, parent)

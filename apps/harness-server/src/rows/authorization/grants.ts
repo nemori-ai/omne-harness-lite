@@ -52,15 +52,23 @@ function isGrantHolder(
   return Object.hasOwn(table, component)
 }
 
+/** The holders whose grant a row installs: the grant is revoked while that row is not installed. */
+export const ROW_INSTALLED_GRANTS: ReadonlySet<GrantHolder> = new Set([DISPATCH_COMPONENT])
+
 export function releaseMaintenanceGrants(
   table: Readonly<Record<GrantHolder, ReleaseGrant>> = MAINTENANCE_GRANTS,
+  installed: (holder: GrantHolder) => boolean = () => true,
 ): MaintenanceGrantSource {
+  const grantOf = (holder: GrantHolder): ReleaseGrant =>
+    ROW_INSTALLED_GRANTS.has(holder) && !installed(holder)
+      ? Object.freeze({ ...table[holder], revoked: true })
+      : table[holder]
   const source: MaintenanceGrantSource = {
     read: input => {
       const { component } = input.principal
       return Promise.resolve(
         isGrantHolder(table, component)
-          ? Object.freeze({ kind: 'found', grant: table[component] })
+          ? Object.freeze({ kind: 'found', grant: grantOf(component) })
           : Object.freeze({ kind: 'none' }),
       )
     },

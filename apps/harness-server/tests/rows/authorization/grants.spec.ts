@@ -119,6 +119,34 @@ describe('the read port over the table', () => {
     })
   })
 
+  it('answers the grant of dispatch as revoked while the dispatch row has not installed it, and leaves the other holders alone', async () => {
+    const asked: string[] = []
+    let installed = false
+    const source = releaseMaintenanceGrants(MAINTENANCE_GRANTS, holder => {
+      asked.push(holder)
+      return installed
+    })
+    const read = (component: string) => {
+      const { principal } = issuedSystem(component)
+      const target = agentInstanceRequest(principal, 'publish').target
+      return source.read({ principal, operation: { owner: 'agent', name: 'publish' }, target })
+    }
+    await expect(read('dispatch')).resolves.toEqual({
+      kind: 'found',
+      grant: { ...MAINTENANCE_GRANTS.dispatch, revoked: true },
+    })
+    await expect(read('agent-host')).resolves.toEqual({
+      kind: 'found',
+      grant: MAINTENANCE_GRANTS['agent-host'],
+    })
+    installed = true
+    await expect(read('dispatch')).resolves.toEqual({
+      kind: 'found',
+      grant: MAINTENANCE_GRANTS.dispatch,
+    })
+    expect(asked).toEqual(['dispatch', 'dispatch'])
+  })
+
   it('does not read the component text as a wildcard or a prefix', async () => {
     const source = releaseMaintenanceGrants()
     for (const component of ['*', 'agent-host-2', 'agent', 'constructor', '__proto__']) {
