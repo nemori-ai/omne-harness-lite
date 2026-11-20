@@ -1,7 +1,6 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { createElement, type ReactNode } from 'react'
 import {
-  createFigureStore,
   type AttachedLayout,
   type FigureBoard,
   type ItemOf,
@@ -19,8 +18,6 @@ export class DesktopShell extends ShellService implements ShellSlots {
   readonly login: ShellLogin
   readonly scope: ScopeSource
   private readonly state: ShellState
-  /** Reports are held here; nothing draws the figure from them yet. */
-  private readonly figureStore = createFigureStore()
 
   constructor(ctx: Context, state: ShellState) {
     super(ctx)
@@ -60,16 +57,25 @@ export class DesktopShell extends ShellService implements ShellSlots {
     })
   }
 
+  /** A page remembers the module that placed it: that module is in front while its page is on show. */
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
-    return this.state.slots.place(slot, item)
+    const takeDown = this.state.slots.place(slot, item)
+    if (slot !== 'pages') return takeDown
+    const { pageOwners } = this.state
+    const owner = this.ctx.fiber
+    pageOwners.set(item.id, owner)
+    return () => {
+      takeDown()
+      if (pageOwners.get(item.id) === owner) pageOwners.delete(item.id)
+    }
   }
 
   protected override toasts(): ToastBoard {
-    return this.state.toasts
+    return this.state.told
   }
 
   protected override figures(): FigureBoard {
-    return this.figureStore
+    return this.state.figure
   }
 }
 

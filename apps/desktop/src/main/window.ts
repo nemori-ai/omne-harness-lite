@@ -10,6 +10,7 @@ import {
 import { APP_SCHEME, APP_URL } from './app-url.ts'
 import { externalTarget } from './external-links.ts'
 import { createRecovery } from './recovery.ts'
+import { windowChrome } from './window-chrome.ts'
 import {
   DEFAULT_SIZE,
   MIN_SIZE,
@@ -34,13 +35,17 @@ const SHOW_FALLBACK_MS = 1_000
 /** The app's own persistent session: the cookie jar and the app protocol live on it. */
 export const APP_PARTITION = 'persist:omne'
 
-export function windowOptions(state: WindowState | undefined): BrowserWindowConstructorOptions {
+export function windowOptions(
+  state: WindowState | undefined,
+  platform: NodeJS.Platform = process.platform,
+): BrowserWindowConstructorOptions {
   return {
     ...(state?.bounds ?? DEFAULT_SIZE),
     minWidth: MIN_SIZE.width,
     minHeight: MIN_SIZE.height,
     title: 'omne',
     show: false,
+    ...windowChrome(platform),
     webPreferences: {
       partition: APP_PARTITION,
       sandbox: true,
