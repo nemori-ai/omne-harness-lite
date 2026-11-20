@@ -758,6 +758,9 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
   return { w, sources, prepare, registry, categories, independent }
 }
 
+// Ask declares no gate, so it has no settings to select.
+const selectable = (definitionId: string) => definitionId !== 'tool.Ask'
+
 it('installs the actual Tool release and adopts its original holdings before exposing the tenant backend', async () => {
   const { w, prepare } = await installedWorld()
   const prepared = prepare()
@@ -788,11 +791,11 @@ it('installs the actual Tool release and adopts its original holdings before exp
     'tool.Tools',
     'tool.Web',
   ])
-  expect(
-    catalog.items.every(
-      item => item.availability === 'available' && item.selectedTargets.length === 1,
-    ),
-  ).toBe(true)
+  for (const item of catalog.items)
+    expect(
+      [item.availability, item.selectedTargets.length],
+      item.declaration.reference.definitionId,
+    ).toEqual(['available', selectable(item.declaration.reference.definitionId) ? 1 : 0])
   const settings = await prepared.readSettings({
     deploymentRef: w.options.scope.deploymentId,
     mode: 'management',
@@ -808,7 +811,6 @@ it('installs the actual Tool release and adopts its original holdings before exp
       ['independent', 'calendar', 'environment'],
       ['independent', 'session', 'intake'],
       ...[
-        'Ask',
         'BkgToolCalls',
         'Calendar',
         'Files',
@@ -925,16 +927,16 @@ it.each([false, true])(
     cleanup.push(assets.close)
     const organization = organizationCodec.encode(w.principal.tenant.organization)
     if (!organization.ok) throw new Error('organization encoding failed')
-    const lookups = w.release.manifest.entries.map(entry => ({
-      holding: {
-        holdingRef: `harness.preinstalled.tool.${entry.asset.name}`,
-        scopeRef: w.options.scope.tenantRef,
-      },
-      source: organizationSettingsSource({
-        organizationId: organization.value,
-        definition: entry.governance.declaration.settings[0]!,
-      }).target,
-    }))
+    const lookups = w.release.manifest.entries.flatMap(entry =>
+      entry.governance.declaration.settings.slice(0, 1).map(definition => ({
+        holding: {
+          holdingRef: `harness.preinstalled.tool.${entry.asset.name}`,
+          scopeRef: w.options.scope.tenantRef,
+        },
+        source: organizationSettingsSource({ organizationId: organization.value, definition })
+          .target,
+      })),
+    )
     if (disabled) {
       for (const { holding } of lookups) {
         expect(
@@ -973,7 +975,9 @@ it.each([false, true])(
     if (catalog.kind !== 'page') throw new Error(JSON.stringify(catalog))
     expect(catalog.items).toHaveLength(w.release.manifest.entries.length)
     for (const item of catalog.items) {
-      expect(item.selectedTargets).toHaveLength(disabled ? 0 : 1)
+      expect(item.selectedTargets).toHaveLength(
+        !disabled && selectable(item.declaration.reference.definitionId) ? 1 : 0,
+      )
       if (!disabled) expect(item.availability).toBe('available')
     }
     const after = await Promise.all(
@@ -1146,13 +1150,14 @@ it('a group that cannot be opened leaves the tenant, the other group and the ass
   const independent = settings.views.filter(view => view.target.kind === 'independent')
   expect(independent.map(view => view.definition.providerId).sort()).toEqual([
     'calendar',
-    'schedule',
+    'session',
   ])
   expect(independent.find(view => view.definition.providerId === 'calendar')?.definition).toEqual(
     altered,
   )
   expect(settings.views.filter(view => view.target.kind === 'asset')).toHaveLength(
-    w.release.manifest.entries.length,
+    w.release.manifest.entries.filter(entry => entry.governance.declaration.settings.length > 0)
+      .length,
   )
 })
 
