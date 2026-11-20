@@ -81,6 +81,9 @@ export type State = Readonly<{
   closed: readonly Closed[]
 }>
 
+/** The awaiting-answer count: the cards listed as waiting for the person to answer. */
+export const awaitingCount = (state: State): number => state.entries.length
+
 export type Event =
   | Readonly<{ kind: 'read-list' }>
   | Readonly<{ kind: 'list-answered'; token: number; answer: ListAnswer }>

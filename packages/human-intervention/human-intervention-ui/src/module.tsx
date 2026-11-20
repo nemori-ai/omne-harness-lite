@@ -3,6 +3,7 @@ import {
   humanInterventionProtocol,
   type HumanInterventionProtocol,
 } from '@omne-harness/human-intervention-protocol'
+import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import type { PointSink } from '@omne-harness/shell-contract'
 import {
@@ -11,6 +12,7 @@ import {
   type ShellService,
 } from '@omne-harness/shell-contract/cordis'
 import { CardsHub } from './model/cards-hub.ts'
+import { awaitingCount } from './model/cards-machine.ts'
 import { DecisionsPage } from './view/decisions-page.tsx'
 import { PendingBadge } from './view/pending-badge.tsx'
 import { DetailHost } from './view/release-detail.tsx'
@@ -58,6 +60,43 @@ function contribute(shell: ShellService, hub: CardsHub, options: HumanInterventi
   })
 }
 
+/** Reports the awaiting-answer count of the shell's tenant to the figure; it follows the tenant, not a view. */
+function reportAwaiting(shell: ShellService, hub: CardsHub): () => void {
+  let held: (() => void) | null = null
+  let followed: string | undefined | null = null
+  const follow = (scope: string | undefined): void => {
+    if (scope === followed) return
+    followed = scope
+    held?.()
+    held = null
+    const tenant = scope === undefined ? undefined : readTenantText(scope)
+    if (tenant === undefined) {
+      shell.figure({ doing: 'idle', waiting: 0 })
+      return
+    }
+    const driver = hub.driver(tenant)
+    const report = (): void =>
+      shell.figure({
+        doing: 'idle',
+        waiting: awaitingCount(driver.getState()),
+        waitingPage: PAGE_ID,
+      })
+    const stop = driver.subscribe(report)
+    const release = driver.retain()
+    report()
+    held = () => {
+      stop()
+      release()
+    }
+  }
+  const unsubscribe = shell.scope.subscribe(follow)
+  follow(shell.scope.get())
+  return () => {
+    unsubscribe()
+    held?.()
+  }
+}
+
 export function createHumanInterventionUiModule(
   options: HumanInterventionUiOptions = {},
 ): UiModule {
@@ -68,6 +107,7 @@ export function createHumanInterventionUiModule(
       const client = (ctx as unknown as Lookup).get(HITL) as ClientOf<HumanInterventionProtocol>
       const hub = new CardsHub({ client })
       ctx.effect(() => () => hub.dispose(), 'human-intervention-ui.cards')
+      ctx.effect(() => reportAwaiting(ctx.shell, hub), 'human-intervention-ui.figure')
       contribute(ctx.shell, hub, options)
     },
   }

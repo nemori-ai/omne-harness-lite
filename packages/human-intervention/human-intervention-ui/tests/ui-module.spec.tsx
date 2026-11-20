@@ -193,3 +193,38 @@ it('U11 给了会话的拓展点：协议客户端撤下，放在里面的一项
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(placed()).toEqual([`${ANCHOR}/decisions-in-session`])
 })
+
+it('U12 经形口报待答数：外壳租户里等人回答的卡片张数，与「待你决定」这一页；不报活动与一次性的事实', async () => {
+  const { root, shell } = await startShell()
+  const fake = createFakeClient()
+  root.reflect.provide(SERVICE, fake.client)
+  shell.tenant = TENANT
+  await root.plugin(createHumanInterventionUiModule())
+  ;(await fake.next('list-cards')).answer(page([questionItem('a'), questionItem('b')]))
+  await settle()
+  expect(shell.reports.at(-1)).toEqual({ doing: 'idle', waiting: 2, waitingPage: 'decisions' })
+  expect(shell.reports.every(report => report.moment === undefined)).toBe(true)
+  const item = shell.items('pages')[0]!
+  const view = render(<span data-testid="badge">{item.badge?.({ scope: TENANT })}</span>)
+  await settle()
+  expect(view.getByTestId('badge').textContent).toBe('2')
+  expect(fake.calls.filter(call => call.operation === 'list-cards')).toHaveLength(1)
+})
+
+it('U13 待答数跟着外壳的租户：没有租户报零，租户来了读它的卡，租户清空时不再看着它的卡', async () => {
+  const { root, shell } = await startShell()
+  const fake = createFakeClient()
+  root.reflect.provide(SERVICE, fake.client)
+  await root.plugin(createHumanInterventionUiModule())
+  expect(shell.reports).toEqual([{ doing: 'idle', waiting: 0 }])
+  expect(fake.calls).toHaveLength(0)
+  act(() => shell.setTenant(TENANT))
+  ;(await fake.next('list-cards')).answer(page([questionItem('a')]))
+  await settle()
+  expect(shell.reports.at(-1)).toEqual({ doing: 'idle', waiting: 1, waitingPage: 'decisions' })
+  act(() => shell.setTenant(TENANT))
+  expect(fake.observations).toHaveLength(1)
+  act(() => shell.setTenant(undefined))
+  expect(shell.reports.at(-1)).toEqual({ doing: 'idle', waiting: 0 })
+  expect(fake.observations[0]!.signal.aborted).toBe(true)
+})
