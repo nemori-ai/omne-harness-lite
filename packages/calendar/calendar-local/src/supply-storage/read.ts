@@ -37,7 +37,7 @@ function health(input: Extract<Read, { kind: 'health' }>, port: ReadPort): JsonV
     params,
   ).rows[0]
   const failures = port.execute(
-    "SELECT count(*) FROM ca_supply_runs WHERE scope = ? AND calendar = ? AND sequence > ? AND outcome IN ('withheld','rejected') LIMIT 1",
+    "SELECT count(*) FROM ca_supply_runs WHERE scope = ? AND calendar = ? AND sequence > ? AND outcome IN ('withheld','rejected','refused') LIMIT 1",
     [...params, success?.[0] ?? 0],
   ).rows[0]
   return {

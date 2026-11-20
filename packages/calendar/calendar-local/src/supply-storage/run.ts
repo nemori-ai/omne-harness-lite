@@ -7,6 +7,7 @@ import { record } from './records.ts'
 import { completionSchema, storedRunSchema, type Write } from './schema.ts'
 
 type StoredRun = z.infer<typeof storedRunSchema>
+type Completion = z.infer<typeof completionSchema>
 
 const RUN = 'SELECT record FROM ca_supply_runs WHERE scope = ? AND operation_ref = ?'
 
@@ -34,28 +35,36 @@ export function prepare(input: Extract<Write, { action: 'run.prepare' }>, port: 
   )
   return { kind: 'ok', value: settledRun(run) } as const
 }
+function sameResult(a: Completion, b: Completion) {
+  return a.kind === 'recorded'
+    ? b.kind === 'recorded' && a.disposition === b.disposition
+    : b.kind === 'refused' && a.reason === b.reason
+}
 export function complete(input: Extract<Write, { action: 'run.complete' }>, port: ParticipantPort) {
   const payload = input.payload
-  if (payload.operationRef !== operationRef(payload.address))
+  const ref = operationRef(payload.address)
+  if (payload.kind === 'recorded' && payload.operationRef !== ref)
     return { kind: 'conflict', reason: 'operationMismatch' } as const
-  const run = record(port, RUN, [input.systemScopeRef, payload.operationRef], storedRunSchema)
+  const run = record(port, RUN, [input.systemScopeRef, ref], storedRunSchema)
   if (run === null) return { kind: 'conflict', reason: 'runMissing' } as const
   if (run.command.expectedFingerprint !== payload.expectedFingerprint)
     return { kind: 'conflict', reason: 'fingerprintMismatch' } as const
-  const disposition = run.command.disposition.kind
-  const compatible =
-    disposition === 'publish'
-      ? payload.disposition === 'published' || payload.disposition === 'noChange'
-      : payload.disposition === disposition
-  if (!compatible) return { kind: 'conflict', reason: 'dispositionMismatch' } as const
+  if (payload.kind === 'recorded') {
+    const disposition = run.command.disposition.kind
+    const compatible =
+      disposition === 'publish'
+        ? payload.disposition === 'published' || payload.disposition === 'noChange'
+        : payload.disposition === disposition
+    if (!compatible) return { kind: 'conflict', reason: 'dispositionMismatch' } as const
+  }
   const previous = record(
     port,
     'SELECT completion FROM ca_supply_runs WHERE scope = ? AND operation_ref = ? AND completion IS NOT NULL',
-    [input.systemScopeRef, payload.operationRef],
+    [input.systemScopeRef, ref],
     completionSchema,
   )
   if (previous !== null)
-    return previous.disposition === payload.disposition
+    return sameResult(previous, payload)
       ? ({ kind: 'ok', value: null } as const)
       : ({ kind: 'conflict', reason: 'completionMismatch' } as const)
   port.execute(
@@ -63,10 +72,10 @@ export function complete(input: Extract<Write, { action: 'run.complete' }>, port
     [
       canonical(settledRun(run)),
       canonical(payload),
-      payload.disposition,
+      payload.kind === 'recorded' ? payload.disposition : payload.kind,
       payload.completedAt,
       input.systemScopeRef,
-      payload.operationRef,
+      ref,
     ],
   )
   return { kind: 'ok', value: null } as const

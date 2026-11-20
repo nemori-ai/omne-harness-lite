@@ -20,6 +20,7 @@ import type {
   CalendarPreparedRun,
   CalendarStoredMaterial,
   CalendarJournalHealth,
+  CalendarRunCompletion,
 } from '../../src/supply-application/ports.ts'
 import { materialHash } from '../../src/supply-application/materials.ts'
 import { supplyDigest } from '../../src/supply-application/encoding.ts'
@@ -48,6 +49,7 @@ export function world() {
   if (!policy) throw new Error('US policy missing')
   const runs = new Map<string, CalendarPreparedRun>()
   const completed = new Map<string, string>()
+  const completions = new Map<string, CalendarRunCompletion>()
   const receipts = new Map<string, CalendarPublicationReceipt>()
   const snapshots = new Map<string, CalendarSnapshot>()
   const raw = new Map<string, CalendarStoredMaterial>()
@@ -212,8 +214,17 @@ export function world() {
       async completeRun(input) {
         if (flags.journalFails) return { kind: 'unavailable', reason: 'injected outage' }
         if (!completed.has(key(input))) {
-          completed.set(key(input), input.operationRef)
-          if (input.disposition === 'published' || input.disposition === 'noChange') {
+          if (input.kind === 'refused') {
+            const prepared = runs.get(key(input))
+            if (prepared?.command.expectedFingerprint !== input.expectedFingerprint)
+              return { kind: 'conflict', reason: 'fingerprint' }
+          }
+          completed.set(key(input), input.kind === 'recorded' ? input.operationRef : 'refused')
+          completions.set(key(input), input)
+          if (
+            input.kind === 'recorded' &&
+            (input.disposition === 'published' || input.disposition === 'noChange')
+          ) {
             failures = 0
             lastSuccess = input.completedAt
           } else failures++
@@ -397,6 +408,7 @@ export function world() {
     calls,
     flags,
     runs,
+    completions,
     raw,
     pending,
     receipts,
