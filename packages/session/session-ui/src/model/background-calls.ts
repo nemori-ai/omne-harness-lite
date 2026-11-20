@@ -16,6 +16,10 @@ export type BackgroundCallsView =
   | Readonly<{ kind: 'listed'; calls: readonly BackgroundCallItem[] }>
   | Readonly<{ kind: 'unreadable'; reason: string }>
 
+/** Calls of the session are in the background, as the list was last read. */
+export const hasCalls = (view: BackgroundCallsView): boolean =>
+  view.kind === 'listed' && view.calls.length > 0
+
 const STATUS: Readonly<Record<BackgroundCallItem['status'], string>> = {
   queued: '排队中',
   running: '在跑',

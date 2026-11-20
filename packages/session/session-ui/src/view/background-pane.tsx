@@ -8,7 +8,7 @@ import {
   type BackgroundCallItem,
   type BackgroundCallsStore,
 } from '../model/background-calls.ts'
-import { SidePanel } from './side-panel.tsx'
+import { SidePanel, type SideEntry } from './side-panel.tsx'
 
 function useBackgroundCalls(store: BackgroundCallsStore, tenant: string, session: string) {
   const subscribe = useCallback(
@@ -126,8 +126,9 @@ export function SideWithBackground({
   readonly detail: (call: string) => ReactNode
 }) {
   const view = useBackgroundCalls(store, tenant, session)
-  const running = view.kind === 'listed' && view.calls.length > 0
+  const count = view.kind === 'listed' ? view.calls.length : 0
   const pane = <BackgroundPane store={store} tenant={tenant} session={session} detail={detail} />
-  const all = running ? [...entries, { id: BACKGROUND_CALLS, label: '后台', node: pane }] : entries
+  const all: readonly SideEntry[] =
+    count > 0 ? [...entries, { id: BACKGROUND_CALLS, label: '后台', count, node: pane }] : entries
   return <SidePanel entries={all} />
 }
