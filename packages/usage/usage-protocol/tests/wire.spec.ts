@@ -27,6 +27,8 @@ describe('query-usage', () => {
       expectRoundTrip(query.body, { ...queryBody, scope })
     for (const bucket of ['none', 'hour', 'week', 'month'])
       expectRoundTrip(query.body, { ...queryBody, bucket, groupBy: [] })
+    for (const groupBy of [['source', 'provider'], ['tool']])
+      expectRoundTrip(query.body, { ...queryBody, groupBy })
   })
 
   it('refuses three dimensions, an unknown dimension or bucket, a bad session, a missing zone and an extra member', () => {
@@ -83,6 +85,10 @@ describe('list-usage-records', () => {
       next: 'ur1.x',
     })
     expectRoundTrip(records.outcomes.succeeded, { entries: [], next: null })
+    expectRoundTrip(records.outcomes.succeeded, {
+      entries: ['interrupted', 'failed'].map(outcome => ({ ...fact, outcome })),
+      next: null,
+    })
   })
 
   it('refuses a fact that carries a request, a reply or arguments', () => {
