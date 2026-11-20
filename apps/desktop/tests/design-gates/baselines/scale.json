@@ -37,7 +37,6 @@
     "packages/session/session-ui/src/view/session-ui.css | css flex 240px": 1,
     "packages/session/session-ui/src/view/session-ui.css | css gap 12px": 6,
     "packages/session/session-ui/src/view/session-ui.css | css gap 16px": 1,
-    "packages/session/session-ui/src/view/session-ui.css | css gap 24px": 1,
     "packages/session/session-ui/src/view/session-ui.css | css gap 2px": 4,
     "packages/session/session-ui/src/view/session-ui.css | css gap 4px": 6,
     "packages/session/session-ui/src/view/session-ui.css | css gap 6px": 1,
@@ -53,13 +52,12 @@
     "packages/session/session-ui/src/view/session-ui.css | css min-height 64px": 1,
     "packages/session/session-ui/src/view/session-ui.css | css padding 10px": 1,
     "packages/session/session-ui/src/view/session-ui.css | css padding 12px": 2,
-    "packages/session/session-ui/src/view/session-ui.css | css padding 16px": 3,
+    "packages/session/session-ui/src/view/session-ui.css | css padding 16px": 2,
     "packages/session/session-ui/src/view/session-ui.css | css padding 24px": 1,
     "packages/session/session-ui/src/view/session-ui.css | css padding 2px": 3,
     "packages/session/session-ui/src/view/session-ui.css | css padding 32px": 1,
     "packages/session/session-ui/src/view/session-ui.css | css padding 40px": 1,
     "packages/session/session-ui/src/view/session-ui.css | css padding 4px": 2,
-    "packages/session/session-ui/src/view/session-ui.css | css padding 8px": 4,
-    "packages/session/session-ui/src/view/session-ui.css | css width 320px": 1
+    "packages/session/session-ui/src/view/session-ui.css | css padding 8px": 4
   }
 }

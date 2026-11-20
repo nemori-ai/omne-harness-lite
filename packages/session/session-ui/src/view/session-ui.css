@@ -154,23 +154,64 @@
   font-weight: var(--omne-weight-strong);
 }
 .omne-session-body {
-  display: flex;
-  gap: 24px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
 }
+/* Docked, the side content is the body's second grid track (agent-work-panel.css in the source): only the person's
+   own fold or unfold moves the reading column, the track sliding between 0 and the column's width on `layout`. The
+   sheet keeps its width inside the track's clip, so nothing in it reflows; it slides in from the edge it attaches
+   to and leaves over `exit`. Side content that is docked from its first frame does not slide. */
+.omne-session-body:has(> .omne-session-side[data-presentation='docked']) {
+  grid-template-columns: minmax(0, 1fr) 0;
+  column-gap: 0;
+  transition:
+    grid-template-columns var(--omne-motion-layout) var(--omne-motion-ease-enter),
+    column-gap var(--omne-motion-layout) var(--omne-motion-ease-enter);
+}
+.omne-session-body:has(> .omne-session-side[data-presentation='docked'][data-open='true']) {
+  grid-template-columns: minmax(0, 1fr) calc(var(--spacing) * 80);
+  column-gap: var(--omne-space-page);
+}
 .omne-session-side[data-presentation='docked'] {
+  min-width: 0;
+  min-height: 0;
+  overflow: clip;
+  overflow-clip-margin: var(--omne-ring-room);
+}
+.omne-session-side-sheet {
   display: flex;
-  flex: none;
   flex-direction: column;
   gap: var(--omne-space-inline);
-  width: 320px;
-  min-height: 0;
-  padding: var(--omne-space-inline) 0 0 16px;
+  width: calc(var(--spacing) * 80);
+  height: 100%;
+  padding: var(--omne-space-inline) 0 0 var(--omne-space-block);
   border-left: 1px solid var(--omne-line-subtle);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(calc(var(--spacing) * 3));
+  transition:
+    opacity var(--omne-motion-exit) var(--omne-motion-ease-exit),
+    transform var(--omne-motion-exit) var(--omne-motion-ease-exit),
+    visibility 0s var(--omne-motion-exit);
 }
-.omne-session-side[data-presentation='docked'][hidden] {
-  display: none;
+.omne-session-side[data-open='true'] > .omne-session-side-sheet {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+  transition:
+    opacity var(--omne-motion-layout) var(--omne-motion-ease-enter),
+    transform var(--omne-motion-layout) var(--omne-motion-ease-enter),
+    visibility 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .omne-session-body:has(> .omne-session-side[data-presentation='docked']),
+  .omne-session-side-sheet,
+  .omne-session-side[data-open='true'] > .omne-session-side-sheet {
+    transition: none;
+  }
 }
 /* Over the page the side content is the agent's light ink bubble (ink-bubble.tsx): it gives the paper, edge and
    lift; nothing clips it, so the tail up to the figure's gap stays whole. Its width is the source's 600. */
@@ -220,7 +261,6 @@
 }
 .omne-session-main {
   display: flex;
-  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--omne-space-inline);
   width: 100%;

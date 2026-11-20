@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import type { PageItem, SidebarItem } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
-import { moveRegion } from '../src/page/shell/keys.ts'
+import { bindRegionKeys } from '../src/page/shell/keys.ts'
 import { SHEET_LABEL } from '../src/page/shell/sidebar.tsx'
 import { bindSizeKeys } from '../src/page/shell/size.ts'
 import { WINDOW_CHROME_ATTRIBUTE, markWindowChrome } from '../src/page/shell/window-chrome.ts'
@@ -326,7 +326,8 @@ describe('外壳：键盘', () => {
         render: () => (
           <div>
             <button type="button">正文里的键</button>
-            <div data-region="side">
+            <button type="button">正文里的第二个键</button>
+            <div data-keyboard-region="side">
               <button type="button">侧边区的键</button>
             </div>
           </div>
@@ -338,13 +339,19 @@ describe('外壳：键盘', () => {
         order: 1,
         icon: 'topics',
         render: () => (
-          <div data-region="side">
+          <div data-keyboard-region="side">
             <button type="button">藏着的侧边区</button>
           </div>
         ),
       })
     },
   })
+  const region = () =>
+    (document.activeElement as HTMLElement)
+      .closest('[data-keyboard-region]')
+      ?.getAttribute('data-keyboard-region')
+  const press = (shiftKey = false) =>
+    act(() => void fireEvent.keyDown(window, { key: 'F6', shiftKey }))
 
   it('页面开头有跳到正文的链接，指向唯一的主区', async () => {
     const t = await setup({ login: 'signed-out' })
@@ -356,29 +363,45 @@ describe('外壳：键盘', () => {
     expect(document.getElementById('shell-content')).toBe(screen.getByRole('main'))
   })
 
+  it('侧栏与主区用共用件的区域标记，外壳不另起一种', async () => {
+    await setup({ login: 'signed-in', modules: [sided] })
+    expect(document.querySelector('.shell-sidebar')?.getAttribute('data-keyboard-region')).toBe(
+      'sidebar',
+    )
+    expect(screen.getByRole('main').getAttribute('data-keyboard-region')).toBe('main')
+  })
+
   it('F6 在侧栏、正文与侧边区之间走，Shift+F6 往回；藏着的页里的侧边区不算', async () => {
     await setup({ login: 'signed-in', modules: [sided] })
-    const region = () => (document.activeElement as HTMLElement).closest('[data-region]')
-    const press = (shiftKey = false) =>
-      act(() => void fireEvent.keyDown(window, { key: 'F6', shiftKey }))
     press()
-    expect(region()?.getAttribute('data-region')).toBe('sidebar')
+    expect(region()).toBe('sidebar')
     press()
-    expect(region()?.getAttribute('data-region')).toBe('main')
+    expect(region()).toBe('main')
     press()
     expect(document.activeElement?.textContent).toBe('侧边区的键')
     press()
-    expect(region()?.getAttribute('data-region')).toBe('sidebar')
+    expect(region()).toBe('sidebar')
     press(true)
     expect(document.activeElement?.textContent).toBe('侧边区的键')
     press(true)
-    expect(region()?.getAttribute('data-region')).toBe('main')
+    expect(region()).toBe('main')
+  })
+
+  it('回到一个区时，焦点回到它在这个区里最后待的地方', async () => {
+    await setup({ login: 'signed-in', modules: [sided] })
+    act(() => screen.getByRole('button', { name: '正文里的第二个键' }).focus())
+    press()
+    expect(document.activeElement?.textContent).toBe('侧边区的键')
+    press(true)
+    expect(document.activeElement?.textContent).toBe('正文里的第二个键')
   })
 
   it('一个区都没有时 F6 什么都不做', () => {
     document.body.innerHTML = '<button>外面</button>'
-    moveRegion('next')
+    const unbind = bindRegionKeys(window)
+    fireEvent.keyDown(window, { key: 'F6' })
     expect(document.activeElement).toBe(document.body)
+    unbind()
     document.body.innerHTML = ''
   })
 })

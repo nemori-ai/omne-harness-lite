@@ -181,7 +181,7 @@ function Outside(props: {
   missing: readonly string[]
 }) {
   return (
-    <main id="shell-content" className="shell-outside" data-region="main" tabIndex={-1}>
+    <main id="shell-content" className="shell-outside" data-keyboard-region="main" tabIndex={-1}>
       <div className="shell-drag-strip" aria-hidden="true" />
       {props.connectivity === 'disconnected' ? (
         <LoadingState className="shell-reconnecting" label={RECONNECTING_TEXT} />
@@ -220,7 +220,12 @@ function Workspace(props: SidebarProps & { missing: readonly string[] }) {
       ) : (
         <NarrowNavigation {...props} />
       )}
-      <main id="shell-content" className="shell-workspace" data-region="main" tabIndex={-1}>
+      <main
+        id="shell-content"
+        className="shell-workspace"
+        data-keyboard-region="main"
+        tabIndex={-1}
+      >
         <div className="shell-drag-strip" aria-hidden="true" />
         <StaleApp missing={props.missing} />
         {pages.map(page => (
