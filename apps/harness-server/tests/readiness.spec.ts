@@ -211,7 +211,7 @@ describe('startup readiness (spec 5.2, section 8)', () => {
 })
 
 describe('fiber state mapping', () => {
-  test('maps every Cordis 4.0.4 FiberState and refuses an unknown number', () => {
+  test('maps every Cordis 4.1.0 FiberState and refuses an unknown number', () => {
     expect([0, 1, 2, 3, 4, 5].map(mapFiberState)).toEqual([
       'PENDING',
       'LOADING',

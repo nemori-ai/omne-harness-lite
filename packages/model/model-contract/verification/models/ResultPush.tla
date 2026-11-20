@@ -27,7 +27,7 @@ CONSTANTS
   MaxRedeliveries, \* redeliveries after an unknown outcome inside one wakeup
   MaxAccounts,     \* late accounts the environment offers in all
   MaxPending,      \* late accounts accepted and not yet saved (the reservation bound)
-  RefusalsInPlay,  \* TRUE: the receiver may refuse (denied) or answer a foreign receipt
+  RefusalsInPlay,  \* TRUE: the receiver may refuse (denied)
   MaxCrashes,      \* how many times the process may crash
   Bugs             \* the deliberate faults of a negative control; {} in every positive control
 
@@ -41,7 +41,7 @@ ASSUME MaxRedeliveries \in 0..2 /\ MaxAccounts \in 0..3 /\ MaxPending \in 1..3
 ASSUME RefusalsInPlay \in BOOLEAN /\ MaxCrashes \in 0..2
 
 Accounts == 1..MaxAccounts
-Standings == {"pending", "waiting", "unknown", "saved", "failed", "refused"}
+Standings == {"pending", "waiting", "unknown", "saved", "refused"}
 Due == {"pending", "waiting", "unknown"}
 Open == {"pending", "waiting", "unknown"} \* accepted and not yet saved: holds a reservation
 
@@ -141,11 +141,12 @@ PushResultWaiting == ~receiverSaved /\ PushResultAs("waiting", "none", FALSE)
 PushResultRefused ==
   /\ RefusalsInPlay /\ (~receiverSaved \/ result.standing = "unknown")
   /\ PushResultAs("refused", "none", FALSE)
-\* a receipt with another key or another owner is not saved: receipt-mismatch.
+\* a receipt with another key or another owner proves neither a save nor a refusal: the outcome
+\* is unknown, and the same key is pushed again (receipt-mismatch is only reported).
 PushResultForeign ==
-  /\ RefusalsInPlay /\ ~receiverSaved
+  /\ ~receiverSaved
   /\ IF Bug("foreign-receipt-saved") THEN PushResultAs("saved", "foreign", FALSE)
-     ELSE PushResultAs("failed", "none", FALSE)
+     ELSE PushResultAs("unknown", "none", FALSE)
 
 (* --- the producer's own ACK through the retained handoff ------------------ *)
 
@@ -322,9 +323,7 @@ Fairness ==
   /\ WF_vars(InProcess(AcceptAccount)) \* the environment keeps offering late accounts
 
 \* The receiver and the adapter, once back, stay: flapping forever is outside the premise.
-\* A receiver that answers with another key's receipt is outside the premise too: that delivery
-\* fails as receipt-mismatch and holds the share.
-LiveNext == Next /\ ~AdapterGoesAway /\ ~Unregister /\ ~InProcess(PushResultForeign)
+LiveNext == Next /\ ~AdapterGoesAway /\ ~Unregister
 
 LiveSpec == Init /\ [][LiveNext]_vars /\ Fairness
 

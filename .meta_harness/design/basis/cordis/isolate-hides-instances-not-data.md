@@ -1,18 +1,20 @@
 ---
 id: isolate-hides-instances-not-data
 upstream: cordis
-version: 4.0.4
+version: 4.1.0
 kind: negative
 symbols:
-  - "reflect.ts: 服务解析沿 fiber 链向上，父的 isolate 标签不同即抛错不再上溯"
+  - "reflect.ts: 属性解析从定义处的 fiber 起沿 fiber 链向上；某一层的 committed 里有这个名字就返回它，不比对它的 isolate 标签；走到父的 isolate 标签不同才抛错不再上溯"
+  - "reflect.ts: ctx.get 与 inject 按当前上下文的 isolate 键读服务表，读不到别的标签下的实现"
   - "reflect.ts: 同标签重复 provide 直接抛错"
   - "context.ts: ctx.isolate(name, label)，同 label 的两次调用合流"
 lines:
-  - "reflect.ts:154-166"
-  - "reflect.ts:289-290"
+  - "reflect.ts:164-179"
+  - "reflect.ts:247-257"
+  - "reflect.ts:303-305"
   - "context.ts:115-125"
 probe: packages/assembly/kernel-basis/tests/isolate-hides-instances-not-data.spec.ts
-checked: 2026-11-15
+checked: 2026-11-20
 ---
 
 # `isolate` 隔离服务实例的可见性，不隔离数据
@@ -35,7 +37,8 @@ checked: 2026-11-15
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `reflect.ts` 服务解析 | 解析沿 fiber 链向上，父的 isolate 标签一旦不同就抛错、不再上溯 | 在子 isolate 中解析父标签下的服务，观察抛错而非回退 |
+| `reflect.ts` `ctx.get` 与 `inject` | 按当前上下文的 isolate 键读服务表：子 isolate 里读不到父标签下的实现，有自己的提供者时读到自己的 | 在子 isolate 中 `ctx.get` 父标签下的服务，得 `undefined` |
+| `reflect.ts` 属性解析（164–179 行） | 沿 fiber 链向上时先看每一层的 `committed`，有这个名字就返回，不比对标签；所以祖先 fiber `inject` 过同名服务时，子 isolate 里没 `inject` 的插件读 `ctx.<名>` 得到祖先那一份。4.0.4 在这里抛错 | 父插件 `inject` 一个服务，在它里面 `isolate` 这个名字再装子插件，子插件读 `ctx.<名>` |
 | `reflect.ts` provide | 同标签重复 provide 直接抛错——没有「子上下文默认遮蔽父服务」这回事 | 同标签下 provide 两次 |
 | `context.ts` isolate | 同 label 的两次 `isolate()` 调用合流到同一标签 | 两处以相同 label 调用，观察得到同一实例 |
 
@@ -47,15 +50,20 @@ checked: 2026-11-15
 
 ## 探针断言什么
 
-探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.1.0 核对：
 
-1. 两个 `ctx.isolate('store')` 标签下各 provide 一个服务实例，两实例共享同一个 `Map`；
+1. 父插件 `inject` 了一个服务，在它里面对这个名字 `isolate` 之后装子插件：子插件 `ctx.get` 得 `undefined`，读 `ctx.<名>` 得到父标签下的那一份。
+   子 isolate 里另有提供者时：`inject` 了的子插件两种读法都得到子标签的实例；没 `inject` 的子插件 `ctx.get` 得到子标签的实例，读 `ctx.<名>` 仍得到父标签的那一份。
+   上游若让属性解析也按标签判（恢复抛错或返回子标签的实例），这一条失败，本条目按新行为重写。
+2. 两个 `ctx.isolate('store')` 标签下各 provide 一个服务实例，两实例共享同一个 `Map`；
    标签 A 下的消费者解析到的是 A 的实例（标签生效），但经它写入再读出的数据对 B 同样可见——隔离不及于数据。
    若上游某个版本使这次读取失败，语义变了，本条目失效。
-2. 同标签重复 provide 抛 `service "…" has been registered`；同一 `label` 的两次 `isolate` 合流，
+3. 同标签重复 provide 抛 `service "…" has been registered`；同一 `label` 的两次 `isolate` 合流，
    一边 provide 另一边可解析。
 
 ## 已知的误用
+
+**在 isolate 过的子树里用 `ctx.<名>` 读服务，并当它读到的是本标签的实例。**4.1.0 起，祖先 `inject` 过同名服务时它读到的是祖先那一份，不报错。在子树里读被 isolate 的名字，只用 `inject` 加 `ctx.<名>`，或 `ctx.get`。
 
 **为租户开 isolate 标签。**后果有三层，一层比一层难发现：
 

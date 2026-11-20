@@ -31,17 +31,20 @@ export function checkEmptyToolConfig(config: unknown): void {
 }
 
 export function captureToolCaller(caller: Context): () => boolean {
-  const snapshot = caller.fiber.store
+  const snapshot = caller.fiber.committed
   const dependencies = Object.entries(snapshot ?? {}).map(([name, impl]) => ({
     name,
     impl,
     scope: caller[Context.isolate][name],
   }))
   return () => {
-    if (caller.fiber.store !== snapshot || (caller.fiber.state !== 1 && caller.fiber.state !== 2))
+    if (
+      caller.fiber.committed !== snapshot ||
+      (caller.fiber.state !== 1 && caller.fiber.state !== 2)
+    )
       return false
     return dependencies.every(({ name, impl, scope }) => {
-      if (scope === undefined || caller.reflect.store[scope] !== impl || impl.fiber.state !== 2)
+      if (scope === undefined || caller.reflect.store[scope] !== impl || impl.ctx.fiber.state !== 2)
         return false
       try {
         return impl.check === undefined || impl.check.call(caller.get(name))

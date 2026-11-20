@@ -1044,7 +1044,7 @@ describe('a page after the cursor costs the same at N = 10 and N = 100 rows', ()
   })
 })
 
-describe('the sub-plugins on real Cordis 4.0.4', () => {
+describe('the sub-plugins on real Cordis 4.1.0', () => {
   it('stay absent while session is absent', async () => {
     const ctx = new Context()
     const w = await world({ ctx, mount: ['lowerBound', 'source'] })
