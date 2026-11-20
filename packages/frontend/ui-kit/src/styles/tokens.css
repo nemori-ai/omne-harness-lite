@@ -155,6 +155,13 @@
   --omne-code-header-height: 40px;
   --omne-code-actions-width: 88px;
   --omne-code-fade: 40px;
+  --omne-ink-bubble-paper-soft: 72px;
+  --omne-ink-shadow-y: 12px;
+  --omne-ink-shadow-blur: 32px;
+  --omne-ink-breath-near: 0.6px;
+  --omne-ink-breath-far: 5px;
+  --omne-told-note-room: 120px;
+  --omne-told-note-padding: 8px 14px 9px;
 }
 
 :root[data-size='small'] {
@@ -213,6 +220,13 @@
   --omne-code-header-height: 30px;
   --omne-code-actions-width: 66px;
   --omne-code-fade: 30px;
+  --omne-ink-bubble-paper-soft: 54px;
+  --omne-ink-shadow-y: 9px;
+  --omne-ink-shadow-blur: 24px;
+  --omne-ink-breath-near: 0.45px;
+  --omne-ink-breath-far: 3.75px;
+  --omne-told-note-room: 90px;
+  --omne-told-note-padding: 6px 10.5px 6.75px;
 }
 
 :root[data-size='large'] {
@@ -267,6 +281,13 @@
   --omne-code-header-height: 50px;
   --omne-code-actions-width: 110px;
   --omne-code-fade: 50px;
+  --omne-ink-bubble-paper-soft: 90px;
+  --omne-ink-shadow-y: 15px;
+  --omne-ink-shadow-blur: 40px;
+  --omne-ink-breath-near: 0.75px;
+  --omne-ink-breath-far: 6.25px;
+  --omne-told-note-room: 150px;
+  --omne-told-note-padding: 10px 17.5px 11.25px;
 }
 
 :root[data-size='reading'] {
@@ -322,6 +343,13 @@
   --omne-code-header-height: 60px;
   --omne-code-actions-width: 132px;
   --omne-code-fade: 60px;
+  --omne-ink-bubble-paper-soft: 108px;
+  --omne-ink-shadow-y: 18px;
+  --omne-ink-shadow-blur: 48px;
+  --omne-ink-breath-near: 0.9px;
+  --omne-ink-breath-far: 7.5px;
+  --omne-told-note-room: 180px;
+  --omne-told-note-padding: 12px 21px 13.5px;
 }
 
 :root {
@@ -386,6 +414,11 @@
   --omne-elevation-overlay:
     0 0 0 1px var(--kami-line), 0 12px 32px color-mix(in srgb, var(--kami-shadow) 18%, transparent);
   --omne-overlay: color-mix(in srgb, var(--kami-shadow) 40%, transparent);
+  --omne-ink-mask: #000;
+  --omne-ink-shadow: color-mix(in srgb, var(--kami-shadow) 18%, transparent);
+  --omne-ink-wash-core: rgb(0 0 0 / 13%);
+  --omne-ink-wash-rim: rgb(0 0 0 / 11%);
+  --omne-ink-wash-out: rgb(0 0 0 / 0%);
 
   --omne-tooltip: var(--kami-tooltip-bg);
   --omne-tooltip-ink: var(--kami-tooltip-fg);

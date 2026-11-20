@@ -30,7 +30,13 @@ interface Allowance {
   readonly firstUser: string
 }
 
-const UNUSED_ON_PURPOSE: ReadonlyMap<string, Allowance> = new Map<string, Allowance>([])
+const UNUSED_ON_PURPOSE: ReadonlyMap<string, Allowance> = new Map<string, Allowance>([
+  ['FIGURE_SIZE', { reason: '外壳在 R4 接上形口与座位', firstUser: 'R4' }],
+  ['FigureSeat', { reason: '外壳在 R4 接上形口与座位', firstUser: 'R4' }],
+  ['FigureStage', { reason: '外壳在 R4 接上形口与座位', firstUser: 'R4' }],
+  ['InkBubble', { reason: '外壳在 R4 接上形口与座位', firstUser: 'R4' }],
+  ['ToldNote', { reason: '外壳在 R4 接上形口与座位', firstUser: 'R4' }],
+])
 
 type Reader = (path: string) => SyntaxNode | undefined
 
