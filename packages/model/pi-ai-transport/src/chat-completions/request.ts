@@ -1,6 +1,7 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (buildParams; the source
 // file is named in provenance.json). Copyright (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi.
 // See provenance.json.
+import { mediaPending, mediaRead, type MediaView } from '../media.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   type Adoption,
@@ -24,6 +25,7 @@ import {
   appliedFor,
   carriesReplay,
   materialize,
+  represented,
   profileDeclaration,
   wiredParams,
   type Materialized,
@@ -116,23 +118,20 @@ function viewOf(projection: Projection, applied: readonly Parameter[]): Projecte
   }
 }
 
-function represent(
-  context: RequestContext,
-  input: Readonly<{
-    projection: Projection
-    applied: readonly Parameter[]
-    representation: Adoption
-  }>,
-): Outcome<Readonly<{ body: JsonValue; representation: Materialized }>, TransportFailure> {
+type RepresentInput = Readonly<{
+  projection: Projection
+  applied: readonly Parameter[]
+  representation: Adoption
+  media: MediaView
+}>
+function shown(context: RequestContext, input: RepresentInput) {
   const params = gatewayParams(context, input.applied)
   if (!('ok' in params)) return params
   const body = bodyOf(context, input.projection, params.ok)
   if (!('ok' in body)) return body
-  return materialize(context, {
-    body: body.ok,
-    view: viewOf(input.projection, input.applied),
-    representation: input.representation,
-  })
+  const { representation, media } = input
+  const view = viewOf(input.projection, input.applied)
+  return { ok: { body: body.ok, view, representation, media } }
 }
 
 export function planRequest(
@@ -145,6 +144,7 @@ export function planRequest(
   const { profile, supplier, assembled } = input
   const declaration = profileDeclaration(context, profile, supplier)
   if (!('ok' in declaration)) return declaration
+  const media = mediaPending()
   const planned = planParameters({
     record: context.record,
     adapter: context.adapter,
@@ -163,6 +163,7 @@ export function planRequest(
     declaration: declaration.ok,
     replayOff: assembled.replay === 'off',
     resent: new Set(),
+    media,
   })
   if (!('ok' in projection)) return projection
   const parameters = planned.ok
@@ -173,11 +174,14 @@ export function planRequest(
     treatments: projection.ok.treatments,
   })
   if (!('ok' in checked)) return checked
-  const encoded = represent(context, {
+  const request = shown(context, {
     projection: projection.ok,
     applied,
     representation: assembled.representation,
+    media,
   })
+  if (!('ok' in request)) return request
+  const encoded = represented(context, request.ok)
   if (!('ok' in encoded)) return encoded
   return { ok: { parameters, representation: encoded.ok.representation } }
 }
@@ -201,8 +205,7 @@ export function encodeRequest(
   TransportFailure
 > {
   const { request } = input
-  if (input.media.length > 0)
-    return { failure: { kind: 'unsupported', field: 'media', adapter: context.adapter } }
+  const media = mediaRead(input.media)
   const projection = project({
     ...context,
     system: request.system,
@@ -212,6 +215,7 @@ export function encodeRequest(
     declaration: input.declaration,
     replayOff: request.replay === 'off',
     resent: new Set(input.resent),
+    media,
   })
   if (!('ok' in projection)) return projection
   const applied = appliedFor(context, request)
@@ -221,11 +225,14 @@ export function encodeRequest(
     treatments: projection.ok.treatments,
   })
   if (!('ok' in checked)) return checked
-  const encoded = represent(context, {
+  const sent = shown(context, {
     projection: projection.ok,
     applied,
     representation: request.representation,
+    media,
   })
+  if (!('ok' in sent)) return sent
+  const encoded = materialize(context, sent.ok)
   if (!('ok' in encoded)) return encoded
   return {
     ok: {

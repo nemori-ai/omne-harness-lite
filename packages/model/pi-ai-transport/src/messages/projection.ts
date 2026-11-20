@@ -1,3 +1,4 @@
+import { referredImage, type MediaView } from '../media.ts'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
@@ -54,6 +55,7 @@ export type MessagesProjectionInput = Readonly<{
   toolChoice: FixedModelRequest['toolChoice']
   replayOff: boolean
   resent: ReadonlySet<ChatMessageId>
+  media: MediaView
 }>
 
 type Built = {
@@ -77,7 +79,16 @@ function contentJson(
   input: MessagesProjectionInput,
 ): Outcome<JsonValue | null, TransportFailure> {
   if (!block.visibility.toModel) return { ok: null }
-  if ('ref' in block) return unsupported(path, input.adapter)
+  if ('ref' in block) {
+    const referred = referredImage(block, input.record.wire.image?.mediaTypes, input.media)
+    if (referred === null) return unsupported(path, input.adapter)
+    const source = object({
+      type: text('base64'),
+      media_type: text(referred.mime),
+      data: text(referred.data),
+    })
+    return { ok: object({ type: text('image'), source }) }
+  }
   switch (block.kind) {
     case 'text':
       return { ok: object({ type: text('text'), text: text(block.text) }) }

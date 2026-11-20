@@ -214,8 +214,6 @@ async function measureCalibrated<U extends MeteredUnit>(
   const representation = submitted.representation
   if (!sameAdoption(representation.adoption, rules.adoptions.representation))
     return { failure: { kind: 'unsupported', field: 'representation', adapter } }
-  if (representation.kind === 'pending-media')
-    return { failure: { kind: 'unsupported', field: 'representation.kind', adapter } }
   const { assembled: _assembled, ...facts } = submitted
   const measure = structuredClone(facts)
   const calibration = structuredClone(input.calibration)
@@ -234,9 +232,15 @@ async function measureCalibrated<U extends MeteredUnit>(
     marginPercent: rules.margin.percent,
   })
   if (!('ok' in amount)) return amount
+  const pending:
+    | Pick<Extract<RequestBudget, { kind: 'deferred-media' }>, 'kind' | 'references'>
+    | { kind: 'complete' } =
+    owned.kind === 'pending-media'
+      ? { kind: 'deferred-media', references: owned.references }
+      : { kind: 'complete' }
   return {
     ok: {
-      kind: 'complete',
+      ...pending,
       inputDigest: calibratedDigest({ measure, calibration }),
       checks: [
         inputCheck({ measure, rules, amount: amount.ok }),

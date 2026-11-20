@@ -1,6 +1,7 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (convertMessages,
 // convertTools, addCacheControlToTextContent; the source file is named in provenance.json).
 // Copyright (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi. See provenance.json.
+import { referredImage, type MediaView } from '../media.ts'
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -72,6 +73,7 @@ export type ProjectionInput = Readonly<{
   toolChoice: FixedModelRequest['toolChoice']
   replayOff: boolean
   resent: ReadonlySet<ChatMessageId>
+  media: MediaView
 }>
 
 const TOOL_CALL_ID = /^[A-Za-z0-9_-]{1,64}$/
@@ -113,9 +115,15 @@ function contentPart(
   path: string,
   image: WireProfile['image'],
   adapter: Adoption,
+  media: MediaView,
 ): Outcome<WirePart | null, TransportFailure> {
   if (!block.visibility.toModel) return { ok: null }
-  if ('ref' in block) return unsupported(path, adapter)
+  if ('ref' in block) {
+    const referred = referredImage(block, image?.mediaTypes, media)
+    if (referred === null || image === null) return unsupported(path, adapter)
+    const url = `data:${referred.mime};base64,${referred.data}`
+    return { ok: { type: 'image', url, detail: image.detail } }
+  }
   switch (block.kind) {
     case 'text':
       return { ok: { type: 'text', text: block.text } }
@@ -267,7 +275,7 @@ function instructionMessage(input: ProjectionInput): Outcome<WireMessage | null,
   for (const [index, block] of input.system.entries()) {
     const path = `/system/${index}`
     if (block.visibility.toModel && block.kind !== 'text') return unsupported(path, input.adapter)
-    const part = contentPart(block, path, null, input.adapter)
+    const part = contentPart(block, path, null, input.adapter, input.media)
     if (!('ok' in part)) return part
     if (part.ok === null) continue
     parts.push(part.ok)
@@ -291,6 +299,7 @@ function contentMessage(
       `${path}/blocks/${index}`,
       input.record.wire.image,
       input.adapter,
+      input.media,
     )
     if (!('ok' in part)) return part
     if (part.ok === null) continue
@@ -365,7 +374,7 @@ function assistantMessage(
       case 'tool_call_incomplete':
         return invalid(at, 'incomplete-tool-call')
       case 'text': {
-        const part = contentPart(block, at, null, input.adapter)
+        const part = contentPart(block, at, null, input.adapter, input.media)
         if (!('ok' in part)) return part
         if (part.ok !== null) {
           parts.push(part.ok)
@@ -374,7 +383,7 @@ function assistantMessage(
         continue
       }
       default: {
-        const part = contentPart(block, at, null, input.adapter)
+        const part = contentPart(block, at, null, input.adapter, input.media)
         if (!('ok' in part)) return part
         continue
       }
@@ -443,6 +452,7 @@ function toolMessage(
       `${path}/blocks/${offset + 1}`,
       input.record.wire.image,
       input.adapter,
+      input.media,
     )
     if (!('ok' in part)) return part
     if (part.ok === null) continue

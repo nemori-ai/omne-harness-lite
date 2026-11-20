@@ -13,6 +13,9 @@ import {
   fixedRequest,
   imageBlock,
   message,
+  PICTURE_BYTES,
+  pictureBlock,
+  pictureRead,
   resultBlock,
   stateBlock,
   supplierOf,
@@ -319,5 +322,57 @@ describe('encode: what the model does not accept is refused before anything is s
       },
     })
     expect(() => bind(record)).toThrow(/no member for seed/)
+  })
+})
+
+describe('encode: an image by reference', () => {
+  const record = messagesRecord()
+  const DATA = Buffer.from(PICTURE_BYTES).toString('base64')
+  const wire = { type: 'image', source: { type: 'base64', media_type: 'image/png', data: DATA } }
+  const encodeWith = (
+    parts: RequestParts,
+    media: Parameters<PiFamilyBinding['encode']>[0]['media'],
+  ) => {
+    const request: FixedModelRequest = fixedRequest(record, parts)
+    return bind(record).encode({ request, media, declaration: request.declarations[0], resent: [] })
+  }
+  const messagesOf = (outcome: ReturnType<typeof encodeWith>) => {
+    if (!('ok' in outcome)) throw new Error(`encode failed: ${JSON.stringify(outcome.failure)}`)
+    return (JSON.parse(writeJsonText(outcome.ok.body)) as { messages: unknown[] }).messages
+  }
+
+  it('of a user message is written as the bytes read for it, and its measure goes to the meter', () => {
+    const messages = [message('u1', 'user', [textBlock('t1', 'look'), pictureBlock('p1')])]
+    const outcome = encodeWith({ messages }, [pictureRead()])
+    expect(messagesOf(outcome)).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'look' }, wire] },
+    ])
+    if (!('ok' in outcome)) throw new Error('encode failed')
+    expect(outcome.ok.representation.media).toEqual([pictureRead().measurement])
+  })
+
+  it('of a tool result stays in the result it came with', () => {
+    const outcome = encodeWith(
+      {
+        messages: [
+          message('u1', 'user', [textBlock('t1', 'shoot')]),
+          message('a1', 'assistant', [callBlock('c1', 'call-1', 'screen')]),
+          message('r1', 'tool', [resultBlock('y1', 'call-1'), pictureBlock('y2')]),
+        ],
+        tools: [tool('screen')],
+      },
+      [pictureRead()],
+    )
+    expect(messagesOf(outcome).at(-1)).toEqual({
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'call-1', content: [wire] }],
+    })
+  })
+
+  it('is unsupported at its path when nothing was read for it', () => {
+    const messages = [message('u1', 'user', [pictureBlock('p1')])]
+    expect(encodeWith({ messages }, [])).toMatchObject({
+      failure: { kind: 'unsupported', field: '/messages/0/blocks/0' },
+    })
   })
 })

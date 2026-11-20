@@ -234,6 +234,36 @@ export function imageBlock(id: string, mediaType = 'image/png'): unknown {
   return { kind: 'image', id, visibility: SHOWN, mediaType, inline: 'iVBORw0KGgo=' }
 }
 
+export const PICTURE = {
+  storage: 'tests',
+  key: 'picture-1',
+  mediaType: 'image/png',
+  bytes: '4',
+  digest: 'd'.repeat(64),
+}
+/** An image block that refers to its bytes, measured as the intake leaves it. */
+export function pictureBlock(id: string, ref = PICTURE, extra: object = {}): unknown {
+  const facts = { kind: 'image', widthPixels: 640, heightPixels: 480 }
+  return { kind: 'image', id, visibility: SHOWN, ref, transcript: null, facts, ...extra }
+}
+export const PICTURE_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+/** What a media source read for a reference: its bytes, their type and their measure. */
+export function pictureRead(
+  reference = PICTURE,
+  mime = reference.mediaType,
+  bytes = PICTURE_BYTES,
+) {
+  const measurement = {
+    reference,
+    bytes: String(bytes.byteLength),
+    mediaType: mime,
+    kind: 'image' as const,
+    widthPixels: '640',
+    heightPixels: '480',
+  }
+  return { reference, mime, bytes, measurement }
+}
+
 export function thinkingBlock(id: string, text: string): unknown {
   return { kind: 'thinking', id, visibility: SHOWN, text }
 }

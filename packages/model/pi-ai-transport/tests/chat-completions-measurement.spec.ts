@@ -264,7 +264,7 @@ describe('createCalibratedMeter', () => {
   const inputAmount = (result: Awaited<ReturnType<ModelInputMeter['measure']>>) =>
     'ok' in result ? result.ok.checks[0]?.measurement.amount : result.failure
 
-  it('refuses another supplier, another representation, pending media and another schema', async () => {
+  it('refuses another supplier, another representation and another schema; measures a request whose media are pending and defers them', async () => {
     const meter = createCalibratedMeter(rules())
     expect(
       await meter.measure({ ...metered, supplier: { ...supplier, adoption: adoption('other') } }),
@@ -295,7 +295,7 @@ describe('createCalibratedMeter', () => {
           references: [reference],
         },
       }),
-    ).toEqual({ failure: { kind: 'unsupported', field: 'representation.kind', adapter: METER } })
+    ).toMatchObject({ ok: { kind: 'deferred-media', references: [reference] } })
     expect(await createCalibratedMeter(rules({ contentOf: () => null })).measure(metered)).toEqual({
       failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' },
     })
