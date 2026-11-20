@@ -34,9 +34,12 @@ export function availabilityText(availability: WorkspaceInstanceBody['availabili
   }
 }
 
-export const REFUSED_READS: Readonly<Record<string, string>> = {
+const REFUSED_READS: Readonly<Record<string, string>> = {
   denied: '没有权限看工作区',
   'basis-unavailable': '工作区暂时读不到',
   'protocol-rejected': '请求不合协议',
   'not-found': '没有这个工作区',
 }
+
+/** Why a read of the workspaces did not succeed, as a person reads it. */
+export const readRefusal = (outcome: string): string => REFUSED_READS[outcome] ?? outcome

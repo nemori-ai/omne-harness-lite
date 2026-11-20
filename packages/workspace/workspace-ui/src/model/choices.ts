@@ -5,7 +5,7 @@ import type {
   WorkspaceProtocol,
   WorkspaceViewBody,
 } from '@omne-harness/workspace-protocol'
-import { REFUSED_READS, reasonText } from './words.ts'
+import { availabilityText, readRefusal } from './words.ts'
 
 type Client = Pick<ClientOf<WorkspaceProtocol>, 'list' | 'describe'>
 
@@ -27,16 +27,8 @@ export interface WorkspaceChoices {
   list(tenant: string): Promise<WorkspaceChoiceListing>
 }
 
-function noteOf(availability: WorkspaceInstanceBody['availability']): string | null {
-  switch (availability.kind) {
-    case 'available':
-      return null
-    case 'unavailable':
-      return `用不了：${reasonText(availability.reason)}`
-    case 'unknown':
-      return '现在不知道能不能用'
-  }
-}
+const noteOf = (availability: WorkspaceInstanceBody['availability']): string | null =>
+  availability.kind === 'available' ? null : availabilityText(availability)
 
 const choicesOf = (view: WorkspaceViewBody): readonly WorkspaceChoice[] =>
   view.instances.map(instance => ({
@@ -47,7 +39,6 @@ const choicesOf = (view: WorkspaceViewBody): readonly WorkspaceChoice[] =>
     note: noteOf(instance.availability),
   }))
 
-const refusal = (outcome: string) => REFUSED_READS[outcome] ?? outcome
 const unavailable = (reason: string) => ({ kind: 'unavailable', reason }) as const
 
 // Each workspace is described to learn its instances; one that cannot be read leaves no list.
@@ -58,11 +49,11 @@ export function createWorkspaceChoices(client: Client): WorkspaceChoices {
       if (owner === undefined) return unavailable('租户读不懂')
       try {
         const listed = await client.list({ tenant: owner })
-        if (listed.outcome !== 'succeeded') return unavailable(refusal(listed.outcome))
+        if (listed.outcome !== 'succeeded') return unavailable(readRefusal(listed.outcome))
         const choices: WorkspaceChoice[] = []
         for (const { workspace } of listed.body.workspaces) {
           const described = await client.describe({ tenant: owner, workspace })
-          if (described.outcome !== 'succeeded') return unavailable(refusal(described.outcome))
+          if (described.outcome !== 'succeeded') return unavailable(readRefusal(described.outcome))
           choices.push(...choicesOf(described.body))
         }
         return { kind: 'listed', choices }

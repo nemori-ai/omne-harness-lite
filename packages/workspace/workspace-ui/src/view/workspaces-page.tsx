@@ -20,7 +20,7 @@ import type {
 } from '@omne-harness/workspace-protocol'
 import { useEffect, useState, type JSX } from 'react'
 import { commit, recheck, type Pending, type Told } from '../model/commits.ts'
-import { availabilityText, REFUSED_READS, standingText } from '../model/words.ts'
+import { availabilityText, readRefusal, standingText } from '../model/words.ts'
 
 type Client = ClientOf<WorkspaceProtocol>
 type Read<T> =
@@ -50,7 +50,7 @@ function useRead<T>(
         set(
           answer.outcome === 'succeeded'
             ? { kind: 'read', value: pick(answer.body) }
-            : { kind: 'unreadable', reason: REFUSED_READS[answer.outcome] ?? answer.outcome },
+            : { kind: 'unreadable', reason: readRefusal(answer.outcome) },
         )
       },
       () => live && set({ kind: 'unreadable', reason: '没有送达' }),
