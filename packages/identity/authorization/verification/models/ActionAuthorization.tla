@@ -232,7 +232,7 @@ Refuse(a) ==
                  applied, cardRev, cardWritable, asks, onceExpr, permit, consumedBy,
                  restarts, humanNo, unjust, earlyLaunch, lostApproval, refused>>
 
-\* 改坏的一种：答了放行就照答复记下放行，不按当前事实重算。
+\* 改坏的一种：答了放行就照答复记下放行（有单次授权照样用掉），不按当前事实重算。
 Allowing(a) ==
   \/ reply[a] \in {"allowOnce", "allowSession", "allowAlways"}
   \/ Variant = "remarkApproves" /\ reply[a] = "remark"
@@ -240,7 +240,8 @@ Allowing(a) ==
 Rejudge(a) ==
   /\ st[a] = "answered" /\ applied[a]
   /\ ~cancelled[SessOf(a)]
-  /\ LET d == IF Variant = "admissionTrustsAnswer" /\ Allowing(a) THEN "free" ELSE Decide(a) IN
+  /\ LET trusted == IF onceExpr[a] /\ permit[a] = "open" THEN "permit" ELSE "free"
+         d == IF Variant = "admissionTrustsAnswer" /\ Allowing(a) THEN trusted ELSE Decide(a) IN
      /\ lostApproval' = (lostApproval \/ (d = "ask" /\ onceExpr[a] /\ permit[a] = "none"))
      /\ IF d \in {"free", "permit"}
         THEN /\ Admit(a, d)
