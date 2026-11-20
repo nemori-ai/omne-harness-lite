@@ -200,13 +200,34 @@
 > environment**, so when it goes, **all of them go with it**.
 
 - **形态**：对象
-- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 12） · [PF-005 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
+- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 13） · [PF-005 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），
   **但叙述一律写「终端会话」**。改名依据见 [现行词义](../index.md)
 - **注意**：**状态的寿命是显式的**——只有显式开终端会话才保留可复用的终端会话状态；一次性执行的文件、外部效果、结果和账目不因此消失；
   给一个不存在的标识**必须明确失败**，不得悄悄降级成一次性执行
+
+### UL-screen · 屏幕 · Screen
+
+> **中**：**一个图形环境里的一块显示区域，可以被截图，可以被按像素操作。**一个图形环境可以有多块屏幕，其中恰有一块是主屏。
+> 每块屏幕有在这个环境里稳定的标识，以及名字、像素尺寸、缩放与它在桌面里的位置。
+> 截图指明截哪块屏幕，不指明时取主屏；**指明的屏幕不存在时明确拒绝，不退到主屏**。
+> 每张截图带着它所属屏幕的几何与截取的时刻，图上的一点可以换算成屏幕坐标。
+>
+> **EN**: **One display area in a graphical environment that can be captured in a screenshot and
+> operated by pixels.** A graphical environment can have several screens, and exactly one of them
+> is the primary screen. Each screen has an identifier that is stable within the environment, plus
+> a name, a pixel size, a scale and its position on the desktop. A screenshot names the screen to
+> capture. Without a name it captures the primary screen. **When the named screen does not exist,
+> the screenshot is refused and does not fall back to the primary screen.** Each screenshot carries
+> the geometry of its screen and the time of capture, so a point on the image converts to screen
+> coordinates.
+
+- **形态**：对象
+- **出处**：[元能力：Computer() 图形界面操作](../../product/meta-capabilities/design.md#meta-computer)（rev 13）
+- **别混**：**不是交付面上的一个页面**——屏幕在执行环境里，是 agent 观察与操作的对象，不是人看会话的那一面
+- **注意**：列出屏幕与截屏也以一个只读的截屏工具提供，与 Computer 用同一个图形界面设施、同样的规则；那是一个工具，不另立词条
 
 ### UL-execution-environment-permission · 执行环境权限 · Execution Environment Permission
 

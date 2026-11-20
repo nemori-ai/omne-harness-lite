@@ -204,11 +204,15 @@ Computer 按像素操作桌面应用、远程图形界面等对象，需要图�
 
 | 动作层 | 动作 | 使用要求 |
 | --- | --- | --- |
-| 基础 | screenshot、click、type、key、scroll、move、wait、cursor_position | 可直接使用 |
+| 基础 | screens、screenshot、click、type、key、scroll、move、wait、cursor_position | 可直接使用 |
 | 精细 | drag、zoom、mouse_press、mouse_release、hold_key、剪贴板读写 | 先读说明 |
 | 窗口 | window_info、focus_window、close_window、set_window_state | 先读说明 |
 | 应用 | launch_application、open_resource | 先读说明 |
 | 说明 | help，可查全量或指定动作 | 与其他动作不能混在同一批 |
+
+一个图形环境可以有多块屏幕。screens 列出屏幕：每块屏幕有在这个环境里稳定的标识、名字、像素尺寸、缩放与在桌面里的位置，并标出主屏。screenshot 指明截哪块屏幕，不指明时取主屏；指明的屏幕不存在时明确拒绝，不退到主屏。每张截图带着它所属屏幕的几何与截取的时刻，图上的一点可以换算成屏幕坐标。
+
+screens 与 screenshot 这两个只读的观察，也以一个独立的截屏工具提供，供只看不操作的场合使用。它与 Computer 用同一个图形界面设施，规则相同，动作授权照常。
 
 一次调用可以提交一串动作，须能辨认实际执行进度。动作后等待界面稳定再观察，不能把未完成绘制的旧帧当作动作后的状态。截图有上下文预算，超限时减少模型采用的旧截图；这不授权删除会话日志、原工具结果或附件，内容保管沿 Tool 与 Context 的既定规则。
 
