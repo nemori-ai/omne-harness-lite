@@ -106,7 +106,13 @@ describe('a person who releases one call', () => {
   it('writes a once authorization for this very action first, then judges again and allows', async () => {
     const { world, written, admit, adoption } = await admitting('written')
     const args = echoCall(world, {})
-    expect(await admit('ToyEcho', args)).toMatchObject({ ok: { kind: 'allow' } })
+    const decided = await admit('ToyEcho', args)
+    if (!('ok' in decided) || decided.ok.kind !== 'allow') throw new Error(JSON.stringify(decided))
+    expect(JSON.parse(decided.ok.evidence.record)).toEqual({
+      decision: 'action-current-permission',
+      by: 'once',
+      grant: { via: 'once', holder: 'session', source: said },
+    })
     expect(written).toHaveLength(1)
     expect(written[0]).toMatchObject({
       card,

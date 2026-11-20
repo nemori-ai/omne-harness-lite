@@ -187,12 +187,14 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
     })
   }
   if (current.kind !== 'allow') return current
+  const { by, grant } = current.release
   return {
     kind: 'allow',
-    evidence: decisionEvidence('action-current-permission', rules.revision, {
-      rule: ruled,
-      permission: current.evidence,
-    }),
+    evidence: decisionEvidence(
+      canonicalText({ decision: 'action-current-permission', by, grant }),
+      rules.revision,
+      { rule: ruled, permission: current.evidence, release: current.release },
+    ),
   }
 }
 

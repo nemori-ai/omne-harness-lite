@@ -452,6 +452,7 @@ describe('the evidence and the refusal of a judged action', () => {
     release: VERDICT_RELEASE,
   })
   const target = { owner: 'agent', kind: 'action', key: canonicalText(['e', 'p', 'a']) }
+  const released = canonicalText({ decision: 'action-current-permission', ...VERDICT_RELEASE })
   const ruleEvidence = (rulesGiven: ReturnType<typeof rules>, id: string, args: string) => {
     const rule = actionRulesSchema.parse(rulesGiven).rules.find(item => item.id === id)
     return decisionEvidence(`action-rule/${id}`, 'r1', {
@@ -467,9 +468,10 @@ describe('the evidence and the refusal of a judged action', () => {
     const args = echoCall(w.forward, {})
     expect(await w.admit('ToyEcho', args)).toEqual({
       kind: 'allow',
-      evidence: decisionEvidence('action-current-permission', 'r1', {
+      evidence: decisionEvidence(released, 'r1', {
         rule: ruleEvidence(rules('Tools', 'ToyEcho'), 'toyecho', args),
         permission: evidence,
+        release: VERDICT_RELEASE,
       }),
     })
   })
@@ -479,9 +481,10 @@ describe('the evidence and the refusal of a judged action', () => {
     const missing = toolsCall(w.forward, { name: 'NoSuchTool', command: null, arguments: {} })
     expect(await w.admit('Tools', missing)).toEqual({
       kind: 'allow',
-      evidence: decisionEvidence('action-current-permission', 'r1', {
+      evidence: decisionEvidence(released, 'r1', {
         rule: null,
         permission: evidence,
+        release: VERDICT_RELEASE,
       }),
     })
     expect(w.judged.map(action => [action.definition.name, action.carrier])).toEqual([
