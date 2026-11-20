@@ -6,7 +6,17 @@ import type {
   UsageRecordPage,
   UsageResult,
 } from '@omne-harness/usage-contract'
+import type { AnswerOf } from '@omne-harness/access-cordis-contract'
+import type { UsageProtocol } from '@omne-harness/usage-protocol'
 import { encodeInstant, parseInstant, type Instant } from '@omne-harness/utc-instant'
+
+type Operations = UsageProtocol['operations']
+type Succeeded<N extends keyof Operations> =
+  AnswerOf<Operations[N]> extends infer A
+    ? A extends Readonly<{ outcome: 'succeeded'; body: infer B }>
+      ? B
+      : never
+    : never
 
 export const instantOf = (text: string): Instant => {
   const parsed = parseInstant(text)
@@ -31,7 +41,7 @@ const measuresOf = (measures: UsageMeasures) => ({
 const cellsOf = (cells: UsageResult['groups']) =>
   cells.map(({ key, measures }) => ({ key, measures: measuresOf(measures) }))
 
-export const resultOf = (result: UsageResult) => ({
+export const resultOf = (result: UsageResult): Succeeded<'query-usage'> => ({
   total: measuresOf(result.total),
   groups: cellsOf(result.groups),
   buckets: result.buckets.map(bucket => ({
@@ -48,12 +58,12 @@ export const resultOf = (result: UsageResult) => ({
 
 const factOf = (fact: UsageFact) => ({ ...fact, at: fact.at === null ? null : instantOf(fact.at) })
 
-export const pageOf = (page: UsageRecordPage) => ({
+export const pageOf = (page: UsageRecordPage): Succeeded<'list-usage-records'> => ({
   entries: page.entries.map(factOf),
   next: page.next,
 })
 
-export const occupancyOf = (occupancy: ContextOccupancy) =>
+export const occupancyOf = (occupancy: ContextOccupancy): Succeeded<'read-context-occupancy'> =>
   occupancy.kind === 'known'
     ? { ...occupancy, asOf: { at: instantOf(occupancy.asOf.at), model: occupancy.asOf.model } }
     : occupancy
