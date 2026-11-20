@@ -402,6 +402,9 @@ importers:
       '@omne-harness/identity-protocol':
         specifier: workspace:*
         version: link:../../packages/identity/identity-protocol
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../../packages/media/media-protocol
       '@omne-harness/model-protocol':
         specifier: workspace:*
         version: link:../../packages/model/model-protocol

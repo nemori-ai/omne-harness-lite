@@ -41,6 +41,7 @@ import { calendarCommand } from './calendar-command.ts'
 import { usageCommands } from './usage-command.ts'
 import { scheduleCommand } from './schedule-command.ts'
 import { notificationCommand } from './notification-command.ts'
+import { mediaCommand } from './media-command.ts'
 import { workspaceCommand } from './workspace-command.ts'
 import { callsCommand } from './calls-command.ts'
 
@@ -890,5 +891,6 @@ export const productionCommands: readonly CommandSpec[] = [
   workspaceCommand,
   settingCommand,
   assetCommand,
+  mediaCommand,
   ...usageCommands,
 ]

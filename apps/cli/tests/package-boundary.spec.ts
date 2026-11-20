@@ -9,6 +9,7 @@ const allowed = [
   '@omne-harness/calendar-protocol',
   '@omne-harness/human-intervention-protocol',
   '@omne-harness/identity-protocol',
+  '@omne-harness/media-protocol',
   '@omne-harness/model-protocol',
   '@omne-harness/notification-protocol',
   '@omne-harness/public-contract',

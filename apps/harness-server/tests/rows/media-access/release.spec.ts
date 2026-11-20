@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { rowDeclarationOf } from '../../../src/row.ts'
@@ -181,6 +182,27 @@ describe('the six media rows', () => {
             }),
           ).toEqual({ outcome: 'not-found', body: { reason: 'reference' } })
           expect((await other.client['describe-media']({ tenant, ref })).outcome).toBe('denied')
+
+          const file = join(dirname(tree.home), 'picture.png')
+          const back = join(dirname(tree.home), 'back.png')
+          writeFileSync(file, PICTURE)
+          const put = await tree.cli(['media', 'put', '--file', file])
+          expect(put.status, put.stderr).toBe(0)
+          const printed = JSON.parse(put.stdout) as { body: { ref: Record<string, string> } }
+          expect(printed.body.ref).toEqual(ref)
+          const got = await tree.cli([
+            'media',
+            'get',
+            '--ref',
+            JSON.stringify(printed.body.ref),
+            '--out',
+            back,
+          ])
+          expect(got.status, got.stderr).toBe(0)
+          expect(JSON.parse(got.stdout)).toMatchObject({
+            body: { bytes: PICTURE.byteLength, digest: digestOf(PICTURE) },
+          })
+          expect(readFileSync(back).equals(Buffer.from(PICTURE))).toBe(true)
         },
       ])
       expect(exitCodes).toEqual([0, 0])
