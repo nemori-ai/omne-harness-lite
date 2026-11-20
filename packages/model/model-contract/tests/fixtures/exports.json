@@ -1027,12 +1027,32 @@
               "pending": false
             },
             {
-              "name": "ModelMediaLease",
+              "name": "MaterializeFailure",
               "kind": "type",
               "pending": false
             },
             {
-              "name": "ModelMediaReader",
+              "name": "MediaRefusal",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelMedia",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelMediaFailure",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelMediaLimits",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ModelMediaSource",
               "kind": "type",
               "pending": false
             },

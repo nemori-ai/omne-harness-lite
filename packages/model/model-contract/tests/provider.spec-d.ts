@@ -1,5 +1,6 @@
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { requestHead } from '@omne-harness/model-contract/provider'
+import type { Outcome } from '@omne-harness/operation-result'
 import { expectTypeOf, it } from 'vitest'
 import type {
   CallAccess,
@@ -32,8 +33,11 @@ import type {
   ModelClock,
   ModelCommands,
   ModelInstanceHost,
-  ModelMediaLease,
-  ModelMediaReader,
+  MaterializeFailure,
+  ModelMedia,
+  ModelMediaFailure,
+  ModelMediaLimits,
+  ModelMediaSource,
   ModelProvider,
   ModelRetryPolicy,
   ModelSendBoundary,
@@ -98,35 +102,45 @@ it('TransportFailure is the four failures that a transport can name', () => {
   void unknown
 })
 
-it('an adapter can implement the payload converter and the media reader from the contract alone', () => {
+it('an adapter can implement the payload converter and the media source from the contract alone', () => {
   const payloads: ModelToolPayloadAdapter<{ name: string }> = {
     convertToModelPayload: declaration => ({ ok: { name: declaration.name } }),
   }
-  const lease: ModelMediaLease = { bytes: (async function* () {})(), close: async () => {} }
-  const reader: ModelMediaReader<string> = {
-    open: async () => ({ ok: lease }),
-  }
-  void [payloads, reader, tool]
+  const measurement = { reference, bytes: '3', mediaType: 'image/png', kind: 'file' } as const
+  const media: ModelMedia = { mediaType: 'image/png', bytes: new Uint8Array(3), measurement }
+  const source: ModelMediaSource<string> = { open: async () => ({ ok: media }) }
+  void [payloads, source, tool]
 })
 
-it('a media read names its invocation and cannot forge a managed identity for an independent call', () => {
-  const independent = {
-    principal: 'p',
-    tenant,
-    invocation: { kind: 'independent' },
-    request,
-    source: evidence,
-    reference,
-    recipient: 'r',
-  } as const
-  void independent
-  expectTypeOf<ModelMediaReader<string>['open']>().parameter(0).toHaveProperty('invocation')
-  const forged: Parameters<ModelMediaReader<string>['open']>[0]['invocation'] = {
-    kind: 'independent',
-    // @ts-expect-error an independent invocation has no managed call identity
-    call,
+it('a media read is asked with the access, the reference and the limits of the model, and answers one of three failures', () => {
+  const limits: ModelMediaLimits = {
+    mediaTypes: ['image/png'],
+    maxBytes: 4_194_304,
+    image: { maxWidth: 2000, maxHeight: 2000 },
   }
-  void forged
+  const noDimensions: ModelMediaLimits = { ...limits, image: null }
+  void noDimensions
+  expectTypeOf<Parameters<ModelMediaSource<string>['open']>[0]>().toEqualTypeOf<
+    Readonly<{ principal: string; tenant: typeof tenant }> &
+      Readonly<{ reference: typeof reference; limits: ModelMediaLimits }>
+  >()
+  expectTypeOf<ModelMediaFailure['kind']>().toEqualTypeOf<
+    'unavailable' | 'material-unavailable' | 'too-large'
+  >()
+  // @ts-expect-error a media read does not answer that the modality is unsupported
+  const unsupported: ModelMediaFailure = { kind: 'unsupported' }
+  void unsupported
+})
+
+it('a materialization fails as a transport does, or names the medium it could not send and why', () => {
+  expectTypeOf<ReturnType<PreparedTransport['materialize']>>().resolves.toEqualTypeOf<
+    Outcome<MaterializedTransport, MaterializeFailure>
+  >()
+  const gone: MaterializeFailure = { kind: 'media', reference, reason: 'material-unavailable' }
+  const over: MaterializeFailure = { kind: 'media', reference, reason: 'over-limit', limit: '9' }
+  // @ts-expect-error an over-limit refusal says the limit
+  const bare: MaterializeFailure = { kind: 'media', reference, reason: 'over-limit' }
+  void [gone, over, bare]
 })
 
 it('TransportTermination replaces the control with a confirmed stop', () => {
