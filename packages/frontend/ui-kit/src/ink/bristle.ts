@@ -314,6 +314,16 @@ function touch(brushed: Brushed, hair: Hair, k: number, out: Touch): Touch {
   return out
 }
 
+function halfWidth(hair: Hair, k: number, t: Touch): number {
+  const half =
+    t.alpha <= 0.004
+      ? 0
+      : (t.width / 2) *
+        (0.12 + 0.88 * Math.min(1, t.alpha / hair.alpha)) *
+        (0.55 + 0.45 * hair.alpha)
+  return k === hair.from || k === hair.to ? half * 0.6 : half
+}
+
 export class Painter {
   private readonly next: Int32Array
   private readonly touched: Touch = { x: 0, y: 0, width: 0, alpha: 0 }
@@ -322,6 +332,9 @@ export class Painter {
   private readonly rw: Float32Array
   private readonly rnx: Float32Array
   private readonly rny: Float32Array
+  private run = 0
+  private band: CanvasRenderingContext2D | undefined = undefined
+  private drew = false
   public readonly brushed: Brushed
 
   public constructor(brushed: Brushed) {
@@ -346,68 +359,69 @@ export class Painter {
 
   public paint(bands: readonly CanvasRenderingContext2D[], written: number): boolean {
     if (written <= 0) return false
+    this.drew = false
+    this.run = 0
+    this.band = undefined
+    for (let h = 0; h < this.brushed.hairs.length; h += 1) this.paintHair(bands, h, written)
+    return this.drew
+  }
+
+  private paintHair(bands: readonly CanvasRenderingContext2D[], h: number, written: number): void {
     const b = this.brushed
-    const { rx, ry, rw, rnx, rny } = this
-    let drew = false
-    let n = 0
-    let ctx: CanvasRenderingContext2D | undefined
-    const push = (k: number, x: number, y: number, half: number): void => {
-      rx[n] = x
-      ry[n] = y
-      rw[n] = half
-      rnx[n] = b.nx[k]!
-      rny[n] = b.ny[k]!
-      n += 1
-    }
-    const flush = (): void => {
-      if (n >= 2 && ctx !== undefined) {
-        ctx.beginPath()
-        ctx.moveTo(rx[0]! + rnx[0]! * rw[0]!, ry[0]! + rny[0]! * rw[0]!)
-        for (let i = 1; i < n; i += 1)
-          ctx.lineTo(rx[i]! + rnx[i]! * rw[i]!, ry[i]! + rny[i]! * rw[i]!)
-        for (let i = n - 1; i >= 0; i -= 1)
-          ctx.lineTo(rx[i]! - rnx[i]! * rw[i]!, ry[i]! - rny[i]! * rw[i]!)
-        ctx.closePath()
-        ctx.fill()
-        drew = true
-      }
-      n = 0
-    }
-    for (let h = 0; h < b.hairs.length; h += 1) {
-      const hair = b.hairs[h]!
-      const target = this.reach(hair, written)
-      const start = this.next[h]!
-      if (target < start) continue
-      ctx = bands[hair.band]
-      let px = 0
-      let py = 0
-      let pk = -1
-      for (let k = Math.max(hair.from, start - 2); k <= target; k += 1) {
-        const t = touch(b, hair, k, this.touched)
-        let half =
-          t.alpha <= 0.004
-            ? 0
-            : (t.width / 2) *
-              (0.12 + 0.88 * Math.min(1, t.alpha / hair.alpha)) *
-              (0.55 + 0.45 * hair.alpha)
-        if (k === hair.from || k === hair.to) half *= 0.6
-        if (half <= 0) {
-          if (n > 0) {
-            push(k, t.x, t.y, 0)
-            flush()
-          }
-        } else {
-          if (n === 0 && pk >= 0 && pk === k - 1) push(pk, px, py, 0)
-          push(k, t.x, t.y, half)
+    const hair = b.hairs[h]!
+    const target = this.reach(hair, written)
+    const start = this.next[h]!
+    if (target < start) return
+    this.band = bands[hair.band]
+    let px = 0
+    let py = 0
+    let pk = -1
+    for (let k = Math.max(hair.from, start - 2); k <= target; k += 1) {
+      const t = touch(b, hair, k, this.touched)
+      const half = halfWidth(hair, k, t)
+      if (half <= 0) {
+        if (this.run > 0) {
+          this.push(k, t.x, t.y, 0)
+          this.flush()
         }
-        px = t.x
-        py = t.y
-        pk = k
+      } else {
+        if (this.run === 0 && pk >= 0 && pk === k - 1) this.push(pk, px, py, 0)
+        this.push(k, t.x, t.y, half)
       }
-      flush()
-      this.next[h] = target + 1
+      px = t.x
+      py = t.y
+      pk = k
     }
-    return drew
+    this.flush()
+    this.next[h] = target + 1
+  }
+
+  private push(k: number, x: number, y: number, half: number): void {
+    const n = this.run
+    this.rx[n] = x
+    this.ry[n] = y
+    this.rw[n] = half
+    this.rnx[n] = this.brushed.nx[k]!
+    this.rny[n] = this.brushed.ny[k]!
+    this.run = n + 1
+  }
+
+  private flush(): void {
+    const ctx = this.band
+    const n = this.run
+    if (n >= 2 && ctx !== undefined) {
+      const { rx, ry, rw, rnx, rny } = this
+      ctx.beginPath()
+      ctx.moveTo(rx[0]! + rnx[0]! * rw[0]!, ry[0]! + rny[0]! * rw[0]!)
+      for (let i = 1; i < n; i += 1)
+        ctx.lineTo(rx[i]! + rnx[i]! * rw[i]!, ry[i]! + rny[i]! * rw[i]!)
+      for (let i = n - 1; i >= 0; i -= 1)
+        ctx.lineTo(rx[i]! - rnx[i]! * rw[i]!, ry[i]! - rny[i]! * rw[i]!)
+      ctx.closePath()
+      ctx.fill()
+      this.drew = true
+    }
+    this.run = 0
   }
 
   public erase(

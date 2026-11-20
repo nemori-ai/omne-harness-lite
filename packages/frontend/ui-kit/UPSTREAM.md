@@ -16,6 +16,7 @@
 | 通用件 | `components/ai/*`、`disclosure`、`empty-state`、`loading-state`、`loading-ink`、`page-header`、`page-column`、`save-receipt`、`fact-list`、`code-surface`、`confirm/*`、`icon-button`、`inline-notice`、`ago`、`conversation/time.ts`，连同各自的 CSS | `src/patterns/` |
 | 流式 Markdown | `conversation/prose.tsx`、`code-highlight.ts`、`markdown-diagrams.ts`，`conversation.css` 里 Markdown 的规则 | `src/prose/`、`src/styles/prose.css` |
 | 主题 | `theme/controller.ts` | `src/theme/` |
+| 墨迹 | `spirit/` 里形的引擎与件，`assistant/told-note.{tsx,css}` | `src/ink/`，逐文件见[墨迹](#墨迹) |
 
 ## 改了哪几样
 
@@ -47,6 +48,64 @@
 | `design/use-object-transition.ts` | 对象过渡落到看得见的那一面，跳过 `[inert]` 里同一个对象的视图 | `src/motion/use-object-transition.ts` 照改 |
 | `i18n/state-labels.ts` | 多一个状态词 `notDone`（没做），算作 `released` | `src/patterns/ai/state-labels.ts` 照改，只取中文 |
 | `design/icons/brush.ts` | 删去 `smoothPath` | 本成员本来就没有它，不用改 |
+
+## 墨迹
+
+形、墨框与告知笺搬自来源的同一套笔法，不是近似：算法、分支、具名常量和随性的范围都与来源相同，笔迹记录 `tests/ink-trace.spec.ts` 守着这一点。每个来源文件要什么、不要什么，按 R3 的来源清单（每个来源文件一行，「依据」一列写产品正文里对应的概念或非目标）。下表的「依据」就是那一行的依据。
+
+### 来源文件与本成员的文件
+
+路径相对 `desktop/src/renderer/src/`。
+
+| 来源 | 本成员 | 删去的功能（依据：来源清单那一行） |
+| --- | --- | --- |
+| `spirit/casual.ts` | `src/ink/casual.ts` | 无 |
+| `spirit/writing.ts` | `src/ink/writing.ts` | 无 |
+| `spirit/ink.ts` | `src/ink/ink.ts` | 无 |
+| `spirit/brush-weight.ts` | `src/ink/brush-weight.ts` | `weightOn`（纸面） |
+| `spirit/bristle.ts` | `src/ink/bristle.ts` | 无 |
+| `spirit/ink-canvas.ts` | `src/ink/ink-canvas.ts` | `InkFrame.paper`、`setArea`（小品展开纸面） |
+| `spirit/clock.ts` | `src/ink/clock.ts` | 两个窗口共用的系统时钟偏移（离开窗口、原生窗口）。这个文件改作墨迹唯一的取时出口 |
+| `spirit/carry.ts` | `src/ink/travel.ts` | `Carrier`、`glide`（拖拽与拿起）。只搬 `FLIGHT`、`flightTime` |
+| `spirit/observation-frame.tsx` | `src/ink/travel.ts` | 观测框全部（观测）。只搬类型 `Box` |
+| `spirit/travel.ts` | `src/ink/travel.ts` | 翻面、拿纸边、逛（`Timed`、`HELD_INK`、`CARRY_WAKE`、`stroll`、`carries`、`way`、`along`、`hold`、`reached`、`held`、`alongShare`、`head()`）；座位的 `opened`（`setOpened`、`covered`） |
+| `spirit/body.ts` | `src/ink/body.ts` | 小品（闲时与悬停小品）；化形；起名；`setSending`、`soak`、`setReceiving`、`setHand`（读取、拿东西靠近、拖拽进门、纸面笔调）；`paper`；只服务这些功能的 getter、`WRITE` 里的 10 项、`Role` 里的 `form`、`piece`、`guise` |
+| `spirit/doing-ink.ts` | `src/ink/doing-ink.ts` | `NAMED`、`SAYS`、`saysTiming`（起名） |
+| `spirit/pieces.ts` | `src/ink/doing-ink.ts` | 只搬 `pressOf`，其余是小品 |
+| `spirit/doing.ts` | `src/ink/doing.ts` | `figureDoing`、`GESTURE`、`followActivity`、化形的 `changing` 分支 |
+| `spirit/note-ink.ts` | `src/ink/note-ink.ts` | 丝线与签条（快捷笺） |
+| `spirit/note-bubble.tsx` | `src/ink/note-bubble.tsx` | 签条、字形与起名笺的时序（快捷笺、起名） |
+| `spirit/ink-bubble.tsx` | `src/ink/ink-bubble.tsx` | `canvas`、`words`、`slips` 三个参数（起名笺、快捷笺） |
+| `spirit/spirit-ink.tsx` | `src/ink/figure-ink.tsx` | 随纸面改纸的区域（小品） |
+| `spirit/spirit-journeys.tsx` | `src/ink/figure-journeys.tsx` | 无 |
+| `spirit/spirit-stage.tsx` | `src/ink/figure-stage.tsx` | 观测框与签、拖放、笺、键盘、座位提示、多语言、表面的指针区域（观测、拖拽、快捷笺、悬停小品）。只取 `placeAt`、层与旅程的挂载、悬停、按下、抬起与取消 |
+| `spirit/seat.tsx`，`spirit/host.ts` 的 `besideOf` | `src/ink/seat.tsx` | 座位提示、`still`、`lively`、`jump`、`opened`、`work`、菜单与激活（座位提示、观测、宿主接线） |
+| `spirit/store.ts` | `src/ink/store.ts` | 拖拽、栖、逛、观测、笺、化形、小品、闲时、悬停提示、翻面、宿主链接 |
+| `assistant/told-note.tsx` | `src/ink/told-note.tsx` | `ClassicTold` 与它的宿主接线、纸面墨（纸面、宿主接线）。只取画笺的 `ToldNote`、`TOLD_LINES`、`toldLines` |
+| `spirit/spirit.css`、`spirit/ink-bubble.css`、`assistant/told-note.css` 里要的部分 | `src/ink/ink.css` | 观测框、标签、座位提示、抓手、原生窗口、笺、快捷笺的规则；告知笺的拖动区与侧栏宽度那一条（侧栏版面归宿主） |
+| `design/icons/brush.ts` | `src/icons/brush.ts` | 仍不取 `strokeWriter`（观测）。墨迹用到的 `Pressure`、`handPressure`、`Fineness`、`strokeSpine` 补成导出 |
+
+没取的来源文件：`told.ts` 的「最新一条没看过」「看过即收」归外壳；`activity.ts` 的事件源在本产品是形口，归外壳；`kit-ink.ts`、`marks.ts` 是给小程序写记号的，`zoom.ts` 只服务原生窗口，本产品都没有。
+
+### 与来源不同的地方
+
+- 前缀与名字：类名和 CSS 变量的 `spirit-`、`pe-` 改为 `omne-`；`SpiritBody` 改为 `FigureBody`，`SPIRIT_CANVAS` 改为 `FIGURE_SIZE`，`SPIRIT_PAPER` 改为 `FIGURE_PAPER`，`spirit-*.tsx` 改为 `figure-*.tsx`。`Gesture`、`gesture()` 改为 `FigureMoment`、`moment()`，带 `serial`，与外壳契约的形口用同一个词。
+- 取时：来源各处的 `performance.now()` 都改经 `clock.ts` 的 `inkNow()`。它是唯一带取时标注的出口，用例能换掉它；`travel.ts` 与 `note-bubble.tsx` 帧回调里的时刻也由它取，比帧开始的时刻晚一点点。
+- 颜色字面量（FE-I20：颜色只写在 `tokens.css`）：画布的兜底墨色 `#1f1d1a` 改为 `CanvasText`；擦除笔和层画布遮罩的 `#000` 改为 `CanvasText`，这两处只用 alpha，结果相同；墨晕的三个 `rgba(0,0,0,…)` 改读 `--omne-ink-wash-*`，纸的遮罩改读 `--omne-ink-mask`，墨框影子改读 `--omne-ink-shadow`，值都与来源相同。
+- 长度字面量：样式里大于 1px 的长度换成 `tokens.css` 里按角色起名、四档各一个值的 token（`--omne-ink-bubble-paper-soft`、`--omne-ink-shadow-y`、`--omne-ink-shadow-blur`、`--omne-ink-breath-near`、`--omne-ink-breath-far`、`--omne-told-note-room`、`--omne-told-note-padding`），中楷的值与来源相同。
+- 告知笺的截行：来源只在经典面侧栏展开、笺在家里时截行；本成员处处截（最多三行，第四行能写完全文时写四行），因为本产品的告知笺只在家写。笺的宽度不越出侧栏，由外壳的版面限定。
+- 告知笺的按钮：原生 `button` 改为 `role="button"` 的 `span`，带 `data-control="told-note"`（FE-I25）；`Told` 只有 `id` 与 `text`；`onOpen` 收整条 `Told`。
+- 停留规则：`doing.ts` 的 `follow(doing, moment)` 直接收状态名与一次性的事实，`serial` 变了才算新的一次。来源从 `activity.ts` 读活动。`DWELL`、`SETTLE`、`LAG` 与欠账照来源。
+- 形的一层与座位：座位直接从页面元素读，中点照来源取到 0.01；来源由宿主每帧轮询座位，本成员在 resize、捕获阶段的 scroll、`body` 与座位的大小变化、`inert` 变化时重排，没事时帧循环停着。没有看得见的座位满 `SEATLESS_HOLD` 500 ms，墨原地干去（来源是去角落）。一个页面只画一个形（FE-I18）。悬停时圆心点一个墨点，抬起时回调 `onPress`。命中区是半径为形大小 0.4 的圆。
+- `note-bubble.tsx` 删了 `canvas` 参数，字号档的系数用 `useSizeFactor()`。
+- 写法：构造参数属性改成字段（`erasableSyntaxOnly`）；lint 要求的地方把展开复制改成 `Array.from` 或 `slice`；注释全部删去，只留取时标注。
+- 拆开的函数：下面六个函数各拆成几个小函数，行为不变，笔迹记录逐字节不变。
+  - `bristle.ts` 的 `Painter.paint`：一根笔毛的一段移到 `paintHair`，笔毛的半宽移到 `halfWidth`，`push`、`flush` 成了私有方法，`n`、`ctx`、`drew` 成了字段。
+  - `body.ts` 的 `stopDoing`：浮回墨色移到 `riseRest`，判哪一笔该浮回移到 `thinned`。
+  - `body.ts` 的 `lookRound`：看向哪里移到 `glanceAt`，引线移到 `threadFrom`。随机数的取用次序不变。
+  - `note-bubble.tsx` 的收起 `close`：移出 `keepLive`、`foldFrom`、`timeFold`、`foldLeft`。
+  - `ink-bubble.tsx` 的放置钩子：移到 `usePlacement`，比较移到 `samePlace`、`samePoint`。
+  - `told-note.tsx` 的 `ToldNote`：笺坐在哪里移到 `useToldSpot`，量行数移到 `useToldLines`。
 
 ## 没取的
 

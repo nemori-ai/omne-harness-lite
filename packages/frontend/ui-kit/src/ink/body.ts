@@ -359,18 +359,22 @@ export class FigureBody {
     const was = this.doing
     if (was === 'thinking' || was === 'background' || was === 'looking') {
       this.dry('think', THINK_CASUAL.rise)
-      if (rise) {
-        for (const mark of this.restMarks()) {
-          if (
-            !this.retiring.has(mark) &&
-            (mark.opacity < 0.999 || (mark.fading !== undefined && mark.fading.to < 1))
-          )
-            this.fade(mark, THINK_CASUAL.rise, 1)
-        }
-      }
+      if (rise) this.riseRest()
     }
     if (was === 'looking') this.dry('glance', LOOK.dry)
     else if (was === 'writing') this.dry('beside', COLUMNS.dry)
+  }
+
+  private riseRest(): void {
+    for (const mark of this.restMarks())
+      if (this.thinned(mark)) this.fade(mark, THINK_CASUAL.rise, 1)
+  }
+
+  private thinned(mark: Mark): boolean {
+    return (
+      !this.retiring.has(mark) &&
+      (mark.opacity < 0.999 || (mark.fading !== undefined && mark.fading.to < 1))
+    )
   }
 
   private doingLater(delay: number, act: () => void): void {
@@ -441,25 +445,34 @@ export class FigureBody {
       this.doingLater(Math.max(400, hold), () => this.lookRound(n))
       return
     }
-    const angle = random() * Math.PI * 2
-    const far = n === 0 ? draw(random, ...LOOK.first) : draw(random, ...LOOK.reach)
-    const at: Point = this.reduced
-      ? CENTRE
-      : [CENTRE[0] + Math.cos(angle) * far, CENTRE[1] + Math.sin(angle) * far * 0.85]
+    const at = this.glanceAt(n)
     const from = this.gaze
     this.gaze = at
     this.dry('glance', LOOK.dry)
-    let lead = 0
-    if (from !== null && !this.reduced && random() < LOOK.thread) {
-      lead = draw(random, ...LOOK.threadMs)
-      const thread = this.write('glance', threadStroke(from, at, freshSeed(), random), 'ink', lead)
-      this.doingLater(lead + 60, () => this.fade(thread, LOOK.threadDry, 0))
-    }
+    const lead = this.threadFrom(from, at)
     this.doingLater(this.reduced ? 0 : Math.max(LOOK.beat, lead * 0.6), () => {
       if (this.doing === 'looking' && !this.looking)
         this.write('glance', glanceStroke(at, freshSeed()), 'ink', LOOK.dot)
     })
     if (!this.reduced) this.doingLater(lead + hold, () => this.lookRound(n + 1))
+  }
+
+  private glanceAt(n: number): Point {
+    const random = this.random
+    const angle = random() * Math.PI * 2
+    const far = n === 0 ? draw(random, ...LOOK.first) : draw(random, ...LOOK.reach)
+    return this.reduced
+      ? CENTRE
+      : [CENTRE[0] + Math.cos(angle) * far, CENTRE[1] + Math.sin(angle) * far * 0.85]
+  }
+
+  private threadFrom(from: Point | null, at: Point): number {
+    const random = this.random
+    if (from === null || this.reduced || !(random() < LOOK.thread)) return 0
+    const lead = draw(random, ...LOOK.threadMs)
+    const thread = this.write('glance', threadStroke(from, at, freshSeed(), random), 'ink', lead)
+    this.doingLater(lead + 60, () => this.fade(thread, LOOK.threadDry, 0))
+    return lead
   }
 
   private writeRound(): void {

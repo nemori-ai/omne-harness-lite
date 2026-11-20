@@ -14,22 +14,27 @@ export const TOLD_LINES = 3
 export const toldLines = (needed: number): number =>
   needed <= TOLD_LINES + 1 ? TOLD_LINES + 1 : TOLD_LINES
 
-export function ToldNote({
-  said,
-  onOpen,
-}: {
-  readonly said: Told | null
-  readonly onOpen?: ((told: Told) => void) | undefined
-}): React.JSX.Element | null {
+const sameSpot = (was: Placement | null, here: Placement): boolean =>
+  was !== null && was.x === here.x && was.y === here.y
+
+function useToldSpot(said: Told | null): {
+  readonly unfold: ReturnType<typeof useUnfold<Told>>
+  readonly size: number
+  readonly at: Placement | null
+} {
   const where = useFigureWhere()
   const here = where.present ? where.point : null
   const live = said !== null && where.phase === 'seated' && here !== null ? said : null
   const unfold = useUnfold(live)
   const [sat, setSat] = useState<Placement | null>(here)
-  if (live !== null && here !== null && (sat === null || sat.x !== here.x || sat.y !== here.y))
-    setSat(here)
-  const at = live !== null ? here : sat
-  const telling = unfold.shown
+  if (live !== null && here !== null && !sameSpot(sat, here)) setSat(here)
+  return { unfold, size: where.size, at: live !== null ? here : sat }
+}
+
+function useToldLines(id: string | undefined): {
+  readonly words: React.RefObject<HTMLSpanElement | null>
+  readonly lines: number
+} {
   const words = useRef<HTMLSpanElement | null>(null)
   const [lines, setLines] = useState(TOLD_LINES)
   useLayoutEffect(() => {
@@ -43,7 +48,20 @@ export function ToldNote({
     const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [telling?.id])
+  }, [id])
+  return { words, lines }
+}
+
+export function ToldNote({
+  said,
+  onOpen,
+}: {
+  readonly said: Told | null
+  readonly onOpen?: ((told: Told) => void) | undefined
+}): React.JSX.Element | null {
+  const { unfold, size, at } = useToldSpot(said)
+  const telling = unfold.shown
+  const { words, lines } = useToldLines(telling?.id)
   if (telling === null || at === null) return null
   const open = (): void => onOpen?.(telling)
   return (
@@ -51,7 +69,7 @@ export function ToldNote({
       key={telling.id}
       as="figure"
       className="omne-told-note"
-      figure={figureBox(at, where.size)}
+      figure={figureBox(at, size)}
       side="right"
       closing={unfold.closing}
       onGone={unfold.gone}

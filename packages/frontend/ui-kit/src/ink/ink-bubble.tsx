@@ -59,6 +59,55 @@ export function placeBeside(
 
 const windowBox = (): Box => ({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight })
 const near = (a: number, b: number): boolean => Math.abs(a - b) < 0.5
+const samePlace = (was: Placed | null, next: Placed): boolean =>
+  was !== null && was.side === next.side && near(was.left, next.left) && near(was.top, next.top)
+const samePoint = (was: Point | null, left: number, top: number): boolean =>
+  was !== null && near(was[0], left) && near(was[1], top)
+
+function usePlacement(
+  own: React.RefObject<HTMLElement | null>,
+  figure: Box,
+  side: BubbleSide | undefined,
+  bounds: Box | null,
+  origin: Point | null | undefined,
+): { readonly placed: Placed | null; readonly at: Point | null } {
+  const [placed, setPlaced] = useState<Placed | null>(null)
+  const [looked, setLooked] = useState<Point | null>(null)
+  const [, setMoved] = useState(0)
+  useEffect(() => {
+    const element = own.current
+    if (element === null) return undefined
+    const again = (): void => setMoved(n => n + 1)
+    const observer = new ResizeObserver(again)
+    observer.observe(element)
+    window.addEventListener('resize', again)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', again)
+    }
+  }, [own])
+  useLayoutEffect(() => {
+    const element = own.current
+    if (element === null) return
+    if (side !== undefined) {
+      const next = placeBeside(
+        figure,
+        { width: element.offsetWidth, height: element.offsetHeight },
+        side,
+        bounds ?? windowBox(),
+      )
+      if (!samePlace(placed, next)) {
+        setPlaced(next)
+        return
+      }
+    }
+    if (origin !== undefined) return
+    const box = element.getBoundingClientRect()
+    if (!samePoint(looked, box.left, box.top)) setLooked([box.left, box.top])
+  })
+  const at = origin !== undefined ? origin : side !== undefined && placed === null ? null : looked
+  return { placed, at }
+}
 
 export function useUnfold<T>(value: T | null): {
   readonly shown: T | null
@@ -126,47 +175,7 @@ export function InkBubble({
     },
     [ref],
   )
-  const [placed, setPlaced] = useState<Placed | null>(null)
-  const [looked, setLooked] = useState<Point | null>(null)
-  const [, setMoved] = useState(0)
-  useEffect(() => {
-    const element = own.current
-    if (element === null) return undefined
-    const again = (): void => setMoved(n => n + 1)
-    const observer = new ResizeObserver(again)
-    observer.observe(element)
-    window.addEventListener('resize', again)
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('resize', again)
-    }
-  }, [])
-  useLayoutEffect(() => {
-    const element = own.current
-    if (element === null) return
-    if (side !== undefined) {
-      const next = placeBeside(
-        figure,
-        { width: element.offsetWidth, height: element.offsetHeight },
-        side,
-        bounds ?? windowBox(),
-      )
-      if (
-        placed === null ||
-        placed.side !== next.side ||
-        !near(placed.left, next.left) ||
-        !near(placed.top, next.top)
-      ) {
-        setPlaced(next)
-        return
-      }
-    }
-    if (origin !== undefined) return
-    const box = element.getBoundingClientRect()
-    if (looked === null || !near(looked[0], box.left) || !near(looked[1], box.top))
-      setLooked([box.left, box.top])
-  })
-  const at = origin !== undefined ? origin : side !== undefined && placed === null ? null : looked
+  const { placed, at } = usePlacement(own, figure, side, bounds, origin)
   const unplaced = side !== undefined && placed === null
   return (
     <Tag

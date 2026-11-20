@@ -315,6 +315,114 @@
       "files": 194,
       "sha256": "39ca9c767772280f9621aa43d130e60f388b84b918f2db98291b572592ea946c",
       "sha256_of": "the output of `sha256sum *.woff2` run in that directory"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/casual.ts",
+      "sha256": "b63ef2153863ad15ac3f71399205cbbe0844d4319c874581c02a0b7a5af15707"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/writing.ts",
+      "sha256": "5f334f83af3219306b3dfd46669da301b89d03174b1e17f4d6ca72c8cb78ba61"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/ink.ts",
+      "sha256": "a25f10fb534f901e8f13bd51e120659bcd2a0123254466896097321f9c2d084b"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/brush-weight.ts",
+      "sha256": "056ced2f1b6b4092285694e4c3c48b1b67e85554dc31ed952f4592d0000e7629"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/bristle.ts",
+      "sha256": "73481dfbed44602d1482989ca4f8e62bd0933849b07d9e43b4246a46fdcb6400"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/ink-canvas.ts",
+      "sha256": "39510af379ce6a0687943c6048a1263c3209659918073c15bcd2669a7eed8e0f"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/clock.ts",
+      "sha256": "a3d8465b1bd3c5517eb54a9cb4ed027630f62f235d92dfabe2fd33859e18ceb4"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/carry.ts",
+      "sha256": "6885a2718215d915cba975fe7d9a0b83d1f448c4ae675b274b0179c7992e0718"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/observation-frame.tsx",
+      "sha256": "065916fec01481f4b74ae34fd3ea3b31416a9f55ee97539fa5e53373fe596440"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/travel.ts",
+      "sha256": "1345c8a185bc02e79f2daff1e7bdc61439cf862cee23171df9c610e4135a3868"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/body.ts",
+      "sha256": "0cc53ac2533c82b67fafaa0d0918165dfa69cb14e031594f4a74fd9c7834cbff"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/doing-ink.ts",
+      "sha256": "ef0ca318acd2dc6e99cf9396e97c97079574af9e4217aad686498bbb97a6ba19"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/pieces.ts",
+      "sha256": "6895f89b1c81c415208403696eca8d6447199fee0a5b98e4527135d6f522a711"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/doing.ts",
+      "sha256": "755efabbd28afea6de97936f9f908938b731b11c61b2331f9e20395719bacf7e"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/note-ink.ts",
+      "sha256": "2f74cc4aedbd788c1e71e83db766fec53b8d0f468140eafc8062347f1cde7bf3"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/note-bubble.tsx",
+      "sha256": "10114966344d5f67fccdcf18b0c505991f814d9cbd2e0fd4fd0ef859cef1426c"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/ink-bubble.tsx",
+      "sha256": "611f0244aba5db4a093fda3d29a6c0121e50cf936963c89bc28018725cb4c400"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/spirit-ink.tsx",
+      "sha256": "375ea11fc7bdb6a38b5d53d297b26e6df2ac9df8f3312673f89c5f58a1cfa19d"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/spirit-journeys.tsx",
+      "sha256": "c03a1d637a95a27268e143aa8579f32a6a4b6b3483a6260d2d06238107ad3b01"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/spirit-stage.tsx",
+      "sha256": "c6b6deca9d410c083dfd30411e5bdcf575bbfff2a039aeefbcca99bed9c7ccf4"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/seat.tsx",
+      "sha256": "c1dae480a4539f6816ef2cfda08ee4ca10b015f4b53d9477f2c17f4ac6e1a4fc"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/host.ts",
+      "sha256": "65b0a7087ff616eac1edbc02a43c9f1988ec1808e169e5e412dcb3f62dc1166f"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/store.ts",
+      "sha256": "c44b60594c046b629a69b39c88209537912eed16afdf8e46a68efa216d9c4ab8"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/spirit.css",
+      "sha256": "a8bb65ffeeb74c75221ecb4bf172c6e50ad1e04c2bceba9e75c6f6785d7eccae"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/ink-bubble.css",
+      "sha256": "36d22123c4df737006ccb1e2a8602ccf1fd175d17d0cf370112179cdc876927b"
+    },
+    {
+      "path": "desktop/src/renderer/src/assistant/told-note.tsx",
+      "sha256": "7dc64c315446a5d411478e24d25e5da90ed70448e7b9e76675fe85d1c92ad843"
+    },
+    {
+      "path": "desktop/src/renderer/src/assistant/told-note.css",
+      "sha256": "89156db707bc11f89d6960ee89e6b8570c9670822daab682fd063b01aa52bbd6"
     }
   ]
 }

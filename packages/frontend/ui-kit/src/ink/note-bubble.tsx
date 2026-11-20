@@ -159,6 +159,29 @@ class BubbleInk {
     if (this.begun === null) this.begun = inkNow()
     this.foldBegun = inkNow() - this.begun
     const clock = this.foldBegun
+    this.keepLive(list)
+    const fromRest = this.canvas === null
+    this.phase = 'folding'
+    element.dataset['ink'] = 'folding'
+    list.forEach((_, i) => this.setRest(i, 0))
+    this.foldFrom(fromRest)
+    this.timeFold(list, clock)
+    this.fold = this.foldLeft(element, list)
+    this.draw(
+      list.map((stroke, i) => ({
+        key: i + 1,
+        stroke: stroke.ink,
+        written: this.live[i]!.from,
+        opacity: this.live[i]!.opacity,
+        tone: 'ink',
+      })),
+    )
+    cancelAnimationFrame(this.frame)
+    this.frame = 0
+    this.wake()
+  }
+
+  private keepLive(list: readonly BubbleStroke[]): void {
     if (this.live.length !== list.length)
       this.live = list.map(() => ({
         written: 1,
@@ -170,14 +193,16 @@ class BubbleInk {
         foldStart: 0,
         foldDuration: 0,
       }))
-    const fromRest = this.canvas === null
-    this.phase = 'folding'
-    element.dataset['ink'] = 'folding'
-    list.forEach((_, i) => this.setRest(i, 0))
+  }
+
+  private foldFrom(fromRest: boolean): void {
     for (const mark of this.live) {
       mark.from = fromRest ? 1 : mark.written
       mark.opacity = fromRest ? AT_REST : Math.max(mark.opacity, mark.written > 0 ? AT_REST : 0)
     }
+  }
+
+  private timeFold(list: readonly BubbleStroke[], clock: number): void {
     let outlines = 0
     const roles = list.map(stroke =>
       stroke.part === 'outline' ? (outlines++ === 0 ? 'first' : 'second') : stroke.part,
@@ -196,8 +221,14 @@ class BubbleInk {
       mark.foldStart = clock + at[role]
       mark.foldDuration = Math.max(1, time[role])
     })
+  }
+
+  private foldLeft(
+    element: HTMLElement,
+    list: readonly BubbleStroke[],
+  ): { readonly paper: number; readonly left: number } {
     const lengths = list.map(stroke => (stroke.part === 'outline' ? stroke.ink.line.length : 0))
-    this.fold = {
+    return {
       paper: Number.parseFloat(element.style.getPropertyValue('--omne-ink-bubble-paper') || '1'),
       left: Math.max(
         1e-3,
@@ -208,18 +239,6 @@ class BubbleInk {
           ),
       ),
     }
-    this.draw(
-      list.map((stroke, i) => ({
-        key: i + 1,
-        stroke: stroke.ink,
-        written: this.live[i]!.from,
-        opacity: this.live[i]!.opacity,
-        tone: 'ink',
-      })),
-    )
-    cancelAnimationFrame(this.frame)
-    this.frame = 0
-    this.wake()
   }
 
   public dispose(): void {
