@@ -323,4 +323,23 @@ describe('rules.plan: a request that refers to an image', () => {
     })
     expect(outcome.ok.representation).not.toHaveProperty('requestBytes')
   })
+
+  it('names a reference once however many blocks refer to it, and measures only what a block carries', () => {
+    const record = messagesRecord()
+    const { facts: _measure, ...unmeasured } = pictureBlock('b3') as { facts: unknown }
+    const request = fixedRequest(record, {
+      messages: [message('u1', 'user', [pictureBlock('b1'), pictureBlock('b2'), unmeasured])],
+    })
+    const outcome = bind(record).rules.plan({
+      profile: profileOf(record),
+      supplier: request.suppliers[0],
+      assembled: assembledOf(request),
+    })
+    if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
+    expect(outcome.ok.representation).toMatchObject({
+      kind: 'pending-media',
+      references: [pictureRead().reference],
+      media: [pictureRead().measurement, pictureRead().measurement],
+    })
+  })
 })

@@ -225,6 +225,18 @@ describe('encode: what the projection leaves out or moves', () => {
       const plain = { messages: [asked] }
       expect(encodeWith(plain, [pictureRead()])).toEqual(encodeWith(plain, []))
     })
+
+    it('a record that takes no image sends none, inline or by reference', () => {
+      const blind = responsesRecord({ wire: { ...record.wire, image: null } })
+      const encodeBlind = (block: unknown, media: Parameters<typeof encodeWith>[1]) => {
+        const request = fixedRequest(blind, { messages: [message('u1', 'user', [block])] })
+        const [declaration] = request.declarations
+        return bind(blind).encode({ request, media, declaration, resent: [] })
+      }
+      const unsupported = { failure: { kind: 'unsupported', field: '/messages/0/blocks/0' } }
+      expect(encodeBlind(imageBlock('i1'), [])).toMatchObject(unsupported)
+      expect(encodeBlind(pictureBlock('p1'), [pictureRead()])).toMatchObject(unsupported)
+    })
   })
 })
 

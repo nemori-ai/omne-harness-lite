@@ -375,4 +375,16 @@ describe('encode: an image by reference', () => {
       failure: { kind: 'unsupported', field: '/messages/0/blocks/0' },
     })
   })
+
+  it('a record that takes no image sends none, inline or by reference', () => {
+    const blind = messagesRecord({ wire: { ...record.wire, image: null } })
+    const encodeBlind = (block: unknown, media: Parameters<typeof encodeWith>[1]) => {
+      const request = fixedRequest(blind, { messages: [message('u1', 'user', [block])] })
+      const [declaration] = request.declarations
+      return bind(blind).encode({ request, media, declaration, resent: [] })
+    }
+    const unsupported = { failure: { kind: 'unsupported', field: '/messages/0/blocks/0' } }
+    expect(encodeBlind(imageBlock('i1'), [])).toMatchObject(unsupported)
+    expect(encodeBlind(pictureBlock('p1'), [pictureRead()])).toMatchObject(unsupported)
+  })
 })

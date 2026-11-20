@@ -353,6 +353,39 @@ describe('waiting for capacity', () => {
       ])
     })
 
+    it('takes two references for one medium only when storage, key and digest are all the same', async () => {
+      const { prepare, asked } = reading(async given => read(given))
+      const elsewhere = { ...picture('a'), ref: { ...reference('a'), storage: 'elsewhere' } }
+      const changed = { ...picture('a'), ref: { ...reference('a'), digest: 'e'.repeat(64) } }
+      const request = {
+        ...REQUEST,
+        messages: [user(picture('a'), elsewhere as ContentBlock, changed as ContentBlock)],
+      }
+      await (await materialized(await prepare(request))).close()
+      expect(asked.map(each => (each as { reference: ContentReference }).reference)).toEqual([
+        reference('a'),
+        elsewhere.ref,
+        changed.ref,
+      ])
+    })
+
+    it('a medium of exactly the byte limit is within it', async () => {
+      const { prepare, probe } = reading(async given => read(given, new Uint8Array(16)))
+      await (await materialized(await prepare({ ...REQUEST, system: [picture('a')] }))).close()
+      expect(probe.encoded?.media).toHaveLength(1)
+    })
+
+    it('a reference this model takes nothing of is unsupported at the path of its block, and nothing is read', async () => {
+      const { prepare, probe, asked } = reading(async given => read(given))
+      probe.mediaLimits = null
+      const request = { ...REQUEST, messages: [user(picture('hidden', false), picture('a'))] }
+      const outcome = await (await prepare(request)).materialize(new AbortController().signal)
+      expect(outcome).toEqual({
+        failure: { kind: 'unsupported', field: '/messages/0/blocks/1', adapter: expect.anything() },
+      })
+      expect(asked).toEqual([])
+    })
+
     it('reads again at every materialization: nothing of an earlier read is kept', async () => {
       const { prepare, asked } = reading(async given => read(given))
       const request = { ...REQUEST, system: [picture('a')] }

@@ -117,6 +117,27 @@ describe('the media source of Model over media', () => {
     ])
   })
 
+  it.each([
+    [
+      { kind: 'voice', durationMs: 1500, sampleRate: 16000, channels: 1 },
+      { kind: 'voice', durationMs: '1500', sampleRate: '16000', channels: '1' },
+    ],
+    [{ kind: 'file' }, { kind: 'file' }],
+  ] as const)('measures a medium of kind $0.kind as its facts say', async (facts, measured) => {
+    const reference = { storage: 's', key: 'k', mediaType: 'audio/wav', bytes: '9', digest: 'd' }
+    const bytes = new Uint8Array([1, 2, 3])
+    const variants: Variants = {
+      open: async () => ({ ok: { mediaType: 'audio/wav', bytes, facts } }),
+    }
+    expect(await open(sourceOver(variants), reference)).toEqual({
+      ok: {
+        mediaType: 'audio/wav',
+        bytes,
+        measurement: { reference, bytes: '3', mediaType: 'audio/wav', ...measured },
+      },
+    })
+  })
+
   it('answers unavailable while media is not there or one of its dependencies is not', async () => {
     const reference = { storage: 's', key: 'k', mediaType: 'image/png', bytes: '9', digest: 'd' }
     expect(await open(sourceOver(undefined), reference)).toEqual({
