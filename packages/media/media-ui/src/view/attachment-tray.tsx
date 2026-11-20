@@ -1,6 +1,6 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import { AttachIcon, Button, DeleteIcon } from '@omne-harness/ui-kit'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import {
   AttachmentTray,
   IMAGE_TYPES,
@@ -63,12 +63,8 @@ function attach(tray: AttachmentTray | null, files: Iterable<File> | null | unde
   return true
 }
 
-/** The attachments of the message being written: pick, paste or drop a picture; each uploads at once. */
-export function AttachmentTrayView(props: AttachmentTrayProps) {
-  const tray = useTray(props)
-  const items = useSyncExternalStore(tray?.subscribe ?? idle, tray?.read ?? (() => NONE))
-  const root = useRef<HTMLDivElement>(null)
-  const input = useRef<HTMLInputElement>(null)
+/** Pictures pasted into or dropped on the form this element stands in are attached too. */
+function useFormDrops(root: RefObject<HTMLElement | null>, tray: AttachmentTray | null): void {
   useEffect(() => {
     const form = root.current?.closest('form')
     if (form === null || form === undefined) return undefined
@@ -89,28 +85,41 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
       form.removeEventListener('drop', onDrop)
       form.removeEventListener('dragover', onDragOver)
     }
-  }, [tray])
+  }, [root, tray])
+}
+
+function Chip({ item, onRemove }: { readonly item: Attachment; readonly onRemove: () => void }) {
+  return (
+    <li className="omne-media-chip" data-state={item.state.kind}>
+      {item.preview === null ? null : <img src={item.preview} alt={`${item.name} 的预览`} />}
+      <span className="omne-media-chip-name">{item.name}</span>
+      <span className="omne-media-chip-status">{statusOf(item)}</span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-compact"
+        aria-label={`去掉 ${item.name}`}
+        onClick={onRemove}
+      >
+        <DeleteIcon />
+      </Button>
+    </li>
+  )
+}
+
+/** The attachments of the message being written: pick, paste or drop a picture; each uploads at once. */
+export function AttachmentTrayView(props: AttachmentTrayProps) {
+  const tray = useTray(props)
+  const items = useSyncExternalStore(tray?.subscribe ?? idle, tray?.read ?? (() => NONE))
+  const root = useRef<HTMLDivElement>(null)
+  const input = useRef<HTMLInputElement>(null)
+  useFormDrops(root, tray)
   return (
     <div className="omne-media-tray" ref={root}>
       {items.length === 0 ? null : (
         <ul className="omne-media-chips">
           {items.map(item => (
-            <li key={item.id} className="omne-media-chip" data-state={item.state.kind}>
-              {item.preview === null ? null : (
-                <img src={item.preview} alt={`${item.name} 的预览`} />
-              )}
-              <span className="omne-media-chip-name">{item.name}</span>
-              <span className="omne-media-chip-status">{statusOf(item)}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-compact"
-                aria-label={`去掉 ${item.name}`}
-                onClick={() => tray?.remove(item.id)}
-              >
-                <DeleteIcon />
-              </Button>
-            </li>
+            <Chip key={item.id} item={item} onRemove={() => tray?.remove(item.id)} />
           ))}
         </ul>
       )}

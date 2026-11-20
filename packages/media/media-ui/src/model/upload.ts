@@ -63,57 +63,67 @@ async function digestOf(bytes: Uint8Array): Promise<string> {
   return `sha256:${[...digest].map(byte => byte.toString(16).padStart(2, '0')).join('')}`
 }
 
+type Uploading = Extract<Status, { kind: 'uploading' }>
+type Turn = Status | UploadOutcome
+type Left = Readonly<{ outcome: string; body?: unknown }>
+const LOST = failed('连不上服务，没有传完')
+
+/** What a call that did not succeed leaves: ask where the upload is, go on from the server's count, or stop. */
+function unsettled(answer: Left, status: Uploading, resume: string): Turn | 'ask' {
+  if (answer.outcome === 'unknown') return 'ask'
+  if (answer.outcome === 'not-sent') return LOST
+  const body = (answer.body ?? {}) as { reason?: unknown; nextSequence?: unknown }
+  const counted = answer.outcome === 'invalid' && body.reason === resume
+  return counted && typeof body.nextSequence === 'number'
+    ? { ...status, nextSequence: body.nextSequence }
+    : refusal(answer)
+}
+
 /** Begins, appends part after part and commits; a lost answer is asked for by the upload's name. */
 export async function uploadMedium(input: UploadInput): Promise<UploadOutcome> {
   const { client, tenant, upload, bytes } = input
   const digest = await digestOf(bytes)
   let asked = 0
-  const where = async (): Promise<Status | UploadOutcome> => {
+  const where = async (): Promise<Turn> => {
     asked += 1
     if (asked > RECOVERIES) return failed('上传的结果不知道，请去掉后重新附加')
     const found = await sent(() => client['query-upload']({ tenant, upload }))
     if (found.outcome === 'succeeded') return found.body.status
-    return found.outcome === 'not-sent' ? failed('连不上服务，没有传完') : refusal(found)
+    return found.outcome === 'not-sent' ? LOST : refusal(found)
   }
-  const done = (status: Status | UploadOutcome): status is UploadOutcome =>
-    status.kind !== 'uploading'
+  const otherwise = (answer: Left, status: Uploading, resume: string): Turn | Promise<Turn> => {
+    const left = unsettled(answer, status, resume)
+    return left === 'ask' ? where() : left
+  }
+  const append = async (status: Uploading, offset: number): Promise<Turn> => {
+    const { nextSequence: sequence, partBytes } = status
+    const part = bytes.subarray(offset, offset + partBytes)
+    const answer = await sent(() =>
+      client['append-upload-part']({ tenant, upload, sequence, part }),
+    )
+    if (answer.outcome !== 'succeeded') return otherwise(answer, status, 'gap')
+    input.progress(Math.min(offset + part.byteLength, bytes.byteLength))
+    return { ...status, nextSequence: answer.body.nextSequence }
+  }
+  const commit = async (status: Uploading): Promise<Turn> => {
+    const answer = await sent(() => client['commit-upload']({ tenant, upload, digest }))
+    if (answer.outcome !== 'succeeded') return otherwise(answer, status, 'incomplete')
+    return { kind: 'committed', ...answer.body }
+  }
 
   const begun = await sent(() =>
     client['begin-upload']({ tenant, upload, mediaType: input.mediaType, bytes: bytes.byteLength }),
   )
-  if (begun.outcome === 'not-sent') return failed('连不上服务，没有传完')
-  if (begun.outcome !== 'succeeded' && begun.outcome !== 'unknown') return refusal(begun)
-  let status = begun.outcome === 'succeeded' ? begun.body.status : await where()
-  while (!done(status)) {
+  let turn: Turn
+  if (begun.outcome === 'succeeded') turn = begun.body.status
+  else if (begun.outcome === 'unknown') turn = await where()
+  else return begun.outcome === 'not-sent' ? LOST : refusal(begun)
+  while (turn.kind === 'uploading') {
     if (input.cancelled()) return { kind: 'cancelled' }
-    const { nextSequence: sequence, partBytes } = status
-    const offset = sequence * partBytes
-    if (offset < bytes.byteLength) {
-      const part = bytes.subarray(offset, offset + partBytes)
-      const answer = await sent(() =>
-        client['append-upload-part']({ tenant, upload, sequence, part }),
-      )
-      if (answer.outcome === 'succeeded') {
-        input.progress(Math.min(offset + part.byteLength, bytes.byteLength))
-        status = { ...status, nextSequence: answer.body.nextSequence }
-      } else if (answer.outcome === 'unknown') status = await where()
-      else if (answer.outcome === 'not-sent') return failed('连不上服务，没有传完')
-      else if (answer.outcome === 'invalid' && answer.body.reason === 'gap')
-        status = { ...status, nextSequence: answer.body.nextSequence }
-      else return refusal(answer)
-      continue
-    }
-    const answer = await sent(() => client['commit-upload']({ tenant, upload, digest }))
-    if (answer.outcome === 'succeeded') return { kind: 'committed', ...answer.body }
-    if (answer.outcome === 'unknown') status = await where()
-    else if (answer.outcome === 'not-sent') return failed('连不上服务，没有传完')
-    else if (answer.outcome === 'invalid' && answer.body.reason === 'incomplete')
-      status = { ...status, nextSequence: answer.body.nextSequence }
-    else return refusal(answer)
+    const offset = turn.nextSequence * turn.partBytes
+    turn = await (offset < bytes.byteLength ? append(turn, offset) : commit(turn))
   }
-  return status.kind === 'committed'
-    ? { kind: 'committed', ref: status.ref, facts: status.facts }
-    : status
+  return turn.kind === 'committed' ? { kind: 'committed', ref: turn.ref, facts: turn.facts } : turn
 }
 
 export type ReadOutcome =

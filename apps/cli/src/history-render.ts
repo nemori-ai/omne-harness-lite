@@ -53,26 +53,24 @@ function renderMedia(kind: string, fields: Readonly<Record<string, unknown>>): s
   return words === '' ? shown : `${shown} ${clip(words)}`
 }
 
+type Fields = Readonly<Record<string, unknown>>
+const BLOCKS: Readonly<Record<string, (kind: string, fields: Fields) => string>> = {
+  text: (_kind, fields) => word(fields['text']),
+  tool_call: renderToolCall,
+  tool_call_incomplete: renderToolCall,
+  tool_call_unparsed: renderToolCall,
+  tool_result: (_kind, fields) => `[tool result ${word(fields['callId'])}]`,
+  image: renderMedia,
+  voice: renderMedia,
+  file: renderMedia,
+}
+
 function renderBlock(block: unknown): string {
   const fields = record(block)
   if (fields === undefined) return clip(JSON.stringify(block) ?? '')
   const kind = word(fields['kind'])
-  switch (kind) {
-    case 'text':
-      return word(fields['text'])
-    case 'tool_call':
-    case 'tool_call_incomplete':
-    case 'tool_call_unparsed':
-      return renderToolCall(kind, fields)
-    case 'tool_result':
-      return `[tool result ${word(fields['callId'])}]`
-    case 'image':
-    case 'voice':
-    case 'file':
-      return renderMedia(kind, fields)
-    default:
-      return `[${kind === '' ? 'unknown block' : kind}]`
-  }
+  const render = Object.hasOwn(BLOCKS, kind) ? BLOCKS[kind] : undefined
+  return render?.(kind, fields) ?? `[${kind === '' ? 'unknown block' : kind}]`
 }
 
 function renderMessage(payload: Readonly<Record<string, unknown>>): string {

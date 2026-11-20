@@ -209,6 +209,12 @@ function recordCreated(
   return 1
 }
 
+function stopped(name: string, stop: Stop | undefined, output: CliOutput): ExitCode {
+  if (stop === undefined) return usageError(output, unrecognized(name))
+  if ('usage' in stop) return usageError(output, `omne ${name}: ${stop.usage}\n`)
+  return localFailure(output, `omne ${name}: ${stop.local}\n`)
+}
+
 async function runSession<Parsed>(
   command: SessionCommand<Parsed>,
   args: readonly string[],
@@ -229,9 +235,7 @@ async function runSession<Parsed>(
   if ('exit' in prepared) return prepared.exit
   const { built, owners } = prepared
   const result = await built.send(loaded.link)
-  if (result === undefined) return usageError(output, unrecognized(name))
-  if ('usage' in result) return usageError(output, `omne ${name}: ${result.usage}\n`)
-  if ('local' in result) return localFailure(output, `omne ${name}: ${result.local}\n`)
+  if (result === undefined || !('kind' in result)) return stopped(name, result, output)
   const code = report(name, result, built.echo, output)
   const note = built.note?.() ?? null
   if (note !== null) output.stderr(`omne ${name}: ${note}\n`)

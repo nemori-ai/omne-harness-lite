@@ -20,17 +20,17 @@ export function readOptions(args: readonly string[], rules: OptionRules): Option
   const lists = new Map<string, string[]>()
   const switches = rules.switches ?? []
   const repeatable = rules.repeatable ?? []
-  for (let index = 0; index < args.length; index += 2) {
+  const named = (word: string) => rules.accepted.includes(word) || switches.includes(word)
+  for (let index = 0; index < args.length; index += 1) {
     const name = args[index] ?? ''
-    const value = args[index + 1]
+    if (values.has(name)) return { kind: 'unrecognized' }
     if (switches.includes(name)) {
-      if (values.has(name)) return { kind: 'unrecognized' }
       values.set(name, '')
-      index -= 1
       continue
     }
-    if (!rules.accepted.includes(name) || values.has(name)) return { kind: 'unrecognized' }
-    if (value === undefined || rules.accepted.includes(value) || switches.includes(value))
+    index += 1
+    const value = args[index]
+    if (!rules.accepted.includes(name) || value === undefined || named(value))
       return { kind: 'unrecognized' }
     if (repeatable.includes(name)) lists.set(name, [...(lists.get(name) ?? []), value])
     else values.set(name, value)
