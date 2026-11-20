@@ -153,7 +153,7 @@ it('completes the call when the clock cannot be read, with no moment kept (C2)',
   }
 })
 
-it('holds a batch from the arrival of its first fact until the fact after its delay, and keeps each arrival', async () => {
+it('holds a batch from the arrival of its first fact until its delay, keeps each arrival, and puts the fact after the delay in the next batch', async () => {
   const f = runtimeFixture({ outputBatchDelayMs: 100 })
   try {
     unbox(await f.provider.runtime.calls.admit(f.admit))
@@ -163,21 +163,27 @@ it('holds a batch from the arrival of its first fact until the fact after its de
     for (let i = 0; i < 200; i++) await Promise.resolve()
     expect(f.preserveInputs.length, 'nothing is kept before the delay').toBe(before)
     f.controls.clock.advanceTo('2026-10-19T00:00:00.100Z')
-    f.channel(f.admit.call).push([delta('after the delay')])
     await eventually(() => f.preserveInputs.length > before)
     expect(f.preserveInputs[before]?.facts.map(fact => fact.kind)).toEqual([
       'response',
       'block-open',
-      'block-delta',
       'block-delta',
     ])
     expect(f.preserveInputs[before]?.arrivals).toEqual([
       '2026-10-19T00:00:00Z',
       '2026-10-19T00:00:00Z',
       '2026-10-19T00:00:00Z',
+    ])
+    f.channel(f.admit.call).push([delta('after the delay'), end])
+    await eventually(() => f.preserveInputs.length > before + 1)
+    expect(f.preserveInputs[before + 1]?.facts.map(fact => fact.kind)).toEqual([
+      'block-delta',
+      'ended',
+    ])
+    expect(f.preserveInputs[before + 1]?.arrivals).toEqual([
+      '2026-10-19T00:00:00.100Z',
       '2026-10-19T00:00:00.100Z',
     ])
-    f.channel(f.admit.call).push([end])
     await settled(f)
   } finally {
     await f.dispose()
