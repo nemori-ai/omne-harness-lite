@@ -1,8 +1,17 @@
-import type { HistoryEntry, WorkSnapshot } from '@omne-harness/session-contract'
+import {
+  standingOf,
+  type HistoryEntry,
+  type SessionCreation,
+  type SessionTree,
+  type WorkSnapshot,
+} from '@omne-harness/session-contract'
+import type { SqlValue } from '@omne-harness/sql-contract/worker'
 import { plainOf } from '../codec.ts'
+import { STANDING_COLUMNS } from './list-standing.ts'
 import { oneRow, type Executor } from './support.ts'
 
 export const SESSION_LIST_VERSION = 1n
+const VERSION = SESSION_LIST_VERSION
 const TITLE_CHARACTERS = 80
 
 const ACTIVITY_KINDS: ReadonlySet<string> = new Set(['intake.routed', 'run.terminal'])
@@ -66,6 +75,34 @@ function writeArchive(
   )
 }
 
+type Standing = Pick<WorkSnapshot, 'relation' | 'attendance' | 'tree'>
+/** What a creation entry says of the standing of its session, as the migration reads it. */
+export type CreatedStanding = Readonly<{
+  creation: Pick<SessionCreation, 'relation' | 'attendance' | 'definition'>
+  tree?: SessionTree
+}>
+
+/** The standing columns of one list row, in the order of the schema. */
+export function standingColumns(
+  session: string,
+  standing: Standing,
+  definition: string,
+): readonly SqlValue[] {
+  const { relation, attendance, tree } = standingOf({ session, ...standing } as WorkSnapshot)
+  return [
+    relation.kind,
+    relation.kind === 'child' ? relation.parent : null,
+    relation.kind === 'handoff' ? relation.origin : null,
+    tree.root,
+    BigInt(tree.depth),
+    attendance,
+    definition,
+  ]
+}
+
+/** The standing is read only from the snapshot of the commit that creates the session. */
+type Listed = Pick<WorkSnapshot, 'lifecycle'> & Partial<Pick<WorkSnapshot, 'definition'>> & Standing
+
 export function writeSessionList(
   port: Executor,
   batch: Readonly<{
@@ -74,7 +111,7 @@ export function writeSessionList(
     seq: bigint
     at: string | null
     previous: Pick<WorkSnapshot, 'lifecycle'> | null
-    snapshot: Pick<WorkSnapshot, 'lifecycle'>
+    snapshot: Listed
     entries: readonly HistoryEntry[]
   }>,
 ): void {
@@ -90,14 +127,21 @@ export function writeSessionList(
     'SELECT created_at, last_activity_at, title FROM sl_session_list WHERE tenant = ? AND session = ? LIMIT 1',
     [tenant, session],
   )
-  const creates = previous === null
-  const active = creates || entries.some(entry => ACTIVITY_KINDS.has(entry.kind))
-  const createdAt = creates ? at : nullable(row?.['created_at'] ?? null)
+  const active = previous === null || entries.some(entry => ACTIVITY_KINDS.has(entry.kind))
   const lastActivityAt = active ? at : nullable(row?.['last_activity_at'] ?? null)
   const title = nullable(row?.['title'] ?? null) ?? titleOf(entries)
-  port.execute(
-    'INSERT OR REPLACE INTO sl_session_list (tenant, session, created_at, last_activity_at, lifecycle, title, version) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [tenant, session, createdAt, lastActivityAt, snapshot.lifecycle, title, SESSION_LIST_VERSION],
-  )
+  if (row === undefined) {
+    if (snapshot.definition === undefined) throw new Error('a list row needs the definition')
+    const standing = standingColumns(session, snapshot, snapshot.definition.name)
+    const created = previous === null ? at : null
+    port.execute(
+      `INSERT INTO sl_session_list (tenant, session, created_at, last_activity_at, lifecycle, title, version, ${STANDING_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [tenant, session, created, lastActivityAt, snapshot.lifecycle, title, VERSION, ...standing],
+    )
+  } else
+    port.execute(
+      'UPDATE sl_session_list SET last_activity_at = ?, lifecycle = ?, title = ?, version = ? WHERE tenant = ? AND session = ?',
+      [lastActivityAt, snapshot.lifecycle, title, VERSION, tenant, session],
+    )
   writeArchive(port, { tenant, session }, { previous, snapshot, at }, entries)
 }

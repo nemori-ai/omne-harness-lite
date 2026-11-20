@@ -135,7 +135,10 @@ describe('the materials', () => {
     expect(session?.ownedTables).toContain('sl_session_archive')
     const read = materials.readHandlers.find(item => item.handler === 'session.list-archived')
     expect(read?.readTables).toEqual(['sl_session_list', 'sl_session_archive'])
-    expect(read?.requiresMigrations).toEqual([{ owner: 'session', id: '010-session-archive' }])
+    expect(read?.requiresMigrations).toEqual([
+      { owner: 'session', id: '010-session-archive' },
+      { owner: 'session', id: '013-session-standing' },
+    ])
   })
 })
 
@@ -197,6 +200,12 @@ describe('who archived and when', () => {
             title: null,
             archivedAt: T(2),
             archivedBy: 'person',
+            relation: { kind: 'main' },
+            root: 'session-1',
+            depth: 0,
+            attendance: 'attended',
+            definition: 'assistant',
+            toReference: null,
           },
         ],
         next: null,

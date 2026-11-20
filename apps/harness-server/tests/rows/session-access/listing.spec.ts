@@ -32,6 +32,12 @@ const item = (over: Partial<SessionListItem> = {}): SessionListItem => ({
   title: 'hello',
   archivedAt: null,
   archivedBy: null,
+  relation: { kind: 'main' },
+  root: 'a'.repeat(64) as SessionId,
+  depth: 0,
+  attendance: 'attended',
+  definition: 'coding',
+  toReference: null,
   ...over,
 })
 

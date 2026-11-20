@@ -88,8 +88,11 @@ export type {
   SessionFailure,
   SessionHistory,
   ArchivedBy,
+  SessionListFilter,
   SessionListItem,
   SessionListPage,
+  SessionListRelation,
+  UnarchivedLifecycle,
   SessionManagement,
   SessionReconciliation,
   SessionWork,
@@ -194,6 +197,12 @@ export {
   type RunStartJudgment,
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
+export {
+  RELATIONS_TO_REFERENCE,
+  relationToReference,
+  type DirectoryStanding,
+  type RelationToReference,
+} from './directory-relation.ts'
 export {
   MAX_SESSION_DEPTH,
   childRecorded,
