@@ -69,6 +69,40 @@ describe('contribute to a registered category', () => {
   })
 })
 
+describe('contribute a directory category whose namespace another category has', () => {
+  const layout = (namespace: string) => ({
+    namespace,
+    limits: { files: 1, fileBytes: 1, totalBytes: 1 },
+    inspect: async () => ({ failure: { kind: 'not-configured' as const } }),
+  })
+  const directory = (category: string, namespace: string): CategoryContribution => ({
+    ...contribution(category),
+    contract: { ...contract(category), layout: layout(namespace) },
+  })
+
+  it('throws an assembly error and keeps the first contribution; another namespace is taken', () => {
+    const point = createCategoryPoint()
+    point.contribute(directory('gadget', 'gadgets'))
+    const before = point.list()
+    expect(() => point.contribute(directory('widget', 'gadgets'))).toThrow(
+      /namespace already registered/,
+    )
+    expect(point.list()).toEqual(before)
+    expect(point.lookup('widget')).toBeUndefined()
+    point.contribute(directory('widget', 'widgets'))
+    point.contribute(contribution('note'))
+    expect(point.list().map(listing => listing.category)).toEqual(['gadget', 'note', 'widget'])
+  })
+
+  it('takes the namespace again once the category that had it is withdrawn', () => {
+    const point = createCategoryPoint()
+    const withdraw = point.contribute(directory('gadget', 'gadgets'))
+    withdraw()
+    point.contribute(directory('widget', 'gadgets'))
+    expect(point.lookup('widget')?.layout?.namespace).toBe('gadgets')
+  })
+})
+
 describe('withdraw a registered category', () => {
   it('removes only that contribution and leaves the others', () => {
     const point = createCategoryPoint()

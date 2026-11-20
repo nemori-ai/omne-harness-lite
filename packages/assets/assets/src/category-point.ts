@@ -46,6 +46,13 @@ export function createCategoryPoint(): CategoryPoint {
       const entry = admit(contribution)
       const category = entry.listing.category
       if (entries.has(category)) throw new TypeError('category already registered')
+      // Some source roots tell a category by its directory name alone.
+      const namespace = entry.contract.layout?.namespace
+      if (
+        namespace !== undefined &&
+        [...entries.values()].some(other => other.contract.layout?.namespace === namespace)
+      )
+        throw new TypeError('namespace already registered')
       entries.set(category, entry)
       relist()
       return () => {
