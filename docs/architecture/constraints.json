@@ -80,6 +80,11 @@
       "id": "usage",
       "label": "用量与花费",
       "source": "docs/domains/usage-and-cost/README.md"
+    },
+    {
+      "id": "media",
+      "label": "媒体",
+      "source": "packages/media/SPEC.md"
     }
   ],
   "roles": [
@@ -1082,6 +1087,54 @@
       "domains": ["workspace"],
       "status": "candidate",
       "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-contract",
+      "paths": ["packages/media/media-contract/src/**"],
+      "layer": "contract",
+      "domains": ["media"],
+      "status": "adopted",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-cordis-contract",
+      "paths": ["packages/media/media-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media",
+      "paths": ["packages/media/media/src/**"],
+      "layer": "unknown",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-storage-local",
+      "paths": ["packages/media/media-storage-local/src/**"],
+      "layer": "assembly",
+      "domains": ["media"],
+      "status": "adopted",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-storage-sql",
+      "paths": ["packages/media/media-storage-sql/src/**"],
+      "layer": "assembly",
+      "domains": ["media"],
+      "status": "adopted",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-image",
+      "paths": ["packages/media/media-image/src/**"],
+      "layer": "assembly",
+      "domains": ["media"],
+      "status": "adopted",
+      "source": "packages/media/SPEC.md"
     }
   ],
   "rules": [
@@ -1609,6 +1662,85 @@
         "packages/workspace/workspace-access"
       ],
       "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-CORE-MEDIA",
+      "from": [
+        "packages/model/pi-ai-transport",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/model/model-protocol",
+        "packages/model/model-access",
+        "packages/model/model-ui",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-access",
+        "packages/tool/tool-ui",
+        "packages/session/session-contract",
+        "packages/session/session-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/session/session-cordis",
+        "packages/session/session-adapters",
+        "packages/session/session-observation",
+        "packages/session/session-access",
+        "packages/session/session-ui",
+        "packages/session/session-protocol",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session",
+        "packages/session/session-storage-sql",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite"
+      ],
+      "to": [
+        "packages/media/media-contract",
+        "packages/media/media-cordis-contract",
+        "packages/media/media",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-PURE",
+      "from": [
+        "packages/media/media-contract",
+        "packages/media/media"
+      ],
+      "to": [
+        "packages/media/media-cordis-contract",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-CONTRACT",
+      "from": [
+        "packages/media/media-contract"
+      ],
+      "to": [
+        "packages/media/media"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-DEFINITION",
+      "from": [
+        "packages/media/media-cordis-contract"
+      ],
+      "to": [
+        "packages/media/media",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image"
+      ],
+      "source": "packages/media/SPEC.md"
     }
   ]
 }

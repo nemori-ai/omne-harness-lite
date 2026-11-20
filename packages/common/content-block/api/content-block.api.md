@@ -18,6 +18,7 @@
 - `ContentReference` · `index.d.ts`
 - `FileContentBlock` · `index.d.ts`
 - `MediaContentBlock` · `index.d.ts`
+- `MediaFacts` · `index.d.ts`
 - `ReferenceContentBlock` · `index.d.ts`
 - `TextContentBlock` · `index.d.ts`
 - `ThinkingContentBlock` · `index.d.ts`
@@ -77,6 +78,18 @@ export type ContentReference = Readonly<{
     mediaType: string;
     bytes: string;
     digest: string;
+}>;
+export type MediaFacts = Readonly<{
+    kind: 'image';
+    widthPixels: number;
+    heightPixels: number;
+}> | Readonly<{
+    kind: 'voice';
+    durationMs: number;
+    sampleRate: number;
+    channels: number;
+}> | Readonly<{
+    kind: 'file';
 }>;
 export type ReferenceContentBlock = Readonly<{
     kind: 'voice' | 'image' | 'file';

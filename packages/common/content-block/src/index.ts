@@ -49,6 +49,12 @@ export type ContentReference = Readonly<{
   digest: string
 }>
 
+/** What the bytes of a referenced medium are, measured when it was taken into custody. */
+export type MediaFacts =
+  | Readonly<{ kind: 'image'; widthPixels: number; heightPixels: number }>
+  | Readonly<{ kind: 'voice'; durationMs: number; sampleRate: number; channels: number }>
+  | Readonly<{ kind: 'file' }>
+
 export type ReferenceContentBlock = Readonly<{
   kind: 'voice' | 'image' | 'file'
   id: BlockId
