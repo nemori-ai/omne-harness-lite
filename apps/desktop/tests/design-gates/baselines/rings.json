@@ -1,8 +1,6 @@
 {
   "gate": "rings",
   "entries": {
-    "apps/desktop/src/page/styles.css | .shell-brand overflow: hidden": 1,
-    "apps/desktop/src/page/styles.css | .shell-navigation-content[data-expanded='false'] .shell-nav-badge overflow: hidden": 1,
     "apps/desktop/src/page/styles.css | .shell-sidebar overflow: hidden": 1,
     "packages/frontend/ui-kit/src/controls/dropdown-menu.tsx | class overflow-hidden": 1,
     "packages/frontend/ui-kit/src/controls/dropdown-menu.tsx | class overflow-x-hidden": 1,

@@ -1,8 +1,6 @@
 {
   "gate": "clickables",
   "entries": {
-    "apps/desktop/src/page/shell/shell.tsx | native <button>": 2,
-    "apps/desktop/src/page/shell/shell.tsx | unmarked <button>": 2,
     "packages/frontend/ui-kit/src/charts/frame.tsx | native <details>": 1,
     "packages/frontend/ui-kit/src/charts/frame.tsx | unmarked <summary>": 1,
     "packages/frontend/ui-kit/src/prose/prose.tsx | unmarked <a>": 1,

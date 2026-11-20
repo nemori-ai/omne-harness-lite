@@ -276,6 +276,12 @@ const HELPERS = `
     await wait('the sidebar', () => document.querySelector('.shell-sidebar'))
   }
   const sidebar = () => [...document.querySelectorAll('.shell-sidebar-item')].map(item => item.dataset.item)
+  const goHome = async () => (await wait('the home', () => document.querySelector('.shell-home'))).click()
+  const openAppearance = async () => {
+    const trigger = await wait('the appearance control', () => document.querySelector('[data-appearance]'))
+    trigger.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))
+    return await wait('the appearance menu', () => document.querySelector('[role=menu]'))
+  }
   const nav = () => [...document.querySelectorAll('.shell-nav-link')].map(link => link.textContent.trim())
   const transcript = () => document.querySelector('section[data-page=conversation]')?.innerText ?? ''
   const assetsPage = () => document.querySelector('section[data-page=assets]')
@@ -622,8 +628,13 @@ async function walk(browser, origin, proofs, elsewhere) {
     '明暗切换',
     `
     const before = document.documentElement.dataset.theme
-    await press('button', before === 'dark' ? '换成浅色' : '换成深色')
+    const menu = await openAppearance()
+    const other = [...menu.querySelectorAll('[role=menuitemradio]')].find(item =>
+      item.textContent.trim() === (before === 'dark' ? '浅色' : '深色'))
+    if (!other) throw new Error('the appearance menu has no ' + (before === 'dark' ? '浅色' : '深色'))
+    other.click()
     await wait('the other theme', () => document.documentElement.dataset.theme !== before)
+    await wait('the menu to close', () => document.querySelector('[role=menu]') === null)
     return { before, after: document.documentElement.dataset.theme, stored: localStorage.getItem('omne.theme') }`,
   )
   await step(
@@ -642,7 +653,7 @@ async function walk(browser, origin, proofs, elsewhere) {
   await step(
     '切回对话，退出登录',
     `
-    await press('.shell-nav-link', '对话')
+    await goHome()
     await press('button', '退出登录')
     await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))
     return { sidebar: document.querySelector('.shell-sidebar') === null ? 'gone' : 'still there' }`,
@@ -793,7 +804,7 @@ async function walk(browser, origin, proofs, elsewhere) {
       phase = 'asked'
     },
     `
-    document.querySelector('.shell-nav-link[data-page=conversation]').click()
+    await goHome()
     const area = await wait('the cards of this session', () => dock())
     const showing = () => shownCard(area)?.getAttribute('aria-label')
     const stage = area.querySelector('.hitl-area')
@@ -836,7 +847,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     await press('.shell-nav-link', '待你决定')
     const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
     await wait('the pool empty', () => page.textContent.includes('现在没有要你决定的事'))
-    await press('.shell-nav-link', '对话')
+    await goHome()
     return { answered: steps, transcript: transcript().slice(-160) }`,
   )
   phase = 'pool'
@@ -864,7 +875,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     })
     submit.click()
     await wait('the pool empty', () => page.textContent.includes('现在没有要你决定的事'))
-    await press('.shell-nav-link', '对话')
+    await goHome()
     await wait('the reply after the answer', () => transcript().includes(${JSON.stringify(AFTER_POOL)}))
     if (dock() !== null) throw new Error('the conversation still shows the card')
     return transcript().slice(-160)`,

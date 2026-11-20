@@ -1,12 +1,13 @@
 import {
+  createFigureStore,
   createSlotStore,
-  createToastStore,
+  type FigureStore,
   type LogoutResult,
   type ScopeSource,
   type ShellLogin,
   type SlotStore,
-  type ToastConfig,
-  type ToastStore,
+  type Toast,
+  type ToastBoard,
 } from '@omne-harness/shell-contract'
 
 export const LOGIN_EXPIRED_TEXT = '登录已经失效，请重新登录。'
@@ -45,9 +46,23 @@ export type PageChoice = Watched<string | undefined> & {
   choose(pageId: string, subject?: string): void
 }
 
+/** The told note on show: the newest toast a module handed over while there was room to write it. */
+export type Said = Readonly<{ key: string; owner: object; toast: Toast }>
+
+/** Toasts as told notes, with no timer and no queue: without room a toast is dropped and the note put away. */
+export type ToldBoard = ToastBoard & {
+  said(): Said | undefined
+  subscribe(listener: () => void): () => void
+  dismiss(): void
+  room(open: boolean): void
+}
+
 export type ShellState = {
   readonly slots: SlotStore
-  readonly toasts: ToastStore
+  readonly told: ToldBoard
+  readonly figure: FigureStore
+  /** Which module placed each page, by page id: the module in front is the one whose page is on show. */
+  readonly pageOwners: Map<string, object>
   readonly login: ShellLogin
   readonly scope: ScopeSource
   readonly page: PageChoice
@@ -112,23 +127,46 @@ function watchedLogin(inner: ShellLogin, notice: { set(text: string | undefined)
   return login
 }
 
-const timeout: ToastConfig['schedule'] = (run, delayMs) => {
-  const handle = setTimeout(run, delayMs)
-  return () => clearTimeout(handle)
+export function createToldBoard(): ToldBoard {
+  const said = cell<Said | undefined>(undefined)
+  const serials = new WeakMap<object, number>()
+  let owners = 0
+  let open = false
+  const keyOf = (owner: object, id: string): string => {
+    let serial = serials.get(owner)
+    if (serial === undefined) {
+      owners += 1
+      serial = owners
+      serials.set(owner, serial)
+    }
+    return `${serial}:${id}`
+  }
+  return {
+    show(owner, toast) {
+      if (open) said.set({ key: keyOf(owner, toast.id), owner, toast })
+    },
+    withdraw(owner) {
+      if (said.get()?.owner === owner) said.set(undefined)
+    },
+    said: said.get,
+    subscribe: listener => said.subscribe(() => listener()),
+    dismiss: () => said.set(undefined),
+    room(next) {
+      open = next
+      if (!next) said.set(undefined)
+    },
+  }
 }
-
-export const DESKTOP_TOASTS: ToastConfig = { visible: 3, durationMs: 6000, schedule: timeout }
 
 export function createShellState(
   inner: ShellLogin,
   options: Readonly<{
-    toasts?: ToastConfig
     /** A line for the login gate from outside the shell, such as "the login expired". */
     notices?: (show: (text: string) => void) => () => void
   }> = {},
 ): ShellState {
   const slots = createSlotStore()
-  const toasts = createToastStore(options.toasts ?? DESKTOP_TOASTS)
+  const told = createToldBoard()
   const scopeCell = cell<string | undefined>(undefined)
   const notice = cell<string | undefined>(undefined)
   const page = pageChoice(slots)
@@ -136,9 +174,14 @@ export function createShellState(
   const stopLogin = inner.subscribe(state => {
     if (state !== 'signed-in') scopeCell.set(undefined)
   })
+  const stopTold = page.subscribe(shown => {
+    if (shown !== undefined && told.said()?.toast.action?.page === shown) told.dismiss()
+  })
   return {
     slots,
-    toasts,
+    told,
+    figure: createFigureStore(),
+    pageOwners: new Map(),
     login: watchedLogin(inner, notice),
     scope: { get: scopeCell.get, set: scopeCell.set, subscribe: scopeCell.subscribe },
     page,
@@ -146,6 +189,7 @@ export function createShellState(
     dispose() {
       stopLogin()
       stopNotices?.()
+      stopTold()
       page.dispose()
     },
   }
