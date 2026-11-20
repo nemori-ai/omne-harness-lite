@@ -9,6 +9,7 @@ import { createAuthor, type CommandGates } from './author.ts'
 import { filesCommands } from './commands.ts'
 import type { FilesAuthorEnvironment } from './environment.ts'
 import { editFiles } from './files-edits.ts'
+import { explainedRefusal } from './files-refusal.ts'
 import {
   placedFiles,
   placePath,
@@ -106,13 +107,14 @@ async function executeFiles(
   const directory =
     environment.directory === undefined ? undefined : workingDirectoryOf(environment.directory)
   const notes: PathNotes = { relativeRefused: false }
-  const text = await executeCommand(
+  const done = await executeCommand(
     command,
     args,
     placedFiles(environment.files, directory, notes),
     maximum,
     directory,
   )
+  const text = explainedRefusal(done, { command, args, scope: environment.scope, directory })
   return notes.relativeRefused
     ? `${text}
 ${RELATIVE_PATH_DIAGNOSTIC}`

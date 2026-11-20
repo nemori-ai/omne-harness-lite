@@ -32,6 +32,8 @@ type Batch = BoundRequest<Parameters<FileSystemFacility<unknown>['commitBatch']>
 export type FilesAuthorEnvironment = Readonly<{
   /** The working directory of this call: relative paths resolve against it. Absent: it has none. */
   directory?: string
+  /** The files this call may read and write, pinned with its directory; names a refusal outside it. */
+  scope?: FilesScope
   files: FileOperations & {
     move(
       request: Omit<Transfer, 'target'> & { readonly target: { readonly path: string } },

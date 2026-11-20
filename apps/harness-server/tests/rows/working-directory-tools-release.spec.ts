@@ -153,8 +153,10 @@ describe('where the file and command tools of a session work', () => {
           shell('pwd', shop),
         ])
         const answers = await ran(tree, inBlog, 2, reaching)
-        // The two writes meet the fence; the command is stopped before it starts, naming the directory.
-        expect(answers.match(/reason=notAuthorized/gu)).toHaveLength(2)
+        // The fence refuses the two writes and their answers name the path; the command does not start.
+        for (const path of [join(shop, 'from-blog.txt'), join(fallback, 'from-blog.txt')])
+          expect(answers).toContain(`reason=outsideScope path=${JSON.stringify(path)} effect=write`)
+        expect(answers).not.toContain('reason=notAuthorized')
         expect(answers).toContain(
           `rejected reason=outsideScope path=${JSON.stringify(shop)} effect=write`,
         )
