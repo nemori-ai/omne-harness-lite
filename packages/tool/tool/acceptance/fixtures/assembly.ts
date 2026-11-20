@@ -9,7 +9,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   type DurableEvidence,
-  type ToolInvokeRequest,
   type ToolInvocationRef,
   type ToolResultVersion,
   type ToolState,
@@ -25,6 +24,7 @@ import {
   describedAdoption,
   readToolInvocationRef,
   renderToolResult,
+  toolInvokeRequestOf,
   type ToolDriver,
   type ToolInstanceHost,
   type ToolLiveExecution,
@@ -170,6 +170,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
   const source = createTestInvocationSource({
     authority: invokeAuthority,
     snapshotPrincipal: value => value,
+    definition: () => availability.definition,
   })
   const counts = { executor: 0, bindingStart: 0, environmentPrepare: 0 }
   const parameterCodec = ok(createDefaultParameterCodec(jsonLimits))
@@ -267,7 +268,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
     executor: adoption('manifest-executor'),
     layer: { kind: 'official' },
   } as const
-  const request: ToolInvokeRequest = {
+  const request = toolInvokeRequestOf({
     availability,
     command: null,
     arguments: {
@@ -279,7 +280,6 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: ok(decodeScopeRef({ ref: 'tool-acceptance-requester-scope' })),
     resources: [],
     scope: {
@@ -291,7 +291,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
     batchDecision: null,
     mode: 'foreground',
     limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
-  }
+  })
   let driver: ToolDriver<string> | null = null
   const scheduled: Parameters<ToolInstanceHost<string>['schedule']>[0][] = []
   const controller = new AbortController()
