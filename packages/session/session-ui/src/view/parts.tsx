@@ -1,7 +1,8 @@
 import { Disclosure, Prose, Shimmer, StatusPill } from '@omne-harness/ui-kit'
-import { memo, type ReactNode } from 'react'
+import { memo, useContext, type ReactNode } from 'react'
 import type { Item, Part } from '../model/conversation.ts'
 import type { Plain } from '../model/plain.ts'
+import { BlockSlotContext } from './block-slot.ts'
 
 function Expandable({
   title,
@@ -87,6 +88,17 @@ function ToolCall({ part }: { readonly part: Extract<Part, { kind: 'tool-call' }
   )
 }
 
+/** A block that is not words: the item of `session.block` draws it, else its kind and its words. */
+function MediaPart({ part }: { readonly part: Extract<Part, { kind: 'media' }> }) {
+  const slot = useContext(BlockSlotContext)
+  const placeholder = (
+    <p className="omne-placeholder">
+      〔{part.media}〕{part.detail}
+    </p>
+  )
+  return slot === null || part.source === null ? placeholder : slot(part.source, placeholder)
+}
+
 function PartView({ part, live }: { readonly part: Part; readonly live: boolean }) {
   switch (part.kind) {
     case 'text':
@@ -112,11 +124,7 @@ function PartView({ part, live }: { readonly part: Part; readonly live: boolean 
         </Expandable>
       )
     case 'media':
-      return (
-        <p className="omne-placeholder">
-          〔{part.media}〕{part.detail}
-        </p>
-      )
+      return <MediaPart part={part} />
     case 'unknown':
       return <p className="omne-placeholder">不认识的内容种类：{part.partKind}</p>
   }
