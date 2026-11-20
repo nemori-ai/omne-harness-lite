@@ -48,6 +48,8 @@ export type {
   ProducerRef,
   RecoveryTask,
   Relation,
+  Attendance,
+  SessionTree,
   ResidentTool,
   ResultConsumption,
   RoutedInput,
@@ -192,6 +194,16 @@ export {
   type RunStartJudgment,
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
+export {
+  MAX_SESSION_DEPTH,
+  childRecorded,
+  judgeStanding,
+  relatedOf,
+  relatedSessionOf,
+  standingOf,
+  type ChildRecord,
+  type RelatedSession,
+} from './standing.ts'
 export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts'
 export { cancellationDriveOf, runCancelledBy } from './decision-support.ts'
 export { batchEvidence } from './batch-evidence.ts'

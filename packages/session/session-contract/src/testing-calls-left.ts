@@ -67,7 +67,7 @@ export function callIn(store: Held | undefined, consumption: string): SessionCal
 export function autoArchiveVerdict(snapshot: WorkSnapshot) {
   const observation = snapshot.idle?.observation
   if (snapshot.autoArchive?.kind !== 'enabled') return 'disabled'
-  if (snapshot.relation?.kind === 'main' && snapshot.relation.resident) return 'exempt'
+  if (snapshot.resident === true) return 'exempt'
   if (observation === undefined) return 'not-due'
   const idle =
     observation.kind === 'interval'

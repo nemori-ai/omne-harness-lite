@@ -333,6 +333,9 @@ function created(
     controls: [],
     unresolved: [],
     creation: entry.creation,
+    ...(entry.creation.relation === undefined ? {} : { relation: entry.creation.relation }),
+    ...(entry.creation.attendance === undefined ? {} : { attendance: entry.creation.attendance }),
+    ...(entry.tree === undefined ? {} : { tree: entry.tree }),
     initialization: {
       protocol: 1,
       createOperation: entry.operation,

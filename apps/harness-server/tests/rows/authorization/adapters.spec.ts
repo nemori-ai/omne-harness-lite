@@ -280,7 +280,7 @@ describe('sessionAccessCheck: members and branches', () => {
 
   it('lets the own login set the tenant settings and manage the session, with no named qualification', async () => {
     const w = world()
-    for (const kind of ['configureAutoArchive', 'setRelation']) {
+    for (const kind of ['configureAutoArchive', 'setResident']) {
       expect((await w.session.check(mutate(w.login(), kind))).kind, kind).toBe('allowed')
     }
     expect(w.seen.admissions.map(input => input.requires)).toEqual([[], []])
@@ -288,7 +288,7 @@ describe('sessionAccessCheck: members and branches', () => {
 
   it('denies the two operations to a login principal of another tenant, and reads nothing', async () => {
     const w = world()
-    for (const kind of ['configureAutoArchive', 'setRelation']) {
+    for (const kind of ['configureAutoArchive', 'setResident']) {
       const request = mutate(w.login(B), kind, {}, { tenant: A })
       expect(await w.session.check(request), kind).toEqual({ kind: 'denied' })
     }
@@ -593,7 +593,7 @@ describe('sessionAccessCheck: members and branches', () => {
 
   it('denies the two operations to the work principal and to a foreign principal', async () => {
     const w = world()
-    for (const kind of ['configureAutoArchive', 'setRelation']) {
+    for (const kind of ['configureAutoArchive', 'setResident']) {
       expect(await w.session.check(mutate(w.work(), kind)), kind).toEqual({ kind: 'denied' })
       expect(await w.session.check(mutate(w.foreign(), kind)), kind).toEqual({ kind: 'denied' })
     }

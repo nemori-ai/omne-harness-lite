@@ -252,6 +252,8 @@ export type SessionCreation = Readonly<{
   initialModelSelection?: import('./control-values.ts').SavedModelSelection
   residentAdoption?: ResidentAdoption
   initialization?: InitializationSources
+  relation?: Relation
+  attendance?: Attendance
 }>
 export type InitializationSource = Readonly<{
   item: string
@@ -340,9 +342,11 @@ export type DeclarationChange =
       basis: DurableEvidence
     }>
 export type Relation =
-  | Readonly<{ kind: 'main'; resident: boolean }>
+  | Readonly<{ kind: 'main' }>
   | Readonly<{ kind: 'child'; parent: SessionId; basis: DurableEvidence }>
   | Readonly<{ kind: 'handoff'; origin: SessionId; basis: DurableEvidence }>
+export type Attendance = 'attended' | 'unattended'
+export type SessionTree = Readonly<{ root: SessionId; depth: number }>
 export type ClockSample = Readonly<{ at: string; protocol: Adoption; source: DurableEvidence }>
 export type IdleCoverage = Readonly<{
   own: DurableEvidence
@@ -403,6 +407,9 @@ export type WorkSnapshot = Readonly<{
   executions?: readonly RunExecution[]
   residentKeys?: ResidentAdoption['keys']
   relation?: Relation
+  tree?: SessionTree
+  attendance?: Attendance
+  resident?: boolean
   children?: readonly SessionId[]
   autoArchive?: AutoArchivePolicy
   taken?: readonly InputId[]

@@ -159,25 +159,12 @@ export function decideManagement(
           ? [encodeEntry({ kind: 'intake.released', inputs: snapshot.pending }, origin)]
           : []),
       ])
-    case 'setRelation': {
-      const relation = command.input.relation
-      if (relation.kind === 'main' && relation.resident && snapshot.relation?.kind === 'child')
-        return invalid('relation', 'a child cannot become resident')
-      if (
-        relation.kind === 'child' &&
-        (relation.parent === snapshot.session ||
-          (snapshot.relation?.kind === 'child' && relation.parent !== snapshot.relation.parent))
-      )
-        return invalid('relation', 'self parenting or changing the parent')
-      if (relation.kind !== 'main' && !completeEvidence(relation.basis))
-        return invalid('relation.basis', 'incomplete evidence')
+    case 'setResident':
+      if (command.input.resident && snapshot.relation?.kind === 'child')
+        return invalid('resident', 'a child cannot become resident')
       return entries([
-        encodeEntry(
-          { kind: relation.kind === 'main' ? 'session.resident' : 'session.relation', relation },
-          origin,
-        ),
+        encodeEntry({ kind: 'session.resident', resident: command.input.resident }, origin),
       ])
-    }
     case 'configureAutoArchive':
       if (command.input.policy.kind === 'enabled' && !/^\d+$/u.test(command.input.policy.idleMs))
         return invalid('policy.idleMs', 'not a nonnegative duration')
@@ -196,11 +183,7 @@ export function decideManagement(
         ),
       ])
     case 'considerAutoArchive': {
-      if (
-        snapshot.autoArchive?.kind !== 'enabled' ||
-        (snapshot.relation?.kind === 'main' && snapshot.relation.resident)
-      )
-        return entries([])
+      if (snapshot.autoArchive?.kind !== 'enabled' || snapshot.resident === true) return entries([])
       const observation = reads.idleObservation ?? snapshot.idle?.observation
       if (observation === undefined)
         return rejected({

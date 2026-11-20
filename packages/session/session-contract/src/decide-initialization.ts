@@ -1,7 +1,7 @@
 import type { SessionCommand, GuardCommand } from './ports.ts'
 import type { Decision, DecideReads, EncodedEntry } from './judgments.ts'
 import type { SessionFailure } from './faces.ts'
-import type { WorkSnapshot, ContextScopeBinding } from './values.ts'
+import type { WorkSnapshot, ContextScopeBinding, SessionTree } from './values.ts'
 import type { SessionOperationId } from './identity.ts'
 import { encodeEntry, decodeEntry, type SessionEntry } from './entries.ts'
 import { scopeBinding } from './decide-management.ts'
@@ -247,6 +247,7 @@ function resultEntries(
 export function decideInitializationCreate(
   command: Extract<SessionCommand, { kind: 'create' }>,
   guards: readonly GuardCommand[],
+  tree: SessionTree | null,
 ): Decision {
   return withInitialization(() => {
     const facts = initializationGuard(null, command, guards)
@@ -266,6 +267,7 @@ export function decideInitializationCreate(
     const created: Extract<SessionEntry, { kind: 'session.created' }> = {
       kind: 'session.created',
       ...command.input,
+      ...(tree === null ? {} : { tree }),
       initializationProtocol: 1,
       initialAdoption: facts.initialAdoption,
       requirements: facts.requirements,

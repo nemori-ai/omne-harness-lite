@@ -42,7 +42,7 @@ const SESSION_GOLDEN = {
     'member [declaration authorization-expression|workspace]',
     D,
   ],
-  setRelation: [M, D, D],
+  setResident: [M, D, D],
   configureAutoArchive: [M, D, D],
   considerAutoArchive: WORK_ONLY,
   recordIdle: WORK_ONLY,

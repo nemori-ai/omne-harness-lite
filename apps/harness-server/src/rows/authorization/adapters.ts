@@ -200,7 +200,7 @@ const MUTATIONS = {
   create: true,
   completeInitialization: true,
   change: true,
-  setRelation: true,
+  setResident: true,
   configureAutoArchive: true,
   considerAutoArchive: true,
   recordIdle: true,

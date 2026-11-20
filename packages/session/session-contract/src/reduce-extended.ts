@@ -115,11 +115,12 @@ function applyWorkspaceChanged(
   return null
 }
 
-function applyRelation(
+function applyChildRecorded(
   draft: Draft,
-  entry: Extract<SessionEntry, { kind: 'session.relation' | 'session.resident' }>,
+  entry: Extract<SessionEntry, { kind: 'session.child-recorded' }>,
 ): string | null {
-  draft.relation = entry.relation
+  const children = draft.children ?? []
+  if (!children.includes(entry.child)) draft.children = [...children, entry.child]
   return null
 }
 
@@ -355,9 +356,11 @@ export function applyExtended(
       return applyDeclaration(draft, entry, source)
     case 'session.workspace-changed':
       return applyWorkspaceChanged(draft, entry)
-    case 'session.relation':
     case 'session.resident':
-      return applyRelation(draft, entry)
+      draft.resident = entry.resident
+      return null
+    case 'session.child-recorded':
+      return applyChildRecorded(draft, entry)
     case 'session.idle-evidence':
       return applyIdleEvidence(draft, entry, source)
     case 'session.frozen':

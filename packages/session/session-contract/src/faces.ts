@@ -44,7 +44,6 @@ import type {
   Participation,
   ProducedResult,
   ProducerRef,
-  Relation,
   ResidentAdoption,
   RoutedInput,
   RunTerminal,
@@ -277,7 +276,7 @@ export interface SessionManagement<P> {
     input: Mutation<P> & Readonly<{ result: InitializationResult }>,
   ): Reply<CommitReceipt>
   change(input: Mutation<P> & Readonly<{ declaration: DeclarationChange }>): Reply<CommitReceipt>
-  setRelation(input: Mutation<P> & Readonly<{ relation: Relation }>): Reply<CommitReceipt>
+  setResident(input: Mutation<P> & Readonly<{ resident: boolean }>): Reply<CommitReceipt>
   configureAutoArchive(
     input: Mutation<P> & Readonly<{ policy: AutoArchivePolicy }>,
   ): Reply<CommitReceipt>

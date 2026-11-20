@@ -134,8 +134,8 @@ describe('system column and the matrix', () => {
 })
 
 describe('the cells R2-D204 decided', () => {
-  it('makes the login cells of setRelation and configureAutoArchive member cells that cite R2-D204', () => {
-    for (const operation of ['setRelation', 'configureAutoArchive'] as const) {
+  it('makes the login cells of setResident and configureAutoArchive member cells that cite R2-D204', () => {
+    for (const operation of ['setResident', 'configureAutoArchive'] as const) {
       const cell = SESSION_POLICY[operation].login
       expect(cell.verdict).toBe('member')
       expect(cell.verdict === 'member' && cell.source).toContain('R2-D204')

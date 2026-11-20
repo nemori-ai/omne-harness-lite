@@ -122,7 +122,7 @@ export const SESSION_POLICY = Object.freeze({
     ),
     deny(OUTSIDE_MATRIX),
   ),
-  setRelation: row(
+  setResident: row(
     member(
       'R2-D204（P-1，qiwei.pan 裁定）：租户是（组织，账号），只有该账号的登录能取得代该租户行事的主体，「只有本人」由主体的签发保证，不需要具名资格。SW:187、SS:610 至 611',
     ),
