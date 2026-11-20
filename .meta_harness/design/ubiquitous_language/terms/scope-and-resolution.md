@@ -92,17 +92,17 @@
 
 ### UL-workspace · 工作区 · Workspace
 
-> **中**：带有自身身份、跨会话持续的完整资源聚合包。Omne Host 托管工作区有一个治理所有者租户，也可以通过[租户—工作区关系](subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)授权其他租户参与；登记外部仓库的工作区不设 Omne 治理所有者，首次登记者与后来接入的租户都是参与者，登记不取得外部资源所有权或额外写权限。
+> **中**：带有自身身份、跨会话持续的完整资源聚合包。Omne Host 托管工作区有一个治理所有者租户，也可以通过[租户—工作区关系](subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)授权其他租户参与；租户把所在节点上的一个目录显式登记成工作区时，登记者是它的治理所有者，拥有的是登记产生的治理，不是目录的内容；登记外部仓库的工作区不设 Omne 治理所有者，首次登记者与后来接入的租户都是参与者，登记不取得外部资源所有权或额外写权限。
 > 它可以聚合文件、代码、数据、知识和自定义资产，访问它的 agent 类型可以不同；它不绑定一个固定目标，
 > 也不是会话、agent、本地目录或执行环境边界。工作区可以有多个[工作区地址](#ul-workspace-address--工作区地址--workspace-address)，
 > 并在部署节点上被装载为多个[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)。
 > 工作区实例中的资产进入 PF-002 定义的工作区资产层：设置和资产可以按层求值，权限、落点与身份类及治理类例外
 > 不从工作区放宽。
 
-> **EN**: An identity-bearing, persistent resource aggregate that spans sessions. An Omne Host workspace has one tenant with governance ownership and may authorize other tenants to participate. A registered external repository has no Omne governance owner: both its first registrant and later tenants are participants, and registration grants neither external-resource ownership nor additional write permission. It may contain files, code, data, knowledge, and custom assets; it has no fixed goal and is neither a session, agent, local directory, nor execution boundary. A workspace may have multiple addresses and multiple materialized instances. Assets from its instance enter the PF-002 workspace asset layer, while permissions and placement/identity governance cannot be widened from the workspace.
+> **EN**: An identity-bearing, persistent resource aggregate that spans sessions. An Omne Host workspace has one tenant with governance ownership and may authorize other tenants to participate. A tenant that explicitly registers a directory on its node as a workspace is the governance owner of that workspace: the tenant owns the governance that the registration creates, not the contents of the directory. A registered external repository has no Omne governance owner: both its first registrant and later tenants are participants, and registration grants neither external-resource ownership nor additional write permission. It may contain files, code, data, knowledge, and custom assets; it has no fixed goal and is neither a session, agent, local directory, nor execution boundary. A workspace may have multiple addresses and multiple materialized instances. Assets from its instance enter the PF-002 workspace asset layer, while permissions and placement/identity governance cannot be widened from the workspace.
 
 - **形态**：对象
-- **出处**：[PF-020](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md)（rev 22） · [PF-002 工作区资产层](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 32）
+- **出处**：[PF-020](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md)（rev 22） · [PF-002 工作区资产层](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#工作区)（rev 32） · [工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 6）
 - **别混**：地址和实例是它的访问与装载关系，不是另一个工作区；目录只是一个可能的地址/本地承载。
 - **资产层规则**：工作区提供的自定义资产仍遵循 PF-002 的设置覆盖、同标识替换、权限过滤和禁用规则。
 - **内容来源**：实例下的[共享目录](#ul-workspace-shared-directory--工作区共享目录--workspace-shared-directory)与[本地目录](#ul-workspace-local-directory--工作区本地目录--workspace-local-directory)是同一工作区层的两个来源，不是两份工作区。组织的[参与限制](#ul-workspace-participation-restriction--工作区参与限制--workspace-participation-restriction)与工作区访问授权分别成立。
@@ -125,7 +125,7 @@
 > **EN**: A reference to one load of a workspace on a deployment node. It has two parts: the workspace instance identifier and the load basis (for example, a Git commit). It occurs together with a `WorkspaceId`: the `WorkspaceId` tells which workspace, and the workspace attachment tells on which instance and from which basis the workspace is loaded. The workspace domain owns the format of both parts.
 
 - **形态**：属性
-- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 5）。补充依据：[#679 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)（PanQiWei 2026-10-27 裁定：`workspace` 分为身份轴、实例轴与版本轴，实例轴与版本轴合为工作区域拥有的附着值）。当前由 Session 契约的[创建规则](../../../../packages/session/SPEC.md#受理与输入)以 `workspaceAttachment` 字段承载
+- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 6）。补充依据：[#679 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)（PanQiWei 2026-10-27 裁定：`workspace` 分为身份轴、实例轴与版本轴，实例轴与版本轴合为工作区域拥有的附着值）。当前由 Session 契约的[创建规则](../../../../packages/session/SPEC.md#受理与输入)以 `workspaceAttachment` 字段承载
 - **别混**：与[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)不是一回事：实例是被装载出来的工作入口，工作区附着只是指向某个实例的一次装载的引用。与[附件](execution-and-outcome.md#ul-attachment--附件--attachment)、[执行挂接](agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment)无关，字段和类型不许简称 `attachment`（同 [C-64](../conflicts.md#c-64执行挂接的候选类型名)）。产品正文（如[J-WS01](../../product/workspaces/design.md#j-ws01-显式接入已有目录或装载已登记资源)「报告附着成功」）、[租户—工作区关系](subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)的参与边界与本卷[工作区实例](#ul-workspace-instance--工作区实例--workspace-instance)「不再附着」里的「附着」是动作：把工作区接到会话上，或这一动作的结果。它不是本词，本词是一个引用值。两种用法待收敛，见 [C-72](../conflicts.md#c-72附着动作与工作区附着值)
 
 ### UL-workspace-address · 工作区地址 · Workspace Address
@@ -151,21 +151,32 @@
 
 ### UL-workspace-management-type · 工作区管理类型 · Workspace Management Type
 
-> **中**：工作区采用哪一种资源管理方式的属性，用于区分其持久保存、版本管理与实例同步所遵循的模型。租户创建 Omne Host 工作区时选择该属性，首版仅提供 Git；它不同于资源与治理意义上的工作区类别，也不同于地址提供者。
+> **中**：工作区在物理上是哪一种资源的属性。它回答四个问题：这份资源是什么、在哪、处在什么版本、两次物化是不是同一份。治理规则不随它变化。已支持[文件系统型](#ul-filesystem-workspace--文件系统型工作区--filesystem-workspace)和 [Git 型](#ul-git-workspace--git-工作区--git-workspace)。显式登记已有目录时可以指定它；不指定时按目录的实际形态识别。它在工作区的一生里不变。它不同于资源与治理意义上的工作区类别，也不同于地址提供者。
 
-> **EN**: A workspace attribute identifying the model used to persist, version, and synchronize its resources with instances. A tenant selects it when creating an Omne Host workspace; the first release offers Git only. It is distinct from workspace category and address provider.
+> **EN**: The workspace attribute that tells which kind of physical resource the workspace is. It answers four questions: what the resource is, where it is, which version it has, and whether two materializations are the same resource. Governance rules do not depend on it. The supported types are the filesystem type and the Git type. A registrant may name the type when it registers an existing directory; otherwise the type follows the actual form of the directory. The type does not change during the life of the workspace. It is distinct from workspace category and address provider.
 
 - **形态**：属性
-- **出处**：[PF-020 工作区管理类型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#工作区管理类型)（rev 22）
+- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 6）。历史来源：[PF-020 工作区管理类型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#工作区管理类型)（rev 22）
+
+### UL-filesystem-workspace · 文件系统型工作区 · Filesystem Workspace
+
+> **中**：管理类型为文件系统的工作区。它在物理上是一个目录范围：把这个目录登记成工作区，只让系统认识它时多了一层逻辑治理，登记、关联、解除和销毁都不移动、不改写、不删除其中的内容。它没有版本可以指，一个工作区同一时刻只有一个实例；换一个目录是换地址，工作区身份不变。
+
+> **EN**: A workspace whose management type is filesystem. Physically it is a directory scope. Registration only adds a layer of logical governance to that directory: registration, association, dissociation, and destruction do not move, change, or delete its contents. It has no version to refer to, and the workspace has one instance at a time. A different directory is a different address of the same workspace identity.
+
+- **形态**：变体（父：[工作区](#ul-workspace--工作区--workspace)）
+- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 6）
+- **别混**：不是普通目录。同一个目录没有登记时只是普通目录，没有工作区身份，也不加载工作区来源。也不是文件系统隔离：治理管的是工作区这一层，不阻止原本合法的文件访问。
 
 ### UL-git-workspace · Git 工作区 · Git Workspace
 
-> **中**：工作区抽象（`Workspace`）中管理类型为 Git 的特化，类型记法为 `GitBasedWorkspace`。其共享资源以 Git 仓库管理，装载出的工作区实例使用相应 Git 工作副本；首版 Omne Host 仅提供此类型。它沿用工作区的逻辑身份与生命周期，Git 仓库地址、分支和提交版本不替代工作区身份。
+> **中**：管理类型为 Git 的工作区，是[文件系统型工作区](#ul-filesystem-workspace--文件系统型工作区--filesystem-workspace)的拓展：实例的目录同时是一个 Git 工作副本。文件系统型成立的规则对它都成立。它另外有提交可以指，同一个仓库的多个工作副本可以显式关联成同一个工作区的多个实例。它沿用工作区的逻辑身份与生命周期，仓库地址、分支和提交不替代工作区身份。类型记法为 `GitBasedWorkspace`。
 
-> **EN**: The Git specialization of Workspace, denoted `GitBasedWorkspace`: shared resources are managed in a Git repository and instances use corresponding Git working copies. It is the only type offered by Omne Host in the first release. It retains the workspace's logical identity and lifecycle; repository addresses, branches, and commits do not replace that identity.
+> **EN**: A workspace whose management type is Git. It extends the filesystem workspace: the directory of an instance is also a Git working copy. Every rule that holds for a filesystem workspace holds for it. In addition, it has commits to refer to, and several working copies of one repository can be explicitly associated as instances of one workspace. It keeps the logical identity and lifecycle of a workspace; repository addresses, branches, and commits do not replace that identity. It is denoted `GitBasedWorkspace`.
 
-- **形态**：变体（父：[工作区](#ul-workspace--工作区--workspace)）
-- **出处**：[PF-020 Omne Host 的首版范围](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#omne-host-的首版范围)（rev 22）
+- **形态**：变体（父：[文件系统型工作区](#ul-filesystem-workspace--文件系统型工作区--filesystem-workspace)）
+- **出处**：[工作区：产品需求描述](../../product/workspaces/design.md#产品需求描述)（rev 6）。历史来源：[PF-020 Omne Host 的首版范围](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-020-workspace/design.md#omne-host-的首版范围)（rev 22）
+- **别混**：新建一个工作副本不等于多了一个实例。显式关联之后它才是实例。
 
 ### UL-workspace-address-provider · 工作区地址提供者 · Workspace Address Provider
 
@@ -325,7 +336,7 @@ specific.
 - **形态**：属性
 - **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 11） ·
   [资产与规则：变更后的生效范围](../../product/assets-and-rules/design.md#changes-and-failures)（rev 9） ·
-  [工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 5）
+  [工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 6）
 - **别混**：不是全局版本号。每类来源、每个作用域各有自己的计数，彼此不比较大小
 - **注意**：计数变化只说明来源变了，不构成采用。采用仍只在新 Run 开始或显式 reload 时发生
 

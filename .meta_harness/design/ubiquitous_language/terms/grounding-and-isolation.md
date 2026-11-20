@@ -430,6 +430,16 @@
 - **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 4）
 - **注意**：不承诺多路径原子提交或外部读写隔离；当前字节与暂存一致不等于有收据
 
+### UL-session-working-directory · 会话工作目录 · Session Working Directory
+
+> **中**：一个[会话](agent-runtime-loop.md#ul-session--会话--session)在当前这一步里，文件与命令类工具默认使用的目录。它在每一步开始之前由会话当时的选择与对所选实例的核验得出，一步之内不变：会话附着了[工作区](scope-and-resolution.md#ul-workspace--工作区--workspace)且所选[实例](scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)可用时，是实例的根目录；没有附着工作区时，是部署给出的默认目录；附着了但实例不可用或租户失去参与资格时，没有目录，依赖它的动作明确失败。会话更换工作区之后，它从下一步起变化，已经发出的动作留在原目录。
+
+> **EN**: The directory that file and command tools of one session use by default during the current step. Before each step, the system derives it from the session's selection at that time and from the verification of the selected instance. It does not change during the step. When the session has attached a workspace and the selected instance is available, it is the root directory of the instance. When the session has not attached a workspace, it is the default directory of the deployment. When the session has attached a workspace but the instance is unavailable or the tenant no longer has the participation right, there is no directory, and an action that depends on it fails explicitly. After the session changes its workspace, the directory changes from the next step, and actions already issued stay in the earlier directory.
+
+- **形态**：视图
+- **出处**：[工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 6）
+- **别混**：不是[落点](#ul-placement--落点--placement)。落点回答一次执行落在哪个环境，本词回答这个会话的工具默认在哪个目录。知道目录不构成许可。也不是留着的终端当前所在的目录：那个目录随终端里的命令变。
+
 ### UL-session-base · 会话据点 · Session Base
 
 > **中**：一个[账号](subjects-and-ownership.md#ul-account--账号--account)的[会话](agent-runtime-loop.md#ul-session--会话--session)、

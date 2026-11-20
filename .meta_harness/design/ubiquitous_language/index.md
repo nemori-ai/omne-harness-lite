@@ -47,7 +47,7 @@
 | [UL-affiliation-request](terms/subjects-and-ownership.md#ul-affiliation-request--隶属请求--affiliation-request) | 隶属请求 | Affiliation Request | 发给另一个组织的建立隶属邀约，**接受即填上上级组织属性、不产生租户**；**与邀请是两种对象，只是过期规则相同** |
 | [UL-tenant](terms/subjects-and-ownership.md#ul-tenant--租户--tenant) | 租户 | Tenant | (组织, 账号) 这一组合，归属与隔离的单位 |
 | [UL-tenant-workspace-relation](terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation) | 租户—工作区关系 | Tenant–Workspace Relation | 记录租户对工作区的关系；Host 区分治理所有者与参与者，登记外部仓库仅有参与者 |
-| [UL-workspace-super-administrator](terms/subjects-and-ownership.md#ul-workspace-super-administrator--工作区超级管理员--workspace-super-administrator) | 工作区超级管理员 | Workspace Super Administrator | Omne Host 托管工作区创建者授予某租户的超管角色，具有该工作区销毁资格 |
+| [UL-workspace-super-administrator](terms/subjects-and-ownership.md#ul-workspace-super-administrator--工作区超级管理员--workspace-super-administrator) | 工作区超级管理员 | Workspace Super Administrator | 治理所有者授予某参与者租户的工作区超管角色；可授予参与、移除参与者、销毁，不能转授 |
 | [UL-membership-standing](terms/subjects-and-ownership.md#ul-membership-standing--成员资格效力--membership-standing) | 成员资格效力 | Membership Standing | 这个租户此刻算不算数，**只有有效/无效两个取值**；**「目标范围不可用」不是第三个取值，那是失败** |
 | [UL-current-standing](terms/subjects-and-ownership.md#ul-current-standing--当前资格--current-standing) | 当前资格 | Current Standing | 对一个租户在读取那一刻的成员资格效力、租户角色与具名资格的一次读数；**一次读数不是许可**，读不到是失败 |
 | [UL-current-tenant-identity](terms/subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity) | 当前租户身份 | Current Tenant Identity | 登录状态上的一项选择，**创建那一刻被捕获，之后切换不影响已创建的** |
@@ -73,8 +73,9 @@
 | [UL-workspace-address](terms/scope-and-resolution.md#ul-workspace-address--工作区地址--workspace-address) | 工作区地址 | Workspace Address | 找到或访问工作区/实例的本地或远端地址；有提供者类型，不是工作区身份或访问凭据 |
 | [UL-workspace-category](terms/scope-and-resolution.md#ul-workspace-category--工作区类别--workspace-category) | 工作区类别 | Workspace Category | 工作区的资源与治理语义类别，不等于地址提供者 |
 | [UL-workspace-address-provider](terms/scope-and-resolution.md#ul-workspace-address-provider--工作区地址提供者--workspace-address-provider) | 工作区地址提供者 | Workspace Address Provider | 提供地址的 Omne Host、GitHub、Obsidian、Office 365 等外部系统或宿主类型 |
-| [UL-workspace-management-type](terms/scope-and-resolution.md#ul-workspace-management-type--工作区管理类型--workspace-management-type) | 工作区管理类型 | Workspace Management Type | 资源持久保存、版本管理与实例同步采用的模型；Omne Host 创建时选择，首版仅 Git |
-| [UL-git-workspace](terms/scope-and-resolution.md#ul-git-workspace--git-工作区--git-workspace) | Git 工作区 | Git Workspace | Workspace 的 GitBasedWorkspace 特化，共享资源与实例复用 Git |
+| [UL-workspace-management-type](terms/scope-and-resolution.md#ul-workspace-management-type--工作区管理类型--workspace-management-type) | 工作区管理类型 | Workspace Management Type | 工作区在物理上是哪一种资源；已支持文件系统型和 Git 型；治理规则不随它变 |
+| [UL-filesystem-workspace](terms/scope-and-resolution.md#ul-filesystem-workspace--文件系统型工作区--filesystem-workspace) | 文件系统型工作区 | Filesystem Workspace | 物理上是一个目录范围；登记只加逻辑治理，不改内容 |
+| [UL-git-workspace](terms/scope-and-resolution.md#ul-git-workspace--git-工作区--git-workspace) | Git 工作区 | Git Workspace | 文件系统型工作区的拓展：目录又是 Git 工作副本，有提交可指，同仓库的工作副本可关联成多个实例 |
 | [UL-workspace-shared-directory](terms/scope-and-resolution.md#ul-workspace-shared-directory--工作区共享目录--workspace-shared-directory) | 工作区共享目录 | Workspace Shared Directory | 实例下的 `.omne`，共享资产、配置与规范，变更进入共享同步 |
 | [UL-workspace-local-directory](terms/scope-and-resolution.md#ul-workspace-local-directory--工作区本地目录--workspace-local-directory) | 工作区本地目录 | Workspace Local Directory | 实例下的 `.omne.local`，实例本地定制，同能力资产优先，不进入共享同步 |
 | [UL-workspace-participation-restriction](terms/scope-and-resolution.md#ul-workspace-participation-restriction--工作区参与限制--workspace-participation-restriction) | 工作区参与限制 | Workspace Participation Restriction | 组织按范围限制工作区写入与维护；启用时外部仓库不进入工作区装配，普通目录及原有读取资格不变 |
@@ -291,6 +292,7 @@
 | [UL-isolation-claim](terms/grounding-and-isolation.md#ul-isolation-claim--隔离断言--isolation-claim) | 隔离断言 | Isolation Claim | 提供者能确认的隔离种类，集合开放；确认不了就拒绝，不写成已隔离 |
 | [UL-environment-provider](terms/grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider) | 环境提供者 | Environment Provider | 向登记表登记、实际造出并掌管环境实例的一方；名加代；退役先拒新租约再排空 |
 | [UL-file-batch](terms/grounding-and-isolation.md#ul-file-batch--文件批次--file-batch) | 文件批次 | File Batch | 全批预检、暂存后逐路径发布的一次多路径写入；是受管资源；恢复只识别五态 |
+| [UL-session-working-directory](terms/grounding-and-isolation.md#ul-session-working-directory--会话工作目录--session-working-directory) | 会话工作目录 | Session Working Directory | 会话当前这一步里文件与命令类工具默认用的目录；由会话的选择算出 |
 | [UL-session-base](terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base) | 会话据点 | Session Base | 一个账号的会话、日志、卡片与 runtime 实际所在的那一处，身份是（一处 · 中心 · 账号）；**不是进程**，没人开着屏时照常发生事 |
 | [UL-governance-center](terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center) | 治理中心 | Governance Center | 治理事实与组织／租户层范围化对象所在的那一处，**一次部署一个、身份不是它的地址**；**它不知道任何会话** |
 | [UL-deployment-key](terms/grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key) | 部署密钥 | Deployment Key | 这一次部署独有的一套秘密，让「只有中心自己能说的话」不可伪造；**不加密任何东西，换了什么都不丢** |

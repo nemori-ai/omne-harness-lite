@@ -1,0 +1,11 @@
+working-directory.cfg pass
+working-directory-wide.cfg pass
+bad-live-read.cfg ToldDirectory
+bad-direct-publish.cfg ToldDirectory
+bad-recover-latest.cfg ToldDirectory
+bad-exec-reread.cfg PinnedDirectory
+bad-volatile-pin.cfg PinnedDirectory
+bad-refresh-after-read.cfg ToldAtBoundary
+witness-new-directory.cfg NoCallAfterSwitch
+witness-outlives-switch.cfg NoCallOutlivesSwitch
+witness-refusal.cfg NoRefusal
