@@ -92,6 +92,8 @@ function tree() {
       return { kind: 'read', files: read }
     },
     async file(root, path, limit) {
+      // The real port cannot reach anything without the instance's root.
+      if (typeof root !== 'string') throw new Error('no root')
       if (broken.has(at(root, path))) return { kind: 'unreadable' }
       const found = reach(at(root, path))
       if (found === 'missing' || found === 'linked') return { kind: found }
@@ -108,6 +110,7 @@ function tree() {
     },
     during: (listing: number, change: () => void) => changes.set(listing, change),
     break: (path: string) => broken.add(path),
+    mend: (path: string) => broken.delete(path),
     throwing: () => {
       throwing = true
     },
@@ -215,6 +218,40 @@ describe('reading the source roots (C5)', () => {
     expect(kept.reading.revision).toBe(settled.reading.revision)
     expect(kept.reading.packages[0]?.version).toBe('p:MAIN.md=f:v2')
   })
+
+  it('keeps the files of a package in the order of their paths, whatever order they are listed in', async () => {
+    const s = await setup()
+    for (const name of ['m', 'z', 'a']) s.t.write(`/a/.omne/gadgets/lamp/${name}.md`, name)
+    const read = await s.adopt('turn-1')
+    if (read.kind !== 'adopted') throw new Error(read.kind)
+    expect(read.reading.packages[0]?.entries.map(entry => entry.path)).toEqual([
+      'a.md',
+      'm.md',
+      'z.md',
+    ])
+  })
+
+  it('a pass that cannot be read ends the reading, even when the next one could be read', async () => {
+    const s = await setup()
+    s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
+    s.t.break('/a/.omne/gadgets/lamp')
+    // One layout, two roots: two listings a pass. The third is the first of the second pass.
+    s.t.during(3, () => s.t.mend('/a/.omne/gadgets/lamp'))
+    const first = await s.adopt('turn-1')
+    if (first.kind !== 'adopted') throw new Error(first.kind)
+    expect(first.fresh).toBe(false)
+    expect(first.reason).toBe('.omne/gadgets/lamp cannot be read')
+  })
+
+  it('a third pass that cannot be read gives its own reason', async () => {
+    const s = await setup()
+    s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
+    s.t.during(3, () => s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v2'))
+    s.t.during(5, () => s.t.break('/a/.omne/gadgets/lamp'))
+    const kept = await s.adopt('turn-1')
+    if (kept.kind !== 'adopted') throw new Error(kept.kind)
+    expect(kept.reason).toBe('.omne/gadgets/lamp cannot be read')
+  })
 })
 
 describe('adopting the sources for a key (C6)', () => {
@@ -231,7 +268,7 @@ describe('adopting the sources for a key (C6)', () => {
   it('a store that cannot be read answers unavailable and records nothing', async () => {
     const s = await setup()
     s.w.store.fail('unreadable')
-    expect((await s.adopt('turn-1')).kind).toBe('unavailable')
+    expect(await s.adopt('turn-1')).toEqual({ kind: 'unavailable', diagnostic: 'store' })
     s.w.store.fail('none')
     expect(
       await s.sources.adopted(ALICE, { workspace: s.target.workspace, key: 'turn-1' }),
@@ -320,7 +357,7 @@ describe('adopting the sources for a key (C6)', () => {
     const s = await setup()
     s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
     s.w.store.fail('lost')
-    expect((await s.adopt('turn-1')).kind).toBe('unavailable')
+    expect(await s.adopt('turn-1')).toEqual({ kind: 'unavailable', diagnostic: 'store' })
     s.w.store.fail('none')
     s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v2')
     const taken = await s.adopt('turn-1')
@@ -364,6 +401,22 @@ describe('reading a file of an adopted package', () => {
     await s.adopt('turn-1')
     const input = { workspace: s.target.workspace, key: 'turn-1', at: { ...at, digest: 'f:v1' } }
     expect(await s.sources.open(BOB, input)).toEqual({ kind: 'not-permitted' })
+  })
+
+  it('reads nothing recorded for a caller no longer admitted, at whichever check it is refused', async () => {
+    const s = await setup()
+    s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
+    await s.adopt('turn-1')
+    const workspace = s.target.workspace
+    const input = { workspace, key: 'turn-1', at: { ...at, digest: 'f:v1' } }
+    s.w.authority.admits(() => 'denied')
+    expect(await s.sources.adopted(ALICE, { workspace, key: 'turn-1' })).toEqual({
+      kind: 'not-permitted',
+    })
+    expect(await s.sources.open(ALICE, input)).toEqual({ kind: 'not-permitted' })
+    let asked = 0
+    s.w.authority.admits(() => (asked++ === 0 ? 'allowed' : 'denied'))
+    expect(await s.sources.open(ALICE, input)).toEqual({ kind: 'not-permitted' })
   })
 })
 
@@ -435,7 +488,7 @@ describe('what the sources answer when something on the way fails', () => {
       ...store,
       adoption: async () => ({ kind: 'unavailable' }) as const,
     }))
-    expect((await s.adopt('turn-1')).kind).toBe('unavailable')
+    expect(await s.adopt('turn-1')).toEqual({ kind: 'unavailable', diagnostic: 'store' })
   })
 
   it('is not permitted when the relation ends between the read and the commit, and records nothing', async () => {

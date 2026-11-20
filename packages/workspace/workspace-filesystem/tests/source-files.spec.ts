@@ -79,6 +79,10 @@ describe('reading a package', () => {
     expect(await files.files(r.base, ['.omne', 'gadgets', 'none'], LIMITS)).toEqual({
       kind: 'missing',
     })
+    r.write('.omne/gadgets/flat', 'a file where a package would be')
+    expect(await files.files(r.base, ['.omne', 'gadgets', 'flat'], LIMITS)).toEqual({
+      kind: 'missing',
+    })
   })
 
   it('answers over the limit for too many files, a file too large, or too many bytes', async () => {

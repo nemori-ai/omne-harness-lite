@@ -73,10 +73,7 @@ async function readOnce(
 
 const sameAs = (left: Pass, right: Pass) => JSON.stringify(left) === JSON.stringify(right)
 
-/**
- * The packages under both source roots, read as one consistent whole: two passes that agree. When
- * the files change in between, one more pass is made; when that one differs too, nothing is read.
- */
+/** Both source roots read as one whole: two passes that agree, or a third; else nothing is read. */
 export async function readSources(
   ports: SourceReadingPorts,
   directory: string,
