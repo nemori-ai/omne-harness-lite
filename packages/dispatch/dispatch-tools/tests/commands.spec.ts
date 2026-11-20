@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Dispatch } from '@omne-harness/dispatch-contract'
-import { answerAgents } from '../src/author.ts'
-import { attachAgents, type AgentsCallSource, type BoundAgents } from '../src/port.ts'
+import { agentsExecutor, answerAgents } from '../src/author.ts'
+import { agentsOf, attachAgents, type AgentsCallSource, type BoundAgents } from '../src/port.ts'
 import type { AgentsArguments } from '../src/protocol.ts'
 import { CONTEXT, SELF, dispatchOf, done, refused, world } from './world.ts'
 
@@ -486,4 +486,58 @@ describe('a call the services cannot be reached from', () => {
       expect(w.asked).toEqual([])
     },
   )
+})
+
+describe('the executor of the commands that do not wait', () => {
+  it('returns the answer of a command, and fails the call with the reason of a failed one', async () => {
+    const w = world({ show: async () => refused('no-such-dispatch') })
+    const context = attached(w) as never
+    const help = await agentsExecutor.execute({ command: 'help', params: {} }, null, context)
+    expect(help.startsWith('done Agents help\n')).toBe(true)
+    const failing = agentsExecutor.execute(
+      { command: 'show', params: { dispatch: reported.id } },
+      null,
+      context,
+    )
+    await expect(failing).rejects.toThrow(/^no-such-dispatch: /u)
+  })
+
+  it('does not run the dispatch command, which has its own executor', async () => {
+    const w = world()
+    const dispatch = {
+      command: 'dispatch',
+      params: { mode: 'delegate', agent: 'a', instruction: 'x' },
+    }
+    await expect(
+      agentsExecutor.execute(dispatch as never, null, attached(w) as never),
+    ).rejects.toThrow('dispatch runs through its checkpoint executor')
+    expect(w.asked).toEqual([])
+  })
+})
+
+describe('the services attached to a call', () => {
+  it('leave with the call: finishing detaches them and finishes the scope once', async () => {
+    const w = world()
+    const exits: unknown[] = []
+    const scope = {
+      context: w.context,
+      limits: {},
+      finish: async (exit: unknown) => void exits.push(exit),
+    }
+    const held = attachAgents(scope as never, w.bound)
+    expect(agentsOf(w.context)).toBe(w.bound)
+    await Promise.all([held.finish('first' as never), held.finish('second' as never)])
+    expect(exits).toEqual(['first'])
+    expect(agentsOf(w.context)).toBeUndefined()
+  })
+
+  it('does not detach the services a later attachment of the same call put there', async () => {
+    const w = world()
+    const scope = { context: w.context, limits: {}, finish: async () => undefined }
+    const first = attachAgents(scope as never, w.bound)
+    const later = world().bound
+    attachAgents(scope as never, later)
+    await first.finish('done' as never)
+    expect(agentsOf(w.context)).toBe(later)
+  })
 })
