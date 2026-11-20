@@ -17,6 +17,24 @@ function picture(format: Format, width = 12, height = 8): Promise<Buffer> {
 }
 type Made = Promise<string | Uint8Array>
 
+/** A PNG whose container reads well and whose pixel data does not decode: the sum still matches. */
+async function undecodable(): Promise<Buffer> {
+  const copy = Buffer.from(await picture('png'))
+  for (let offset = 8; offset + 12 <= copy.length;) {
+    const size = copy.readUInt32BE(offset)
+    if (copy.toString('ascii', offset + 4, offset + 8) === 'IDAT' && size > 0) {
+      copy[offset + 8] = copy[offset + 8]! ^ 0xff
+      copy.writeUInt32BE(
+        crc32(copy.subarray(offset + 4, offset + 8 + size)) >>> 0,
+        offset + 8 + size,
+      )
+      return copy
+    }
+    offset += 12 + size
+  }
+  throw new Error('fixture has no IDAT')
+}
+
 /** A PNG that declares two frames: the animation chunk goes in right after the header chunk. */
 async function animatedPng(): Promise<Buffer> {
   const png = await picture('png')
@@ -135,6 +153,7 @@ describe('Files open refuses, stores nothing, and answers one line of text', () 
     ['text that is no picture', async (): Made => 'just words', 'not-image'],
     ['an empty file', async (): Made => new Uint8Array(), 'not-image'],
     ['a picture cut short', async (): Made => (await picture('png')).subarray(0, 40), 'damaged'],
+    ['a picture whose pixels do not decode', (): Made => undecodable(), 'damaged'],
     ['an animated PNG, whose first frame is not taken', (): Made => animatedPng(), 'animated'],
     ['a picture wider than the budget', (): Made => picture('png', 65, 8), 'over-budget'],
     ['a picture taller than the budget', (): Made => picture('jpeg', 8, 65), 'over-budget'],
@@ -147,6 +166,33 @@ describe('Files open refuses, stores nothing, and answers one line of text', () 
     expect(await refused({ '/x': bytes }, '/x', { imageMaxDecodedBytes: 60 * 60 * 4 - 1 })).toBe(
       'rejected reason=over-budget path="/x"',
     )
+  })
+})
+
+describe('Files open decodes no more pictures at once than its construction says', () => {
+  const together = async (imageConcurrency: number) => {
+    const good = await picture('png')
+    const fixture = filesFixture({ '/a': good, '/b': good })
+    const author = value(createFilesAuthor(filesConstruction({ imageConcurrency })))
+    const open = (path: string) => runRaw(author, 'open', { path }, fixture.environment)
+    const results = (await Promise.all([open('/a'), open('/b')])) as Result[]
+    return { texts: results.map(textOf), puts: fixture.puts.length }
+  }
+
+  it('one at a time: the second of two opens together is refused as busy, and may be asked again', async () => {
+    const { texts, puts } = await together(1)
+    expect(texts.filter(text => text === 'rejected reason=busy path="/b"')).toHaveLength(1)
+    expect(texts.filter(text => text.endsWith('|<image>'))).toHaveLength(1)
+    expect(puts).toBe(1)
+  })
+
+  it('two at a time: both are stored, and each may be as large as the budget of one picture', async () => {
+    expect(await together(2)).toMatchObject({ puts: 2 })
+    const { fixture, result } = await opened({ '/large': await picture('png', 60, 60) }, '/large', {
+      limits: { imageConcurrency: 2 },
+    })
+    expect(textOf(result)).toContain('|<image>')
+    expect(fixture.puts).toHaveLength(1)
   })
 })
 
@@ -170,6 +216,18 @@ describe('Files open says what the store answered', () => {
   it('no answer: unknown, and it does not put the picture again', async () => {
     expect(await answered({ kind: 'unknown', operation: 'media.put', reason: 'no answer' })).toBe(
       'unknown path="/a.png" whether the picture was stored is not known: no answer',
+    )
+  })
+
+  it('a reference from the store that is no content reference fails the call: no block is made of it', async () => {
+    const fixture = filesFixture({ '/a.png': await picture('png') })
+    fixture.stored.answer = put => {
+      const product = productOf(put)
+      return { ok: { ...product, ref: { ...product.ref, bytes: 'many' } } }
+    }
+    const author = value(createFilesAuthor(fixture.config))
+    await expect(runRaw(author, 'open', { path: '/a.png' }, fixture.environment)).rejects.toThrow(
+      /Invalid Files open block/u,
     )
   })
 

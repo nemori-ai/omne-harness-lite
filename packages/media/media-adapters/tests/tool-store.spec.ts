@@ -50,10 +50,12 @@ describe('the store of products of Tool over media', () => {
     expect(await put(store, new Uint8Array([...png(4, 3), ...new Uint8Array(60)]))).toEqual({
       failure: { kind: 'too-large', reason: 'over the 64 byte limit of media for this type' },
     })
-    expect(await put(store, PICTURE, 'application/x-unknown-thing')).toMatchObject({
-      failure: { kind: 'unsupported' },
+    expect(await put(store, PICTURE, 'application/x-unknown-thing')).toEqual({
+      failure: { kind: 'unsupported', reason: 'media does not take this type' },
     })
-    expect(await put(store, PICTURE, 'image/jpeg')).toMatchObject({ failure: { kind: 'invalid' } })
+    expect(await put(store, PICTURE, 'image/jpeg')).toEqual({
+      failure: { kind: 'invalid', reason: 'the bytes are not of the named type' },
+    })
   })
 
   it.each([

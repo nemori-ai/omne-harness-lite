@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { originRef, type EnvironmentLease } from '@omne-harness/execution-environment-contract'
 import type { ToolMediaProduct, ToolMediaStore } from '@omne-harness/tool-contract/provider'
-import { TOOL_PRODUCT_OWNER, createAuthorEnvironment } from '../../src/author-environment.ts'
+import { createAuthorEnvironment } from '../../src/author-environment.ts'
 import { callId, principalA, tenantA } from '../coordinator-values.ts'
 
 const lease: EnvironmentLease = {
@@ -58,7 +58,7 @@ describe('the author hands a product over through the environment (TL-60)', () =
           principal: principalA,
           tenant: tenantA,
           holder: {
-            owner: TOOL_PRODUCT_OWNER,
+            owner: '@omne-harness/tool-host-local/products',
             work: 'call',
             position: 'result',
             purpose: 'product',
