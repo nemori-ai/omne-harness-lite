@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest'
 
 import { ratchet, tally } from './ratchet.ts'
 import { isKit, KIT } from './scope.ts'
+import { cssRules, selectorClasses, STYLESHEETS } from './css-text.ts'
 import {
   attribute,
   attributeString,
-  cssRules,
   field,
   isIntrinsic,
   isString,
@@ -16,13 +16,10 @@ import {
   nodes,
   parseModule,
   SCRIPTS,
-  selectorClasses,
-  STYLESHEETS,
   type SyntaxNode,
   templateParts,
-  violation,
   visit,
-} from './source-text.ts'
+} from './script-text.ts'
 
 /**
  * FE-I28: errors, empty states and loading each have one shared component, `InlineNotice`, `EmptyState` and
@@ -50,7 +47,7 @@ const STATE_TABLE = join(KIT, 'src/patterns/ai/state-labels.ts')
 const LOADING_TEXT = /^\s*(?:正在读|正在加载|读取中|加载中|载入中)/u
 const LOADING_COMPONENTS = new Set(['LoadingState', 'LoadingIndicator'])
 const BADGE_CLASS = /(?:^|[-_])(?:badge|pill|count)s?(?:$|[-_])/u
-const BADGE_LOOK = /(?:^|;\s*)(?:border(?:-[a-z]+)*-radius|background(?:-color|-image)?)\s*:/u
+const BADGE_LOOK = /^(?:border(?:-[a-z]+)*-radius|background(?:-color|-image)?)$/u
 
 function classTokens(opening: SyntaxNode): string[] {
   return (attributeString(opening, 'className') ?? '').split(/\s+/u).filter(token => token !== '')
@@ -123,7 +120,7 @@ export function secondComponents(
 export function ownBadges(stylesheet: string): string[] {
   const found = new Set<string>()
   for (const rule of cssRules(stylesheet))
-    if (BADGE_LOOK.test(rule.declarations))
+    if (rule.declarations.some(declaration => BADGE_LOOK.test(declaration.property)))
       for (const name of selectorClasses(rule.selector))
         if (BADGE_CLASS.test(name)) found.add(`own pill or badge .${name}`)
   return [...found]
@@ -146,12 +143,10 @@ describe('one component per job', () => {
   it('adds no second component for a job', () => {
     const scripts = SCRIPTS.filter(file => file.kind === 'tsx' || file.kind === 'ts').flatMap(
       file =>
-        secondComponents(moduleOf(file), ownedJobs(file.path)).map(job =>
-          violation(file.path, job),
-        ),
+        secondComponents(moduleOf(file), ownedJobs(file.path)).map(job => `${file.path} | ${job}`),
     )
     const sheets = STYLESHEETS.filter(file => !isKit(file.path)).flatMap(file =>
-      ownBadges(file.text).map(badge => violation(file.path, badge)),
+      ownBadges(file.text).map(badge => `${file.path} | ${badge}`),
     )
     const report = ratchet('one-per-job', tally([...scripts, ...sheets]))
     expect(report.missing, 'no baseline: write it once with DESIGN_GATES_SEED=1').toBe(false)

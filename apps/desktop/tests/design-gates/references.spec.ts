@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest'
 
 import { ratchet, tally } from './ratchet.ts'
 import { DESKTOP_PAGE, FILES, KIT, REPOSITORY } from './scope.ts'
-import { violation } from './source-text.ts'
 
 /**
  * FE-I35: a reference such as `visual-standard/references/timing.md#1-界面的一只钟` sends a reader to one place in the
@@ -101,7 +100,7 @@ describe('visual standard references', () => {
       ...SPECS.map(path => ({ path, text: readFileSync(join(REPOSITORY, path), 'utf8') })),
     ]
     const found = sources.flatMap(({ path, text }) =>
-      danglingReferences(text, readSkillFile).map(reference => violation(path, reference)),
+      danglingReferences(text, readSkillFile).map(reference => `${path} | ${reference}`),
     )
     const report = ratchet('references', tally(found))
     expect(report.missing, 'no baseline: write it once with DESIGN_GATES_SEED=1').toBe(false)
