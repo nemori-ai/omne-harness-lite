@@ -93,25 +93,20 @@ async function begin(
   return succeed(statusOf(input.upload, row.ok))
 }
 
-async function append(
+/** A part the row took before: the same bytes are answered again, other bytes are a conflict. */
+const taken = (row: MediaRow, sequence: number, digest: string) =>
+  row.parts[sequence] === digest
+    ? succeed({ nextSequence: row.nextSequence })
+    : fail({ kind: 'conflict' } as const)
+
+/** Stores the next part, then advances the row only if it still waits for this sequence. */
+async function takeNext(
   context: Context,
+  row: MediaRow,
   input: Parameters<Uploads['append']>[0],
+  digest: string,
 ): ReturnType<Uploads['append']> {
-  const { objects, index, config, rowOf, writeOf } = context
-  if (input.part.byteLength > config.partBytes)
-    return fail({ kind: 'part-too-large', limit: config.partBytes })
-  const found = await rowOf(tenantText(input.tenant), input.upload)
-  if ('failure' in found) return found
-  const row = found.ok
-  if (row.state !== 'uploading') return fail({ kind: 'committed' })
-  const digest = digestOf(input.part)
-  if (input.sequence < row.nextSequence)
-    return row.parts[input.sequence] === digest
-      ? succeed({ nextSequence: row.nextSequence })
-      : fail({ kind: 'conflict' })
-  if (input.sequence > row.nextSequence)
-    return fail({ kind: 'gap', nextSequence: row.nextSequence })
-  if (row.received + input.part.byteLength > row.bytes) return fail({ kind: 'beyond-declared' })
+  const { objects, index, rowOf, writeOf } = context
   const write = await writeOf(row)
   if ('failure' in write) return write
   const stored = await objects.storeOf(row.storage)?.append(write.ok, input.sequence, input.part)
@@ -126,17 +121,57 @@ async function append(
   if ('ok' in advanced) return advanced
   if (advanced.failure.kind !== 'stale') return writeFailure('index', advanced.failure)
   const again = await rowOf(row.tenant, input.upload)
-  if ('failure' in again) return again
-  return again.ok.parts[input.sequence] === digest
-    ? succeed({ nextSequence: again.ok.nextSequence })
-    : fail({ kind: 'conflict' })
+  return 'failure' in again ? again : taken(again.ok, input.sequence, digest)
+}
+
+async function append(
+  context: Context,
+  input: Parameters<Uploads['append']>[0],
+): ReturnType<Uploads['append']> {
+  const { config, rowOf } = context
+  if (input.part.byteLength > config.partBytes)
+    return fail({ kind: 'part-too-large', limit: config.partBytes })
+  const found = await rowOf(tenantText(input.tenant), input.upload)
+  if ('failure' in found) return found
+  const row = found.ok
+  if (row.state !== 'uploading') return fail({ kind: 'committed' })
+  const digest = digestOf(input.part)
+  if (input.sequence < row.nextSequence) return taken(row, input.sequence, digest)
+  if (input.sequence > row.nextSequence)
+    return fail({ kind: 'gap', nextSequence: row.nextSequence })
+  if (row.received + input.part.byteLength > row.bytes) return fail({ kind: 'beyond-declared' })
+  return takeNext(context, row, input, digest)
+}
+
+/** Seals the write of a complete row and reads the whole object back from the store. */
+async function sealedBytes(
+  context: Context,
+  row: MediaRow,
+): Promise<Outcome<Uint8Array, MediaUnavailable | MediaUnknown>> {
+  const write = await context.writeOf(row)
+  if ('failure' in write) return write
+  const store = context.objects.storeOf(row.storage)
+  if (store === undefined) return unavailable('store')
+  if ('failure' in (await store.seal(write.ok, row.parts.length))) return unavailable('store')
+  const opened = await store.open(row.key)
+  return 'failure' in opened ? unavailable('store') : succeed(await collect(opened.ok))
+}
+
+/** What the sealed bytes are, or the refusal after which nothing of the upload is kept. */
+async function examined(objects: Objects, row: MediaRow, bytes: Uint8Array, digest: string) {
+  const measured =
+    bytes.byteLength === row.bytes && digestOf(bytes) === digest
+      ? await objects.measure(row.mediaType, bytes)
+      : fail({ kind: 'digest-mismatch' } as const)
+  if ('failure' in measured) await objects.discard(row)
+  return measured
 }
 
 async function commit(
   context: Context,
   input: Parameters<Uploads['commit']>[0],
 ): ReturnType<Uploads['commit']> {
-  const { objects, rowOf, writeOf } = context
+  const { objects, rowOf } = context
   const found = await rowOf(tenantText(input.tenant), input.upload)
   if ('failure' in found) return found
   const row = found.ok
@@ -146,29 +181,15 @@ async function commit(
       : fail({ kind: 'digest-mismatch' })
   if (row.received !== row.bytes)
     return fail({ kind: 'incomplete', nextSequence: row.nextSequence })
-  const write = await writeOf(row)
-  if ('failure' in write) return write
-  const store = objects.storeOf(row.storage)
-  const sealed = await store?.seal(write.ok, row.parts.length)
-  if (sealed === undefined || 'failure' in sealed) return unavailable('store')
-  const opened = await store?.open(row.key)
-  if (opened === undefined || 'failure' in opened) return unavailable('store')
-  const bytes = await collect(opened.ok)
-  const digest = digestOf(bytes)
-  if (bytes.byteLength !== row.bytes || digest !== input.digest) {
-    await objects.discard(row)
-    return fail({ kind: 'digest-mismatch' })
-  }
-  const measured = await objects.measure(row.mediaType, bytes)
-  if ('failure' in measured) {
-    await objects.discard(row)
-    return measured
-  }
+  const bytes = await sealedBytes(context, row)
+  if ('failure' in bytes) return bytes
+  const facts = await examined(objects, row, bytes.ok, input.digest)
+  if ('failure' in facts) return facts
   const settled = await objects.settle({
     row,
-    digest,
-    bytes: bytes.byteLength,
-    facts: measured.ok,
+    digest: input.digest,
+    bytes: row.bytes,
+    facts: facts.ok,
     holder: null,
   })
   if ('ok' in settled) return settled
