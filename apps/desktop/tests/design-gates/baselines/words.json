@@ -1,0 +1,12 @@
+{
+  "gate": "words",
+  "entries": {
+    "apps/desktop/src/page/shell/shell.tsx | 已连接": 1,
+    "packages/frontend/ui-kit/src/patterns/ai/state-labels.ts | 已连接": 1,
+    "packages/notification/notification-ui/src/view/entry-row.tsx | 弱提醒": 1,
+    "packages/notification/notification-ui/src/view/entry-row.tsx | 强提醒": 1,
+    "packages/session/session-ui/src/model/session-machine.ts | 正在生成": 1,
+    "packages/session/session-ui/src/view/conversation-page.tsx | 正在等回复": 1,
+    "packages/session/session-ui/src/view/parts.tsx | 正在生成": 1
+  }
+}
