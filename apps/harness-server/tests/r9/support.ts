@@ -16,7 +16,11 @@ import { createSecretVault } from '@omne-harness/settings-local/secrets'
 import { providerCredentialKey, releaseProvider } from '../../src/assets/model-providers.ts'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
-import { LOCAL_TOKENIZERS, LOCAL_TOOL_RESULT_BYTES } from '../../src/local/operator-defaults.ts'
+import {
+  LOCAL_OPEN_LIMITS,
+  LOCAL_TOKENIZERS,
+  LOCAL_TOOL_RESULT_BYTES,
+} from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
 import { DEFAULT_COMPACTION_BINDING } from '../../src/assembly/compaction-provider.ts'
 import { SEARCH_RANKING } from '../../src/entry/search-ranking.ts'
@@ -279,7 +283,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
     filesRoot,
     construction: {
       Shell: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...shell, env },
-      Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
+      Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_OPEN_LIMITS },
       Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
       TodoItems: { resultMaxBytes: 1_048_576 },
       BkgToolCalls: { resultMaxBytes: 65_536 },

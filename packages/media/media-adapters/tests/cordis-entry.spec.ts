@@ -1,12 +1,17 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { MediaModelSourcePlugin, mediaIntakePlugin } from '@omne-harness/media-adapters/cordis'
+import {
+  MediaModelSourcePlugin,
+  MediaToolStorePlugin,
+  mediaIntakePlugin,
+} from '@omne-harness/media-adapters/cordis'
 import type { Custody } from '@omne-harness/media-contract'
 import { MediaService } from '@omne-harness/media-cordis-contract/cordis'
 import { sessionBeforeIntakePlugin } from '@omne-harness/session-cordis-contract/cordis'
 
 const holds: unknown[] = []
 const opens: unknown[] = []
+const puts: unknown[] = []
 class Media extends MediaService {
   readonly uploads = {} as MediaService['uploads']
   readonly variants: MediaService['variants'] = {
@@ -21,14 +26,22 @@ class Media extends MediaService {
       holds.push(input.ref)
       return { ok: { facts: { kind: 'image', widthPixels: 2, heightPixels: 1 } } }
     },
-  } as Pick<Custody, 'hold'> as Custody
+    put: async input => {
+      puts.push(input.holder)
+      return { failure: { kind: 'unsupported-type' } }
+    },
+  } as Pick<Custody, 'hold' | 'put'> as Custody
 }
 const names = (root: Context) => root.sessionBeforeIntake.current().map(each => each.name)
 
 describe('the ./cordis entry', () => {
   it('exports the plugins of the intake adapter and of the media source of Model', async () => {
     const cordis = (await import('@omne-harness/media-adapters/cordis')) as Record<string, unknown>
-    expect(Object.keys(cordis).sort()).toEqual(['MediaModelSourcePlugin', 'mediaIntakePlugin'])
+    expect(Object.keys(cordis).sort()).toEqual([
+      'MediaModelSourcePlugin',
+      'MediaToolStorePlugin',
+      'mediaIntakePlugin',
+    ])
     expect(mediaIntakePlugin.name).toBe('media-intake')
   })
 
@@ -57,6 +70,29 @@ describe('the ./cordis entry', () => {
       failure: { kind: 'unavailable', diagnostic: 'media is not there' },
     })
     expect(opens).toEqual([ref])
+  })
+
+  it('provides toolMediaStore while media is there, and a held put after it left is unavailable', async () => {
+    const root = new Context()
+    root.plugin(MediaToolStorePlugin)
+    expect(root.get('toolMediaStore')).toBeUndefined()
+    const media = await root.plugin(Media)
+    const store = root.get('toolMediaStore')
+    const holder = { owner: 'o', work: 'w', position: 'p', purpose: 'product' }
+    const put = () =>
+      store?.put({
+        principal: null,
+        tenant: 't' as never,
+        holder,
+        mediaType: 'image/png',
+        bytes: new Uint8Array([1]),
+      })
+    expect(await put()).toMatchObject({ failure: { kind: 'unsupported' } })
+    expect(puts).toEqual([holder])
+    await media.dispose()
+    expect(root.get('toolMediaStore')).toBeUndefined()
+    expect(await put()).toMatchObject({ failure: { kind: 'unavailable', operation: 'media.put' } })
+    expect(puts).toEqual([holder])
   })
 
   it('registers media.references while media and the registration point are there', async () => {

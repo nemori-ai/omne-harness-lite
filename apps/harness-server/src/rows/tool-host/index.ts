@@ -44,7 +44,16 @@ export const toolHostConfig = z
             outputModalities: z.tuple([z.literal('text')]),
           })
           .optional(),
-        Files: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Files: z
+          .strictObject({
+            resultMaxBytes: positive,
+            openMaxBytes: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
+          .optional(),
       })
       .optional(),
     /** The operator's values for the settings a release tool declares, by tool name and item id. */

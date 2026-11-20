@@ -12,7 +12,14 @@ type Trusted = Extract<Awaited<ReturnType<typeof loadProductionRelease>>, { kind
 // Definitions do not depend on construction values (the release script proves it); any legal one serves.
 const CONSTRUCTION: Readonly<Record<string, unknown>> = {
   Shell: { resultMaxBytes: 1, executable: 'probe', argsPrefix: [], env: {} },
-  Files: { resultMaxBytes: 1 },
+  Files: {
+    resultMaxBytes: 1,
+    openMaxBytes: 1,
+    imageMaxWidth: 1,
+    imageMaxHeight: 1,
+    imageMaxDecodedBytes: 1,
+    imageConcurrency: 1,
+  },
   Tools: { resultMaxBytes: 4096, outputModalities: ['text'] },
   TodoItems: { resultMaxBytes: 4096 },
   BkgToolCalls: { resultMaxBytes: 4096 },

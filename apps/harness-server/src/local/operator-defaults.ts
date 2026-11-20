@@ -333,6 +333,13 @@ export function shellEnvironment(
 }
 
 export const LOCAL_TOOL_RESULT_BYTES = 1_048_576
+export const LOCAL_OPEN_LIMITS = Object.freeze({
+  openMaxBytes: 20 * 1024 * 1024,
+  imageMaxWidth: 16384,
+  imageMaxHeight: 16384,
+  imageMaxDecodedBytes: 128 * 1024 * 1024,
+  imageConcurrency: 2,
+})
 
 function toolRecords(combinationVersion: string) {
   return {
@@ -503,7 +510,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
             argsPrefix: shellArguments(platform, settings.shell),
             env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
           },
-          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
+          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...LOCAL_OPEN_LIMITS },
           Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
           TodoItems: { resultMaxBytes: 1_048_576 },
           BkgToolCalls: { resultMaxBytes: 65_536 },

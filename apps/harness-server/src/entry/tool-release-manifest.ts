@@ -54,7 +54,15 @@ export const RELEASE_TOOLS = Object.freeze([
     package: TOOL_DEFINITIONS_PACKAGE,
     capabilities: Object.freeze([] as string[]),
     export: 'filesToolModule',
-    construction: Object.freeze(['resultMaxBytes', 'cwd']),
+    construction: Object.freeze([
+      'resultMaxBytes',
+      'cwd',
+      'openMaxBytes',
+      'imageMaxWidth',
+      'imageMaxHeight',
+      'imageMaxDecodedBytes',
+      'imageConcurrency',
+    ]),
   }),
   Object.freeze({
     name: 'Tools',

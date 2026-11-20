@@ -2,7 +2,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import { mediaKey } from '@omne-harness/media-cordis-contract/cordis'
 import { sessionBeforeIntakeKey } from '@omne-harness/session-cordis-contract/cordis'
 import { ModelMediaSourceService } from '@omne-harness/model-cordis-contract/cordis'
-import { createModelMediaSource, createReferencesProcessor } from './index.ts'
+import { ToolMediaStoreService } from '@omne-harness/tool-cordis-contract/cordis'
+import { createModelMediaSource, createReferencesProcessor, createToolMediaStore } from './index.ts'
 
 /** Registers `media.references` while media and Session's registration point are both there. */
 export const mediaIntakePlugin = {
@@ -21,5 +22,16 @@ export class MediaModelSourcePlugin extends ModelMediaSourceService {
   constructor(ctx: Context) {
     super(ctx)
     this.open = createModelMediaSource(() => ctx.get(mediaKey)).open
+  }
+}
+
+/** Provides `toolMediaStore` while media is there; the custody is taken again at every put. */
+export class MediaToolStorePlugin extends ToolMediaStoreService<unknown> {
+  static readonly inject = [mediaKey]
+  readonly put: ToolMediaStoreService<unknown>['put']
+
+  constructor(ctx: Context) {
+    super(ctx)
+    this.put = createToolMediaStore(() => ctx.get(mediaKey)?.custody).put
   }
 }

@@ -94,7 +94,7 @@ export const filesCommands: readonly Command[] = withHelp([
   },
   {
     name: 'open',
-    summary: 'Open a file as an attachment; images are unsupported in this delivery.',
+    summary: 'Open one static PNG, JPEG or WebP picture so the model sees it.',
     fields: [path],
   },
   {

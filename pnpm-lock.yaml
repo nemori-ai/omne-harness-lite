@@ -3552,6 +3552,12 @@ importers:
       '@omne-harness/session-cordis-contract':
         specifier: workspace:*
         version: link:../../session/session-cordis-contract
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      '@omne-harness/tool-cordis-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-cordis-contract
     devDependencies:
       '@omne-harness/legal-identity':
         specifier: workspace:*
@@ -5738,6 +5744,9 @@ importers:
       '@omne-harness/human-intervention-tool':
         specifier: workspace:*
         version: link:../../human-intervention/human-intervention-tool
+      '@omne-harness/image':
+        specifier: workspace:*
+        version: link:../../execution/image
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -5763,6 +5772,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.3(@types/node@24.13.6)
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

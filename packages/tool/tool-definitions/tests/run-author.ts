@@ -12,6 +12,19 @@ export async function run<E>(
   environment: E,
   signal = new AbortController().signal,
 ) {
+  const answer = await runRaw(implementation, command, args, environment, signal)
+  if (typeof answer !== 'string') throw new Error('Expected readable text')
+  return answer
+}
+
+/** What the author of the command returned, before any rendering. */
+export async function runRaw<E>(
+  implementation: ToolImplementation<E, ToolMessageContentBlock>,
+  command: string,
+  args: unknown,
+  environment: E,
+  signal = new AbortController().signal,
+) {
   const registration = readToolRegistration(implementation)
   if (registration?.kind !== 'commands') throw new Error('Expected commands')
   const operation = registration.operations.find(([name]) => name === command)?.[1]
@@ -37,8 +50,7 @@ export async function run<E>(
   if ('failure' in scope) throw new Error(JSON.stringify(scope.failure))
   const answer = await executeTool(parsed.ok, operation.author.executor, environment, scope.ok)
   if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
-  if (typeof answer.ok !== 'string') throw new Error('Expected readable text')
-  return answer.ok
+  return answer.ok as unknown
 }
 
 export function value<T>(answer: { ok: T } | { failure: unknown }): T {

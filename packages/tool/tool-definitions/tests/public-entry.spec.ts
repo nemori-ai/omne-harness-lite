@@ -7,15 +7,10 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { run, value } from './run-author.ts'
-import { filesFixture } from './fixtures/files.ts'
+import { filesConstruction, filesFixture } from './fixtures/files.ts'
 
 it('publishes declared commands and the same complete help table', async () => {
-  const author = value(
-    createFilesAuthor({
-      kind: 'object',
-      entries: [{ key: 'resultMaxBytes', value: { kind: 'number', lexeme: '32768' } }],
-    }),
-  )
+  const author = value(createFilesAuthor(filesConstruction()))
   const adoption = { owner: 'test', name: 'Files', revision: '1', digest: 'sha256:files' }
   const definition = deriveDefinition(
     { asset: { name: 'Files', adoption }, requiredCapabilities: [] },
@@ -47,7 +42,14 @@ it('publishes declared commands and the same complete help table', async () => {
   const menu = await run(author, 'help', {}, filesFixture().environment)
   expect(menu.startsWith('done Files help\nCall with ')).toBe(true)
   for (const command of commands) expect(menu).toContain(`\n${command} {`)
-  expect(menu).toContain('unsupported')
+  expect(menu).toContain(
+    '\nopen {path} - Open one static PNG, JPEG or WebP picture so the model sees it. Returns ToolResult',
+  )
+  expect(author.facts.implements.commands.find(item => item.name === 'open')?.modalities).toEqual([
+    'image',
+  ])
+  expect(author.facts.implements.commands.filter(item => 'modalities' in item)).toHaveLength(1)
+  expect(author.facts.declarations.outputModalities).toEqual(['text'])
   const write = await run(author, 'help', { name: 'write' }, filesFixture().environment)
   expect(write).toContain(
     'Usage: Files {"command": "write", "params": {path, text, mode=create|replace, parents?, expected_version?}}',

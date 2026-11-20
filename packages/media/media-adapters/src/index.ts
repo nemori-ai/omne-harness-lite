@@ -2,6 +2,7 @@ import type { Custody } from '@omne-harness/media-contract'
 import type { IntakeProcessor, IntakeVerdict } from '@omne-harness/session-contract'
 
 export { createModelMediaSource } from './model-source.ts'
+export { createToolMediaStore } from './tool-store.ts'
 
 export const REFERENCES_PROCESSOR = 'media.references'
 

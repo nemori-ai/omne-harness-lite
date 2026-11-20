@@ -7,6 +7,7 @@ import type {
   TerminalFacility,
   TerminalRetention,
 } from '@omne-harness/execution-environment-contract'
+import type { ToolMediaSink } from '@omne-harness/tool-contract/provider'
 
 type BoundRequest<T> = Omit<T, keyof FacilityRequest<unknown> | 'named'>
 type BoundMethod<T> = T extends (request: infer R) => infer Answer
@@ -31,6 +32,8 @@ type Batch = BoundRequest<Parameters<FileSystemFacility<unknown>['commitBatch']>
 export type FilesAuthorEnvironment = Readonly<{
   /** The working directory of this call: relative paths resolve against it. Absent: it has none. */
   directory?: string
+  /** Where a command hands over a product for the model to perceive. */
+  media: ToolMediaSink
   files: FileOperations & {
     move(
       request: Omit<Transfer, 'target'> & { readonly target: { readonly path: string } },

@@ -379,7 +379,14 @@ describe('localOperatorLayer over the bundled distribution', () => {
     const construction = (configOf(layer, 'tool-host') as { construction: Record<string, object> })
       .construction
     expect(Object.keys(construction['Shell']!)).not.toContain('cwd')
-    expect(construction['Files']).toEqual({ resultMaxBytes: 1_048_576 })
+    expect(construction['Files']).toEqual({
+      resultMaxBytes: 1_048_576,
+      openMaxBytes: 20_971_520,
+      imageMaxWidth: 16384,
+      imageMaxHeight: 16384,
+      imageMaxDecodedBytes: 134_217_728,
+      imageConcurrency: 2,
+    })
     expect(configOf(layer, 'tool-records')).not.toHaveProperty('filesRoot')
     expect(configOf(layer, 'execution-host')).toEqual({ stateDirectory: '/h/state/host-files' })
   })

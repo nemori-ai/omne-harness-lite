@@ -6,5 +6,6 @@ it('the root entry exports the processor, its name and the media source of Model
     'REFERENCES_PROCESSOR',
     'createModelMediaSource',
     'createReferencesProcessor',
+    'createToolMediaStore',
   ])
 })
