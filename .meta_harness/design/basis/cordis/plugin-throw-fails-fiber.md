@@ -8,6 +8,7 @@ symbols:
   - "fiber.ts: 插件体抛出 ⇒ fiber 记下错误，状态读作 FAILED；await fiber 以该错误拒绝"
   - "fiber.ts: FAILED 的 fiber 不 provide 任何服务——已注册的 effect 随失败收回"
   - "fiber.ts: FAILED 的 fiber 不因必需服务换提供者而重跑；只经 update() 清掉错误后恢复"
+  - "fiber.ts: 加载途中代际已变（必需服务被撤或换了）时插件体抛出，错误只写日志，不记到 fiber 上：fiber 回到 PENDING，服务回来就重跑"
 lines:
   - "fiber.ts:50-62"
   - "fiber.ts:139-154"
@@ -15,6 +16,7 @@ lines:
   - "fiber.ts:255, 676-679"
   - "events.ts:156-159"
   - "fiber.ts:633-634"
+  - "fiber.ts:693-700"
   - "fiber.ts:681-746"
   - "fiber.ts:754-760"
 probe: packages/assembly/kernel-basis/tests/plugin-throw-fails-fiber.spec.ts
@@ -51,8 +53,9 @@ checked: 2026-11-20
 2. config `{ ttl: 0 }` 不过 `positive` 校验：拒绝且错误匹配 `/invalid config/`，`fiber.state === FAILED`，插件体没跑，`ctx.get('offers')` 为 `undefined`。
 3. 对照：config `{ ttl: 5 }` ⇒ `ACTIVE`，插件体收到校验后的值。
 4. 一个 `inject` 了服务的插件体第一次运行就抛出；之后撤掉提供者、换一个新的提供者：插件体没有再跑，`fiber.state` 仍是 `FAILED`。
+5. 插件体还在等一个 Promise 时撤掉它 `inject` 的提供者，随后插件体抛出：`await` 该 fiber 不拒绝，`fiber.state === PENDING`；再装一个提供者，插件体重跑一次。
 
-上游若改为「校验失败也跑插件体」「抛出后仍保留已 provide 的服务」或「状态不读作 FAILED」，第 1、2 条失败；若让失败的 fiber 随提供者换代重跑，第 4 条失败。本条目随之失效。
+上游若改为「校验失败也跑插件体」「抛出后仍保留已 provide 的服务」或「状态不读作 FAILED」，第 1、2 条失败；若让失败的 fiber 随提供者换代重跑，第 4 条失败；若把被取代的那次加载的错误也记成失败，第 5 条失败。本条目随之失效。
 
 ## 核验范围
 
@@ -60,6 +63,7 @@ checked: 2026-11-20
 
 ## 已知的误用
 
+- **拿 `await ctx.plugin(...)` 拒绝当「插件体抛出过」的唯一信号。**加载途中依赖被撤时，插件体的错误只进日志，`await` 正常返回，fiber 是 `PENDING`。插件体里做过不能重做的事（例如发出了一次结果未知的登记），要自己留下记录，不能靠「失败了就不会重跑」。
 - **指望提供者换代把失败的插件带回来**：失败的 fiber 不随必需服务换提供者重跑，只经 `update()` 恢复。要它回来，由装它的一方重新装或改配置。
 - **在插件体里 try/catch 吞掉配置错误再继续 provide**：得到一个半开的插件；「不半开」的前提正是让错误抛出去。
 - **把「缺可选配置」也做成抛出**：那不是配置错误，是把可选做成了必需——可选走默认值或 `ctx.get`。

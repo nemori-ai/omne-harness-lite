@@ -37,16 +37,47 @@ describe('provider-unload-waits-for-dependents', () => {
       ),
     )
 
+    const announced: unknown[] = []
+    ctx.on('internal/service', (name, value) => {
+      if (name === 'held') announced.push(value ?? 'gone')
+    })
+
     const disposing = provider.dispose()
     expect(await settled(disposing, 30)).toBe(false)
     expect(ctx.get('held')).toBeUndefined()
+    expect(ctx.get('held', false)).toBe('value')
+    expect(announced).toEqual(['value'])
     expect(dependent.state as number).toBe(FIBER_STATE.UNLOADING)
     expect(order).toEqual([])
 
     release()
     await disposing
     expect(order).toEqual(['dependent effect', 'provider effect'])
+    expect(announced).toEqual(['value', 'gone'])
+    expect(ctx.get('held', false)).toBeUndefined()
     expect(dependent.state as number).toBe(FIBER_STATE.PENDING)
+  })
+
+  it('撤除途中同名的新提供者登记不上；依赖方卸完之后才登记得上', async () => {
+    const ctx = new Context()
+    let release!: () => void
+    const held = new Promise<void>(resolve => (release = resolve))
+    const old = await ctx.plugin(plugin('old', inner => inner.provide('swapped', 'old')))
+    const dependent = await ctx.plugin(
+      plugin('dependent', inner => void inner.effect(() => () => held), ['swapped']),
+    )
+    const retiring = old.dispose()
+    await settled(retiring, 10)
+    await expect(
+      ctx.plugin(plugin('early', inner => inner.provide('swapped', 'new'))),
+    ).rejects.toThrow('service "swapped" has been registered at <old>')
+
+    release()
+    await retiring
+    await ctx.plugin(plugin('late', inner => inner.provide('swapped', 'new')))
+    await dependent
+    expect(ctx.get('swapped')).toBe('new')
+    expect(dependent.state as number).toBe(FIBER_STATE.ACTIVE)
   })
 
   it('没有依赖方 ⇒ 提供者的 dispose 立即卸完', async () => {

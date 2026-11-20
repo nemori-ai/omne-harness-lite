@@ -80,4 +80,34 @@ describe('plugin-throw-fails-fiber', () => {
     expect(runs).toBe(1)
     expect(consumer.state as number).toBe(FIBER_STATE.FAILED)
   })
+  it('加载途中必需服务被撤，插件体随后抛出：不记失败，回到 PENDING；服务回来就重跑', async () => {
+    const ctx = new Context()
+    ctx.logger.exporter({ levels: { default: -1 }, export: () => {} })
+    let runs = 0
+    let release!: () => void
+    const held = new Promise<void>(resolve => (release = resolve))
+    const provider = await ctx.plugin(plugin('provider', inner => inner.provide('svc', 1)))
+    const loading = ctx.plugin(
+      plugin(
+        'throws-after-withdrawal',
+        async () => {
+          runs += 1
+          await held
+          throw new Error('load failed')
+        },
+        ['svc'],
+      ),
+    )
+    await new Promise(resolve => setTimeout(resolve, 0))
+    const retiring = provider.dispose()
+    release()
+    await expect(loading.then(() => 'resolved')).resolves.toBe('resolved')
+    await retiring
+    expect(loading.state as number).toBe(FIBER_STATE.PENDING)
+    expect(runs).toBe(1)
+
+    await ctx.plugin(plugin('back', inner => inner.provide('svc', 2)))
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(runs).toBe(2)
+  })
 })

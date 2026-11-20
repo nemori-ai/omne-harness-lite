@@ -143,12 +143,8 @@ describe('production Cordis tool host', () => {
       })
       await entered.promise
       expect(author.state).toBe(1)
-      const removed = Promise.withResolvers<void>()
-      root.on('internal/service', (name, value) => {
-        if (name === 'testAuthorDependency' && value === undefined) removed.resolve()
-      })
       const retiring = dependency.dispose()
-      await removed.promise
+      await expect.poll(() => root.get('testAuthorDependency')).toBeUndefined()
       expect(host.state).toBe(2)
       expect(author.state).toBe(1)
       release.resolve()
