@@ -1,8 +1,9 @@
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { mediaProtocol } from '@omne-harness/media-protocol'
-import { readTenantText } from '@omne-harness/public-contract'
+import { readTenantText, type TenantId } from '@omne-harness/public-contract'
 import { serviceKey, type PointSink } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
+import { useMemo, type ReactNode } from 'react'
 import type { Drafts } from './model/attachment-tray.ts'
 import type { MediaClient } from './model/upload.ts'
 import { AttachmentTrayView } from './view/attachment-tray.tsx'
@@ -33,6 +34,17 @@ export const mediaComposerDraftsKey = serviceKey<DraftsHolder>('media.composer-d
 const MEDIA = protocolServiceName({ name: mediaProtocol.name, major: mediaProtocol.major })
 const ITEM = 'media'
 
+type ScopedProps = Readonly<{
+  scope: string | undefined
+  children: (tenant: TenantId) => ReactNode
+}>
+
+/** The tenant of the scope, the same value while the scope is the same: hosts draw an item often. */
+function Scoped({ scope, children }: ScopedProps) {
+  const tenant = useMemo(() => (scope === undefined ? undefined : readTenantText(scope)), [scope])
+  return tenant === undefined ? null : children(tenant)
+}
+
 export function createMediaUiModule(options: MediaUiOptions = {}) {
   return defineUiModule<Record<string, MediaClient>>({
     name: 'media-ui',
@@ -52,28 +64,28 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
       options.composerAttachments?.contribute(shell, {
         id: ITEM,
         order: 0,
-        render: ({ scope, subject }) => {
-          const tenant = scope === undefined ? undefined : readTenantText(scope)
-          return tenant === undefined ? null : (
-            <AttachmentTrayView
-              client={client}
-              tenant={tenant}
-              session={subject.session}
-              draft={subject.draft}
-              drafts={drafts}
-            />
-          )
-        },
+        render: ({ scope, subject }) => (
+          <Scoped scope={scope}>
+            {tenant => (
+              <AttachmentTrayView
+                client={client}
+                tenant={tenant}
+                session={subject.session}
+                draft={subject.draft}
+                drafts={drafts}
+              />
+            )}
+          </Scoped>
+        ),
       })
       options.block?.contribute(shell, {
         id: ITEM,
         order: 0,
-        render: ({ scope, subject }) => {
-          const tenant = scope === undefined ? undefined : readTenantText(scope)
-          return tenant === undefined ? null : (
-            <MediaBlock client={client} tenant={tenant} content={subject.content} />
-          )
-        },
+        render: ({ scope, subject }) => (
+          <Scoped scope={scope}>
+            {tenant => <MediaBlock client={client} tenant={tenant} content={subject.content} />}
+          </Scoped>
+        ),
       })
     },
   })

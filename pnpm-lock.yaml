@@ -487,6 +487,12 @@ importers:
       '@omne-harness/mcp-ui':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-ui
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../../packages/media/media-protocol
+      '@omne-harness/media-ui':
+        specifier: workspace:*
+        version: link:../../packages/media/media-ui
       '@omne-harness/model-protocol':
         specifier: workspace:*
         version: link:../../packages/model/model-protocol

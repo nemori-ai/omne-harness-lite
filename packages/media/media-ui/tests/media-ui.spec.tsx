@@ -149,6 +149,25 @@ describe('输入框的附件区', () => {
     expect(fireEvent.dragOver(form, { dataTransfer: { types: ['text/plain'] } })).toBe(true)
   })
 
+  it('宿主重画（同一份草稿）时附件还在：不重新上传，也不丢', async () => {
+    const media = fakeMedia(2)
+    const { shell } = await mounted(media)
+    const view = render(tray(shell))
+    await settle()
+    fireEvent.change(screen.getByLabelText('选择图片'), {
+      target: { files: [png('kept.png', [1, 2, 3])] },
+    })
+    await settle()
+    const before = media.calls.length
+    view.rerender(tray(shell))
+    await settle()
+    view.rerender(tray(shell))
+    await settle()
+    expect(screen.getByText('kept.png')).not.toBeNull()
+    expect(screen.getByText('已备好')).not.toBeNull()
+    expect(media.calls).toHaveLength(before)
+  })
+
   it('失败的一份写出原因；草稿换了之后附件区是空的', async () => {
     const media = fakeMedia(2)
     media.once('begin-upload', () => ({ outcome: 'limited', body: { limit: 2 } }))
@@ -230,6 +249,19 @@ describe('消息里一块非文字内容', () => {
     fireEvent.click(screen.getByRole('button', { name: '收起' }))
     await settle()
     expect(screen.getByRole('button', { name: '看原图' })).not.toBeNull()
+  })
+
+  it('宿主重画时不重读：同一块的图片只读一遍', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const { shell } = await mounted(media)
+    const view = render(<>{drawn(shell, picture)}</>)
+    await settle()
+    const before = reads(media).length
+    view.rerender(<>{drawn(shell, { ...picture })}</>)
+    await settle()
+    expect(reads(media)).toHaveLength(before)
+    expect(screen.getByRole('img', { name: '图片 64×48' }).getAttribute('src')).toBe('blob:made-1')
   })
 
   it('读不出来时写出原因，不留一张破图', async () => {

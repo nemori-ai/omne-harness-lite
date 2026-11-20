@@ -16,6 +16,8 @@ import { identityUiModule } from '@omne-harness/identity-ui/cordis'
 import '@omne-harness/identity-ui/identity-ui.css'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
+import { createMediaUiModule, mediaComposerDraftsKey } from '@omne-harness/media-ui/cordis'
+import '@omne-harness/media-ui/media-ui.css'
 import { modelChoicesKey, modelUiModule } from '@omne-harness/model-ui/cordis'
 import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
 import '@omne-harness/notification-ui/notification-ui.css'
@@ -23,7 +25,10 @@ import type { ProtocolContract } from '@omne-harness/public-contract'
 import '@omne-harness/schedule-ui/schedule-ui.css'
 import { createScheduleUiModule } from '@omne-harness/schedule-ui/cordis'
 import {
+  sessionBlock,
   sessionCallDetail,
+  sessionComposerAttachments,
+  sessionComposerDraftsKey,
   sessionDock,
   sessionModelChoicesKey,
   sessionSide,
@@ -65,5 +70,7 @@ export const assembly: Assembly = {
       store: storedLayouts(() => window.localStorage),
       refreshMs: USAGE_REFRESH_MS,
     }),
+    createMediaUiModule({ composerAttachments: sessionComposerAttachments, block: sessionBlock }),
+    handOver(mediaComposerDraftsKey, sessionComposerDraftsKey),
   ],
 }

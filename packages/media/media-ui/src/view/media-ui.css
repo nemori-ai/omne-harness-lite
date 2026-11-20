@@ -47,6 +47,7 @@
 }
 .omne-media-picture {
   display: block;
+  margin: 4px 0;
   padding: 0;
   border: 0;
   background: none;

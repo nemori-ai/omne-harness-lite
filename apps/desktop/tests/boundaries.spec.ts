@@ -124,7 +124,7 @@ describe('边界', () => {
     expect(naming).toEqual(['page/assembly.tsx'])
   })
 
-  it('装配文件列出十一个界面模块', () => {
+  it('装配文件列出十二个界面模块', () => {
     const modules = imports(join(SRC, 'page', 'assembly.tsx'))
       .filter(specifier => specifier.endsWith('-ui/cordis'))
       .sort()
@@ -134,6 +134,7 @@ describe('边界', () => {
       '@omne-harness/human-intervention-ui/cordis',
       '@omne-harness/identity-ui/cordis',
       '@omne-harness/mcp-ui/cordis',
+      '@omne-harness/media-ui/cordis',
       '@omne-harness/model-ui/cordis',
       '@omne-harness/notification-ui/cordis',
       '@omne-harness/schedule-ui/cordis',
