@@ -3442,6 +3442,15 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

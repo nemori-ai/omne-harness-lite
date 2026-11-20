@@ -52,11 +52,13 @@ export type CommitFailure =
   | Readonly<{ kind: 'incomplete'; nextSequence: number }>
   | Readonly<{ kind: 'digest-mismatch' }>
   | Readonly<{ kind: 'type-mismatch' }>
+  | Readonly<{ kind: 'over-budget' }>
 export type AbandonFailure = Readonly<{ kind: 'committed' }>
 export type PutFailure =
   | Readonly<{ kind: 'too-large'; limit: number }>
   | Readonly<{ kind: 'unsupported-type' }>
   | Readonly<{ kind: 'type-mismatch' }>
+  | Readonly<{ kind: 'over-budget' }>
 export type VariantFailure =
   | InvalidReference
   | MaterialUnavailable
@@ -74,7 +76,7 @@ export interface Uploads {
     upload: string
     mediaType: string
     bytes: number
-  }): MediaReply<UploadTicket, BeginFailure>
+  }): MediaReply<UploadStatus, BeginFailure>
   append(input: {
     tenant: TenantId
     upload: string

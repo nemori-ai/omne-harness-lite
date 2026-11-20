@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft media package; complete the accepted public contract before delivery",
+  "description": "Media: upload, custody, request versions and paged reads over ports",
   "engines": {
     "node": ">=24"
   },
@@ -30,7 +30,10 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "catalog:"
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/media-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

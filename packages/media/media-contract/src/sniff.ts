@@ -12,7 +12,6 @@ const ascii = (text: string): number[] => Array.from(text, character => characte
 const SIGNATURES: readonly Signature[] = [
   { mediaType: 'image/png', offset: 0, bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
   { mediaType: 'image/jpeg', offset: 0, bytes: [0xff, 0xd8, 0xff] },
-  { mediaType: 'image/gif', offset: 0, bytes: ascii('GIF8') },
   {
     mediaType: 'image/webp',
     offset: 0,
@@ -25,11 +24,6 @@ const SIGNATURES: readonly Signature[] = [
     bytes: ascii('RIFF'),
     also: { offset: 8, bytes: ascii('WAVE') },
   },
-  { mediaType: 'audio/mpeg', offset: 0, bytes: ascii('ID3') },
-  { mediaType: 'audio/ogg', offset: 0, bytes: ascii('OggS') },
-  { mediaType: 'audio/flac', offset: 0, bytes: ascii('fLaC') },
-  { mediaType: 'audio/webm', offset: 0, bytes: [0x1a, 0x45, 0xdf, 0xa3] },
-  { mediaType: 'audio/mp4', offset: 4, bytes: ascii('ftyp') },
   { mediaType: 'application/pdf', offset: 0, bytes: ascii('%PDF-') },
 ]
 
@@ -65,4 +59,29 @@ export function isMediaKey(key: string): boolean {
 
 export function digestText(hex: string): string {
   return `sha256:${hex}`
+}
+
+/** The facts of a PCM WAV from its header, or null when the header is not one. */
+export function wavFacts(
+  bytes: Uint8Array,
+): { durationMs: number; sampleRate: number; channels: number } | null {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const tag = (offset: number): string => String.fromCharCode(...bytes.subarray(offset, offset + 4))
+  let format: { sampleRate: number; channels: number; byteRate: number } | null = null
+  for (let offset = 12; offset + 8 <= bytes.byteLength;) {
+    const size = view.getUint32(offset + 4, true)
+    if (tag(offset) === 'fmt ' && offset + 20 <= bytes.byteLength)
+      format = {
+        channels: view.getUint16(offset + 10, true),
+        sampleRate: view.getUint32(offset + 12, true),
+        byteRate: view.getUint32(offset + 16, true),
+      }
+    if (tag(offset) === 'data' && format !== null && format.byteRate > 0) {
+      const audible = Math.min(size, bytes.byteLength - offset - 8)
+      const { sampleRate, channels } = format
+      return { durationMs: Math.round((audible * 1000) / format.byteRate), sampleRate, channels }
+    }
+    offset += 8 + size + (size % 2)
+  }
+  return null
 }
