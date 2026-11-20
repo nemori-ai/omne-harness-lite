@@ -163,6 +163,25 @@ export async function record(browser, folder, act, { lasting, clip, pixels } = {
   return index
 }
 
+/**
+ * The notification page limit the application ships with (harness-server `operator-defaults.ts`): the inbox page asks
+ * for that many, while the test layer's policy allows fewer and would refuse every read.
+ */
+const APP_NOTIFICATION_PAGE_LIMIT = 100
+
+function withAppInbox(layer) {
+  const visit = node => {
+    if (Array.isArray(node)) return node.map(visit)
+    if (node === null || typeof node !== 'object') return node
+    if (node.id === 'notification' && node.config?.policy !== undefined) {
+      const policy = { ...node.config.policy, pageLimit: APP_NOTIFICATION_PAGE_LIMIT }
+      return { ...node, config: { ...node.config, policy } }
+    }
+    return Object.fromEntries(Object.entries(node).map(([key, value]) => [key, visit(value)]))
+  }
+  return visit(layer)
+}
+
 export async function startStack({ answer, pageRoot, specimenRoot }) {
   const scratch = newScratch('visual-walk-')
   const hostLog = []
@@ -172,7 +191,9 @@ export async function startStack({ answer, pageRoot, specimenRoot }) {
   const operatorPath = join(scratch.base, 'operator.json')
   writeOperator(
     operatorPath,
-    operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: gateway.url }),
+    withAppInbox(
+      operatorLayer({ storageRoot: scratch.storageRoot, port, modelRoute: gateway.url }),
+    ),
   )
   const server = await startServer({
     stateRoot: scratch.stateRoot,

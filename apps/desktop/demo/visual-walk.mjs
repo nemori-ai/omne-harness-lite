@@ -73,8 +73,8 @@ const ACCOUNT = { loginIdentifier: 'visual', credential: 'visual-walk-pw-3b81' }
 const WAY_IN = windowOf('1440x900')
 /** How long a scene stays still after its animations ended, before the shot. */
 const SETTLE_MS = 600
-/** What the strong notification of the told note says (its source and type follow it). */
-const TOLD_TITLE = '22:57 了，该把窗户关上啦'
+/** What the strong notification of the told note says: the reference's sentence (07-told-home), so the two compare. */
+const TOLD_TITLE = '时间到了：该给阳台的花浇水啦。'
 
 const REPLY_MARKDOWN = [
   '## 这一轮做了什么',
@@ -455,9 +455,9 @@ const SCENES = [
   },
   {
     id: 'A3-rest',
-    title: '登录后的静止',
+    title: '登录后的静止：形在家，一页选中（日程）',
     tiers: true,
-    act: `await openSession('请总结')`,
+    act: `await goTo('日程')`,
   },
   {
     id: 'A4-rail',
