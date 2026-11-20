@@ -1,13 +1,15 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { createElement, type ReactNode } from 'react'
-import type {
-  AttachedLayout,
-  ItemOf,
-  ScopeSource,
-  ShellLogin,
-  ShellSlots,
-  SlotName,
-  ToastBoard,
+import {
+  createFigureStore,
+  type AttachedLayout,
+  type FigureBoard,
+  type ItemOf,
+  type ScopeSource,
+  type ShellLogin,
+  type ShellSlots,
+  type SlotName,
+  type ToastBoard,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Arranged, Attached } from './attached.tsx'
@@ -17,6 +19,8 @@ export class DesktopShell extends ShellService implements ShellSlots {
   readonly login: ShellLogin
   readonly scope: ScopeSource
   private readonly state: ShellState
+  /** Reports are held here; nothing draws the figure from them yet. */
+  private readonly figureStore = createFigureStore()
 
   constructor(ctx: Context, state: ShellState) {
     super(ctx)
@@ -62,6 +66,10 @@ export class DesktopShell extends ShellService implements ShellSlots {
 
   protected override toasts(): ToastBoard {
     return this.state.toasts
+  }
+
+  protected override figures(): FigureBoard {
+    return this.figureStore
   }
 }
 

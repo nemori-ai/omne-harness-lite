@@ -1,10 +1,11 @@
 import { expect, it } from 'vitest'
 import { ShellAssemblyError, slots } from '@omne-harness/shell-contract'
 
-it('exports the slot store, the toast store, the assembly error, the slot table and the two point declarations, and nothing else at run time', async () => {
+it('exports the slot store, the toast store, the figure store, the assembly error, the slot table and the two point declarations, and nothing else at run time', async () => {
   const root = (await import('@omne-harness/shell-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'ShellAssemblyError',
+    'createFigureStore',
     'createSlotStore',
     'createToastStore',
     'defineKeyedPoint',

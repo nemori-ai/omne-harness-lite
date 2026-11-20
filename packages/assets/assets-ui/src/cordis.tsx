@@ -32,6 +32,7 @@ export const assetsUiModule = defineUiModule<Record<string, ClientOf<AssetsProto
       id: 'assets',
       title: '资产',
       order: ASSETS_PAGE_ORDER,
+      icon: 'resource',
       render: ({ scope }) =>
         scope === undefined ? null : (
           <AssetsPage
@@ -50,6 +51,7 @@ export const assetsUiModule = defineUiModule<Record<string, ClientOf<AssetsProto
       id: 'settings',
       title: '设置',
       order: SETTINGS_PAGE_ORDER,
+      icon: 'settings',
       render: ({ scope }) =>
         scope === undefined ? null : <SettingsPage client={client} tenant={scope} />,
     })

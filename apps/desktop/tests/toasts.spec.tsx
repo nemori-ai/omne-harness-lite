@@ -55,11 +55,18 @@ async function setup() {
     name: 'inbox-page',
     inject: ['shell'],
     apply(ctx: Context) {
-      ctx.shell.contribute('pages', { id: 'home', title: '首页', order: 0, render: () => null })
+      ctx.shell.contribute('pages', {
+        id: 'home',
+        title: '首页',
+        order: 0,
+        icon: 'topics',
+        render: () => null,
+      })
       ctx.shell.contribute('pages', {
         id: 'inbox',
         title: '收件箱',
         order: 1,
+        icon: 'mail',
         render: ({ subject }) => {
           seen.push(subject)
           return <p data-subject={subject ?? ''}>收件箱</p>

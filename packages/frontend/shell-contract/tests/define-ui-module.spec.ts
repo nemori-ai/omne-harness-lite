@@ -20,7 +20,7 @@ const notesUi = defineUiModule<{ notes: Notes }>({
   name: 'notes-ui',
   inject: ['notes'],
   apply(shell, { notes }) {
-    shell.contribute('pages', { id: 'notes', title: notes.label, order: 0, render })
+    shell.contribute('pages', { id: 'notes', title: notes.label, order: 0, icon: 'topics', render })
   },
 })
 

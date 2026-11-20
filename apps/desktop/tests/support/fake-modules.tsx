@@ -22,7 +22,7 @@ export function fakePage(page: {
   title: string
   order: number
   service: string
-  icon?: string
+  icon: string
 }): Plugin.Object {
   return defineUiModule({
     name: `fake-page-${page.id}`,
@@ -32,7 +32,7 @@ export function fakePage(page: {
         id: page.id,
         title: page.title,
         order: page.order,
-        ...(page.icon === undefined ? {} : { icon: page.icon }),
+        icon: page.icon,
         render: ({ scope }) => placeholder(`${page.title}占位`, scope),
       })
     },

@@ -37,6 +37,7 @@ function contribute(shell: ShellService, hub: CardsHub, options: HumanInterventi
     id: PAGE_ID,
     title: '待你决定',
     order: PAGE_ORDER,
+    icon: 'awaiting',
     badge: ({ scope }) => (scope === undefined ? null : <PendingBadge hub={hub} tenant={scope} />),
     render: ({ scope }) =>
       scope === undefined ? null : (

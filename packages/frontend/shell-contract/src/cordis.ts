@@ -1,17 +1,21 @@
 import { CordisError, Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
+import type { FigureBoard, FigureReport } from './figure-store.ts'
 import type { ScopeSource, ShellLogin } from './host.ts'
 import type { ServiceKey } from './service-key.ts'
 import type { AttachedLayout, ItemOf, SlotName } from './slots.ts'
 import type { Toast, ToastBoard } from './toast-store.ts'
+
+type Withdrawing = Readonly<{ withdraw(owner: object): void }>
 
 /** @owner packages/frontend/shell-contract */
 export abstract class ShellService extends Service {
   static readonly provide = 'shell'
   abstract readonly login: ShellLogin
   abstract readonly scope: ScopeSource
-  /** The callers whose scope already carries the take-down of their toasts. */
+  /** The callers whose scope already carries the take-down of their toasts, and of their report. */
   private readonly toastCallers = new WeakSet<object>()
+  private readonly figureCallers = new WeakSet<object>()
 
   constructor(ctx: Context) {
     super(ctx, ShellService.provide)
@@ -23,23 +27,46 @@ export abstract class ShellService extends Service {
 
   /** Best effort and without a result: a toast shown is not a toast a person saw. */
   toast(toast: Toast): void {
-    const board = this.toasts()
+    this.handOver(this.toasts(), this.toastCallers, 'shell.toast', (board, caller) =>
+      board.show(caller, toast),
+    )
+  }
+
+  /** Best effort and without a result: a report the shell holds is not a figure a person saw. */
+  figure(report: FigureReport): void {
+    this.handOver(this.figures(), this.figureCallers, 'shell.figure', (board, caller) =>
+      board.report(caller, report),
+    )
+  }
+
+  /** Gives a board what the calling module handed over; the caller's scope takes it back once. */
+  private handOver<B extends Withdrawing>(
+    board: B | undefined,
+    callers: WeakSet<object>,
+    label: string,
+    give: (board: B, caller: object) => void,
+  ): void {
     if (board === undefined) return
     const caller = this.ctx.fiber
     if (caller.committed === undefined) return
-    if (!this.toastCallers.has(caller) && !this.bindToasts(caller, board)) return
-    board.show(caller, toast)
+    if (!callers.has(caller) && !this.bindTakeDown(caller, board, callers, label)) return
+    give(board, caller)
   }
 
-  private bindToasts(caller: object, board: ToastBoard): boolean {
+  private bindTakeDown(
+    caller: object,
+    board: Withdrawing,
+    callers: WeakSet<object>,
+    label: string,
+  ): boolean {
     try {
       this.ctx.effect(() => {
-        this.toastCallers.add(caller)
+        callers.add(caller)
         return () => {
-          this.toastCallers.delete(caller)
+          callers.delete(caller)
           board.withdraw(caller)
         }
-      }, 'shell.toast')
+      }, label)
       return true
     } catch (error) {
       if (error instanceof CordisError && error.code === 'INACTIVE_EFFECT') return false
@@ -57,6 +84,11 @@ export abstract class ShellService extends Service {
 
   /** A shell that draws toasts gives its board here; without one a toast is dropped. */
   protected toasts(): ToastBoard | undefined {
+    return undefined
+  }
+
+  /** A shell that draws the figure gives its board here; without one a report is dropped. */
+  protected figures(): FigureBoard | undefined {
     return undefined
   }
 }

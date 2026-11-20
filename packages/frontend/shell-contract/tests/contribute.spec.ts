@@ -4,7 +4,7 @@ import { ShellAssemblyError, type SlotName } from '@omne-harness/shell-contract'
 import { render, startShell } from './reference-shell.ts'
 
 const gate = (id: string) => ({ id, render })
-const page = (id: string, order = 0) => ({ id, title: id, order, render })
+const page = (id: string, order = 0) => ({ id, title: id, order, icon: 'topics', render })
 const side = (id: string, order = 0) => ({ id, order, render })
 const attached = (id: string, anchor: string, order = 0) => ({ id, order, anchor, render })
 

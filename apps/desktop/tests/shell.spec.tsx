@@ -37,7 +37,13 @@ const chatPage = fakePage({
   service: CHAT,
   icon: 'conversation',
 })
-const settingsPage = fakePage({ id: 'settings', title: '设置', order: 20, service: SETTINGS })
+const settingsPage = fakePage({
+  id: 'settings',
+  title: '设置',
+  order: 20,
+  service: SETTINGS,
+  icon: 'settings',
+})
 
 function source<T>(initial: T) {
   let value = initial
@@ -344,6 +350,7 @@ describe('外壳：附着位置与页面标记', () => {
           id: 'host',
           title: '宿主',
           order: 0,
+          icon: 'topics',
           render: (): ReactNode => shell.attached(anchor, subject),
         })
       },
@@ -426,10 +433,17 @@ describe('外壳：附着位置与页面标记', () => {
           id: 'badged',
           title: '待办',
           order: 0,
+          icon: 'topics',
           badge: ({ scope }) => (text === null ? null : `${text}${scope ?? ''}`),
           render: () => null,
         })
-        shell.contribute('pages', { id: 'plain', title: '无标记', order: 1, render: () => null })
+        shell.contribute('pages', {
+          id: 'plain',
+          title: '无标记',
+          order: 1,
+          icon: 'topics',
+          render: () => null,
+        })
       },
     })
     const t = await setup({ login: 'signed-in', modules: [module] })
@@ -474,6 +488,7 @@ describe('外壳：宿主自己排版', () => {
           id: 'host',
           title: '宿主',
           order: 0,
+          icon: 'topics',
           render: (): ReactNode =>
             shell.arranged(anchor, subject, entries => (
               <ul data-tabs={entries.length}>
@@ -623,7 +638,7 @@ describe('外壳：一项坏了只坏这一项', () => {
       name: `page-${id}`,
       inject: [],
       apply(shell) {
-        shell.contribute('pages', { id, title: `页${id}`, order, render })
+        shell.contribute('pages', { id, title: `页${id}`, order, icon: 'topics', render })
       },
     })
 
@@ -691,6 +706,7 @@ describe('外壳：一项坏了只坏这一项', () => {
               id: 'host',
               title: '宿主',
               order: 0,
+              icon: 'topics',
               render: (): ReactNode =>
                 shell.arranged('a', 's1', entries => (
                   <ul>
@@ -837,6 +853,7 @@ describe('外壳：一项坏了只坏这一项', () => {
               id: 'badged',
               title: '待办',
               order: 0,
+              icon: 'topics',
               badge: boom,
               render: () => <p data-fine="">好的一页</p>,
             })
