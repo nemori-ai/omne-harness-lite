@@ -94,6 +94,9 @@
 | `runtime-context-tenant-scope` | 一个行内插件，加载 `@omne-harness/runtime-context-cordis-contract` 的 `runtimeContextTenantBlocksPlugin` 与 `@omne-harness/static-scope-holder` 的 `./cordis` 插件 `tenantScopePlugin`：租户级作用域的登记面与持有者。登记面在 Runtime Context 不在时也在；持有者随 Runtime Context 来去 | `runtimeContextTenantBlocks`：登记面 `runtime-context.tenant-blocks`，拥有块的行贡献块声明与供值函数，要读的行贡献需要绑定，贡献方卸下就撤走；`runtimeContextTenantScope`：持有者，确保一个租户的作用域、签发读者、读 | `runtimeContext` | 无 | 无 |
 | `session-intake-budget` | 行体：加载 `@omne-harness/session-adapters` 的 `sessionIntakeSettingsPlugin`（会话自己带的一项按租户的设置「待处理输入的上限」），并向登记面贡献块 `session.intake-budget`，供值时经 `tenantIndependentSettings` 读这个租户此刻的值，读不到答依据不可用 | 无 | `runtimeContextTenantBlocks`、`tenantIndependentSettings` | 无 | 无 |
 | `session-observation` | `@omne-harness/session-observation` 的 `./cordis` 插件 `createSessionObservationPlugin` | `sessionObservation`：会话观察的领域面，登录的人以自己的主体对一个会话建立观察，得到状态帧、快照与增量 | `session`（`caller: 'reader'`，只用日志读取面的 `begin`、`next`、`since`）、`modelStreamReferences`、`modelStreamObservation` | 无 | `policy`（刷新策略 `ObservationRefreshPolicy` 的部分字段）与 `locatePages`，都可省，省掉的取成员的默认初值（间隔 1000 ms、退避 1.5、次数 60、累计等待 30 分钟、取流等待 5 s、翻页 4）；发行层不写。唤醒定位的种类集合是 `call.bound`、`run.started`、`run.terminal` 加本部署读历史的种类（运维者层 `LOCAL_HISTORY_KINDS`，与读历史同一个来源）；刷新策略取成员的默认初值。插件在树上只挂一个 `session-cordis-contract/committed` 监听者，按租户与会话分发给各次观察。见[会话观察的 Cordis 页](../../../packages/session/SPEC.md#会话观察) |
+| `dispatch` | 应用成员的派发组合：`@omne-harness/dispatch-local` 的 `./cordis` 插件 `createDispatchLocalPlugin`，一个提供者服务全部租户；每个租户的派发登记存在这个租户自己的事务域里（`tenantDomainLookup` 查，未登记时经 `tenantDomainRegistration` 先登记），第一次问到时在那里登记派发的存储组合。本应用在这一行接上派发留的端口：资格（调用方是不是它所说的那个会话核验过的工作主体；派发的系统主体只许读）、Agent 定义的类型（读 `agentDefinitionCatalog`）；会话端口与报告等待端口由 `dispatch-session`、`dispatch-tool` 两行挂上来，每次调用现取，没挂着时读答依据不可用、写不发生 | `dispatching`、`dispatchReconciling` | `storage`、`tenantDomainLookup`、`tenantDomains`、`tenantDomainScannerPrincipal`（受信；启动时与按间隔的对账以部署扫描主体枚举租户）、`dispatchPrincipal`（受信） | `tenantDomainRegistration`（受信；第一次要某个租户的派发时现取）；`agentDefinitionCatalog`；`composition`，行体承载，停止时先不接新的、等在途的各有结局，再停对账，不取消任何派发 | 策略 `policy`：同时开着的派发数上限与对账间隔，由运维层给，发行层不写数值；缺失或无效时这一行不启动 |
+| `dispatch-session` | 行体：`@omne-harness/dispatch-session` 的 `createDispatchSessions`，派发认识会话的那一侧。向 `sessionInputSources` 登记三个来源（`dispatch.instruction`、`dispatch.report`、`dispatch.message`），把会话端口挂给 `dispatch` 行。建会话、送输入、读输入的去向以派发的系统主体经调用方类 `intake` 调；读一个会话的工作快照与当前模式、取消一轮、读一轮的最终回复，以装配签发的该会话的工作主体经调用方类 `maintainer` 与 `reader` 调。建会话时照定义映射补齐定义固定的部分，并带上初始上下文的登记 | 无公开服务 | `session`、`sessionInputSources`、`definitionMappings`（受信）、`sessionModesInstallation`（受信）、`dispatchPrincipal`（受信） | 会话工作主体的签发口（经 Tool 共享状态的逐次读法）；`composition`，行体承载，停止时撤下会话端口与三个来源 | 无 |
+| `dispatch-tool` | 行体：`@omne-harness/dispatch-tool` 的 `createReportBridge` 与 `createReportWaits`，派发认识 Tool 的那一侧。把报告等待的契约与桥登记到 Tool 的决定桥表上，把「交到了没有」的读挂给 `dispatch` 行。桥读派发登记用派发的系统主体；读一次调用的等待记录用该会话的工作主体 | 无公开服务 | `dispatchPrincipal`（受信） | `toolCommands`、`toolInstanceHost`、`dispatching`、`dispatchReconciling`；会话工作主体的签发口；`composition`，行体承载，停止时撤下桥与读 | 无 |
 | `server-entry` | `@omne-harness/server-entry` 的插件 | 入口：监听、管道、登记表与观察中枢，不认识任何领域；`accessRegistry`（成员 `./cordis` 的 `AccessRegistryProvider`，装在本行作用域里：领域的接入插件经它挂协议，入口用同一个登记表；各 `*-access` 行 `inject` 它。新地址的身份端口是身份的 `createAccessIdentity`，本行用按调用读的 `identityOperations`、`identityGovernance` 与受信 `principalIssuer` 构造） | `principalIssuer`（受信）、`telemetry`（管道诊断经它发出，`system` 作用域） | `identityOperations`；`identityGovernance`（受信，新地址身份端口的认出、复核与成功业务访问的报告；服务缺席时答 `basis-unavailable`，不抛出）。两项与 `identity` 行同一份记录 | `listenPort`（初值 8787）；`maxBodyBytes.small`（初值 16384）；`maxBodyBytes.input`（初值 1048576）；`maxInFlightRequests`（初值 64）；`heartbeatIntervalMs`（初值 15000）；`jsonBudgets`；`observation.perLogin`、`observation.perInstance` |
 | `identity-access` | `@omne-harness/identity-access` 的 `./cordis` 插件 `identityAccessPlugin` | 无服务；把 `identity/v1` 挂上 `accessRegistry`，新地址由此开放身份的六个操作（装这一行就是开放这个协议，卸下这一行协议随之撤下） | `accessRegistry` | `identityOperations`；`identityGovernance`（受信）。两项每次调用现取，缺席时调用答 `basis-unavailable`，协议不撤 | 无 |
 | `session-access` | `@omne-harness/session-access` 的 `./cordis` 插件 `createSessionAccessPlugin`：`session/v1` 的接入插件。装上这一行，新地址才开放 `session/v1` | 无。插件把 `session/v1` 的贡献（18 个操作与观察 `observe-session`）挂上 `accessRegistry`；子插件在 `sessionInputSources` 在场时登记来源 `session.member` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createAccessIdentity` 与 `createMemberActing`，为目标租户换主体只经后者；资格读口缺席时换不出，调用答 `basis-unavailable`） | `session`（`caller: 'intake'` 取管理与工作面，`'reader'` 取历史面）；`sessionObservation`；`sessionSearch`（搜历史；缺席时 `search-history` 答 `basis-unavailable`）；`definitionMappings`（受信）；读与改权限处理模式按调用读 `sessionModesInstallation`（受信），当前值与权限修订按 `session.modes` 发布物的同一算法现算。任一项缺席时，需要它的调用答 `basis-unavailable`，协议不撤下 | `defaultDefinition`（不给定义名的「建会话」用它；缺席时这样的调用答 `invalid`）；`maxPageBytes`（初值 1048576）；`historyKinds`（初值运维者层 `LOCAL_HISTORY_KINDS`） |
@@ -156,6 +159,17 @@ flowchart LR
   governance -->|tenantIndependentSettings| schedule
   governance -->|independentSettings| schedule
   storage --> notification
+  storage --> dispatch
+  session-storage -->|tenantDomainLookup| dispatch
+  session-storage -->|tenantDomains| dispatch
+  agent-adoptions -.-> dispatch
+  session-provider --> dispatch-session
+  session-input-sources --> dispatch-session
+  agent-adoptions -->|definitionMappings| dispatch-session
+  session-ad03 -->|sessionModesInstallation| dispatch-session
+  dispatch-session -.-> dispatch
+  dispatch-tool -.-> dispatch
+  tool-records -.-> dispatch-tool
   session-storage -->|tenantDomainLookup| notification
   session-storage -->|tenantDomains| notification
   storage --> workspace
@@ -408,6 +422,9 @@ flowchart LR
 | `agent-model-selection` | `storage`、`tenantDomainLookup` |
 | `request-context` | `requestContextTrust`、`principalVerifier` |
 | `runtime-context` | `runtimeContextTrust` |
+| `dispatch` | `storage`、`tenantDomainLookup`、`tenantDomainRegistration`、`tenantDomainScannerPrincipal`、`dispatchPrincipal` |
+| `dispatch-session` | `definitionMappings`、`sessionModesInstallation`、`dispatchPrincipal` |
+| `dispatch-tool` | `dispatchPrincipal` |
 | `server-entry` | `principalIssuer`、`identityGovernance` |
 | `identity-access` | `identityGovernance` |
 | `session-access` | `principalIssuer`、`tenantStanding`、`definitionMappings`、`sessionModesInstallation` |
@@ -496,7 +513,8 @@ flowchart LR
 | 证据桥的生产来源与保管来源 | `session-ad10` 的 `sessionProductionSource`、`sessionCustodySource` | 入口在根上装载 `SessionProductionSourceService`、`SessionCustodySourceService` 的子类。原事实拥有者的来源行交付前，每次 `prepare` 答 `unavailable`、`owner` 是该键、诊断点名来源，不给任何守卫（见缺口表）。不进插件树，不进插件配置 |
 | Agent 宿主维护主体 | `agent-host` 的 `agentHostPrincipal` | 由装配入口签发的系统主体，在根上 provide，`agent-host` 静态 `inject`。宿主用它代实例所属租户发布实例、quiesce 实例并在交清后撤登记，每件都按现行规则核 `publish`、`quiesce`、`withdraw`。被拒或不可用时不声称已发布或已回收。不进插件树，不进插件配置 |
 | 常驻引用读取主体 | `tool-residency` 的 `toolResidencyPrincipal` | 由装配入口签发的系统主体。桥接插件以调用方类 `maintainer` 调用 `references` 时出示它，作为系统作用域的读取资格。不进插件树，不进插件配置 |
-| Deployment scanner principal | `tool-body-sweep`, `tool-records`, `session-provider` and `notification` only | The entry module `tenantDomainScannerPrincipal` issues the deployment principal that enumerates tenants. The body sweep and the pending scan of the Tool ledger enumerate tenants with it. The `session-provider` row enumerates tenants with it for the startup scan of the Session provider. The `notification` row enumerates tenants with it for the scan of what is due at startup and on its interval. The sweep and the scan run as the Tool runtime and carry no other principal; the principal is not visible to ordinary tools. |
+| Deployment scanner principal | `tool-body-sweep`, `tool-records`, `session-provider`, `notification` and `dispatch` only | The entry module `tenantDomainScannerPrincipal` issues the deployment principal that enumerates tenants. The body sweep and the pending scan of the Tool ledger enumerate tenants with it. The `session-provider` row enumerates tenants with it for the startup scan of the Session provider. The `notification` row enumerates tenants with it for the scan of what is due at startup and on its interval. The sweep and the scan run as the Tool runtime and carry no other principal; the principal is not visible to ordinary tools. |
+| 派发的系统主体（`dispatchPrincipal`） | `dispatch`、`dispatch-session`、`dispatch-tool` | 由装配入口签发的系统主体，入口对象模块 `dispatchPrincipal` 在受信作用域 provide，只对这三行可见。它持有维护授予表里建会话、送输入、读去向三项用途，每次调用都带被维护的那个租户；别的会话操作被拒 |
 | Tool 贡献来源权威（`toolContributionAuthority`） | `tool-bindings`、`tool-host` | 入口在根上装载 `ToolContributionAuthorityService` 的子类。启动时读发行清单 `config/tool-release.json`，按包产物清单重算已安装 tool-definitions 的摘要，全等才得到带发行代次的受信快照。`verify` 只认与快照全等的官方层发行内置作者来源；`admits` 只认本运行的发行登记者。快照不可用时两方法都答 `unavailable`，不放行。不进插件树，不进插件配置 |
 | 发行登记者（`toolReleaseRegistrant`） | `tool-host`（作者闭包的 `context.access`）；`toolContributionAuthority` 的 `admits` | 由装配入口签发的系统主体加发行登记租户，在根上 provide。签发方式与常驻引用读取主体相同，二者不互借。不在维护授予表里，登记官方贡献只经 `admits` 放行。不进插件树，不进插件配置 |
 | 环境授权、可信作用域绑定与恢复授权 | `execution-environment`；AD-15 另在构造时接收恢复授权 | 入口装载 `ExecutionEnvironmentAuthorityService`、`ExecutionScopeBindingService`、`ExecutionRecoveryAuthorityService` 的子类，提供 `executionEnvironmentAuthority`、`executionScopeBinding`、`executionRecoveryAuthority`。逐次现取，缺席按[环境端口规则](../../../packages/execution/SPEC.md#cordis-装配)不可用 |

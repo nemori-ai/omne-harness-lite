@@ -49,6 +49,7 @@ export class SessionModesInstallation extends Service {
   readonly readPermissionMode: (
     access: SessionAccess<unknown>,
   ) => ReturnType<Producer['readPermissionMode']>
+  readonly readModes: (access: SessionAccess<unknown>) => ReturnType<Producer['readModes']>
 
   constructor(ctx: Context, sources: Sources) {
     super(ctx, sessionModesInstallationKey)
@@ -117,6 +118,10 @@ export class SessionModesInstallation extends Service {
     this.readPermissionMode = async access => {
       const mounted = await producer(access.tenant)
       return mounted?.readPermissionMode(access) ?? { kind: 'unavailable' }
+    }
+    this.readModes = async access => {
+      const mounted = await producer(access.tenant)
+      return mounted?.readModes(access) ?? { kind: 'unavailable' }
     }
   }
 }

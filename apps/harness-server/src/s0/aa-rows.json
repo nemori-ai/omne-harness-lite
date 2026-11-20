@@ -72,6 +72,9 @@
     "runtime-context-tenant-scope",
     "session-intake-budget",
     "session-observation",
+    "dispatch",
+    "dispatch-session",
+    "dispatch-tool",
     "server-entry",
     "identity-access",
     "session-access",
@@ -405,6 +408,30 @@
       "row": "runtime-context",
       "names": [
         "runtimeContextTrust"
+      ]
+    },
+    {
+      "row": "dispatch",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration",
+        "tenantDomainScannerPrincipal",
+        "dispatchPrincipal"
+      ]
+    },
+    {
+      "row": "dispatch-session",
+      "names": [
+        "definitionMappings",
+        "sessionModesInstallation",
+        "dispatchPrincipal"
+      ]
+    },
+    {
+      "row": "dispatch-tool",
+      "names": [
+        "dispatchPrincipal"
       ]
     },
     {

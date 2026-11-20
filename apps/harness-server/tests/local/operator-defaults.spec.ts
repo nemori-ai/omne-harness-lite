@@ -244,6 +244,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
               'skills',
               'secret-custody',
               'notification',
+              'dispatch',
               'workspace',
               'session-history-index',
             ].includes(id),

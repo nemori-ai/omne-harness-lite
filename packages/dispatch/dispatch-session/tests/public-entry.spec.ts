@@ -10,5 +10,6 @@ it('exports the sources, the texts of the three inputs and the adapter of the se
     'instructionText',
     'messageText',
     'reportText',
+    'sessionOfDispatch',
   ])
 })

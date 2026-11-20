@@ -399,6 +399,8 @@ const AGENT_HOST = {
 
 const LOCAL_NODE = 'local'
 
+const DISPATCH_POLICY = { maxOpen: 8, reconcileIntervalMs: 2_000 }
+
 /** A person gets every notification on the application's own surfaces. An agent has no destination until sessions take input from notifications. */
 const NOTIFICATION_POLICY = {
   bodyLength: 16_384,
@@ -556,6 +558,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ...(rows.has('notification')
       ? ([['notification', { policy: NOTIFICATION_POLICY }]] as const)
       : []),
+    ...(rows.has('dispatch') ? ([['dispatch', { policy: DISPATCH_POLICY }]] as const) : []),
     ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
     ['execution-host', { stateDirectory: locations.hostFilesDir }],
     ['request-context', {}],

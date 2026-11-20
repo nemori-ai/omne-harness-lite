@@ -653,6 +653,24 @@ importers:
       '@omne-harness/context-compaction':
         specifier: workspace:*
         version: link:../../packages/context/context-compaction
+      '@omne-harness/dispatch':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch
+      '@omne-harness/dispatch-contract':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-contract
+      '@omne-harness/dispatch-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-cordis-contract
+      '@omne-harness/dispatch-local':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-local
+      '@omne-harness/dispatch-session':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-session
+      '@omne-harness/dispatch-tool':
+        specifier: workspace:*
+        version: link:../../packages/dispatch/dispatch-tool
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../packages/common/exchange-refs

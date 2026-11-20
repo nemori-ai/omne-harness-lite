@@ -1,11 +1,15 @@
 import type { CreateAnswer, DispatchSessions, SessionToCreate } from '@omne-harness/dispatch'
-import type { SessionRef } from '@omne-harness/dispatch-contract'
+import type { DispatchId, SessionRef, TenantId } from '@omne-harness/dispatch-contract'
 import type { TenantId as LegalTenant } from '@omne-harness/legal-identity'
-import type { InputId, SessionFailure } from '@omne-harness/session-contract'
+import {
+  workspaceSelection,
+  type InputId,
+  type SessionFailure,
+} from '@omne-harness/session-contract'
 import { instructionText, reminderInput } from './inputs.ts'
 import type { CreationOfDispatch, SessionCalls } from './ports.ts'
 import { identitiesOf, legalTenantOf } from './sources.ts'
-import { UNSETTLED, called, modesOf, sessionId } from './support.ts'
+import { UNSETTLED, called, modesOf, sessionId, workOf } from './support.ts'
 
 const BASIS = (dispatch: string) => ({
   owner: '@omne-harness/dispatch-session',
@@ -17,6 +21,13 @@ const BASIS = (dispatch: string) => ({
 const detailOf = (failure: SessionFailure): string =>
   failure.kind === 'invalid' ? `invalid: ${failure.field}: ${failure.reason}` : failure.kind
 
+/** The session a dispatch creates: derived from the tenant and the dispatch, so doing it again names the same one. */
+export function sessionOfDispatch(tenant: TenantId, dispatch: DispatchId): SessionRef {
+  const legal = legalTenantOf(tenant)
+  if (legal === undefined) throw new TypeError('the tenant of a dispatch is not a tenant')
+  return identitiesOf(legal, 'instruction', dispatch).session as unknown as SessionRef
+}
+
 export function createCreating(
   calls: SessionCalls,
 ): Pick<DispatchSessions, 'sessionOf' | 'create'> {
@@ -26,33 +37,34 @@ export function createCreating(
     input: InputId,
   ): Promise<CreationOfDispatch | undefined> {
     const parent = sessionId(dispatch.dispatcher)
+    const from = await workOf(calls, tenant, dispatch.dispatcher)
+    if (from.kind !== 'read') return undefined
+    const workspace = from.value === null ? null : workspaceSelection(from.value)
     const initial = reminderInput('instruction', input, instructionText(dispatch))
     const basis = BASIS(dispatch.id)
-    if (dispatch.mode === 'handoff')
+    const { agent } = dispatch
+    if (dispatch.mode === 'handoff') {
+      const relation = { kind: 'handoff', origin: parent, basis } as const
       return {
-        agent: dispatch.agent,
+        agent,
+        workspace,
         modes: null,
-        standing: {
-          relation: { kind: 'handoff', origin: parent, basis },
-          attendance: 'attended',
-          initial,
-        },
+        standing: { relation, attendance: 'attended', initial },
       }
+    }
     const now = await modesOf(calls, tenant, dispatch.dispatcher)
     if (now.kind !== 'read') return undefined
+    const relation = { kind: 'child', parent, basis } as const
     return {
-      agent: dispatch.agent,
+      agent,
+      workspace,
       modes: { ...now.value, permission: permission as typeof now.value.permission },
-      standing: { relation: { kind: 'child', parent, basis }, attendance: 'unattended', initial },
+      standing: { relation, attendance: 'unattended', initial },
     }
   }
 
   return {
-    sessionOf(tenant, dispatch) {
-      const legal = legalTenantOf(tenant)
-      if (legal === undefined) throw new TypeError('the tenant of a dispatch is not a tenant')
-      return identitiesOf(legal, 'instruction', dispatch).session as unknown as SessionRef
-    },
+    sessionOf: sessionOfDispatch,
 
     async create(tenant, creation): Promise<CreateAnswer> {
       const legal = legalTenantOf(tenant)

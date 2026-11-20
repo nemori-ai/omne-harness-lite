@@ -132,6 +132,7 @@ describe('creating the session of a dispatch', () => {
       operation: identities.create,
       creation: {
         agent: 'helper',
+        workspace: null,
         modes: { ...MODES, permission: 'never' },
         standing: {
           relation: { kind: 'child', parent: PARENT },
@@ -167,6 +168,37 @@ describe('creating the session of a dispatch', () => {
       },
     ])
     expect(made('modes')).toEqual([])
+  })
+
+  it.each(['delegate', 'handoff'] as const)(
+    'gives the session of a %s the workspace the dispatching session stands at now',
+    async mode => {
+      const { sessions, script, made } = world()
+      const attachment = { instance: 'i1', basis: 'b1' }
+      const changed = { kind: 'workspace', value: 'ws_2', workspaceAttachment: attachment }
+      const creation = { workspace: 'ws_1', workspaceAttachment: { instance: 'i0', basis: 'b0' } }
+      script.works.set(PARENT, {
+        kind: 'read',
+        value: work(PARENT, { creation: creation as never, changes: [changed as never] }),
+      })
+      const dispatch = dispatchOf({ mode })
+      await sessions.create(TENANT, { session: PEER, dispatch, permission: 'never' })
+      expect(made('create')).toMatchObject([
+        { creation: { workspace: { workspace: 'ws_2', attachment } } },
+      ])
+    },
+  )
+
+  it('does not create while the dispatching session cannot be read', async () => {
+    const { sessions, script, made } = world()
+    script.works.set(PARENT, { kind: 'unavailable' })
+    const dispatch = dispatchOf()
+    expect(await sessions.create(TENANT, { session: PEER, dispatch, permission: 'never' })).toEqual(
+      {
+        kind: 'unknown',
+      },
+    )
+    expect(made('create')).toEqual([])
   })
 
   it.each([

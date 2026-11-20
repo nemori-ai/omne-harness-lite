@@ -12,6 +12,7 @@ import type {
   SessionId,
   SessionOperationId,
   WorkSnapshot,
+  WorkspaceSelection,
 } from '@omne-harness/session-contract'
 
 export type Ordinary = Extract<RoutedInput, { kind: 'ordinary' }>
@@ -24,6 +25,7 @@ type Write = At & Readonly<{ operation: SessionOperationId }>
 export type CreationOfDispatch = Readonly<{
   agent: string
   standing: Required<Pick<SessionCreation, 'relation' | 'attendance' | 'initial'>>
+  workspace: WorkspaceSelection | null
   /** The whole modes of a child session. Null: the session takes the defaults of its tenant. */
   modes: Modes | null
 }>
@@ -34,7 +36,6 @@ export type SessionCalls = Readonly<{
   create(input: Write & Readonly<{ creation: CreationOfDispatch }>): Promise<Called<unknown>>
   accept(input: Write & Readonly<{ value: Ordinary }>): Promise<Called<unknown>>
   fate(input: At & Readonly<{ input: InputId }>): Promise<Called<InputFate>>
-  /** Null: the tenant has no session of that identity. */
   work(input: At): Promise<PortRead<WorkSnapshot | null>>
   modes(input: At): Promise<PortRead<Modes>>
   cancelRun(input: Write & Readonly<{ run: RunId }>): Promise<Called<unknown>>

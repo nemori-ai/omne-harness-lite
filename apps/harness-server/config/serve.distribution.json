@@ -531,7 +531,12 @@
       "id": "agent-host",
       "plugin": "agentHostRow",
       "config": {
-        "jointCommits": ["message", "context-transition", "custody", "processed"],
+        "jointCommits": [
+          "message",
+          "context-transition",
+          "custody",
+          "processed"
+        ],
         "coordination": "coordinated"
       }
     },
@@ -695,6 +700,21 @@
     {
       "id": "session-observation",
       "plugin": "sessionObservationRow",
+      "config": {}
+    },
+    {
+      "id": "dispatch",
+      "plugin": "dispatchRow",
+      "config": {}
+    },
+    {
+      "id": "dispatch-session",
+      "plugin": "dispatchSessionRow",
+      "config": {}
+    },
+    {
+      "id": "dispatch-tool",
+      "plugin": "dispatchToolRow",
       "config": {}
     },
     {
