@@ -1,12 +1,16 @@
 import type { ToolLedgerStore, ToolSourceGuard } from '@omne-harness/tool'
 import { canonicalDigest } from '@omne-harness/tool'
-
+import type { FixedToolRequest } from '@omne-harness/tool-contract'
+import { fixedRequestReference } from '@omne-harness/tool-contract/provider'
 import {
   TOOL_FORWARDING_OWNER,
   type LocalToolCatalogViewSource,
   type ToolTargetAvailability,
 } from '@omne-harness/tool-host-local'
 import { targetResidency } from '../../entry/tool-target-residency.ts'
+
+const requestDigest = (request: FixedToolRequest): string =>
+  canonicalDigest(fixedRequestReference(request))
 
 export function withTargetResidency(
   original: ToolSourceGuard<unknown>,
@@ -27,7 +31,7 @@ export function withTargetResidency(
           call.call !== input.call ||
           call.admission !== input.operation ||
           canonicalDigest(call.tenant) !== canonicalDigest(input.tenant) ||
-          canonicalDigest(call.request) !== canonicalDigest(input.request)
+          requestDigest(call.request) !== requestDigest(input.request)
         )
           return { kind: 'forged', reason: 'The source disagrees with the admitted Tool call.' }
         return source
@@ -79,7 +83,7 @@ export function admittedTargetResidency(
         if (
           call.call !== input.call ||
           canonicalDigest(call.tenant) !== canonicalDigest(input.tenant) ||
-          canonicalDigest(call.request) !== canonicalDigest(input.request)
+          requestDigest(call.request) !== requestDigest(input.request)
         )
           return { kind: 'denied', reason: 'The target disagrees with the original Tool call.' }
         return await residency.qualify(input)

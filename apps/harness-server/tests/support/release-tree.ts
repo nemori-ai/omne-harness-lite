@@ -363,16 +363,35 @@ function ledgerRows(storageRoot: string): readonly LedgerRow[] {
         .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tl_record'`)
         .get()
       if (table === undefined) continue
-      for (const row of db.prepare(`SELECT kind, name, record, fixed FROM tl_record`).all()) {
+      const definitions = new Map<string, unknown>()
+      for (const row of db.prepare(`SELECT tenant, digest, body FROM tl_definition`).all())
+        definitions.set(`${String(row['tenant'])} ${String(row['digest'])}`, unpacked(row['body']))
+      const joined = (tenant: string, request: unknown): unknown => {
+        const fixed = request as { availability: { definition: unknown } }
+        const digest = fixed.availability.definition
+        return typeof digest !== 'string'
+          ? fixed
+          : {
+              ...fixed,
+              availability: {
+                ...fixed.availability,
+                definition: definitions.get(`${tenant} ${digest}`),
+              },
+            }
+      }
+      for (const row of db
+        .prepare(`SELECT tenant, kind, name, record, fixed FROM tl_record`)
+        .all()) {
         const record = unpacked(row['record']) as Record<string, unknown>
         const call = record['call']
+        const tenant = String(row['tenant'])
         rows.push({
           kind: String(row['kind']),
           name: String(row['name']),
           record:
             row['fixed'] === null || typeof call !== 'object' || call === null
               ? record
-              : { ...record, call: { ...call, request: unpacked(row['fixed']) } },
+              : { ...record, call: { ...call, request: joined(tenant, unpacked(row['fixed'])) } },
         })
       }
     } finally {

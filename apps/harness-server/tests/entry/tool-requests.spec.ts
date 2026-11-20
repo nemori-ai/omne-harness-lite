@@ -312,8 +312,9 @@ describe('the trusted Tool request source', () => {
       mode: 'foreground',
       consumer: { owner: '@omne-harness/agent', work: 'exec-1', purpose: 'action' },
     })
-    expect(request.availability.definition.adoption).toEqual(definitions.get('Shell')?.adoption)
-    expect(request.environment).toEqual(definitions.get('Shell')?.declarations.environment)
+    expect(request.availability.definition).toEqual(definitions.get('Shell')?.adoption)
+    expect(request.availability).toMatchObject({ name: 'Shell' })
+    expect(request).not.toHaveProperty('environment')
   })
 
   it('reads the wait mode from run_in_background in the call: true is a launch in the background, anything else the foreground', async () => {

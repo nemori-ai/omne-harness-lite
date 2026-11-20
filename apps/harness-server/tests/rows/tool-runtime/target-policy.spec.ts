@@ -25,6 +25,7 @@ it('applies target residency to new admissions while retaining custody of an exa
       durability: 'none',
       scanPending: () => Promise.resolve({ kind: 'page', calls: [], more: false }),
       due: async () => ({ kind: 'complete', entries: [] }),
+      definition: async () => ({ kind: 'complete', definition: null }),
       readRecord: async () => {
         throw new Error('source policy requires a complete call snapshot')
       },

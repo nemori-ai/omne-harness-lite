@@ -20,6 +20,7 @@ describe('public entries', () => {
   it('exports the factories, the materials and their constants, and nothing else at the root', async () => {
     const entry = (await import('@omne-harness/tool-storage-sql')) as Record<string, unknown>
     expect(Object.keys(entry).sort()).toEqual([
+      'DEFINITION_BLOCK_BYTES',
       'TOOL_PARTICIPANT',
       'TOOL_STORAGE_OWNER',
       'createSqlToolBodyStore',

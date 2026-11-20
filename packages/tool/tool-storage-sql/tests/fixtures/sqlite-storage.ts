@@ -24,16 +24,24 @@ import type {
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import migration from '../../src/worker/migration.ts'
+import definitionMigration from '../../src/worker/migration-definitions.ts'
 import pendingMigration from '../../src/worker/migration-pending.ts'
 import participant from '../../src/worker/participant.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
 import readBody from '../../src/worker/read-body.ts'
+import readDefinition from '../../src/worker/read-definition.ts'
 import readDue from '../../src/worker/read-due.ts'
 import readPending from '../../src/worker/read-pending.ts'
 import { READ_OUTPUT_BYTES } from '../../src/worker/schema.ts'
 
-const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readPending, readBody, readDue]
-const MIGRATIONS = [migration, pendingMigration] as const
+const HANDLERS: readonly ReadHandlerModule[] = [
+  readLedger,
+  readPending,
+  readBody,
+  readDue,
+  readDefinition,
+]
+const MIGRATIONS = [migration, pendingMigration, definitionMigration] as const
 
 export type SqliteStorageOptions = Readonly<{
   directory: string

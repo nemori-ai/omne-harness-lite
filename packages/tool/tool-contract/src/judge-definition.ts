@@ -212,7 +212,7 @@ const modalities: Check<readonly Modality[]> = (value, at) => {
   return reject(item(at, judged.index ?? 0), judged.rejected)
 }
 
-export const environmentDeclaration = record({ adoption, value: jsonValue })
+const environmentDeclaration = record({ adoption, value: jsonValue })
 
 export const toolDeclarations: Check<ToolDeclarations> = record({
   adoption,

@@ -22,6 +22,8 @@ import {
   defineFunctionTool,
   defineCommandTool,
   defineToolOperation,
+  toolAvailabilityReference,
+  toolInvokeRequestOf,
   type CheckpointedToolExecutor,
   type ToolBindings,
   type ToolDecisionBridge,
@@ -144,6 +146,7 @@ export async function fixture(
     read: memory.read,
     readRecord: memory.readRecord,
     due: memory.due,
+    definition: memory.definition,
     commit: memory.commit,
     scanPending: memory.scanPending,
   }
@@ -202,6 +205,14 @@ export async function fixture(
         }
       : {}),
     commitAttempts: 8,
+    definitions: {
+      current: async ({ name }) =>
+        succeed(
+          [loaded.definition, toolsLoaded?.definition].find(
+            definition => definition?.name === name,
+          ) ?? null,
+        ),
+    },
     authority: {
       qualify,
       samePrincipal: async input =>
@@ -617,15 +628,14 @@ export async function fixture(
   await consumer
   const api = root.toolRuntime
   function invocation(value: string, tenant = tenantA): Parameters<typeof api.invoke>[0] {
-    const { invocation: _invocation, ...base } = fixed
     const request: ToolInvokeRequest = {
-      ...base,
-      availability: {
+      ...toolInvokeRequestOf(fixed),
+      availability: toolAvailabilityReference({
         kind: 'available',
         layer: loaded.key.layer,
         definition: loaded.definition,
         executor: loaded.executor,
-      },
+      }),
       consumer: { ...fixed.consumer, position: value },
       limits: { ...fixed.limits, concurrency: 8 },
       arguments: {
@@ -756,12 +766,12 @@ export async function fixture(
           ...base.request,
           command: 'execute',
           arguments: { original: text, effective: text, complete: true },
-          availability: {
-            kind: 'available' as const,
+          availability: toolAvailabilityReference({
+            kind: 'available',
             layer: toolsLoaded.key.layer,
             definition: toolsLoaded.definition,
             executor: toolsLoaded.executor,
-          },
+          }),
           limits: { ...base.request.limits, concurrency: 1 },
         },
       }

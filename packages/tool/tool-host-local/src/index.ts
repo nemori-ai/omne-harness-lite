@@ -83,6 +83,7 @@ export {
   type PrincipalCodec,
   type PrincipalJson,
 } from './invocation-source.ts'
+export type { LocalCurrentDefinitions } from './definition-resolution.ts'
 export { createLocalGrantVerifiers, type LocalGrantScope } from './grant-verifiers.ts'
 export {
   createLocalStartGuard,

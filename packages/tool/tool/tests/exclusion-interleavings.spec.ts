@@ -52,6 +52,7 @@ function hooked() {
     scanPending: input => memory.scanPending(input),
     readRecord: memory.readRecord,
     due: memory.due,
+    definition: memory.definition,
     read: d => memory.read(d),
     commit: async input => {
       const i = hooks.findIndex(h => h.matches(input))

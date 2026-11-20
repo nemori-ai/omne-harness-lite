@@ -3,6 +3,7 @@ import { completedFinal } from '@omne-harness/tool-contract/testing'
 import {
   admission,
   adoption,
+  available,
   callId,
   evidence,
   failure,
@@ -10,6 +11,7 @@ import {
   fixedRequestForNamedSourceGuard,
   functionDefinition,
   instanceId,
+  knownUnavailable,
   ok,
   operationId,
   principalA,
@@ -55,12 +57,7 @@ type Limits = Readonly<{ concurrency: number | null; scopeBudget: number | null 
 
 function toolIn(name: string, limits: Limits, key = 'scope-1') {
   return {
-    availability: {
-      kind: 'available' as const,
-      definition: functionDefinition({ name, adoption: adoption(name) }),
-      executor: adoption('exec'),
-      layer: { kind: 'official' as const },
-    },
+    availability: available(functionDefinition({ name, adoption: adoption(name) })),
     scope: { owner: 'scope-owner', key, grant: evidence('grant-1') },
     limits: { ...limits, foregroundMs: null, backgroundAfterMs: null },
   }
@@ -352,12 +349,7 @@ describe('20 preparation and queue (P03)', () => {
     const harness = startHarness()
     const background = {
       mode: 'background' as const,
-      availability: {
-        kind: 'available' as const,
-        definition: functionDefinition({ backgroundAllowed: true }),
-        executor: adoption('exec'),
-        layer: { kind: 'official' as const },
-      },
+      availability: available(functionDefinition({ backgroundAllowed: true })),
     }
     await admitCall(harness, 'c1', background)
     await admitCall(harness, 'c2', { availability: background.availability })
@@ -502,9 +494,7 @@ describe('20 preparation and queue (P03)', () => {
   it('20 capacity: a dummy is not counted and not refused', async () => {
     const harness = startHarness({ queueCapacity: 1 })
     await admitCall(harness, 'c1')
-    const dummy = request({
-      availability: { kind: 'known-unavailable', definition: functionDefinition(), reason: 'gone' },
-    })
+    const dummy = request({ availability: knownUnavailable(functionDefinition(), 'gone') })
     expect((await admitCall(harness, 'c2', dummy)).phase).toBe('settled')
   })
 })

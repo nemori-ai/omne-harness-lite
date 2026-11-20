@@ -18,6 +18,7 @@ import {
   TOOL_RELEASE_TENANT,
   loadProductionRelease,
   productionReleaseInput,
+  releaseCurrentDefinitions,
 } from '../../src/entry/tool-release.ts'
 import { RELEASE_ENTRY_FILE, loadToolRelease } from '../../src/entry/tool-release-manifest.ts'
 import { shellToolModule } from '@omne-harness/tool-definitions'
@@ -108,6 +109,15 @@ describe('toolContributionAuthority.verify', () => {
     expect(authority.admits(registrant, { kind: 'official' })).toMatchObject({
       failure: { kind: 'unavailable' },
     })
+  })
+})
+
+describe('the current definitions Tool reads by name', () => {
+  it('answers unavailable without a trusted release, not that the tool is unknown', async () => {
+    const definitions = releaseCurrentDefinitions<'agent'>(new Context())
+    expect(
+      await definitions.current({ principal: 'agent', tenant: fixtureTenant('a'), name: 'Shell' }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
   })
 })
 

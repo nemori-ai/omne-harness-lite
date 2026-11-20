@@ -22,7 +22,7 @@ it.each(['Tools', 'TodoItems', 'Web'] as const)(
         schemaProvider: () => null,
       })
       const request = w.request(name)
-      expect(request.environment).toBeNull()
+      expect(request.availability.definition.declarations.environment).toBeNull()
       const answer = await environment.input.plan.requirement({
         principal: w.principal,
         tenant: w.tenant,

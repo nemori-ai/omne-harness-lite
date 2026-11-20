@@ -82,7 +82,6 @@ export async function forwardWorld() {
       settings: entry.settings,
       context: RELEASE_REQUEST_CONTEXT,
       workspace: null,
-      environment: definition.declarations.environment,
       requesterScope: okOf(decodeScopeRef({ ref: 'forward-test-scope' }), 'scope'),
       resources: [],
       scope: runToolScope(tenant, consumer),

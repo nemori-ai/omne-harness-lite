@@ -19,6 +19,7 @@ it('root entry exports the independent execution functions, the ledger, the runt
     'INITIAL_REVISION',
     'backgroundAllowed',
     'canonicalDigest',
+    'canonicalJson',
     'checkToolResultBody',
     'createIndependentToolScope',
     'createToolBodyScope',

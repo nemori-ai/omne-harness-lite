@@ -31,6 +31,7 @@ import {
 import {
   describedAdoption,
   decodeToolRevision,
+  toolAvailabilityReference,
   type ToolMessageContentBlock,
   type ToolAuthority,
 } from '@omne-harness/tool-contract/provider'
@@ -215,6 +216,22 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       store,
       authority: authority.sourceAuthority,
       principalCodec: authority.principalCodec,
+      definitions: {
+        current: async ({ principal, tenant, name }) => {
+          const found = await root.toolRuntime.inspect({
+            principal,
+            tenant,
+            name,
+            command: null,
+            consumer: {
+              capabilities: evidence('text-only-consumer'),
+              conversion: null,
+              attachmentAccess: evidence('no-attachments'),
+            },
+          })
+          return 'ok' in found ? succeed(found.ok.definition) : found
+        },
+      },
       commitAttempts: configuration.ledgerCommitAttempts,
     })
     const domain = createHostFilesDomain({
@@ -756,7 +773,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       const intent = label.intent === null ? {} : { intent: label.intent }
       const text = JSON.stringify(command === null ? args : { command, ...intent, params: args })
       const request: ToolInvokeRequest = {
-        availability: availability.ok,
+        availability: toolAvailabilityReference(availability.ok),
         command,
         arguments: { original: text, effective: text, complete: true },
         label,
@@ -767,7 +784,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
           revision: '1',
         }),
         workspace: null,
-        environment: availability.ok.definition.declarations.environment,
         requesterScope: authority.scope,
         resources: [],
         scope: scopeGrant,

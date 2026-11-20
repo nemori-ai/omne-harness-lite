@@ -15,7 +15,7 @@ import {
   type LocalToolRuntimeInput,
 } from '@omne-harness/tool-host-local/cordis'
 import { admitMaintainer } from '../../entry/execution-authorities.ts'
-import { releaseOf } from '../../entry/tool-release.ts'
+import { releaseCurrentDefinitions, releaseOf } from '../../entry/tool-release.ts'
 import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
 import {
   admittedTargetResidency,
@@ -89,6 +89,7 @@ function inputFor(
     store,
     authority: identity.sourceAuthority,
     principalCodec: releasePrincipalCodec,
+    definitions: releaseCurrentDefinitions(root),
     commitAttempts: config.configuration.ledgerCommitAttempts,
     forwarding: {
       authority: () => root.get(toolStartAuthorityKey, false),

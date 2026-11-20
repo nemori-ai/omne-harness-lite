@@ -10,12 +10,13 @@ import {
   type DurableEvidence,
   type FixedToolRequest,
   type ToolCallId,
+  type ToolDefinition,
   type ToolInstanceId,
   type ToolInvokeRequest,
   type ToolOperationId,
   type ToolStartRecord,
 } from '@omne-harness/tool-contract'
-import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
+import { decodeToolInstanceId, toolInvokeRequestOf } from '@omne-harness/tool-contract/provider'
 import type {
   AccessVerdict,
   LedgerCommit,
@@ -24,6 +25,7 @@ import type {
 } from '@omne-harness/tool'
 import {
   createLocalStartCoordinator,
+  type LocalCurrentDefinitions,
   type PrincipalCodec,
   type GuardResource,
   type StartCoordinatorAccess,
@@ -108,7 +110,6 @@ export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolReq
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: fixtureScope(),
     resources: [],
     scope: { owner: 'scope-owner', key: 'scope-1', grant: evidence('grant') },
@@ -194,6 +195,7 @@ export function failingNextCommit(
     scanPending: input => memory.scanPending(input),
     readRecord: (domain, key) => memory.readRecord(domain, key),
     due: (tenant, now, limit) => memory.due(tenant, now, limit),
+    definition: (tenant, adoption) => memory.definition(tenant, adoption),
     arm: () => {
       armed = true
     },
@@ -221,8 +223,17 @@ function fixtureScope() {
 export type Subject = Readonly<{ subject: string }>
 
 export function invokeRequest(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
-  const { invocation: _invocation, ...rest } = request()
-  return { ...rest, ...overrides }
+  return { ...toolInvokeRequestOf(request()), ...overrides }
+}
+
+export function currentDefinitions<P>(
+  ...definitions: readonly ToolDefinition[]
+): LocalCurrentDefinitions<P> {
+  const listed = definitions.length === 0 ? [request().availability.definition] : definitions
+  return {
+    current: ({ name }) =>
+      Promise.resolve(succeed(listed.find(definition => definition.name === name) ?? null)),
+  }
 }
 
 export const subjectCodec: PrincipalCodec<Subject> = {

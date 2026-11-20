@@ -26,6 +26,7 @@ import {
 } from '@omne-harness/tool-host-local'
 import {
   evidence,
+  currentDefinitions,
   invokeRequest,
   request as fixedRequest,
   samePrincipalBySubject,
@@ -77,6 +78,7 @@ function assembly() {
     store,
     authority,
     principalCodec: subjectCodec,
+    definitions: currentDefinitions(),
     commitAttempts: 4,
   })
   const guards = createLocalToolLedgerGuards<P>({
@@ -152,7 +154,7 @@ async function admitted(fixture: Assembly, request: ToolInvokeRequest = invokeRe
     tenant: tenantA,
     call: bound.call,
     operation: bound.admission,
-    request: { ...request, invocation: bound.invocation },
+    request: bound.request,
   }
   return { bound, input, outcome: await fixture.ledger.admissions.admit(input) }
 }
@@ -357,7 +359,7 @@ describe('the assembly of the guards', () => {
       principal: alice,
       tenant: tenantA,
       call: callId('call-1'),
-      request: { ...invokeRequest(), invocation: { kind: 'direct', source: evidence('s') } },
+      request: fixedRequest({ invocation: { kind: 'direct', source: evidence('s') } }),
     })
     expect(asked).toEqual(['guard', 'start'])
   })

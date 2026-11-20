@@ -128,7 +128,7 @@ it(
         const stopped = counted()
         Object.assign(runtime, {
           invoke: async (input: Parameters<typeof invoke>[0]) => {
-            if (input.request.availability.definition.name !== 'Shell') return invoke(input)
+            if (input.request.availability.name !== 'Shell') return invoke(input)
             stopped.enter()
             const failure = { kind: 'unavailable', dependency: 'toolRuntime', diagnostic: NOT_NOW }
             return { kind: 'rejected', failure } as Awaited<ReturnType<typeof invoke>>

@@ -4,6 +4,7 @@ import { createMemoryToolLedgerStore, type MemoryCommitFault } from '@omne-harne
 import type { ToolInvokeOutcome, ToolState } from '@omne-harness/tool-contract'
 import {
   admission,
+  available,
   callId,
   dummyRequest,
   evidence,
@@ -13,6 +14,7 @@ import {
   harness,
   interleaving,
   judged,
+  knownUnavailable,
   ledgerOver,
   ok,
   operationId,
@@ -135,6 +137,7 @@ describe('10 boundary and qualification', () => {
       scanPending: () => Promise.reject(new Error(secret)),
       readRecord: () => Promise.reject(new Error(secret)),
       due: () => Promise.reject(new Error(secret)),
+      definition: () => Promise.reject(new Error(secret)),
       read: () => Promise.reject(new Error(secret)),
       commit: () => Promise.reject(new Error(secret)),
     }
@@ -607,6 +610,7 @@ describe('11 operation idempotency (P01)', () => {
       scanPending: input => memory.scanPending(input),
       readRecord: memory.readRecord,
       due: memory.due,
+      definition: memory.definition,
       read: domain => memory.read(domain),
       commit: input => {
         if (putsExclusion(input)) memory.landDelayed()
@@ -906,12 +910,7 @@ describe('13 invocation permission', () => {
     const { ledger } = harness()
     const definition = functionDefinition({ programmable: true })
     const script = fixedRequestForNamedSourceGuard({
-      availability: {
-        kind: 'available',
-        definition,
-        executor: { ...definition.adoption },
-        layer: { kind: 'official' },
-      },
+      availability: available(definition, { ...definition.adoption }),
       invocation: { kind: 'programmatic', source: evidence('script') },
       arguments: { original: '{', effective: '{', complete: true },
     })
@@ -922,11 +921,7 @@ describe('13 invocation permission', () => {
   it('13 permission: a dummy answers a script call with unavailable, whatever its permission', async () => {
     const { ledger } = harness()
     const script = fixedRequestForNamedSourceGuard({
-      availability: {
-        kind: 'known-unavailable',
-        definition: functionDefinition(),
-        reason: 'dependency-unavailable:file-system',
-      },
+      availability: knownUnavailable(),
       invocation: { kind: 'programmatic', source: evidence('script') },
     })
     const admitted = ok(await ledger.admissions.admit(admission('call-1', 'op-1', script)))
@@ -954,12 +949,7 @@ describe('13 invocation permission', () => {
     const definition = functionDefinition({ backgroundAllowed: true })
     const launched = request({
       mode: 'background',
-      availability: {
-        kind: 'available',
-        definition,
-        executor: { ...definition.adoption },
-        layer: { kind: 'official' },
-      },
+      availability: available(definition, { ...definition.adoption }),
     })
     const admitted = accepted(await assembly.admitInternal(launched))
     expect(judged(admitted.state)).toMatchObject({

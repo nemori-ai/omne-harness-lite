@@ -5,7 +5,15 @@ import type {
   ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import { backgroundAllowed } from '../src/ledger-background.ts'
-import { evidence, functionDefinition, harness, judged, request } from './runtime-values.ts'
+import {
+  available,
+  evidence,
+  fixedRequestForNamedSourceGuard,
+  functionDefinition,
+  harness,
+  judged,
+  request,
+} from './runtime-values.ts'
 
 type Metadata = Omit<
   Extract<ToolDefinition, { kind: 'function' }>,
@@ -19,6 +27,7 @@ function shell(allowed = true, unless: readonly string[] = ['terminal']): ToolDe
   const declared = { kind: 'declared', value: parameters } as const
   return {
     ...(metadata as Metadata),
+    adoption: { ...metadata.adoption, revision: `shell-${String(allowed)}-${unless.join('+')}` },
     name: 'shell',
     kind: 'commands',
     encoding: 'wrapped',
@@ -42,21 +51,17 @@ function call(
   effective = JSON.stringify({ command, intent: 'run it', params }),
 ): ToolInvokeRequest {
   return request({
-    availability: {
-      kind: 'available',
-      definition,
-      executor: { ...definition.adoption },
-      layer: { kind: 'official' },
-    },
+    availability: available(definition, { ...definition.adoption }),
     command,
     arguments: { original: effective, effective, complete: true },
   })
 }
 
-const fixed = (value: ToolInvokeRequest): FixedToolRequest => ({
-  ...value,
-  invocation: { kind: 'direct', source: evidence('entry') },
-})
+const fixed = (value: ToolInvokeRequest): FixedToolRequest =>
+  fixedRequestForNamedSourceGuard({
+    ...value,
+    invocation: { kind: 'direct', source: evidence('entry') },
+  })
 
 describe('the background permission of one call', () => {
   it.each([
@@ -64,12 +69,9 @@ describe('the background permission of one call', () => {
     [
       'a function tool that permits it',
       request({
-        availability: {
-          kind: 'available',
-          definition: functionDefinition({ backgroundAllowed: true }),
-          executor: { ...functionDefinition().adoption },
-          layer: { kind: 'official' },
-        },
+        availability: available(functionDefinition({ backgroundAllowed: true }), {
+          ...functionDefinition().adoption,
+        }),
       }),
       true,
     ],

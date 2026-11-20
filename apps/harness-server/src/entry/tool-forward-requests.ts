@@ -11,7 +11,11 @@ import {
   type ToolForwardIntent,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
-import { encodeCommandCall, type ToolForwardParent } from '@omne-harness/tool-contract/provider'
+import {
+  encodeCommandCall,
+  toolAvailabilityReference,
+  type ToolForwardParent,
+} from '@omne-harness/tool-contract/provider'
 import type { LocalToolCatalogViewSource } from '@omne-harness/tool-host-local'
 import { targetResidency } from './tool-target-residency.ts'
 
@@ -175,12 +179,11 @@ export function createForwardTargetRequests(ports: ForwardRequestPorts) {
     const { context, workspace, resources, scope, requesterScope, limits, mode, consumer } =
       parent.request
     return succeed({
-      availability,
+      availability: toolAvailabilityReference(availability),
       command: intent.command,
       arguments: { original: effective, effective, complete: true },
       label,
       settings: entry.settings,
-      environment: definition.declarations.environment,
       batchDecision: null,
       context,
       workspace,

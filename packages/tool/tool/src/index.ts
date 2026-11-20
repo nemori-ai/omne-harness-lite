@@ -43,6 +43,7 @@ export type {
   LedgerCommit,
   LedgerAssertion,
   LedgerCommitInput,
+  LedgerDefinitionRead,
   LedgerDomain,
   LedgerPendingScan,
   LedgerPendingScanInput,
@@ -83,7 +84,7 @@ export type {
   ToolStartGuard,
 } from './ledger-guards.ts'
 export { isTenantShape } from './boundary.ts'
-export { digestOf as canonicalDigest, INITIAL_REVISION } from './evidence.ts'
+export { digestOf as canonicalDigest, canonicalJson, INITIAL_REVISION } from './evidence.ts'
 export { encodeToolCanonical, type EncodedToolCanonical } from './canonical-codec.ts'
 export { createToolRuntime, createToolRuntimeFacade, toolRuntimeAdoption } from './runtime.ts'
 export {

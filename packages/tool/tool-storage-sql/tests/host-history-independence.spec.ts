@@ -44,9 +44,11 @@ import {
   acquisitionOf,
   alice,
   callIdOf,
+  currentDefinitions,
   evidence,
   isParent,
   ok,
+  parentCall,
   parentRequest,
   preparationOf,
   processOf,
@@ -87,6 +89,7 @@ function countingStore(store: ToolLedgerStore): ToolLedgerStore & { count: ReadC
     count,
     scanPending: input => store.scanPending(input),
     due: (tenant, now, limit) => store.due(tenant, now, limit),
+    definition: (tenant, adoption) => store.definition(tenant, adoption),
     read: async domain => {
       const answer = await store.read(domain)
       seen(answer.kind === 'complete' ? answer.records : [])
@@ -128,6 +131,7 @@ async function host(store: ToolLedgerStore) {
           : { kind: 'denied', reason: 'different-subject' },
     },
     principalCodec,
+    definitions: currentDefinitions,
     commitAttempts: 4,
     forwarding: { authority: () => authority, isParent },
   })
@@ -363,7 +367,7 @@ async function toolsCall(ports: Host, index: number): Promise<void> {
   const bound = await ports.source.issuer.resolve({ principal: alice, tenant: TENANT_A, request })
   if (bound.kind !== 'bound') throw new Error(`source: ${JSON.stringify(bound)}`)
   const call = bound.call
-  const fixed = { ...request, invocation: bound.invocation }
+  const fixed = bound.request
   const verified = await ports.source.guard.verify({
     principal: alice,
     tenant: TENANT_A,
@@ -494,7 +498,7 @@ async function endedRead(store: ToolLedgerStore, index: number): Promise<ReadCou
   const ports = await host(counting)
   const call = callIdOf(`ended-reader-${width(index)}`)
   const request = {
-    ...parentRequest(index),
+    ...parentCall(index),
     invocation: { kind: 'direct' as const, source: evidence('entry') },
   }
   const preparation = preparationOf(TENANT_A, call, request)
@@ -588,7 +592,7 @@ describe(`the Tool and host paths after 20 and after ${String(N)} settled Tools 
       const callAccess = { principal: alice, tenant: TENANT_A, call }
       const ports = await host(app.store)
       const request = {
-        ...parentRequest(N),
+        ...parentCall(N),
         invocation: { kind: 'direct' as const, source: evidence('entry') },
       }
       const permit = await ports.authority.prepare({

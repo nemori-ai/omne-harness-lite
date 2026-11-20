@@ -667,11 +667,11 @@
       },
       "packages/tool/tool-host-local/src/invocation-forwarding.ts": {
         "count": 1,
-        "longest": 293
+        "longest": 281
       },
       "packages/tool/tool-host-local/src/invocation-source.ts": {
         "count": 1,
-        "longest": 281
+        "longest": 244
       },
       "packages/tool/tool-host-local/src/recovery-scans.ts": {
         "count": 1,
@@ -735,7 +735,7 @@
       },
       "packages/tool/tool/src/runtime.ts": {
         "count": 1,
-        "longest": 160
+        "longest": 155
       },
       "packages/tool/tool/src/stream-facade.ts": {
         "count": 1,
@@ -743,7 +743,7 @@
       },
       "packages/tool/tool/src/testing-ledger-assembly.ts": {
         "count": 1,
-        "longest": 210
+        "longest": 208
       },
       "packages/tool/tool/src/testing-ledger-composition-cases.ts": {
         "count": 1,
@@ -763,11 +763,11 @@
       },
       "packages/tool/tool/src/testing-source.ts": {
         "count": 1,
-        "longest": 177
+        "longest": 175
       },
       "packages/tool/tool/src/testing-store.ts": {
         "count": 1,
-        "longest": 189
+        "longest": 188
       },
       "tools/product-checks/src/rules/model-credential-boundary.ts": {
         "count": 1,

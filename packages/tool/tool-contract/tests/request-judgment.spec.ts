@@ -6,7 +6,11 @@ import {
   type ToolDefinition,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
-import { judgeFixedToolRequest, judgeToolInvokeRequest } from '@omne-harness/tool-contract/provider'
+import {
+  judgeFixedToolRequest,
+  judgeToolInvokeRequest,
+  toolInvokeRequestOf,
+} from '@omne-harness/tool-contract/provider'
 import { testingWorkspace } from '@omne-harness/tool-contract/testing'
 import { adoption, commandsDefinition, evidence, functionDefinition } from './tool-values.ts'
 
@@ -27,7 +31,6 @@ function request(): FixedToolRequest {
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: null,
     requesterScope: fixtureScope(),
     resources: [],
     scope: { owner: 'scope-owner', key: 'scope-1', grant: evidence('grant') },
@@ -45,8 +48,7 @@ function rejection(value: unknown) {
 }
 
 function invokeRequest(): ToolInvokeRequest {
-  const { invocation: _invocation, ...payload } = request()
-  return payload
+  return toolInvokeRequestOf(request())
 }
 
 describe('ordinary invoke request judgment', () => {
@@ -59,7 +61,6 @@ describe('ordinary invoke request judgment', () => {
     for (const [copy, original] of [
       [judged.ok, value],
       [judged.ok.availability.definition, value.availability.definition],
-      [judged.ok.availability.definition.declarations, value.availability.definition.declarations],
       [judged.ok.arguments, value.arguments],
       [judged.ok.resources, value.resources],
       [judged.ok.resources[0], value.resources[0]],
@@ -75,19 +76,19 @@ describe('ordinary invoke request judgment', () => {
     expect(judged.ok).toEqual(expected)
   })
 
-  const commands = {
-    ...invokeRequest(),
+  const commands = toolInvokeRequestOf({
+    ...request(),
     availability: {
       kind: 'available',
       definition: commandsDefinition(),
       executor: adoption('exec'),
       layer: { kind: 'official' },
     },
-  }
+  })
   it.each([
     { name: 'null', input: null, field: 'ToolInvokeRequest', reason: 'type' },
     { name: 'primitive', input: 1, field: 'ToolInvokeRequest', reason: 'type' },
-    { name: 'missing fields', input: {}, field: 'availability', reason: 'missing' },
+    { name: 'missing fields', input: {}, field: 'command', reason: 'missing' },
     {
       name: 'caller source',
       input: { ...invokeRequest(), source: evidence('source') },
@@ -95,22 +96,25 @@ describe('ordinary invoke request judgment', () => {
       reason: 'unknown-field',
     },
     {
-      name: 'function command',
-      input: { ...invokeRequest(), command: 'read' },
-      field: 'command',
-      reason: 'not-a-command-tool',
+      name: 'a copy of the environment declaration',
+      input: { ...invokeRequest(), environment: null },
+      field: 'environment',
+      reason: 'unknown-field',
     },
     {
-      name: 'missing command',
-      input: { ...commands, command: null },
-      field: 'command',
+      name: 'the definition by value',
+      input: { ...invokeRequest(), availability: request().availability },
+      field: 'availability.definition.owner',
       reason: 'missing',
     },
     {
-      name: 'unknown command',
-      input: { ...commands, command: 'write' },
-      field: 'command',
-      reason: 'unknown-command',
+      name: 'a reference without the tool name',
+      input: {
+        ...invokeRequest(),
+        availability: { ...invokeRequest().availability, name: ' ' },
+      },
+      field: 'availability.name',
+      reason: 'blank',
     },
   ])('rejects $name with a structured field and reason', ({ input, field, reason }) => {
     expect(judgeToolInvokeRequest(input)).toEqual({ failure: { field, reason } })
@@ -123,6 +127,17 @@ describe('ordinary invoke request judgment', () => {
       label: { intent: null, tool: 'files', command: 'read', preview: '' },
     }
     expect(judgeToolInvokeRequest(value)).toEqual({ ok: value })
+  })
+
+  it('names the definition only by its adoption and the tool name', () => {
+    const fixed = request()
+    expect(invokeRequest().availability).toEqual({
+      kind: 'available',
+      definition: fixed.availability.definition.adoption,
+      name: fixed.availability.definition.name,
+      executor: adoption('exec'),
+      layer: { kind: 'official' },
+    })
   })
 })
 
@@ -339,8 +354,7 @@ describe('request judgment', () => {
     })
     for (const accepted of [{ ...request(), workspace }, request()]) {
       expect('ok' in judgeFixedToolRequest(accepted)).toBe(true)
-      const { invocation: _invocation, ...payload } = accepted
-      expect('ok' in judgeToolInvokeRequest(payload)).toBe(true)
+      expect('ok' in judgeToolInvokeRequest(toolInvokeRequestOf(accepted))).toBe(true)
     }
     const judged = judgeFixedToolRequest({
       ...request(),
@@ -375,8 +389,7 @@ describe('request judgment', () => {
     ]
     for (const [label, value, expected] of bad) {
       expect(rejection({ ...request(), workspace: value }), label).toEqual(expected)
-      const { invocation: _invocation, ...payload } = { ...request(), workspace: value }
-      const invoke = judgeToolInvokeRequest(payload)
+      const invoke = judgeToolInvokeRequest({ ...invokeRequest(), workspace: value })
       if ('ok' in invoke) throw new Error(`${label} was accepted`)
       expect(invoke.failure, label).toEqual(expected)
     }
@@ -426,7 +439,6 @@ describe('environment declarations and explicit requester scope', () => {
     const value = request()
     return {
       ...value,
-      environment,
       availability: {
         ...value.availability,
         definition: {
@@ -437,29 +449,22 @@ describe('environment declarations and explicit requester scope', () => {
     }
   }
 
-  it('keeps the declaration and scope separately from workspace and concurrency scope', () => {
+  it('keeps the declaration in the definition and the scope apart from workspace and concurrency scope', () => {
     const value = declared()
     const judged = judgeFixedToolRequest(value)
     expect(judged).toEqual({ ok: value })
     if ('failure' in judged) throw new Error('valid declaration rejected')
-    expect(judged.ok.environment).not.toBe(value.environment)
+    expect(judged.ok.availability.definition.declarations.environment).toEqual(environment)
+    expect(judged.ok.availability.definition.declarations.environment).not.toBe(environment)
     expect(judged.ok.requesterScope).not.toBe(value.requesterScope)
     expect(Object.isFrozen(judged.ok.requesterScope)).toBe(true)
   })
 
-  it('rejects bare adoptions and declarations that differ from the selected definition', () => {
-    expect(rejection({ ...declared(), environment: adoption('old-environment') }).field).toBe(
-      'environment.adoption',
-    )
-    for (const environment of [
-      null,
-      { ...declared().environment, adoption: adoption('other-schema') },
-      { ...declared().environment, value: { kind: 'null' } },
-    ])
-      expect(rejection({ ...declared(), environment })).toEqual({
-        field: 'environment',
-        reason: 'definition-mismatch',
-      })
+  it('rejects a copy of the declaration beside the definition and a bare adoption inside it', () => {
+    expect(rejection({ ...declared(), environment })).toEqual({
+      field: 'environment',
+      reason: 'unknown-field',
+    })
     const bare = declared()
     expect(
       rejection({

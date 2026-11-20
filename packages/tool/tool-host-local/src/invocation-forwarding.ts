@@ -5,7 +5,9 @@ import {
   isTenantShape,
   recordKey,
   type CallRecord,
+  type HostRecord,
   type LedgerDomain,
+  type ToolLedgerStore,
   type ToolSourceGuard,
 } from '@omne-harness/tool'
 import {
@@ -18,17 +20,19 @@ import {
   type Reply,
   type ToolCallId,
   type ToolForwardIntent,
-  type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import {
   commandArguments,
+  fixedRequestReference,
   judgeFixedToolRequest,
   judgeToolArguments,
   judgeToolInvokeRequest,
+  toolInvokeRequestOf,
   type ToolForwardBinding,
   type ToolForwardParent,
   type ToolForwardSource,
 } from '@omne-harness/tool-contract/provider'
+import type { ResolveDefinition } from './definition-resolution.ts'
 import type { LocalInvocationSourceInput, PrincipalJson } from './invocation-source.ts'
 import { localArgumentLimits } from './ledger-guards.ts'
 import { isReceivedCopyKey, receivedCopyKey, sourceDomain, sourceKey } from './source-identities.ts'
@@ -85,7 +89,8 @@ type StoredForward = Readonly<{
   principal: PrincipalJson
   origin: Readonly<Record<string, unknown>>
 }>
-export function parseForward(value: unknown): StoredForward | null {
+export function parseForward(host: HostRecord): StoredForward | null {
+  const { value } = host
   if (
     !isObject(value) ||
     value.kind !== 'invocation-source' ||
@@ -97,13 +102,12 @@ export function parseForward(value: unknown): StoredForward | null {
   if (typeof value.call !== 'string' || typeof value.admission !== 'string') return null
   const call = decodeToolCallId(value.call),
     admission = decodeToolOperationId(value.admission)
-  const request = judgeFixedToolRequest(value.request)
+  const request = judgeFixedToolRequest(host.request)
   if ('failure' in call || 'failure' in admission || 'failure' in request) return null
-  const { invocation, ...business } = request.ok
   if (
-    value.fixedDigest !== canonicalDigest(request.ok) ||
-    value.requestDigest !== canonicalDigest(business) ||
-    !same(value.invocation, invocation)
+    value.fixedDigest !== canonicalDigest(fixedRequestReference(request.ok)) ||
+    value.requestDigest !== canonicalDigest(toolInvokeRequestOf(request.ok)) ||
+    !same(value.invocation, request.ok.invocation)
   )
     return null
   return {
@@ -127,7 +131,8 @@ type CallParts = Readonly<{
   command: string | null
   arguments: FixedToolRequest['arguments']
 }>
-const partsOf = (request: FixedToolRequest | ToolInvokeRequest): CallParts => ({
+type TargetCall = Omit<FixedToolRequest, 'invocation'>
+const partsOf = (request: TargetCall): CallParts => ({
   definition: request.availability.definition,
   command: request.command,
   arguments: request.arguments,
@@ -165,7 +170,7 @@ export function forwardIntentOfCall(call: CallParts): ToolForwardIntent | null {
 function matchesTarget(
   parent: FixedToolRequest,
   intent: ToolForwardIntent,
-  target: ToolInvokeRequest,
+  target: TargetCall,
 ): boolean {
   const targetArguments = parsedArguments(partsOf(target))
   if (
@@ -189,6 +194,33 @@ function matchesTarget(
   ).every(key => same(parent[key], target[key]))
 }
 
+const sameRequest = (left: FixedToolRequest, right: FixedToolRequest) =>
+  same(fixedRequestReference(left), fixedRequestReference(right))
+
+function forwardCommitted(
+  commit: Awaited<ReturnType<ToolLedgerStore['commit']>>,
+  ids: Pick<ToolForwardBinding, 'call' | 'admission'>,
+  request: FixedToolRequest,
+): Awaited<ReturnType<ToolForwardSource<unknown>['resolve']>> | null {
+  if (commit.kind === 'committed') return { kind: 'bound', ...ids, request, recovered: false }
+  if (commit.kind === 'unknown') return { kind: 'issuance-unknown', ...ids }
+  if (commit.kind === 'unavailable')
+    return {
+      kind: 'rejected',
+      failure: {
+        kind: 'unavailable',
+        dependency: 'invocation-source',
+        diagnostic: commit.diagnostic,
+      },
+    }
+  if (commit.kind === 'rejected')
+    return {
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'storage', reason: commit.reason },
+    }
+  return null
+}
+
 export function createInvocationForwarding<P>(
   input: LocalInvocationSourceInput<P>,
   directGuard: ToolSourceGuard<P>,
@@ -196,6 +228,7 @@ export function createInvocationForwarding<P>(
     tenant: LedgerDomain['tenant'],
     consumer: ConsumerRef,
   ) => Pick<ToolForwardBinding, 'call' | 'admission'>,
+  resolveDefinition: ResolveDefinition<P>,
 ) {
   const readParent = async (
     access: Access<P> & { call: ToolForwardBinding['call'] },
@@ -217,7 +250,7 @@ export function createInvocationForwarding<P>(
     if (
       row.start === null ||
       !same(row.start, parent.start) ||
-      !same(row.request, parent.request) ||
+      !sameRequest(row.request, parent.request) ||
       !same(row.start.execution.tenant, parent.tenant) ||
       row.start.execution.call !== parent.call ||
       row.request.command !== 'execute'
@@ -272,7 +305,7 @@ export function createInvocationForwarding<P>(
       intent === null ||
       origin.slot !== 'execute' ||
       origin.admission !== parent.admission ||
-      origin.requestDigest !== canonicalDigest(parent.request) ||
+      origin.requestDigest !== canonicalDigest(fixedRequestReference(parent.request)) ||
       !same(origin.start, parent.start) ||
       !same(origin.intent, intent) ||
       origin.intentDigest !== canonicalDigest(intent) ||
@@ -292,7 +325,7 @@ export function createInvocationForwarding<P>(
     if (read.kind !== 'complete') return unavailable()
     const row = read.record
     if (row === null) return succeed({ read, stored: null })
-    const stored = row.kind === 'host' ? parseForward(row.host.value) : null
+    const stored = row.kind === 'host' ? parseForward(row.host) : null
     return stored === null ? unavailable() : succeed({ read, stored })
   }
   const recoverBinding = async (
@@ -305,7 +338,7 @@ export function createInvocationForwarding<P>(
       stored === null ||
       stored.call !== access.call ||
       stored.admission !== access.admission ||
-      !same(stored.request, access.request)
+      !sameRequest(stored.request, access.request)
     )
       return denied()
     const checked = await verifyStored(access, stored)
@@ -355,15 +388,17 @@ export function createInvocationForwarding<P>(
           const judged = targetSnapshot
           if ('failure' in judged)
             return { kind: 'rejected', failure: { kind: 'invalid', ...judged.failure } }
-          if (!matchesTarget(parent.request, intent, judged.ok))
+          const availability = await resolveDefinition(parent, judged.ok.availability)
+          if ('failure' in availability) return { kind: 'rejected', failure: availability.failure }
+          const target = { ...judged.ok, availability: availability.ok }
+          if (!matchesTarget(parent.request, intent, target))
             return { kind: 'rejected', failure: { kind: 'denied', action: 'admit' } }
-          const request = { ...judged.ok, invocation: parent.request.invocation }
+          const request = { ...target, invocation: parent.request.invocation }
           const value = {
             kind: 'invocation-source',
             ...ids,
-            request,
             requestDigest: canonicalDigest(judged.ok),
-            fixedDigest: canonicalDigest(request),
+            fixedDigest: canonicalDigest(fixedRequestReference(request)),
             invocation: request.invocation,
             principal: input.principalCodec.encode(parent.principal),
             origin: {
@@ -371,7 +406,7 @@ export function createInvocationForwarding<P>(
               parent: parent.call,
               admission: checked.ok.admission,
               start: parent.start,
-              requestDigest: canonicalDigest(parent.request),
+              requestDigest: canonicalDigest(fixedRequestReference(parent.request)),
               slot: 'execute',
               intent,
               intentDigest: canonicalDigest(intent),
@@ -388,30 +423,15 @@ export function createInvocationForwarding<P>(
               writes: [
                 {
                   kind: 'put',
-                  record: { kind: 'host', host: { key: sourceKey(consumer), value } },
+                  record: { kind: 'host', host: { key: sourceKey(consumer), value, request } },
                 },
               ],
             })
           } catch {
             return { kind: 'issuance-unknown', ...ids }
           }
-          if (commit.kind === 'committed')
-            return { kind: 'bound', ...ids, request, recovered: false }
-          if (commit.kind === 'unknown') return { kind: 'issuance-unknown', ...ids }
-          if (commit.kind === 'unavailable')
-            return {
-              kind: 'rejected',
-              failure: {
-                kind: 'unavailable',
-                dependency: 'invocation-source',
-                diagnostic: commit.diagnostic,
-              },
-            }
-          if (commit.kind === 'rejected')
-            return {
-              kind: 'rejected',
-              failure: { kind: 'invalid', field: 'storage', reason: commit.reason },
-            }
+          const outcome = forwardCommitted(commit, ids, request)
+          if (outcome !== null) return outcome
         }
         return { kind: 'association-unknown' }
       } catch {

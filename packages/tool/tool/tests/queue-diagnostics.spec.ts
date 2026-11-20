@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { adoption, evidence, failure, fixedOf, functionDefinition, ok } from './runtime-values.ts'
+import {
+  adoption,
+  available,
+  evidence,
+  failure,
+  fixedOf,
+  functionDefinition,
+  ok,
+} from './runtime-values.ts'
 import {
   admitCall,
   auditQueues,
@@ -15,12 +23,7 @@ type Limits = Readonly<{ concurrency: number | null; scopeBudget: number | null 
 
 function toolIn(name: string, limits: Limits) {
   return {
-    availability: {
-      kind: 'available' as const,
-      definition: functionDefinition({ name, adoption: adoption(name) }),
-      executor: adoption('exec'),
-      layer: { kind: 'official' as const },
-    },
+    availability: available(functionDefinition({ name, adoption: adoption(name) })),
     scope: { owner: 'scope-owner', key: 'scope-1', grant: evidence('grant-1') },
     limits: { ...limits, foregroundMs: null, backgroundAfterMs: null },
   }

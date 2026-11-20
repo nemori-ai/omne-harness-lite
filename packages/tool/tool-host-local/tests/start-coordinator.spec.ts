@@ -105,6 +105,7 @@ describe('the start ordering domain', () => {
         scanPending: input => memory.scanPending(input),
         readRecord: memory.readRecord,
         due: memory.due,
+        definition: memory.definition,
         read: async domain => {
           if (block) {
             block = false
@@ -155,6 +156,7 @@ describe('the start ordering domain', () => {
       read: domain => memory.read(domain),
       readRecord: (domain, key) => memory.readRecord(domain, key),
       due: (tenant, now, limit) => memory.due(tenant, now, limit),
+      definition: (tenant, adoption) => memory.definition(tenant, adoption),
       commit: async input => {
         const acceptance =
           input.domain.kind === 'host' &&
@@ -520,6 +522,7 @@ describe('the start ordering domain', () => {
       scanPending: input => memory.scanPending(input),
       readRecord: (domain, key) => memory.readRecord(domain, key),
       due: (tenant, now, limit) => memory.due(tenant, now, limit),
+      definition: (tenant, adoption) => memory.definition(tenant, adoption),
       read: domain => {
         if (domain.kind === 'host' && domain.key === START_GUARDS_DOMAIN_KEY) guardReads.count += 1
         return memory.read(domain)
@@ -786,6 +789,7 @@ describe('tenants and qualification', () => {
     scanPending: () => new Promise(() => {}),
     readRecord: () => new Promise(() => {}),
     due: () => new Promise(() => {}),
+    definition: () => new Promise(() => {}),
     read: () => new Promise(() => {}),
     commit: () => new Promise(() => {}),
   })
@@ -856,6 +860,7 @@ describe('bound: what an expired turn may still commit is unknown, not unavailab
       scanPending: input => memory.scanPending(input),
       readRecord: (domain, key) => memory.readRecord(domain, key),
       due: (tenant, now, limit) => memory.due(tenant, now, limit),
+      definition: (tenant, adoption) => memory.definition(tenant, adoption),
       read: domain => memory.read(domain),
       commit: input =>
         holding

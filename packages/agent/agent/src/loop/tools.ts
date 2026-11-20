@@ -51,6 +51,12 @@ export const fixedToolRequestSchema = {
   digest: 'agent:fixed-tool-request/1',
 } as const
 
+export function toolRequestMaterial(
+  request: ToolInvokeRequest,
+): Extract<Material<ContentBlock>, { kind: 'facts' }> {
+  return { kind: 'facts', schema: fixedToolRequestSchema, value: json(request) }
+}
+
 export const toolCallAnswerSchema = {
   owner: 'agent',
   name: 'tool-call-answer',
@@ -246,7 +252,7 @@ export async function preserveAllowedRequest<P>(
     execution,
     identity: `${execution}/${action.id}/request`,
     consumer: request.consumer,
-    value: { kind: 'facts', schema: fixedToolRequestSchema, value: json(request) },
+    value: toolRequestMaterial(request),
   })
   if ('failure' in stored) return stored
   return succeed({
@@ -304,7 +310,7 @@ function checkedRequest(
     })
   const request = checked.ok
   const same =
-    canonical(request.availability.definition.adoption) === canonical(definition) &&
+    canonical(request.availability.definition) === canonical(definition) &&
     canonical(request.consumer) === canonical(consumer) &&
     request.arguments.original === argumentsText(original.arguments) &&
     request.arguments.effective === action.effectiveArguments

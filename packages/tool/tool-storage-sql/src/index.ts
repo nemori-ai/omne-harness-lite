@@ -10,3 +10,4 @@ export {
   type SqlToolBodyStoreOptions,
 } from './body-store.ts'
 export { TOOL_PARTICIPANT, toolStorageMaterials, type ToolStorageMaterials } from './materials.ts'
+export { DEFINITION_BLOCK_BYTES } from './worker/schema.ts'

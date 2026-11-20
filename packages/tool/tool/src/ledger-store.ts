@@ -5,6 +5,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { ResultValue } from './ledger-result-material.ts'
 import type {
   Access,
+  Adoption,
   ControlReceipt,
   ControlRecord,
   DeliveryState,
@@ -14,6 +15,7 @@ import type {
   FixedToolRequest,
   ProcessBlock,
   ToolCallId,
+  ToolDefinition,
   ToolExecutionRef,
   ToolOperationId,
   ToolResultVersion,
@@ -278,7 +280,7 @@ export type ReleaseBasis =
     }>
   | Readonly<{ kind: 'lost-continuity'; continuity: DurableEvidence }>
 
-export type HostRecord = Readonly<{ key: string; value: unknown }>
+export type HostRecord = Readonly<{ key: string; value: unknown; request?: FixedToolRequest }>
 
 export type LedgerRecord =
   | Readonly<{ kind: 'body-entry'; body: BodyEntryRecord }>
@@ -448,10 +450,15 @@ export type LedgerCommit =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'rejected'; reason: string }>
 
+export type LedgerDefinitionRead =
+  | Readonly<{ kind: 'complete'; definition: ToolDefinition | null }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
 export interface ToolLedgerStore {
   readonly durability: 'none' | 'durable'
   read(domain: LedgerDomain): Promise<LedgerRead>
   readRecord(domain: LedgerDomain, key: string): Promise<LedgerRecordRead>
+  definition(tenant: TenantId, adoption: Adoption): Promise<LedgerDefinitionRead>
   commit(input: LedgerCommitInput): Promise<LedgerCommit>
   due(tenant: TenantId, now: ToolInstant, limit: number): Promise<LedgerDueRead>
   scanPending(input: LedgerPendingScanInput): Promise<LedgerPendingScan>

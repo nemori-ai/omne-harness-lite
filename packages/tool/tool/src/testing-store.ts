@@ -1,11 +1,12 @@
-import type { ToolRevision } from '@omne-harness/tool-contract'
+import type { Adoption, ToolRevision } from '@omne-harness/tool-contract'
 import type { ToolInstant } from '@omne-harness/tool-contract/provider'
-import { INITIAL_REVISION } from './evidence.ts'
+import { canonicalJson, INITIAL_REVISION } from './evidence.ts'
 import {
   recordKey,
   type DueEntry,
   type LedgerCommit,
   type LedgerCommitInput,
+  type LedgerDefinitionRead,
   type LedgerDomain,
   type LedgerPendingScan,
   type LedgerPendingScanInput,
@@ -61,6 +62,40 @@ function pendingOrder(entry: PendingCall): string {
 
 function copy<T>(value: T): T {
   return structuredClone(value)
+}
+
+function* tenantDomains(
+  domains: ReadonlyMap<string, Domain>,
+  addresses: ReadonlyMap<string, LedgerDomain>,
+  tenant: TenantId,
+): Generator<readonly [LedgerDomain, Domain]> {
+  for (const [key, domain] of domains) {
+    const address = addresses.get(key)
+    if (address !== undefined && tenantKey(address.tenant) === tenantKey(tenant))
+      yield [address, domain]
+  }
+}
+
+function storedDefinition(
+  domains: ReadonlyMap<string, Domain>,
+  addresses: ReadonlyMap<string, LedgerDomain>,
+  tenant: TenantId,
+  adoption: Adoption,
+): LedgerDefinitionRead {
+  const wanted = canonicalJson(adoption)
+  for (const [, domain] of tenantDomains(domains, addresses, tenant))
+    for (const record of domain.records.values()) {
+      const request =
+        record.kind === 'call'
+          ? record.call.request
+          : record.kind === 'host'
+            ? record.host.request
+            : undefined
+      const definition = request?.availability.definition
+      if (definition !== undefined && canonicalJson(definition.adoption) === wanted)
+        return { kind: 'complete', definition: copy(definition) }
+    }
+  return { kind: 'complete', definition: null }
 }
 
 export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
@@ -139,12 +174,9 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
 
   const dueOf = (tenant: TenantId, now: ToolInstant, limit: number): LedgerDueRead => {
     const entries: DueEntry[] = []
-    for (const [key, domain] of domains) {
-      const address = addresses.get(key)
-      if (address === undefined || tenantKey(address.tenant) !== tenantKey(tenant)) continue
+    for (const [address, domain] of tenantDomains(domains, addresses, tenant))
       for (const [entryKey, dueAt] of domain.due)
         if (dueAt <= now) entries.push({ domain: copy(address), key: entryKey, dueAt })
-    }
     entries.sort((a, b) =>
       a.dueAt < b.dueAt ? -1 : a.dueAt > b.dueAt ? 1 : a.key < b.key ? -1 : a.key > b.key ? 1 : 0,
     )
@@ -239,6 +271,8 @@ export function createMemoryToolLedgerStore(): MemoryToolLedgerStore {
         record: copy(target.records.get(key) ?? null),
       })
     },
+    definition: (tenant, adoption) =>
+      Promise.resolve(storedDefinition(domains, addresses, tenant, adoption)),
     commit: input => {
       commits += 1
       return Promise.resolve(commit(input))

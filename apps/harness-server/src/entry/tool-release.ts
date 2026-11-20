@@ -7,6 +7,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
 import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
+import type { LocalCurrentDefinitions } from '@omne-harness/tool-host-local'
 import {
   ToolContributionAuthorityService,
   toolContributionAuthorityKey,
@@ -367,4 +368,21 @@ export function releaseDefinitionOf(ctx: Context, name: string): ToolDefinition 
   if (release.kind !== 'trusted' || known?.generation !== release.generation) return undefined
   const definition = known.entries.get(name)
   return definition === undefined ? undefined : structuredClone(definition)
+}
+
+export function releaseCurrentDefinitions<P>(ctx: Context): LocalCurrentDefinitions<P> {
+  return {
+    current: ({ name }) => {
+      const release = releaseOf(ctx)
+      return Promise.resolve(
+        release.kind === 'trusted'
+          ? succeed(releaseDefinitionOf(ctx, name) ?? null)
+          : fail({
+              kind: 'unavailable',
+              dependency: 'tool-release',
+              diagnostic: release.diagnostic,
+            }),
+      )
+    },
+  }
 }

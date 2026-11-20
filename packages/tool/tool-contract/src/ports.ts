@@ -5,7 +5,7 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { ToolDecision } from './author-context.ts'
 import type { ToolInspection } from './authoring.ts'
 import type { ToolPlannedFinal } from './materials.ts'
-import type { FixedToolRequest, ToolAvailability, ToolInvocation } from './definitions.ts'
+import type { FixedToolRequest, ToolAvailability } from './definitions.ts'
 import type { ToolExecutionRef } from './execution.ts'
 import type {
   Access,
@@ -202,7 +202,7 @@ export type ToolInvocationSourceOutcome =
       kind: 'bound'
       call: ToolCallId
       admission: ToolOperationId
-      invocation: ToolInvocation
+      request: FixedToolRequest
       recovered: boolean
     }>
   | Readonly<{ kind: 'issuance-unknown'; call: ToolCallId; admission: ToolOperationId }>
@@ -211,7 +211,11 @@ export type ToolInvocationSourceOutcome =
 
 export interface ToolInvocationSourceIssuer<P> {
   resolve(
-    input: Access<P> & Readonly<{ request: ToolInvokeRequest }>,
+    input: Access<P> &
+      Readonly<{
+        request: ToolInvokeRequest
+        refusal?: (request: Omit<FixedToolRequest, 'invocation'>) => ToolDefiniteFailure | null
+      }>,
   ): Promise<ToolInvocationSourceOutcome>
 }
 export interface ToolDriver<P> {

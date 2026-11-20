@@ -28,6 +28,7 @@ import {
 import { admitCall, startHarness } from './start-values.ts'
 import {
   adoption,
+  available,
   callId,
   configurationOf,
   functionDefinition,
@@ -128,14 +129,9 @@ export async function settlementFixture(
     environmentsPort: base => ({ ...base, adoption: ports.releaseInspection.adoption }),
   })
   const name = options.call ?? 'settlement'
-  const availability = {
-    kind: 'available' as const,
-    definition:
-      options.definition ??
-      functionDefinition({ backgroundAllowed: options.mode === 'background' }),
-    executor: adoption('exec'),
-    layer: { kind: 'official' as const },
-  }
+  const availability = available(
+    options.definition ?? functionDefinition({ backgroundAllowed: options.mode === 'background' }),
+  )
   let access = { principal: principalA, tenant: tenantA, call: callId(name) }
   if (options.tenant === 'b') {
     const invoked = await harness.runtime.invoke({
@@ -206,6 +202,7 @@ export async function settlementFixture(
     scanPending: input => harness.memory.scanPending(input),
     readRecord: harness.memory.readRecord,
     due: harness.memory.due,
+    definition: harness.memory.definition,
     read: domain => harness.memory.read(domain),
     commit: input => {
       commits.push(structuredClone(input))

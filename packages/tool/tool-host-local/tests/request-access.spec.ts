@@ -35,6 +35,7 @@ function fixture(answer: () => Promise<AccessVerdict>) {
     scanPending: input => memory.scanPending(input),
     readRecord: (domain, key) => memory.readRecord(domain, key),
     due: memory.due,
+    definition: memory.definition,
     read: memory.read,
     commit: async input => {
       if (conflict) {

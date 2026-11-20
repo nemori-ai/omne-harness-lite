@@ -283,6 +283,7 @@ describe('the queue entry of a call whose decision was accepted', () => {
         scanPending: input => memory.scanPending(input),
         readRecord: memory.readRecord,
         due: memory.due,
+        definition: memory.definition,
         read: domain => memory.read(domain),
         commit: async input => {
           for (const write of input.writes)

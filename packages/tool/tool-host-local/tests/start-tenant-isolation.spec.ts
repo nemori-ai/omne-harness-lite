@@ -33,6 +33,7 @@ it('lets tenant B commit while A is blocked in its read, and decides A by commit
     scanPending: input => memory.scanPending(input),
     readRecord: (domain, key) => memory.readRecord(domain, key),
     due: (tenant, now, limit) => memory.due(tenant, now, limit),
+    definition: (tenant, adoption) => memory.definition(tenant, adoption),
     read: async domain => {
       if (block && domain.tenant.account.text === tenantA.account.text) {
         block = false
@@ -95,6 +96,7 @@ it('an earlier completed tail does not remove its blocked successor from the que
     scanPending: input => memory.scanPending(input),
     readRecord: (domain, key) => memory.readRecord(domain, key),
     due: (tenant, now, limit) => memory.due(tenant, now, limit),
+    definition: (tenant, adoption) => memory.definition(tenant, adoption),
     read: async domain => {
       reads += 1
       if (reads === 1) {

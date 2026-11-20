@@ -3,7 +3,7 @@ import { createToolLedger } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import {
-  adoption,
+  available,
   configuration,
   functionDefinition,
   guards,
@@ -34,21 +34,16 @@ function retainedFor(maxRetentionMs: number) {
   const definition = functionDefinition()
   if (definition.kind !== 'function') throw new Error('fixture must define a function')
   return request({
-    availability: {
-      kind: 'available',
-      definition: {
-        ...definition,
-        returns: {
-          ...definition.returns,
-          offloading: {
-            inline: { kind: 'system' },
-            retention: { kind: 'bounded', maxRetentionMs },
-          },
+    availability: available({
+      ...definition,
+      returns: {
+        ...definition.returns,
+        offloading: {
+          inline: { kind: 'system' },
+          retention: { kind: 'bounded', maxRetentionMs },
         },
       },
-      executor: adoption('exec'),
-      layer: { kind: 'official' },
-    },
+    }),
   })
 }
 

@@ -32,6 +32,7 @@ import {
   type ToolConsumerProfile,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
+import { toolAvailabilityReference } from '@omne-harness/tool-contract/provider'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
 import { RELEASE_REQUEST_CONTEXT, runToolScope } from '../rows/tool-runtime/scope.ts'
@@ -319,14 +320,13 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     )
     if ('failure' in limits) return unavailable(limits.failure)
     const request: ToolInvokeRequest = {
-      availability,
+      availability: toolAvailabilityReference(availability),
       command,
       arguments: args,
       label,
       settings: entry.settings,
       context: RELEASE_REQUEST_CONTEXT,
       workspace: null,
-      environment: availability.definition.declarations.environment,
       requesterScope: scope.ok,
       resources: [],
       scope: runToolScope(input.tenant, input.consumer),
