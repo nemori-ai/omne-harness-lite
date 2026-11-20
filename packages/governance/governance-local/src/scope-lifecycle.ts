@@ -73,7 +73,7 @@ export class GovernanceScopeLifecycle {
       previousEpoch,
     })
     const result = await this.command('governance.scope-open', { kind: 'bootstrap', input })
-    if (result.kind !== 'applied') return unavailable()
+    if (result.kind !== 'applied') return this.currentlyOpen()
     const parsed = z
       .union([
         z.strictObject({
@@ -128,12 +128,17 @@ export class GovernanceScopeLifecycle {
       ? { kind: 'opened' as const }
       : unavailable()
   }
-  async isolate() {
+  private async isolation() {
     const found = await this.currentScope()
-    if (found.kind !== 'scope') return unavailable()
+    if (found.kind !== 'scope') return found
     const { current } = found
-    if (current === null || current.epoch !== this.options.epoch || current.state === 'closed')
-      return { kind: 'isolated' as const }
+    return current === null || current.epoch !== this.options.epoch || current.state === 'closed'
+      ? { kind: 'isolated' as const }
+      : { kind: 'open' as const }
+  }
+  async isolate() {
+    const before = await this.isolation()
+    if (before.kind !== 'open') return before
     const pages = await this.releasable()
     if (pages === undefined) return unavailable()
     const input = { scope: this.options.scope, epoch: this.options.epoch }
@@ -147,7 +152,10 @@ export class GovernanceScopeLifecycle {
         { kind: 'close-scope', input, released },
         releases,
       )
-      if (result.kind !== 'applied') return unavailable()
+      if (result.kind !== 'applied') {
+        const after = await this.isolation()
+        return after.kind === 'isolated' ? after : unavailable()
+      }
       const parsed = closeScopeSchema
         .extend({ kind: z.enum(['closed', 'obsolete']) })
         .safeParse(result.response)

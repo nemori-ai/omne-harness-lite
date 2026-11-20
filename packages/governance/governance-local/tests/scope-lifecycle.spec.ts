@@ -51,6 +51,39 @@ it('isolates the scope before draining real Identity reservations and never reop
   })
   expect(await lifecycle.isolate()).toEqual({ kind: 'isolated' })
 })
+it('recognizes its open and close from the scope state when the commit answers are lost', async () => {
+  const { w, sql } = await setup()
+  const storage = w.activation.storage
+  const lifecycle = new GovernanceScopeLifecycle({
+    ...w.services(),
+    scope: w.scope,
+    epoch: 'lost',
+    domain: w.activation.domain,
+    storage: {
+      ...storage,
+      database: storage.database,
+      async commit(request, options) {
+        await storage.commit(request, options)
+        return { kind: 'unknown', identity: request.identity, diagnostic: 'lost' }
+      },
+    },
+    metadata: {
+      combinationVersion: w.activation.combination('metadata').combinationVersion,
+      manifestDigest: w.activation.combination('metadata').manifestDigest,
+    },
+  })
+  expect(await lifecycle.open('first')).toEqual({ kind: 'opened' })
+  await sql.accept({
+    principalRef: w.principalRef,
+    epoch: 'lost',
+    transactionDomain: w.activation.domain.transactionDomain,
+    request: { owner: 'contribute', command: w.command('pending') },
+  })
+  expect(await lifecycle.isolate()).toEqual({ kind: 'isolated' })
+  expect(await sql.observe(w.binding('pending'))).toMatchObject({
+    record: { state: 'aborted' },
+  })
+})
 it('never seals successor operations while an old owner drains', async () => {
   const { w, lifecycle, sql } = await setup()
   await w.activation.control({
