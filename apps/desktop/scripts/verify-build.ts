@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { build } from 'vite'
-import { BUNDLES, type BuildProfile, bundleDir } from './build-profile.ts'
+import { BUNDLES, type BuildProfile, bundleDir, requireBuilt } from './build-profile.ts'
 import { bundleConfig, desktopDir, readBundleModules, sha256 } from './bundle-build.ts'
 import { bundleProblems } from './bundle-checks.ts'
 import { buildProfile } from './build.ts'
@@ -31,7 +31,9 @@ async function devControl(): Promise<string[]> {
 }
 
 export async function verifyBuild(rebuild: boolean): Promise<string[]> {
-  if (rebuild) for (const profile of ['test', 'release'] as const) await buildProfile(profile)
+  for (const profile of ['test', 'release'] as const)
+    if (rebuild) await buildProfile(profile)
+    else requireBuilt(profile, desktopDir)
   const problems = (['test', 'release'] as const).flatMap(profile =>
     profileProblems(profile, resolve(desktopDir, bundleDir(profile))),
   )

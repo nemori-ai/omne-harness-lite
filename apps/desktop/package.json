@@ -14,13 +14,14 @@
     "dist"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json && node scripts/build.ts test",
-    "build:release": "node scripts/build.ts release",
-    "window": "node scripts/window.ts",
+    "build": "rm -rf dist/forwarding dist/port-fetch dist/shared dist/standalone && tsc -p tsconfig.build.json && node scripts/build.ts",
+    "build:test": "node scripts/build.ts test",
     "dev": "node scripts/dev.ts",
-    "package": "node scripts/build.ts test && electron-builder --dir --config electron-builder.test.mjs --publish never",
-    "package:release": "node scripts/build.ts release && electron-builder --dir --config electron-builder.release.mjs --publish never",
-    "dist": "node scripts/build.ts release && electron-builder --config electron-builder.release.mjs --publish never",
+    "start": "node scripts/start.ts",
+    "start:test": "node scripts/start-test.ts",
+    "package": "electron-builder --dir --config electron-builder.release.mjs --publish never",
+    "package:test": "electron-builder --dir --config electron-builder.test.mjs --publish never",
+    "dist": "electron-builder --config electron-builder.release.mjs --publish never",
     "verify:build": "node scripts/verify-build.ts",
     "verify:release": "node scripts/verify-release.ts",
     "test:e2e": "playwright test",
@@ -29,7 +30,6 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/assets-protocol": "workspace:*",

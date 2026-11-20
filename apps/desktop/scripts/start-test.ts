@@ -1,4 +1,4 @@
-// pnpm run window [--packaged | --app <executable>] [--user-data-dir=<dir>] [Electron arguments]
+// pnpm run start:test [--packaged | --app <executable>] [--user-data-dir=<dir>] [Electron arguments]
 // Starts the test profile, unpackaged by default, on a fresh user data directory unless one is named.
 import { spawn } from 'node:child_process'
 import {
@@ -12,7 +12,7 @@ import {
 import { listProcesses, type LaunchOwner, reapHelpers } from './release-launch.ts'
 import { forwardSignals } from './signals.ts'
 
-const note = (line: string) => process.stderr.write(`window: ${line}\n`)
+const note = (line: string) => process.stderr.write(`start:test: ${line}\n`)
 const fail = (failure: unknown): never => {
   note(failure instanceof Error ? failure.message : String(failure))
   process.exit(1)
@@ -33,7 +33,7 @@ const named = args.findIndex(arg => arg.startsWith('--user-data-dir='))
 const userDataDir =
   named >= 0
     ? args.splice(named, 1)[0]!.slice('--user-data-dir='.length)
-    : freshUserDataDir('window')
+    : freshUserDataDir('start-test')
 const temporary = named < 0
 
 let spec: ReturnType<typeof launchSpec>

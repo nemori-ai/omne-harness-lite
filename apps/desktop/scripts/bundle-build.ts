@@ -4,6 +4,7 @@ import { builtinModules } from 'node:module'
 import { join, relative, resolve, sep } from 'node:path'
 import type { InlineConfig, Plugin } from 'vite'
 import {
+  BUILD_COMMANDS,
   BUNDLE_ENTRIES,
   type Bundle,
   type BuildProfile,
@@ -126,6 +127,6 @@ export function readBundleModules(
   try {
     return JSON.parse(readFileSync(file, 'utf8')) as BundleModules
   } catch {
-    throw new Error(`${file} is missing: run \`pnpm run build ${profile}\` first`)
+    throw new Error(`${file} is missing: run \`${BUILD_COMMANDS[profile]}\` first`)
   }
 }

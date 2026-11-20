@@ -1,8 +1,8 @@
 import { defineConfig } from '@playwright/test'
 import type { Target } from './e2e/desktop.ts'
 
-// The test profile end to end against a real server: unpackaged after `pnpm run build`, packaged
-// after `pnpm run package`. The release profile is checked from outside by `pnpm run verify:release`.
+// The test profile end to end against a real server: unpackaged after `pnpm run build:test`, packaged
+// after `pnpm run package:test` as well. The release profile is checked from outside by `pnpm run verify:release`.
 export default defineConfig<{ target: Target }>({
   testDir: 'e2e',
   testMatch: '*.spec.ts',

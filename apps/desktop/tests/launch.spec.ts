@@ -15,8 +15,8 @@ import { remoteDebuggingSwitch, reportedBuildProfile } from '../src/startup-sign
 
 describe('构建档', () => {
   it('build 只接受 test 与 release，缺省 test；开发宿主只进 dev 档', () => {
-    expect(parseBuildArgs([])).toBe('test')
-    expect(parseBuildArgs(['release'])).toBe('release')
+    expect(parseBuildArgs([])).toBe('release')
+    expect(parseBuildArgs(['test'])).toBe('test')
     for (const bad of [['dev'], ['x'], ['test', 'release']])
       expect(() => parseBuildArgs(bad)).toThrow('usage')
     expect(emptyEntries('dev')).toEqual([])

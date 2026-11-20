@@ -63,7 +63,7 @@
 - 属性：`HttpOnly`，`SameSite=Strict`，`Path=/bridge/`，`Max-Age` 是一年（31536000 秒）。应用关了再开，登录还在。
 - `Max-Age` 不是登录的有效期。登录有效不有效由服务端定：每份登录在签发时冻结了最长截止时刻与空闲截止时刻，到期、被撤销或换了凭据之后服务端答 `denied`。cookie 只保证证明不先于服务端的截止时刻丢掉。
 - 页面启动时问一次登录状态。服务端认这份登录，页面直接进「已登录」；不认，转发层清除 cookie，页面回登录门并显示原因。
-- 证明因此落在本机，存在应用的用户数据目录里。打包的应用（测试档与发行档）打开了 Electron 的 cookie 加密，落盘的值用系统保管的密钥加密：macOS 是钥匙串，Windows 是当前用户的 DPAPI，Linux 是 Secret Service 或 KWallet。没打包的应用（`pnpm run window`、`pnpm run dev`）没有这个开关，证明以明文落盘，保护它的只有这个目录的权限。
+- 证明因此落在本机，存在应用的用户数据目录里。打包的应用（测试档与发行档）打开了 Electron 的 cookie 加密，落盘的值用系统保管的密钥加密：macOS 是钥匙串，Windows 是当前用户的 DPAPI，Linux 是 Secret Service 或 KWallet。没打包的应用（`pnpm run start:test`、`pnpm run dev`）没有这个开关，证明以明文落盘，保护它的只有这个目录的权限。
 - 测试启动不碰系统保管的密钥：macOS 用假钥匙串，Linux 用 Chromium 自带的固定密钥。它们只给测试与验证用，应用自己从不加这两个开关。
 - Windows 上 Chromium 只把 cookie 密钥写在用户数据的 `Local State` 里，而这个文件要在新的用户数据启动约 10 秒后或干净退出时才写。首次启动后这段时间里应用崩溃或被杀，已经落盘的 cookie 就再也解不开。所以测试档与发行档在 Windows 上拿到单实例锁之后，`Local State` 里没有密钥就先起一份带 `--omne-cookie-key-writer` 的应用：同一个用户数据目录、不用 GPU，就绪时用 safeStorage 加密一句探针打出来，干净退出写下密钥。启动最多等它 5 秒。主窗口开出来之后解探针，解得回原文记一行「用的是存下的密钥」，解不回记一条错误。写入者跑完仍没有密钥，就留一份带版本的失败记录，同一版本一天之内不再跑并说明；找到密钥就删掉记录。Electron 在生成密钥时就写盘之后，这一段与它的代码一起删掉。
 - 转发层是唯一写这枚 cookie 的地方，写的时机只有三个：登录成功时签发；退出时清除；确认登录已失效时清除。
@@ -191,11 +191,12 @@
 
 ### 构建档
 
-构建档在构建时编进包里，运行时不选。`dev` 只由 `pnpm run dev` 以监视方式构建；`test` 是 `pnpm run build` 的缺省，是 `pnpm run window`、e2e 与慢层用例跑的；`release` 是唯一发出去的。每档一个目录 `dist/<档>`，放页面、主进程与 utility 进程各一个自带依赖的包、一份 package.json，每个包旁记下模块清单与哈希；启动器拿不到别的档的包。一个档带什么由构建定：本档不带的模块在解析时换成同一契约的空实现，不靠运行时判断，也不靠摇树。
+构建档在构建时编进包里，运行时不选。`dev` 只由 `pnpm run dev` 以监视方式构建；`test` 是 `pnpm run start:test` 与 e2e 跑的；`release` 是唯一发出去的，也是慢层用例与独立转发进程用的。每档一个目录 `dist/<档>`，放页面、主进程与 utility 进程各一个自带依赖的包、一份 package.json，每个包旁记下模块清单与哈希；启动器拿不到别的档的包。一个档带什么由构建定：本档不带的模块在解析时换成同一契约的空实现，不靠运行时判断，也不靠摇树。
 
 | 性质 | dev | test | release |
 | --- | --- | --- | --- |
-| 由谁构建 | `pnpm run dev` | `pnpm run build`、`pnpm run package` | `pnpm run build:release`、`pnpm run package:release`、`pnpm run dist` |
+| 构建；打包 | `pnpm run dev`；不打包 | `pnpm run build:test`；`pnpm run package:test` | `pnpm run build`；`pnpm run package`、`pnpm run dist` |
+| 启动 | `pnpm run dev` | `pnpm run start:test` | `pnpm run start` |
 | 包；打包 | `dist/dev`；不打包 | `dist/test`；`out/test`，只解开 | `dist/release`；`out/release`，解开或安装包 |
 | 压缩、`NODE_ENV=production` | 否 | 是 | 是 |
 | 开发宿主（页面重建后重载、`<userData>-dev`） | 有 | 无 | 无 |
@@ -211,15 +212,26 @@
 
 ### 起法
 
-- `pnpm run build` 用 tsc 出独立转发进程一侧，再出测试档。`pnpm run window [--packaged | --app <可执行文件>] [--user-data-dir=<目录>]` 起测试档，缺省没打包；缺省用一个一次性的用户数据目录，应用与它的辅助进程都确认退出后删掉，确认不了就留下并以 1 退出；要留登录就给 `--user-data-dir=`。服务端地址取环境变量 `OMNE_SERVER`，缺省是 `http://127.0.0.1:8787`。
+- 命令的名字照一条规则：不带后缀的是发行档，测试档一律带 `:test`，开发是 `dev`。`build` 只出 JS，不碰 Electron；`package` 用 electron-builder 把 `dist/<档>` 组装成解开的应用并翻 fuses，不再构建；`dist` 在此之上出安装包，只有发行档有；`start` 起已经打好的包。构建、打包与验证都是 `apps/desktop` 的包脚本：仓库根只有跨成员的命令，不另设桌面应用的转发。
+
+  | 动作 | 发行档 | 测试档 |
+  | --- | --- | --- |
+  | 构建 | `pnpm run build`：tsc 出独立转发进程一侧，再出 `dist/release` | `pnpm run build:test`：`dist/test` |
+  | 打包 | `pnpm run package`：`out/release`，解开 | `pnpm run package:test`：`out/test`，解开 |
+  | 安装包 | `pnpm run dist` | 无 |
+  | 启动 | `pnpm run start` | `pnpm run start:test` |
+
+- 仓库的构建与测试跑的是 `pnpm run build`，慢层用例因此测发行档的包。e2e、`start:test` 与 `package:test` 要先跑 `pnpm run build:test`；缺哪一样，命令说要先跑哪一条。分步走一遍的次序：`build`、`build:test`、`verify:build --no-build`、`package:test`、`package`，最后 `verify:release --no-build`，两档各构建一次，打包的就是验过的那份。
+- `pnpm run start [Electron 参数]` 起 `out/release` 里打好的应用，像人双击那样：不加任何测试开关，不另给用户数据目录，用安装的应用的用户数据目录与系统的钥匙串或密钥库，受单实例锁约束，同名的应用已在跑就只是把它叫到前面。参数照原样传给应用。没打包就说先跑 `pnpm run package`，不退回没打包的 Electron。Linux 上沙箱起不来就说原因并以 1 退出，带了 `--no-sandbox` 也不起。应用的退出码原样传出，被信号结束时返回 128 加信号号；终端的 Ctrl+C 同时到应用与启动器，启动器等应用自己退出，单独发给启动器的 SIGTERM 与 SIGHUP 转给应用。只想看一眼又不碰自己的数据，就自己给 `--user-data-dir=<空目录>`，macOS 上再给 `--use-mock-keychain`。
+- `pnpm run start:test [--packaged | --app <可执行文件>] [--user-data-dir=<目录>]` 起测试档，缺省没打包；缺省用一个一次性的用户数据目录，应用与它的辅助进程都确认退出后删掉，确认不了就留下并以 1 退出；要留登录就给 `--user-data-dir=`。服务端地址取环境变量 `OMNE_SERVER`，缺省是 `http://127.0.0.1:8787`。
 - `pnpm run dev` 以监视方式构建 dev 档。页面重新构建后，应用里的开发宿主重载窗口；主进程或 utility 进程的包重新构建后应用重启。两种情形登录都还在，因为它在 cookie 里。关掉窗口，监视随之结束；应用崩溃或被信号结束时，`pnpm run dev` 以非零的状态退出。
 - dev 档的用户数据目录是应用数据目录下的 `<应用名>-dev`，不和安装的应用共用，也不顺带建出安装的应用的目录。测试启动每次都用自己的 `--user-data-dir`。
 - 所有启动经 `scripts/launch.ts`：它定可执行文件、参数、工作目录与环境，从继承的环境里去掉 `ELECTRON_RUN_AS_NODE`、`ELECTRON_NO_ATTACH_CONSOLE` 与 `NODE_OPTIONS`。测试启动另加隔离开关：假钥匙串或固定密钥（见登录 cookie），macOS 上 `-ApplePersistenceIgnoreState YES`，免得应用启动途中崩过之后，下一次停在「要重新打开窗口吗」的系统询问上。打包的应用先读回 fuses，不是测试档那一列就不起。
-- Linux 上先真的试建一个无特权的用户命名空间，判断 Chromium 的沙箱起不起得来：以 root 运行、建不出用户命名空间、AppArmor 限制，并且 `chrome-sandbox` 不是 root 所有的 4755，就起不来。起不来时测试与开发启动加 `--no-sandbox` 并在 stderr 说一次原因；发行档不由这些启动器起。
-- `pnpm run window` 与 `pnpm run dev` 把应用放进它自己的进程组。在终端按 Ctrl+C 时信号只到启动器，启动器把它转给应用一次，应用自己退出；第二次再转一次，第三次杀掉应用的进程组。Windows 上没有进程组，直接结束应用。`pnpm run dev` 因重新构建重启应用时，旧进程 3 秒内不退就杀掉，新进程在它退出之后才起。
-- `electron` 包没有安装脚本，装依赖时不下载二进制。第一次 `pnpm run window` 或第一次跑`electron-window` 用例时，包自己把二进制下载到 `node_modules/electron/dist`，本机缓存里有同版本的压缩包就不联网。要提前备好，在 `apps/desktop` 下跑 `pnpm exec install-electron`。
+- Linux 上先真的试建一个无特权的用户命名空间，判断 Chromium 的沙箱起不起得来：以 root 运行、建不出用户命名空间、AppArmor 限制，并且 `chrome-sandbox` 不是 root 所有的 4755，就起不来。起不来时测试与开发启动加 `--no-sandbox` 并在 stderr 说一次原因；`pnpm run start` 与 `verify:release` 不加，见各自一节。
+- `pnpm run start:test` 与 `pnpm run dev` 把应用放进它自己的进程组。在终端按 Ctrl+C 时信号只到启动器，启动器把它转给应用一次，应用自己退出；第二次再转一次，第三次杀掉应用的进程组。Windows 上没有进程组，直接结束应用。`pnpm run dev` 因重新构建重启应用时，旧进程 3 秒内不退就杀掉，新进程在它退出之后才起。
+- `electron` 包没有安装脚本，装依赖时不下载二进制。第一次 `pnpm run start:test` 或第一次跑 `electron-window` 用例时，包自己把二进制下载到 `node_modules/electron/dist`，本机缓存里有同版本的压缩包就不联网。要提前备好，在 `apps/desktop` 下跑 `pnpm exec install-electron`。
 - 主进程入口不在顶层等 `app` 就绪：Electron 在入口模块的顶层 `await` 完成之前不发就绪事件。
-- 独立转发进程：`omne-desktop-host [--server <origin>] [--port <port>]`，地址与端口也可以取环境变量 `OMNE_SERVER` 与 `OMNE_DESKTOP_PORT`。它发测试档的页面。
+- 独立转发进程：`omne-desktop-host [--server <origin>] [--port <port>]`，地址与端口也可以取环境变量 `OMNE_SERVER` 与 `OMNE_DESKTOP_PORT`。它发 `pnpm run build` 出的页面；页面不分档，各档的页面是同一份。
 - `src/` 下每一部分一个目录：
 
   | 目录             | 部分                              |
@@ -236,7 +248,7 @@
 
 ### 打包
 
-- `pnpm run package` 构建测试档并打出解开的应用到 `out/test`；`pnpm run package:release` 构建发行档并打出解开的应用到 `out/release`；`pnpm run dist` 构建发行档并打出安装包：macOS 是 dmg 与 zip，Windows 是可以选安装目录与安装范围的 NSIS，Linux 是 deb 与 rpm（rpm 要本机有 `rpmbuild`）。安装包只出发行档。只打一个平台，给 `dist` 加 `--mac`、`--win` 或 `--linux`。Windows 安装包要在 Windows 上打：electron-builder 26 在 macOS 上交叉打出的安装包能装、应用能跑，但没配应用图标时卸载程序过不了 NSIS 的完整性检查（electron-userland/electron-builder 的 issue 10258，27 版修复）。
+- `pnpm run package` 把 `dist/release` 打成解开的应用到 `out/release`；`pnpm run package:test` 把 `dist/test` 打到 `out/test`；`pnpm run dist` 把 `dist/release` 打成安装包：macOS 是 dmg 与 zip，Windows 是可以选安装目录与安装范围的 NSIS，Linux 是 deb 与 rpm（rpm 要本机有 `rpmbuild`）。安装包只出发行档。三者都不构建，打的就是 `dist/<档>` 里现有的包，没有就说先跑哪一条构建。只打一个平台，给 `dist` 加 `--mac`、`--win` 或 `--linux`。Windows 安装包要在 Windows 上打：electron-builder 26 在 macOS 上交叉打出的安装包能装、应用能跑，但没配应用图标时卸载程序过不了 NSIS 的完整性检查（electron-userland/electron-builder 的 issue 10258，27 版修复）。
 - electron-builder 的配置分 `electron-builder.base.mjs` 与两份各自写全应用目录与输出目录的 `electron-builder.test.mjs`、`electron-builder.release.mjs`。它打的就是 `dist/<档>`，去掉源码映射与模块清单；应用里不装 `node_modules`。
 - 应用名、包名与 `appId` 在 `product.json` 里只写一次，都是可移植的文件名：electron-builder 不改写它们，可执行文件的路径照它的缺省名字算。应用名决定用户数据目录。
 - fuses 一张表两列，在 `scripts/fuses.ts`：不能以 Node 运行，不认 `NODE_OPTIONS`，只从自己的 asar 加载且核对它的完整性，cookie 加密打开。测试档只多开 Node 调试参数，Playwright 的 Electron 驱动要靠它接上应用。两档都在打包后翻上并逐个读回，没翻上打包失败。
@@ -247,13 +259,13 @@
 ### 端到端用例
 
 - `pnpm run test:e2e` 经 Playwright 的 Electron 驱动起测试档，对一个真的服务端与替身模型网关走一遍：注册、发一条消息、看到回复、页面读不到登录 cookie 与 Node；退出再打开，凭 cookie 直接进工作区，并读落盘的 cookie 库：打包的应用的值只在加密的一列，没打包的是明文。
-- 两个目标：`unpackaged` 起 `dist/test`，要先 `pnpm run build`；`packaged` 起 `out/test` 的应用，要先 `pnpm run package`，开跑前先单独读回它的 fuses，不对就一个打包的用例都不跑。每次启动核对应用报的档是 test、用的是给它的用户数据目录，Linux 上核对用的是固定密钥。
+- 两个目标：`unpackaged` 起 `dist/test`，要先 `pnpm run build:test`；`packaged` 起 `out/test` 的应用，还要先 `pnpm run package:test`，开跑前先单独读回它的 fuses，不对就一个打包的用例都不跑。每次启动核对应用报的档是 test、用的是给它的用户数据目录，Linux 上核对用的是固定密钥。
 - 每个用例用一个新建的用户数据目录，用完删掉；它起的应用在用例结束时退出。同一时刻只起一个应用。开跑时这个检出的应用已经在跑，或 macOS 在前台的会话锁着屏，拒绝开跑。每个用例只关自己起的应用：关不掉时杀掉它与 Playwright 为它建的进程组，等它们退出；确认不了退出就留下它的用户数据目录。跑完按路径还看得到这个检出的应用，只判失败不杀，那可能是另外手动起的。它不进测试分层。
 
 ### 发布前验证
 
 - `pnpm run verify:build [--no-build]` 构建 test 与 release 两档，对每个包核对：文件与它的模块清单记的哈希一致；本档排除的模块不在清单里，本档该有的在；文本标记——发行档的主进程包有拒绝远程调试的那句与关掉 DevTools，没有 `desktopBuildProfile` 与开发宿主，测试档反过来，两档都没有没替换的档名与运行时的 `NODE_ENV` 分支。另在临时目录构建一份 dev 档作阳性对照。加一项调试能力，就把它放进 `PROFILE_ENTRIES` 或加一个标记。
-- `pnpm run verify:release [--no-build] [--distribution] [--allow-no-sandbox]` 是唯一起发行档的地方，缺省先构建并打包两档，再从外面做五项，每项一行 pass、fail 或 skipped 带理由：
+- `pnpm run verify:release [--no-build] [--distribution] [--allow-no-sandbox]` 是唯一自动起发行档的地方，缺省先依次跑 `build`、`build:test`、`package:test` 与 `package`（Windows 上带 `--distribution` 时是 `dist`），两档各构建一次、打的就是第 2 项核对的那份，再从外面做五项，每项一行 pass、fail 或 skipped 带理由：
   1. fuses：从二进制读回，是发行档那一列。
   2. 包内容：最终的 app.asar 恰好是 `dist/release` 的文件，逐字节相同、包内记的完整性对得上；package.json 从主进程包进；旁边没有解开的目录；macOS 上 Info.plist 记的 asar 完整性是它的头；`dist/release` 过 verify:build，包里的包带着该有的标记。
   3. 拒绝远程调试：带两种开关各起一次，都以 97 退出、主进程只打一行拒绝、端口不接受连接、管道不答、不留进程；测试档同样起一次作阳性对照，它必须答，否则这一项失败。
@@ -313,6 +325,6 @@
 | DT-34 | 测试与验证启动只用给它的用户数据目录，不碰系统保管的密钥；安装的应用的用户数据目录前后不变 | 跑一次测试就改了人装着的应用，或弹出钥匙串的授权框卡住 | e2e 核对用户数据目录与 Linux 的密钥库；`verify:release` 第 4 项 |
 | DT-35 | 发行档在新目录上能起来、打出就绪行、请它退出时以 0 退出并带走它建出的全部进程 | 装好的应用起不来或退不干净，只在人手里才发现 | `verify:release` 第 4 项；`readiness` 用例 |
 | DT-36 | Windows 上新目录首次启动之前 cookie 密钥已经写下，启动用的就是它 | 首次启动后 10 秒内崩溃，人被登出 | `cookie-key` 用例；`verify:release` 第 4 项在 Windows 上 |
-| DT-37 | 按 Ctrl+C 退出 `pnpm run window` 与 `pnpm run dev`，应用干净退出，不留进程；关闭途中渲染进程没了窗口被销毁；还没生出来就被停掉的 utility 进程生出来即被杀 | 退出卡住或留下进程，下一次启动拿不到单实例锁 | `utility-process` 用例；手动冒烟 |
+| DT-37 | 按 Ctrl+C 退出 `pnpm run start:test` 与 `pnpm run dev`，应用干净退出，不留进程；关闭途中渲染进程没了窗口被销毁；还没生出来就被停掉的 utility 进程生出来即被杀 | 退出卡住或留下进程，下一次启动拿不到单实例锁 | `utility-process` 用例；手动冒烟 |
 | DT-38 | 启动器、e2e 与 `verify:release` 只停自己起的进程，Windows 上按创建时间认准；辅助进程确认退出之前不删它们用的用户数据目录 | 误杀人另外起的应用或复用了 PID 的进程；目录在用时被删，下一次检查读到半截数据 | `release-launch`、`e2e-close` 慢层用例 |
 | DT-39 | Windows 的安装、升级与卸载只删它装进去的文件，目录空了才删；首次安装只进空目录；没有按文件卸载记录的旧安装不替人卸载 | 人把应用装进放着自己文件的目录，卸载或升级时连那些文件一起删掉 | `installer` 用例核对卸载清单；Windows 上实际的安装、升级与卸载没有自动化用例 |

@@ -1,4 +1,4 @@
-// How every launcher starts the app: `pnpm run window`, `pnpm run dev`, the e2e fixtures.
+// How every test launcher starts the app: `pnpm run start:test`, `pnpm run dev`, the e2e fixtures.
 // The release profile is started only by scripts/verify-release.ts.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, type RmOptions, statSync } from 'node:fs'
@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path'
 import type { Readable } from 'node:stream'
 import { StringDecoder } from 'node:string_decoder'
 import { reportedBuildProfile } from '../src/startup-signals.ts'
-import { BUNDLES, bundleDir } from './build-profile.ts'
+import { BUILD_COMMANDS, BUNDLES, bundleDir, PACKAGE_COMMANDS } from './build-profile.ts'
 import { checkPackagedFuses, describeFuses } from './fuses.ts'
 import { packagedBinary } from './packaged-path.ts'
 import { powershellOutput } from './powershell.ts'
@@ -222,7 +222,7 @@ const fuseChecks = new Map<string, Promise<void>>()
 export async function checkLaunchInputs(spec: LaunchSpec): Promise<void> {
   if (spec.target === 'packaged') {
     if (!existsSync(spec.command))
-      throw new Error(`${spec.command} is missing: run \`pnpm run package\` first`)
+      throw new Error(`${spec.command} is missing: run \`${PACKAGE_COMMANDS.test}\` first`)
     const key = `${spec.command}\0${statSync(spec.command).mtimeMs}`
     let check = fuseChecks.get(key)
     if (check === undefined) {
@@ -238,7 +238,8 @@ export async function checkLaunchInputs(spec: LaunchSpec): Promise<void> {
   if (spec.profile === 'dev') return
   for (const bundle of BUNDLES) {
     const file = join(desktopDir, bundleDir('test'), bundle)
-    if (!existsSync(file)) throw new Error(`${file} is missing: run \`pnpm run build\` first`)
+    if (!existsSync(file))
+      throw new Error(`${file} is missing: run \`${BUILD_COMMANDS.test}\` first`)
   }
 }
 

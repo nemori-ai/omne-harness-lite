@@ -1,5 +1,8 @@
 // The desktop build profiles: fixed when the bundles are built, never chosen at run time.
-// Dependency-free, so plain Node, the Vite configuration and the launchers all import it.
+// Plain Node only, so the Vite configuration, the electron-builder configurations and the launchers
+// all import it. Unsuffixed commands mean release; the test profile is always named.
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 export const BUILD_PROFILES = ['dev', 'test', 'release'] as const
 export type BuildProfile = (typeof BUILD_PROFILES)[number]
@@ -8,15 +11,15 @@ export type PackagedProfile = Exclude<BuildProfile, 'dev'>
 /** How scripts/build.ts tells the bundle build which profile to build. */
 export const PROFILE_ENV = 'OMNE_DESKTOP_PROFILE'
 
-export const BUILD_USAGE = 'usage: build.ts [test | release]'
+export const BUILD_USAGE = 'usage: build.ts [release | test]'
 
 export function isBuildProfile(value: unknown): value is BuildProfile {
   return typeof value === 'string' && BUILD_PROFILES.some(profile => profile === value)
 }
 
-/** The packaged profile `args` name, `test` when none; anything else throws the usage. */
+/** The packaged profile `args` name, `release` when none; anything else throws the usage. */
 export function parseBuildArgs(args: readonly string[]): PackagedProfile {
-  if (args.length === 0) return 'test'
+  if (args.length === 0) return 'release'
   const [profile] = args
   if (args.length === 1 && (profile === 'test' || profile === 'release')) return profile
   throw new Error(BUILD_USAGE)
@@ -70,5 +73,27 @@ export function profileManifest(
     author: product.author,
     type: 'module',
     main: BUNDLES[0],
+  }
+}
+
+/** The package script that builds a profile, for the messages that ask for one. */
+export const BUILD_COMMANDS: Readonly<Record<BuildProfile, string>> = {
+  dev: 'pnpm run dev',
+  test: 'pnpm run build:test',
+  release: 'pnpm run build',
+}
+
+/** The package script that packs a profile into out/<profile>. */
+export const PACKAGE_COMMANDS: Readonly<Record<PackagedProfile, string>> = {
+  test: 'pnpm run package:test',
+  release: 'pnpm run package',
+}
+
+/** Throws, naming the build to run, unless `dist/<profile>` holds its manifest and bundles. */
+export function requireBuilt(profile: PackagedProfile, desktopDirectory: string): void {
+  for (const file of ['package.json', ...BUNDLES]) {
+    const path = join(desktopDirectory, bundleDir(profile), file)
+    if (!existsSync(path))
+      throw new Error(`${path} is missing: run \`${BUILD_COMMANDS[profile]}\` first`)
   }
 }

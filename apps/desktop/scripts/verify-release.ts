@@ -6,7 +6,7 @@ import { homedir } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { COOKIE_KEY_WRITER_FAILED_FILE, MAIN_WINDOW_READY_MESSAGE } from '../src/startup-signals.ts'
 import { asarFile, asarHeaderHash, readAsar, sha256 } from './asar.ts'
-import { BUNDLES, bundleDir } from './build-profile.ts'
+import { BUNDLES, bundleDir, PACKAGE_COMMANDS } from './build-profile.ts'
 import { desktopDir } from './bundle-build.ts'
 import { bundleProblems } from './bundle-checks.ts'
 import { checkPackagedFuses, describeFuses } from './fuses.ts'
@@ -589,11 +589,13 @@ async function main(): Promise<number> {
   const beforeBuild = build ? sandboxBlocker() : undefined
   if (build) {
     say('building and packaging the test and release profiles')
-    for (const script of ['build', 'package', 'package:release']) pnpm(['run', script])
+    // Built once, checked by check 2 as built, and packed without building again.
+    const release = isWindows && distribution ? 'dist' : 'package'
+    for (const script of ['build', 'build:test', 'package:test', release]) pnpm(['run', script])
   }
   const pkg = locatePackage()
   if (!existsSync(pkg.executable))
-    throw new Error(`${pkg.executable} is missing: run \`pnpm run package:release\` first`)
+    throw new Error(`${pkg.executable} is missing: run \`${PACKAGE_COMMANDS.release}\` first`)
   say(`checking ${relative(process.cwd(), pkg.executable) || pkg.executable}`)
   const blocker = sandboxBlocker()?.blocker
   const helperReset =
