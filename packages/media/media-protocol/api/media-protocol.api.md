@@ -6,12 +6,13 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `MediaProtocol` · `media-protocol.d.ts`
 - `mediaProtocol` · `media-protocol.d.ts`
 
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { mediaProtocol } from './media-protocol.ts';
+export { mediaProtocol, type MediaProtocol } from './media-protocol.ts';
 ```
 
 ## 声明文件 `media-protocol.d.ts`
@@ -288,4 +289,5 @@ export declare const mediaProtocol: {
     readonly major: 1;
     readonly observations: {};
 };
+export type MediaProtocol = typeof mediaProtocol;
 ```
