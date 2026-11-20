@@ -204,7 +204,7 @@ const names = (check: Check<string>) => unique(list(check), name => name)
 
 const element: Check<unknown> = value => succeed(value)
 
-const modalities: Check<readonly Modality[]> = (value, at) => {
+export const modalities: Check<readonly Modality[]> = (value, at) => {
   const copied = list(element)(value, at)
   if ('failure' in copied) return copied
   const judged = judgeModalities(copied.ok)
@@ -274,9 +274,11 @@ export const commandRelease = record(
   { gate: nullable(gateId) },
   { detail: record({ kind: detailKind, schema: jsonObject }) },
 )
+export const commandModalities = nonEmpty(modalities)
 const command = record(commandFields, {
   background: record({ unless: names(filled) }),
   release: commandRelease,
+  modalities: commandModalities,
 })
 
 // A command names only a gate its tool declares; a tool declaring none has no gate to name.

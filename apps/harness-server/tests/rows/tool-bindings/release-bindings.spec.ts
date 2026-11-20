@@ -51,6 +51,7 @@ async function judged() {
       principal,
       tenant,
       definition,
+      command: null,
       layer: { kind: 'official' },
       consumer,
       ...overrides,
@@ -71,6 +72,7 @@ describe('tool-bindings: availability from verified sources only', () => {
         inputCompatible: true,
         outputCompatible: true,
         attachmentsReadable: true,
+        productsStorable: true,
       }),
     )
   })
@@ -161,6 +163,7 @@ describe('tool-bindings: availability from verified sources only', () => {
       principal,
       tenant,
       definition,
+      command: null,
       layer: { kind: 'official' },
       consumer,
     })

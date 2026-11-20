@@ -62,6 +62,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'commandArguments',
     'commandExample',
     'commandGuide',
+    'commandResultModalities',
     'commandSignature',
     'createDefaultParameterCodec',
     'decodeCommandCall',

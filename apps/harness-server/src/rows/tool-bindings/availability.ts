@@ -32,6 +32,7 @@ const denied = succeed({
   inputCompatible: false,
   outputCompatible: false,
   attachmentsReadable: false,
+  productsStorable: false,
 })
 
 function declaredFacilities(definition: ToolDefinition): readonly string[] | undefined {
@@ -141,6 +142,7 @@ function allowedFacts(
     inputCompatible: declarations.inputModalities.every(m => consumerWrites.has(m)),
     outputCompatible: declarations.outputModalities.every(m => consumerReads.has(m)),
     attachmentsReadable: declarations.attachments.length === 0,
+    productsStorable: true,
   })
 }
 

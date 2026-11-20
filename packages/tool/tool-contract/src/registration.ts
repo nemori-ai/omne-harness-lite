@@ -1,3 +1,4 @@
+import type { Modality } from '@omne-harness/modality'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { CHECKPOINT_STATE_MAX_BYTES, type CheckpointedToolExecutor } from './checkpointed-author.ts'
@@ -21,6 +22,7 @@ import type {
   ToolReturnDeclaration,
 } from './definitions.ts'
 import {
+  commandModalities,
   commandName,
   commandRelease,
   commandSummary,
@@ -332,7 +334,11 @@ export function defineFunctionTool<E, B extends ContentBlock>(
 
 const commandEntry = record(
   { summary: commandSummary, operation: operationHandle },
-  { background: record({ unless: list(filled) }), release: commandRelease },
+  {
+    background: record({ unless: list(filled) }),
+    release: commandRelease,
+    modalities: commandModalities,
+  },
 )
 type CommandEntry = readonly [
   string,
@@ -341,6 +347,7 @@ type CommandEntry = readonly [
     operation: ToolOperationSlot
     background?: ToolCommandBackground
     release?: ToolCommandRelease
+    modalities?: readonly Modality[]
   }>,
 ]
 
@@ -377,6 +384,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
           operation: ToolOperation<E, B>
           background?: ToolCommandBackground
           release?: ToolCommandRelease
+          modalities?: readonly Modality[]
         }>
       >
     >
@@ -412,7 +420,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
       encoding,
       ...(guide === undefined ? {} : { guide }),
       ...(gates === undefined ? {} : { gates }),
-      commands: commands.map(([name, { summary, operation, background, release }]) => ({
+      commands: commands.map(([name, { summary, operation, background, release, modalities }]) => ({
         name,
         summary,
         parameters:
@@ -422,6 +430,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
         returns: operation.returns,
         ...(background === undefined ? {} : { background }),
         ...(release === undefined ? {} : { release }),
+        ...(modalities === undefined ? {} : { modalities }),
       })),
     },
     {
