@@ -124,6 +124,16 @@ describe('the decision table of one block (T5)', () => {
     expect(result.modality?.modalities).toEqual(['text', 'image'])
   })
 
+  it('the block that stands in is of the kind of what it refers to: a voice, an image, else a file', () => {
+    const [sound, sheet] = [refTo('k-sound', 'audio/mp3'), refTo('k-sheet', 'text/csv')]
+    const kindFor = (capability: NativeCapability, other: ReturnType<typeof refTo>) => {
+      const block = medium('b1', 'application/pdf', converted([other]))
+      return chosen(choose(capability, message([block]))).messages[0]?.blocks[0]?.kind
+    }
+    expect(kindFor(HEARING, sound)).toBe('voice')
+    expect(kindFor(TEXT, sheet)).toBe('file')
+  })
+
   it('with no other representation the model takes, the inline words stand in', () => {
     const block = medium('b2', 'image/png', {
       transcript: 'a red circle',
