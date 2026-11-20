@@ -184,7 +184,7 @@
 ### 起法
 
 - `pnpm run build` 先出主进程、utility 进程的入口与页面，再 `pnpm run window` 起窗口。服务端地址取环境变量 `OMNE_SERVER`，缺省是 `http://127.0.0.1:8787`。
-- `pnpm run dev` 是开发时的起法：先完整构建一次，再监视源码。页面重新构建后窗口重新加载。主进程或 utility 进程一侧重新构建后应用重启。两种情形登录都还在，因为它在 cookie 里。关掉窗口，监视随之结束。
+- `pnpm run dev` 是开发时的起法：先完整构建一次，再监视源码。页面重新构建后窗口重新加载。主进程或 utility 进程一侧重新构建后应用重启。两种情形登录都还在，因为它在 cookie 里。关掉窗口，监视随之结束；应用崩溃或被信号结束时，`pnpm run dev` 以非零的状态退出。
 - 开发时起的应用用单独的用户数据目录（原目录名加 `-dev`），不和安装的应用共用。两边的登录 cookie 与窗口位置互不相见。`electron-window` 用例每次用一个新建的临时目录。
 - 两种起法都经同一个启动脚本起 Electron。它从继承的环境里去掉 `ELECTRON_RUN_AS_NODE`、`ELECTRON_NO_ATTACH_CONSOLE` 与 `NODE_OPTIONS`：带着它们，Electron 的二进制会当成 Node 或带着调试参数启动，不是这个应用。
 - `electron` 包没有安装脚本，装依赖时不下载二进制。第一次 `pnpm run window` 或第一次跑`electron-window` 用例时，包自己把二进制下载到 `node_modules/electron/dist`，本机缓存里有同版本的压缩包就不联网。要提前备好，在 `apps/desktop` 下跑 `pnpm exec install-electron`。

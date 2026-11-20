@@ -40,10 +40,11 @@ function startApp() {
     env: electronEnvironment(process.env, { OMNE_DESKTOP_DEV: '1' }),
   })
   const started = app
-  started.on('exit', () => {
-    if (app !== started) return
-    // The person closed the window: development ends with it.
-    if (!stopping) stop(0)
+  started.on('exit', (code, signal) => {
+    if (app !== started || stopping) return
+    // The person closed the window: development ends with it. A crash ends it as a failure.
+    if (signal !== null || code !== 0) say(`the app exited with ${signal ?? code}`)
+    stop(signal === null ? (code ?? 1) : 1)
   })
 }
 
