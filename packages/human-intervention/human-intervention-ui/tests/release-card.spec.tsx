@@ -38,6 +38,11 @@ describe('the release card body', () => {
     expect(card.getByText('会话 ses_0123456789abcdef · Agent exe-1')).toBeTruthy()
   })
 
+  it('names the gate of the action, which every lasting option governs', async () => {
+    const card = await shown()
+    expect(card.getByText('归「Shell：执行」这一类动作')).toBeTruthy()
+  })
+
   it('shows the five options with their scope, one-time apart from lasting', async () => {
     const card = await shown()
     const groups = card

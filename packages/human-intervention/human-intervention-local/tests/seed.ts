@@ -110,7 +110,7 @@ async function play(world: World, scenario: Scenario) {
     preparationRef: `preparation-${name}`,
     displayContext: `Original ${name}`,
     origin: {
-      kind: 'independent',
+      kind: 'agent-extension',
       originRef: `origin-${name}`,
       wait: waitRef,
       positionRef: `position-${name}`,

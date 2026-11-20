@@ -46,7 +46,7 @@ const WEEKLY = {
 }
 const DETAIL = {
   ...MONTHLY,
-  basis: { kind: 'blanket', generation: 7 },
+  basis: { kind: 'blanket', scope: 'standing' },
   createdAt: instant('2026-11-17T03:00:00Z'),
   definition: {},
 }
@@ -134,7 +134,7 @@ it('D1 picking one shows its state, author, the basis it is in effect on, and it
   })
   const facts = screen.getByLabelText('日程详情').textContent
   expect(facts).toContain('能按时运行')
-  expect(facts).toContain('你的全权同意（设置代次 7）')
+  expect(facts).toContain('你的全权同意（始终放行）')
   expect(facts).toContain('agent（会话 ses_1）')
   expect(screen.getByLabelText('时间表').children).toHaveLength(2)
   expect(screen.getByText('只列出了能确定的几次。')).toBeTruthy()
@@ -142,10 +142,8 @@ it('D1 picking one shows its state, author, the basis it is in effect on, and it
 
 it.each([
   [{ kind: 'owner' }, '你本人的操作'],
-  [
-    { kind: 'granular', decision: 'tool-call/abc/card-1' },
-    '你对一次请求的回答（tool-call/abc/card-1）',
-  ],
+  [{ kind: 'blanket', scope: 'session' }, '你的全权同意（只在那个会话里）'],
+  [{ kind: 'granular' }, '你对这一次的放行'],
   [{ kind: 'none' }, '无：还没有生效'],
 ])('D2 the basis %o reads as a sentence', async (basis, text) => {
   const fake = await listed([MONTHLY])

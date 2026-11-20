@@ -22,8 +22,11 @@ import {
   PROTOCOL,
   READ_OUTPUT_BYTES,
   TOOL_TABLES,
+  USAGE_MIGRATION,
+  USAGE_READ_HANDLER,
+  USAGE_TABLES,
 } from './worker/schema.ts'
-import { PENDING_READ_LIMIT } from './worker/facts.ts'
+import { PENDING_READ_LIMIT, USAGE_READ_LIMIT } from './worker/facts.ts'
 
 export const TOOL_PARTICIPANT = PARTICIPANT
 
@@ -42,6 +45,8 @@ const pendingMigrationRef = Object.freeze({
   owner: PENDING_MIGRATION.owner,
   id: PENDING_MIGRATION.id,
 })
+
+const usageMigrationRef = Object.freeze({ owner: USAGE_MIGRATION.owner, id: USAGE_MIGRATION.id })
 
 type Handler = Readonly<{
   handler: string
@@ -68,6 +73,14 @@ const HANDLERS: readonly Handler[] = [
     tables: PENDING_TABLES,
     rows: PENDING_READ_LIMIT + 1,
     requires: [pendingMigrationRef],
+  },
+  {
+    handler: USAGE_READ_HANDLER,
+    file: 'read-usage',
+    ordering: 'domain-serial',
+    tables: USAGE_TABLES,
+    rows: USAGE_READ_LIMIT + 2,
+    requires: [usageMigrationRef],
   },
   {
     handler: BODY_READ_HANDLER,
@@ -97,6 +110,7 @@ export function toolStorageMaterials(): ToolStorageMaterials {
   const participant = module('participant')
   const migration = module('migration')
   const pendingMigration = module('migration-pending')
+  const usageMigration = module('migration-usage')
   return {
     participants: [
       {
@@ -104,7 +118,7 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: [...TOOL_TABLES, ...PENDING_TABLES],
+        ownedTables: [...TOOL_TABLES, ...PENDING_TABLES, ...USAGE_TABLES],
         readTables: [],
         requiresFacts: [],
         providesFacts: [],
@@ -118,6 +132,12 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         ...pendingMigrationRef,
         moduleUrl: pendingMigration.moduleUrl,
         checksum: pendingMigration.digest,
+        requires: [migrationRef],
+      },
+      {
+        ...usageMigrationRef,
+        moduleUrl: usageMigration.moduleUrl,
+        checksum: usageMigration.digest,
         requires: [migrationRef],
       },
     ],

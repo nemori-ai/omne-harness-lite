@@ -114,7 +114,7 @@ describe('assets-access row', () => {
         }
         await settledSession(tree, 'hello')
         const tenant = savedTenant(tree.home)
-        const item = { tenant, owner: SHELL, item: 'invoke' }
+        const item = { tenant, owner: SHELL, item: 'run' }
 
         const before = await assets(tree, 'describe-setting', item, 'm-describe-1')
         expect(before).toMatchObject({

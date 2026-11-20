@@ -244,7 +244,7 @@ describe('what the plugin does not let through', () => {
     ['scope-does-not-fit', { outcome: 'invalid', body: { reason: 'scope-does-not-fit' } }],
     ['not-permitted', { outcome: 'denied' }],
     ['not-own-recipient', { outcome: 'denied' }],
-    ['confirmation-mismatch', { outcome: 'denied' }],
+    ['consent-required', { outcome: 'denied' }],
   ] as const)('a subscription the domain refuses as %s has one answer', async (reason, answer) => {
     const w = world()
     const subscriptions = {
@@ -620,7 +620,7 @@ describe('subscriptions and the beat', () => {
     })
   })
 
-  it('denies what the authority denies, and a context that would have to be confirmed', async () => {
+  it('denies what the authority denies, and an agent context that brings no consent', async () => {
     const w = world()
     w.authority.answer(() => 'denied')
     for (const name of ['set-subscription', 'remove-subscription', 'list-subscriptions'] as const)

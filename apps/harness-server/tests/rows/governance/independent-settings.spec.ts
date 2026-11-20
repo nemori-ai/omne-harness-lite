@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { calendarEnvironmentSettings } from '@omne-harness/calendar-local'
-import { scheduleAgentAuthoringSettings } from '@omne-harness/schedule-local'
+import { sessionIntakeSettings } from '@omne-harness/session-adapters/cordis'
 import type { SettingDefinitions } from '@omne-harness/settings'
 import { independentTargetsOf } from '../../../src/rows/governance/independent-settings.ts'
 
 const TENANT = 'tenant-a'
 const CALENDAR = JSON.stringify(['calendar', 'environment'])
-const SCHEDULE = JSON.stringify(['schedule', 'agent-authoring'])
+const INTAKE = JSON.stringify(['session', 'intake'])
 
 function layout(ownerRef = 'harness.independent-settings') {
   return [{ sourceId: 'tenant', ownerRef, scope: { kind: 'tenant', subjectRef: TENANT } }]
@@ -87,11 +87,11 @@ describe('opening one group of independent settings for a tenant (table six)', (
     const w = owner(new Map<string, Stored>([['environment', stored]]))
     const states = await independentTargetsOf(w.owner, TENANT).ensure([
       calendarEnvironmentSettings,
-      scheduleAgentAuthoringSettings,
+      sessionIntakeSettings,
     ])
     expect(states.get(CALENDAR)).toBe('unavailable')
-    expect(states.get(SCHEDULE)).toBe('ready')
-    expect(w.writes).toEqual(['agent-authoring'])
+    expect(states.get(INTAKE)).toBe('ready')
+    expect(w.writes).toEqual(['intake'])
   })
 
   it.each(['throws', 'rejected'] as const)(
@@ -146,11 +146,11 @@ describe('opening one group of independent settings for a tenant (table six)', (
     const states = await Promise.all([
       targets.ensure([calendarEnvironmentSettings]),
       targets.ensure([calendarEnvironmentSettings]),
-      targets.ensure([calendarEnvironmentSettings, scheduleAgentAuthoringSettings]),
+      targets.ensure([calendarEnvironmentSettings, sessionIntakeSettings]),
     ])
     expect(states.map(state => state.get(CALENDAR))).toEqual(['ready', 'ready', 'ready'])
-    expect(states[2]?.get(SCHEDULE)).toBe('ready')
-    expect(writes).toEqual(['environment', 'agent-authoring'])
+    expect(states[2]?.get(INTAKE)).toBe('ready')
+    expect(writes).toEqual(['environment', 'intake'])
   })
 
   it('a ready group is remembered by its declaration and not read again', async () => {

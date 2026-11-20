@@ -231,10 +231,16 @@ export type {
   ToolPermitRef,
   ToolStartAcceptance,
   ToolStartFence,
+  ToolStartRelease,
+  ToolStartReleaseReading,
+  ToolStartReleases,
 } from './records.ts'
 export type {
-  AccountScope,
   ToolAccounts,
+  ToolUsageFact,
+  ToolUsageOutcome,
+  ToolUsagePage,
+  ToolUsageQuery,
   ToolContentReader,
   ToolOffloader,
   ToolReads,
@@ -279,3 +285,4 @@ export type {
   ToolForwardRuntime,
 } from './forwarding.ts'
 export { returnGuide } from './return-description.ts'
+export { DEFAULT_RELEASE_DETAIL_POLICY, judgeReleaseDescription } from './release-detail.ts'

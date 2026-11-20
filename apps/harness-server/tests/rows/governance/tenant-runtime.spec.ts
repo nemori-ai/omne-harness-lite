@@ -45,9 +45,9 @@ import { createToolAssetCategory } from '../../../src/rows/governance/tool-asset
 import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
 import { GOVERNANCE_PROJECTION_READ } from '../../../src/rows/governance/storage-materials.ts'
 import { calendarEnvironmentSettings } from '@omne-harness/calendar-local'
-import { scheduleAgentAuthoringSettings } from '@omne-harness/schedule-local'
+import { sessionIntakeSettings } from '@omne-harness/session-adapters/cordis'
 
-const SHIPPED_INDEPENDENT_SETTINGS = [calendarEnvironmentSettings, scheduleAgentAuthoringSettings]
+const SHIPPED_INDEPENDENT_SETTINGS = [calendarEnvironmentSettings, sessionIntakeSettings]
 import {
   combinationManifest,
   manifestDigest,
@@ -758,6 +758,9 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
   return { w, sources, prepare, registry, categories, independent }
 }
 
+// Ask declares no gate, so it has no settings to select.
+const selectable = (definitionId: string) => definitionId !== 'tool.Ask'
+
 it('installs the actual Tool release and adopts its original holdings before exposing the tenant backend', async () => {
   const { w, prepare } = await installedWorld()
   const prepared = prepare()
@@ -788,11 +791,11 @@ it('installs the actual Tool release and adopts its original holdings before exp
     'tool.Tools',
     'tool.Web',
   ])
-  expect(
-    catalog.items.every(
-      item => item.availability === 'available' && item.selectedTargets.length === 1,
-    ),
-  ).toBe(true)
+  for (const item of catalog.items)
+    expect(
+      [item.availability, item.selectedTargets.length],
+      item.declaration.reference.definitionId,
+    ).toEqual(['available', selectable(item.declaration.reference.definitionId) ? 1 : 0])
   const settings = await prepared.readSettings({
     deploymentRef: w.options.scope.deploymentId,
     mode: 'management',
@@ -806,9 +809,8 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(viewed.sort()).toEqual(
     [
       ['independent', 'calendar', 'environment'],
-      ['independent', 'schedule', 'agent-authoring'],
+      ['independent', 'session', 'intake'],
       ...[
-        'Ask',
         'BkgToolCalls',
         'Calendar',
         'Files',
@@ -836,6 +838,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     operation: { owner: 'tool', operationId: fixture.input.call },
     definition: tool.asset.adoption,
     effectiveArguments: fixture.input.request.arguments.effective,
+    gate: { id: 'run', title: '执行', default: 'ask' as const },
     origin: {
       kind: 'tool-call' as const,
       call: fixture.input.call,
@@ -849,7 +852,9 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(request).toMatchObject({
     scope: { tenantId: w.options.scope.tenantRef, sessionId: 'request-session' },
     operation: action.operation,
-    definition: tool.governance.interpretations[0]!.definition.reference,
+    definition: tool.governance.interpretations.find(
+      value => value.binding.enforcementKey === 'tool.run',
+    )!.definition.reference,
   })
   const targets = settings.views.filter(
     view =>
@@ -922,16 +927,16 @@ it.each([false, true])(
     cleanup.push(assets.close)
     const organization = organizationCodec.encode(w.principal.tenant.organization)
     if (!organization.ok) throw new Error('organization encoding failed')
-    const lookups = w.release.manifest.entries.map(entry => ({
-      holding: {
-        holdingRef: `harness.preinstalled.tool.${entry.asset.name}`,
-        scopeRef: w.options.scope.tenantRef,
-      },
-      source: organizationSettingsSource({
-        organizationId: organization.value,
-        definition: entry.governance.declaration.settings[0]!,
-      }).target,
-    }))
+    const lookups = w.release.manifest.entries.flatMap(entry =>
+      entry.governance.declaration.settings.slice(0, 1).map(definition => ({
+        holding: {
+          holdingRef: `harness.preinstalled.tool.${entry.asset.name}`,
+          scopeRef: w.options.scope.tenantRef,
+        },
+        source: organizationSettingsSource({ organizationId: organization.value, definition })
+          .target,
+      })),
+    )
     if (disabled) {
       for (const { holding } of lookups) {
         expect(
@@ -970,7 +975,9 @@ it.each([false, true])(
     if (catalog.kind !== 'page') throw new Error(JSON.stringify(catalog))
     expect(catalog.items).toHaveLength(w.release.manifest.entries.length)
     for (const item of catalog.items) {
-      expect(item.selectedTargets).toHaveLength(disabled ? 0 : 1)
+      expect(item.selectedTargets).toHaveLength(
+        !disabled && selectable(item.declaration.reference.definitionId) ? 1 : 0,
+      )
       if (!disabled) expect(item.availability).toBe('available')
     }
     const after = await Promise.all(
@@ -1126,7 +1133,7 @@ it('a group that cannot be opened leaves the tenant, the other group and the ass
     targets: [],
     selectionRef: null,
   }
-  const earlier = prepare(undefined, () => [altered, scheduleAgentAuthoringSettings])
+  const earlier = prepare(undefined, () => [altered, sessionIntakeSettings])
   const first = await earlier.open()
   if (first.kind !== 'created') throw new Error(JSON.stringify(first))
   expect(await earlier.readSettings(request)).toHaveProperty('views')
@@ -1143,13 +1150,14 @@ it('a group that cannot be opened leaves the tenant, the other group and the ass
   const independent = settings.views.filter(view => view.target.kind === 'independent')
   expect(independent.map(view => view.definition.providerId).sort()).toEqual([
     'calendar',
-    'schedule',
+    'session',
   ])
   expect(independent.find(view => view.definition.providerId === 'calendar')?.definition).toEqual(
     altered,
   )
   expect(settings.views.filter(view => view.target.kind === 'asset')).toHaveLength(
-    w.release.manifest.entries.length,
+    w.release.manifest.entries.filter(entry => entry.governance.declaration.settings.length > 0)
+      .length,
   )
 })
 
@@ -1293,7 +1301,7 @@ it('preserves a nonempty Settings assignment across default tenant installation 
     definitionRef: view.definitionRef,
     expectedRevision: 0,
     sourceId: 'tenant',
-    itemId: 'invoke',
+    itemId: 'run',
     action: { kind: 'set', value: { pick: 'deny', allowedSet: null } },
   })
   expect(staged).toMatchObject({ kind: 'prepared' })
@@ -1312,7 +1320,7 @@ it('preserves a nonempty Settings assignment across default tenant installation 
     id: 'tenant',
     values: [
       {
-        itemId: 'invoke',
+        itemId: 'run',
         value: { kind: 'value', value: { pick: 'deny', allowedSet: null } },
         locked: false,
       },
@@ -1378,11 +1386,7 @@ it('opens a group of independent settings declared only in this test, and keeps 
       .sort()
   }
   const opened = await groups()
-  expect(opened).toEqual([
-    'calendar/environment',
-    'schedule/agent-authoring',
-    'test.gadget/environment',
-  ])
+  expect(opened).toEqual(['calendar/environment', 'session/intake', 'test.gadget/environment'])
   const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
   cleanup.push(async () => {
     await host.close(monotonicClock.now() + 3000)
@@ -1531,7 +1535,9 @@ it('lists the settings of a holding whose category exists only in this test, bes
         : `independent/${item.item}`,
     )
   }
-  const tools = w.release.manifest.entries.map(entry => `tool/${entry.asset.name}/invoke`).sort()
+  const tools = w.release.manifest.entries
+    .flatMap(entry => entry.gates.map(gate => `tool/${entry.asset.name}/${gate.id}`))
+    .sort()
   const first = await listed()
   expect(first).toEqual(['gadget/one/enabled', ...tools])
 

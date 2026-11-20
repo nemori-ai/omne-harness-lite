@@ -2,21 +2,40 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail } from '@omne-harness/operation-result'
+import { close, createSchemaProvider, type SchemaBudget } from '@omne-harness/schema-provider'
+import type { ReleaseDetailPolicy } from '@omne-harness/tool-contract'
 import {
   ToolBindingsService,
   ToolCatalogService,
+  ToolReleaseDetailsService,
   type ToolContributionAuthority,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { createLocalToolBindingRegistry } from './bindings.ts'
 import { createLocalToolCatalog, type LocalToolCatalogInput } from './catalog.ts'
 import { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
 import { captureToolCaller, checkEmptyToolConfig } from './cordis-host.ts'
+import { createLocalReleaseDetails, type ReleaseDetailAttach } from './release-details.ts'
+
+const RELEASE_DETAIL_SCHEMA_BUDGET: SchemaBudget = Object.freeze({
+  maxSnapshots: 16,
+  maxConstructDepth: 40,
+  maxConstructNodes: 400,
+  failureBackoffMs: 50,
+  maxAttempts: 3,
+})
 
 export type LocalToolBindingsPluginInput<P, E, B extends ContentBlock> = Omit<
   LocalToolBindingsInput<P, E, B>,
   'registry' | 'catalog'
 > &
-  Pick<LocalToolCatalogInput<P>, 'availability' | 'view' | 'search'>
+  Pick<LocalToolCatalogInput<P>, 'availability' | 'view' | 'search'> &
+  Readonly<{
+    releaseDetails?: Readonly<{
+      policy?: ReleaseDetailPolicy
+      schemas?: SchemaBudget
+      attach?: ReleaseDetailAttach<P>
+    }>
+  }>
 
 export type LocalToolBindingsPlugin<P, E, B extends ContentBlock> = {
   new (ctx: Context, config?: Readonly<Record<string, never>>): ToolBindingsService<P, B, E>
@@ -91,6 +110,25 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
         }
       }
       const exposed = new Catalog(ctx)
+      const schemas = createSchemaProvider(
+        input.releaseDetails?.schemas ?? RELEASE_DETAIL_SCHEMA_BUDGET,
+      )
+      ctx.effect(() => () => close(schemas), 'toolReleaseDetails.schemas')
+      const details = createLocalReleaseDetails<P, E, B>({
+        registry: () => (live() ? registry : undefined),
+        provider: schemas,
+        ...(input.releaseDetails?.policy === undefined
+          ? {}
+          : { policy: input.releaseDetails.policy }),
+        ...(input.releaseDetails?.attach === undefined
+          ? {}
+          : { attach: input.releaseDetails.attach }),
+      })
+      class ReleaseDetails extends ToolReleaseDetailsService<P> {
+        readonly describe: ToolReleaseDetailsService<P>['describe'] = request =>
+          details.describe(request)
+      }
+      new ReleaseDetails(ctx)
       const bindings = createLocalToolBindings({ ...input, registry, catalog: exposed })
       this.inspect = exposed.inspect
       this.resolve = request =>

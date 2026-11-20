@@ -1,5 +1,5 @@
 import { releasedDeclaration } from '../../../src/entry/permission-declarations.ts'
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import {
   principalVerifierKey,
@@ -13,7 +13,9 @@ import { CurrentPermissionService } from '../../../src/rows/governance/current-p
 import { ReleaseToolContributionAuthority } from '../../../src/entry/tool-release.ts'
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
-import { decisionEvidence, effectiveArgumentsOf } from '@omne-harness/authorization'
+import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
+import { releaseCatalog } from './release-catalog.ts'
+import { decisionEvidence, digestOf, effectiveArgumentsOf } from '@omne-harness/authorization'
 import {
   decodeAgentExecutionId,
   decodeAgentInstanceId,
@@ -39,7 +41,9 @@ const release = await loadProductionRelease()
 if (release.kind !== 'trusted') throw new Error('Production release unavailable')
 const entry = release.manifest.entries.find(item => item.asset.name === 'Shell')
 if (entry === undefined) throw new Error('Shell release missing')
-const interpretation = entry.governance.interpretations[0]!
+const interpretation = entry.governance.interpretations.find(
+  value => value.binding.enforcementKey === 'tool.run',
+)!
 const definition = interpretation.definition
 const binding = interpretation.binding
 const blockIdentity = judgeBlockIdentity({
@@ -67,7 +71,9 @@ function world() {
     tenant: TOOL_RELEASE_TENANT,
     operation: { owner: 'agent', operationId: 'fixture-action' },
     definition: entry!.asset.adoption,
-    effectiveArguments: '{"command":"echo hello"}',
+    effectiveArguments:
+      '{"command":"execute","intent":"test call","params":{"script":"echo hello"}}',
+    gate: { id: 'run', title: '执行', default: 'ask' },
     origin: {
       kind: 'agent-action',
       original: {
@@ -208,7 +214,7 @@ it('releases the action a once authorization names and gives it for the start to
   w.authorize(onceFor(w))
   expect(await check.check(w.input)).toMatchObject({
     kind: 'allow',
-    condition: w.condition,
+    condition: { combinationVersion: w.condition.combinationVersion },
     authorization: { consumer, source: decisionEvidence('card-answer', '1', {}) },
   })
 })
@@ -242,12 +248,187 @@ it('releases an action of a gate released for the session while the basis of tha
   })
   w.authorize(forSession({}))
   const released = await check.check(w.input)
-  expect(released).toMatchObject({ kind: 'allow', condition: w.condition })
+  expect(released).toMatchObject({
+    kind: 'allow',
+    condition: { combinationVersion: w.condition.combinationVersion },
+  })
   expect(released).not.toHaveProperty('authorization')
   w.authorize(forSession({ basis: 'the basis before the setting changed' }))
   expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
   w.authorize(forSession({ capabilityId: 'another capability' }))
   expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
+})
+
+describe('the grant a release names', () => {
+  const gateOf = (w: World) => ({
+    capability: w.request.capabilityId,
+    key: w.request.enforcementKey,
+  })
+  const withSession = (w: World, rule: { pick: string | null; allowedSet: string[] | null }) => {
+    const evaluation = {
+      ...w.current.evaluation,
+      sources: {
+        ...w.current.evaluation.sources,
+        session: {
+          kind: 'available',
+          sourceRef: 'session',
+          revision: '2',
+          scope: w.request.scope,
+          definition: w.request.definition,
+          rule,
+        },
+      },
+    } as const
+    w.set({ ...w.current, evaluation })
+    return evaluation
+  }
+
+  it('names the tenant layer when the session layer takes no part in an allowed verdict', async () => {
+    const w = world()
+    const released = await createCurrentToolPermission(w.ports).check(w.input)
+    expect(released).toMatchObject({
+      kind: 'allow',
+      release: {
+        by: 'verdict',
+        grant: {
+          via: 'verdict',
+          layer: 'tenant',
+          holder: w.request.scope.tenantId,
+          gate: gateOf(w),
+          revision: digestOf(w.current.evaluation),
+        },
+      },
+    })
+  })
+
+  it('names the tenant layer when the session layer is there but sets nothing', async () => {
+    const w = world()
+    const evaluation = withSession(w, { pick: null, allowedSet: null })
+    expect(await createCurrentToolPermission(w.ports).check(w.input)).toMatchObject({
+      kind: 'allow',
+      release: { by: 'verdict', grant: { layer: 'tenant', revision: digestOf(evaluation) } },
+    })
+  })
+
+  it.each([
+    ['picks the value', { pick: 'auto', allowedSet: null }],
+    ['only bounds the values', { pick: null, allowedSet: ['auto', 'ask'] }],
+  ])('names the session layer when the session layer %s', async (_label, rule) => {
+    const w = world()
+    const evaluation = withSession(w, rule)
+    expect(await createCurrentToolPermission(w.ports).check(w.input)).toMatchObject({
+      kind: 'allow',
+      release: {
+        by: 'verdict',
+        grant: { layer: 'session', holder: 'session-1', revision: digestOf(evaluation) },
+      },
+    })
+  })
+
+  it('names the once authorization, the session grant and the run mode by their own sources', async () => {
+    const w = world()
+    w.current.evaluation.sources.tenant.rule.pick = 'ask'
+    const check = createCurrentToolPermission(w.ports)
+    w.authorize(onceFor(w))
+    expect(await check.check(w.input)).toMatchObject({
+      release: {
+        by: 'once',
+        grant: {
+          via: 'once',
+          holder: 'session-1',
+          source: decisionEvidence('card-answer', '1', {}),
+        },
+      },
+    })
+    const given = decisionEvidence('card-answer', '2', {})
+    const basis = digestOf(w.current.evaluation)
+    const { capabilityId, enforcementKey } = w.request
+    w.authorize({
+      revision: '2',
+      once: null,
+      session: { capabilityId, enforcementKey, basis, source: given },
+    })
+    expect(await check.check(w.input)).toMatchObject({
+      release: {
+        by: 'session',
+        grant: { via: 'session-grant', holder: 'session-1', gate: gateOf(w), source: given },
+      },
+    })
+    w.authorize(null)
+    const skipping = {
+      ...w.inquiry,
+      inquiry: { ...w.inquiry.inquiry, policy: { onAsk: 'skip-ask' } },
+    } as const
+    const ports = { ...w.ports, inquiry: async () => skipping }
+    const skipped = await createCurrentToolPermission(ports).check(w.input)
+    expect(skipped).toMatchObject({
+      release: {
+        by: 'skip-ask',
+        grant: { via: 'skip-ask', holder: 'session-1', source: w.inquiry.inquiry.source },
+      },
+    })
+    expect(skipped.kind === 'allow' && skipped.condition).toEqual(w.condition)
+  })
+
+  it('guards the acceptance on the once or session authorization it rests on, and on nothing else', async () => {
+    const w = world()
+    const check = createCurrentToolPermission(w.ports)
+    const guards = (decision: Awaited<ReturnType<typeof check.check>>) =>
+      decision.kind === 'allow'
+        ? ((decision.condition?.['commands'] as unknown[]) ?? []).filter(
+            command =>
+              (command as { participant: string }).participant === 'session-authorization-guard',
+          )
+        : []
+    expect(guards(await check.check(w.input))).toEqual([])
+    w.current.evaluation.sources.tenant.rule.pick = 'ask'
+    w.authorize(onceFor(w))
+    const tenant = w.request.scope.tenantId
+    expect(guards(await check.check(w.input))).toEqual([
+      {
+        participant: 'session-authorization-guard',
+        facts: {
+          request: {
+            tenant,
+            session: 'session-1',
+            grant: { kind: 'once', consumer, source: decisionEvidence('card-answer', '1', {}) },
+          },
+        },
+      },
+    ])
+    const given = decisionEvidence('card-answer', '2', {})
+    const { capabilityId, enforcementKey } = w.request
+    w.authorize({
+      revision: '2',
+      once: null,
+      session: {
+        capabilityId,
+        enforcementKey,
+        basis: digestOf(w.current.evaluation),
+        source: given,
+      },
+    })
+    expect(guards(await check.check(w.input))).toEqual([
+      {
+        participant: 'session-authorization-guard',
+        facts: {
+          request: {
+            tenant,
+            session: 'session-1',
+            grant: { kind: 'session', capabilityId, enforcementKey, source: given },
+          },
+        },
+      },
+    ])
+    expect(w.condition.commands).toEqual([])
+  })
+
+  it('names no grant for a carrier', async () => {
+    const w = world()
+    w.current.evaluation.sources.tenant.rule.pick = 'ask'
+    const carried = await createCurrentToolPermission(w.ports).check({ ...w.input, carrier: true })
+    expect(carried).toMatchObject({ kind: 'allow', release: { by: 'carrier', grant: null } })
+  })
 })
 
 it('consumes no once authorization when the gate became automatic, and refuses when it became prohibited', async () => {
@@ -524,6 +705,8 @@ it('the default authorization row adopts the current source on each call without
       },
     })
     scope.provide(identityGovernanceKey, { queryCurrentTenant: async () => ({ kind: 'denied' }) })
+    // The action resolution reads the judged definition from the catalog.
+    scope.provide(toolCatalogKey, releaseCatalog(release))
     new ReleaseToolContributionAuthority(scope, release, () => null)
   })
   const row = await ctx.plugin(authorization, {

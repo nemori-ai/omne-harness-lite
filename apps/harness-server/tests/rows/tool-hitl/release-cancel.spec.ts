@@ -226,8 +226,9 @@ describe('a control ends a suspended Ask on the release tree', () => {
         expect(cards.map(item => item.card)).toMatchObject([
           { kind: 'invalidated', reason: 'cancelled' },
         ])
+        await ended(world, session)
       })
-      expect([0, 5]).toContain(exit)
+      expect(exit).toBe(0)
     },
   )
 

@@ -81,6 +81,16 @@
       "config": {}
     },
     {
+      "id": "usage",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "usage-adapters",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "stubPlugin",
       "config": {}
@@ -402,6 +412,11 @@
     },
     {
       "id": "model-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "usage-access",
       "plugin": "stubPlugin",
       "config": {}
     }

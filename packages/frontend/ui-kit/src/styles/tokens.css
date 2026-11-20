@@ -73,6 +73,14 @@
   --kami-bubble-ink: light-dark(#1b365d, #d1dfed);
   --kami-sidebar-selected: light-dark(#dedcd0, #33332c);
   --kami-focus: light-dark(#1b365d, #9bb8d8);
+  --kami-chart-1: light-dark(#1b365d, #9bb8d8);
+  --kami-chart-2: light-dark(#3e6149, #a4c39f);
+  --kami-chart-3: light-dark(#79562a, #dfbf87);
+  --kami-chart-4: light-dark(#963f36, #e1a094);
+  --kami-chart-5: light-dark(#2f6f73, #8fc7c4);
+  --kami-chart-6: light-dark(#6b4a7a, #c4a6d4);
+  --kami-chart-7: light-dark(#7a6d22, #d6c97c);
+  --kami-chart-8: light-dark(#5b6470, #b3bcc8);
 }
 
 :root,
@@ -299,6 +307,19 @@
 
   --omne-tooltip: var(--kami-tooltip-bg);
   --omne-tooltip-ink: var(--kami-tooltip-fg);
+
+  --omne-chart-1: var(--kami-chart-1);
+  --omne-chart-2: var(--kami-chart-2);
+  --omne-chart-3: var(--kami-chart-3);
+  --omne-chart-4: var(--kami-chart-4);
+  --omne-chart-5: var(--kami-chart-5);
+  --omne-chart-6: var(--kami-chart-6);
+  --omne-chart-7: var(--kami-chart-7);
+  --omne-chart-8: var(--kami-chart-8);
+  --omne-chart-axis: var(--kami-line-strong);
+  --omne-chart-grid: var(--kami-line);
+  --omne-chart-ink: var(--kami-ink-2);
+  --omne-chart-unknown: var(--kami-stripe);
 }
 
 :root[data-theme='light'] {

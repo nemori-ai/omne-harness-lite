@@ -444,7 +444,7 @@ describe('the Tool decision owner over HITL', () => {
   it('a tool other than Ask that waits with the decision wait of human intervention gets its cards under its own name and its answers in the same shape', async () => {
     const approval = {
       cardId: 'approval',
-      kind: 'approval',
+      kind: 'question',
       title: 'Delete build/?',
       description: 'It holds stale artifacts.',
       options: [

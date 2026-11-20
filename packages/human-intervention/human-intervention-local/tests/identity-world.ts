@@ -217,7 +217,7 @@ export async function openIdentityWorld(
     operation: operation('register'),
     preparationRef: 'prepared',
     origin: {
-      kind: 'independent',
+      kind: 'agent-extension',
       originRef: 'form',
       wait: { owner: 'independent', waitId: 'a', incarnation: 'one', destination },
       positionRef: 'step-a',

@@ -16,6 +16,7 @@ import {
 } from '../../../src/rows/authorization/current-tool-permission.ts'
 import { echoCall, toolsCall } from '../../entry/tool-call-support.ts'
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
 
 const evidence = decisionEvidence('once-grant-test', '1', {})
 const allowing = { check: async () => ({ kind: 'allowed', evidence }) } as unknown as AdmissionCheck
@@ -58,6 +59,8 @@ async function admitting(answer: Awaited<ReturnType<AuthorizationWriter['express
         {
           evidence,
           condition: null,
+          holders: { tenant: 'tenant', session: 'session' },
+          gateRef: { capability: input.definition.name, key: input.gate.id },
           once:
             written.length === 0
               ? null
@@ -171,7 +174,7 @@ describe('a person who releases the tool for this session', () => {
         checked.push(written.length)
         return input.definition.name === 'ToyEcho' && written.length === 0
           ? { kind: 'ask', evidence, gate }
-          : { kind: 'allow', evidence, condition: null }
+          : { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }
       },
     }
     const admission = createActionAdmission({

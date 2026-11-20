@@ -19,9 +19,9 @@ import {
 export const notificationsAdoption = describedAdoption({
   owner: '@omne-harness/notification-tools',
   name: 'notifications-protocol',
-  revision: '1',
+  revision: '2',
   changes:
-    'One declaration with the command named in the call; the emitter of a post comes from the call; consent through an inquiry card.',
+    'One declaration with the command named in the call; the emitter of a post comes from the call; a subscribe is one commit.',
 })
 const vocabulary = describedAdoption({
   owner: '@omne-harness/notification-tools',
@@ -123,8 +123,7 @@ export const notificationsSummaries: Readonly<Record<NotificationsCommandName, s
   restore: 'Take back done or dismiss.',
   sources: 'List the sources and event types you can subscribe to, with the subject each takes.',
   subscriptions: 'List your own subscriptions.',
-  subscribe:
-    'Set your subscription to one event type. When the owner asks to confirm, an inquiry card waits for the owner.',
+  subscribe: 'Set your subscription to one event type.',
   unsubscribe: 'Return one subscription to the default of its event type.',
 }
 

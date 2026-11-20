@@ -67,7 +67,7 @@ it.each(['unanswered', 'pending', 'accepted', 'superseded', 'invalidated'])(
           ref,
           revision: '1',
           origin: {
-            kind: 'independent',
+            kind: 'agent-extension',
             originRef: 'origin\0',
             wait,
             positionRef: 'position\0',

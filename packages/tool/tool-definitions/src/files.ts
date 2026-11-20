@@ -5,7 +5,7 @@ import {
   type ToolImplementationModule,
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
-import { createAuthor } from './author.ts'
+import { createAuthor, type CommandGates } from './author.ts'
 import { filesCommands } from './commands.ts'
 import type { FilesAuthorEnvironment } from './environment.ts'
 import { editFiles } from './files-edits.ts'
@@ -43,8 +43,32 @@ export function createFilesAuthor(
       maximum,
       'Paths are absolute or relative to the working directory of the session, the same directory where Shell starts. A call with no working directory takes absolute paths only. Resolution grants no access: a path outside the authorized files is still refused. Images and attachments are unsupported in this delivery. Text is UTF-8 with original line endings. Patch preflight changes nothing. Unknown batches must be recovered by their original identity, never resubmitted. A version is an observation, not authorization. Every final text has resultMaxBytes as its byte bound. Truncation preserves head and tail when the bound can hold its marker.',
       (command, args, environment) => executeFiles(command, args, environment, maximum),
+      null,
+      FILES_GATES,
     ),
   )
+}
+
+const FILES_GATES: CommandGates = {
+  gates: [
+    { id: 'read', title: '读', default: 'auto' },
+    { id: 'write', title: '写', default: 'ask' },
+  ],
+  of: {
+    help: 'read',
+    read: 'read',
+    open: 'read',
+    list: 'read',
+    find: 'read',
+    info: 'read',
+    write: 'write',
+    edit: 'write',
+    patch: 'write',
+    move: 'write',
+    copy: 'write',
+    delete: 'write',
+    mkdir: 'write',
+  },
 }
 export const filesToolModule: ToolImplementationModule<
   FilesAuthorEnvironment,

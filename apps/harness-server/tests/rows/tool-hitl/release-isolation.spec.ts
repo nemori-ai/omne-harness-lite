@@ -29,14 +29,19 @@ const ASK = JSON.stringify({
     ],
   },
 })
-const APPROVAL = JSON.stringify({
-  command: 'request_approval',
+const OTHER = JSON.stringify({
+  command: 'ask',
   params: {
-    action: 'Delete the build directory',
-    reason: 'It holds stale artifacts.',
-    impact: 'The next build takes longer.',
-    reversibility: 'The build directory can be rebuilt.',
-    fallback: 'Keep it and build into a new directory.',
+    questions: [
+      {
+        title: 'Should the server reload on every file change?',
+        description: 'Reloading is fast but restarts open connections.',
+        options: [
+          { label: 'Yes', description: 'Reload on every change.' },
+          { label: 'No', description: 'Reload by hand.' },
+        ],
+      },
+    ],
   },
 })
 const options = {
@@ -44,7 +49,7 @@ const options = {
     body.includes('start: two')
       ? [
           { id: 'call_a', tool: 'Ask', arguments: ASK },
-          { id: 'call_b', tool: 'Ask', arguments: APPROVAL },
+          { id: 'call_b', tool: 'Ask', arguments: OTHER },
         ]
       : body.includes('start: ask')
         ? [{ id: 'call_a', tool: 'Ask', arguments: ASK }]
@@ -155,7 +160,7 @@ describe('two Ask calls of one batch each wait for a person', () => {
           rows => rows.length === 2 && rows.every(row => row.entry?.stage === 'parked'),
         )
         expect(asks().map(row => row.phase)).toEqual(['suspended', 'suspended'])
-        const question = cards.find(item => item.card.question.kind === 'question')
+        const question = cards.find(item => item.card.question.title === TITLE)
         if (question === undefined) throw new Error('no question card')
         const first = await world.cli([
           'submit-reply',

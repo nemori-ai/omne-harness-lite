@@ -2,6 +2,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { CHECKPOINT_STATE_MAX_BYTES, type CheckpointedToolExecutor } from './checkpointed-author.ts'
 import type { ToolExecutor } from './execution.ts'
+import type { ToolReleaseDescriber } from './release-detail.ts'
 import type {
   ToolAuthor,
   ToolImplementation,
@@ -12,6 +13,8 @@ import type {
 } from './authoring.ts'
 import type {
   ToolCommandBackground,
+  ToolCommandRelease,
+  ToolGate,
   ToolImplementationFacts,
   ToolImplementationShape,
   ToolProgramDeclaration,
@@ -19,11 +22,14 @@ import type {
 } from './definitions.ts'
 import {
   commandName,
+  commandRelease,
   commandSummary,
   implementationDeclaration,
   judgeImplementationFacts,
   parameterContract,
   returnDeclaration,
+  toolGates,
+  unknownGateAt,
 } from './judge-definition.ts'
 import {
   filled,
@@ -149,11 +155,14 @@ const operationParameters: Check<ToolOperationParameters> = variant('kind', {
   }),
 })
 
-const operationSpec = record({
-  parameters: operationParameters,
-  returns: returnDeclaration,
-  author,
-})
+const operationSpec = record(
+  {
+    parameters: operationParameters,
+    returns: returnDeclaration,
+    author,
+  },
+  { describeRelease: fn },
+)
 
 type Program = AnyAuthor['program']
 
@@ -197,6 +206,7 @@ export type ToolOperationSlot = Readonly<{
   parameters: ToolOperationParameters
   returns: ToolReturnDeclaration
   segments: AnyCheckpointed | null
+  describeRelease: ToolReleaseDescriber<unknown> | null
 }>
 
 const runsInSegments: ToolExecutor<unknown, unknown, unknown> = Object.freeze({
@@ -276,6 +286,7 @@ export function defineToolOperation<
     parameters: spec.parameters,
     returns: spec.returns,
     segments,
+    describeRelease: (input.describeRelease as ToolReleaseDescriber<unknown> | undefined) ?? null,
   }
   const handle = marked(
     { parameters: spec.parameters, returns: spec.returns },
@@ -321,11 +332,16 @@ export function defineFunctionTool<E, B extends ContentBlock>(
 
 const commandEntry = record(
   { summary: commandSummary, operation: operationHandle },
-  { background: record({ unless: list(filled) }) },
+  { background: record({ unless: list(filled) }), release: commandRelease },
 )
 type CommandEntry = readonly [
   string,
-  Readonly<{ summary: string; operation: ToolOperationSlot; background?: ToolCommandBackground }>,
+  Readonly<{
+    summary: string
+    operation: ToolOperationSlot
+    background?: ToolCommandBackground
+    release?: ToolCommandRelease
+  }>,
 ]
 
 const commandTable: Check<readonly CommandEntry[]> = (value, at) => {
@@ -352,6 +368,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
     implementation: ToolImplementationDeclaration
     encoding: CommandCallEncoding
     guide?: string
+    gates?: readonly ToolGate[]
     commands: Readonly<
       Record<
         string,
@@ -359,6 +376,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
           summary: string
           operation: ToolOperation<E, B>
           background?: ToolCommandBackground
+          release?: ToolCommandRelease
         }>
       >
     >
@@ -371,20 +389,30 @@ export function defineCommandTool<E, B extends ContentBlock>(
         encoding: literal(...COMMAND_CALL_ENCODINGS),
         commands: commandTable,
       },
-      { guide: nonBlank },
+      { guide: nonBlank, gates: toolGates },
     ),
     input,
     'input',
   )
   if ('failure' in checked) return checked
-  const { implementation, encoding, guide, commands } = checked.ok
+  const { implementation, encoding, guide, gates, commands } = checked.ok
+  const unknown = unknownGateAt(
+    gates,
+    commands.map(([, entry]) => entry),
+  )
+  if (unknown >= 0)
+    return reject(
+      `input.commands[${JSON.stringify(commands[unknown]![0])}].release.gate`,
+      'unknown-gate',
+    )
   return implement(
     implementation,
     {
       kind: 'commands',
       encoding,
       ...(guide === undefined ? {} : { guide }),
-      commands: commands.map(([name, { summary, operation, background }]) => ({
+      ...(gates === undefined ? {} : { gates }),
+      commands: commands.map(([name, { summary, operation, background, release }]) => ({
         name,
         summary,
         parameters:
@@ -393,6 +421,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
             : { kind: 'executor-owned' },
         returns: operation.returns,
         ...(background === undefined ? {} : { background }),
+        ...(release === undefined ? {} : { release }),
       })),
     },
     {

@@ -28,7 +28,7 @@ function action(view: ScheduleView, kind: ScheduleCommand['action'], extra = {})
     action: kind,
     scheduleId: view.scheduleId,
     ...(kind === 'update' ? {} : { reason: null }),
-    meta: { operationKey: randomUUID(), expectedRevision: view.revision, consentRef: null },
+    meta: { operationKey: randomUUID(), expectedRevision: view.revision },
     ...extra,
   })
 }
@@ -37,7 +37,7 @@ async function create(w: World, draft = false) {
     await w.commands.create(context, {
       definition,
       initial: draft ? { kind: 'draft', reason: 'Prepare' } : { kind: 'active' },
-      meta: { operationKey: randomUUID(), expectedRevision: null, consentRef: null },
+      meta: { operationKey: randomUUID(), expectedRevision: null },
     }),
   )
 }

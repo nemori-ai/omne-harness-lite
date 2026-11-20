@@ -30,7 +30,7 @@ import {
   principalVerifierKey,
   tenantStandingKey,
 } from '@omne-harness/identity/cordis'
-import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { SessionAccessRequest } from '@omne-harness/session-contract'
 import { sessionId } from '@omne-harness/session-contract/testing'
 import {
@@ -47,6 +47,7 @@ import {
   createAgentAccessCheck,
   createSessionAccessCheck,
   createToolAccessGuard,
+  createToolAccountsGuard,
   type AccessPorts,
 } from '../../../src/rows/authorization/adapters.ts'
 import { identityClock } from '../../../src/entry/identity-clock.ts'
@@ -58,6 +59,7 @@ import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
 import { ownResolution } from './own-resolution.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
 
 const A = fixtureTenant('a')
 const B = fixtureTenant('b')
@@ -1277,6 +1279,7 @@ describe('agentActionAdmission', () => {
             kind: 'allow',
             evidence: decisionEvidence('permission-fixture', '1', request.operation),
             condition: null,
+            release: VERDICT_RELEASE,
           }
         },
       }),
@@ -1378,6 +1381,7 @@ describe('agentActionAdmission', () => {
         check: async input => ({
           kind: 'allow',
           condition: null,
+          release: VERDICT_RELEASE,
           evidence: decisionEvidence('permission-fixture', '1', {
             operation: input.operation,
             arguments: input.effectiveArguments,
@@ -1410,6 +1414,78 @@ describe('agentActionAdmission', () => {
       expect(answer).toMatchObject({ ok: { kind: 'undecidable' } })
       expect(JSON.stringify(answer)).not.toContain('"allow"')
     }
+  })
+})
+
+function tenantText(tenant: TenantId): string {
+  const encoded = tenantCodec.encode(tenant)
+  if (!encoded.ok) throw new Error('fixture tenant')
+  return encoded.value
+}
+
+describe('Tool usage list qualification', () => {
+  it('lets a member or the session work of the tenant list its usage, asking the admission for the tenant', async () => {
+    const w = world()
+    const guard = createToolAccountsGuard(() => w.ports.admission)
+    for (const principal of [w.login(), w.work()]) {
+      expect(await guard.qualify({ principal, tenant: A })).toEqual({ kind: 'allowed' })
+      expect(w.seen.admissions.at(-1)).toMatchObject({
+        operation: { owner: 'tool', name: 'list-accounts' },
+        target: { owner: 'tool', kind: 'tenant', key: tenantText(A) },
+        arguments: noArguments(),
+      })
+    }
+  })
+
+  it('denies another tenant, a foreign or system principal, before reading the admission', async () => {
+    const w = world()
+    let reads = 0
+    const guard = createToolAccountsGuard(() => {
+      reads += 1
+      return w.ports.admission
+    })
+    for (const [principal, tenant] of [
+      [w.login(), B],
+      [w.foreign(), A],
+      [w.system('unlisted'), A],
+      [{ subject: 'forged' }, A],
+    ] as const)
+      expect(await guard.qualify({ principal, tenant })).toEqual({
+        kind: 'denied',
+        reason: 'tenant-member-required',
+      })
+    expect(reads).toBe(0)
+  })
+
+  it('answers unavailable without an admission or when the dependency throws', async () => {
+    const w = world()
+    expect(
+      await createToolAccountsGuard(() => undefined).qualify({ principal: w.login(), tenant: A }),
+    ).toEqual({ kind: 'unavailable', diagnostic: 'the tool access dependency is unavailable' })
+    const broken = createToolAccountsGuard(() => {
+      throw new Error('admission reader broke')
+    })
+    expect(await broken.qualify({ principal: w.login(), tenant: A })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the tool access request or dependency failed; exception text is not reported',
+    })
+  })
+
+  it('answers as the admission does when it denies or cannot answer', async () => {
+    const w = world()
+    const answering = (answer: unknown) =>
+      createToolAccountsGuard(() => ({ check: () => Promise.resolve(answer) }) as never).qualify({
+        principal: w.login(),
+        tenant: A,
+      })
+    expect(await answering({ kind: 'denied', reason: 'no-grant' })).toEqual({
+      kind: 'denied',
+      reason: 'no-grant',
+    })
+    expect(await answering({ kind: 'unavailable' })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the tool access dependency is unavailable',
+    })
   })
 })
 
@@ -1602,11 +1678,9 @@ describe('the row', () => {
     }
     try {
       const admission = ctx.agentActionAdmission
+      // The judged definition is in no catalog of this tree, so its action cannot be resolved.
       expect(await admission.admit(input as never)).toMatchObject({
-        ok: {
-          kind: 'unavailable',
-          diagnostic: 'No permission declaration names this capability and gate.',
-        },
+        ok: { kind: 'unavailable', diagnostic: 'the action could not be resolved now' },
       })
       await row.dispose()
       expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
@@ -1772,11 +1846,9 @@ describe('the row', () => {
     expect(answers['holder']).toMatchObject({ kind: 'allowed' })
     expect(answers['intruder']).toEqual({ kind: 'denied' })
     expect(answers['agent']).toMatchObject({ kind: 'allowed' })
+    // The judged definition is in no catalog of this tree, so its action cannot be resolved.
     expect(answers['admission']).toMatchObject({
-      ok: {
-        kind: 'unavailable',
-        diagnostic: 'No permission declaration names this capability and gate.',
-      },
+      ok: { kind: 'unavailable', diagnostic: 'the action could not be resolved now' },
     })
     expect(answers['broken']).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify([answers, run.records, run.stderr])).not.toContain('SECRET-TEXT')

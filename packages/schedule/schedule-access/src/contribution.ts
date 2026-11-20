@@ -91,7 +91,6 @@ function createRequestOf(tenant: string, body: Create): ScheduleCreateRequest | 
     meta: {
       operationKey: operationKey(tenant, 'create', body.createId),
       expectedRevision: null,
-      consentRef: null,
     },
   }
 }
@@ -104,7 +103,6 @@ function commandOf(tenant: string, body: Manage): ScheduleCommand | undefined {
     meta: {
       operationKey: operationKey(tenant, 'manage', body.actionId),
       expectedRevision: body.revision,
-      consentRef: null,
     },
   }
   const { action } = body

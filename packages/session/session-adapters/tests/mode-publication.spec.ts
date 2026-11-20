@@ -260,7 +260,6 @@ it('uses the latest environment and collaboration changes with the owner permiss
       inquiry: { policy: { onAsk: 'deny' }, source: evidence('override') },
       interaction: {
         humanInteraction: false,
-        requestApproval: false,
         source: evidence('new-collaboration'),
         translation: SESSION_COLLABORATION_MODE_TRANSLATION,
       },
@@ -275,7 +274,6 @@ it('translates the default co-work into an open interaction, selected with its b
   if (input.defaults.kind !== 'available') throw new Error('no defaults')
   expect(result.value.interaction).toEqual({
     humanInteraction: true,
-    requestApproval: true,
     source: input.defaults.source,
     translation: SESSION_COLLABORATION_MODE_TRANSLATION,
   })

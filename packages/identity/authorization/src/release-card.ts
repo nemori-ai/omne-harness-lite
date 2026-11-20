@@ -10,14 +10,27 @@ export const RELEASE_OPTIONS = [
 ] as const
 export type ReleaseOption = (typeof RELEASE_OPTIONS)[number]
 
+export type ReleaseCardRow = Readonly<{ label: string; value: string | readonly string[] }>
+
+/** What the tool said this one call would do; absent when the tool gave no describe function. */
+export type ReleaseCardDetail =
+  | Readonly<{
+      state: 'given'
+      rows: readonly [ReleaseCardRow, ...ReleaseCardRow[]]
+      typed?: Readonly<{ kind: string; value: string }>
+    }>
+  | Readonly<{ state: 'unavailable' }>
+
 /** What the card is about: the action as the system resolved it, never text the model wrote. */
 export type ReleaseCardAction = Readonly<{
   tool: string
   command: string | null
   preview: string
+  gateTitle: string
   effectiveArguments: string
   session: string
   agent: string
+  detail?: ReleaseCardDetail
 }>
 
 /** Which options the card offers now; one that cannot take effect is shown and not offered. */
@@ -35,8 +48,10 @@ export type ReleaseCardOption = Readonly<{
 export type ReleaseCard = Readonly<{
   title: string
   target: Readonly<{ tool: string; command: string | null; preview: string }>
+  gateTitle: string
   arguments: Readonly<{ text: string; truncated: boolean; digest: string }>
   origin: Readonly<{ session: string; agent: string }>
+  detail?: ReleaseCardDetail
   options: readonly [ReleaseCardOption, ...ReleaseCardOption[]]
 }>
 
@@ -50,18 +65,18 @@ const LABELS: Readonly<Record<ReleaseOption, string>> = {
   'deny-always': '始终禁止',
 }
 
-function scopeOf(option: ReleaseOption, tool: string): string {
+function scopeOf(option: ReleaseOption, gate: string): string {
   switch (option) {
     case 'deny-once':
       return '这一次调用不执行'
     case 'allow-once':
       return '只执行这一次调用，参数不变'
     case 'allow-session':
-      return `这个会话里调用 ${tool} 不再问你；设置变了会重新问`
+      return `这个会话里${gate}不再问你；设置变了会重新问`
     case 'allow-always':
-      return `把 ${tool} 在你的租户里设成自动，所有会话下一次起生效`
+      return `把${gate}在你的租户里设成自动，所有会话下一次起生效`
     case 'deny-always':
-      return `把 ${tool} 在你的租户里设成禁止，所有会话下一次起生效`
+      return `把${gate}在你的租户里设成禁止，所有会话下一次起生效`
   }
 }
 
@@ -79,10 +94,11 @@ function argumentsOf(text: string): ReleaseCard['arguments'] {
 export function releaseCard(action: ReleaseCardAction, offer: ReleaseOffer): ReleaseCard {
   const target = { tool: action.tool, command: action.command, preview: action.preview }
   const call = action.command === null ? action.tool : `${action.tool} ${action.command}`
+  const gate = `「${action.tool}：${action.gateTitle}」`
   const optionOf = (id: ReleaseOption): ReleaseCardOption => ({
     id,
     label: LABELS[id],
-    scope: scopeOf(id, action.tool),
+    scope: scopeOf(id, gate),
     offered: offer[id],
     lasting: id !== 'deny-once' && id !== 'allow-once',
   })
@@ -90,8 +106,10 @@ export function releaseCard(action: ReleaseCardAction, offer: ReleaseOffer): Rel
   return {
     title: `要执行 ${call}，放行吗？`,
     target,
+    gateTitle: action.gateTitle,
     arguments: argumentsOf(action.effectiveArguments),
     origin: { session: action.session, agent: action.agent },
+    ...(action.detail === undefined ? {} : { detail: action.detail }),
     options: [optionOf(first), ...rest.map(optionOf)],
   }
 }

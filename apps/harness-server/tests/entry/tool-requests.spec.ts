@@ -121,8 +121,7 @@ async function world() {
     scopeBinding: () => bindings,
     release: () => releaseOf(fixture.root),
     operatorSettings: () => ({}),
-    interaction: async () => succeed({ humanInteraction: true, requestApproval: true }),
-    inquiry: async () => succeed('ask-human' as const),
+    interaction: async () => succeed({ humanInteraction: true }),
     workingDirectory: async () => succeed({ state: 'default', directory: '/srv/default' }),
   }
   return { fixture, ports, principalA, principalB, snapshot, definitions }
@@ -656,27 +655,13 @@ const ASK = JSON.stringify({
     questions: [{ title: 'Which port?', options: [{ label: '8081' }, { label: '3000' }] }],
   },
 })
-const APPROVAL = JSON.stringify({
-  command: 'request_approval',
-  params: {
-    action: 'Delete the build directory',
-    reason: 'It holds stale output.',
-    impact: 'The next build is slower.',
-    reversibility: 'The output can be built again.',
-    fallback: 'I keep the directory.',
-  },
-})
-
 describe('the meta-capability host: Ask runs only while the session lets the model ask a person', () => {
   const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
-  type Interaction = Readonly<{ humanInteraction: boolean; requestApproval: boolean }> | null
+  type Interaction = Readonly<{ humanInteraction: boolean }> | null
 
-  type OnAsk = 'deny' | 'ask-human' | 'skip-ask' | null
-
-  async function hosted(interaction: () => Interaction, onAsk: () => OnAsk = () => 'ask-human') {
+  async function hosted(interaction: () => Interaction) {
     const { ports, principalA } = await world()
     const reads: unknown[] = []
-    const inquiries: unknown[] = []
     const source = createReleaseToolRequests({
       ...ports,
       interaction: async access => {
@@ -684,74 +669,35 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
         const value = interaction()
         return value === null ? fail('the publication is not there') : succeed(value)
       },
-      inquiry: async access => {
-        inquiries.push(access)
-        const value = onAsk()
-        return value === null ? fail('the publication is not there') : succeed(value)
-      },
     })
     const call = (name: string, args: string) => actionInput(principalA, TENANT_A, name, args)
-    return { source, call, reads, inquiries, principalA }
+    return { source, call, reads, principalA }
   }
-  const open = () => ({ humanInteraction: true, requestApproval: true })
 
-  it('routes both commands while the interaction is open, and reads it for the call session', async () => {
-    const { source, call, reads, principalA } = await hosted(() => ({
-      humanInteraction: true,
-      requestApproval: true,
-    }))
-    for (const [args, command] of [
-      [ASK, 'ask'],
-      [APPROVAL, 'request_approval'],
-    ] as const) {
-      const input = call('Ask', args)
-      const described = await source.describe(input)
-      if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
-      expect(
-        await source.prepare({ ...input, definition: described.ok.definition, admission }),
-      ).toMatchObject({ ok: { command } })
-    }
+  it('routes ask while the interaction is open, and reads it for the call session', async () => {
+    const { source, call, reads, principalA } = await hosted(() => ({ humanInteraction: true }))
+    const input = call('Ask', ASK)
+    const described = await source.describe(input)
+    if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
+    expect(
+      await source.prepare({ ...input, definition: described.ok.definition, admission }),
+    ).toMatchObject({ ok: { command: 'ask' } })
     expect(reads[0]).toEqual({ principal: principalA, tenant: TENANT_A, session: 'ses-a' })
   })
 
-  it('answers each command with its reason while the interaction is closed, and never runs it', async () => {
-    const { source, call } = await hosted(() => ({
-      humanInteraction: false,
-      requestApproval: false,
-    }))
+  it('answers ask with its reason while the interaction is closed, and never runs it', async () => {
+    const { source, call } = await hosted(() => ({ humanInteraction: false }))
     expect(await source.describe(call('Ask', ASK))).toEqual({
       ok: {
         kind: 'answered',
         text: 'Ask: the command "ask" is not available now. This session does not let you ask a person (collaboration mode). Continue without the answer, or stop and report what you need.',
       },
     })
-    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
-      ok: {
-        kind: 'answered',
-        text: expect.stringMatching(
-          /^Ask: the command "request_approval" is not available now\. .*This is not permission: do not do the action\.$/,
-        ),
-      },
-    })
-  })
-
-  it('judges each command by its own value', async () => {
-    const { source, call } = await hosted(() => ({
-      humanInteraction: true,
-      requestApproval: false,
-    }))
-    expect(await source.describe(call('Ask', ASK))).toMatchObject({ ok: { kind: 'tool' } })
-    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
-      ok: { kind: 'answered' },
-    })
   })
 
   it('judges again at prepare: an interaction closed after describe is not run', async () => {
     let open = true
-    const { source, call } = await hosted(() => ({
-      humanInteraction: open,
-      requestApproval: open,
-    }))
+    const { source, call } = await hosted(() => ({ humanInteraction: open }))
     const input = call('Ask', ASK)
     const described = await source.describe(input)
     if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
@@ -776,50 +722,6 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
       ok: { kind: 'answered' },
     })
     expect(reads).toEqual([])
-  })
-
-  it('closes request_approval while the permission side asks nobody, and leaves ask open', async () => {
-    const { source, call, inquiries, principalA } = await hosted(open, () => 'deny')
-    expect(await source.describe(call('Ask', ASK))).toMatchObject({ ok: { kind: 'tool' } })
-    expect(inquiries).toEqual([])
-    expect(await source.describe(call('Ask', APPROVAL))).toEqual({
-      ok: {
-        kind: 'answered',
-        text: 'Ask: the command "request_approval" is not available now. This session asks nobody for approval (permission mode). This is not permission: do not do the action.',
-      },
-    })
-    expect(inquiries).toEqual([{ principal: principalA, tenant: TENANT_A, session: 'ses-a' }])
-  })
-
-  it.each(['ask-human', 'skip-ask'] as const)(
-    'keeps request_approval open while the inquiry policy is %s',
-    async policy => {
-      const { source, call } = await hosted(open, () => policy)
-      expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({ ok: { kind: 'tool' } })
-    },
-  )
-
-  it('answers unavailable for request_approval when the inquiry policy cannot be read', async () => {
-    const { source, call } = await hosted(open, () => null)
-    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
-      failure: {
-        kind: 'unavailable',
-        diagnostic:
-          'the permission inquiry of the session is unreadable: the publication is not there',
-      },
-    })
-    expect(await source.describe(call('Ask', ASK))).toMatchObject({ ok: { kind: 'tool' } })
-  })
-
-  it('does not read the inquiry policy when the collaboration already closes request_approval', async () => {
-    const { source, call, inquiries } = await hosted(
-      () => ({ humanInteraction: true, requestApproval: false }),
-      () => 'deny',
-    )
-    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
-      ok: { kind: 'answered', text: expect.stringContaining('(collaboration mode)') },
-    })
-    expect(inquiries).toEqual([])
   })
 })
 

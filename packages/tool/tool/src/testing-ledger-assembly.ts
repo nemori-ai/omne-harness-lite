@@ -127,6 +127,29 @@ function invokeRequest(): ToolInvokeRequest {
   }
 }
 
+/** The store under test, counting its reads and commits into `counted`. */
+function countingStore(
+  inner: Parameters<Factory>[0],
+  counted: { reads: number; commits: number },
+): Parameters<Factory>[0] {
+  const read = <T>(answer: () => T): T => {
+    counted.reads += 1
+    return answer()
+  }
+  return {
+    durability: inner.durability,
+    scanPending: input => inner.scanPending(input),
+    usage: query => inner.usage(query),
+    read: domain => read(() => inner.read(domain)),
+    readRecord: (domain, key) => read(() => inner.readRecord(domain, key)),
+    due: (tenant, now, limit) => read(() => inner.due(tenant, now, limit)),
+    commit: command => {
+      counted.commits += 1
+      return inner.commit(command)
+    },
+  }
+}
+
 export async function ledgerAssembly(
   fixture: ToolLedgerStoreFixture,
   deps: LedgerAssemblyDependencies,
@@ -222,28 +245,8 @@ export async function ledgerAssembly(
       },
     },
   }
-  let reads = 0
-  let commits = 0
-  const store: Parameters<Factory>[0] = {
-    durability: fixture.store.durability,
-    scanPending: input => fixture.store.scanPending(input),
-    read: domain => {
-      reads += 1
-      return fixture.store.read(domain)
-    },
-    readRecord: (domain, key) => {
-      reads += 1
-      return fixture.store.readRecord(domain, key)
-    },
-    due: (tenant, now, limit) => {
-      reads += 1
-      return fixture.store.due(tenant, now, limit)
-    },
-    commit: command => {
-      commits += 1
-      return fixture.store.commit(command)
-    },
-  }
+  const counted = { reads: 0, commits: 0 }
+  const store = countingStore(fixture.store, counted)
   const ledger = deps.createLedger(
     store,
     guards,
@@ -298,7 +301,7 @@ export async function ledgerAssembly(
     access,
     other,
     domain: { kind: 'call', tenant, call: issued.call } as const,
-    counts: () => ({ reads, commits }),
+    counts: () => ({ ...counted }),
     revoke: () => {
       revoked = true
     },

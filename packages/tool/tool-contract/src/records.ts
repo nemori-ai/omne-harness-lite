@@ -135,7 +135,20 @@ export type ToolStartAcceptance = Readonly<{
   authorizations: readonly ToolPermitConsumption[]
   executorReceipt: DurableEvidence
   acceptance: DurableEvidence
+  release?: ToolStartRelease
 }>
+/** What a start was released on, as the request-access owner answered it; kept as given, unread. */
+export type ToolStartRelease = Readonly<
+  | { by: 'verdict' | 'once' | 'session' | 'skip-ask'; grant: string }
+  | { by: 'carrier' | 'ungated'; grant: null }
+>
+export type ToolStartReleaseReading =
+  | Readonly<{ kind: 'released'; release: ToolStartRelease }>
+  | Readonly<{ kind: 'absent' }>
+/** What a call's start was released on, for an owner that keeps a consent basis. */
+export interface ToolStartReleases<P> {
+  releaseOf(input: CallAccess<P>): Reply<ToolStartReleaseReading>
+}
 export type WaitIntent = Readonly<{
   wait: ToolWaitId
   resume: DurableEvidence

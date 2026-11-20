@@ -8,6 +8,7 @@ import { createActionAdmission } from '../../../src/rows/authorization/adapters.
 import { authorizationConfig } from '../../../src/rows/authorization/action-rules.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
 import { ownResolution } from './own-resolution.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
 
 const tenant = fixtureTenant('a')
 const distribution: unknown = JSON.parse(
@@ -56,6 +57,7 @@ function admissionFor(config: unknown, currentPermission = true) {
             check: async input => ({
               kind: 'allow',
               condition: null,
+              release: VERDICT_RELEASE,
               evidence: decisionEvidence('current-permission-fixture', '1', input.operation),
             }),
           }

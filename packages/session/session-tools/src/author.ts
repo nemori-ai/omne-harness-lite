@@ -272,6 +272,7 @@ export function createSessionsAuthor(
     },
     encoding: ENCODING,
     guide,
+    gates: [{ id: 'invoke', title: '读会话', default: 'auto' }],
     commands: operations,
   })
   return 'failure' in author

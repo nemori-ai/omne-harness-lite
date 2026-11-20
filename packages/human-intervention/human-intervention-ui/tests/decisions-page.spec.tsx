@@ -4,7 +4,7 @@ import { afterEach, beforeAll, expect, it } from 'vitest'
 import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import { CardsHub, DecisionsPage } from '../src/index.ts'
-import { approvalItem, page, questionItem } from './fixtures/cards.ts'
+import { extensionItem, page, questionItem } from './fixtures/cards.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 
@@ -107,24 +107,13 @@ it('V2 问题卡：卡头写谁在问，来源另起一行，选项、常在的�
   expect(screen.queryByRole('tablist')).toBeNull()
 })
 
-it('V3 四种卡的卡头：问询、请示、放行、扩展；请示的文本框写「用你自己的话说」', async () => {
-  const base = approvalItem()
-  const kindOf = (kind: 'admission' | 'extension', cardId: string): HumanInterventionCardItem => {
-    const item = approvalItem(cardId)
-    return { ...item, card: { ...item.card, question: { ...item.card.question, kind } } }
-  }
-  const fake = await listed([base, kindOf('admission', 'card-4'), kindOf('extension', 'card-6')])
-  const heads = ['Agent 想先问你批不批准', '系统要你放行', '拓展件在问你']
-  for (const [at, head] of heads.entries()) {
-    fireEvent.click(screen.getAllByRole('tab')[at]!)
-    expect(shownCard().getByText(head)).toBeTruthy()
-    expect(shownCard().getByText('来源：系统放行')).toBeTruthy()
-    expect(shownCard().getByText('或者用你自己的话说：')).toBeTruthy()
-  }
-  for (const tab of screen.getAllByRole('tab')) {
-    fireEvent.click(tab)
-    fireEvent.click(shownCard().getByRole('button', { name: '不回答这一题' }))
-  }
+it('V3 扩展卡的卡头写「拓展件在问你」，来源写拓展件，文本框写「用你自己的话说」', async () => {
+  const base = extensionItem()
+  const fake = await listed([base])
+  expect(shownCard().getByText('拓展件在问你')).toBeTruthy()
+  expect(shownCard().getByText('来源：拓展件')).toBeTruthy()
+  expect(shownCard().getByText('或者用你自己的话说：')).toBeTruthy()
+  fireEvent.click(shownCard().getByRole('button', { name: '不回答这一题' }))
   fireEvent.click(submitButton())
   expect((await fake.next('submit-reply')).body).toMatchObject({
     reply: { kind: 'decline' },
@@ -255,7 +244,7 @@ it('V14 按会话分组：每组一个标题、一个提交；不属于会话的
     ...questionItem('card-9'),
     origin: { kind: 'tool', sessionRef: OTHER_SESSION, toolCallRef: 'call-9' },
   }
-  await listed([questionItem(), elsewhere, approvalItem()])
+  await listed([questionItem(), elsewhere, extensionItem()])
   const groups = screen.getAllByRole('region')
   expect(groups.map(group => group.getAttribute('aria-label'))).toEqual([
     '会话 ses_01234567…',

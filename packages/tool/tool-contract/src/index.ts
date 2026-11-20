@@ -57,9 +57,13 @@ export type {
   ToolBodyDeclaration,
   ToolCommandBackground,
   ToolCommandDeclaration,
+  ToolCommandRelease,
+  ToolCommandReleaseDetail,
   ToolDefinition,
   ToolCallDirectory,
   ToolEnvironmentDeclaration,
+  ToolGate,
+  ToolGateDefault,
   ToolImplementationShape,
   ToolInvocation,
   ToolProgramDeclaration,
@@ -180,6 +184,17 @@ export type {
   IntentFault,
 } from './command-call.ts'
 export { callLabel } from './call-label.ts'
+export { IMPLICIT_TOOL_GATE, commandGateOf, toolGatesOf } from './gates.ts'
+export type {
+  ReleaseDescription,
+  ReleaseDetail,
+  ReleaseDetailAnswer,
+  ReleaseDetailPolicy,
+  ReleaseRow,
+  ToolReleaseDescriber,
+  ToolReleaseDetails,
+} from './release-detail.ts'
+export type { ToolActionGate } from './gates.ts'
 export type { ToolCallLabel } from './call-label.ts'
 export { toolsCapabilityOf } from './tools-capability.ts'
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts'

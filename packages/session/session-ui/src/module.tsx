@@ -12,7 +12,7 @@ import { ModelSelectionStore, type ModelChoiceHolder } from './model/model-selec
 import { PermissionModeStore } from './model/permission-mode.ts'
 import { SessionWorkStore } from './model/session-work.ts'
 import { SessionWorkspaces } from './model/session-workspaces.ts'
-import { sessionCallDetail, sessionDock, sessionSide } from './points.ts'
+import { sessionCallDetail, sessionDock, sessionSide, sessionStatus } from './points.ts'
 import { ArchiveAction, ArchivedSessions } from './view/archive.tsx'
 import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
 import { ConversationPage } from './view/conversation-page.tsx'
@@ -110,6 +110,11 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
             }
             dock={session =>
               sessionDock.slot(shell, { session }, entries =>
+                entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
+              )
+            }
+            status={session =>
+              sessionStatus.slot(shell, { session }, entries =>
                 entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
               )
             }

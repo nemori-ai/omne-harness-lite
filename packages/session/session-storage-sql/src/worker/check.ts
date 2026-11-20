@@ -1,5 +1,5 @@
 import {
-  deriveDriveOperation,
+  cancellationDriveOf,
   judgeCompletion,
   type DurableEvidence,
   type HistoryEntry,
@@ -178,31 +178,16 @@ function admittedMessage(
   return same(admitted.message, value.message)
 }
 
-function terminalOrigin(
+function terminalRevision(
   port: ParticipantPort,
   tenant: string,
   session: string,
-  execution: string,
-  snapshot: WorkSnapshot,
   terminal: RunTerminal,
-): Readonly<{ revision: string | null; control: string | null }> | 'too-many' {
-  const rows = planted(port, tenant, session, ['run.terminal', 'control.requested'])
+): string | null | 'too-many' {
+  const rows = planted(port, tenant, session, ['run.terminal'])
   if (rows === 'too-many') return rows
   const origin = (row: Planted) => (row.entry as { origin?: { source?: unknown } }).origin?.source
-  const revision =
-    rows.find(row => row.entry.kind === 'run.terminal' && same(origin(row), terminal.evidence))
-      ?.revision ?? null
-  for (const row of rows) {
-    if (row.entry.kind !== 'control.requested' || !same(origin(row), terminal.evidence)) continue
-    const progress = row.data['progress'] as { operation?: unknown } | undefined
-    const control = snapshot.controls.find(item => item.operation === progress?.operation)
-    if (control === undefined) return { revision, control: null }
-    return {
-      revision,
-      control: deriveDriveOperation({ kind: 'control', execution, control: control.operation }),
-    }
-  }
-  return { revision, control: null }
+  return rows.find(row => same(origin(row), terminal.evidence))?.revision ?? null
 }
 
 const tooMany = (): ParticipantReply =>
@@ -233,11 +218,10 @@ function grantCheck(
   if (method !== 'attach') return stopped({ kind: 'terminal', terminal: judged.terminal })
   if (attempt.run !== String(judged.terminal.run))
     return stopped({ kind: 'stale-advance', current: null })
-  const origin = terminalOrigin(port, tenant, session, execution, snapshot, judged.terminal)
-  if (origin === 'too-many') return tooMany()
-  if (origin.revision === null)
-    return definite('missing-row', 'a cancelled Run without its SE26 row')
-  const at = big(origin.revision)
+  const revision = terminalRevision(port, tenant, session, judged.terminal)
+  if (revision === 'too-many') return tooMany()
+  if (revision === null) return definite('missing-row', 'a cancelled Run without its SE26 row')
+  const at = big(revision)
   const last = looked.attempts
     .filter(item => item.run === attempt.run && big(item.revision) <= at)
     .at(-1)
@@ -297,9 +281,9 @@ function runCheck(port: ParticipantPort, check: SessionCheck): ParticipantReply 
           return stopped({ kind: 'terminal', terminal: judged.terminal })
         case 'cancelled': {
           if (check.conclusion !== 'cancelled' || check.control === null) return changed
-          const origin = terminalOrigin(port, tenant, session, execution, snapshot, judged.terminal)
-          if (origin === 'too-many') return tooMany()
-          return origin.control === check.control ? checked(null, null) : changed
+          return cancellationDriveOf(judged.terminal, execution) === check.control
+            ? checked(null, null)
+            : changed
         }
         default: {
           const _exhaustive: never = judged

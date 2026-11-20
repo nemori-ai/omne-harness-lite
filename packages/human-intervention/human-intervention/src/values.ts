@@ -62,7 +62,6 @@ const option = z.strictObject({
   label: text(256),
   description: text(4096),
 })
-const effectOption = option.extend({ effectRef: HitlIdentifierSchema.optional() })
 // A release card shows every option of the issuer; one it does not offer now cannot be answered.
 // The issuer marks which options last beyond this call, so the card body groups them apart.
 const releaseOption = option.extend({ offered: z.boolean(), lasting: z.boolean() })
@@ -74,6 +73,31 @@ const releaseGate = z.strictObject({
 })
 const bounded = (maxCodePoints: number) =>
   z.string().refine(value => value.isWellFormed() && [...value].length <= maxCodePoints)
+export const HITL_RELEASE_DETAIL_MAX_BYTES = 32_768
+const utf8 = (value: string) => new TextEncoder().encode(value).byteLength
+const bytesOf = (value: unknown) => utf8(JSON.stringify(value))
+const releaseRow = z.strictObject({
+  label: text(40),
+  value: z.union([text(500), z.array(text(200)).min(1).max(12).readonly()]),
+})
+// What the tool said this one call would do; the card keeps it as given and knows no kind.
+export const ReleaseDetailSchema = z
+  .discriminatedUnion('state', [
+    z.strictObject({
+      state: z.literal('given'),
+      rows: z.array(releaseRow.readonly()).min(1).max(24).readonly(),
+      typed: z
+        .strictObject({
+          kind: text(128),
+          value: z.string().refine(value => value.isWellFormed() && utf8(value) <= 16_384),
+        })
+        .readonly()
+        .optional(),
+    }),
+    z.strictObject({ state: z.literal('unavailable') }),
+  ])
+  .refine(detail => bytesOf(detail) <= HITL_RELEASE_DETAIL_MAX_BYTES)
+  .readonly()
 const questionFields = {
   cardId: CardIdSchema,
   title: text(256),
@@ -97,16 +121,6 @@ export const QuestionSchema = z
     }),
     z.strictObject({
       ...questionFields,
-      kind: z.literal('approval'),
-      options: z.array(effectOption.readonly()).max(64).readonly(),
-    }),
-    z.strictObject({
-      ...questionFields,
-      kind: z.literal('admission'),
-      options: z.array(effectOption.readonly()).max(64).readonly(),
-    }),
-    z.strictObject({
-      ...questionFields,
       kind: z.literal('release'),
       target: z
         .strictObject({
@@ -121,7 +135,9 @@ export const QuestionSchema = z
       origin: z
         .strictObject({ session: HitlIdentifierSchema, agent: HitlIdentifierSchema })
         .readonly(),
+      gateTitle: text(256),
       gate: releaseGate.readonly().optional(),
+      detail: ReleaseDetailSchema.optional(),
       options: z.array(releaseOption.readonly()).min(1).max(64).readonly(),
     }),
   ])
@@ -133,11 +149,6 @@ export const DecisionQuestionSchema = z
     z.strictObject({
       ...decisionFields,
       kind: z.literal('question'),
-      options: z.array(option.readonly()).min(1).max(64).readonly(),
-    }),
-    z.strictObject({
-      ...decisionFields,
-      kind: z.literal('approval'),
       options: z.array(option.readonly()).min(1).max(64).readonly(),
     }),
   ])
@@ -160,7 +171,6 @@ export const OriginSchema = z
       kind: z.literal('admission'),
       toolCallRef: HitlIdentifierSchema.optional(),
     }),
-    z.strictObject({ ...originFields, kind: z.literal('independent') }),
   ])
   .refine(origin => origin.runRef === undefined || origin.sessionRef !== undefined, {
     message: 'A run reference requires its session reference',

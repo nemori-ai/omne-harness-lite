@@ -103,6 +103,7 @@ describe('the start ordering domain', () => {
       const store: ToolLedgerStore = {
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: memory.readRecord,
         due: memory.due,
         read: async domain => {
@@ -152,6 +153,7 @@ describe('the start ordering domain', () => {
     const store: ToolLedgerStore = {
       durability: 'none',
       scanPending: input => memory.scanPending(input),
+      usage: query => memory.usage(query),
       read: domain => memory.read(domain),
       readRecord: (domain, key) => memory.readRecord(domain, key),
       due: (tenant, now, limit) => memory.due(tenant, now, limit),
@@ -518,6 +520,7 @@ describe('the start ordering domain', () => {
     const store: ToolLedgerStore = {
       durability: 'none',
       scanPending: input => memory.scanPending(input),
+      usage: query => memory.usage(query),
       readRecord: (domain, key) => memory.readRecord(domain, key),
       due: (tenant, now, limit) => memory.due(tenant, now, limit),
       read: domain => {
@@ -784,6 +787,7 @@ describe('tenants and qualification', () => {
   const neverSettles = (): ToolLedgerStore => ({
     durability: 'none',
     scanPending: () => new Promise(() => {}),
+    usage: () => new Promise(() => {}),
     readRecord: () => new Promise(() => {}),
     due: () => new Promise(() => {}),
     read: () => new Promise(() => {}),
@@ -854,6 +858,7 @@ describe('bound: what an expired turn may still commit is unknown, not unavailab
     const store: ToolLedgerStore = {
       durability: 'none',
       scanPending: input => memory.scanPending(input),
+      usage: query => memory.usage(query),
       readRecord: (domain, key) => memory.readRecord(domain, key),
       due: (tenant, now, limit) => memory.due(tenant, now, limit),
       read: domain => memory.read(domain),

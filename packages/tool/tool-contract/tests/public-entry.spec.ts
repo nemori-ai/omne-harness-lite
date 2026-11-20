@@ -12,10 +12,12 @@ import {
 
 it('exports on the root only the names members outside the Tool group import, and their closure', () => {
   expect(Object.keys(tool).sort()).toEqual([
+    'IMPLICIT_TOOL_GATE',
     'backgroundCallsBlock',
     'backgroundCallsSchema',
     'callLabel',
     'commandCallSchema',
+    'commandGateOf',
     'commandMenu',
     'decodeCommandCallText',
     'decodeToolCallId',
@@ -35,6 +37,7 @@ it('exports on the root only the names members outside the Tool group import, an
     'toolAssetBody',
     'toolBodyContract',
     'toolCategoryDisplay',
+    'toolGatesOf',
     'toolsCapabilityOf',
   ])
 })
@@ -45,6 +48,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'CHECKPOINT_STATE_MAX_BYTES',
     'CLOSED_RESULT_MAX_BYTES',
     'COMMAND_CALL_ENCODINGS',
+    'DEFAULT_RELEASE_DETAIL_POLICY',
     'INTENT_MAX_BYTES',
     'OUTPUT_BODY_KEY',
     'PREVIEW_MAX_CHARS',
@@ -91,6 +95,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'judgeHandoff',
     'judgeImplementationFacts',
     'judgePreparationFact',
+    'judgeReleaseDescription',
     'judgeToolArguments',
     'judgeToolDefinition',
     'judgeToolInvokeRequest',
@@ -171,6 +176,7 @@ it('exports the conformance suites and the non-durable doubles on the testing en
   const testing = await import('@omne-harness/tool-contract/testing')
   expect(Object.keys(testing).sort()).toEqual([
     'NotApplicable',
+    'checkReleaseDescription',
     'clockAnswers',
     'completedFinal',
     'completedFinalEnvelope',

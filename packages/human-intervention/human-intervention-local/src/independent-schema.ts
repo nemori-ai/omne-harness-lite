@@ -25,15 +25,9 @@ export const IndependentPreparationSchema = z
     compatibleImplementations: z.array(HitlIdentifierSchema).min(1).max(64).readonly(),
   })
   .refine(
-    ({ registration: { origin, operation }, readers, responders }) =>
-      (origin.kind !== 'independent' ||
-        (origin.sessionRef === undefined && origin.runRef === undefined)) &&
-      readers.includes(operation.actorRef) &&
-      responders.every(actor => readers.includes(actor)),
-    {
-      message:
-        'A preparation owns its audience, and an independent origin has no session lifecycle',
-    },
+    ({ registration: { operation }, readers, responders }) =>
+      readers.includes(operation.actorRef) && responders.every(actor => readers.includes(actor)),
+    { message: 'A preparation owns its audience' },
   )
   .readonly()
 export const InboxEntrySchema = z

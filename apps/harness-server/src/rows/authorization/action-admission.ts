@@ -7,7 +7,7 @@ import {
   type AdmissionInput,
 } from '@omne-harness/authorization'
 import { succeed } from '@omne-harness/operation-result'
-import type { ToolActionResolution } from '@omne-harness/tool-contract'
+import type { ToolActionGate, ToolActionResolution, ToolGate } from '@omne-harness/tool-contract'
 import type { ToolCallLabeling } from '../../entry/tool-action-resolution.ts'
 import { actionRulesSchema, toolActionRule, type ActionRules } from './action-rules.ts'
 import {
@@ -52,6 +52,7 @@ function undecidable(diagnostic: string): AdmissionDecision {
 type Judged = Readonly<{
   definition: ToolPermissionAction['definition']
   effectiveArguments: string
+  gate: ToolActionGate
   carrier?: true
   carried?: Readonly<{ definition: ToolPermissionAction['definition']; effectiveArguments: string }>
 }>
@@ -71,18 +72,23 @@ async function judgedOf(
     principal,
     tenant: input.tenant,
     name: input.original.name,
+    definition: input.definition,
     effectiveArguments: input.effectiveArguments,
   })
-  if ('failure' in resolved)
-    // A carried call naming no valid target runs only the carrier, which answers the argument error.
-    return resolved.failure.kind === 'invalid'
-      ? [{ ...own, carrier: true }]
-      : unavailable('the action could not be resolved now')
-  if (resolved.ok.kind === 'own') return [own]
-  const { target } = resolved.ok
+  if ('failure' in resolved) return unavailable('the action could not be resolved now')
+  const action = resolved.ok
+  if (action.kind === 'own') return [{ ...own, gate: action.gate }]
+  // A call that performs no action is judged as a carrier: it answers the argument error itself.
+  if (action.kind === 'argument-error') return [{ ...own, gate: action.gate, carrier: true }]
+  const { target } = action
   return [
-    { ...own, carrier: true },
-    { definition: target.definition, effectiveArguments: target.effectiveArguments, carried: own },
+    { ...own, gate: action.carrier.gate, carrier: true },
+    {
+      definition: target.definition,
+      effectiveArguments: target.effectiveArguments,
+      gate: target.gate,
+      carried: own,
+    },
   ]
 }
 
@@ -99,7 +105,7 @@ type Judging = Readonly<{
   picks: TenantPicks | undefined
 }>
 
-function permissionAction(judging: Judging, gate: Judged): ToolPermissionAction {
+function permissionAction(judging: Judging, gate: Judged, of: ToolGate): ToolPermissionAction {
   const { input } = judging
   return {
     principal: judging.principal,
@@ -107,6 +113,7 @@ function permissionAction(judging: Judging, gate: Judged): ToolPermissionAction 
     operation: agentPermissionOperation(input),
     definition: { ...gate.definition },
     effectiveArguments: gate.effectiveArguments,
+    gate: { ...of },
     ...(gate.carrier ? { carrier: true as const } : {}),
     origin: {
       kind: 'agent-action',
@@ -126,10 +133,15 @@ function permissionAction(judging: Judging, gate: Judged): ToolPermissionAction 
 
 const NO_LASTING = Object.freeze({ allow: false, deny: false })
 
-function lastingOf(judging: Judging, gate: Judged) {
+function lastingOf(judging: Judging, gate: Judged, of: ToolGate) {
   if (judging.picks === undefined) return NO_LASTING
   const { principal, input } = judging
-  return judging.picks.writable({ principal, tenant: input.tenant, definition: gate.definition })
+  return judging.picks.writable({
+    principal,
+    tenant: input.tenant,
+    definition: gate.definition,
+    gate: of,
+  })
 }
 
 // One gate passes its action rule (a carrier with no rule passes it) and then its current permission.
@@ -145,11 +157,21 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
   )
   if (decision.kind !== 'allow' && !(gate.carrier && decision.kind === 'undecidable'))
     return decision
+  const ruled = decision.kind === 'allow' ? decision.evidence : null
+  if (gate.gate.kind === 'ungated')
+    return {
+      kind: 'allow',
+      evidence: decisionEvidence('action-ungated', rules.revision, {
+        rule: ruled,
+        permission: null,
+      }),
+    }
+  const of = gate.gate.gate
   if (judging.permission === undefined)
     return unavailable('the current permission dependency is unavailable')
-  const current = await judging.permission.check(permissionAction(judging, gate))
+  const current = await judging.permission.check(permissionAction(judging, gate, of))
   if (current.kind === 'ask') {
-    const lasting = await lastingOf(judging, gate)
+    const lasting = await lastingOf(judging, gate, of)
     if (lasting === 'unavailable')
       return unavailable('the tenant setting of the gate could not be read now')
     return askedDecision(judging.labeling, {
@@ -158,6 +180,7 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
       session: judging.session,
       definition: gate.definition,
       effectiveArguments: gate.effectiveArguments,
+      gateTitle: of.title,
       evidence: current.evidence,
       gate: current.gate,
       lasting,
@@ -167,7 +190,7 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
   return {
     kind: 'allow',
     evidence: decisionEvidence('action-current-permission', rules.revision, {
-      rule: decision.kind === 'allow' ? decision.evidence : null,
+      rule: ruled,
       permission: current.evidence,
     }),
   }
@@ -258,12 +281,18 @@ function answered(
   readers: Readers,
 ): Promise<Applied> {
   const { input } = judging
+  const last = gates[gates.length - 1]!
+  if (last.gate.kind === 'ungated') return Promise.resolve(null)
   const action = {
     principal: judging.principal,
     tenant: input.tenant,
     session: judging.session,
     consumer: agentActionConsumer(input),
-    gate: gates[gates.length - 1]!,
+    gate: {
+      definition: last.definition,
+      effectiveArguments: last.effectiveArguments,
+      gate: last.gate.gate,
+    },
   }
   return applyAnswer(action, effect, {
     authorizations: readers.readAuthorizations?.(),

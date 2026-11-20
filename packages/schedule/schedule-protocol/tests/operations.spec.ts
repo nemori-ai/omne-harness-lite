@@ -16,7 +16,7 @@ const card = {
 }
 const detail = {
   ...card,
-  basis: { kind: 'blanket', generation: 3 },
+  basis: { kind: 'blanket', scope: 'standing' },
   createdAt: at,
   definition: { any: 'json' },
 }
@@ -51,7 +51,8 @@ describe('schedule/v1', () => {
     expectRoundTrip(operations['list-schedules'].outcomes.succeeded, { items: [card], next: null })
     for (const basis of [
       { kind: 'owner' },
-      { kind: 'granular', decision: 'd-1' },
+      { kind: 'blanket', scope: 'session' },
+      { kind: 'granular' },
       { kind: 'none' },
     ])
       expectRoundTrip(operations['read-schedule'].outcomes.succeeded, { ...detail, basis })

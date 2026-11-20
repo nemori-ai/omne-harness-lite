@@ -17,7 +17,6 @@ export const ScheduleAuthorSchema = z.discriminatedUnion('kind', [
 ])
 export const ScheduleConsentAdoptionSchema = z.strictObject({
   grantRef: ref,
-  generation: z.int().nonnegative(),
   adoptionKind: z.enum(['granular', 'blanket']),
   scope: z.enum(['session', 'standing']),
   adoptedAt: ScheduleInstantSchema,

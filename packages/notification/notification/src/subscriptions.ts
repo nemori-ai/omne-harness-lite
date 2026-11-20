@@ -1,4 +1,5 @@
 import {
+  consentBasis,
   decideSubscription,
   findEventType,
   parseWith,
@@ -8,8 +9,7 @@ import {
   subscriptionKeySchema,
   type Beat,
   type CallContext,
-  type Confirmation,
-  type ConsentMode,
+  type ConsentOutcome,
   type EventTypeDeclaration,
   type NotificationSubscriptions,
   type ParseRefusal,
@@ -20,7 +20,7 @@ import {
   type SubscriptionKey,
   type BeatRefusal,
 } from '@omne-harness/notification-contract'
-import { ask, type Clock, type ConsentModes, type NotificationAuthority } from './ports.ts'
+import { ask, type Clock, type NotificationAuthority, type SubscriptionConsents } from './ports.ts'
 import type { NotificationSources } from './registries.ts'
 import type { NotificationStore } from './store.ts'
 import type { RecipientDefaults } from './transactions/destinations.ts'
@@ -29,7 +29,7 @@ export type SubscriptionsDependencies = Readonly<{
   authority: NotificationAuthority
   store: NotificationStore
   sources: NotificationSources
-  consent: ConsentModes
+  consent: SubscriptionConsents
   clock: Clock
   defaults: RecipientDefaults
   /** The interval a beat may take, in minutes. */
@@ -37,6 +37,7 @@ export type SubscriptionsDependencies = Readonly<{
 }>
 
 const UNAVAILABLE = { kind: 'basis-unavailable' } as const
+const UNREAD: ConsentOutcome = { kind: 'unavailable' }
 const refuse = <R extends string>(reason: R) => ({ kind: 'refused', reason }) as const
 type Blocked = typeof UNAVAILABLE | ReturnType<typeof refuse<'not-permitted'>>
 
@@ -73,32 +74,48 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
     return answer === 'unavailable' ? UNAVAILABLE : null
   }
 
-  /** Read only when an agent acts: the owner needs nobody's consent. */
-  async function consentMode(ctx: CallContext): Promise<ConsentMode | null | 'unavailable'> {
-    if (ctx.actor.kind === 'owner') return null
-    try {
-      return await deps.consent.mode(ctx)
-    } catch {
-      return 'unavailable'
-    }
-  }
-
   /** Null: something the decision needs cannot be read right now. */
-  async function decide(
+  function decide(
     ctx: CallContext,
     change: SubscriptionChange,
     current: Subscription | null,
-    confirmation: Confirmation | null,
-  ): Promise<SubscriptionDecision | null> {
+  ): SubscriptionDecision | null {
     const declared = declaredType(deps.sources, change)
-    const mode = await consentMode(ctx)
-    if (declared === null || mode === 'unavailable') return null
-    const facts = { tenant: ctx.tenant, change, current, actor: ctx.actor, declared }
+    if (declared === null) return null
     try {
-      return decideSubscription({ ...facts, mode, confirmation, now: deps.clock.now() })
+      return decideSubscription({
+        change,
+        current,
+        actor: ctx.actor,
+        declared,
+        now: deps.clock.now(),
+      })
     } catch {
       return null
     }
+  }
+
+  /** What the agent's call was released on; an answer that cannot be had is unavailable. */
+  async function consentOf(ctx: CallContext): Promise<ConsentOutcome> {
+    try {
+      return consentBasis(await deps.consent.consent(ctx))
+    } catch {
+      return UNREAD
+    }
+  }
+
+  /** The decision, with the consent of the call read in when it needs one. */
+  async function settle(
+    ctx: CallContext,
+    change: SubscriptionChange,
+    current: Subscription | null,
+  ): Promise<Exclude<SubscriptionDecision, { kind: 'needs-consent' }> | typeof UNAVAILABLE> {
+    const decision = decide(ctx, change, current)
+    if (decision === null) return UNAVAILABLE
+    if (decision.kind !== 'needs-consent') return decision
+    const consent = await consentOf(ctx)
+    if (consent.kind === 'unavailable') return UNAVAILABLE
+    return consent.kind === 'basis' ? { kind: 'set', basis: consent.basis } : consent
   }
 
   async function write(
@@ -114,7 +131,7 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
   }
 
   return {
-    async set(ctx, input, confirmation = null) {
+    async set(ctx, input) {
       const parsed = parseWith(subscriptionChangeSchema, input)
       if ('refused' in parsed) return refuse(parseRefusal(parsed.refused))
       const change = parsed.ok
@@ -123,14 +140,11 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
       if (blocked !== null) return blocked
       const current = await deps.store.subscription(ctx.tenant, key)
       if (current.kind === 'unavailable') return UNAVAILABLE
-      const decision = await decide(ctx, change, current.value, confirmation)
-      if (decision === null) return UNAVAILABLE
-      if (decision.kind === 'refused') return decision
-      if (decision.kind === 'recalled')
-        return { kind: 'done', recalled: true, value: decision.current }
-      if (decision.kind === 'needs-confirmation')
-        return { kind: 'needs-confirmation', request: { content: decision.content, change } }
-      const next = { ...key, level, note, term, basis: decision.basis, expired: false }
+      const settled = await settle(ctx, change, current.value)
+      if (settled.kind === 'recalled')
+        return { kind: 'done', recalled: true, value: settled.current }
+      if (settled.kind !== 'set') return settled
+      const next = { ...key, level, note, term, basis: settled.basis, expired: false }
       const failed = await write(ctx, key, current.value, next)
       return failed ?? { kind: 'done', recalled: false, value: next }
     },

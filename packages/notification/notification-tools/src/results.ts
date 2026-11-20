@@ -6,10 +6,11 @@ import type {
   SubscriptionRefusal,
 } from '@omne-harness/notification-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { AuthorSegment, ToolPrimitiveFailure } from '@omne-harness/tool-contract/provider'
+import type { ToolPrimitiveFailure } from '@omne-harness/tool-contract/provider'
 import type { NotificationsCommandName } from './protocol.ts'
 
-export type Segment = Outcome<AuthorSegment<Uint8Array, string>, ToolPrimitiveFailure>
+/** The text of a completed call, or why it failed. */
+export type Answer = Outcome<string, ToolPrimitiveFailure>
 
 export type Refusal = ParseRefusal | SendRefusal | InboxRefusal | SubscriptionRefusal
 type Kind = 'invalid' | 'unsupported' | 'too-large' | 'conflict'
@@ -41,32 +42,29 @@ const REFUSALS: Readonly<Record<Refusal, readonly [Kind, string]>> = {
   'not-subscribable': ['unsupported', 'agents cannot subscribe to this event type'],
   'scope-does-not-fit': ['invalid', 'the scope does not fit the subject this event type takes'],
   'not-own-recipient': ['unsupported', 'you can only change your own subscriptions'],
-  'confirmation-mismatch': [
-    'conflict',
-    'the request is not the one the owner confirmed; nothing was changed',
+  'consent-required': [
+    'unsupported',
+    'this call was not released with a consent to subscribe; nothing was changed',
   ],
 }
 
-const completed = (command: NotificationsCommandName, value: unknown): Segment =>
-  succeed({ kind: 'completed', value: `done Notifications ${command}\n${JSON.stringify(value)}` })
+const completed = (command: NotificationsCommandName, value: unknown): Answer =>
+  succeed(`done Notifications ${command}\n${JSON.stringify(value)}`)
 
-export function refused(reason: Refusal): Segment {
+export function refused(reason: Refusal): Answer {
   const [kind, hint] = REFUSALS[reason]
   return fail({ kind, reason: `${reason}: ${hint}` })
 }
 
-export const tooLarge = (reason: string): Segment => fail({ kind: 'too-large', reason })
-export const cancelled = (reason: string): Segment => fail({ kind: 'cancelled', reason })
-
 const operationOf = (command: NotificationsCommandName) => `Notifications.${command}`
 
-export const unavailable = (command: NotificationsCommandName, why: string): Segment =>
+export const unavailable = (command: NotificationsCommandName, why: string): Answer =>
   fail({ kind: 'unavailable', operation: operationOf(command), reason: why })
 
 const NOT_KNOWN =
   'it is not known whether this took effect; send the same command again: what took effect is recalled, not done twice'
 
-export const unknown = (command: NotificationsCommandName): Segment =>
+export const unknown = (command: NotificationsCommandName): Answer =>
   fail({ kind: 'unknown', operation: operationOf(command), reason: NOT_KNOWN })
 
 const NOW_UNAVAILABLE = 'the notification services cannot answer now; nothing was changed'
@@ -76,7 +74,7 @@ export function answered<T, R extends Refusal>(
   command: NotificationsCommandName,
   outcome: DomainOutcome<T, R>,
   done: (value: T, recalled: boolean) => unknown,
-): Segment {
+): Answer {
   switch (outcome.kind) {
     case 'done':
       return completed(command, done(outcome.value, outcome.recalled))
@@ -96,7 +94,7 @@ export async function reading<T, R extends Refusal>(
   command: NotificationsCommandName,
   call: Call<T, R>,
   done: (value: T) => unknown,
-): Promise<Segment> {
+): Promise<Answer> {
   let outcome: DomainOutcome<T, R>
   try {
     outcome = await call()
@@ -111,7 +109,7 @@ export async function writing<T, R extends Refusal>(
   command: NotificationsCommandName,
   call: Call<T, R>,
   done: (value: T, recalled: boolean) => unknown,
-): Promise<Segment> {
+): Promise<Answer> {
   let outcome: DomainOutcome<T, R>
   try {
     outcome = await call()

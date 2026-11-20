@@ -225,7 +225,7 @@ describe('a card agrees with its question and its decision', () => {
 
 describe('requests, questions and origins', () => {
   const origin = {
-    kind: 'independent',
+    kind: 'agent-extension',
     originRef: 'origin-a',
     wait,
     positionRef: 'step-a',
@@ -263,8 +263,11 @@ describe('requests, questions and origins', () => {
       'A run reference requires its session reference',
     ])
   })
-  it.each(['agent-extension', 'admission', 'independent'])('accepts the origin kind %s', kind => {
+  it.each(['agent-extension', 'admission'])('accepts the origin kind %s', kind => {
     expect(OriginSchema.parse({ ...origin, kind })).toEqual({ ...origin, kind })
+  })
+  it('refuses the origin kind independent', () => {
+    expect(OriginSchema.safeParse({ ...origin, kind: 'independent' }).success).toBe(false)
   })
   it('accepts a command of exactly the byte budget and limits one byte more', () => {
     const json = JSON.stringify(command({ reply: { kind: 'text', text: 'ascii only' } }))
@@ -293,7 +296,7 @@ describe('reads and delivery', () => {
       ListPoolSchema.safeParse({ ...pool, filter: { states: [...states, 'pending'] } }).success,
     ).toBe(false)
     expect(ListPoolSchema.safeParse({ ...pool, filter: { states: ['open'] } }).success).toBe(false)
-    for (const originKind of ['tool', 'agent-extension', 'admission', 'independent']) {
+    for (const originKind of ['tool', 'agent-extension', 'admission']) {
       const filter = { states: ['pending'], originKind, sessionRef: 'session-a' }
       expect(ListPoolSchema.parse({ ...pool, filter }).filter).toEqual(filter)
     }

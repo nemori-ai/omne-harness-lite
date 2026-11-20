@@ -155,6 +155,7 @@ export function createTodoItemsAuthor(
     },
     encoding: 'wrapped',
     guide,
+    gates: [{ id: 'invoke', title: '待办', default: 'auto' }],
     commands: operations,
   })
   return 'failure' in author
