@@ -44,7 +44,7 @@ export function chromePath() {
   throw new Error('no headless Chromium found; set OMNE_WALK_CHROME')
 }
 
-export function startChrome(profile) {
+export function startChrome(profile, scale = 1) {
   const child = spawn(
     chromePath(),
     [
@@ -55,6 +55,7 @@ export function startChrome(profile) {
       '--hide-scrollbars=false',
       '--no-first-run',
       '--no-default-browser-check',
+      ...(scale === 1 ? [] : [`--force-device-scale-factor=${scale}`]),
       'about:blank',
     ],
     { stdio: ['ignore', 'ignore', 'pipe'], detached: true },
@@ -136,14 +137,18 @@ export async function screenshot(browser, file, clip) {
   return file
 }
 
-export async function record(browser, folder, act, { lasting, clip } = {}) {
+export async function record(browser, folder, act, { lasting, clip, pixels } = {}) {
   mkdirSync(folder, { recursive: true })
   const frames = []
   const off = browser.on('Page.screencastFrame', params => {
     frames.push({ at: params.metadata.timestamp * 1000, data: params.data })
     browser.send('Page.screencastFrameAck', { sessionId: params.sessionId }).catch(() => {})
   })
-  await browser.send('Page.startScreencast', { format: 'png', everyNthFrame: 1 })
+  await browser.send('Page.startScreencast', {
+    format: 'png',
+    everyNthFrame: 1,
+    ...(pixels === undefined ? {} : { maxWidth: pixels.width, maxHeight: pixels.height }),
+  })
   const started = await evaluate(browser, 'performance.timeOrigin + performance.now()')
   await act(started)
   await new Promise(resolve => setTimeout(resolve, lasting ?? 2000))

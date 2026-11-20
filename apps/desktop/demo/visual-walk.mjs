@@ -393,7 +393,7 @@ async function main() {
   let chrome
   let browser
   try {
-    chrome = await startChrome(profile)
+    chrome = await startChrome(profile, scale)
     browser = await devtools(chrome.port)
     await browser.send('Page.enable')
     await browser.send('Page.navigate', { url: stack.origin })
@@ -404,14 +404,19 @@ async function main() {
         if (series === undefined) throw new Error(`no series ${name}`)
         for (const theme of themes) {
           const folder = join(shots, `${name}-${theme}${reduced ? '-reduced' : ''}`)
-          await apply(browser, { theme, width: series.width ?? widths[0], size: 'medium' })
+          const window = series.width ?? widths[0]
+          await apply(browser, { theme, width: window, size: 'medium' })
           await openSpecimen(browser, stack.origin, series.page)
           await series.prepare?.(browser, run)
           const frames = await record(
             browser,
             folder,
             started => series.act(browser, run, started),
-            { lasting: series.lasting, clip: series.clip },
+            {
+              lasting: series.lasting,
+              clip: series.clip,
+              pixels: { width: window.width * scale, height: window.height * scale },
+            },
           )
           const timings = await series.measure?.(browser, run)
           writeFileSync(join(folder, 'timings.json'), `${JSON.stringify(timings ?? {}, null, 2)}\n`)
