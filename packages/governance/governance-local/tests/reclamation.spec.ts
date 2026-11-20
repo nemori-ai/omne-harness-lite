@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import { createGovernanceLocal } from '../src/provider.ts'
 import { definitionKey } from '../src/encoding.ts'
 import { selectionDigest } from '../src/adoption-plan.ts'
@@ -35,7 +36,7 @@ function storedBytes(w: World) {
           typeof value === 'string'
             ? Buffer.byteLength(value)
             : value instanceof Uint8Array
-              ? value.byteLength
+              ? Buffer.byteLength(unpackText(value))
               : value === null
                 ? 0
                 : 8
@@ -44,10 +45,7 @@ function storedBytes(w: World) {
 
 const receiptCount = (w: World) => Number(query(w, 'SELECT count(*) n FROM _sql_receipt')[0]?.n)
 
-async function cycle(
-  world: Awaited<ReturnType<typeof openProviderWorld>>,
-  worked: () => void = () => {},
-) {
+async function cycle(world: Awaited<ReturnType<typeof openProviderWorld>>) {
   const { w, options, definition } = world
   const made = await createGovernanceLocal(options)
   if (made.kind !== 'created') throw new Error(JSON.stringify(made))
@@ -87,7 +85,6 @@ async function cycle(
       request: { owner: 'contribute', command: w.command(`p-${made.epoch}`) },
     }),
   ).toMatchObject({ kind: 'found', record: { state: 'accepted' } })
-  worked()
   expect(await made.close()).toEqual({ kind: 'closed' })
   return made.epoch
 }
@@ -128,15 +125,32 @@ it('keeps only the current epoch and at most one earlier epoch of operations, wi
 it('does not grow the governance records with the number of restarts', async () => {
   const world = await openProviderWorld()
   worlds.push(world.w)
-  const opened = storedBytes(world.w)
-  let epoch = 0
-  await cycle(world, () => {
-    epoch = storedBytes(world.w) - opened
-  })
-  const after: number[] = [storedBytes(world.w)]
-  for (let index = 1; index < 6; index++) {
+  const after: number[] = []
+  for (let index = 0; index < 6; index++) {
     await cycle(world)
     after.push(storedBytes(world.w))
   }
-  expect(after[5]! - after[1]!).toBeLessThanOrEqual(epoch)
+  expect(after[5]).toBe(after[1])
+})
+
+it('stops reading the contributions of a closed epoch and reads the current ones', async () => {
+  const { w, options } = await openProviderWorld()
+  worlds.push(w)
+  const { sql } = w.services()
+  const first = await createGovernanceLocal(options)
+  if (first.kind !== 'created') throw new Error(JSON.stringify(first))
+  const old = await first.service.contribute(w.context, w.command(`c-${first.epoch}`))
+  if (old.kind !== 'registered') throw new Error(JSON.stringify(old))
+  expect(await first.close()).toEqual({ kind: 'closed' })
+  const second = await createGovernanceLocal(options)
+  if (second.kind !== 'created') throw new Error(JSON.stringify(second))
+  const current = await second.service.contribute(w.context, w.command(`c-${second.epoch}`))
+  if (current.kind !== 'registered') throw new Error(JSON.stringify(current))
+  expect(await sql.contribution(old.contribution, w.principalRef)).toEqual({ kind: 'denied' })
+  expect(await sql.contribution(current.contribution, w.principalRef)).toMatchObject({
+    kind: 'found',
+    state: 'active',
+  })
+  expect(query(w, 'SELECT DISTINCT epoch FROM gc_contribution')).toEqual([{ epoch: second.epoch }])
+  expect(await second.close()).toEqual({ kind: 'closed' })
 })

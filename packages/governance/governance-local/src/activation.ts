@@ -27,6 +27,7 @@ import { persistSqlStage, requireApplyStage } from './sql-stage.ts'
 import { isTerminal } from './registrar-results.ts'
 import { digest, json, equal } from './encoding.ts'
 import { retireContribution } from './contribution-retirement.ts'
+import { reclaimContributions } from './contribution.ts'
 
 function control(
   port: ParticipantPort,
@@ -87,10 +88,13 @@ function metadata(port: ParticipantPort, request: ControlRequest) {
   switch (request.kind) {
     case 'bootstrap':
       return bootstrapScope(port, request.input)
-    case 'close-scope':
+    case 'close-scope': {
       for (const key of request.released)
         releaseOperation(port, { scope: request.input.scope, ...key })
-      return closeScope(port, request.input)
+      const closed = closeScope(port, request.input)
+      reclaimContributions(port, request.input.scope)
+      return closed
+    }
     case 'retire-contribution':
       return retireContribution(port, request.binding)
     case 'persist-stage':
