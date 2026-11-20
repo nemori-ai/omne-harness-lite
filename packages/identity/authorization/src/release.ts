@@ -52,6 +52,8 @@ export type ReleaseDecision =
     }>
   | Readonly<{ kind: 'unavailable'; missing: 'verdict' | 'session' }>
 
+const denialOf = (policy: InquiryPolicy) => policy.denial ?? 'inquiry-policy'
+
 // The four steps in their fixed order (packages/identity/SPEC.md, 人工决定与询问处理).
 export function decideRelease(facts: ReleaseFacts): ReleaseDecision {
   const { verdict, session, holders, gate } = facts
@@ -82,7 +84,7 @@ export function decideRelease(facts: ReleaseFacts): ReleaseDecision {
   }
   switch (session.policy.onAsk) {
     case 'deny':
-      return { kind: 'refuse', reason: session.policy.denial ?? 'inquiry-policy', basis }
+      return { kind: 'refuse', reason: denialOf(session.policy), basis }
     case 'ask-human':
       return { kind: 'ask', basis }
     case 'skip-ask': {

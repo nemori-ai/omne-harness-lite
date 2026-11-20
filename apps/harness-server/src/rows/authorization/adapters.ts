@@ -414,7 +414,10 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
         permit: null,
       }
     },
-    matrix: (purpose, principal) => sessionMatrixRequest(purpose, principal, target, tenant, facts),
+    matrix: (purpose, principal) =>
+      isPartPurpose(purpose)
+        ? sessionPartRequest(purpose, principal, target, tenant, facts)
+        : sessionMatrixRequest(purpose, principal, target, tenant, facts),
   })
   return qualifiedWrite(planned, target, who)
 }
@@ -470,7 +473,6 @@ function sessionMatrixRequest(
   tenant: TenantId | null,
   facts: CommandFacts,
 ): SystemActionRequest | null {
-  if (isPartPurpose(purpose)) return sessionPartRequest(purpose, principal, target, tenant, facts)
   const base = { principal, scope: 'system', arguments: noArguments() } as const
   switch (purpose) {
     case 'resident-references':
