@@ -2,7 +2,7 @@
 id: PD-workspaces
 title: 工作区
 status: draft
-revision: 6
+revision: 7
 relations:
   supersedes: []
   depends-on: []

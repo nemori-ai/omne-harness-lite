@@ -28,9 +28,9 @@
 | 工作区附着 `WorkspaceAttachment` | 实例标识 `instance` 与装载依据 `basis` | 语义与形状归工作区域的契约成员；值由附着核验给出，[Session](../../../packages/session/SPEC.md#会话的固定事实与采用) 引用并记进会话日志 |
 | Session 创建、`DeclarationChange` 的 `workspace` 分支、SE05 `session.workspace-changed` | 身份加附着 | [session-contract](../../../packages/session/SPEC.md#受理与输入) |
 | Tool 的 `SourceLayer` | 只承载身份 | [tool-contract](../../../packages/tool/SPEC.md) |
-| Tool 的 `FixedToolRequest` | 身份、实例与受理时钉住的工作目录 | [tool-contract](../../../packages/tool/SPEC.md) |
+| Tool 的 `FixedToolRequest` | 身份、实例与受理时钉住的工作目录、文件范围 | [tool-contract](../../../packages/tool/SPEC.md) |
 | `AssemblyContext.workspace` | 只承载文本，不解析 | [request-context-contract](../../../packages/context/SPEC.md#应然设计) |
-| 一次调用的文件根 | 落点 | [执行环境域](../execution-environments/README.md)。取自固定请求里钉住的工作目录 |
+| 一次调用的文件范围 | 落点 | [执行环境域](../execution-environments/README.md)。取自固定请求里钉住的那一份；它由实例的范围与「工作区之外的文件」这项设置在受理时算出 |
 
 ## 两层：治理与物理资源
 
@@ -62,16 +62,16 @@ flowchart LR
   rc ==> src
   rc ==> model
   src -->|"取落点之前再核一次资格"| ws
-  src -->|"文件根随落点"| env
+  src -->|"文件范围随落点"| env
 ```
 
 | 拥有者 | 它守的那一段 |
 | --- | --- |
-| Session | 选择在会话日志里。块只在一步开始之前换值，所以更换从下一步起生效 |
+| Session | 选择在会话日志里。块是状态块，只在一步开始之前由 Session 提交换值，所以更换从下一步起生效；进程重建之后装回最近一次提交的值 |
 | 工作区 | 核验的答复。不认识会话，不发布这个块 |
-| Runtime Context | 把块供给工具请求来源与模型类读者。读不到是缺项，不是默认目录 |
-| Tool | 一次调用从受理起钉住一个工作目录，重建之后的恢复仍用它 |
-| 执行环境 | 文件根随落点，围栏按自己的规则立 |
+| Runtime Context | 把块供给工具请求来源与模型类读者。读不到不是默认目录 |
+| Tool | 一次调用从受理起钉住一个工作目录与一份文件范围，重建之后的恢复仍用它们。Shell 在启动之前用文件范围做预检 |
+| 执行环境 | 文件范围随落点，围栏按读与写各自的根执行 |
 
 知道目录不构成许可：块说的是目录在哪，许不许由每次取落点之前对工作区的再核验决定，重建之后恢复的调用也要再过一次。
 
