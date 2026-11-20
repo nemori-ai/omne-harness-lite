@@ -1,6 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import tailwindcss from '@tailwindcss/vite'
+import react from '@vitejs/plugin-react'
+import { build } from 'vite'
 import {
   devtools,
   evaluate,
@@ -16,7 +20,8 @@ const USAGE = `usage: node apps/desktop/demo/visual-walk.mjs [options]
 
 The acceptance walk of the page's look: a server on a fresh state directory with a scripted model, the standalone
 forwarding process and a headless Chromium; it seeds the acceptance data, then shoots every scene in every theme,
-window and size asked for, named <scene>-<theme>-<width>[-<size>].png.
+window and size asked for, named <scene>-<theme>-<width>[-<size>].png. Each shot prints how far the page
+scrolls sideways; the specimen scene prints the page policy violations it saw.
 
   --shots <dir>        where the pictures go (a fresh temporary folder by default)
   --scenes <a,b>       only these scenes (by id); --list prints them
@@ -27,8 +32,9 @@ window and size asked for, named <scene>-<theme>-<width>[-<size>].png.
   --series <a,b>       record these frame series instead of the scenes (--list prints them)
   --reduced            emulate prefers-reduced-motion: reduce for everything shot or recorded
 
-Needs \`pnpm run build\` in apps/desktop and apps/harness-server first. Chromium: OMNE_WALK_CHROME, a Playwright
-chrome-headless-shell, or Google Chrome on macOS, always on a fresh profile.`
+Needs \`pnpm run build\` in apps/desktop and apps/harness-server first. The specimen page (demo/specimen/) is built
+with vite into a temporary folder for the walk and served under /specimen/; it never goes into dist/page. Chromium:
+OMNE_WALK_CHROME, a Playwright chrome-headless-shell, or Google Chrome on macOS, always on a fresh profile.`
 
 const args = process.argv.slice(2)
 const option = (name, fallback) => {
@@ -49,7 +55,7 @@ const print = line => process.stdout.write(`${line}\n`)
 const shots = resolve(option('--shots', mkdtempSync(join(tmpdir(), 'visual-walk-'))))
 const themes = list('--themes', 'light,dark')
 const widths = list('--widths', '1440x900,1100x760').map(text => {
-  const [width, height] = text.split('x').map(Number)
+  const [width, height = 900] = text.split('x').map(Number)
   return { name: String(width), width, height }
 })
 const sizes = list('--sizes', '')
@@ -147,7 +153,8 @@ function answer({ body }) {
       contentType: 'application/json',
       body: JSON.stringify({ error: { message: 'the input is rejected', code: 400 } }),
     }
-  if (last?.role === 'tool') return { ...reply, body: final(body, '命令跑完了，输出是 visual-walk。') }
+  if (last?.role === 'tool')
+    return { ...reply, body: final(body, '命令跑完了，输出是 visual-walk。') }
   if (said.includes('工具'))
     return { ...reply, body: calls(body, [call(0, 'call_shell_visual', 'Shell', SHELL)]) }
   if (said.includes('问我'))
@@ -234,9 +241,24 @@ async function seed(browser) {
 
 const SCENES = [
   { id: 'A1-gate', title: '登录门', before: true, tiers: true },
-  { id: 'A3-rest', title: '登录后的静止', tiers: true, act: `await goTo('对话'); await openSession('请总结')` },
-  { id: 'B1-conversation', title: '长会话', tiers: true, act: `await openSession('请总结'); await sleep(300)` },
-  { id: 'C1-cards', title: '一批问询卡', tiers: true, act: `await goTo('对话'); await openSession('有几件事要问我')` },
+  {
+    id: 'A3-rest',
+    title: '登录后的静止',
+    tiers: true,
+    act: `await goTo('对话'); await openSession('请总结')`,
+  },
+  {
+    id: 'B1-conversation',
+    title: '长会话',
+    tiers: true,
+    act: `await openSession('请总结'); await sleep(300)`,
+  },
+  {
+    id: 'C1-cards',
+    title: '一批问询卡',
+    tiers: true,
+    act: `await goTo('对话'); await openSession('有几件事要问我')`,
+  },
   { id: 'C5-decisions', title: '待你决定', act: `await goTo('待你决定')` },
   { id: 'C6-notifications', title: '通知', act: `await goTo('通知')` },
   { id: 'D1-search', title: '搜索', act: `await goTo('搜索')` },
@@ -247,7 +269,7 @@ const SCENES = [
   { id: 'D9-usage', title: '用量', act: `await goTo('用量')` },
   {
     id: 'K1-specimen',
-    title: '共用件与形的样张',
+    title: '共用件的样张',
     tiers: true,
     specimen: true,
   },
@@ -285,8 +307,7 @@ function combinations(scene) {
   const tiers = scene.tiers ? ['medium', ...sizes.filter(size => size !== 'medium')] : ['medium']
   const out = []
   for (const theme of themes)
-    for (const width of widths)
-      for (const size of tiers) out.push({ theme, width, size })
+    for (const width of widths) for (const size of tiers) out.push({ theme, width, size })
   return out
 }
 
@@ -299,13 +320,41 @@ async function shootScene(browser, scene, done) {
       `${scene.id}-${combination.theme}-${combination.width.name}${suffix}.png`,
     )
     await screenshot(browser, file)
+    const sideways = await evaluate(
+      browser,
+      'document.documentElement.scrollWidth - document.documentElement.clientWidth',
+    )
+    print(`SHOT ${file} sideways ${sideways}px`)
     done.push(file)
   }
 }
 
+async function buildSpecimen() {
+  const outDir = mkdtempSync(join(tmpdir(), 'visual-walk-specimen-'))
+  await build({
+    root: fileURLToPath(new URL('./specimen/', import.meta.url)),
+    base: '/specimen/',
+    configFile: false,
+    publicDir: false,
+    logLevel: 'warn',
+    plugins: [react(), tailwindcss()],
+    build: { outDir, emptyOutDir: true, modulePreload: { polyfill: false }, assetsInlineLimit: 0 },
+  })
+  return outDir
+}
+
 async function openSpecimen(browser, origin) {
-  await browser.send('Page.navigate', { url: `${origin}specimen.html` })
-  await run(browser, `await wait('the specimen', () => document.querySelector('[data-specimen=ready]'))`)
+  await browser.send('Page.navigate', { url: `${origin}specimen/index.html` })
+  await run(
+    browser,
+    `await wait('the specimen', () => document.querySelector('[data-specimen=ready]'))`,
+  )
+}
+
+async function specimenViolations(browser) {
+  const seen = await evaluate(browser, 'window.specimenWalk?.violations ?? []')
+  print(`POLICY specimen: ${seen.length === 0 ? 'no violations' : seen.join('; ')}`)
+  if (seen.length > 0) process.exitCode = 1
 }
 
 async function main() {
@@ -317,9 +366,13 @@ async function main() {
   }
   const wanted = new Set(list('--scenes', SCENES.map(scene => scene.id).join(',')))
   const seriesWanted = list('--series', '')
+  const specimenWanted =
+    seriesWanted.length > 0 || SCENES.some(item => item.specimen && wanted.has(item.id))
+  const specimenRoot = specimenWanted ? await buildSpecimen() : undefined
   const stack = await startStack({
     answer,
     pageRoot: new URL('../dist/page/', import.meta.url).pathname,
+    specimenRoot,
   })
   const profile = mkdtempSync(join(tmpdir(), 'visual-walk-chrome-'))
   let chrome
@@ -344,12 +397,17 @@ async function main() {
         })
         const timings = await series.measure?.(browser, run)
         writeFileSync(join(folder, 'timings.json'), `${JSON.stringify(timings ?? {}, null, 2)}\n`)
-        print(`SERIES ${name}: ${frames.length} frames  ${JSON.stringify(timings ?? {})}  [${folder}]`)
+        print(
+          `SERIES ${name}: ${frames.length} frames  ${JSON.stringify(timings ?? {})}  [${folder}]`,
+        )
       }
       return
     }
     for (const scene of SCENES.filter(item => item.before && wanted.has(item.id))) {
-      await run(browser, `await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))`)
+      await run(
+        browser,
+        `await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))`,
+      )
       await shootScene(browser, scene, done)
       print(`SCENE ${scene.id}`)
     }
@@ -368,6 +426,7 @@ async function main() {
     if (specimen !== undefined) {
       await openSpecimen(browser, stack.origin)
       await shootScene(browser, specimen, done)
+      await specimenViolations(browser)
       print(`SCENE ${specimen.id}`)
     }
     print(`shots: ${done.length} in ${shots}`)
@@ -382,6 +441,7 @@ async function main() {
     stopChrome(chrome)
     await stack.stop()
     rmSync(profile, { recursive: true, force: true })
+    if (specimenRoot !== undefined) rmSync(specimenRoot, { recursive: true, force: true })
   }
 }
 

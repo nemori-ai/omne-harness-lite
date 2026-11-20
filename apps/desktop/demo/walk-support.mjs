@@ -158,7 +158,7 @@ export async function record(browser, folder, act, { lasting, clip } = {}) {
   return index
 }
 
-export async function startStack({ answer, pageRoot }) {
+export async function startStack({ answer, pageRoot, specimenRoot }) {
   const scratch = newScratch('visual-walk-')
   const hostLog = []
   const log = line => hostLog.push(`${new Date().toISOString()} ${line}`)
@@ -192,7 +192,11 @@ export async function startStack({ answer, pageRoot }) {
     forwarding: createForwarding({
       rules,
       readPageFile: segments =>
-        readFile(join(pageRoot, ...segments)).then(
+        readFile(
+          specimenRoot !== undefined && segments[0] === 'specimen'
+            ? join(specimenRoot, ...segments.slice(1))
+            : join(pageRoot, ...segments),
+        ).then(
           content => new Uint8Array(content),
           () => undefined,
         ),
