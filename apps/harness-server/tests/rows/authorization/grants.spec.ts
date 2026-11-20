@@ -147,6 +147,17 @@ describe('the read port over the table', () => {
     expect(asked).toEqual(['dispatch', 'dispatch'])
   })
 
+  it('reads every grant as installed when it is given no reading of the rows', async () => {
+    const { principal } = issuedSystem('dispatch')
+    const target = agentInstanceRequest(principal, 'publish').target
+    const reading = releaseMaintenanceGrants().read({
+      principal,
+      operation: { owner: 'agent', name: 'publish' },
+      target,
+    })
+    await expect(reading).resolves.toEqual({ kind: 'found', grant: MAINTENANCE_GRANTS.dispatch })
+  })
+
   it('does not read the component text as a wildcard or a prefix', async () => {
     const source = releaseMaintenanceGrants()
     for (const component of ['*', 'agent-host-2', 'agent', 'constructor', '__proto__']) {

@@ -89,6 +89,11 @@ describe('who may ask dispatch for what on the release', () => {
     const copy = authority('rejected').decide(ctx({ ...SYSTEM }, A, 'system'), 'read')
     expect(await copy).toBe('denied')
   })
+
+  it('does not take a call without a subject for the system principal while that principal is absent', async () => {
+    const absent = createDispatchAuthority({ verifier: () => undefined, system: () => undefined })
+    expect(await absent.decide(ctx(undefined, A, 'system'), 'read')).not.toBe('permitted')
+  })
 })
 
 describe('the type of an Agent definition as a tenant sees it', () => {
@@ -108,6 +113,21 @@ describe('the type of an Agent definition as a tenant sees it', () => {
       kind: 'read',
       value: null,
     })
+  })
+
+  it('does not ask the catalogue for a tenant text that is no tenant', async () => {
+    const asked: unknown[] = []
+    const everything = {
+      visibleTo: (tenant: LegalTenant) => {
+        asked.push(tenant)
+        return [{ name: 'coding', type: 'master' as const, summary: 's' }]
+      },
+    }
+    expect(await definitionsOf(() => everything).typeOf('nobody' as TenantId, 'coding')).toEqual({
+      kind: 'read',
+      value: null,
+    })
+    expect(asked).toEqual([])
   })
 
   it('is unavailable while the catalogue is not mounted', async () => {

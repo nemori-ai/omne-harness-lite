@@ -7,7 +7,7 @@ import {
   type RunId,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
-import { DISPATCH_SOURCES } from '../src/index.ts'
+import { DISPATCH_SOURCES, reportText } from '../src/index.ts'
 import { lastReplyOf } from '../src/reply.ts'
 import {
   LEGAL_TENANT,
@@ -230,6 +230,25 @@ describe('what the sending session is to the receiving one, in a message', () =>
     ['the receiver is not there', [work(PEER), null]],
   ] as const)('says unknown when %s', async (_name, snapshots) => {
     expect(await relationIn(snapshots)).toBe('unknown')
+  })
+})
+
+describe('a report sent into the dispatching session', () => {
+  it('is worded as a report, and reads no session to say what the sender is to the receiver', async () => {
+    const { sessions, made } = world()
+    const input = { to: PARENT, input: 'r/1', source: 'dispatch.report', text: 'done' } as const
+    await sessions.send(TENANT, { ...input, from: { session: PEER, agent: 'helper' } })
+    const [sent] = made('accept') as [{ value: { message: { blocks: [{ text: string }] } } }]
+    expect(sent.value.message.blocks[0].text).toBe(
+      reportText({ session: PEER, agent: 'helper' }, 'done'),
+    )
+    expect(made('work')).toEqual([])
+  })
+
+  it('reads the modes of the session it gives the row of, as that session of that tenant', async () => {
+    const { sessions, made } = world()
+    await sessions.row(TENANT, PARENT)
+    expect(made('modes')).toEqual([{ tenant: LEGAL_TENANT, session: PARENT }])
   })
 })
 
