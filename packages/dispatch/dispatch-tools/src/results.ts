@@ -9,6 +9,7 @@ import type {
 } from '@omne-harness/dispatch-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolPrimitiveFailure } from '@omne-harness/tool-contract/provider'
+import type { BoundAgents, Reached } from './port.ts'
 import type { AgentsCommandName } from './protocol.ts'
 
 /** The text of a completed call, or why it failed. */
@@ -117,4 +118,21 @@ export async function writing<T, R extends Refusal>(
 ): Promise<Answer> {
   const outcome = await call().catch(() => ({ kind: 'unknown' }) as const)
   return answered(command, outcome, done)
+}
+
+const UNREACHABLE = {
+  unattached: 'the dispatch services are not attached to this call',
+  unavailable: 'the dispatch services are not available now',
+  forbidden: 'this call does not act as a session of the tenant',
+} as const
+
+/** The services of a call, or the failed result that says why they cannot be reached from it. */
+export async function reachFrom(
+  command: AgentsCommandName,
+  bound: BoundAgents | undefined,
+): Promise<Readonly<{ reached: Reached; bound: BoundAgents }> | Failed> {
+  if (bound === undefined) return unavailable(command, UNREACHABLE.unattached)
+  const reached = await bound.reach()
+  if ('unreachable' in reached) return unavailable(command, UNREACHABLE[reached.unreachable])
+  return { reached, bound }
 }

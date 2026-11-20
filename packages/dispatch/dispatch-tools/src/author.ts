@@ -27,7 +27,7 @@ import {
   type AgentsArguments,
   type AgentsCommandName,
 } from './protocol.ts'
-import { unavailable, type Answer } from './results.ts'
+import { reachFrom, type Answer } from './results.ts'
 
 const AGENTS_GATES: readonly ToolGate[] = [
   { id: 'read', title: '查看', default: 'auto' },
@@ -108,12 +108,6 @@ const menu: CommandTable = {
   })),
 }
 
-const UNREACHABLE = {
-  unattached: 'the dispatch services are not attached to this call',
-  unavailable: 'the dispatch services are not available now',
-  forbidden: 'this call does not act as a session of the tenant',
-} as const
-
 type Plain = Exclude<AgentsArguments, { command: 'dispatch' }>
 
 /** One call is one read or one write: what the domain answers is the answer. The dispatch command has its own two segments. */
@@ -125,12 +119,10 @@ export async function answerAgents(
     return succeed(
       `done Agents help${args.params.name === undefined ? '' : ` ${args.params.name}`}\n${commandGuide(menu, args.params.name)}`,
     )
-  const bound = agentsOf(execution)
-  if (bound === undefined) return unavailable(args.command, UNREACHABLE.unattached)
-  const reached = await bound.reach()
-  if ('unreachable' in reached) return unavailable(args.command, UNREACHABLE[reached.unreachable])
+  const ready = await reachFrom(args.command, agentsOf(execution))
+  if (!('reached' in ready)) return ready
   const handler = HANDLERS[args.command] as Handler<Reaching>
-  return handler(reached, args.params, bound)
+  return handler(ready.reached, args.params, ready.bound)
 }
 
 /** A failed answer is thrown with its reason: the call fails with that reason as its result. */

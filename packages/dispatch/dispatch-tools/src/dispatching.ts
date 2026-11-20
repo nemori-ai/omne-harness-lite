@@ -13,7 +13,7 @@ import {
 import { z } from 'zod'
 import { agentsOf } from './port.ts'
 import type { AgentsArguments } from './protocol.ts'
-import { NOW_UNAVAILABLE, completed, refused, unavailable, unknown } from './results.ts'
+import { NOW_UNAVAILABLE, completed, reachFrom, refused, unavailable, unknown } from './results.ts'
 
 /** What the call ends with when its wait is closed before the outcome came. */
 export const DISPATCH_CLOSED_RESULT =
@@ -43,11 +43,6 @@ const responseSchema = z.strictObject({
 }) satisfies z.ZodType<ReportWaitResponse>
 
 const encoder = new TextEncoder()
-const UNREACHABLE = {
-  unattached: 'the dispatch services are not attached to this call',
-  unavailable: 'the dispatch services are not available now',
-  forbidden: 'this call does not act as a session of the tenant',
-} as const
 const ORIGINS = {
   report: 'what the dispatched agent handed back',
   'final-reply': 'the last reply of the run: the agent handed back no report',
@@ -102,10 +97,9 @@ export const dispatchExecutor: CheckpointedToolExecutor<Args, string, null> = {
     maxBytes: STATE_MAX_BYTES,
   },
   async initial(args, _environment, context: ToolSegmentContext) {
-    const bound = agentsOf(context)
-    if (bound === undefined) return unavailable('dispatch', UNREACHABLE.unattached)
-    const reached = await bound.reach()
-    if ('unreachable' in reached) return unavailable('dispatch', UNREACHABLE[reached.unreachable])
+    const ready = await reachFrom('dispatch', agentsOf(context))
+    if (!('reached' in ready)) return ready
+    const { reached, bound } = ready
     const { mode, agent, instruction, expectation } = args.params
     const request = { mode, agent, instruction, expectation: expectation ?? null, call: bound.call }
     const asked = await reached.dispatching
