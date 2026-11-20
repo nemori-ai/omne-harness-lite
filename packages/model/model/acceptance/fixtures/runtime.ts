@@ -311,5 +311,4 @@ export const configuration: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  cleanupRetryMs: 0,
 }
