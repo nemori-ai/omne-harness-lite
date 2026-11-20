@@ -33,3 +33,7 @@
 .identity-account-logout {
   justify-content: flex-start;
 }
+
+.identity-account-rail {
+  border-radius: var(--omne-radius-pill);
+}

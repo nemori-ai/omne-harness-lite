@@ -6,7 +6,7 @@ import type { ClientOf } from '@omne-harness/sdk/core'
 import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
 import type { AccountPorts } from './model/account.ts'
 import { createLoginModel, type LoginPorts } from './model/login.ts'
-import { AccountBlock } from './view/account-block.tsx'
+import { AccountBlock, AccountRail } from './view/account-block.tsx'
 import { LoginCard } from './view/login-card.tsx'
 
 export const IDENTITY_CLIENT = protocolServiceName({
@@ -36,7 +36,9 @@ function contribute(shell: ShellService, identity: IdentityClient): void {
   shell.contribute('sidebar', {
     id: ACCOUNT_ID,
     order: ACCOUNT_ORDER,
+    group: 'utility',
     render: () => <AccountBlock ports={account} logout={logout} />,
+    rail: () => <AccountRail ports={account} logout={logout} />,
   })
 }
 

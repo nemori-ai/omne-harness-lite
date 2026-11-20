@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { Button, InlineNotice, LoadingState } from '@omne-harness/ui-kit'
+import { Button, ICONS, IconButton, InlineNotice, LoadingState } from '@omne-harness/ui-kit'
 import { createAccountModel, type AccountModel, type AccountPorts } from '../model/account.ts'
 
 const READING_TEXT = '正在读取当前租户……'
@@ -27,13 +27,19 @@ function Tenant(props: { model: AccountModel }) {
   return <LoadingState label={READING_TEXT} />
 }
 
-export function AccountBlock(props: { ports: AccountPorts; logout: () => void }) {
+/** The account block's model lives while one of its two looks is drawn: each finds the tenant on sign-in. */
+function useAccountModel(ports: AccountPorts): AccountModel | undefined {
   const [model, setModel] = useState<AccountModel | undefined>(undefined)
   useEffect(() => {
-    const live = createAccountModel(props.ports)
+    const live = createAccountModel(ports)
     setModel(live)
     return () => live.dispose()
-  }, [props.ports])
+  }, [ports])
+  return model
+}
+
+export function AccountBlock(props: { ports: AccountPorts; logout: () => void }) {
+  const model = useAccountModel(props.ports)
   return (
     <section className="identity-account" aria-label="账号">
       {model === undefined ? <LoadingState label={READING_TEXT} /> : <Tenant model={model} />}
@@ -41,5 +47,23 @@ export function AccountBlock(props: { ports: AccountPorts; logout: () => void })
         退出登录
       </Button>
     </section>
+  )
+}
+
+/** The same glyph the shell draws for an account by name: a person. */
+const AccountGlyph = ICONS['contact']
+
+/** The account block on the rail: one round control that signs out; drawn alone, it still sets the tenant. */
+export function AccountRail(props: { ports: AccountPorts; logout: () => void }) {
+  useAccountModel(props.ports)
+  return (
+    <IconButton
+      label="退出登录"
+      tooltipSide="right"
+      className="identity-account-rail"
+      onClick={props.logout}
+    >
+      {AccountGlyph === undefined ? null : <AccountGlyph aria-hidden="true" />}
+    </IconButton>
   )
 }

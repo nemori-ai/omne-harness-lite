@@ -134,6 +134,27 @@ describe('身份的界面模块', () => {
     expect(t.calls.logouts).toBe(1)
   })
 
+  it('账号块在侧栏底部的 utility 段；窄条里是一个圆，名字是退出登录，按下经外壳退出；只画窄条时照样设租户', async () => {
+    const t = await setup()
+    t.root.reflect.provide(IDENTITY_CLIENT, t.client)
+    await settle()
+    const [item] = t.shell.store.items('sidebar')
+    expect(item?.group).toBe('utility')
+    expect(item?.rail).toBeTypeOf('function')
+    await act(async () => {
+      render(<>{item!.rail!({ scope: undefined })}</>)
+    })
+    expect(t.calls.scopes).toEqual([TENANT_TEXT])
+    const circle = screen.getByRole('button', { name: '退出登录' })
+    expect(circle.classList.contains('identity-account-rail')).toBe(true)
+    expect(circle.querySelector('svg')).toBeTruthy()
+    expect(circle.textContent).toBe('')
+    await act(async () => {
+      fireEvent.click(circle)
+    })
+    expect(t.calls.logouts).toBe(1)
+  })
+
   it('账号块查不到时显示原因与重试，重试查到就显示', async () => {
     const t = await setup()
     let answers = 0

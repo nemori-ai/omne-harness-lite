@@ -87,6 +87,7 @@ export function contributeUsage(
     title: '用量',
     order: USAGE_PAGE_ORDER,
     icon: 'overview',
+    group: 'utility',
     render: ({ scope }) =>
       scope === undefined ? null : (
         <div className="usage-page">
