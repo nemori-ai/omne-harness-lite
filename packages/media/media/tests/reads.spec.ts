@@ -127,4 +127,25 @@ describe('reads', () => {
       'material-unavailable',
     )
   })
+  it('answer unavailable, not that the material is gone, while the store is off', async () => {
+    const w = world()
+    const { ref } = await w.staged(T1, 'up', IMAGE)
+    const storeOff = { failure: { kind: 'unavailable', dependency: 'store' } }
+    w.faults.methods.set('open', 'unavailable')
+    expect(await w.media.variants.open({ tenant: T1, ref, target: null })).toEqual(storeOff)
+    expect(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8 })).toEqual(storeOff)
+    w.faults.methods.clear()
+    ok(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8 }))
+    w.faults.methods.set('open', 'unavailable')
+    expect(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8 })).toEqual(storeOff)
+  })
+
+  it('answer unavailable while the index is off', async () => {
+    const w = world()
+    const { ref } = await w.staged(T1, 'up', IMAGE)
+    w.faults.index = 'unavailable'
+    const indexOff = { failure: { kind: 'unavailable', dependency: 'index' } }
+    expect(await w.media.variants.open({ tenant: T1, ref, target: null })).toEqual(indexOff)
+    expect(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8 })).toEqual(indexOff)
+  })
 })

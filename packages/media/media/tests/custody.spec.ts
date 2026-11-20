@@ -44,9 +44,10 @@ describe('a product a referrer puts', () => {
     )
     expect(put.ref).toEqual(staged.ref)
     expect(await w.liveKeys()).toEqual([staged.ref.key])
-    expect(ok(await w.index.readLive(staged.ref.key, tenantText(T1))).holders).toEqual([
-      holder('call-1'),
-    ])
+    expect(ok(await w.index.readLive(staged.ref.key, tenantText(T1)))).toMatchObject({
+      state: 'held',
+      holderCount: 1,
+    })
   })
 
   it('over the limit, of an unknown type or of another type than declared is refused and leaves nothing', async () => {
@@ -61,6 +62,42 @@ describe('a product a referrer puts', () => {
     expect(failureOf(await put('image/png', png(201, 1)))).toBe('over-budget')
     expect(await w.liveKeys()).toEqual([])
     expect(w.medium.writes.size).toBe(0)
+  })
+})
+
+describe('a product put while a port does not answer', () => {
+  const put = (w: ReturnType<typeof world>) =>
+    w.media.custody.put({
+      tenant: T1,
+      mediaType: 'image/png',
+      bytes: chunks(IMAGE),
+      holder: holder('call-1'),
+    })
+
+  it.each(['begin', 'append', 'seal'])(
+    'a store whose %s is off: unavailable, and neither bytes nor a row are left',
+    async method => {
+      const w = world()
+      w.faults.methods.set(method, 'unavailable')
+      expect(await put(w)).toEqual({ failure: { kind: 'unavailable', dependency: 'store' } })
+      w.faults.methods.clear()
+      expect([w.medium.sealed.size, w.medium.writes.size]).toEqual([0, 0])
+      expect(ok(await w.index.listDeleting(tenantText(T1), 10))).toEqual([])
+      expect(ok(await put(w)).facts).toEqual({ kind: 'image', widthPixels: 4, heightPixels: 3 })
+    },
+  )
+
+  it('an index that is off or does not know: the answer says which, before and after the bytes are stored', async () => {
+    const answers = {
+      unavailable: { failure: { kind: 'unavailable', dependency: 'index' } },
+      unknown: { failure: { kind: 'outcome-unknown' } },
+    }
+    for (const method of ['insertUploading', 'stageOrMerge'])
+      for (const fault of ['unavailable', 'unknown'] as const) {
+        const w = world()
+        w.faults.methods.set(method, fault)
+        expect(await put(w)).toEqual(answers[fault])
+      }
   })
 })
 

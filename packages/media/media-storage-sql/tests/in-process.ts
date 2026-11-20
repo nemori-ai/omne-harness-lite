@@ -28,12 +28,13 @@ function portOf(db: DatabaseSync, reading = false) {
   }
 }
 
-/**
- * The index over the participant, the read handler and the migration of this member on
- * node:sqlite in the test process: one database per storage domain, one transaction per commit.
- * It is what the storage worker runs, without the worker, so that coverage and mutation see it.
- */
-export function createInProcessIndex(): MediaIndex {
+export type InProcessOptions = Readonly<{
+  wrap?: (storage: SqlStorage) => SqlStorage
+  unbound?: readonly string[]
+}>
+
+/** What the worker runs, without the worker: one database per storage domain, one transaction per commit. */
+export function createInProcessStorage(): SqlStorage {
   const databases = new Map<string, DatabaseSync>()
   const open = (domain: string) => {
     let db = databases.get(domain)
@@ -44,7 +45,7 @@ export function createInProcessIndex(): MediaIndex {
     }
     return db
   }
-  const storage = {
+  return {
     async commit(request: Parameters<SqlStorage['commit']>[0]) {
       const db = open(request.identity.transactionDomain)
       db.exec('BEGIN')
@@ -66,12 +67,20 @@ export function createInProcessIndex(): MediaIndex {
         : { kind: 'unavailable' }
     },
   } as unknown as SqlStorage
+}
+
+/** The index of this member over the in-process storage, so that coverage and mutation see all of it. */
+export function createInProcessIndex(options: InProcessOptions = {}): MediaIndex {
+  const storage = createInProcessStorage()
   return createSqlMediaIndex({
-    storage,
-    bind: async tenant => ({
-      transactionDomain: `tenant/in-process/${tenant}`,
-      combinationVersion: 'in-process/1',
-      manifestDigest: 'in-process',
-    }),
+    storage: options.wrap?.(storage) ?? storage,
+    bind: async tenant =>
+      options.unbound?.includes(tenant)
+        ? null
+        : {
+            transactionDomain: `tenant/in-process/${tenant}`,
+            combinationVersion: 'in-process/1',
+            manifestDigest: 'in-process',
+          },
   })
 }

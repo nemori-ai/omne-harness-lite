@@ -77,7 +77,7 @@ export function createCustody(deps: MediaDependencies, objects: Objects): Custod
         received: 0,
         parts: [],
         expiresAt: null,
-        holders: [],
+        holderCount: 0,
       }
       if (!(await store(row, bytes))) {
         await objects.discard(row)

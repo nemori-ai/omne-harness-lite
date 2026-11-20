@@ -82,12 +82,13 @@ export function createReads(
   }
 
   /** A page is handed out only from an object whose whole bytes matched its digest once. */
-  async function verify(row: MediaRow): Promise<boolean> {
-    if (verified.has(row.key)) return true
-    if ('failure' in (await objects.whole(row))) return false
+  async function verify(row: MediaRow) {
+    if (verified.has(row.key)) return succeed(null)
+    const whole = await objects.whole(row)
+    if ('failure' in whole) return whole
     if (verified.size >= VERIFIED_KEYS) verified.clear()
     verified.add(row.key)
-    return true
+    return succeed(null)
   }
 
   return {
@@ -104,7 +105,8 @@ export function createReads(
       async page(input) {
         const row = await objects.resolve(tenantText(input.tenant), input.ref)
         if ('failure' in row) return row
-        if (!(await verify(row.ok))) return materialUnavailable
+        const checked = await verify(row.ok)
+        if ('failure' in checked) return checked
         const offset = Math.max(0, Math.trunc(input.offset))
         const length = Math.max(0, Math.min(Math.trunc(input.limit), deps.config.partBytes))
         const opened = await objects.storeOf(row.ok.storage)?.open(row.ok.key, { offset, length })

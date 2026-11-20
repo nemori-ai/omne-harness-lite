@@ -190,10 +190,7 @@ describe('a held medium', () => {
     const { w, ref } = await held()
     ok(await hold(w, ref))
     ok(await hold(w, ref, 'w2'))
-    expect(ok(await w.index.readLive(ref.key, tenantText(T1))).holders).toEqual([
-      holder('w1'),
-      holder('w2'),
-    ])
+    expect(ok(await w.index.readLive(ref.key, tenantText(T1))).holderCount).toBe(2)
   })
   it('a read hands its bytes out', async () => {
     const { w, ref } = await held()
@@ -213,7 +210,7 @@ describe('a medium being deleted', () => {
     const w = world()
     const { ref } = await w.staged(T1, 'up', IMAGE)
     w.advance(601_000)
-    w.faults.remove = true
+    w.faults.methods.set('remove', 'unavailable')
     expect(ok(await sweep(w))).toEqual({ removed: 0, more: false })
     return { w, ref }
   }
@@ -244,7 +241,7 @@ describe('a medium being deleted', () => {
   })
   it('the sweep goes on deleting: bytes first, then the row', async () => {
     const { w } = await deleting()
-    w.faults.remove = false
+    w.faults.methods.delete('remove')
     expect(ok(await sweep(w))).toEqual({ removed: 1, more: false })
     expect(await w.liveKeys()).toEqual([])
     expect(ok(await w.index.listDeleting(tenantText(T1), 10))).toEqual([])

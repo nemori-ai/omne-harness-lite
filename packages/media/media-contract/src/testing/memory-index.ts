@@ -11,13 +11,6 @@ const over = (row: Row, now: string): boolean =>
   row.expiresAt !== null && Date.parse(row.expiresAt) <= Date.parse(now)
 const copy = (row: Row): MediaRow => structuredClone(row)
 
-function addHolder(row: Row, holder: Holder): void {
-  if (!row.holders.some(known => isDeepStrictEqual(known, holder)))
-    row.holders = [...row.holders, holder]
-  row.state = 'held'
-  row.expiresAt = null
-}
-
 /** The metadata of media in memory: a row is seen only through its own tenant, as in the SQL provider. */
 export function createMemoryMediaIndex(): MediaIndex {
   const all = new Map<string, Row>()
@@ -29,6 +22,15 @@ export function createMemoryMediaIndex(): MediaIndex {
     of: (tenant: string): Row[] => [...all.values()].filter(row => row.tenant === tenant),
   }
   const uploads = new Map<string, string>()
+  const holders = new Map<string, Holder[]>()
+  function addHolder(row: Row, holder: Holder): void {
+    const known = holders.get(row.key) ?? []
+    if (!known.some(other => isDeepStrictEqual(other, holder))) known.push(holder)
+    holders.set(row.key, known)
+    row.holderCount = known.length
+    row.state = 'held'
+    row.expiresAt = null
+  }
   const pointer = (tenant: string, upload: string): string => `${tenant}\n${upload}`
   return {
     async insertUploading(input) {
@@ -53,7 +55,7 @@ export function createMemoryMediaIndex(): MediaIndex {
         received: 0,
         parts: [],
         expiresAt: input.expiresAt,
-        holders: [],
+        holderCount: 0,
       })
       return succeed(null)
     },
@@ -137,6 +139,7 @@ export function createMemoryMediaIndex(): MediaIndex {
     async dropRow(tenant, key) {
       if (rows.get(tenant, key)?.state !== 'deleting') return succeed(null)
       all.delete(key)
+      holders.delete(key)
       for (const [name, target] of uploads) if (target === key) uploads.delete(name)
       return succeed(null)
     },

@@ -5,7 +5,7 @@ import type {
   ParticipantDescriptor,
   ReadHandlerDescriptor,
 } from '@omne-harness/sql-contract'
-import { HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, ROW_LIMIT, TABLES } from './schema.ts'
+import { HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, TABLES } from './schema.ts'
 
 export type MediaSqlMaterials = Readonly<{
   participants: readonly ParticipantDescriptor[]
@@ -52,7 +52,7 @@ export function mediaSqlMaterials(): MediaSqlMaterials {
         ordering: 'snapshot',
         readTables: TABLES,
         requiresMigrations: [MIGRATION],
-        maxRowsRead: 4 * ROW_LIMIT,
+        maxRowsRead: 20_000,
         maxOutputBytes: 8 * 1024 * 1024,
       },
     ],

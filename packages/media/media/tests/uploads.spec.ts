@@ -160,7 +160,7 @@ describe('the same bytes twice', () => {
         holder: { owner: 's', work: 'w', position: '1', purpose: 'p' },
       }),
     ).toEqual({ failure: { kind: 'invalid-reference' } })
-    expect(ok(await w.index.readLive(mine.ref.key, tenantText(T1))).holders).toEqual([])
+    expect(ok(await w.index.readLive(mine.ref.key, tenantText(T1))).holderCount).toBe(0)
     expect(failureOf(await w.media.uploads.status({ tenant: T2, upload: 'one' }))).toBe('not-found')
   })
 })
@@ -185,5 +185,95 @@ describe('a port that does not answer', () => {
     ).toEqual({ failure: { kind: 'outcome-unknown' } })
     w.faults.index = null
     expect(failureOf(await w.media.uploads.status({ tenant: T1, upload: 'u' }))).toBe('not-found')
+  })
+  const begun = async () => {
+    const w = world()
+    ok(
+      await w.media.uploads.begin({
+        tenant: T1,
+        upload: 'u',
+        mediaType: 'image/png',
+        bytes: IMAGE.byteLength,
+      }),
+    )
+    const part = (sequence: number) =>
+      w.media.uploads.append({
+        tenant: T1,
+        upload: 'u',
+        sequence,
+        part: IMAGE.subarray(sequence * 8, sequence * 8 + 8),
+      })
+    const commit = () =>
+      w.media.uploads.commit({ tenant: T1, upload: 'u', digest: digestOf(IMAGE) })
+    return { w, part, commit }
+  }
+  const storeOff = { failure: { kind: 'unavailable', dependency: 'store' } }
+  const unknown = { failure: { kind: 'outcome-unknown' } }
+
+  it('a store that is off while a write begins: unavailable, and the same upload goes on once it is back', async () => {
+    const w = world()
+    const begin = () =>
+      w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 })
+    w.faults.methods.set('begin', 'unavailable')
+    expect(await begin()).toEqual(storeOff)
+    w.faults.methods.clear()
+    expect(ok(await begin())).toMatchObject({ kind: 'uploading', ticket: { nextSequence: 0 } })
+  })
+
+  it('an index that cannot record the write of an upload: the answer says whether it may have', async () => {
+    for (const [fault, answer] of [
+      ['unavailable', { failure: { kind: 'unavailable', dependency: 'index' } }],
+      ['unknown', unknown],
+    ] as const) {
+      const w = world()
+      w.faults.methods.set('attachWrite', fault)
+      expect(
+        await w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 }),
+      ).toEqual(answer)
+    }
+  })
+
+  it('a store that is off while a part is appended: unavailable, and the same part goes through once it is back', async () => {
+    const { w, part } = await begun()
+    w.faults.methods.set('append', 'unavailable')
+    expect(await part(0)).toEqual(storeOff)
+    w.faults.methods.clear()
+    expect(await part(0)).toEqual({ ok: { nextSequence: 1 } })
+  })
+
+  it('an index that does not know whether a part advanced: unknown, and the same part again is not taken twice', async () => {
+    const { w, part, commit } = await begun()
+    w.faults.methods.set('advance', 'unknown')
+    expect(await part(0)).toEqual(unknown)
+    w.faults.methods.set('advance', 'unavailable')
+    expect(await part(0)).toEqual({ failure: { kind: 'unavailable', dependency: 'index' } })
+    w.faults.methods.clear()
+    expect(await part(0)).toEqual({ ok: { nextSequence: 1 } })
+    expect(await part(1)).toEqual({ ok: { nextSequence: 2 } })
+    expect(ok(await commit()).ref.digest).toBe(digestOf(IMAGE))
+  })
+
+  it.each(['seal', 'open'])(
+    'a store whose %s is off while an upload is committed: unavailable, and the commit goes through once it is back',
+    async method => {
+      const { w, part, commit } = await begun()
+      ok(await part(0))
+      ok(await part(1))
+      w.faults.methods.set(method, 'unavailable')
+      expect(await commit()).toEqual(storeOff)
+      w.faults.methods.clear()
+      expect(ok(await commit()).ref.digest).toBe(digestOf(IMAGE))
+    },
+  )
+
+  it('an index that does not know whether the medium was staged: unknown, and the commit again answers the reference', async () => {
+    const { w, part, commit } = await begun()
+    ok(await part(0))
+    ok(await part(1))
+    w.faults.methods.set('stageOrMerge', 'unknown')
+    expect(await commit()).toEqual(unknown)
+    w.faults.methods.clear()
+    expect(ok(await commit()).ref.digest).toBe(digestOf(IMAGE))
+    expect(await w.liveKeys()).toHaveLength(1)
   })
 })

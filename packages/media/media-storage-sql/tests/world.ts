@@ -31,9 +31,7 @@ export type SqlWorld = Readonly<{
 }>
 
 /** Real SQLite storage in a directory of its own; a tenant's domain opens the first time the tenant is used. */
-export async function openSqlWorld(
-  options: { wrap?: (storage: SqlStorage) => SqlStorage; unbound?: readonly string[] } = {},
-): Promise<SqlWorld> {
+export async function openSqlWorld(): Promise<SqlWorld> {
   const own = mediaSqlMaterials()
   const materials: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
@@ -62,8 +60,7 @@ export async function openSqlWorld(
   if (created.kind !== 'created') throw new Error(JSON.stringify(created))
   const { storage: raw, control } = created
   const bound = new Map<string, TenantBinding>()
-  async function bind(tenant: string): Promise<TenantBinding | null> {
-    if (options.unbound?.includes(tenant)) return null
+  async function bind(tenant: string): Promise<TenantBinding> {
     const known = bound.get(tenant)
     if (known !== undefined) return known
     const binding = {
@@ -80,7 +77,7 @@ export async function openSqlWorld(
     bound.set(tenant, binding)
     return binding
   }
-  const storage = options.wrap?.(raw) ?? raw
+  const storage = raw
   return {
     storage,
     index: createSqlMediaIndex({ storage, bind }),

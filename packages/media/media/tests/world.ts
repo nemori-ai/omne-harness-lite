@@ -104,24 +104,22 @@ export function fakeImage() {
 export function world(config: Partial<MediaConfig> = {}) {
   const medium = createMemoryMedium()
   const crash = createCrashSwitch()
-  const faults = { remove: false, index: null as 'unavailable' | 'unknown' | null }
+  type Fault = 'unavailable' | 'unknown'
+  /** `index` turns every call of the index off; `methods` turns one method of either port off. */
+  const faults = { index: null as Fault | null, methods: new Map<string, Fault>() }
+  const faulty = <T extends object>(port: T, all: () => Fault | null): T =>
+    new Proxy(port, {
+      get(target, name, receiver) {
+        const value: unknown = Reflect.get(target, name, receiver)
+        const kind = faults.methods.get(String(name)) ?? all()
+        if (typeof value !== 'function' || kind === null) return value
+        return async () => fail({ kind, diagnostic: `${String(name)} is off` })
+      },
+    })
   const plainStore = createMemoryByteStore(medium)
-  const store: ByteStore = {
-    ...plainStore,
-    remove: key =>
-      faults.remove
-        ? Promise.resolve(fail({ kind: 'unavailable', diagnostic: 'remove is off' }))
-        : plainStore.remove(key),
-  }
+  const store = faulty<ByteStore>(plainStore, () => null)
   const plainIndex = createMemoryMediaIndex()
-  const index = new Proxy(plainIndex, {
-    get(target, name, receiver) {
-      const value: unknown = Reflect.get(target, name, receiver)
-      if (typeof value !== 'function' || faults.index === null) return value
-      const kind = faults.index
-      return async () => fail({ kind, diagnostic: 'the index is off' })
-    },
-  }) as MediaIndex
+  const index = faulty<MediaIndex>(plainIndex, () => faults.index)
   const clock = {
     at: Date.parse('2026-10-19T00:00:00.000Z'),
     now: () => new Date(clock.at).toISOString(),

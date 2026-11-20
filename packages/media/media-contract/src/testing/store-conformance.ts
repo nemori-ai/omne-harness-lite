@@ -46,6 +46,9 @@ export const byteStoreConformanceCases: readonly StoreConformanceCase[] = [
       assert.equal(await text(store, KEY_A, { offset: 6, length: 5 }), 'world')
       assert.equal(await text(store, KEY_A, { offset: 6, length: 500 }), 'world')
       assert.equal(await text(store, KEY_A, { offset: 11, length: 5 }), '')
+      assert.equal(await text(store, KEY_A, { offset: 2, length: 3 }), 'llo')
+      assert.equal(await text(store, KEY_A, { offset: 4, length: 1 }), 'o')
+      assert.equal(await text(store, KEY_A, { offset: 3, length: 0 }), '')
     },
   },
   {
@@ -153,6 +156,17 @@ export const byteStoreConformanceCases: readonly StoreConformanceCase[] = [
       for (const key of ['../escape', 'a/b', '', 'A'.repeat(32), `${KEY_A}.tmp`]) {
         assert.equal(failure(await store.begin(key)), 'invalid-key', key)
         assert.equal(failure(await store.open(key)), 'not-found', key)
+      }
+    },
+  },
+  {
+    name: 'a write that was never begun is refused, and aborting it succeeds',
+    async run(create) {
+      const { store } = await create()
+      for (const write of ['never-begun', '', `../${KEY_A}`]) {
+        assert.equal(failure(await store.append(write, 0, bytes('x'))), 'no-write')
+        assert.equal(failure(await store.seal(write, 1)), 'no-write')
+        ok(await store.abort(write))
       }
     },
   },

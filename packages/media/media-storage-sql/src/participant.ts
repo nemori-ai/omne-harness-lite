@@ -10,13 +10,14 @@ import {
   pointed,
   save,
   type Row,
+  type Stored,
   type SqlPort,
 } from './rows.ts'
 import { PARTICIPANT, PROTOCOL, SCRIPTS, type ScriptName } from './schema.ts'
 
 const ok = (value: unknown) => ({ ok: value })
 const failure = (kind: string, extra: object = {}) => ({ failure: { kind, ...extra } })
-const fresh = (input: NewRow): Row => ({
+const fresh = (input: NewRow): Stored => ({
   key: input.key,
   tenant: input.tenant,
   storage: input.storage,
@@ -30,14 +31,11 @@ const fresh = (input: NewRow): Row => ({
   received: 0,
   parts: [],
   expiresAt: input.expiresAt,
-  holders: [],
 })
 
 /** The commands come from this member's own index adapter, so their shape is not parsed again here. */
 const RUN: Record<ScriptName, (port: SqlPort, command: never) => unknown> = {
   insertUploading(port, input: NewRow) {
-    if (load(port, input.key) !== null)
-      return failure('unavailable', { diagnostic: 'duplicate key' })
     if (input.upload !== null) {
       const known = pointed(port, input.upload)
       if (known !== null && known.state !== 'deleting') return failure('exists', { row: known })
@@ -70,10 +68,8 @@ const RUN: Record<ScriptName, (port: SqlPort, command: never) => unknown> = {
   stageOrMerge(port, staging: Staging) {
     const row = load(port, staging.key)
     if (row?.state !== 'uploading') return failure('not-uploading')
-    const [twinKey] = keysWhere(port, "digest = ? AND state IN ('staged', 'held')", [
-      staging.digest,
-    ])
-    const twin = twinKey === undefined ? null : load(port, twinKey)
+    const live = keysWhere(port, "digest = ? AND state IN ('staged', 'held')", [staging.digest])
+    const twin = live.map(key => load(port, key))[0] ?? null
     if (twin !== null) {
       save(port, { ...row, state: 'deleting' })
       port.execute('UPDATE md_uploads SET key = ? WHERE key = ?', [twin.key, row.key])

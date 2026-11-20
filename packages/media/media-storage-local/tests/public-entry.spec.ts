@@ -1,7 +1,17 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { open } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { afterEach, expect, it } from 'vitest'
+import { dirname, join } from 'node:path'
+import { afterEach, expect, it, vi } from 'vitest'
 import { byteStoreConformanceCases, type StoreWorld } from '@omne-harness/media-contract/testing'
 import { createLocalByteStore } from '@omne-harness/media-storage-local'
 
@@ -48,9 +58,76 @@ it('does not read a draft a crash left beside an object as that object', async (
   })
 })
 
-it('answers unavailable when its root cannot hold a write', async () => {
+it('keeps a sealed object at objects/<first two of the key>/<key>, and nothing under writing', async () => {
+  const at = root()
+  const store = createLocalByteStore({ root: at })
+  const key = 'ab'.padEnd(32, '0')
+  const begun = await store.begin(key)
+  if ('failure' in begun) throw new Error(begun.failure.kind)
+  await store.append(begun.ok.write, 0, Buffer.from('kept'))
+  await store.seal(begun.ok.write, 1)
+  expect(readFileSync(join(at, 'objects', 'ab', key), 'utf8')).toBe('kept')
+  expect(readdirSync(join(at, 'objects', 'ab'))).toEqual([key])
+  expect(readdirSync(join(at, 'writing'))).toEqual([])
+})
+
+const openFiles = (): number => readdirSync('/dev/fd').length
+
+it.skipIf(process.platform === 'win32')(
+  'syncs every segment, the object and its directory, and leaves no file open',
+  async () => {
+    const store = createLocalByteStore({ root: root() })
+    const probe = await open(root(), 'r')
+    const handles = Object.getPrototypeOf(probe) as { sync(): Promise<void> }
+    await probe.close()
+    const before = openFiles()
+    const sync = vi.spyOn(handles, 'sync')
+    try {
+      const begun = await store.begin('e'.repeat(32))
+      if ('failure' in begun) throw new Error(begun.failure.kind)
+      await store.append(begun.ok.write, 0, Buffer.from('one '))
+      await store.append(begun.ok.write, 1, Buffer.from('two'))
+      expect(sync.mock.calls).toHaveLength(2)
+      expect(await store.seal(begun.ok.write, 2)).toEqual({ ok: { bytes: 7 } })
+      expect(sync.mock.calls).toHaveLength(4)
+      expect(openFiles()).toBe(before)
+    } finally {
+      sync.mockRestore()
+    }
+  },
+)
+
+it('does not reach a file outside its root through a key or a write that climbs out', async () => {
+  const at = root()
+  const outside = `omne-media-outside-${randomUUID()}`
+  const secret = join(dirname(at), outside)
+  writeFileSync(secret, 'not a medium')
+  roots.push(secret)
+  const store = createLocalByteStore({ root: at })
+  expect(await store.open(`../${outside}`)).toEqual({ failure: { kind: 'not-found' } })
+  expect(await store.remove(`../${outside}`)).toEqual({ ok: null })
+  expect(await store.abort(`local:../../${outside}`)).toEqual({ ok: null })
+  expect(readFileSync(secret, 'utf8')).toBe('not a medium')
+})
+
+it('says what it knows when its root is broken: a write did not happen, a seal or a removal may have', async () => {
   const at = root()
   writeFileSync(join(at, 'writing'), 'a file where the directory should be')
-  const begun = await createLocalByteStore({ root: at }).begin('d'.repeat(32))
-  expect(begun).toMatchObject({ failure: { kind: 'unavailable' } })
+  const store = createLocalByteStore({ root: at })
+  const key = 'd'.repeat(32)
+  const broken = (kind: string) => ({ failure: { kind, diagnostic: 'ENOTDIR' } })
+  expect(await store.begin(key)).toEqual(broken('unavailable'))
+  expect(await store.append(`local:${key}`, 0, Buffer.from('x'))).toEqual(broken('unavailable'))
+  expect(await store.seal(`local:${key}`, 1)).toEqual(broken('unknown'))
+  expect(await store.remove(key)).toEqual(broken('unknown'))
+  expect(await store.abort(`local:${key}`)).toEqual(broken('unknown'))
+})
+
+it('answers unavailable, not not-found, when an object cannot be looked at', async () => {
+  const at = root()
+  const key = 'f'.repeat(32)
+  writeFileSync(join(at, 'objects'), 'a file where the directory should be')
+  expect(await createLocalByteStore({ root: at }).open(key)).toEqual({
+    failure: { kind: 'unavailable', diagnostic: 'ENOTDIR' },
+  })
 })

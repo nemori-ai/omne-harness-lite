@@ -42,7 +42,8 @@ export type MediaRow = Readonly<{
   received: number
   parts: readonly string[]
   expiresAt: Instant | null
-  holders: readonly Holder[]
+  /** How many holders hold it; the same holder counts once. */
+  holderCount: number
 }>
 
 export type NewRow = Readonly<{
