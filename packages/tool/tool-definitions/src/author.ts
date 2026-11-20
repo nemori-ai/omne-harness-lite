@@ -99,6 +99,56 @@ function structuredOperation<E>(command: Command, body: StructuredCommand<E>, co
   })
 }
 
+/** A command that returns text: bounded to the byte budget, encoded and checked as UTF-8. */
+function textOperation<E>(
+  command: Command,
+  maximum: number,
+  run: (args: Arguments, environment: E, execution: ToolExecutionContext) => Promise<string>,
+) {
+  return defineToolOperation<
+    Arguments,
+    string,
+    E,
+    ToolMessageContentBlock,
+    Extract<ToolOperationParameters, { kind: 'declared' }>
+  >({
+    parameters: { kind: 'declared', value: contract(command) },
+    returns,
+    author: {
+      kind: 'ordinary',
+      parameters: parameterCodec(command),
+      waits: [],
+      executor: {
+        execute: async (args: Arguments, environment: E, execution: ToolExecutionContext) =>
+          bounded(await run(args, environment, execution), maximum),
+      },
+      codec: {
+        adoption,
+        encode: (value: unknown) =>
+          typeof value === 'string'
+            ? succeed(new TextEncoder().encode(value))
+            : fail({ reason: 'text-required' }),
+        decode: bytes => {
+          try {
+            return succeed(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+          } catch {
+            return fail({ reason: 'invalid-utf8' })
+          }
+        },
+      },
+      output: {
+        adoption,
+        check: ({ value }: { value: unknown }) =>
+          typeof value === 'string' && new TextEncoder().encode(value).byteLength <= maximum
+            ? succeed(value)
+            : fail({ reason: 'bounded-text-required' }),
+      },
+      renderer: { render: (value: string) => succeed(value) },
+      program: { kind: 'none' },
+    },
+  })
+}
+
 export function createAuthor<E>(
   name: string,
   purpose: string,
@@ -141,53 +191,11 @@ export function createAuthor<E>(
     const operation =
       special !== undefined
         ? structuredOperation(command, special, codec)
-        : defineToolOperation<
-            Arguments,
-            string,
-            E,
-            ToolMessageContentBlock,
-            Extract<ToolOperationParameters, { kind: 'declared' }>
-          >({
-            parameters: { kind: 'declared', value: contract(command) },
-            returns,
-            author: {
-              kind: 'ordinary',
-              parameters: parameterCodec(command),
-              waits: [],
-              executor: {
-                execute: async (args: Arguments, environment: E, execution: ToolExecutionContext) =>
-                  bounded(
-                    command.name === 'help'
-                      ? help(menu, args)
-                      : await execute(command.name, args, environment, execution),
-                    maximum,
-                  ),
-              },
-              codec: {
-                adoption,
-                encode: (value: unknown) =>
-                  typeof value === 'string'
-                    ? succeed(new TextEncoder().encode(value))
-                    : fail({ reason: 'text-required' }),
-                decode: bytes => {
-                  try {
-                    return succeed(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
-                  } catch {
-                    return fail({ reason: 'invalid-utf8' })
-                  }
-                },
-              },
-              output: {
-                adoption,
-                check: ({ value }: { value: unknown }) =>
-                  typeof value === 'string' && new TextEncoder().encode(value).byteLength <= maximum
-                    ? succeed(value)
-                    : fail({ reason: 'bounded-text-required' }),
-              },
-              renderer: { render: (value: string) => succeed(value) },
-              program: { kind: 'none' },
-            },
-          })
+        : textOperation<E>(command, maximum, async (args, environment, execution) =>
+            command.name === 'help'
+              ? help(menu, args)
+              : execute(command.name, args, environment, execution),
+          )
     if ('failure' in operation) throw new TypeError(JSON.stringify(operation.failure))
     table[command.name] = {
       summary: command.summary,
