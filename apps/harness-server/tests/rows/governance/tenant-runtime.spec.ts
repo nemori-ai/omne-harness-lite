@@ -1,5 +1,12 @@
 import { releasedDeclaration } from '../../../src/entry/permission-declarations.ts'
-import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-assets.ts'
+import { toolPermissionRelease } from '../../../src/entry/tool-permission-release.ts'
+import type { ReleaseToolName } from '../../../src/entry/tool-release-manifest.ts'
+import { canonicalDigest } from '@omne-harness/tool'
+import {
+  installToolAsset,
+  toolAssetTarget,
+} from '../../../src/rows/governance/tool-installation-assets.ts'
+import { installToolOrganizationSource } from '../../../src/rows/governance/tool-installation-source.ts'
 import { openTenantAssets } from '../../../src/rows/tenant-assets/host.ts'
 import { canonicalText } from '@omne-harness/authorization'
 import { CurrentPermissionService } from '../../../src/rows/governance/current-permission-service.ts'
@@ -1116,6 +1123,176 @@ it('closes an interrupted installation and resumes from original partial holding
   if (catalog.kind !== 'page') throw new Error(JSON.stringify(catalog))
   expect(catalog.items).toHaveLength(w.release.manifest.entries.length)
   expect(catalog.items.every(item => item.availability === 'available')).toBe(true)
+})
+
+type TrustedRelease = Extract<
+  Awaited<ReturnType<typeof loadProductionRelease>>,
+  { kind: 'trusted' }
+>
+
+/**
+ * The release a tenant ran before an upgrade that changed the source of one tool package: every
+ * tool built from it gets another artifact digest, and with it another adoption and version.
+ */
+function releaseBeforeChange(
+  release: TrustedRelease,
+  pkg: string,
+  retitled: ReleaseToolName | null,
+): TrustedRelease {
+  const manifest = structuredClone(release.manifest)
+  manifest.entries = manifest.entries.map(entry => {
+    if (entry.module.package !== pkg) return entry
+    const name = entry.asset.name as ReleaseToolName
+    const module = { ...entry.module, artifacts: `sha256:${'0'.repeat(64)}` }
+    const adoption = { ...entry.asset.adoption, digest: canonicalDigest({ name, module }) }
+    const gates =
+      name === retitled
+        ? entry.gates.map(gate => ({ ...gate, title: `旧${gate.title}` }))
+        : entry.gates
+    const governance = toolPermissionRelease({
+      name,
+      adoption,
+      module,
+      definition: entry.definition,
+      gates,
+    })
+    return { ...entry, asset: { ...entry.asset, adoption }, module, gates, governance }
+  })
+  return { ...release, manifest, generation: canonicalDigest(manifest) }
+}
+
+const CHANGED_PACKAGE = '@omne-harness/tool-definitions'
+type Upgrade = Readonly<{ enabled: boolean; permissionsChanged: boolean }>
+
+async function upgradedWorld({ enabled, permissionsChanged }: Upgrade) {
+  const installed = await installedWorld()
+  const { w, sources } = installed
+  const earlier = releaseBeforeChange(
+    w.release,
+    CHANGED_PACKAGE,
+    permissionsChanged ? 'Shell' : null,
+  )
+  const changed = earlier.manifest.entries.filter(entry => entry.module.package === CHANGED_PACKAGE)
+  const before = earlier.manifest.entries.find(entry => entry.asset.name === 'Shell')!
+  const after = w.release.manifest.entries.find(entry => entry.asset.name === 'Shell')!
+  const categories = createCategoryPoint()
+  categories.contribute({
+    contract: createToolAssetCategory(earlier),
+    display: toolCategoryDisplay,
+  })
+  const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'governance-earlier-assets-')))
+  cleanup.push(() => rmSync(packageRoot, { recursive: true, force: true }))
+  const assets = await openTenantAssets(
+    { storage: w.options.storage, materials: w.options.materials, packageRoot, categories },
+    w.options.domain,
+  )
+  const tenantRef = w.options.scope.tenantRef
+  for (const entry of changed)
+    expect(await installToolAsset({ owner: assets, tenantRef, entry }), entry.asset.name).toEqual({
+      kind: 'ready',
+      target: toolAssetTarget(entry, tenantRef),
+    })
+  const target = toolAssetTarget(before, tenantRef)
+  if (!enabled) {
+    const held = await assets.readHolding({ holdingRef: target.holdingRef, scopeRef: tenantRef })
+    if (held.kind !== 'holding') throw new Error(JSON.stringify(held))
+    expect(
+      await assets.changeHolding({
+        operationId: 'disable-shell',
+        holdingRef: target.holdingRef,
+        scopeRef: tenantRef,
+        expectedRevision: held.holding.revision,
+        change: { kind: 'setEnabled', enabled: false },
+      }),
+    ).toMatchObject({ kind: 'committed' })
+  }
+  await assets.close()
+  const organization = organizationCodec.encode(w.installationPrincipal.tenant.organization)
+  if (!organization.ok) throw new Error('organization fixture')
+  const settings = (entry: typeof before) => entry.governance.declaration.settings[0]!
+  for (const entry of changed)
+    if (entry.governance.declaration.settings.length !== 0)
+      expect(
+        await installToolOrganizationSource({
+          owner: sources.targets,
+          organizationId: organization.value,
+          definition: settings(entry),
+        }),
+        entry.asset.name,
+      ).toMatchObject({ kind: 'ready' })
+  const source = organizationSettingsSource({
+    organizationId: organization.value,
+    definition: settings(after),
+  })
+  return { ...installed, before, after, changed, target, source, settings }
+}
+
+describe('an upgrade that changed an official tool, over the state the earlier release left (#1433)', () => {
+  const upgrades: readonly (Upgrade & { name: string })[] = [
+    { name: 'rebuilt implementation, enabled tool', enabled: true, permissionsChanged: false },
+    { name: 'rebuilt implementation, disabled tool', enabled: false, permissionsChanged: false },
+    { name: 'changed permission items', enabled: true, permissionsChanged: true },
+  ]
+  for (const upgrade of upgrades)
+    it(`opens the tenant governance and moves every changed tool to the current release: ${upgrade.name}`, async () => {
+      const { enabled, permissionsChanged } = upgrade
+      const { w, sources, prepare, before, after, changed, target, source, settings } =
+        await upgradedWorld(upgrade)
+      expect(changed.map(entry => entry.asset.name)).toContain('Web')
+      expect(before.governance.declaration.reference.version).not.toBe(
+        after.governance.declaration.reference.version,
+      )
+      expect(canonicalDigest(settings(before)) === canonicalDigest(settings(after))).toBe(
+        !permissionsChanged,
+      )
+      const prepared = prepare()
+      const runtime = await prepared.open()
+      if ('close' in runtime) cleanup.push(runtime.close)
+      if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+      for (const entry of changed) {
+        const current = w.release.manifest.entries.find(
+          value => value.asset.name === entry.asset.name,
+        )!
+        const held = toolAssetTarget(entry, w.options.scope.tenantRef)
+        expect(
+          await prepared.assets.readHolding({
+            holdingRef: held.holdingRef,
+            scopeRef: held.scopeRef,
+          }),
+          entry.asset.name,
+        ).toMatchObject({ selected: { version: current.governance.declaration.reference.version } })
+      }
+      expect(
+        await prepared.assets.readHolding({
+          holdingRef: target.holdingRef,
+          scopeRef: target.scopeRef,
+        }),
+      ).toMatchObject({
+        kind: 'holding',
+        holding: { state: 'held', enabled },
+        selected: { version: after.governance.declaration.reference.version },
+      })
+      expect(await sources.targets.readTarget(source.target)).toMatchObject({
+        kind: 'found',
+        projection: { definition: settings(after) },
+      })
+      const catalog = await runtime.service.readCatalog(access(w.principal, w.principal.tenant), {
+        scope: w.options.scope,
+        mode: 'management',
+        targets: [],
+        cursor: null,
+        limit: 100,
+      })
+      expect(catalog).toMatchObject({ kind: 'page', completeness: 'complete' })
+      if (catalog.kind !== 'page') throw new Error(JSON.stringify(catalog))
+      const shell = catalog.items.filter(
+        item => item.declaration.reference.definitionId === 'tool.Shell',
+      )
+      expect(shell.map(item => item.declaration.reference)).toEqual([
+        after.governance.declaration.reference,
+      ])
+      expect(shell[0]?.selectedTargets).toHaveLength(enabled ? 1 : 0)
+    })
 })
 
 it('a group that cannot be opened leaves the tenant, the other group and the asset settings available', async () => {

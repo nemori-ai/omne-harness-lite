@@ -203,7 +203,6 @@ async function installEntry(
 export async function installToolGovernance(input: Options): Promise<ToolInstallationResult> {
   const organization = organizationCodec.encode(input.principal.tenant.organization)
   if (!organization.ok) return { kind: 'unavailable', phase: 'identity' }
-  if ((await catalog(input)) === undefined) return { kind: 'unavailable', phase: 'catalog' }
   const members: GovernanceCollectionMember[] = []
   for (const entry of input.release.manifest.entries) {
     const result = await installEntry(input, entry, organization.value)

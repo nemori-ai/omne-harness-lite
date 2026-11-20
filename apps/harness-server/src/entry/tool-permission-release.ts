@@ -108,11 +108,17 @@ type ControlledTool = {
 }
 
 export function toolPermissionRelease(input: ControlledTool): ToolPermissionRelease {
-  const draft = releaseAtVersion(input, 'unversioned')
-  return releaseAtVersion(input, canonicalDigest(draft).slice(7))
+  const unversioned = releaseAtVersion(input, 'unversioned', 'unversioned')
+  const settingsVersion = canonicalDigest(unversioned.declaration.settings).slice(7)
+  const draft = releaseAtVersion(input, 'unversioned', settingsVersion)
+  return releaseAtVersion(input, canonicalDigest({ tool: input, draft }).slice(7), settingsVersion)
 }
 
-function releaseAtVersion(input: ControlledTool, version: string): ToolPermissionRelease {
+function releaseAtVersion(
+  input: ControlledTool,
+  version: string,
+  settingsVersion: string,
+): ToolPermissionRelease {
   const origin = {
     kind: 'asset' as const,
     assetId: `harness.tool.${input.name}`,
@@ -129,7 +135,7 @@ function releaseAtVersion(input: ControlledTool, version: string): ToolPermissio
       settings: {
         providerId: TOOL_GOVERNANCE_OWNER,
         definitionId: `tool.${input.name}.permissions`,
-        version,
+        version: settingsVersion,
         itemId: gate.id,
         groupId: `tool.${input.name}`,
         groupTitle: `${input.name} 工具`,
