@@ -94,7 +94,7 @@ async function assemble({
       },
       definitions: () => resolveDefinition,
       listing: directory => ({
-        list: async input => {
+        list: async ({ filter: _filter, ...input }) => {
           const answered = await directory.list({ ...input, principal: input.principal })
           return 'ok' in answered ? { ok: answered.ok as never } : { refused: 'basis-unavailable' }
         },

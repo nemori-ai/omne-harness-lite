@@ -84,10 +84,17 @@ const limited = ruleCodec(
 )
 
 const instant = { kind: 'instant' } as const
+const relation = literal('main', 'child', 'handoff')
+const attendance = literal('attended', 'unattended')
+// Both lists narrow by what a session is to others: its relation, its parent, who attends it, its definition.
 const page = {
   tenant: { rule: tenant },
   cursor: { rule: nullable(text) },
   limit: { rule: { kind: 'positive-integer' }, optional: true },
+  relation: { rule: nullable(relation), optional: true },
+  parent: { rule: nullable(session), optional: true },
+  attendance: { rule: nullable(attendance), optional: true },
+  definition: { rule: nullable(text), optional: true },
 } as const
 const listSessions = object(page)
 // The archived list narrows by archive time (from inclusive, to exclusive), by how, by title text.
@@ -99,12 +106,23 @@ const listArchivedSessions = object({
   titleContains: { rule: nullable(anyText), optional: true },
 })
 
+// What a session is to others. A server that does not know these yet leaves them out, so each is optional.
+const standing = {
+  relation: { rule: relation, optional: true },
+  parent: { rule: nullable(session), optional: true },
+  origin: { rule: nullable(session), optional: true },
+  root: { rule: session, optional: true },
+  depth: { rule: { kind: 'count' }, optional: true },
+  attendance: { rule: attendance, optional: true },
+  definition: { rule: text, optional: true },
+} as const
 const sessionItem = {
   session: { rule: session },
   createdAt: { rule: nullable(instant) },
   lastActivityAt: { rule: nullable(instant) },
   lifecycle: { rule: literal('initializing', 'dormant', 'active', 'frozen', 'archived') },
   title: { rule: nullable(anyText) },
+  ...standing,
 } as const
 const listOf = <const F extends Fields>(item: F) =>
   object({

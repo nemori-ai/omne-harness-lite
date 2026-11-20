@@ -629,9 +629,16 @@ export declare const sessionProtocol: {
                     readonly completeness: "complete" | "partial";
                     readonly next: string | null;
                     readonly sessions: readonly {
+                        readonly attendance?: "attended" | "unattended";
                         readonly createdAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly definition?: string;
+                        readonly depth?: number;
                         readonly lastActivityAt: import("@omne-harness/utc-instant").Instant | null;
                         readonly lifecycle: "active" | "archived" | "dormant" | "frozen" | "initializing";
+                        readonly origin?: string | null;
+                        readonly parent?: string | null;
+                        readonly relation?: "child" | "handoff" | "main";
+                        readonly root?: string;
                         readonly session: string;
                         readonly title: string | null;
                     }[];
@@ -645,8 +652,12 @@ export declare const sessionProtocol: {
             readonly effect: "read";
             readonly limit: "small";
             readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly attendance?: "attended" | "unattended" | null;
                 readonly cursor: string | null;
+                readonly definition?: string | null;
                 readonly limit?: number;
+                readonly parent?: string | null;
+                readonly relation?: "child" | "handoff" | "main" | null;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
             readonly countsAsAccess: true;
@@ -659,9 +670,16 @@ export declare const sessionProtocol: {
                     readonly sessions: readonly {
                         readonly archivedAt: import("@omne-harness/utc-instant").Instant | null;
                         readonly archivedBy: "auto" | "parent" | "person" | null;
+                        readonly attendance?: "attended" | "unattended";
                         readonly createdAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly definition?: string;
+                        readonly depth?: number;
                         readonly lastActivityAt: import("@omne-harness/utc-instant").Instant | null;
                         readonly lifecycle: "active" | "archived" | "dormant" | "frozen" | "initializing";
+                        readonly origin?: string | null;
+                        readonly parent?: string | null;
+                        readonly relation?: "child" | "handoff" | "main";
+                        readonly root?: string;
                         readonly session: string;
                         readonly title: string | null;
                     }[];
@@ -675,10 +693,14 @@ export declare const sessionProtocol: {
             readonly effect: "read";
             readonly limit: "small";
             readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly attendance?: "attended" | "unattended" | null;
                 readonly by?: "auto" | "parent" | "person" | null;
                 readonly cursor: string | null;
+                readonly definition?: string | null;
                 readonly from?: import("@omne-harness/utc-instant").Instant | null;
                 readonly limit?: number;
+                readonly parent?: string | null;
+                readonly relation?: "child" | "handoff" | "main" | null;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
                 readonly titleContains?: string | null;
                 readonly to?: import("@omne-harness/utc-instant").Instant | null;

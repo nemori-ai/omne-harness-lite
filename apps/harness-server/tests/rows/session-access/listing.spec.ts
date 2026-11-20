@@ -18,8 +18,13 @@ const call = {
   tenant: {} as TenantId,
   after: null,
   limit: 5,
+  filter: { relation: null, parent: null, attendance: null, definition: null },
 }
 const archivedCall = { ...call, from: null, to: null, by: null, titleContains: null }
+const asDirectory = <T extends typeof call>({ filter: _filter, ...rest }: T) => ({
+  ...rest,
+  filter: {},
+})
 
 const text = (instant: Instant | null | undefined) =>
   instant === null || instant === undefined ? instant : encodeInstant(instant)
@@ -62,7 +67,7 @@ describe('sessionListingOf', () => {
       },
     })
     const answer = await listing.list(call)
-    expect(asked).toEqual([call])
+    expect(asked).toEqual([asDirectory(call)])
     if (!('ok' in answer)) throw new Error('the page was refused')
     expect(answer.ok).toMatchObject({ next: 'n', completeness: 'partial' })
     const [first, second] = answer.ok.items
@@ -100,12 +105,83 @@ describe('sessionListingOf', () => {
     await listing.listArchived({ ...archivedCall, from: from.value, to: to.value, by: 'person' })
     expect(asked).toEqual([
       {
-        ...archivedCall,
+        ...asDirectory(archivedCall),
         from: '2026-11-13T01:00:00.000Z',
         to: '2026-11-13T02:00:00.123Z',
         by: 'person',
       },
     ])
+  })
+
+  it('hands the filters of the protocol to the directory, and gives each row what it is to others', async () => {
+    const parent = 'b'.repeat(64) as SessionId
+    const origin = 'c'.repeat(64) as SessionId
+    const { listing, asked } = adapted({
+      ok: {
+        items: [
+          item({
+            relation: { kind: 'child', parent },
+            root: parent,
+            depth: 1,
+            attendance: 'unattended',
+          }),
+          item({ relation: { kind: 'handoff', origin } }),
+          item(),
+        ],
+        next: null,
+        completeness: 'complete',
+      },
+    })
+    const filter = {
+      relation: 'child',
+      parent,
+      attendance: 'unattended',
+      definition: 'coding',
+    } as const
+    const answer = await listing.list({ ...call, filter })
+    await listing.listArchived({ ...archivedCall, filter: { ...call.filter, relation: 'handoff' } })
+    expect(asked).toMatchObject([
+      { filter: { kind: 'child', parent, attendance: 'unattended', definition: 'coding' } },
+      { filter: { kind: 'handoff' } },
+    ])
+    expect((asked[1] as { filter: object }).filter).toEqual({ kind: 'handoff' })
+    if (!('ok' in answer)) throw new Error('the page was refused')
+    expect(
+      answer.ok.items.map(({ relation, parent: of, origin: from, root, depth, attendance }) => ({
+        relation,
+        of,
+        from,
+        root,
+        depth,
+        attendance,
+      })),
+    ).toEqual([
+      {
+        relation: 'child',
+        of: parent,
+        from: null,
+        root: parent,
+        depth: 1,
+        attendance: 'unattended',
+      },
+      {
+        relation: 'handoff',
+        of: null,
+        from: origin,
+        root: 'a'.repeat(64),
+        depth: 0,
+        attendance: 'attended',
+      },
+      {
+        relation: 'main',
+        of: null,
+        from: null,
+        root: 'a'.repeat(64),
+        depth: 0,
+        attendance: 'attended',
+      },
+    ])
+    expect(answer.ok.items[0]?.definition).toBe('coding')
   })
 
   it.each([
