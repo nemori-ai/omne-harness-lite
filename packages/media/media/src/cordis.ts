@@ -50,8 +50,8 @@ export function createMediaPlugin(
           return registry.current()
         },
         writeTo: input.writeTo,
-        index: ctx.mediaIndex.index,
-        image: ctx.mediaImage.codec,
+        index: ctx.mediaIndex,
+        image: ctx.mediaImage,
         clock: {
           now: () =>
             /* wall-clock: clock-source -- the clock of the custody in this tree: expiry of uploads and staged media */ new Date().toISOString(),

@@ -10,7 +10,10 @@ import type {
   Variants,
 } from '@omne-harness/media-contract'
 
-/** The custody of media in this tree. */
+/**
+ * The custody of media in this tree.
+ * @owner packages/media/media-cordis-contract
+ */
 export abstract class MediaService extends Service implements Media {
   static readonly provide = 'media'
 
@@ -25,7 +28,10 @@ export abstract class MediaService extends Service implements Media {
 }
 export const mediaKey = MediaService.provide
 
-/** The extension point `media.stores`: byte stores by name. Registering is the effect of the caller. */
+/**
+ * The extension point `media.stores`: byte stores by name. Registering is the effect of the caller.
+ * @owner packages/media/media-cordis-contract
+ */
 export abstract class MediaStoresService extends Service {
   static readonly provide = 'mediaStores'
 
@@ -42,27 +48,44 @@ export abstract class MediaStoresService extends Service {
 }
 export const mediaStoresKey = MediaStoresService.provide
 
-/** The metadata port, given by one provider. */
-export abstract class MediaIndexService extends Service {
+/**
+ * The metadata port, given by one provider.
+ * @owner packages/media/media-cordis-contract
+ */
+export abstract class MediaIndexService extends Service implements MediaIndex {
   static readonly provide = 'mediaIndex'
 
   constructor(ctx: Context) {
     super(ctx, MediaIndexService.provide)
   }
 
-  abstract readonly index: MediaIndex
+  abstract readonly insertUploading: MediaIndex['insertUploading']
+  abstract readonly attachWrite: MediaIndex['attachWrite']
+  abstract readonly readUpload: MediaIndex['readUpload']
+  abstract readonly advance: MediaIndex['advance']
+  abstract readonly stageOrMerge: MediaIndex['stageOrMerge']
+  abstract readonly holdIfLive: MediaIndex['holdIfLive']
+  abstract readonly readLive: MediaIndex['readLive']
+  abstract readonly markDeleting: MediaIndex['markDeleting']
+  abstract readonly markDeletingIfExpired: MediaIndex['markDeletingIfExpired']
+  abstract readonly listDeleting: MediaIndex['listDeleting']
+  abstract readonly dropRow: MediaIndex['dropRow']
 }
 export const mediaIndexKey = MediaIndexService.provide
 
-/** The image port, given by one provider. */
-export abstract class MediaImageService extends Service {
+/**
+ * The image port, given by one provider.
+ * @owner packages/media/media-cordis-contract
+ */
+export abstract class MediaImageService extends Service implements ImageCodec {
   static readonly provide = 'mediaImage'
 
   constructor(ctx: Context) {
     super(ctx, MediaImageService.provide)
   }
 
-  abstract readonly codec: ImageCodec
+  abstract readonly probe: ImageCodec['probe']
+  abstract readonly fit: ImageCodec['fit']
 }
 export const mediaImageKey = MediaImageService.provide
 

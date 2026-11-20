@@ -1,6 +1,5 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
-  isMediaKey,
   modalityOf,
   sniffMediaType,
   wavFacts,
@@ -25,6 +24,9 @@ export type Measured = Outcome<
 
 const invalidReference = fail<InvalidReference>({ kind: 'invalid-reference' })
 const materialUnavailable = fail<MaterialUnavailable>({ kind: 'material-unavailable' })
+
+/** Where an object is and whose it is: all that deleting it or staging it needs of its row. */
+export type Placed = Pick<MediaRow, 'key' | 'tenant' | 'storage' | 'write' | 'mediaType'>
 
 export function createObjects(deps: MediaDependencies) {
   const { index, image } = deps
@@ -60,7 +62,7 @@ export function createObjects(deps: MediaDependencies) {
   }
 
   /** Deletes an object that is marked deleting: its bytes first, its row last. */
-  async function erase(row: MediaRow): Promise<boolean> {
+  async function erase(row: Placed): Promise<boolean> {
     const store = storeOf(row.storage)
     if (store === undefined) return false
     if (row.write !== null && 'failure' in (await store.abort(row.write))) return false
@@ -68,14 +70,14 @@ export function createObjects(deps: MediaDependencies) {
     return 'ok' in (await index.dropRow(row.tenant, row.key))
   }
 
-  async function discard(row: MediaRow): Promise<void> {
+  async function discard(row: Placed): Promise<void> {
     const marked = await index.markDeleting(row.tenant, row.key)
     if ('ok' in marked && marked.ok.marked) await erase(row)
   }
 
   /** Stages or merges in one transaction of the index; only then is the reference handed out. */
   async function settle(input: {
-    row: MediaRow
+    row: Placed
     digest: string
     bytes: number
     facts: MediaFacts
@@ -105,7 +107,6 @@ export function createObjects(deps: MediaDependencies) {
     tenant: string,
     ref: ContentReference,
   ): Promise<Outcome<MediaRow, InvalidReference | MediaUnavailable>> {
-    if (!isMediaKey(ref.key)) return invalidReference
     const row = await index.readLive(ref.key, tenant)
     if ('failure' in row)
       return row.failure.kind === 'not-found' ? invalidReference : unavailable('index')

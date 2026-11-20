@@ -27,7 +27,6 @@ function createContext(deps: MediaDependencies, objects: Objects) {
       : { kind: 'committed', committed: objects.committed(row) }
 
   async function rowOf(tenant: string, upload: string) {
-    if (!UPLOAD.test(upload)) return notFound
     const row = await index.readUpload(tenant, upload)
     if ('ok' in row) return row
     return row.failure.kind === 'not-found' ? notFound : unavailable('index')

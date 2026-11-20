@@ -50,6 +50,24 @@ describe('a product a referrer puts', () => {
     })
   })
 
+  it('an upload of the same bytes merges into it, and its commit again recalls the reference of the product', async () => {
+    const w = world()
+    const product = ok(
+      await w.media.custody.put({
+        tenant: T1,
+        mediaType: 'image/png',
+        bytes: chunks(IMAGE),
+        holder: holder('call-1'),
+      }),
+    )
+    const first = await w.staged(T1, 'up', IMAGE)
+    const again = ok(
+      await w.media.uploads.commit({ tenant: T1, upload: 'up', digest: digestOf(IMAGE) }),
+    )
+    expect([first.ref, again.ref]).toEqual([product.ref, product.ref])
+    expect(await w.liveKeys()).toEqual([product.ref.key])
+  })
+
   it('over the limit, of an unknown type or of another type than declared is refused and leaves nothing', async () => {
     const w = world()
     const put = (mediaType: string, bytes: Uint8Array) =>

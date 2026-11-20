@@ -15,10 +15,23 @@ import { MediaStoresProvider, createMediaPlugin } from '@omne-harness/media/cord
 import { CONFIG, T1, fakeImage, holder, png } from './world.ts'
 
 class Index extends MediaIndexService {
-  readonly index = createMemoryMediaIndex()
+  private readonly port = createMemoryMediaIndex()
+  readonly insertUploading = this.port.insertUploading
+  readonly attachWrite = this.port.attachWrite
+  readonly readUpload = this.port.readUpload
+  readonly advance = this.port.advance
+  readonly stageOrMerge = this.port.stageOrMerge
+  readonly holdIfLive = this.port.holdIfLive
+  readonly readLive = this.port.readLive
+  readonly markDeleting = this.port.markDeleting
+  readonly markDeletingIfExpired = this.port.markDeletingIfExpired
+  readonly listDeleting = this.port.listDeleting
+  readonly dropRow = this.port.dropRow
 }
 class Image extends MediaImageService {
-  readonly codec = fakeImage().codec
+  private readonly port = fakeImage().codec
+  readonly probe = this.port.probe
+  readonly fit = this.port.fit
 }
 const HOLDER = holder('call-1')
 

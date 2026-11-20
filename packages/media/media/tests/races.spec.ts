@@ -38,6 +38,16 @@ describe('two requests for one upload at the same moment', () => {
     expect(await part(0)).toEqual({ ok: { nextSequence: 1 } })
   })
 
+  it('the same part twice while the index cannot be read again: unavailable', async () => {
+    const { w, part } = await begun()
+    w.faults.hooks.set('advance', async (real, ...args) => {
+      await real(...args)
+      w.faults.methods.set('readUpload', 'unavailable')
+      return fail({ kind: 'stale' })
+    })
+    expect(await part(0)).toEqual({ failure: { kind: 'unavailable', dependency: 'index' } })
+  })
+
   it('other bytes for the part another request took: a conflict, and the part that was taken stays', async () => {
     const { w, part } = await begun()
     w.faults.hooks.set('advance', async (real, input: never) => {
@@ -159,6 +169,23 @@ describe('a store that left the deployment', () => {
     expect(await w.media.variants.open({ tenant: T1, ref, target: null })).toMatchObject({
       ok: { bytes: IMAGE },
     })
+  })
+
+  it('a product put while the store is away: unavailable, and it is stored once the store is back', async () => {
+    const w = world()
+    const put = () =>
+      w.media.custody.put({
+        tenant: T1,
+        mediaType: 'image/png',
+        bytes: (async function* () {
+          yield IMAGE
+        })(),
+        holder: { owner: 'tool', work: 'call-1', position: '0', purpose: 'product' },
+      })
+    w.withdrawStore()
+    expect(await put()).toEqual({ failure: { kind: 'unavailable', dependency: 'store' } })
+    w.returnStore()
+    expect(ok(await put()).ref.digest).toBe(digestOf(IMAGE))
   })
 
   it('the sweep deletes nothing while the store is away, and goes on when it is back', async () => {

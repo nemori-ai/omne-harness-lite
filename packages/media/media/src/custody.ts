@@ -1,13 +1,8 @@
 import { fail, succeed } from '@omne-harness/operation-result'
-import {
-  KNOWN_MEDIA_TYPES,
-  modalityOf,
-  type Custody,
-  type MediaRow,
-} from '@omne-harness/media-contract'
+import { KNOWN_MEDIA_TYPES, modalityOf, type Custody } from '@omne-harness/media-contract'
 import { digestOf, partsOf } from './bytes.ts'
 import { later, tenantText, unavailable, writeFailure, type MediaDependencies } from './deps.ts'
-import type { Objects } from './objects.ts'
+import type { Objects, Placed } from './objects.ts'
 
 const invalidReference = fail({ kind: 'invalid-reference' } as const)
 
@@ -27,10 +22,11 @@ export function createCustody(deps: MediaDependencies, objects: Objects): Custod
   }
 
   /** Writes the bytes of an uploading row to the store and seals them. */
-  async function store(row: MediaRow, bytes: Uint8Array): Promise<boolean> {
+  async function store(row: Placed, bytes: Uint8Array): Promise<boolean> {
     const target = objects.storeOf(row.storage)
-    const begun = await target?.begin(row.key)
-    if (target === undefined || begun === undefined || 'failure' in begun) return false
+    if (target === undefined) return false
+    const begun = await target.begin(row.key)
+    if ('failure' in begun) return false
     let sequence = 0
     for (const part of partsOf(bytes, config.partBytes)) {
       if ('failure' in (await target.append(begun.ok.write, sequence, part))) return false
@@ -59,22 +55,7 @@ export function createCustody(deps: MediaDependencies, objects: Objects): Custod
         expiresAt: later(deps.clock, config.uploadTtlMs),
       })
       if ('failure' in inserted) return writeFailure('index', inserted.failure)
-      const row: MediaRow = {
-        key,
-        tenant,
-        storage: deps.writeTo,
-        state: 'uploading',
-        mediaType: input.mediaType,
-        bytes: bytes.byteLength,
-        digest: null,
-        facts: null,
-        write: null,
-        nextSequence: 0,
-        received: 0,
-        parts: [],
-        expiresAt: null,
-        holderCount: 0,
-      }
+      const row = { key, tenant, storage: deps.writeTo, mediaType: input.mediaType, write: null }
       if (!(await store(row, bytes))) {
         await objects.discard(row)
         return unavailable('store')
