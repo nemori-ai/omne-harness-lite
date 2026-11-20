@@ -285,7 +285,7 @@ it('refuses new acquisitions and invalidates leases once the Service unloads', a
   expect(ctx.get(executionEnvironmentKey)).toBeUndefined()
   await expect(acquired.lease.invalidated).resolves.toEqual({
     source: 'registry',
-    reason: 'registryClosed',
+    reason: 'providerRetired',
   })
   expect(await hostLease(ctx).catch((error: unknown) => error)).toBeInstanceOf(Error)
   expect(

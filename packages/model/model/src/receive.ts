@@ -25,6 +25,16 @@ export type ReceiveEnd = {
 }
 type ReceivedTerminal = ReceiveEnd & { snapshot: Snapshot }
 export type TerminalCompetition = { replaced: boolean }
+/** A batch to save. `successor` is the window already open for the read still in flight. */
+type Ready = {
+  kind: 'ready'
+  window: string
+  facts: TransportFact[]
+  arrivals: (string | null)[]
+  completion: Completion
+  successor: string | null
+}
+type Read = { next: IteratorResult<TransportFact> } | 'lost'
 type Stage =
   | {
       kind: 'reading'
@@ -34,25 +44,61 @@ type Stage =
       bytes: number
       flush: boolean
       timer: AbortController | null
+      due: Promise<'due'> | null
     }
-  | {
-      kind: 'ready'
-      window: string
-      facts: TransportFact[]
-      arrivals: (string | null)[]
-      completion: Completion
-    }
+  | Ready
   | { kind: 'next' }
-  | { kind: 'open'; input: Open; pending: boolean }
+  | { kind: 'open'; input: Open; pending: boolean; held: Ready | null }
   | {
       kind: 'preserve'
       input: Preserve & Readonly<{ arrivals: readonly (string | null)[] }>
       pending: boolean
       completion: Completion
+      successor: string | null
     }
   | { kind: 'terminal'; evidence: ReceivedTerminal; published: boolean }
   | { kind: 'refused'; refusal: ModelFailure }
   | { kind: 'superseded'; failure: ModelFailure }
+type Batch = Extract<Stage, { kind: 'reading' }>
+function reading(window: string): Batch {
+  return {
+    kind: 'reading',
+    window,
+    facts: [],
+    arrivals: [],
+    bytes: 0,
+    flush: false,
+    timer: null,
+    due: null,
+  }
+}
+function ready(batch: Batch, completion: Completion): Ready {
+  batch.timer?.abort()
+  return {
+    kind: 'ready',
+    window: batch.window,
+    facts: batch.facts,
+    arrivals: batch.arrivals,
+    completion,
+    successor: null,
+  }
+}
+/** Starts the delay of a batch at the arrival of its first fact; without that instant it is due at once. */
+function armBatchTimer(batch: Batch, clock: ModelClock, delayMs: number): void {
+  const from = batch.arrivals[0] ?? null
+  if (batch.facts.length !== 1 || delayMs <= 0) return
+  batch.flush = from === null
+  if (from === null) return
+  const timer = new AbortController()
+  batch.timer = timer
+  // A wait that ends for any reason leaves the batch due: it is cancelled only once the batch is handed over.
+  batch.due = new Promise(resolve => {
+    const due = (): void => resolve('due')
+    void clock
+      .waitUntil(new Date(Date.parse(from) + delayMs).toISOString(), timer.signal)
+      .then(due, due)
+  })
+}
 export function newOperation(): ModelOperationId {
   const value = decodeModelOperationId(`mop_${randomUUID()}`)
   if ('ok' in value) return value.ok
@@ -79,6 +125,7 @@ export function createReceiver<P>(input: {
 }) {
   const { commands, demand } = input
   const iterator = input.facts[Symbol.asyncIterator]()
+  let inFlight: Promise<Read> | null = null
   let stage: Stage = reading(input.window)
   let released: Reply<void> | undefined
   function release(): Reply<void> {
@@ -91,9 +138,6 @@ export function createReceiver<P>(input: {
       }
     })()
     return released
-  }
-  function reading(window: string): Stage {
-    return { kind: 'reading', window, facts: [], arrivals: [], bytes: 0, flush: false, timer: null }
   }
   async function supersede(failure: ModelFailure): Promise<{ failure: ModelFailure }> {
     stage = { kind: 'superseded', failure }
@@ -147,6 +191,7 @@ export function createReceiver<P>(input: {
       kind: 'preserve',
       pending: false,
       completion: entry.completion,
+      successor: entry.successor,
       input: {
         ...demand.execution,
         operation: newOperation(),
@@ -159,12 +204,19 @@ export function createReceiver<P>(input: {
     }
     return { ok: null }
   }
-  async function prepareWindow(): Reply<null> {
+  /** A read in flight is covered by an open window: the next one opens before this batch closes its own. */
+  function prepareSave(entry: Ready): Reply<null> {
+    return inFlight !== null && entry.successor === null
+      ? prepareWindow(entry)
+      : preparePreserve(entry)
+  }
+  async function prepareWindow(held: Ready | null): Reply<null> {
     const current = await commands.loadRecovery(demand)
     if ('failure' in current) return current
     stage = {
       kind: 'open',
       pending: false,
+      held,
       input: {
         ...demand.execution,
         operation: newOperation(),
@@ -178,7 +230,9 @@ export function createReceiver<P>(input: {
   async function openWindow(entry: Extract<Stage, { kind: 'open' }>): Reply<ReceiveEnd | null> {
     const result = await write(entry, () => commands.openReceiveWindow(entry.input))
     if ('ok' in result) {
-      stage = reading(entry.input.window)
+      stage = entry.held
+        ? { ...entry.held, successor: entry.input.window }
+        : reading(entry.input.window)
       input.refresh()
       return { ok: null }
     }
@@ -186,7 +240,7 @@ export function createReceiver<P>(input: {
       case 'unconfirmed':
         return { failure: result.failure }
       case 'outdated':
-        stage = { kind: 'next' }
+        stage = entry.held ?? { kind: 'next' }
         input.refresh()
         return { failure: result.failure }
       case 'superseded':
@@ -244,6 +298,7 @@ export function createReceiver<P>(input: {
           facts: [...entry.input.facts],
           arrivals: [...entry.input.arrivals],
           completion: entry.completion,
+          successor: entry.successor,
         }
         input.refresh()
         return { failure: result.failure }
@@ -287,39 +342,29 @@ export function createReceiver<P>(input: {
   ): Reply<ReceiveEnd | null> {
     const result = await write(entry, () => commands.preserve(entry.input))
     if ('failure' in result) return preserveFailure(entry, result, competition)
-    if (entry.completion === 'continue') stage = { kind: 'next' }
-    else {
-      stage = terminalEvidence(entry, result.ok)
-    }
+    if (entry.completion !== 'continue') stage = terminalEvidence(entry, result.ok)
+    else stage = entry.successor === null ? { kind: 'next' } : reading(entry.successor)
     input.confirm(result.ok)
     if (stage.kind === 'terminal') stage.published = true
     input.refresh()
     return { ok: null }
   }
-  function armBatchTimer(batch: Extract<Stage, { kind: 'reading' }>): void {
-    const from = batch.arrivals[0] ?? null
-    if (batch.facts.length !== 1 || input.batchDelayMs <= 0) return
-    batch.flush = from === null
-    if (from === null) return
-    const timer = new AbortController()
-    batch.timer = timer
-    void input.clock
-      .waitUntil(new Date(Date.parse(from) + input.batchDelayMs).toISOString(), timer.signal)
-      .then(
-        result => {
-          if (result === 'elapsed') batch.flush = true
-        },
-        () => {
-          batch.flush = true
-        },
-      )
+  /** One read of the stream is in flight at most; a batch whose delay elapses first leaves it for the next. */
+  function nextRead(batch: Batch): Promise<Read | 'due'> {
+    inFlight ??= iterator.next().then(
+      next => ({ next }),
+      () => 'lost' as const,
+    )
+    return batch.due === null ? inFlight : Promise.race([inFlight, batch.due])
   }
-  async function readBatch(batch: Extract<Stage, { kind: 'reading' }>): Reply<null> {
-    let next: IteratorResult<TransportFact>
-    try {
-      next = await iterator.next()
-    } catch {
-      batch.timer?.abort()
+  async function readBatch(batch: Batch): Reply<null> {
+    const read = await nextRead(batch)
+    if (read === 'due') {
+      stage = ready(batch, 'continue')
+      return { ok: null }
+    }
+    inFlight = null
+    if (read === 'lost') {
       batch.arrivals.push(readInstant(input.clock))
       batch.facts.push({
         kind: 'ended',
@@ -332,20 +377,15 @@ export function createReceiver<P>(input: {
           },
         },
       })
-      stage = {
-        kind: 'ready',
-        window: batch.window,
-        facts: batch.facts,
-        arrivals: batch.arrivals,
-        completion: 'stream-lost',
-      }
+      stage = ready(batch, 'stream-lost')
       return { ok: null }
     }
+    const { next } = read
     batch.arrivals.push(readInstant(input.clock))
     if (!next.done) {
       batch.facts.push(structuredClone(next.value))
       batch.bytes += Buffer.byteLength(JSON.stringify(next.value), 'utf8')
-      armBatchTimer(batch)
+      armBatchTimer(batch, input.clock, input.batchDelayMs)
     }
     const terminal = next.done || next.value.kind === 'ended'
     if (next.done)
@@ -362,14 +402,7 @@ export function createReceiver<P>(input: {
       })
     if (!terminal && input.batchDelayMs > 0 && !batch.flush && batch.bytes < input.batchBytes)
       return { ok: null }
-    batch.timer?.abort()
-    stage = {
-      kind: 'ready',
-      window: batch.window,
-      facts: batch.facts,
-      arrivals: batch.arrivals,
-      completion: next.done ? 'stream-lost' : terminal ? 'terminal' : 'continue',
-    }
+    stage = ready(batch, next.done ? 'stream-lost' : terminal ? 'terminal' : 'continue')
     return { ok: null }
   }
   function advance(entry: Stage, competition: TerminalCompetition): Reply<ReceiveEnd | null> {
@@ -381,9 +414,9 @@ export function createReceiver<P>(input: {
       case 'superseded':
         return Promise.resolve({ failure: entry.failure })
       case 'ready':
-        return preparePreserve(entry)
+        return prepareSave(entry)
       case 'next':
-        return prepareWindow()
+        return prepareWindow(null)
       case 'open':
         return openWindow(entry)
       case 'preserve':

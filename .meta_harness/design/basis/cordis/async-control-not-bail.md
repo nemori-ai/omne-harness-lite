@@ -1,7 +1,7 @@
 ---
 id: async-control-not-bail
 upstream: cordis
-version: 4.0.4
+version: 4.1.0
 kind: negative
 symbols:
   - "events.ts: isBailed 只排除 null/false/undefined，Promise 本身算 bail 值"
@@ -9,12 +9,12 @@ symbols:
   - "events.ts: emit 同步派发且丢弃返回值"
   - "events.ts: serial 顺序逐个 await 后再判定"
 lines:
-  - "events.ts:13-15"
-  - "events.ts:217-222"
-  - "events.ts:194-196"
-  - "events.ts:204-209"
+  - "events.ts:12-14"
+  - "events.ts:228-234"
+  - "events.ts:203-206"
+  - "events.ts:214-220"
 probe: packages/assembly/kernel-basis/tests/async-control-not-bail.spec.ts
-checked: 2026-11-15
+checked: 2026-11-20
 ---
 
 # `bail` 不能承载异步控制判定
@@ -26,7 +26,7 @@ checked: 2026-11-15
 
 **想当然的理解**：用 `bail` 做拦截，监听者返回「拒绝」就短路。
 
-**实际（4.0.4 取证）**：监听者若是异步函数，返回的是一个 Promise。`bail` 在它那里停下，
+**实际（4.1.0 取证）**：监听者若是异步函数，返回的是一个 Promise。`bail` 在它那里停下，
 把**这个 Promise 本身**当作结果交回调用方——不管它将来解析成「否决」还是「无异议」；
 后面的监听者一个都不跑。调用方拿到的是一个 truthy 的 Promise，同步判定它「有人 bail 了」，
 于是异步「无异议」变成「否决」，异步「否决」的具体内容也丢了——**判定被静默扭曲，不抛错、不告警**。
@@ -40,7 +40,7 @@ checked: 2026-11-15
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `events.ts` isBailed | 只排除 `null`/`false`/`undefined`，Promise 算 bail 值 | 读源码 13–15 行 |
+| `events.ts` isBailed | 只排除 `null`/`false`/`undefined`，Promise 算 bail 值 | 读源码 12–14 行 |
 | `events.ts` bail | 同步派发到首个 bail 值；遇 Promise 即停、原样交回 | 注册一个 `async () => undefined` 的监听者再接一个同步否决者，观察 bail 在前者停下且返回 Promise |
 | `events.ts` emit | 同步派发；返回值直接丢弃 | 同上，emit 连同步返回值也不看 |
 | `events.ts` serial | 顺序逐个 await 后判定 | 注册异步监听者，观察其解析值被等待并参与判定 |
@@ -49,7 +49,7 @@ checked: 2026-11-15
 
 ## 探针断言什么
 
-探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.1.0 核对：
 
 1. 一个 `async` 监听者返回 `undefined`（无异议），后面接一个同步返回 `false` 的否决者；
    `ctx.bail` 的返回值是 `Promise` 实例、只有第一个监听者跑过、该 Promise 解析为 `undefined`。

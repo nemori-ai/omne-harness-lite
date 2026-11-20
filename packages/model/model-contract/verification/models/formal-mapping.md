@@ -38,7 +38,7 @@
 | `Wake`、`EndWake`                            | 插件的唤醒与一次工作；一轮结束时还欠着工作，`wakeLater` 在间隔之后再唤醒           |
 | `Pushable`、`result.attempts`、`Limit`       | `push` 的循环：`outcome-unknown` 在 `maxRedeliveries` 内继续，其余答复结束本次唤醒 |
 | `Replaces`                                   | `replaces()`：哪些新答复可以取代当前站位                                           |
-| `PushResultForeign`                          | `acceptReceipt`：键或 owner 不符记为 `failed`（receipt-mismatch）                  |
+| `PushResultForeign`                          | `answerOf`：键或 owner 不符的回执按结果未知，照原键重投，只报告 receipt-mismatch |
 | `PushResultRefused`、`Abandon`、`abandon`    | 接收方答确定拒绝时记下放弃，带拒绝的回执；Model 自己读结果被确定拒绝归入同一个事件 |
 | `Crash`、`Restart`、`wakeable`               | 推送台账在内存里，随进程消失；确认、清理、份额与放弃在 Model 的存储里；启动扫描叫醒没确认的调用 |
 | `AckConfirm`、`AckUnavailable`、`AckUnknown` | `handoff()` 与 model 的 handoff 证据：适配器答 unavailable 时保留站位              |
@@ -52,7 +52,7 @@
 | ---------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `model/tests/admission-guards.spec.ts`               | P1、P5、P6 | 枚举未知受理的全部合法效果与揭示：揭示前 recall 与重入都答 commit-unknown；揭示后两者一致；换 operation 答 conflict 且记录不变；份额为 2 时第三个调用被拒且不落任何记录，重入已受理的调用不重复占名额；另一租户读不到 | N1 recall 不看未决写：三个枚举用例变红。N2 份额不检查：份额用例变红                   |
 | `model-host-local/tests/runtime-push-bounds.spec.ts` | P3         | 真实插件与脚本接收方：接收方一直答 unavailable 或 backpressured 时一次唤醒只推一次；一直答 outcome-unknown 时一次唤醒推 `1 + maxRedeliveries` 次                                                                      | N3 unavailable 与 backpressured 时继续重推：两个用例变红                              |
-| `model-host-local/tests/runtime-push.spec.ts`        | P2、P4     | 场景用例：saved 四事实缺一不确认、外来回执不算 saved、unknown 重投、证据不可用时保留份额、晚账超界被拒                                                                                                                | N5 去掉晚账名额检查：两个晚账用例变红。N4 去掉 `clean` 的确认判断：没有用例变红，见下 |
+| `model-host-local/tests/runtime-push.spec.ts`        | P2、P4     | 场景用例：saved 四事实缺一不确认、外来回执按 unknown 重投且最终归还份额、unknown 重投、证据不可用时保留份额、晚账超界被拒                                                                                                                | N5 去掉晚账名额检查：两个晚账用例变红。N4 去掉 `clean` 的确认判断：没有用例变红，见下 |
 
 N4 是不可观察的变异。`clean` 只在确认之后被调用，而且 Commands 的 `advanceCleanup` 只在已确认的保管上前进。所以 `ReleaseNeedsCustodyEnd` 由两层守住，插件里这一处判断是冗余守卫。
 
@@ -138,5 +138,5 @@ N4 是不可观察的变异。`clean` 只在确认之后被调用，而且 Comma
 
 ## 抽象与未覆盖
 
-- Admission 与 ResultPush：一个调用、一个 owner。不建模冻结失败、冻结读取、`maxConcurrentCalls`、停止、后继插件、SQL 持久化与跨进程。内存 Commands 的未决写只有「立即可见」一种效果，模型里的 `pending`（之后落地）没有内存对应物。进程崩溃有限次（`MaxCrashes`），崩溃清空推送台账，接收方已保存的事实与 Model 存储里的事实保留；已保存的接收方在台账忘了之后按原键认回，不拒绝。进展的前提排除答外来回执的接收方：那个交付记成 receipt-mismatch 的失败，份额一直占着。确定拒绝之后的晚账不再推送，所以检 `EventuallyReleased` 的打开拒绝的配置不带晚账。
+- Admission 与 ResultPush：一个调用、一个 owner。不建模冻结失败、冻结读取、`maxConcurrentCalls`、停止、后继插件、SQL 持久化与跨进程。内存 Commands 的未决写只有「立即可见」一种效果，模型里的 `pending`（之后落地）没有内存对应物。进程崩溃有限次（`MaxCrashes`），崩溃清空推送台账，接收方已保存的事实与 Model 存储里的事实保留；已保存的接收方在台账忘了之后按原键认回，不拒绝。答外来回执的接收方在进展的前提之内：那个交付是结果未知，接收方最终 saved 或确定拒绝时份额照样归还。确定拒绝之后的晚账不再推送，所以检 `EventuallyReleased` 的打开拒绝的配置不带晚账。
 - SendBoundary：一个 dispatch，一个实例。结算写之外不建模重试决定、新的 dispatch、取消与跨进程恢复。`MaxFaults` 是写确认丢失与读记录失败的总次数，活性依赖它有界，以及驱动被再次驱动（`WF_vars(Proc)`）。已经 start 的流只建模为一次接收与结算，不建模流内事实。

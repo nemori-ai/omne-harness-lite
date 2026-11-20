@@ -63,12 +63,8 @@ describe('how the custody of a pushed result ends', () => {
     },
   )
 
-  it('does not abandon a result whose receipt did not match, nor one still waiting', async () => {
-    for (const standing of [
-      { status: 'failed', failure: { kind: 'receipt-mismatch' } },
-      { status: 'unknown' },
-      { status: 'waiting', reason: 'unavailable' },
-    ]) {
+  it('does not abandon a result whose outcome is unknown, nor one still waiting', async () => {
+    for (const standing of [{ status: 'unknown' }, { status: 'waiting', reason: 'unavailable' }]) {
       const e = ending(standing as DeliveryStanding)
       expect(await e.end(), JSON.stringify(standing)).toBe(e.record)
       expect(e.abandons).toEqual([])

@@ -32,6 +32,8 @@ export type ScenarioAnswer =
   | Readonly<{ kind: 'partial'; body: string; more: string; everyMs: number }>
   /** The head and the first frames of a streamed success, then the connection is cut. */
   | Readonly<{ kind: 'break'; body: string; headers?: Readonly<Record<string, string>> }>
+  /** The head and the first frames of a streamed success, then silence until `finishStalled`. */
+  | Readonly<{ kind: 'stall'; body: string; rest: string }>
 
 export const answer504: GatewayReply = Object.freeze({
   kind: 'answer',
@@ -53,6 +55,9 @@ export type ScenarioGateway = Readonly<{
   /** The next `count` connections are closed before their TLS handshake: each is a failed connect. */
   refuseConnections(count: number): void
   refused(): number
+  stalled(): number
+  /** Writes the rest of every stalled answer and ends it. */
+  finishStalled(): void
   close(): Promise<void>
 }>
 
@@ -91,6 +96,7 @@ export async function startScenarioGateway(script: ScenarioScript): Promise<Scen
   const { keyPath, certPath } = certificate(directory)
   let count = 0
   const held = new Map<ServerResponse, string>()
+  const stalled = new Map<ServerResponse, string>()
   // A streamed success is written in the interface the request speaks; anything else goes out as is.
   const write = (response: ServerResponse, reply: GatewayReply, spoken: string): void => {
     const { body } = renderReply(spoken, reply)
@@ -125,6 +131,14 @@ export async function startScenarioGateway(script: ScenarioScript): Promise<Scen
           response.writeHead(200, { 'content-type': 'text/event-stream', ...reply.headers })
           response.write(translate(reply.body))
           setTimeout(() => response.destroy(), 50)
+          return
+        }
+        if (reply.kind === 'stall') {
+          const translate = streamTranslator(spoken) ?? ((part: string) => part)
+          response.writeHead(200, { 'content-type': 'text/event-stream' })
+          response.write(translate(reply.body))
+          stalled.set(response, translate(reply.rest))
+          response.on('close', () => stalled.delete(response))
           return
         }
         if (reply.kind === 'hold') {
@@ -164,6 +178,11 @@ export async function startScenarioGateway(script: ScenarioScript): Promise<Scen
       refusing = count
     },
     refused: () => refused,
+    stalled: () => stalled.size,
+    finishStalled: () => {
+      for (const [response, rest] of stalled) response.end(rest)
+      stalled.clear()
+    },
     close: async () => {
       release(answer504)
       server.closeAllConnections()

@@ -88,10 +88,10 @@ it('does not publish or retry unknown registration after dependency withdrawal',
   const app = await assembly(register)
   try {
     await entered.promise
-    const failed = expect(app.row).rejects.toThrow('current combination registration failed')
     const retiring = app.dependency.dispose()
     reply.resolve()
-    await Promise.all([retiring, failed])
+    await Promise.all([retiring, app.row.then(() => {})])
+    expect(app.row.state).toBe(0)
     expect(register).toHaveBeenCalledTimes(1)
     expect(app.root.get('tenantDomainLookup', false)).toBeUndefined()
     expect(app.registered).not.toHaveBeenCalled()
