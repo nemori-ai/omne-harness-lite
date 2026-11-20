@@ -61,6 +61,7 @@ function neighbourRegion(direction: 'next' | 'previous'): HTMLElement | undefine
   if (!regions.length) return undefined
   const current = document.activeElement?.closest(REGION)
   const index = regions.findIndex(region => region === current)
+  if (index === -1) return direction === 'next' ? regions[0] : regions.at(-1)
   return regions[(index + (direction === 'next' ? 1 : -1) + regions.length) % regions.length]
 }
 

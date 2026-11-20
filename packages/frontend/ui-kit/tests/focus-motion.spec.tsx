@@ -56,6 +56,17 @@ it('moveRegion walks the keyboard regions in both directions and wraps around', 
   expect(document.activeElement?.id).toBe('b')
 })
 
+it('moveRegion from outside every region starts at the first going forward and the last going back', () => {
+  document.body.innerHTML =
+    '<button id="out">out</button><section data-keyboard-region><button id="a">a</button></section><section data-keyboard-region><button id="b">b</button></section><section data-keyboard-region><button id="c">c</button></section>'
+  document.getElementById('out')?.focus()
+  expect(moveRegion('previous')).toBe(true)
+  expect(document.activeElement?.id).toBe('c')
+  document.getElementById('out')?.focus()
+  expect(moveRegion('next')).toBe(true)
+  expect(document.activeElement?.id).toBe('a')
+})
+
 it('moveRegion refuses while a modal is up, and blockingOverlay finds the modal', () => {
   document.body.innerHTML =
     '<section data-keyboard-region><button id="a">a</button></section><div data-keyboard-modal id="m"></div>'
