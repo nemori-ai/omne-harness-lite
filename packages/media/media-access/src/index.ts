@@ -1,2 +1,2 @@
-// PACKAGE_TEMPLATE_DRAFT: Pure public functions/types for this mechanism.
-export {}
+export { createMediaContribution, type MediaContributionInput } from './contribution.ts'
+export type { MediaFace, TargetTenantPrincipals } from './ports.ts'

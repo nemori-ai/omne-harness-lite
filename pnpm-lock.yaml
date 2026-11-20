@@ -3470,6 +3470,18 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../media-protocol
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

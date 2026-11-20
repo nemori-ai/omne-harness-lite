@@ -1,1 +1,1 @@
-export { mediaProtocol } from './media-protocol.ts'
+export { mediaProtocol, type MediaProtocol } from './media-protocol.ts'

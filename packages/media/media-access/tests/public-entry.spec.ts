@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
+it('the root entry exports the contribution factory only', async () => {
   const root = (await import('@omne-harness/media-access')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+  expect(Object.keys(root)).toEqual(['createMediaContribution'])
 })

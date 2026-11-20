@@ -157,3 +157,4 @@ export const mediaProtocol = defineProtocol({
   },
   observations: {},
 })
+export type MediaProtocol = typeof mediaProtocol
