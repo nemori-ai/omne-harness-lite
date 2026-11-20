@@ -145,6 +145,10 @@
   gap: var(--omne-space-block);
   padding-inline: var(--omne-space-inline);
 }
+/* Open, the figure keeps no fill at rest: the bubble or the column is the open state (agent-work-panel.css line 5). */
+.omne-session-figure[aria-expanded='true']:not(:hover) {
+  background: transparent;
+}
 .omne-session-figure-seat {
   width: var(--omne-control-height);
   height: var(--omne-control-height);
