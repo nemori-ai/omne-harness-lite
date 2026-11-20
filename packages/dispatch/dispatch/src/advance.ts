@@ -2,6 +2,7 @@ import {
   deliveryDue,
   settleDelivery,
   type Delivery,
+  type DeliveryObservation,
   type Dispatch,
   type DispatchEvent,
   type DispatchId,
@@ -20,8 +21,8 @@ export type AdvanceDependencies = Readonly<{
   clock: Clock
 }>
 
-/** The longest chain one dispatch walks in one go: create, end, hand over, send, record, stop. */
-const MAX_STEPS = 6
+type SecondPlace = Pick<DeliveryObservation, 'input' | 'archived'>
+const NOT_READ: SecondPlace = { input: 'unknown', archived: 'unknown' }
 
 const outcomeOf = (dispatch: Dispatch): WaitOutcome => ({
   id: dispatch.id,
@@ -39,52 +40,41 @@ const endOf = (fate: InputFate): DispatchEvent | null => {
   return null
 }
 
+const CREATED: DispatchEvent = { kind: 'session-created' }
+const ARCHIVED: DispatchEvent = { kind: 'dispatcher-archived' }
+
 /** Every step re-does the same thing under the same identity; an unknown result leaves the dispatch where it is. */
 export function createAdvance(deps: AdvanceDependencies) {
   const { store, sessions, waits, clock } = deps
 
-  async function apply(tenant: TenantId, id: DispatchId, event: DispatchEvent): Promise<boolean> {
-    const answer = await store.apply(tenant, { of: { id }, event, at: clock.now() })
-    return answer.kind === 'committed' && answer.value.kind === 'changed'
-  }
+  const apply = (dispatch: Dispatch, event: DispatchEvent) =>
+    store.apply(dispatch.tenant, { of: { id: dispatch.id }, event, at: clock.now() })
 
-  async function record(
-    tenant: TenantId,
-    id: DispatchId,
-    delivery: Exclude<Delivery, { kind: 'pending' }>,
-  ): Promise<boolean> {
-    const answer = await store.recordDelivery(tenant, { id, delivery, at: clock.now() })
-    return answer.kind === 'committed' && answer.value.kind === 'recorded'
-  }
+  const record = (dispatch: Dispatch, delivery: Exclude<Delivery, { kind: 'pending' }>) =>
+    store.recordDelivery(dispatch.tenant, { id: dispatch.id, delivery, at: clock.now() })
 
   /** `accepted`: the session is created with the permission mode the dispatching session has now. */
-  async function create(dispatch: Dispatch): Promise<boolean> {
-    const { tenant, id } = dispatch
-    const row = await sessions.row(tenant, dispatch.dispatcher)
-    if (row.kind !== 'read') return false
-    if (row.value === null || row.value.archived)
-      return apply(tenant, id, { kind: 'dispatcher-archived' })
+  async function create(dispatch: Dispatch): Promise<unknown> {
+    const row = await sessions.row(dispatch.tenant, dispatch.dispatcher)
+    if (row.kind !== 'read') return undefined
+    if (row.value === null || row.value.archived) return apply(dispatch, ARCHIVED)
     const { session } = dispatch
     const { permission } = row.value
-    const answer = await sessions.create(tenant, { session, dispatch, permission })
-    if (answer.kind === 'unknown') return false
-    return apply(
-      tenant,
-      id,
-      answer.kind === 'created'
-        ? { kind: 'session-created' }
-        : { kind: 'session-failed', detail: answer.detail },
-    )
+    const answer = await sessions.create(dispatch.tenant, { session, dispatch, permission })
+    if (answer.kind === 'unknown') return undefined
+    const { kind, detail } = { detail: '', ...answer }
+    return apply(dispatch, kind === 'created' ? CREATED : { kind: 'session-failed', detail })
   }
 
   /** `started`: the end of the run the starting input started is the end of the dispatch. */
-  async function follow(dispatch: Dispatch): Promise<boolean> {
+  async function follow(dispatch: Dispatch): Promise<unknown> {
     const fate = await sessions.startFate(dispatch.tenant, dispatch.session)
     const event = fate.kind === 'read' ? endOf(fate.value) : null
-    return event !== null && apply(dispatch.tenant, dispatch.id, event)
+    return event === null ? undefined : apply(dispatch, event)
   }
 
-  async function sendReport(dispatch: Dispatch): Promise<boolean> {
+  /** A send that was refused or has no known result records nothing: the next pass reads again. */
+  async function sendReport(dispatch: Dispatch): Promise<unknown> {
     const answer = await sessions.send(dispatch.tenant, {
       to: dispatch.dispatcher,
       input: reportInputOf(dispatch.id),
@@ -92,53 +82,55 @@ export function createAdvance(deps: AdvanceDependencies) {
       text: dispatch.report?.text ?? '',
       from: { session: dispatch.session, agent: dispatch.agent },
     })
-    if (answer.kind === 'unknown') return false
-    return record(
-      dispatch.tenant,
-      dispatch.id,
-      answer.kind === 'sent' ? { kind: 'delivered', to: 'input' } : { kind: 'undeliverable' },
-    )
+    return answer.kind === 'sent' ? record(dispatch, { kind: 'delivered', to: 'input' }) : undefined
+  }
+
+  async function secondPlace(dispatch: Dispatch): Promise<SecondPlace> {
+    const { tenant, id, dispatcher } = dispatch
+    const has = await sessions.has(tenant, dispatcher, reportInputOf(id))
+    const row = await sessions.row(tenant, dispatcher)
+    return {
+      input: has.kind !== 'read' ? 'unknown' : has.value ? 'present' : 'absent',
+      archived: row.kind !== 'read' ? 'unknown' : (row.value?.archived ?? true),
+    }
   }
 
   /** An outcome goes to the wait; only when Tool answers that the wait is closed is the rest read. */
-  async function handOver(dispatch: Dispatch): Promise<boolean> {
-    const { tenant, id, dispatcher } = dispatch
-    const wait = await waits.hand(tenant, dispatch, outcomeOf(dispatch))
-    const closed = wait === 'closed' && dispatch.state === 'reported'
-    const has = closed ? await sessions.has(tenant, dispatcher, reportInputOf(id)) : null
-    const row = closed ? await sessions.row(tenant, dispatcher) : null
-    const step = settleDelivery(dispatch, {
-      wait,
-      input: has === null || has.kind !== 'read' ? 'unknown' : has.value ? 'present' : 'absent',
-      archived: row === null || row.kind !== 'read' ? 'unknown' : (row.value?.archived ?? true),
-    })
-    if (step.kind === 'hold') return false
-    return step.kind === 'record' ? record(tenant, id, step.delivery) : sendReport(dispatch)
+  async function handOver(dispatch: Dispatch): Promise<unknown> {
+    const wait = await waits.hand(dispatch.tenant, dispatch, outcomeOf(dispatch))
+    const closedReport = wait === 'closed' && dispatch.state === 'reported'
+    const second = closedReport ? await secondPlace(dispatch) : NOT_READ
+    const step = settleDelivery(dispatch, { wait, ...second })
+    if (step.kind === 'record') return record(dispatch, step.delivery)
+    return step.kind === 'send-input' ? sendReport(dispatch) : undefined
   }
 
-  async function stop(dispatch: Dispatch): Promise<boolean> {
+  async function stop(dispatch: Dispatch): Promise<unknown> {
     const answer = await sessions.cancelStart(dispatch.tenant, dispatch.session)
-    if (answer !== 'stopped') return false
-    const confirmed = await store.confirmStop(dispatch.tenant, {
-      id: dispatch.id,
-      at: clock.now(),
-    })
-    return confirmed.kind === 'committed'
+    if (answer !== 'stopped') return undefined
+    return store.confirmStop(dispatch.tenant, { id: dispatch.id, at: clock.now() })
   }
 
-  function stepOf(dispatch: Dispatch): Promise<boolean> {
+  function stepOf(dispatch: Dispatch): Promise<unknown> {
     if (dispatch.state === 'accepted') return create(dispatch)
     if (dispatch.state === 'started') return follow(dispatch)
     if (deliveryDue(dispatch)) return handOver(dispatch)
-    return dispatch.stop === 'requested' ? stop(dispatch) : Promise.resolve(false)
+    return dispatch.stop === 'requested' ? stop(dispatch) : Promise.resolve()
   }
 
-  /** Takes the steps one dispatch can take now, and stops at the first that cannot be taken. */
+  async function current(tenant: TenantId, id: DispatchId): Promise<Dispatch | null> {
+    const read = await store.dispatch(tenant, id)
+    return read.kind === 'read' ? read.value : null
+  }
+
+  /** Takes one step after another while each one changes the dispatch, and stops at the first that does not. */
   return async function advance(tenant: TenantId, id: DispatchId): Promise<void> {
-    for (let taken = 0; taken < MAX_STEPS; taken += 1) {
-      const read = await store.dispatch(tenant, id)
-      if (read.kind !== 'read' || read.value === null) return
-      if (!(await stepOf(read.value))) return
+    let known = await current(tenant, id)
+    while (known !== null) {
+      await stepOf(known)
+      const next = await current(tenant, id)
+      if (next?.changedAt === known.changedAt) return
+      known = next
     }
   }
 }

@@ -86,8 +86,20 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
       const dispatch = acceptedDispatch(1)
       same(await accept(store, dispatch), { kind: 'accepted', dispatch }, 'the first acceptance')
       same(await accept(store, dispatch), { kind: 'recalled', dispatch }, 'the same request again')
-      const other = { ...dispatch, instruction: 'something else' }
-      same(await accept(store, other), { kind: 'conflict' }, 'another request')
+      const others: Partial<Dispatch>[] = [
+        { dispatcher: 'another-parent' as SessionRef },
+        { call: 'another-call' },
+        { mode: 'spawn' },
+        { agent: 'another-agent' },
+        { instruction: 'something else' },
+        { expectation: 'three bullets' },
+      ]
+      for (const change of others)
+        same(
+          await accept(store, { ...dispatch, ...change }),
+          { kind: 'conflict' },
+          JSON.stringify(change),
+        )
       same(read(await store.dispatch(T1, dispatch.id), 'read'), dispatch, 'the stored dispatch')
     },
   },
@@ -196,6 +208,17 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         at: at(44),
       })
       same(committed(absent, 'recordDelivery'), { kind: 'absent' }, 'no row')
+      const lost = await reported(store, 3)
+      const undeliverable = { kind: 'undeliverable' } as const
+      const closed = { kind: 'wait-closed' } as const
+      const placed = async (delivery: typeof undeliverable | typeof closed) =>
+        committed(
+          await store.recordDelivery(T1, { id: lost.id, delivery, at: at(46) }),
+          'recordDelivery',
+        ).kind
+      same(await placed(undeliverable), 'recorded', 'a place that is not a delivery')
+      same(await placed(undeliverable), 'recalled', 'the same place again')
+      same(await placed(closed), 'conflict', 'another place that is not a delivery')
       const started = acceptedDispatch(2)
       await accept(store, started)
       const early = committed(

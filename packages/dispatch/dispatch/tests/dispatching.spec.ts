@@ -73,6 +73,37 @@ describe('a dispatch is accepted once and creates one session (DP-06, DP-12)', (
     expect(w.sessions.created[0]?.creation.session).toBe(accepted.session)
   })
 
+  it('withdraws a dispatch whose dispatcher is archived or gone before its session is created, and creates none', async () => {
+    for (const gone of [false, true]) {
+      const w = world()
+      w.sessions.createNext('unknown')
+      const accepted = valueOf(await w.registry.dispatch(w.ctx(), ASK))
+      if (gone) w.sessions.remove(TENANT, PARENT)
+      else w.sessions.archive(TENANT, PARENT)
+      await w.registry.reconcile(TENANT)
+      expect(await read(w, accepted.id)).toMatchObject({ state: 'withdrawn', stop: 'not-needed' })
+      expect(w.sessions.created).toEqual([])
+    }
+  })
+
+  it('takes no step, and does not fail, while a fact it needs cannot be read', async () => {
+    const w = world()
+    w.sessions.createNext('unknown')
+    const accepted = valueOf(await w.registry.dispatch(w.ctx(), ASK))
+    const begun = await started(w, 'call-2')
+    w.sessions.fate(begun.session, { kind: 'ended', reply: 'done' })
+    w.sessions.readable(false)
+    await expect(w.registry.advance(TENANT, accepted.id)).resolves.toBeUndefined()
+    await expect(w.registry.advance(TENANT, begun.id)).resolves.toBeUndefined()
+    w.store.readable(false)
+    await expect(w.registry.advance(TENANT, begun.id)).resolves.toBeUndefined()
+    w.store.readable(true)
+    w.sessions.readable(true)
+    expect((await read(w, accepted.id)).state).toBe('accepted')
+    expect((await read(w, begun.id)).state).toBe('started')
+    expect(w.sessions.created).toHaveLength(1)
+  })
+
   it('fails the dispatch with the reason when the session cannot be created', async () => {
     const w = world()
     w.sessions.createNext('failed')
@@ -244,6 +275,7 @@ describe('the one report and its one place (DP-01, DP-02, DP-03)', () => {
     await w.rebuilt().reconcile(TENANT)
     expect((await read(w, dispatch.id)).delivery).toEqual({ kind: 'delivered', to: 'input' })
     expect(w.sessions.sent).toHaveLength(1)
+    expect(w.sessions.counts().sends).toBe(1)
   })
 
   it('sends the input when the first send did not arrive, once', async () => {
@@ -256,6 +288,35 @@ describe('the one report and its one place (DP-01, DP-02, DP-03)', () => {
     await w.registry.reconcile(TENANT)
     await w.registry.reconcile(TENANT)
     expect(w.sessions.sent).toHaveLength(1)
+    expect((await read(w, dispatch.id)).delivery).toEqual({ kind: 'delivered', to: 'input' })
+  })
+
+  it('looks for the input only after the wait answered closed, and sends nothing while it cannot look', async () => {
+    const w = world()
+    const delivered = await started(w, 'call-1')
+    await w.registry.report(w.ctx(delivered.session), 'to the waiting call')
+    expect(w.sessions.counts()).toEqual({ sends: 0, looks: 0 })
+
+    const late = await started(w, 'call-2')
+    w.waits.close('call-2')
+    w.sessions.readable(false)
+    const held = valueOf(await w.registry.report(w.ctx(late.session), 'the report'))
+    expect(held.delivery).toEqual({ kind: 'pending' })
+    expect(w.sessions.counts()).toEqual({ sends: 0, looks: 1 })
+    w.sessions.readable(true)
+    await w.registry.reconcile(TENANT)
+    expect((await read(w, late.id)).delivery).toEqual({ kind: 'delivered', to: 'input' })
+    expect(w.sessions.counts().sends).toBe(1)
+  })
+
+  it('records nothing when the send is refused, and settles on the next pass', async () => {
+    const w = world()
+    const dispatch = await started(w)
+    w.waits.close('call-1')
+    w.sessions.sendNext('refused')
+    const held = valueOf(await w.registry.report(w.ctx(dispatch.session), 'the report'))
+    expect(held.delivery).toEqual({ kind: 'pending' })
+    await w.registry.reconcile(TENANT)
     expect((await read(w, dispatch.id)).delivery).toEqual({ kind: 'delivered', to: 'input' })
   })
 
@@ -274,6 +335,7 @@ describe('the one report and its one place (DP-01, DP-02, DP-03)', () => {
       delivery: { kind: 'undeliverable' },
     })
     expect(w.sessions.sent).toEqual([])
+    expect(w.sessions.counts().sends).toBe(0)
   })
 
   it('never leaves a report of an open dispatcher at neither place once the steps are taken', async () => {

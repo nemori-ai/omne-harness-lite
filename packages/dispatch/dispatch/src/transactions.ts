@@ -73,17 +73,15 @@ export type DeliveryResult =
   | Readonly<{ kind: 'conflict'; dispatch: Dispatch }>
   | Readonly<{ kind: 'absent' }>
 
-const sameDelivery = (left: Delivery | null, right: Delivery): boolean =>
-  left !== null &&
-  left.kind === right.kind &&
-  (left.kind !== 'delivered' || (right.kind === 'delivered' && left.to === right.to))
+const placeOf = (delivery: Delivery | null): string | null =>
+  delivery === null ? null : delivery.kind === 'delivered' ? delivery.to : delivery.kind
 
 /** One transaction: a pending delivery gets its one place. A place already recorded is never replaced. */
 export function recordDelivery(txn: DispatchTxn, command: DeliveryCommand): DeliveryResult {
   const found = txn.dispatch(command.id)
   if (found === null) return { kind: 'absent' }
   if (found.delivery?.kind !== 'pending')
-    return sameDelivery(found.delivery, command.delivery)
+    return placeOf(found.delivery) === placeOf(command.delivery)
       ? { kind: 'recalled', dispatch: found }
       : { kind: 'conflict', dispatch: found }
   const next = Object.freeze({ ...found, delivery: command.delivery, changedAt: command.at })

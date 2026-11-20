@@ -191,6 +191,7 @@ describe('what a change carries', () => {
     expect(next('accepted', EVENTS.withdraw)).toMatchObject({ stop: 'not-needed', report: null })
     expect(next('started', EVENTS.withdraw)).toMatchObject({ stop: 'requested', delivery: PENDING })
     expect(next('started', EVENTS['dispatcher-archived'])).toMatchObject({ stop: 'requested' })
+    expect(next('accepted', EVENTS['dispatcher-archived'])).toMatchObject({ stop: 'not-needed' })
   })
 
   it('the same report again is a recall, and another one is refused: at most one report', () => {
