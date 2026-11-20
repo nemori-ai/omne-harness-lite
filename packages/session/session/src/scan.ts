@@ -78,8 +78,7 @@ export function createScan<P>(
     if (snapshot.ok.controls.some(control => control.state === 'propagating')) controls.trigger(ref)
     if (runStartInputs(snapshot.ok).length > 0) advance.trigger(ref)
     if (snapshot.ok.run.kind === 'active') recovery.trigger(ref)
-    if (snapshot.ok.tasks.some(task => task.kind === 'cascade' && task.state !== 'denied'))
-      cascade.trigger(ref)
+    if (snapshot.ok.tasks.some(task => task.kind === 'cascade')) cascade.trigger(ref)
     for (const operation of snapshot.ok.unresolved)
       resolution.watch(ref, operation, () => {
         advance.trigger(ref)

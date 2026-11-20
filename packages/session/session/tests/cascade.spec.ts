@@ -24,7 +24,7 @@ async function settle(): Promise<void> {
   for (let round = 0; round < 20; round += 1) await turn()
 }
 
-async function tree(): Promise<Harness> {
+async function tree(unbound: readonly string[] = []): Promise<Harness> {
   const h = await harness({ backend: memoryBackend })
   open.push(h)
   await h.create('parent')
@@ -43,7 +43,7 @@ async function tree(): Promise<Harness> {
   await make('grandchild', child('child-1'), 'unattended')
   await make('handed', { kind: 'handoff', origin: sessionId('parent'), basis }, 'attended')
   for (const session of ['parent', 'child-1', 'child-2', 'grandchild', 'handed'])
-    h.bindings.controls.bind(TENANT_A, sessionId(session))
+    if (!unbound.includes(session)) h.bindings.controls.bind(TENANT_A, sessionId(session))
   return h
 }
 
@@ -66,8 +66,10 @@ function childControls(
   answer?: (session: string, attempt: number) => SessionFailure | null,
 ) {
   const seen: { session: string; operation: string; intent: unknown }[] = []
+  const facts: unknown[] = []
   const hook: CommitHook = (input, next) => {
     const { command } = input
+    if (command.kind === 'receive') facts.push(command.input.fact)
     if (command.kind !== 'control' || command.input.session === sessionId('parent')) return next()
     const { session, operation, intent } = command.input
     seen.push({ session, operation, intent })
@@ -76,7 +78,7 @@ function childControls(
     return failure === null ? next() : Promise.resolve(fail(failure))
   }
   h.view.onCommit(hook)
-  return seen
+  return Object.assign(seen, { facts })
 }
 
 describe('the cascade of an archive', () => {
@@ -154,9 +156,18 @@ describe('the cascade of an archive', () => {
       expect.not.stringMatching('archived'),
     ])
     expect(cascades(await read(h, 'parent'))).toMatchObject([{ child: 'child-1', state: 'denied' }])
-    h.clock.controls.advance(INTERVAL * 3)
-    await settle()
+    expect(seen.facts).toMatchObject([
+      { kind: 'cascade', child: 'child-1', refusal: { reason: 'denied' } },
+      { kind: 'cascade', child: 'child-2' },
+    ])
+    expect(seen.facts[1]).not.toHaveProperty('refusal')
+    const handle = succeeded(await h.instance.maintain(TENANT_A), 'maintain')
+    for (let period = 0; period < 3; period += 1) {
+      h.clock.controls.advance(30_000)
+      await settle()
+    }
     expect(seen.filter(item => item.session === sessionId('child-1'))).toHaveLength(1)
+    await handle.release()
   })
 
   it('drives a child again under the same identity when the result of its archive is not known', async () => {
@@ -202,6 +213,62 @@ describe('the cascade of an archive', () => {
     expect(seen.filter(item => item.session === sessionId('child-1'))).toHaveLength(30)
     expect(cascades(await read(h, 'parent'))).toMatchObject([
       { child: 'child-1', state: 'pending' },
+    ])
+  })
+  it('ends once no task is left: later it reads nothing and drives nothing', async () => {
+    const h = await tree()
+    succeeded(await archive(h, 'child-2'), 'archive a session without children')
+    await settle()
+    const seen = childControls(h)
+    h.view.reset()
+    h.clock.controls.advance(INTERVAL * 3)
+    await settle()
+    expect(h.view.calls()).toEqual([])
+    expect([...seen]).toEqual([])
+  })
+
+  it('drives nothing while the parent cannot be read as its maintainer, and goes on when it can', async () => {
+    const h = await tree(['parent'])
+    const seen = childControls(h)
+    succeeded(await archive(h), 'archive')
+    await settle()
+    expect([...seen]).toEqual([])
+    h.bindings.controls.bind(TENANT_A, sessionId('parent'))
+    const handle = succeeded(await h.instance.maintain(TENANT_A), 'maintain')
+    await settle()
+    expect((await read(h, 'child-2')).lifecycle).toBe('archived')
+    await handle.release()
+  })
+
+  it('records a child whose work principal is refused as denied, and drives a thrown round again', async () => {
+    const h = await tree(['child-2'])
+    let thrown = 0
+    const seen = childControls(h)
+    succeeded(await archive(h), 'archive')
+    await settle()
+    expect(cascades(await read(h, 'parent'))).toMatchObject([{ child: 'child-2', state: 'denied' }])
+    expect(seen.map(item => item.session).sort()).toEqual(['child-1', 'grandchild'])
+    expect(seen.facts).toContainEqual(
+      expect.objectContaining({ child: 'child-2', refusal: { reason: 'denied' } }),
+    )
+
+    const again = await tree()
+    again.view.onCommit((input, next) => {
+      if (input.command.kind !== 'control' || input.command.input.session === sessionId('parent'))
+        return next()
+      thrown += 1
+      if (thrown === 1) throw new Error('the storage threw')
+      return next()
+    })
+    succeeded(await archive(again), 'archive')
+    await settle()
+    expect(await lifecycles(again, ['child-1', 'child-2'])).toContain('dormant')
+    again.clock.controls.advance(INTERVAL)
+    await settle()
+    expect(await lifecycles(again, ['child-1', 'child-2', 'grandchild'])).toEqual([
+      'archived',
+      'archived',
+      'archived',
     ])
   })
 })

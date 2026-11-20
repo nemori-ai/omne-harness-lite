@@ -300,6 +300,9 @@ describe('management and derived history behavior', () => {
       { kind: 'archive', cascade: { parent: snapshot.session, control: operationId('archive') } },
       { kind: 'archive', cascade: { parent: snapshot.session, control: operationId('archive') } },
     ])
+    const release = archived.tasks.find(item => item.kind === 'scope-release')
+    expect(release).not.toHaveProperty('intent')
+    expect(release).not.toHaveProperty('parentControl')
     const [first] = tasks
     if (first === undefined) throw new Error('no cascade task')
     const fact = {
