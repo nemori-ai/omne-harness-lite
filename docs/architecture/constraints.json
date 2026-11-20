@@ -1135,6 +1135,22 @@
       "domains": ["media"],
       "status": "adopted",
       "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-protocol",
+      "paths": ["packages/media/media-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-access",
+      "paths": ["packages/media/media-access/src/**"],
+      "layer": "unknown",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
     }
   ],
   "rules": [
@@ -1701,7 +1717,9 @@
         "packages/media/media",
         "packages/media/media-storage-local",
         "packages/media/media-storage-sql",
-        "packages/media/media-image"
+        "packages/media/media-image",
+        "packages/media/media-protocol",
+        "packages/media/media-access"
       ],
       "source": "packages/media/SPEC.md"
     },
@@ -1714,7 +1732,9 @@
       "to": [
         "packages/media/media-storage-local",
         "packages/media/media-storage-sql",
-        "packages/media/media-image"
+        "packages/media/media-image",
+        "packages/media/media-protocol",
+        "packages/media/media-access"
       ],
       "source": "packages/media/SPEC.md"
     },
@@ -1725,7 +1745,9 @@
       ],
       "to": [
         "packages/media/media",
-        "packages/media/media-cordis-contract"
+        "packages/media/media-cordis-contract",
+        "packages/media/media-protocol",
+        "packages/media/media-access"
       ],
       "source": "packages/media/SPEC.md"
     },
@@ -1734,6 +1756,33 @@
       "from": [
         "packages/media/media-cordis-contract"
       ],
+      "to": [
+        "packages/media/media",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image",
+        "packages/media/media-protocol",
+        "packages/media/media-access"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-PROTOCOL",
+      "from": ["packages/media/media-protocol"],
+      "to": [
+        "packages/media/media-contract",
+        "packages/media/media-cordis-contract",
+        "packages/media/media",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image",
+        "packages/media/media-access"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-ACCESS",
+      "from": ["packages/media/media-access"],
       "to": [
         "packages/media/media",
         "packages/media/media-storage-local",

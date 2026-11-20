@@ -154,7 +154,7 @@ describe('a store that left the deployment', () => {
     const { ref } = ok(await commit())
     w.withdrawStore()
     expect(await w.media.variants.open({ tenant: T1, ref, target: null })).toEqual(storeOff)
-    expect(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8 })).toEqual(storeOff)
+    expect(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8, target: null })).toEqual(storeOff)
     expect(await w.media.custody.describe({ tenant: T1, ref })).toEqual({
       ok: { state: 'staged', facts: { kind: 'image', widthPixels: 4, heightPixels: 3 } },
     })

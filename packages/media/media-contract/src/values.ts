@@ -64,6 +64,15 @@ export type VariantFailure =
   | MaterialUnavailable
   | Readonly<{ kind: 'too-large' }>
 
+/** One page and what it is a page of: the original, or with a target the version within it. */
+export type Page = Readonly<{
+  part: Uint8Array
+  next: number | null
+  mediaType: string
+  bytes: number
+  facts: MediaFacts
+}>
+
 export type Opened = Readonly<{
   mediaType: string
   bytes: Uint8Array
@@ -131,10 +140,8 @@ export interface Reads {
     ref: ContentReference
     offset: number
     limit: number
-  }): MediaRead<
-    Readonly<{ part: Uint8Array; next: number | null }>,
-    InvalidReference | MaterialUnavailable
-  >
+    target: VariantTarget | null
+  }): MediaRead<Page, VariantFailure>
 }
 
 export interface Media {

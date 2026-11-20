@@ -87,21 +87,77 @@ describe('a request version', () => {
 })
 
 describe('reads', () => {
-  it('pages through the bytes of a medium, at most one part at a time', async () => {
+  const ORIGINAL = {
+    mediaType: 'image/png',
+    bytes: 11,
+    facts: { kind: 'image', widthPixels: 40, heightPixels: 30 },
+  }
+  const page = (w: ReturnType<typeof world>, ref: never, offset: number, limit: number) =>
+    w.media.reads.page({ tenant: T1, ref, offset, limit, target: null })
+
+  it('pages through the bytes of a medium, at most one part at a time, and says what is paged', async () => {
     const w = world()
     const { ref } = await w.staged(T1, 'up', IMAGE)
-    const first = ok(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 100 }))
-    expect(first).toEqual({ part: IMAGE.subarray(0, 8), next: 8 })
-    const second = ok(await w.media.reads.page({ tenant: T1, ref, offset: 8, limit: 2 }))
-    expect(second).toEqual({ part: IMAGE.subarray(8, 10), next: 10 })
-    expect(ok(await w.media.reads.page({ tenant: T1, ref, offset: 10, limit: 8 }))).toEqual({
+    expect(ok(await page(w, ref as never, 0, 100))).toEqual({
+      part: IMAGE.subarray(0, 8),
+      next: 8,
+      ...ORIGINAL,
+    })
+    expect(ok(await page(w, ref as never, 8, 2))).toEqual({
+      part: IMAGE.subarray(8, 10),
+      next: 10,
+      ...ORIGINAL,
+    })
+    expect(ok(await page(w, ref as never, 10, 8))).toEqual({
       part: IMAGE.subarray(10),
       next: null,
+      ...ORIGINAL,
     })
-    expect(ok(await w.media.reads.page({ tenant: T1, ref, offset: 99, limit: 8 }))).toEqual({
+    expect(ok(await page(w, ref as never, 99, 8))).toEqual({
       part: new Uint8Array(),
       next: null,
+      ...ORIGINAL,
     })
+  })
+
+  it('pages a version for display out of the version, made once, with its own type, size and facts', async () => {
+    const w = world()
+    const { ref } = await w.staged(T1, 'up', IMAGE)
+    const shown = (offset: number, limit: number) =>
+      w.media.reads.page({ tenant: T1, ref, offset, limit, target: TARGET })
+    const version = {
+      mediaType: 'image/webp',
+      bytes: 10,
+      facts: { kind: 'image', widthPixels: 20, heightPixels: 20 },
+    }
+    const first = ok(await shown(0, 4))
+    expect(first).toEqual({ part: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), next: 4, ...version })
+    expect(ok(await shown(4, 100))).toEqual({
+      part: new Uint8Array([0x0d, 0x0a, 0x1a, 0x0a, 20, 20]),
+      next: null,
+      ...version,
+    })
+    expect(ok(await shown(10, 4))).toEqual({ part: new Uint8Array(), next: null, ...version })
+    expect(w.image.fits).toEqual(['20x20'])
+  })
+
+  it('pages the original for a target the original is already within, and makes nothing', async () => {
+    const w = world()
+    const { ref } = await w.staged(T1, 'up', IMAGE)
+    const roomy = { ...TARGET, maxWidth: 40, maxHeight: 30 }
+    expect(
+      ok(await w.media.reads.page({ tenant: T1, ref, offset: 8, limit: 8, target: roomy })),
+    ).toEqual({ part: IMAGE.subarray(8), next: null, ...ORIGINAL })
+    expect(w.image.fits).toEqual([])
+  })
+
+  it('answers too large for a target no version fits', async () => {
+    const w = world()
+    const { ref } = await w.staged(T1, 'up', IMAGE)
+    const tight = { ...TARGET, maxBytes: 5 }
+    expect(
+      await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8, target: tight }),
+    ).toEqual({ failure: { kind: 'too-large' } })
   })
 
   it('hand nothing out when the bytes no longer match the digest (ME-1)', async () => {
@@ -111,7 +167,9 @@ describe('reads', () => {
     expect(await w.media.variants.open({ tenant: T1, ref, target: null })).toEqual({
       failure: { kind: 'material-unavailable' },
     })
-    expect(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8 })).toEqual({
+    expect(
+      await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8, target: null }),
+    ).toEqual({
       failure: { kind: 'material-unavailable' },
     })
   })
@@ -123,9 +181,9 @@ describe('reads', () => {
     expect(failureOf(await w.media.variants.open({ tenant: T1, ref, target: null }))).toBe(
       'material-unavailable',
     )
-    expect(failureOf(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8 }))).toBe(
-      'material-unavailable',
-    )
+    expect(
+      failureOf(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8, target: null })),
+    ).toBe('material-unavailable')
   })
   it('answer unavailable, not that the material is gone, while the store is off', async () => {
     const w = world()
@@ -133,11 +191,15 @@ describe('reads', () => {
     const storeOff = { failure: { kind: 'unavailable', dependency: 'store' } }
     w.faults.methods.set('open', 'unavailable')
     expect(await w.media.variants.open({ tenant: T1, ref, target: null })).toEqual(storeOff)
-    expect(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8 })).toEqual(storeOff)
+    expect(
+      await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8, target: null }),
+    ).toEqual(storeOff)
     w.faults.methods.clear()
-    ok(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8 }))
+    ok(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8, target: null }))
     w.faults.methods.set('open', 'unavailable')
-    expect(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8 })).toEqual(storeOff)
+    expect(
+      await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8, target: null }),
+    ).toEqual(storeOff)
   })
 
   it('answer unavailable while the index is off', async () => {
@@ -146,6 +208,8 @@ describe('reads', () => {
     w.faults.index = 'unavailable'
     const indexOff = { failure: { kind: 'unavailable', dependency: 'index' } }
     expect(await w.media.variants.open({ tenant: T1, ref, target: null })).toEqual(indexOff)
-    expect(await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8 })).toEqual(indexOff)
+    expect(
+      await w.media.reads.page({ tenant: T1, ref, offset: 0, limit: 8, target: null }),
+    ).toEqual(indexOff)
   })
 })

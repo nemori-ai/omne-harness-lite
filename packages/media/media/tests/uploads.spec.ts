@@ -207,7 +207,7 @@ describe('the same bytes twice', () => {
     expect(await w.media.variants.open({ ...asOther, target: null })).toEqual({
       failure: { kind: 'invalid-reference' },
     })
-    expect(await w.media.reads.page({ ...asOther, offset: 0, limit: 8 })).toEqual({
+    expect(await w.media.reads.page({ ...asOther, offset: 0, limit: 8, target: null })).toEqual({
       failure: { kind: 'invalid-reference' },
     })
     expect(await w.media.custody.describe(asOther)).toEqual({
