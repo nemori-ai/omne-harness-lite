@@ -47,7 +47,7 @@ export function messageText(
   text: string,
 ): string {
   return [
-    'A message from the agent of another session. It is not a report and ends no dispatch. Answer it with the command `message` of the tool `Agents`, if an answer is needed.',
+    'A message from the agent of another session. It is not a report and ends no dispatch. Answer it with the command `message` of the tool `Agents`, if an answer is needed. Then end your turn with one short line of what you did with it: a turn cannot end with no reply.',
     `From session: ${from.session}\nAgent definition: ${from.agent ?? 'unknown'}\nWhat that session is to yours: ${relation ?? 'unknown'}`,
     `Message:\n${text}`,
   ].join('\n\n')

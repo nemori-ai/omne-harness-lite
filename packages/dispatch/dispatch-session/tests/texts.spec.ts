@@ -61,7 +61,7 @@ describe('the report and the message put into a session', () => {
   it('words a message with what the sending session is to the receiving one', () => {
     expect(messageText({ session: PEER, agent: 'helper' }, 'child', 'Hello.')).toBe(
       [
-        'A message from the agent of another session. It is not a report and ends no dispatch. Answer it with the command `message` of the tool `Agents`, if an answer is needed.',
+        'A message from the agent of another session. It is not a report and ends no dispatch. Answer it with the command `message` of the tool `Agents`, if an answer is needed. Then end your turn with one short line of what you did with it: a turn cannot end with no reply.',
         `From session: ${PEER}\nAgent definition: helper\nWhat that session is to yours: child`,
         'Message:\nHello.',
       ].join('\n\n'),
