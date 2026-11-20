@@ -58,6 +58,36 @@ function processorsOf<P>(
   )
 }
 
+/** The input as the processors of its source left it; a block names the block it refused. */
+async function processed<P>(
+  dependencies: Sources<P>,
+  access: SessionAccess<P>,
+  operation: SessionCommand['input']['operation'],
+  input: Ordinary,
+  field: string,
+): Promise<Outcome<Message, SessionFailure>> {
+  const processors = processorsOf(dependencies, input)
+  if ('failure' in processors) return processors
+  const original = originalContent(input.message)
+  const screened = await screenInput({
+    processors: processors.ok,
+    original,
+    source: input.source,
+    request: { input: input.input, operation },
+    access,
+  })
+  if (screened.kind === 'screened') return succeed(screened.effective)
+  const { processor } = screened
+  if (screened.kind === 'unavailable')
+    return fail(unavailable(OWNERS.admission, `processor ${processor}: ${screened.diagnostic}`))
+  const index = original.blocks.findIndex(block => block.id === screened.block)
+  return fail({
+    kind: 'invalid',
+    field: index < 0 ? field : `${field}.blocks[${index}]`,
+    reason: `${processor}: ${screened.reason}`,
+  })
+}
+
 /** The command to commit: its input as the processors before intake left it (SE-37, SE-38). */
 export async function screenCommand<P>(
   dependencies: Sources<P>,
@@ -68,40 +98,20 @@ export async function screenCommand<P>(
   if (input === null) return succeed(command)
   const field = `${FIELD[command.kind as keyof typeof FIELD]}.message`
   const original = originalContent(input.message)
-  const refused = judgeIntakeBlocks(original)
-  if (refused?.kind === 'inline')
+  const inline = judgeIntakeBlocks(original)
+  if (inline?.kind === 'inline')
     return fail({
       kind: 'invalid',
-      field: `${field}.blocks[${refused.index}]`,
+      field: `${field}.blocks[${inline.index}]`,
       reason: 'a block of inline bytes is not accepted: upload the media and send its reference',
     })
-  let effective = original
-  if (command.kind !== 'create') {
-    const processors = processorsOf(dependencies, input)
-    if ('failure' in processors) return processors
-    const request = { input: input.input, operation: command.input.operation }
-    const screened = await screenInput({
-      processors: processors.ok,
-      original,
-      source: input.source,
-      request,
-      access,
-    })
-    if (screened.kind === 'blocked') {
-      const index = original.blocks.findIndex(block => block.id === screened.block)
-      return fail({
-        kind: 'invalid',
-        field: index < 0 ? field : `${field}.blocks[${index}]`,
-        reason: `${screened.processor}: ${screened.reason}`,
-      })
-    }
-    if (screened.kind === 'unavailable')
-      return fail(
-        unavailable(OWNERS.admission, `processor ${screened.processor}: ${screened.diagnostic}`),
-      )
-    effective = screened.effective
-  }
-  const unmeasured = judgeIntakeBlocks(effective)
+  // The first input of a new session goes through no processor: it carries words only.
+  const effective =
+    command.kind === 'create'
+      ? succeed(original)
+      : await processed(dependencies, access, command.input.operation, input, field)
+  if ('failure' in effective) return effective
+  const unmeasured = judgeIntakeBlocks(effective.ok)
   if (unmeasured !== null)
     return fail(
       unavailable(
@@ -109,5 +119,5 @@ export async function screenCommand<P>(
         `no processor before intake measured the content block ${unmeasured.block} refers to`,
       ),
     )
-  return succeed(command.kind === 'create' ? command : withMessage(command, effective))
+  return succeed(withMessage(command, effective.ok))
 }

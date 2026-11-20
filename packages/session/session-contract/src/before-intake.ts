@@ -71,12 +71,30 @@ function withinOriginal(original: Message, effective: unknown): effective is Mes
   return 'ok' in judged && digestOf(originalContent(judged.ok)) === digestOf(original)
 }
 
+const OUT_OF_BOUNDS = 'its effective content changes more than the reference blocks may gain'
+
 export type Screened =
   | Readonly<{ kind: 'screened'; effective: Message }>
   | Readonly<{ kind: 'blocked'; processor: string; block: BlockId | null; reason: string }>
   | Readonly<{ kind: 'unavailable'; processor: string; diagnostic: string }>
 
-/** Runs the processors in the order of their names. A block refuses; all but a pass is unavailable. */
+async function verdictOf<P>(
+  processor: IntakeProcessor<P>,
+  input: IntakeScreening<P>,
+): Promise<IntakeVerdict> {
+  try {
+    const verdict = await processor.run(input)
+    const known = verdict?.kind === 'pass' || verdict?.kind === 'block'
+    return known || verdict?.kind === 'unavailable'
+      ? verdict
+      : { kind: 'unavailable', diagnostic: 'no verdict' }
+  } catch (error) {
+    const thrown = error instanceof Error ? error.message : String(error)
+    return { kind: 'unavailable', diagnostic: `threw: ${thrown}` }
+  }
+}
+
+/** Runs the processors in the order of their names. A block refuses; a throw or no verdict is unavailable. */
 export async function screenInput<P>(
   input: Readonly<{ processors: readonly IntakeProcessor<P>[] }> &
     Omit<IntakeScreening<P>, 'effective'>,
@@ -84,25 +102,16 @@ export async function screenInput<P>(
   const { processors, ...given } = input
   const original = originalContent(given.original)
   let effective = original
-  for (const { name: processor, run } of processors) {
-    const unavailable = (diagnostic: string): Screened => ({
-      kind: 'unavailable',
-      processor,
-      diagnostic,
-    })
-    let verdict: IntakeVerdict
-    try {
-      verdict = await run({ ...given, original, effective })
-    } catch (error) {
-      return unavailable(`threw: ${error instanceof Error ? error.message : String(error)}`)
-    }
+  for (const each of processors) {
+    const processor = each.name
+    const verdict = await verdictOf(each, { ...given, original, effective })
     if (verdict.kind === 'block')
       return { kind: 'blocked', processor, block: verdict.block ?? null, reason: verdict.reason }
-    if (verdict.kind !== 'pass')
-      return unavailable(verdict.kind === 'unavailable' ? verdict.diagnostic : 'no verdict')
+    if (verdict.kind === 'unavailable')
+      return { kind: 'unavailable', processor, diagnostic: verdict.diagnostic }
     if (verdict.effective === undefined) continue
     if (!withinOriginal(original, verdict.effective))
-      return unavailable('its effective content changes more than the reference blocks may gain')
+      return { kind: 'unavailable', processor, diagnostic: OUT_OF_BOUNDS }
     effective = verdict.effective
   }
   return { kind: 'screened', effective }
