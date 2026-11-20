@@ -8,6 +8,7 @@ import {
   type SourceLayer,
   type ToolCallId,
   type ToolCatalog,
+  type ToolReleaseDetails,
   type ToolRevision,
   type ToolResultReceiver,
   type ToolRuntime,
@@ -34,6 +35,7 @@ import {
   type ToolResourceResponses,
   type ToolStartAuthority,
   type ToolStartFence,
+  type ToolStartReleases,
   type ToolShape,
 } from '@omne-harness/tool-contract/provider'
 
@@ -440,6 +442,19 @@ export abstract class ToolCatalogService<P> extends Service implements ToolCatal
 export const toolCatalogKey = ToolCatalogService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolReleaseDetailsService<P>
+  extends Service
+  implements ToolReleaseDetails<P>
+{
+  static readonly provide = 'toolReleaseDetails'
+  constructor(ctx: Context) {
+    super(ctx, ToolReleaseDetailsService.provide)
+  }
+  abstract readonly describe: ToolReleaseDetails<P>['describe']
+}
+export const toolReleaseDetailsKey = ToolReleaseDetailsService.provide
+
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolStartAuthorityService<P>
   extends Service
   implements ToolStartAuthority<P>
@@ -465,6 +480,16 @@ export abstract class ToolStartFenceService<P> extends Service implements ToolSt
   abstract readonly invalidate: ToolStartFence<P>['invalidate']
 }
 export const toolStartFenceKey = ToolStartFenceService.provide
+
+/** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolStartReleasesService<P> extends Service implements ToolStartReleases<P> {
+  static readonly provide = 'toolStartReleases'
+  constructor(ctx: Context) {
+    super(ctx, ToolStartReleasesService.provide)
+  }
+  abstract readonly releaseOf: ToolStartReleases<P>['releaseOf']
+}
+export const toolStartReleasesKey = ToolStartReleasesService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolResourceResponsesService<P>
@@ -541,6 +566,7 @@ declare module '@deepseek-ai/cordis' {
     toolResultPolicy: ResultPolicyService<ContentBlock>
     toolReads: ToolReadsService<unknown, ContentBlock>
     toolCatalog: ToolCatalogService<unknown>
+    toolReleaseDetails: ToolReleaseDetailsService<unknown>
     toolStartAuthority: ToolStartAuthorityService<unknown>
     toolStartFence: ToolStartFenceService<unknown>
     toolResourceResponses: ToolResourceResponsesService<unknown>

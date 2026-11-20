@@ -43,9 +43,11 @@ export function basisText(basis: ScheduleDetail['basis']): string {
     case 'owner':
       return '你本人的操作'
     case 'blanket':
-      return `你的全权同意（设置代次 ${basis.generation}）`
+      return basis.scope === 'standing'
+        ? '你的全权同意（始终放行）'
+        : '你的全权同意（只在那个会话里）'
     case 'granular':
-      return `你对一次请求的回答（${basis.decision}）`
+      return '你对这一次的放行'
     case 'none':
       return '无：还没有生效'
   }

@@ -36,7 +36,7 @@ const view = (control: string) => ({
   nextOccurrence: null,
   consentAdoption:
     control === 'active'
-      ? { grantRef: 'g', generation: 4, adoptionKind: 'blanket', scope: 'standing', adoptedAt: at }
+      ? { grantRef: 'g', adoptionKind: 'blanket', scope: 'standing', adoptedAt: at }
       : null,
 })
 const error = (code: string) => ({
@@ -137,7 +137,7 @@ describe('reads', () => {
     expect(await ops['read-schedule'](call, { tenant: tenantId, schedule: ID })).toMatchObject({
       outcome: 'succeeded',
       body: {
-        basis: { kind: 'blanket', generation: 4 },
+        basis: { kind: 'blanket', scope: 'standing' },
         author: { kind: 'agent', session: 'session-1' },
       },
     })
@@ -233,7 +233,7 @@ describe('writes', () => {
       {
         action: 'update',
         patch: { kind: 'label', label: '新名字' },
-        meta: { expectedRevision: 2, consentRef: null },
+        meta: { expectedRevision: 2 },
       },
       { action: 'resume', reason: '回来' },
     ])

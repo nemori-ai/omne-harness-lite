@@ -75,6 +75,7 @@ const action = {
   operation: { owner: 'agent', operationId: 'action-1' },
   definition: entry.asset.adoption,
   effectiveArguments: '{}',
+  gate: { id: 'run', title: '执行', default: 'ask' },
   origin: { kind: 'agent-action' },
 }
 let settingsReads = 0
@@ -257,9 +258,10 @@ checked('unmapped material retains Session and Agent missing-basis requirements'
 })
 checked('unmapped material rejects a declaration with Settings mapping', () => {
   const wrong = structuredClone(valid.output)
-  wrong.declaration.permissions[0].settings = real.manifest.entries.find(
-    e => e.asset.name === 'Shell',
-  ).governance.declaration.permissions[0].settings
+  const gated = p => p.enforcementKey === mapped.permission.enforcementKey
+  wrong.declaration.permissions.find(gated).settings = real.manifest.entries
+    .find(e => e.asset.name === 'Shell')
+    .governance.declaration.permissions.find(gated).settings
   assert.equal(permissionCurrentMaterial(wrong, mapped.permission, []), undefined)
 })
 checked('mapped material rejects a declaration without Settings mapping', () => {
@@ -309,7 +311,10 @@ checked('runtime material refuses management mode', () => {
 })
 checked('material requires exactly one definition', () => {
   const value = structuredClone(valid.output)
-  value.declaration.permissions.push(structuredClone(value.declaration.permissions[0]))
+  const gated = value.declaration.permissions.find(
+    p => p.enforcementKey === mapped.permission.enforcementKey,
+  )
+  value.declaration.permissions.push(structuredClone(gated))
   assert.equal(permissionCurrentMaterial(value, mapped.permission, []), undefined)
 })
 for (const [name, change] of [

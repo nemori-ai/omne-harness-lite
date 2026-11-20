@@ -11,7 +11,16 @@ import { doneLine, refusalLine, summaryOf, upcomingOf } from './text.ts'
 
 type Of<K extends SchedulesArguments['command']> = Extract<SchedulesArguments, { command: K }>
 export type WriteArguments = Of<
-  'create' | 'update' | 'revise' | 'replace' | 'promote' | 'pause' | 'resume' | 'stop' | 'discard'
+  | 'create'
+  | 'draft'
+  | 'update'
+  | 'revise'
+  | 'replace'
+  | 'promote'
+  | 'pause'
+  | 'resume'
+  | 'stop'
+  | 'discard'
 >
 export type ReadArguments = Of<'preview' | 'list' | 'show' | 'history' | 'recover'>
 
@@ -28,27 +37,27 @@ const NO_FILTER = {
 const invalidDefinition =
   'invalid reason=the definition does not form a schedule code=invalid_input'
 
-type Meta = Readonly<{ operationKey: string; consentRef: string | null }>
+type Meta = Readonly<{ operationKey: string }>
 type WriteRequest = Readonly<
   { create: ScheduleCreateRequest } | { execute: ScheduleCommand } | { invalid: string }
 >
 
-function createRequestOf(params: Of<'create'>['params'], meta: Meta): WriteRequest {
-  const definition = definitionOf(params.definition)
+function createRequestOf(args: Of<'create' | 'draft'>, meta: Meta): WriteRequest {
+  const definition = definitionOf(args.params.definition)
   if (!definition.success) return { invalid: invalidDefinition }
-  const { state, reason } = params
-  if (state === 'draft' && reason === undefined)
-    return { invalid: 'invalid reason=a draft needs a reason code=invalid_input' }
   return {
     create: {
       definition: definition.data,
-      initial: state === 'active' ? { kind: 'active' } : { kind: 'draft', reason: reason! },
+      initial:
+        args.command === 'create'
+          ? { kind: 'active' }
+          : { kind: 'draft', reason: args.params.reason },
       meta: { ...meta, expectedRevision: null },
     } as ScheduleCreateRequest,
   }
 }
 
-function changeOf(args: Exclude<WriteArguments, Of<'create'>>): object | undefined {
+function changeOf(args: Exclude<WriteArguments, Of<'create' | 'draft'>>): object | undefined {
   switch (args.command) {
     case 'update': {
       const { label, instruction } = args.params
@@ -74,9 +83,8 @@ function changeOf(args: Exclude<WriteArguments, Of<'create'>>): object | undefin
   }
 }
 
-/** The domain request of a write; `consentRef` names the owner's answer when there is one. */
 export function writeRequestOf(args: WriteArguments, meta: Meta): WriteRequest {
-  if (args.command === 'create') return createRequestOf(args.params, meta)
+  if (args.command === 'create' || args.command === 'draft') return createRequestOf(args, meta)
   const change = changeOf(args)
   if (change === undefined) return { invalid: invalidDefinition }
   return {

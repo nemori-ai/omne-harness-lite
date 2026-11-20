@@ -1,10 +1,14 @@
 export { decideAdmission } from './admission.ts'
 export { decideRelease } from './release.ts'
+export { GRANT_REF_TEXT_LIMIT, grantLayerOf, grantRefText, parseGrantRef } from './grant.ts'
+export type { GateRef, GrantLayer, GrantRef } from './grant.ts'
 export { RELEASE_ARGUMENTS_LIMIT, RELEASE_OPTIONS, releaseCard } from './release-card.ts'
 export type {
   ReleaseCard,
   ReleaseCardAction,
+  ReleaseCardDetail,
   ReleaseCardOption,
+  ReleaseCardRow,
   ReleaseOffer,
   ReleaseOption,
 } from './release-card.ts'

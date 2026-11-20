@@ -14,6 +14,7 @@ import {
   ToolReadsService,
   ToolStartAuthorityService,
   ToolStartFenceService,
+  ToolStartReleasesService,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { createLocalToolLedgerGuards } from './ledger-guards.ts'
 import { createLocalStartCoordinator } from './start-coordinator.ts'
@@ -139,9 +140,13 @@ export function publishRuntimeRecords(ctx: Context, records: RuntimeRecords): vo
   class Accounts extends ToolAccountsService<unknown> {
     list = accounts.list
   }
+  class Releases extends ToolStartReleasesService<unknown> {
+    releaseOf = authority.releaseOf
+  }
   new Commands(ctx)
   new Reads(ctx)
   new Authority(ctx)
   new Fence(ctx)
   new Accounts(ctx)
+  new Releases(ctx)
 }

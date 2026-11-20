@@ -18,8 +18,10 @@ import type {
   ToolPermissionDecision,
 } from '../../../src/rows/authorization/current-tool-permission.ts'
 import type { TenantPicks } from '../../../src/rows/authorization/tenant-picks.ts'
+import type { ToolReleaseDetails } from '@omne-harness/tool-contract'
 import { echoCall, toolsCall } from '../../entry/tool-call-support.ts'
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
 
 const evidence = decisionEvidence('admission-asking-test', '1', {})
 const gate = { capabilityId: 'tool.ToyEcho', enforcementKey: 'tool.invoke', basis: 'verdict-7' }
@@ -39,6 +41,10 @@ type Setup = Readonly<{
   decide?: (action: ToolPermissionAction) => ToolPermissionDecision
   picks?: TenantPicks | null
   writer?: true
+  details?: ToolReleaseDetails<unknown>
+  express?: (input: unknown) => Promise<'written'>
+  resolved?: (input: unknown) => void
+  ungated?: true
 }>
 
 async function world(setup: Setup = {}) {
@@ -59,7 +65,7 @@ async function world(setup: Setup = {}) {
         setup.decide?.(input) ??
         (input.definition.name === 'ToyEcho'
           ? { kind: 'ask', evidence, gate }
-          : { kind: 'allow', evidence, condition: null })
+          : { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE })
       )
     },
   }
@@ -75,15 +81,32 @@ async function world(setup: Setup = {}) {
     catalog: () => forward.catalog,
     view: () => forward.view,
   }
+  const resolution = createToolActionResolution(forwarding)
   const admission = createActionAdmission({
     actionRules: setup.rules ?? rules('Tools', 'ToyEcho'),
     readAdmission: () => allowing,
     readPermission: () => check,
-    readResolution: () => createToolActionResolution(forwarding),
-    readLabeling: () => createToolCallLabeling(forwarding),
+    readResolution: () => ({
+      resolve: async input => {
+        setup.resolved?.(input)
+        const answer = await resolution.resolve(input)
+        return setup.ungated && 'ok' in answer && answer.ok.kind === 'own'
+          ? { ok: { ...answer.ok, gate: { kind: 'ungated' } } }
+          : answer
+      },
+    }),
+    readLabeling: () =>
+      createToolCallLabeling({
+        ...forwarding,
+        ...(setup.details === undefined ? {} : { details: () => setup.details }),
+      }),
     ...(setup.picks === null ? {} : { readPicks: () => picks }),
     ...(setup.writer
-      ? { readAuthorizations: () => ({ express: async () => 'written' as const }) }
+      ? {
+          readAuthorizations: () => ({
+            express: setup.express ?? (async () => 'written' as const),
+          }),
+        }
       : {}),
   })
   const adoption = (name: 'Tools' | 'ToyEcho') => {
@@ -148,6 +171,7 @@ describe('an action whose gate asks', () => {
         principal: w.forward.principal,
         tenant: w.forward.tenant,
         definition: w.adoption('ToyEcho'),
+        gate: { id: 'read', title: '查看', default: 'auto' },
       },
     ])
   })
@@ -184,11 +208,118 @@ describe('an action whose gate asks', () => {
   })
 })
 
+describe('the detail on the card of an asked action', () => {
+  type Asked = Readonly<{
+    effectiveArguments: string
+    availability: { definition: { name: string } }
+  }>
+  const rows = [{ label: '命令', value: 'info' }] as const
+  const recording = () => {
+    const asked: Asked[] = []
+    const details: ToolReleaseDetails<unknown> = {
+      describe: async input => {
+        asked.push(input as unknown as Asked)
+        return { kind: 'detail', rows }
+      },
+    }
+    return { asked, details }
+  }
+  const allow = { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE } as const
+  const ask = { kind: 'ask', evidence, gate } as const
+  const detailOf = (decision: Awaited<ReturnType<Awaited<ReturnType<typeof world>>['admit']>>) => {
+    if (decision.kind !== 'need-decision') throw new Error(JSON.stringify(decision))
+    return (JSON.parse(writeJsonText(decision.card.detail!)) as { detail?: unknown }).detail
+  }
+
+  it('is asked of the tool only when the gate asks', async () => {
+    const r = recording()
+    const allowed = await world({ details: r.details, decide: () => allow })
+    expect((await allowed.admit('ToyEcho', echoCall(allowed.forward, {}))).kind).toBe('allow')
+    expect(r.asked).toEqual([])
+    const w = await world({ details: r.details })
+    expect(detailOf(await w.admit('ToyEcho', echoCall(w.forward, {})))).toEqual({
+      state: 'given',
+      rows,
+    })
+    expect(r.asked).toHaveLength(1)
+  })
+
+  it('reads the permission and the detail of an ungated call not at all', async () => {
+    const r = recording()
+    const w = await world({ details: r.details, ungated: true })
+    const allowed = await w.admit('ToyEcho', echoCall(w.forward, {}))
+    expect(allowed).toMatchObject({
+      kind: 'allow',
+      evidence: { owner: 'authorization', record: 'action-ungated' },
+    })
+    // The evidence names the rule it rests on, not an empty record.
+    expect(allowed).not.toMatchObject({
+      evidence: { digest: decisionEvidence('action-ungated', '0', {}).digest },
+    })
+    expect(w.judged).toEqual([])
+    expect(r.asked).toEqual([])
+  })
+
+  it('asks the tool for a detail once for each action of a batch that asks, and never for a batch released at once', async () => {
+    const r = recording()
+    const verdicts = [ask, allow, ask]
+    const w = await world({ details: r.details, decide: () => verdicts.shift() ?? allow })
+    const batch = { id: 'batch-1', pass: 'pass-1' }
+    for (const action of ['a1', 'a2', 'a3'])
+      await w.admit('ToyEcho', echoCall(w.forward, {}), { batch, action })
+    expect(r.asked).toHaveLength(2)
+    const released = recording()
+    const all = await world({ details: released.details, decide: () => allow })
+    for (const action of ['a1', 'a2', 'a3'])
+      await all.admit('ToyEcho', echoCall(all.forward, {}), { batch, action })
+    expect(released.asked).toEqual([])
+    expect(all.judged).toHaveLength(3)
+  })
+
+  it.each([
+    ['a call of the tool itself', 'ToyEcho'],
+    ['a call carried through Tools', 'Tools'],
+  ] as const)(
+    'is asked once, and resolution, the detail and the one-time release read the same arguments, for %s',
+    async (_what, name) => {
+      const r = recording()
+      const resolved: string[] = []
+      const expressed: Readonly<{ expression: { scope: { argumentsDigest: string } } }>[] = []
+      let granted = false
+      const w = await world({
+        details: r.details,
+        writer: true,
+        resolved: input =>
+          resolved.push((input as { effectiveArguments: string }).effectiveArguments),
+        express: async input => {
+          expressed.push(input as never)
+          granted = true
+          return 'written'
+        },
+        decide: action => (granted || action.definition.name !== 'ToyEcho' ? allow : ask),
+      })
+      const args =
+        name === 'ToyEcho'
+          ? echoCall(w.forward, {})
+          : toolsCall(w.forward, { name: 'ToyEcho', command: 'info', arguments: {} })
+      expect((await w.admit(name, args)).kind).toBe('need-decision')
+      expect((await w.admit(name, args, { decision: chose('allow-once') })).kind).toBe('allow')
+      expect(r.asked).toHaveLength(1)
+      expect(r.asked[0]!.availability.definition.name).toBe('ToyEcho')
+      const digest = (text: string) => effectiveArgumentsOf(text).digest
+      const acted = digest(r.asked[0]!.effectiveArguments)
+      expect(expressed.map(entry => entry.expression.scope.argumentsDigest)).toEqual([acted])
+      if (name === 'ToyEcho') expect(resolved.map(digest)).toEqual([acted, acted])
+      else expect(resolved).toEqual([args, args])
+    },
+  )
+})
+
 describe('what admission asks the current permission', () => {
   it('names the judging pass of a batch, and none for an action that comes with an answer', async () => {
     const w = await world({
       writer: true,
-      decide: () => ({ kind: 'allow', evidence, condition: null }),
+      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
     })
     const args = echoCall(w.forward, {})
     const batch = { id: 'batch-1', pass: 'pass-1' }
@@ -202,7 +333,9 @@ describe('what admission asks the current permission', () => {
   })
 
   it('judges a carried call as the carrier and then as its target, which names the call that carries it', async () => {
-    const w = await world({ decide: () => ({ kind: 'allow', evidence, condition: null }) })
+    const w = await world({
+      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
+    })
     const carried = toolsCall(w.forward, { name: 'ToyEcho', command: 'info', arguments: {} })
     expect(await w.admit('Tools', carried)).toMatchObject({ kind: 'allow' })
     expect(w.judged.map(action => [action.definition.name, action.carrier ?? false])).toEqual([
@@ -214,7 +347,9 @@ describe('what admission asks the current permission', () => {
     )
     expect(carrier).toBeUndefined()
     expect(target).toEqual({ definition: w.adoption('Tools'), effectiveArguments: carried })
-    const own = await world({ decide: () => ({ kind: 'allow', evidence, condition: null }) })
+    const own = await world({
+      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
+    })
     await own.admit('ToyEcho', echoCall(own.forward, {}))
     expect(own.judged[0]?.origin).not.toHaveProperty('carrier')
   })
@@ -222,7 +357,7 @@ describe('what admission asks the current permission', () => {
   it('lets a carrier no action rule names go on to its permission, and does not decide a target no rule names', async () => {
     const carrierOnly = await world({
       rules: rules('ToyEcho'),
-      decide: () => ({ kind: 'allow', evidence, condition: null }),
+      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
     })
     const carried = toolsCall(carrierOnly.forward, {
       name: 'ToyEcho',
@@ -231,7 +366,9 @@ describe('what admission asks the current permission', () => {
     })
     const unruled = await carrierOnly.admit('Tools', carried)
     expect(unruled).toMatchObject({ kind: 'allow' })
-    const ruled = await world({ decide: () => ({ kind: 'allow', evidence, condition: null }) })
+    const ruled = await world({
+      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
+    })
     const both = await ruled.admit('Tools', carried)
     if (unruled.kind !== 'allow' || both.kind !== 'allow') throw new Error('kind')
     expect(unruled.evidence.digest).toBe(both.evidence.digest)
@@ -245,7 +382,7 @@ describe('what admission asks the current permission', () => {
       decide: action =>
         action.carrier === true
           ? { kind: 'deny', category: 'rule', reason: 'permission-policy', evidence }
-          : { kind: 'allow', evidence, condition: null },
+          : { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE },
     })
     const carried = toolsCall(w.forward, { name: 'ToyEcho', command: 'info', arguments: {} })
     expect(await w.admit('Tools', carried)).toMatchObject({
@@ -286,7 +423,7 @@ describe('an action that comes with an answer', () => {
     const w = await world({
       picks: unsaved,
       writer: true,
-      decide: () => ({ kind: 'allow', evidence, condition: null }),
+      decide: () => ({ kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }),
     })
     const answer = await w.admit('ToyEcho', echoCall(w.forward, {}), {
       decision: chose('allow-always'),
@@ -308,7 +445,12 @@ describe('an action that comes with an answer', () => {
 })
 
 describe('the evidence and the refusal of a judged action', () => {
-  const allowing = () => ({ kind: 'allow' as const, evidence, condition: null })
+  const allowing = () => ({
+    kind: 'allow' as const,
+    evidence,
+    condition: null,
+    release: VERDICT_RELEASE,
+  })
   const target = { owner: 'agent', kind: 'action', key: canonicalText(['e', 'p', 'a']) }
   const ruleEvidence = (rulesGiven: ReturnType<typeof rules>, id: string, args: string) => {
     const rule = actionRulesSchema.parse(rulesGiven).rules.find(item => item.id === id)

@@ -1,7 +1,14 @@
 import { GovernanceDefinitionBundleSchema } from '@omne-harness/governance-contract'
 import { projectPermissionSettings, type PermissionDefinition } from '@omne-harness/permissions'
 import { canonicalDigest } from '@omne-harness/tool'
-import type { Adoption } from '@omne-harness/tool-contract'
+import {
+  commandGateOf,
+  toolGatesOf,
+  type Adoption,
+  type ToolDefinition,
+  type ToolGate,
+  type ToolImplementationShape,
+} from '@omne-harness/tool-contract'
 import { z } from 'zod'
 import type { ReleaseToolName } from './tool-release-manifest.ts'
 import {
@@ -12,14 +19,43 @@ import {
 export const TOOL_GOVERNANCE_OWNER = 'harness-server.tool-release'
 export const toolPermissionReleaseSchema = z.strictObject({
   declaration: GovernanceDefinitionBundleSchema,
-  interpretations: z.array(permissionInterpretationSchema).length(1),
+  interpretations: z.array(permissionInterpretationSchema),
 })
 export type ToolPermissionRelease = z.infer<typeof toolPermissionReleaseSchema>
 
-function invocationPolicy(name: string) {
+export const releasedGateSchema = z.strictObject({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  default: z.enum(['deny', 'ask', 'auto']),
+  commands: z.array(z.string().min(1)),
+})
+export type ReleasedGate = z.infer<typeof releasedGateSchema>
+
+export function toolEnforcementKey(gate: Pick<ToolGate, 'id'>): string {
+  return `tool.${gate.id}`
+}
+
+export function releasedGatesOf(
+  definition: Pick<ToolDefinition, 'kind'> & ToolImplementationShape,
+  named: readonly string[],
+): ReleasedGate[] {
+  const commands = definition.kind === 'commands' ? definition.commands.map(c => c.name) : [null]
+  return toolGatesOf(definition).flatMap(gate => {
+    const own = commands.filter(command => {
+      const found = commandGateOf(definition, command, named)
+      return found.kind === 'gate' && found.gate.id === gate.id
+    })
+    return own.length === 0
+      ? []
+      : [{ ...gate, commands: own.filter((name): name is string => name !== null) }]
+  })
+}
+
+function gatePolicy(name: string, gate: ReleasedGate) {
+  const commands = gate.commands.length === 0 ? '' : `（${gate.commands.join('、')}）`
   return {
-    title: `${name} 调用权限`,
-    description: `控制 ${name} 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。`,
+    title: `${name}：${gate.title}`,
+    description: `控制 ${name} 工具里归「${gate.title}」的命令${commands}。允许调用不代表执行环境可用或操作一定成功。`,
     approvalEffect: '在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。',
     supportedScopes: [
       { kind: 'one-time-call', description: '仅允许原调用及其原参数。' },
@@ -40,7 +76,7 @@ function invocationPolicy(name: string) {
         [2, 1, 0],
       ],
     },
-    defaultRule: { pick: 'ask', allowedSet: null },
+    defaultRule: { pick: gate.default, allowedSet: null },
     effects: [
       { value: 'deny', effect: 'deny' },
       { value: 'ask', effect: 'need-decision' },
@@ -68,6 +104,7 @@ type ControlledTool = {
   adoption: Adoption
   module: { package: string; export: string; executor: Adoption; artifacts: string }
   definition: string
+  gates: readonly ReleasedGate[]
 }
 
 export function toolPermissionRelease(input: ControlledTool): ToolPermissionRelease {
@@ -76,47 +113,59 @@ export function toolPermissionRelease(input: ControlledTool): ToolPermissionRele
 }
 
 function releaseAtVersion(input: ControlledTool, version: string): ToolPermissionRelease {
-  const policy = invocationPolicy(input.name)
   const origin = {
     kind: 'asset' as const,
     assetId: `harness.tool.${input.name}`,
     releaseRef: `harness.tool.${input.name}/${version}`,
   }
-  const { effects, interpretationRef, ...rules } = policy
-  const permission: PermissionDefinition = {
-    ...rules,
-    reference: { origin, itemId: 'invoke', revision: version },
-    capabilityId: `tool.${input.name}`,
-    enforcementKey: 'tool.invoke',
-    settings: {
-      providerId: TOOL_GOVERNANCE_OWNER,
-      definitionId: `tool.${input.name}.permissions`,
-      version,
-      itemId: 'invoke',
-      groupId: `tool.${input.name}`,
-      groupTitle: `${input.name} 工具`,
-      groupDescription: `${input.name} 调用的权限规则。`,
-    },
-  }
-  const projection = projectPermissionSettings(permission)
-  if (projection.kind !== 'projected') throw new Error('Tool permission release is invalid')
-  const binding = {
-    capabilityId: permission.capabilityId,
-    enforcementKey: permission.enforcementKey,
-    implementationRef: `tool/${canonicalDigest(input).slice(7)}`,
-    action: 'invoke',
-    interpretationRef,
-  }
+  const implementationRef = `tool/${canonicalDigest(input).slice(7)}`
+  const gates = input.gates.map(gate => {
+    const { effects, interpretationRef, ...rules } = gatePolicy(input.name, gate)
+    const permission: PermissionDefinition = {
+      ...rules,
+      reference: { origin, itemId: gate.id, revision: version },
+      capabilityId: `tool.${input.name}`,
+      enforcementKey: toolEnforcementKey(gate),
+      settings: {
+        providerId: TOOL_GOVERNANCE_OWNER,
+        definitionId: `tool.${input.name}.permissions`,
+        version,
+        itemId: gate.id,
+        groupId: `tool.${input.name}`,
+        groupTitle: `${input.name} 工具`,
+        groupDescription: `${input.name} 调用的权限规则。`,
+      },
+    }
+    const projection = projectPermissionSettings(permission)
+    if (projection.kind !== 'projected') throw new Error('Tool permission release is invalid')
+    const binding = {
+      capabilityId: permission.capabilityId,
+      enforcementKey: permission.enforcementKey,
+      implementationRef,
+      action: 'invoke',
+      interpretationRef,
+    }
+    return { permission, settings: projection.definition, binding, effects }
+  })
+  const [first] = gates
+  const settings =
+    first === undefined
+      ? []
+      : [{ ...first.settings, items: gates.flatMap(gate => gate.settings.items) }]
   const reference = { ownerId: TOOL_GOVERNANCE_OWNER, definitionId: `tool.${input.name}`, version }
   const body = {
     reference,
     origin,
-    settings: [projection.definition],
-    permissions: [permission],
-    enforcementBindings: [binding],
+    settings,
+    permissions: gates.map(gate => gate.permission),
+    enforcementBindings: gates.map(gate => gate.binding),
   }
   return toolPermissionReleaseSchema.parse({
     declaration: { ...body, reference: { ...reference, digest: canonicalDigest(body).slice(7) } },
-    interpretations: [{ binding, definition: permission, effects }],
+    interpretations: gates.map(({ binding, permission, effects }) => ({
+      binding,
+      definition: permission,
+      effects,
+    })),
   })
 }

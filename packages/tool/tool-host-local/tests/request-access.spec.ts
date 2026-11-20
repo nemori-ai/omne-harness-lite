@@ -345,3 +345,103 @@ describe('current request policy at the local start boundary', () => {
     },
   )
 })
+
+describe('what a start was released on', () => {
+  const start = async (f: ReturnType<typeof fixture>) => {
+    const permit = ok(await f.prepare())
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
+    expect(ok(await f.authority.consume(input)).kind).toBe('started')
+  }
+
+  it.each([
+    ['a verdict', { by: 'verdict', grant: '{"via":"verdict"}' }],
+    ['a once authorization', { by: 'once', grant: '{"via":"once"}' }],
+    ['a session authorization', { by: 'session', grant: '{"via":"session-grant"}' }],
+    ['a carrier', { by: 'carrier', grant: null }],
+    ['an ungated command', { by: 'ungated', grant: null }],
+  ] as const)(
+    'records the release on %s with the acceptance and reads it back',
+    async (_, release) => {
+      const f = fixture(async () => ({ kind: 'allowed', condition: null, release }))
+      expect(ok(await f.authority.releaseOf(f.call))).toEqual({ kind: 'absent' })
+      await start(f)
+      expect(ok(await f.authority.releaseOf(f.call))).toEqual({ kind: 'released', release })
+    },
+  )
+
+  it('reads the release of the latest acceptance when a call is started again, and only an acceptance', async () => {
+    let release = { by: 'verdict', grant: '{"via":"verdict"}' }
+    const f = fixture(async () => ({ kind: 'allowed', condition: null, release }) as never)
+    await start(f)
+    const again = (generation: string) => ({
+      ...f.start,
+      operation: `${f.start.operation}/${generation}` as never,
+      execution: { ...f.start.execution, generation },
+    })
+    const startAgain = async (generation: string) => {
+      const next = again(generation)
+      const permit = ok(await f.authority.prepare({ ...f.call, start: next, request: f.fixed }))
+      const input = { ...f.call, start: next, permit, executorReceipt: evidence('executor') }
+      return ok(await f.authority.consume({ ...input, request: f.fixed })).kind
+    }
+    release = { by: 'once', grant: '{"via":"once"}' }
+    expect(await startAgain('2')).toBe('started')
+    expect(ok(await f.authority.releaseOf(f.call))).toEqual({ kind: 'released', release })
+    ok(await f.authority.prepare({ ...f.call, start: again('3'), request: f.fixed }))
+    expect(ok(await f.authority.inspect({ ...f.call, start: again('3') })).kind).toBe('not-started')
+    expect(ok(await f.authority.releaseOf(f.call))).toEqual({ kind: 'released', release })
+  })
+
+  it('answers invalid for a read that names no call', async () => {
+    const f = fixture(allowed)
+    expect(await f.authority.releaseOf({ ...f.call, call: '' } as never)).toMatchObject({
+      failure: { kind: 'invalid' },
+    })
+  })
+
+  it('reads no release for a start the policy released without one', async () => {
+    const f = fixture(allowed)
+    await start(f)
+    expect(ok(await f.authority.releaseOf(f.call))).toEqual({ kind: 'absent' })
+  })
+
+  it.each([
+    ['an unknown way', { by: 'guessed', grant: null }],
+    ['a grant on a carrier', { by: 'carrier', grant: '{"via":"once"}' }],
+    ['no grant on a verdict', { by: 'verdict', grant: null }],
+    ['an empty grant', { by: 'session', grant: '' }],
+  ])('accepts nothing when the release is %s', async (_, release) => {
+    let healthy = true
+    const f = fixture(async () =>
+      healthy
+        ? { kind: 'allowed', condition: null }
+        : ({ kind: 'allowed', condition: null, release } as never),
+    )
+    const permit = ok(await f.prepare())
+    healthy = false
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
+    expect(ok(await f.authority.consume(input)).kind).toBe('unknown')
+    expect(await f.acceptanceCount()).toBe(0)
+  })
+
+  it('answers unavailable when the start ledger cannot be read', async () => {
+    const f = fixture(async () => ({
+      kind: 'allowed',
+      condition: null,
+      release: { by: 'skip-ask', grant: '{"via":"skip-ask"}' },
+    }))
+    await start(f)
+    const broken = createLocalStartCoordinator({
+      store: {
+        ...f.memory,
+        read: async () => ({ kind: 'unavailable', diagnostic: 'fixture down' }),
+      } as never,
+      access: access(),
+      guardsOf: () => [],
+      permitRequirements: noPermitRequirements,
+      commitAttempts: 2,
+    })
+    const read = await broken.releaseOf(f.call)
+    expect(read).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+})

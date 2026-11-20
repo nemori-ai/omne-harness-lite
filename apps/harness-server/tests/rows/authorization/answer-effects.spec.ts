@@ -8,6 +8,7 @@ import { onceTarget } from '../../../src/rows/authorization/authorization-facts.
 import type { AnswerEffect } from '../../../src/rows/authorization/release-asking.ts'
 import type { TenantPicks } from '../../../src/rows/authorization/tenant-picks.ts'
 import { effectiveArgumentsOf } from '@omne-harness/authorization'
+import { IMPLICIT_TOOL_GATE } from '@omne-harness/tool-contract'
 
 const card = { owner: 'human-intervention', record: 'card/1', revision: '1', digest: 'card' }
 const source = { owner: 'human-intervention', record: 'reply/1', revision: '1', digest: 'said' }
@@ -18,7 +19,7 @@ const answered: Answered = {
   tenant: 'tenant' as never,
   session: 'ses-1',
   consumer: { owner: '@omne-harness/agent', work: 'exe-1', position: 'act-1' },
-  gate: { definition, effectiveArguments: '{"command":"run"}' },
+  gate: { definition, effectiveArguments: '{"command":"run"}', gate: IMPLICIT_TOOL_GATE },
 }
 const once = {
   kind: 'once',

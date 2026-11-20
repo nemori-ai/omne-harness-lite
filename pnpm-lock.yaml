@@ -3994,9 +3994,6 @@ importers:
 
   packages/notification/notification-tools:
     dependencies:
-      '@omne-harness/human-intervention-tool':
-        specifier: workspace:*
-        version: link:../../human-intervention/human-intervention-tool
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -4207,9 +4204,6 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
-      '@omne-harness/assets-cordis-contract':
-        specifier: workspace:*
-        version: link:../../assets/assets-cordis-contract
       '@omne-harness/calendar':
         specifier: workspace:*
         version: link:../../calendar/calendar
@@ -4225,9 +4219,6 @@ importers:
       '@omne-harness/schedule-cordis-contract':
         specifier: workspace:*
         version: link:../schedule-cordis-contract
-      '@omne-harness/settings':
-        specifier: workspace:*
-        version: link:../../assets/settings
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract
@@ -4284,9 +4275,6 @@ importers:
 
   packages/schedule/schedule-tools:
     dependencies:
-      '@omne-harness/human-intervention-tool':
-        specifier: workspace:*
-        version: link:../../human-intervention/human-intervention-tool
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text

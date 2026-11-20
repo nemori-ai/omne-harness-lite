@@ -59,6 +59,7 @@ import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
 import { ownResolution } from './own-resolution.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
 
 const A = fixtureTenant('a')
 const B = fixtureTenant('b')
@@ -1278,6 +1279,7 @@ describe('agentActionAdmission', () => {
             kind: 'allow',
             evidence: decisionEvidence('permission-fixture', '1', request.operation),
             condition: null,
+            release: VERDICT_RELEASE,
           }
         },
       }),
@@ -1379,6 +1381,7 @@ describe('agentActionAdmission', () => {
         check: async input => ({
           kind: 'allow',
           condition: null,
+          release: VERDICT_RELEASE,
           evidence: decisionEvidence('permission-fixture', '1', {
             operation: input.operation,
             arguments: input.effectiveArguments,
@@ -1675,11 +1678,9 @@ describe('the row', () => {
     }
     try {
       const admission = ctx.agentActionAdmission
+      // The judged definition is in no catalog of this tree, so its action cannot be resolved.
       expect(await admission.admit(input as never)).toMatchObject({
-        ok: {
-          kind: 'unavailable',
-          diagnostic: 'No permission declaration names this capability and gate.',
-        },
+        ok: { kind: 'unavailable', diagnostic: 'the action could not be resolved now' },
       })
       await row.dispose()
       expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
@@ -1845,11 +1846,9 @@ describe('the row', () => {
     expect(answers['holder']).toMatchObject({ kind: 'allowed' })
     expect(answers['intruder']).toEqual({ kind: 'denied' })
     expect(answers['agent']).toMatchObject({ kind: 'allowed' })
+    // The judged definition is in no catalog of this tree, so its action cannot be resolved.
     expect(answers['admission']).toMatchObject({
-      ok: {
-        kind: 'unavailable',
-        diagnostic: 'No permission declaration names this capability and gate.',
-      },
+      ok: { kind: 'unavailable', diagnostic: 'the action could not be resolved now' },
     })
     expect(answers['broken']).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify([answers, run.records, run.stderr])).not.toContain('SECRET-TEXT')

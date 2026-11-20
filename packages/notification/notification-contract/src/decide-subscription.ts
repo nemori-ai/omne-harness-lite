@@ -5,7 +5,6 @@ import {
   eventTypeNameSchema,
   levelSchema,
   noteSchema,
-  recipientKey,
   recipientRefSchema,
   sameRecipient,
   scopeSchema,
@@ -13,10 +12,7 @@ import {
   termSchema,
   type Basis,
   type Instant,
-  type Level,
   type RecipientRef,
-  type TenantId,
-  type Term,
 } from './values.ts'
 
 export const subscriptionKeySchema = z
@@ -41,13 +37,18 @@ export const subscriptionChangeSchema = z
   .readonly()
 export type SubscriptionChange = z.infer<typeof subscriptionChangeSchema>
 
-/** How the owner lets agents subscribe: every request takes effect, or each one is confirmed. */
-export type ConsentMode =
-  | Readonly<{ kind: 'automatic'; generation: number }>
-  | Readonly<{ kind: 'per-request' }>
+/** What the call an agent subscribes in was released on: all of it, or this one act; held for the
+ * tenant or for the session; and the reference to the authorization, kept as it was minted. */
+export type ConsentBasis = Readonly<{
+  kind: 'blanket' | 'granular'
+  scope: 'standing' | 'session'
+  grant: string
+}>
 
-/** The owner's answer on one card. `content` is what the owner saw when answering. */
-export type Confirmation = Readonly<{ decision: string; content: string; approved: boolean }>
+export type ConsentAnswer =
+  | Readonly<{ kind: 'consented'; basis: ConsentBasis }>
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'unavailable' }>
 
 export type SubscriptionActor =
   | Readonly<{ kind: 'owner' }>
@@ -62,27 +63,13 @@ export type SubscriptionRefusal =
   | 'not-subscribable'
   | 'scope-does-not-fit'
   | 'not-own-recipient'
-  | 'confirmation-mismatch'
+  | 'consent-required'
 
 export type SubscriptionDecision =
   | Readonly<{ kind: 'set'; basis: Basis }>
   | Readonly<{ kind: 'recalled'; current: Subscription }>
-  | Readonly<{ kind: 'needs-confirmation'; content: string }>
+  | Readonly<{ kind: 'needs-consent' }>
   | Readonly<{ kind: 'refused'; reason: SubscriptionRefusal }>
-
-const RANK: Record<Level, number> = { off: 0, weak: 1, strong: 2 }
-
-/** The exact content an owner confirms: a confirmation of other content does not match. */
-export function confirmationContent(tenant: TenantId, change: SubscriptionChange): string {
-  const { recipient, source, type, scope, level, note, term } = change
-  return JSON.stringify([tenant, recipientKey(recipient), source, type, scope, level, note, term])
-}
-
-function notLonger(next: Term, current: Term): boolean {
-  if (current.kind === 'standing') return true
-  if (current.kind === 'once') return next.kind === 'once'
-  return next.kind === 'until' && next.at <= current.at
-}
 
 function scopeFits(change: SubscriptionChange, declared: EventTypeDeclaration): boolean {
   const { scope } = change
@@ -92,27 +79,12 @@ function scopeFits(change: SubscriptionChange, declared: EventTypeDeclaration): 
 }
 
 export type SubscriptionDecisionInput = Readonly<{
-  tenant: TenantId
   change: SubscriptionChange
   current: Subscription | null
   actor: SubscriptionActor
   declared: EventTypeDeclaration
-  /** Read only when an agent subscribes anew or raises a subscription. */
-  mode: ConsentMode | null
-  confirmation: Confirmation | null
   now: Instant
 }>
-
-function consent(input: SubscriptionDecisionInput): SubscriptionDecision {
-  const { mode, confirmation, tenant, change } = input
-  if (mode?.kind === 'automatic')
-    return { kind: 'set', basis: { kind: 'blanket', generation: mode.generation } }
-  const content = confirmationContent(tenant, change)
-  if (confirmation === null) return { kind: 'needs-confirmation', content }
-  return confirmation.approved && confirmation.content === content
-    ? { kind: 'set', basis: { kind: 'granular', decision: confirmation.decision } }
-    : { kind: 'refused', reason: 'confirmation-mismatch' }
-}
 
 function admissibility(input: SubscriptionDecisionInput): SubscriptionRefusal | null {
   const { change, declared, actor, now } = input
@@ -131,24 +103,37 @@ function unchanged(current: Subscription, change: SubscriptionChange): boolean {
   )
 }
 
-/** Lower or equal level, the same note, a term that is not longer: this needs nobody's consent. */
-function lowers(current: Subscription, change: SubscriptionChange): boolean {
-  return (
-    RANK[change.level] <= RANK[current.level] &&
-    current.note === change.note &&
-    notLonger(change.term, current.term)
-  )
-}
-
-/** Whether setting a subscription takes effect, needs the owner's confirmation, or is refused. */
+/** Whether setting a subscription takes effect, is recalled, is refused, or needs the consent the
+ * agent's call was released on. Every change an agent writes needs it, a lower one too. */
 export function decideSubscription(input: SubscriptionDecisionInput): SubscriptionDecision {
   const { change, actor, now } = input
   const refusal = admissibility(input)
   if (refusal !== null) return { kind: 'refused', reason: refusal }
   const current = input.current !== null && isLive(input.current, now) ? input.current : null
   if (current !== null && unchanged(current, change)) return { kind: 'recalled', current }
-  if (actor.kind === 'owner') return { kind: 'set', basis: { kind: 'owner' } }
-  return current !== null && lowers(current, change)
-    ? { kind: 'set', basis: current.basis }
-    : consent(input)
+  return actor.kind === 'owner'
+    ? { kind: 'set', basis: { kind: 'owner' } }
+    : { kind: 'needs-consent' }
+}
+
+export type ConsentOutcome =
+  | Readonly<{ kind: 'basis'; basis: Basis }>
+  | Readonly<{ kind: 'refused'; reason: 'consent-required' }>
+  | Readonly<{ kind: 'unavailable' }>
+
+/** The basis a consent gives a subscription. A granular consent is always of this session. */
+export function consentBasis(answer: ConsentAnswer): ConsentOutcome {
+  switch (answer.kind) {
+    case 'consented': {
+      const { kind, scope, grant } = answer.basis
+      return {
+        kind: 'basis',
+        basis: kind === 'blanket' ? { kind, scope, grant } : { kind, grant },
+      }
+    }
+    case 'none':
+      return { kind: 'refused', reason: 'consent-required' }
+    case 'unavailable':
+      return { kind: 'unavailable' }
+  }
 }

@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import type { ConsentModes } from '@omne-harness/notification'
 import { instantSchema, type Instant } from '@omne-harness/notification-contract'
 import {
   notificationCatalogKey,
@@ -39,15 +38,14 @@ import {
   type TenantDomainRegistration,
 } from '../governance/tenant-domain-registration-service.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
+import { callConsent } from '../tool-bindings/call-consent.ts'
 import { createNotificationAuthority } from './authority.ts'
+import { subscriptionConsents } from './consent.ts'
 import { createTenantBindings, NOTIFICATION_PARTICIPANTS, type Combination } from './binding.ts'
 import { OWNER_POSTS } from './owner-source.ts'
 import { createStandingItemsReader, standingContribution } from './standing.ts'
 
 export const notificationConfig = z.strictObject({ policy: notificationPolicySchema })
-
-/** The owner confirms each subscription an agent asks for. A setting that lets them stand comes with the agent's half. */
-export const CONFIRM_EACH: ConsentModes = { mode: async () => ({ kind: 'per-request' }) }
 
 function now(): Instant {
   const instant = readSystemInstant()
@@ -112,7 +110,7 @@ export const notificationRow = defineRow({
       sql: bindings,
       ports: {
         authority: createNotificationAuthority(),
-        consent: CONFIRM_EACH,
+        consent: subscriptionConsents(callConsent(ctx)),
         standing: createStandingItemsReader<unknown>({
           scope: () => ctx.get(runtimeContextTenantScopeKey),
           principal: async tenant => ctx.get(tenantScopePrincipalsKey)?.forTenant(tenant) ?? null,

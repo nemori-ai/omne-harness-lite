@@ -1,6 +1,10 @@
 import type { AccessVerdict, StartVerdict, ToolStartGuard } from '@omne-harness/tool'
 import type { StartCoordinatorAccess } from './start-coordinator.ts'
-import type { ToolPermitConsumption, ToolPermitRef } from '@omne-harness/tool-contract/provider'
+import type {
+  ToolPermitConsumption,
+  ToolPermitRef,
+  ToolStartRelease,
+} from '@omne-harness/tool-contract/provider'
 import { z } from 'zod'
 import type { RequestAccessVerdict, StartCondition, ToolRequestAccess } from './ledger-guards.ts'
 
@@ -25,25 +29,53 @@ const consumptions: z.ZodType<readonly ToolPermitConsumption[]> = z
       .readonly(),
   )
   .readonly()
+const releases: z.ZodType<ToolStartRelease> = z.union([
+  z.object({ by: z.enum(['verdict', 'once', 'session', 'skip-ask']), grant: text }).readonly(),
+  z.object({ by: z.enum(['carrier', 'ungated']), grant: z.null() }).readonly(),
+])
 // What the provider answered is read as data: a shape it does not have answers unavailable.
 const answered = z.union([
   z.object({
     kind: z.literal('allowed'),
     condition: z.custom<StartCondition | null>(value => typeof value === 'object'),
     authorizations: z.unknown().optional(),
+    release: z.unknown().optional(),
   }),
   z.object({ kind: z.literal('denied'), reason: z.string() }),
   z.object({ kind: z.literal('unavailable'), diagnostic: z.string() }),
 ])
 
-// Absent is none; anything present must be a whole list of consumptions, or the answer is malformed.
-function allowed(condition: StartCondition | null, authorizations: unknown): RequestAccessVerdict {
-  if (authorizations === undefined) return { kind: 'allowed', condition }
-  const read = consumptions.safeParse(authorizations)
-  if (!read.success) return { kind: 'unavailable', diagnostic: MALFORMED }
-  return read.data.length === 0
-    ? { kind: 'allowed', condition }
-    : { kind: 'allowed', condition, authorizations: read.data }
+// Absent is none; anything present must be a whole list of consumptions and a whole release.
+function allowed(
+  condition: StartCondition | null,
+  authorizations: unknown,
+  release: unknown,
+): RequestAccessVerdict {
+  const consumed = consumptions.safeParse(authorizations === undefined ? [] : authorizations)
+  const released = release === undefined ? null : releases.safeParse(release)
+  if (!consumed.success || released?.success === false)
+    return { kind: 'unavailable', diagnostic: MALFORMED }
+  return {
+    kind: 'allowed',
+    condition,
+    ...(consumed.data.length === 0 ? {} : { authorizations: consumed.data }),
+    ...(released === null ? {} : { release: released.data }),
+  }
+}
+
+/** What an allowed start records with its acceptance besides the permit. */
+export type AcceptedFacts = Readonly<{
+  authorizations?: readonly ToolPermitConsumption[]
+  release?: ToolStartRelease
+}>
+
+export function acceptedFacts(
+  verdict: Extract<RequestAccessVerdict, { kind: 'allowed' }>,
+): AcceptedFacts {
+  return {
+    ...(verdict.authorizations === undefined ? {} : { authorizations: verdict.authorizations }),
+    ...(verdict.release === undefined ? {} : { release: verdict.release }),
+  }
 }
 
 export async function qualifyRequestAccess<P>(
@@ -60,7 +92,9 @@ export async function qualifyRequestAccess<P>(
   if (result?.success !== true)
     return { kind: 'unavailable', diagnostic: 'request-access unavailable' }
   const verdict = result.data
-  return verdict.kind === 'allowed' ? allowed(verdict.condition, verdict.authorizations) : verdict
+  return verdict.kind === 'allowed'
+    ? allowed(verdict.condition, verdict.authorizations, verdict.release)
+    : verdict
 }
 
 export function createLocalStartGuard<P>(input: LocalStartGuardInput<P>): ToolStartGuard<P> {

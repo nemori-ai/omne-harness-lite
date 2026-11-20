@@ -335,6 +335,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'toolReads',
       'toolStartAuthority',
       'toolStartFence',
+      'toolStartReleases',
       'toolInvocationQualification',
     ],
     injects: [
@@ -347,7 +348,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     group: 'tool-start',
   },
   'tool-bindings': {
-    provides: ['toolBindings', 'toolCatalog'],
+    provides: ['toolBindings', 'toolCatalog', 'toolReleaseDetails'],
     injects: ['toolContributionAuthority'],
   },
   skills: {

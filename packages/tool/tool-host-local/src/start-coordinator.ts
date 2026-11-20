@@ -11,7 +11,7 @@ import {
   type LedgerWrite,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
-import type { ToolPermitConsumption } from '@omne-harness/tool-contract/provider'
+import { startReleases, type StartAuthorityWithReleases } from './start-releases.ts'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -44,7 +44,7 @@ import {
   type StartPermitRequirements,
 } from './start-permit-requirements.ts'
 import type { ConditionalLedgerCommit, StartCondition, ToolRequestAccess } from './ledger-guards.ts'
-import { qualifyRequestAccess } from './start-guard.ts'
+import { acceptedFacts, qualifyRequestAccess, type AcceptedFacts } from './start-guard.ts'
 
 type TenantId = LedgerDomain['tenant']
 
@@ -104,16 +104,16 @@ type PermitRecord = Readonly<{
   requestBinding?: string
   requirementSource?: DurableEvidence
 }>
-type AcceptanceRecord = Readonly<{
-  kind: 'acceptance'
-  call: ToolCallId
-  start: ToolOperationId
-  permit: string
-  executorReceipt: DurableEvidence
-  acceptance: DurableEvidence
-  requirementSource?: DurableEvidence
-  authorizations?: readonly ToolPermitConsumption[]
-}>
+type AcceptanceRecord = AcceptedFacts &
+  Readonly<{
+    kind: 'acceptance'
+    call: ToolCallId
+    start: ToolOperationId
+    permit: string
+    executorReceipt: DurableEvidence
+    acceptance: DurableEvidence
+    requirementSource?: DurableEvidence
+  }>
 type RejectionRecord = Readonly<{
   kind: 'rejection'
   call: ToolCallId
@@ -569,7 +569,7 @@ function snapshotOf(
 
 export function createLocalStartCoordinator<P>(
   input: LocalStartCoordinatorInput<P>,
-): ToolStartAuthority<P> {
+): StartAuthorityWithReleases<P> {
   const { store, access, guardsOf, commitAttempts, permitRequirements } = input
   const requestAccess = input.requestAccess?.access
   const commitWith: ConditionalLedgerCommit['commit'] =
@@ -903,7 +903,7 @@ export function createLocalStartCoordinator<P>(
           permit: permit.ok.digest,
           executorReceipt: receipt.ok,
           requirementSource: requirement.source,
-          ...(policy.authorizations === undefined ? {} : { authorizations: policy.authorizations }),
+          ...acceptedFacts(policy),
         }
         const acceptance = mint(tenant, key, revision, facts)
         const accepted: AcceptanceRecord = { kind: 'acceptance', call, start, ...facts, acceptance }
@@ -1050,6 +1050,6 @@ export function createLocalStartCoordinator<P>(
     )
   }
 
-  const authority: ToolStartAuthority<P> = { exclude, prepare, consume, inspect, invalidate }
-  return Object.freeze(authority)
+  const releaseOf = startReleases<P>(callEntry, read, startDomain)
+  return Object.freeze({ exclude, prepare, consume, inspect, invalidate, releaseOf })
 }

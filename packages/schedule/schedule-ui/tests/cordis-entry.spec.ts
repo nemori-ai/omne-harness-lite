@@ -1,13 +1,15 @@
 import { expect, it } from 'vitest'
 
-it('the cordis entry gives the module and its page placement only; the module waits for the schedule client', async () => {
+it('the cordis entry gives the module factory and its placements only; the module waits for the schedule client', async () => {
   const cordis = (await import('@omne-harness/schedule-ui/cordis')) as Record<string, unknown>
   expect(Object.keys(cordis).sort()).toEqual([
+    'ACTIVATION_DETAIL_ID',
     'SCHEDULE_PAGE_ID',
     'SCHEDULE_PAGE_ORDER',
-    'scheduleUiModule',
+    'createScheduleUiModule',
   ])
-  expect(cordis['scheduleUiModule']).toMatchObject({
+  const create = cordis['createScheduleUiModule'] as () => unknown
+  expect(create()).toMatchObject({
     name: 'schedule-ui',
     inject: ['shell', 'protocol:schedule/v1'],
   })

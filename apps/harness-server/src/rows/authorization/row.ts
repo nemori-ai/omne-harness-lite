@@ -44,7 +44,7 @@ import { createTenantPicks } from './tenant-picks.ts'
 import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
 import { tenantSettingsKey } from '../governance/tenant-settings-service.ts'
 import { currentPermissionOf } from './current-permission.ts'
-import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
+import { toolCatalogKey, toolReleaseDetailsKey } from '@omne-harness/tool-cordis-contract/cordis'
 import {
   createToolActionResolution,
   createToolCallLabeling,
@@ -130,7 +130,10 @@ const plugin: Plugin.Object = {
       view: () => releaseCatalogViewOf(ctx),
     }
     const resolution = createToolActionResolution(forwarding)
-    const labeling = createToolCallLabeling(forwarding)
+    const labeling = createToolCallLabeling({
+      ...forwarding,
+      details: () => ctx.get(toolReleaseDetailsKey, false),
+    })
     const authorizations = sessionAuthorizationWriter(ctx)
     const picks = createTenantPicks({
       declarations: () => permissionDeclarationsOf(ctx),

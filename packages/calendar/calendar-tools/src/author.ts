@@ -209,6 +209,7 @@ export function createCalendarAuthor(
     },
     encoding: ENCODING,
     guide,
+    gates: [{ id: 'invoke', title: '日历计算', default: 'auto' }],
     commands: operations,
   })
   return 'failure' in author

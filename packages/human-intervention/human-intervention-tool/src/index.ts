@@ -47,9 +47,9 @@ const defined = defineToolWaitContract<DecisionResponse, 'ask'>({
   adoption: describedAdoption({
     owner: OWNER,
     name: 'decision-wait',
-    revision: '1',
+    revision: '2',
     changes:
-      'A tool waits for one batch of human-intervention inquiry or approval cards and reads one answer per card.',
+      'A tool waits for one batch of human-intervention inquiry cards and reads one answer per card.',
   }),
   expiry: 'forbidden',
   request: valueSchema<DecisionRequest>(

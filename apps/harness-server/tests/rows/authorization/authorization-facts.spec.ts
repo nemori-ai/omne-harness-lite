@@ -70,8 +70,8 @@ describe('the basis of a release for the session', () => {
     source,
   }
 
-  it('is the basis held for this capability and gate key', () => {
-    expect(sessionGrantFor(request, granted(grant))).toBe('rev-7')
+  it('is the basis and the source held for this capability and gate key', () => {
+    expect(sessionGrantFor(request, granted(grant))).toEqual({ basis: 'rev-7', source })
   })
 
   it.each([

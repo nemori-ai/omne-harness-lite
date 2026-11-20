@@ -1,24 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
-  confirmationContent,
+  consentBasis,
   decideSubscription,
   subscriptionChangeSchema,
   subscriptionKeySchema,
-  tenantIdSchema,
-  type ConsentMode,
-  type Confirmation,
+  type ConsentAnswer,
   type SubscriptionActor,
   type SubscriptionChange,
   type SubscriptionDecisionInput,
 } from '@omne-harness/notification-contract'
 import { agent, at, declared, person, source, subscription, typeName } from './fixtures.ts'
 
-const tenant = tenantIdSchema.parse('t1')
 const a = agent('a')
 const now = at(10)
 const owner: SubscriptionActor = { kind: 'owner' }
 const self: SubscriptionActor = { kind: 'agent', recipient: a }
-const perRequest: ConsentMode = { kind: 'per-request' }
 
 function change(overrides: Partial<SubscriptionChange> = {}): SubscriptionChange {
   return {
@@ -35,24 +31,16 @@ function change(overrides: Partial<SubscriptionChange> = {}): SubscriptionChange
 
 const decide = (overrides: Partial<SubscriptionDecisionInput> = {}) =>
   decideSubscription({
-    tenant,
     change: change(),
     current: null,
     actor: self,
     declared: declared(),
-    mode: perRequest,
-    confirmation: null,
     now,
     ...overrides,
   })
 
 const refused = (reason: string) => ({ kind: 'refused', reason })
-const confirmed = (overrides: Partial<Confirmation> = {}, of = change()): Confirmation => ({
-  decision: 'card-1',
-  content: confirmationContent(tenant, of),
-  approved: true,
-  ...overrides,
-})
+const NEEDS_CONSENT = { kind: 'needs-consent' }
 
 describe('decideSubscription: what anyone meets first', () => {
   it('refuses a term that has already passed', () => {
@@ -149,144 +137,68 @@ describe('decideSubscription: an agent', () => {
       )
   })
 
-  it('takes effect at once under automatic consent, on the current generation', () => {
-    expect(decide({ mode: { kind: 'automatic', generation: 3 } })).toEqual({
-      kind: 'set',
-      basis: { kind: 'blanket', generation: 3 },
-    })
+  it('needs the consent of its call for a first subscription', () => {
+    expect(decide()).toEqual(NEEDS_CONSENT)
+    expect(decide({ change: change({ level: 'off' }) })).toEqual(NEEDS_CONSENT)
   })
 
-  it('needs the owner for a new subscription under per-request consent', () => {
-    expect(decide()).toEqual({
-      kind: 'needs-confirmation',
-      content: confirmationContent(tenant, change()),
-    })
-  })
-
-  it('takes effect with a confirmation of the same content', () => {
-    expect(decide({ confirmation: confirmed() })).toEqual({
-      kind: 'set',
-      basis: { kind: 'granular', decision: 'card-1' },
-    })
-  })
-
-  it.each([
-    ['other content', confirmed({}, change({ level: 'weak' }))],
-    ['another note', confirmed({}, change({ note: 'do more' }))],
-    [
-      'another tenant',
-      confirmed({ content: confirmationContent(tenantIdSchema.parse('t2'), change()) }),
-    ],
-    ['another recipient', confirmed({}, change({ recipient: agent('b') }))],
-    ['a rejection', confirmed({ approved: false })],
-  ])('refuses a confirmation of %s', (_case, confirmation) => {
-    expect(decide({ confirmation })).toEqual(refused('confirmation-mismatch'))
-  })
-
-  const standingStrong = subscription(
+  const held = subscription(
     a,
     { kind: 'all' },
-    { level: 'strong', basis: { kind: 'granular', decision: 'card-0' } },
+    { level: 'strong', basis: { kind: 'granular', grant: 'g0' } },
   )
 
   it.each([
-    ['strong to weak', { level: 'weak' }],
-    ['strong to off', { level: 'off' }],
-    ['a shorter term', { term: { kind: 'until', at: at(60) } }],
-    ['standing to once', { term: { kind: 'once' } }],
-  ] as const)('lowers without consent and keeps the basis: %s', (_case, next) => {
-    expect(decide({ current: standingStrong, change: change(next) })).toEqual({
-      kind: 'set',
-      basis: { kind: 'granular', decision: 'card-0' },
-    })
-  })
-
-  it.each([
+    ['strong to weak', held, { level: 'weak' }],
+    ['strong to off', held, { level: 'off' }],
+    ['a shorter term', held, { term: { kind: 'until', at: at(60) } }],
+    ['standing to once', held, { term: { kind: 'once' } }],
     ['weak to strong', subscription(a, { kind: 'all' }, { level: 'weak' }), {}],
-    ['off to weak', subscription(a, { kind: 'all' }, { level: 'off' }), { level: 'weak' }],
     [
       'a longer until',
       subscription(a, { kind: 'all' }, { term: { kind: 'until', at: at(30) } }),
       { term: { kind: 'until', at: at(60) } },
     ],
+    ['a changed note', held, { note: 'do something else' }],
     [
-      'until to standing',
-      subscription(a, { kind: 'all' }, { term: { kind: 'until', at: at(30) } }),
+      'an expired subscription set again as it was',
+      subscription(a, { kind: 'all' }, { level: 'strong', expired: true }),
       {},
     ],
-    [
-      'once to until',
-      subscription(a, { kind: 'all' }, { term: { kind: 'once' } }),
-      { term: { kind: 'until', at: at(60) } },
-    ],
-    [
-      'until to once',
-      subscription(a, { kind: 'all' }, { term: { kind: 'until', at: at(30) } }),
-      { term: { kind: 'once' } },
-    ],
-    ['a changed note', standingStrong, { note: 'do something else' }],
-    ['a first subscription that is off', null, { level: 'off' }],
-    [
-      'an expired subscription set again lower',
-      subscription(a, { kind: 'all' }, { expired: true }),
-      { level: 'weak' },
-    ],
-  ] as const)('needs consent for %s', (_case, current, next) => {
-    expect(decide({ current, change: change(next) }).kind).toBe('needs-confirmation')
-  })
+  ] as const)(
+    'needs the consent of its call for any change, lower or higher: %s',
+    (_case, current, next) => {
+      expect(decide({ current, change: change(next) })).toEqual(NEEDS_CONSENT)
+    },
+  )
 
+  it('is recalled when nothing would change, without asking for consent', () => {
+    expect(decide({ current: held })).toEqual({ kind: 'recalled', current: held })
+  })
+})
+
+describe('consentBasis: what the consent of the call makes of a write', () => {
+  const grant = '{"via":"once"}'
   it.each([
     [
-      'once stays once at a lower level',
-      { term: { kind: 'once' } },
-      { term: { kind: 'once' }, level: 'weak' },
+      'a blanket consent that stands',
+      { kind: 'consented', basis: { kind: 'blanket', scope: 'standing', grant } },
+      { kind: 'basis', basis: { kind: 'blanket', scope: 'standing', grant } },
     ],
     [
-      'until moves earlier at a lower level',
-      { term: { kind: 'until', at: at(60) } },
-      { term: { kind: 'until', at: at(30) }, level: 'weak' },
+      'a blanket consent of this session',
+      { kind: 'consented', basis: { kind: 'blanket', scope: 'session', grant } },
+      { kind: 'basis', basis: { kind: 'blanket', scope: 'session', grant } },
     ],
     [
-      'until stays at the same instant at a lower level',
-      { term: { kind: 'until', at: at(60) } },
-      { term: { kind: 'until', at: at(60) }, level: 'weak' },
+      'a granular consent, whose layer is always this session',
+      { kind: 'consented', basis: { kind: 'granular', scope: 'session', grant } },
+      { kind: 'basis', basis: { kind: 'granular', grant } },
     ],
-  ] as const)('lowers without consent when %s', (_case, held, next) => {
-    const current = subscription(a, { kind: 'all' }, held)
-    expect(decide({ current, change: change(next) })).toEqual({
-      kind: 'set',
-      basis: { kind: 'owner' },
-    })
-  })
-
-  it('needs consent for a lower level when the term would grow', () => {
-    const until = subscription(a, { kind: 'all' }, { term: { kind: 'until', at: at(30) } })
-    const later = change({ level: 'weak', term: { kind: 'until', at: at(31) } })
-    expect(decide({ current: until, change: later }).kind).toBe('needs-confirmation')
-    const once = subscription(a, { kind: 'all' }, { term: { kind: 'once' } })
-    for (const term of [{ kind: 'standing' }, { kind: 'until', at: at(60) }] as const)
-      expect(decide({ current: once, change: change({ level: 'weak', term }) }).kind).toBe(
-        'needs-confirmation',
-      )
-  })
-
-  it('treats a missing consent mode as per-request', () => {
-    expect(decide({ mode: null }).kind).toBe('needs-confirmation')
-  })
-
-  it('is recalled when nothing would change', () => {
-    expect(decide({ current: standingStrong })).toEqual({
-      kind: 'recalled',
-      current: standingStrong,
-    })
-  })
-
-  it('keeps a subscription made under automatic consent valid after the mode changed', () => {
-    const blanket = subscription(a, { kind: 'all' }, { basis: { kind: 'blanket', generation: 1 } })
-    expect(decide({ current: blanket, mode: perRequest })).toEqual({
-      kind: 'recalled',
-      current: blanket,
-    })
+    ['no consent', { kind: 'none' }, { kind: 'refused', reason: 'consent-required' }],
+    ['a consent that cannot be read', { kind: 'unavailable' }, { kind: 'unavailable' }],
+  ] as const)('%s', (_case, answer, expected) => {
+    expect(consentBasis(answer as ConsentAnswer)).toEqual(expected)
   })
 })
 

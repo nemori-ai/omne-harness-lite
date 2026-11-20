@@ -6,8 +6,12 @@ import {
   digestOf,
   effectiveArgumentsOf,
   type DecisionEvidence,
+  type DurableEvidence,
+  type GateRef,
   type GateVerdict,
+  type GrantRef,
   type ReleaseDecision,
+  type ReleaseFacts,
   type SessionFacts,
 } from '@omne-harness/authorization'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
@@ -15,6 +19,7 @@ import { organizationCodec, tenantCodec, type TenantId } from '@omne-harness/leg
 import {
   PermissionBasisReadingSchema,
   PermissionBasisRequestSchema,
+  type PermissionBasisReading,
   type PermissionBasisRequest,
 } from '@omne-harness/permissions'
 import type { StartCondition } from '@omne-harness/tool-host-local'
@@ -22,11 +27,16 @@ import type {
   Adoption,
   FixedToolRequest,
   ToolCallId,
+  ToolGate,
   ToolOperationId,
 } from '@omne-harness/tool-contract'
+import { toolEnforcementKey } from '../../entry/tool-permission-release.ts'
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import type { AuthorizationConsumer, OnceAuthorization } from '@omne-harness/session-contract'
-import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
+import {
+  sessionAuthorizationGuardFacts,
+  type SessionAuthorizations,
+} from '@omne-harness/session-storage-sql/participants'
 import { onceAuthorizationFor, sessionGrantFor } from './authorization-facts.ts'
 import { capturedInquirySchema } from '../governance/permission-inquiry.ts'
 import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
@@ -44,6 +54,7 @@ export type ToolPermissionAction = Readonly<{
   operation: PermissionBasisRequest['operation']
   definition: Adoption
   effectiveArguments: string
+  gate: ToolGate
   /** The call only carries another action: only a prohibition of this gate counts. */
   carrier?: true
   origin:
@@ -80,10 +91,15 @@ export function agentPermissionOperation(
 type Decision = Exclude<AdmissionDecision, { kind: 'need-decision' }>
 /** The gate that asks, and the revision of its verdict: what a release for the session rests on. */
 export type AskedGate = Readonly<{ capabilityId: string; enforcementKey: string; basis: string }>
+export type PermissionRelease = Readonly<
+  | { by: 'carrier'; grant: null }
+  | { by: 'verdict' | 'once' | 'session' | 'skip-ask'; grant: GrantRef }
+>
 export type ToolPermissionDecision =
   | (Extract<Decision, { kind: 'allow' }> &
       Readonly<{
         condition: StartCondition | null
+        release: PermissionRelease
         authorization?: OnceAuthorization
       }>)
   | Readonly<{ kind: 'ask'; evidence: DecisionEvidence; gate?: AskedGate }>
@@ -115,13 +131,14 @@ const undecidable = (diagnostic: string) => ({ kind: 'undecidable' as const, dia
 // A gate is found by the capability's identity in the declarations its category owners registered.
 export function declaredPermission(
   declarations: readonly PermissionDeclaration[],
-  input: Pick<ToolPermissionAction, 'definition'>,
+  input: Pick<ToolPermissionAction, 'definition' | 'gate'>,
 ) {
   const entries = declarations.filter(entry => sameAdoption(entry.asset.adoption, input.definition))
   if (entries.length !== 1) return undefined
   const entry = entries[0]!
+  const key = toolEnforcementKey(input.gate)
   const bindings = entry.governance.declaration.enforcementBindings.filter(
-    binding => binding.action === 'invoke' && binding.enforcementKey === 'tool.invoke',
+    binding => binding.action === 'invoke' && binding.enforcementKey === key,
   )
   if (bindings.length !== 1) return undefined
   const expected = bindings[0]!
@@ -205,27 +222,45 @@ function interpretReading(
           : undefined
   if (kind === undefined)
     return undecidable('The permission interpretation answered outside its contract.')
+  const { tenantId, sessionId } = request.scope
+  if (sessionId === null) return undecidable('The permission reading names no session.')
   // The verdict belongs to the gate: its revision does not depend on the action that asked.
   const revision = digestOf(reading.evaluation)
-  return permissionDecisionOf({ kind, revision }, inquiry, input.carrier === true, {
+  const verdict: Exclude<GateVerdict, { kind: 'unavailable' }> =
+    kind === 'allowed' ? { kind, revision, layer: layerOf(reading.evaluation) } : { kind, revision }
+  return permissionDecisionOf(verdict, inquiry, input.carrier === true, {
     evidence,
     condition,
+    holders: { tenant: tenantId, session: sessionId },
+    gateRef: { capability: request.capabilityId, key: request.enforcementKey },
     once: onceAuthorizationFor(input, read),
     gate: {
       capabilityId: request.capabilityId,
       enforcementKey: request.enforcementKey,
       basis: revision,
     },
-    sessionBasis: sessionGrantFor(request, read),
+    sessionGrant: sessionGrantFor(request, read),
   })
+}
+
+type Evaluation = Extract<PermissionBasisReading, { kind: 'current' }>['evaluation']
+
+function layerOf(evaluation: Evaluation): 'tenant' | 'session' {
+  const source = evaluation.sources.session
+  return source.kind === 'available' &&
+    (source.rule.pick !== null || source.rule.allowedSet !== null)
+    ? 'session'
+    : 'tenant'
 }
 
 type Found = Readonly<{
   evidence: DecisionEvidence
   condition: StartCondition | null
+  holders: ReleaseFacts['holders']
+  gateRef: GateRef
   once?: OnceAuthorization | null
   gate?: AskedGate
-  sessionBasis?: string | null
+  sessionGrant?: Readonly<{ basis: string; source: DurableEvidence }> | null
 }>
 
 export function permissionDecisionOf(
@@ -234,34 +269,73 @@ export function permissionDecisionOf(
   carrier: boolean,
   found: Found,
 ): ToolPermissionDecision {
-  const session = sessionFactsOf(inquiry, (found.once ?? null) !== null, found.sessionBasis ?? null)
-  return releaseDecision(decideRelease({ carrier, verdict, session }), found)
+  const session = sessionFactsOf(inquiry, found.once?.source ?? null, found.sessionGrant ?? null)
+  const { holders, gateRef: gate } = found
+  return releaseDecision(decideRelease({ carrier, verdict, session, holders, gate }), found)
 }
 
 function sessionFactsOf(
   inquiry: SessionInquiryView | null,
-  once: boolean,
-  sessionGrantBasis: string | null,
+  once: DurableEvidence | null,
+  sessionGrant: Readonly<{ basis: string; source: DurableEvidence }> | null,
 ): SessionFacts {
   if (inquiry === null) return { kind: 'unavailable' }
   return {
     kind: 'read',
     revision: inquiry.basis.permissionRevision,
     policy: inquiry.inquiry.policy,
+    policySource: inquiry.inquiry.source,
     once,
-    sessionGrantBasis,
+    sessionGrant,
   }
 }
 
-function releaseDecision(
-  decided: ReleaseDecision,
-  { evidence, condition, once, gate }: Found,
-): ToolPermissionDecision {
+function heldGrant(grant: GrantRef, once: OnceAuthorization | null | undefined) {
+  switch (grant.via) {
+    case 'verdict':
+    case 'skip-ask':
+      return null
+    case 'session-grant': {
+      const { gate, source } = grant
+      return {
+        kind: 'session',
+        capabilityId: gate.capability,
+        enforcementKey: gate.key,
+        source,
+      } as const
+    }
+    case 'once':
+      if (!once) throw new Error('A release on a once authorization names none.')
+      return { kind: 'once', consumer: once.consumer, source: grant.source } as const
+  }
+}
+
+function guardedCondition(
+  decided: Extract<ReleaseDecision, { kind: 'release' }>,
+  { condition, holders, once }: Found,
+): StartCondition | null {
+  if (condition === null || decided.by === 'carrier') return condition
+  const held = heldGrant(decided.grant, once)
+  if (held === null) return condition
+  const commands = condition['commands']
+  if (!Array.isArray(commands)) throw new Error('A start condition carries no commands.')
+  const guard = sessionAuthorizationGuardFacts({ ...holders, grant: held })
+  return { ...condition, commands: [...commands, guard] }
+}
+
+function releaseDecision(decided: ReleaseDecision, found: Found): ToolPermissionDecision {
+  const { evidence, once, gate } = found
   switch (decided.kind) {
-    case 'release':
+    case 'release': {
+      const condition = guardedCondition(decided, found)
+      const release: PermissionRelease =
+        decided.by === 'carrier'
+          ? { by: 'carrier', grant: null }
+          : { by: decided.by, grant: decided.grant }
       return decided.by === 'once' && once
-        ? { kind: 'allow', evidence, condition, authorization: once }
-        : { kind: 'allow', evidence, condition }
+        ? { kind: 'allow', evidence, condition, release, authorization: once }
+        : { kind: 'allow', evidence, condition, release }
+    }
     case 'refuse':
       return {
         kind: 'deny',
