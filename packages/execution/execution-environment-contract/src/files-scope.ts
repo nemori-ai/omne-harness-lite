@@ -76,7 +76,7 @@ export function segmentsBelow(
 ): readonly string[] | undefined {
   const base = partsOf(root, platform)
   const parts = partsOf(path, platform)
-  if (base === undefined || parts === undefined || parts.length < base.length) return undefined
+  if (base === undefined || parts === undefined) return undefined
   const same = (left: string, right: string | undefined) =>
     platform === 'win32' ? left.toLowerCase() === right?.toLowerCase() : left === right
   if (base.some((part, index) => !same(part, parts[index]))) return undefined

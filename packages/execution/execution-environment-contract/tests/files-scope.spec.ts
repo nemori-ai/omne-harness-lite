@@ -52,6 +52,22 @@ describe('whether a path lies in a files scope, by segments only', () => {
     expect(windowsPathSegments('C:\\a\\x:stream')).toEqual({ ok: false, refusal: 'form' })
     expect(windowsPathSegments('C:\\a\\trailing.')).toEqual({ ok: false, refusal: 'form' })
     expect(withinScope({ write: 'C:\\a' }, 'write', 'C:\\a\\..\\b', 'win32')).toBe(false)
+    expect(windowsPathSegments('xC:\\a')).toEqual({ ok: false, refusal: 'form' })
+    expect(windowsPathSegments('C:\\a\\com1')).toEqual({ ok: false, refusal: 'form' })
+    for (const name of ['icon', 'comx', 'lptx', 'console.log'])
+      expect(windowsPathSegments(`C:\\a\\${name}`), name).toEqual({
+        ok: true,
+        drive: 'C:',
+        segments: ['a', name],
+      })
+  })
+
+  it('drops empty and `.` segments, and refuses a root or path that is not absolute or is shorter', () => {
+    expect(segmentsBelow('/a', '/a/./b//c', 'linux')).toEqual(['b', 'c'])
+    expect(segmentsBelow('C:\\a', 'C:\\a\\.\\b\\\\c', 'win32')).toEqual(['b', 'c'])
+    expect(segmentsBelow('a/b', '/a/b/c', 'linux')).toBeUndefined()
+    expect(segmentsBelow('C:\\a\\b', 'C:\\a', 'win32')).toBeUndefined()
+    expect(segmentsBelow('/a/b', '/a', 'linux')).toBeUndefined()
   })
 })
 

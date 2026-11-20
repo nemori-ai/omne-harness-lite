@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
@@ -141,6 +141,41 @@ describe('a host object is named below the root of a side that admits its path',
       await nameUnder({ read: t.workspace, write: t.workspace }, { path: file, role: 'object' }),
     ).toEqual(denied)
     expect(await nameUnder(undefined, { path: file, role: 'object' })).toEqual(denied)
+  })
+
+  it('judges a link itself, not where it points, for a files request, a close and a name', async () => {
+    const t = await tree()
+    const link = join(t.workspace, 'link')
+    await symlink(t.outside, link)
+    const both = { read: t.workspace, write: t.workspace }
+    expect(await confinedToScope(both, 'files', 'remove', { path: link })).toBe(true)
+    expect(await confinedToScope(both, 'files', 'close', { path: link })).toBe(true)
+    expect(await confinedToScope(both, 'command', 'start', { cwd: link })).toBe(false)
+    expect(await nameUnder(both, { path: link, role: 'object' })).toEqual({
+      ok: await hostObjectToken(link),
+    })
+  })
+
+  it('answers unavailable when the object, or every ancestor up to the root, cannot be named', async () => {
+    const t = await tree()
+    const both = { read: t.workspace, write: t.workspace }
+    const missing = (await nameUnder(both, {
+      path: join(t.workspace, 'none.txt'),
+      role: 'object',
+    })) as {
+      failure?: { kind: string }
+    }
+    expect(missing.failure?.kind).toBe('unavailable')
+    const gone = join(t.base, 'gone')
+    const under = (await nameUnder(
+      { read: gone, write: gone },
+      { path: join(gone, 'a', 'b.txt'), role: 'ancestor' },
+    )) as { failure?: { kind: string } }
+    expect(under.failure?.kind).toBe('unavailable')
+    // A relative path is resolved against the root of the side that admits it.
+    expect(await nameUnder(both, { path: '.', role: 'object' })).toEqual({
+      ok: await hostObjectToken(t.workspace),
+    })
   })
 
   it('climbs to the nearest ancestor that exists, below the root or up to the top when there is none', async () => {

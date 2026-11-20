@@ -291,7 +291,7 @@
       },
       "packages/execution/execution-environment-host-local/src/host-files.ts": {
         "count": 2,
-        "longest": 645
+        "longest": 643
       },
       "packages/execution/execution-environment-host-local/src/host-paths.ts": {
         "count": 2,

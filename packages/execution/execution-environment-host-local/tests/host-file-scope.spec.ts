@@ -6,6 +6,7 @@ import {
   readFile,
   readdir,
   realpath,
+  rename,
   rm,
   symlink,
   writeFile,
@@ -154,11 +155,7 @@ type Case = Readonly<{
   to: 'inside' | 'outside'
 }>
 
-/**
- * Whether a call is carried out under each scope. Reads are limited by the read root, writes by the write
- * root; a copy reads its source, a move reads its source (execution SPEC: a move or copy is checked by read
- * at its source), and both write their target.
- */
+/** Carried out or refused under each scope; a move or copy reads its source and writes its target (SPEC). */
 const carried: readonly (Case & Readonly<Record<ScopeName, boolean>>)[] = [
   ...['read', 'stat', 'list', 'search'].map(operation => ({
     operation,
@@ -220,7 +217,8 @@ for (const scope of Object.keys(scopes) as ScopeName[])
       const w = await world(scope)
       const from = w[entry.from]
       const to = w[entry.to]
-      const outsideBefore = await snapshot(w.outside.dir)
+      const both = async () => [await snapshot(w.inside.dir), await snapshot(w.outside.dir)]
+      const before = await both()
       const result = await operations[entry.operation]!(w, from, to)
       if (entry[scope]) {
         expect(result.kind, JSON.stringify(result)).toBe('done')
@@ -231,7 +229,8 @@ for (const scope of Object.keys(scopes) as ScopeName[])
         requestId: entry.operation,
         reason: 'notAuthorized',
       })
-      expect(await snapshot(w.outside.dir)).toBe(outsideBefore)
+      // A refused call leaves no trace inside the scope or outside it.
+      expect(await both()).toEqual(before)
     })
 
 it('reads through a link to the outside when reads are not limited, and refuses a write through it', async () => {
@@ -307,6 +306,9 @@ it('closes a handle below either root of the scope, and refuses one below neithe
     requestId: 'close',
     reason: 'notAuthorized',
   })
+  expect(await close(confined, confined.inside.file, insideRead.value.handle)).toMatchObject({
+    kind: 'done',
+  })
 })
 
 it('refuses a write outside the write root before anything touches the state directory, when reads are not limited', async () => {
@@ -326,4 +328,46 @@ it('refuses a write outside the write root before anything touches the state dir
     })
     expect(await stamp(), operation).toEqual(before)
   }
+})
+
+it('searches and copies a file with a second name outside when reads are not limited', async () => {
+  const w = await world('readOutside')
+  await link(w.outside.file, join(w.outside.dir, 'twin.txt'))
+  const searched = await operations['search']!(w, w.outside, w.outside)
+  expect(searched.kind, JSON.stringify(searched)).toBe('done')
+  const copied = await operations['copy']!(w, w.outside, w.inside)
+  expect(copied.kind, JSON.stringify(copied)).toBe('done')
+  expect(await readFile(join(w.inside.dir, 'copied.txt'), 'utf8')).toBe('outside bytes')
+})
+
+it('closes a handle when the write side admits its path though the read side does not', async () => {
+  const w = await world('everywhere')
+  const engine = createHostFilesEngine({ scope: { read: w.inside.dir }, stateDirectory: w.state })
+  const facility = engine.facilityFor('read-only-limited')
+  const written = await facility.write({
+    ...request(join(w.outside.dir, 'new.txt'), await token(w.outside.dir), 'create'),
+    bytes: text('new'),
+    mode: 'create',
+  })
+  if (written.kind !== 'done') throw new Error(JSON.stringify(written))
+  const handle = written.value.handle
+  const closed = await facility.close({
+    ...request(join(w.outside.dir, 'new.txt'), handle.object, 'close'),
+    handle,
+  })
+  expect(closed).toMatchObject({ kind: 'done' })
+})
+
+it('keeps one recorded identity for a root that both sides of the scope name', async () => {
+  const w = await world('workspace')
+  const read = await w.facility.read(request(w.inside.file, await token(w.inside.file), 'read'))
+  expect(read.kind).toBe('done')
+  await rename(w.inside.dir, join(w.base, 'workspace-old'))
+  await mkdir(w.inside.dir)
+  const written = await w.facility.write({
+    ...request(join(w.inside.dir, 'created.txt'), await token(w.inside.dir), 'create'),
+    bytes: text('created'),
+    mode: 'create',
+  })
+  expect(written).toEqual({ kind: 'rejected', requestId: 'create', reason: 'notAuthorized' })
 })

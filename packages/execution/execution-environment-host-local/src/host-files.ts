@@ -160,9 +160,9 @@ function perEffect<T>(
 type CloseCheck = Readonly<{
   paths: ScopedPaths
   scope: FilesScope
-  macosRootIdentity:
-    | Readonly<Record<FileEffect, (() => Promise<MacosIdentity | undefined>) | undefined>>
-    | undefined
+  macosRootIdentity: Readonly<
+    Record<FileEffect, (() => Promise<MacosIdentity | undefined>) | undefined>
+  >
   macosPrerequisite(): Promise<boolean>
 }>
 
@@ -175,7 +175,7 @@ type Below = (
 ) => Promise<FacilityResult<never> | undefined>
 
 const macosBelow: Below = async (check, requestId, path, effect) => {
-  const located = await createMacosPaths(check.macosRootIdentity?.[effect])(path)
+  const located = await createMacosPaths(check.macosRootIdentity[effect])(path)
   if (!located.ok) return failed(requestId, located.failure, 'unresolved')
   return (await check.macosPrerequisite()) ? undefined : reject(requestId, 'unavailable')
 }
@@ -229,10 +229,9 @@ function scopedRoots(options: HostFilesEngineOptions) {
     cores: perEffect(scope, root =>
       createHostPathsCore({ root, probeDirectory: options.stateDirectory }),
     ),
-    windowsRootIdentity:
-      process.platform === 'win32' ? identities(createWindowsRootIdentity) : undefined,
-    macosRootIdentity:
-      process.platform === 'darwin' ? identities(createMacosRootIdentity) : undefined,
+    // Lazy: an identity is taken only when the platform's backend first asks for it.
+    windowsRootIdentity: identities(createWindowsRootIdentity),
+    macosRootIdentity: identities(createMacosRootIdentity),
   }
 }
 
@@ -785,7 +784,7 @@ export function createHostFilesEngine(
     if (process.platform === 'win32') {
       const windows = createWindowsFiles({
         scope,
-        ...(windowsRootIdentity === undefined ? {} : { rootIdentity: windowsRootIdentity }),
+        rootIdentity: windowsRootIdentity,
         limits: bounds,
         issue,
       })
@@ -812,7 +811,7 @@ export function createHostFilesEngine(
 
     if (process.platform === 'darwin') {
       const macos = createMacosFiles({
-        ...(macosRootIdentity === undefined ? {} : { rootIdentity: macosRootIdentity }),
+        rootIdentity: macosRootIdentity,
         limits: bounds,
         prerequisite: macosPrerequisite,
         issue,
@@ -826,9 +825,7 @@ export function createHostFilesEngine(
       const macosBatch = createMacosBatch({
         files: macos,
         prerequisite: macosPrerequisite,
-        ...(macosRootIdentity?.write === undefined
-          ? {}
-          : { rootIdentity: macosRootIdentity.write }),
+        ...(macosRootIdentity.write === undefined ? {} : { rootIdentity: macosRootIdentity.write }),
         ...(options.stateDirectory === undefined ? {} : { stateDirectory: options.stateDirectory }),
         generation,
         running,

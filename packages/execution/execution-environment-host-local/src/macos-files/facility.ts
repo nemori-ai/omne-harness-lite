@@ -103,7 +103,7 @@ function nativeRunner(at: NativeScope) {
 
 export function createMacosFiles(
   options: Readonly<{
-    rootIdentity?: Readonly<Record<FileEffect, Identity | undefined>>
+    rootIdentity: Readonly<Record<FileEffect, Identity | undefined>>
     limits: HostFilesLimits
     prerequisite(): Promise<boolean>
     issue(object: ObjectToken): HandleGeneration
@@ -121,8 +121,8 @@ export function createMacosFiles(
     modifiedMs: info.modified,
   })
   const run = nativeRunner({
-    endpoints: { read: createMacosPaths(roots?.read), write: createMacosPaths(roots?.write) },
-    rooted: effect => roots?.[effect] !== undefined,
+    endpoints: { read: createMacosPaths(roots.read), write: createMacosPaths(roots.write) },
+    rooted: effect => roots[effect] !== undefined,
     prerequisite: options.prerequisite,
   })
   const changed = async (
