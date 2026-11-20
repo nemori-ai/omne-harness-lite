@@ -8,7 +8,8 @@ import { APP_HOST, INTERNAL_ORIGIN } from './app-url.ts'
 import { COOKIE_JAR_ORIGIN, createCookieJar, flushForQuit } from './cookie-jar.ts'
 import { createLogger } from './log.ts'
 import { startServerProcess } from './utility-process.ts'
-import { APP_PARTITION, openAppWindow, registerAppScheme } from './window.ts'
+import type { UtilityState } from './recovery.ts'
+import { APP_PARTITION, openAppWindow, registerAppScheme, type UtilityWatch } from './window.ts'
 import { windowStateFile } from './window-state.ts'
 
 const development = process.env['OMNE_DESKTOP_DEV'] === '1'
@@ -28,12 +29,30 @@ function reloadOnRebuild(pageRoot: string, current: () => BrowserWindow | undefi
   })
 }
 
+function utilityWatch(): UtilityWatch & { set(state: UtilityState): void } {
+  let current: UtilityState = 'starting'
+  const listeners = new Set<(state: UtilityState) => void>()
+  return {
+    current: () => current,
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => void listeners.delete(listener)
+    },
+    set(state) {
+      current = state
+      for (const listener of listeners) listener(state)
+    },
+  }
+}
+
 async function start(): Promise<void> {
   await app.whenReady()
   const pageRoot = fileURLToPath(new URL('../page/', import.meta.url))
   const appSession = session.fromPartition(APP_PARTITION)
   // One utility process for the app, not per window: it outlives windows, reloads and crashes.
+  const utility = utilityWatch()
   const forwarding = startServerProcess({
+    onLifecycle: ({ state }) => utility.set(state),
     utilityPath: fileURLToPath(new URL('../utility/entry.js', import.meta.url)),
     env: { OMNE_SERVER: process.env['OMNE_SERVER'] ?? DEFAULT_SERVER, OMNE_PAGE_ROOT: pageRoot },
     log,
@@ -50,7 +69,7 @@ async function start(): Promise<void> {
   void forwarding.ready().catch(() => {})
 
   const saved = windowStateFile(join(app.getPath('userData'), 'window-state.json'))
-  let window: BrowserWindow | undefined = openAppWindow(saved)
+  let window: BrowserWindow | undefined = openAppWindow(saved, utility)
   window.on('closed', () => {
     window = undefined
   })

@@ -8,9 +8,10 @@ import {
   createRecovery,
   type LoadFailureChoice,
   type UnresponsiveChoice,
+  type UtilityState,
 } from '../src/main/recovery.ts'
 import { readWindowState, usableState, windowStateFile } from '../src/main/window-state.ts'
-import { gate } from './support/fake-server.ts'
+import { gate, settle } from './support/fake-server.ts'
 
 describe('外链', () => {
   it('只有 http、https 与 mailto 交给系统浏览器', () => {
@@ -85,19 +86,33 @@ describe('窗口的位置与大小', () => {
 })
 
 describe('页面的恢复', () => {
-  function recovery() {
+  function recovery(utility: UtilityState = 'ready') {
     const done: string[] = []
     let time = 0
     let loadFailed = gate<LoadFailureChoice>()
     let hung = gate<UnresponsiveChoice>()
+    // Like Electron: an aborted question closes and answers as if cancelled.
+    const asked = <Choice,>(name: string, answer: () => { promise: Promise<Choice> }, cancel: Choice) =>
+      (signal: AbortSignal) => {
+        done.push(`ask-${name}`)
+        const { promise } = answer()
+        return new Promise<Choice>(resolve => {
+          signal.addEventListener('abort', () => {
+            done.push(`dismiss-${name}`)
+            resolve(cancel)
+          })
+          void promise.then(resolve)
+        })
+      }
     const made = createRecovery(
       {
         reload: () => void done.push('reload'),
         close: () => void done.push('close'),
-        askLoadFailed: () => (done.push('ask-load'), loadFailed.promise),
-        askUnresponsive: () => (done.push('ask-hung'), hung.promise),
+        askLoadFailed: asked('load', () => loadFailed, 'close'),
+        askUnresponsive: asked('hung', () => hung, 'close'),
       },
       () => time,
+      utility,
     )
     return {
       made,
@@ -106,12 +121,12 @@ describe('页面的恢复', () => {
       async answerLoad(choice: LoadFailureChoice) {
         loadFailed.open(choice)
         loadFailed = gate()
-        await new Promise(resolve => setTimeout(resolve, 0))
+        await settle()
       },
       async answerHung(choice: UnresponsiveChoice) {
         hung.open(choice)
         hung = gate()
-        await new Promise(resolve => setTimeout(resolve, 0))
+        await settle()
       },
     }
   }
@@ -162,11 +177,82 @@ describe('页面的恢复', () => {
     }
   })
 
-  it('问着的时候页面自己恢复了：选什么都不再动它', async () => {
+  it('问着的时候页面自己恢复了：问题收起，选什么都不再动它', async () => {
     const { made, done, answerHung } = recovery()
     made.unresponsive()
     made.responsive()
     await answerHung('reload')
-    expect(done).toEqual(['ask-hung'])
+    expect(done).toEqual(['ask-hung', 'dismiss-hung'])
+  })
+
+  it('卡着的页面崩了：没有响应的问题收起，失败照常自动重载', async () => {
+    const { made, done, answerHung } = recovery()
+    made.unresponsive()
+    made.failed()
+    await answerHung('close')
+    expect(done).toEqual(['ask-hung', 'dismiss-hung', 'reload'])
+  })
+
+  it('卡着的页面在周期内又失败：改问加载失败，不停在一个没人问的坏页面上', async () => {
+    const { made, done, answerLoad } = recovery()
+    made.failed()
+    made.unresponsive()
+    made.failed()
+    expect(done).toEqual(['reload', 'ask-hung', 'dismiss-hung', 'ask-load'])
+    await answerLoad('reload')
+    expect(done.at(-1)).toBe('reload')
+  })
+
+  it('utility 进程没就绪：自动重载等它就绪再做，并且这时才算用掉额度', () => {
+    const { made, done, advance } = recovery('starting')
+    made.failed()
+    made.failed()
+    expect(done).toEqual([])
+    advance(RELOAD_CYCLE_MS)
+    made.utility('ready')
+    expect(done).toEqual(['reload'])
+    advance(RELOAD_CYCLE_MS - 1)
+    made.failed()
+    expect(done).toEqual(['reload', 'ask-load'])
+  })
+
+  it('人选的重新加载也等 utility 进程就绪', async () => {
+    const { made, done, answerLoad } = recovery()
+    made.failed()
+    made.failed()
+    made.utility('starting')
+    await answerLoad('reload')
+    expect(done).toEqual(['reload', 'ask-load'])
+    made.utility('ready')
+    expect(done).toEqual(['reload', 'ask-load', 'reload'])
+  })
+
+  it('等着的时候 utility 进程启动失败：不再等，问人', async () => {
+    const { made, done, answerLoad } = recovery('starting')
+    made.failed()
+    made.utility('failed')
+    expect(done).toEqual(['ask-load'])
+    made.utility('starting')
+    await answerLoad('reload')
+    made.utility('ready')
+    expect(done).toEqual(['ask-load', 'reload'])
+  })
+
+  it('页面好好的：utility 进程换代不动它', () => {
+    const { made, done } = recovery()
+    made.utility('starting')
+    made.utility('failed')
+    made.utility('starting')
+    made.utility('ready')
+    expect(done).toEqual([])
+  })
+
+  it('等着的时候人选了关闭：就绪之后不再重载', async () => {
+    const { made, done, answerHung } = recovery('starting')
+    made.failed()
+    made.unresponsive()
+    await answerHung('close')
+    made.utility('ready')
+    expect(done).toEqual(['ask-hung', 'close'])
   })
 })

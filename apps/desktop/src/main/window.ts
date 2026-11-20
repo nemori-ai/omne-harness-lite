@@ -9,7 +9,7 @@ import {
 } from 'electron'
 import { APP_SCHEME, APP_URL } from './app-url.ts'
 import { externalTarget } from './external-links.ts'
-import { createRecovery } from './recovery.ts'
+import { createRecovery, type UtilityState } from './recovery.ts'
 import {
   DEFAULT_SIZE,
   MIN_SIZE,
@@ -73,11 +73,18 @@ export function harden(contents: WebContents): void {
   contents.session.setPermissionCheckHandler(() => false)
 }
 
-function recover(window: BrowserWindow): void {
+/** The utility process's state now, and its changes until the returned function is called. */
+export type UtilityWatch = Readonly<{
+  current(): UtilityState
+  subscribe(listener: (state: UtilityState) => void): () => void
+}>
+
+function recover(window: BrowserWindow, utility: UtilityWatch): void {
   const ask = async <Choice extends string>(
     message: string,
     detail: string,
     choices: readonly (readonly [Choice, string])[],
+    signal: AbortSignal,
   ): Promise<Choice> => {
     if (window.isDestroyed()) return choices.at(-1)![0]
     const { response } = await dialog.showMessageBox(window, {
@@ -87,6 +94,7 @@ function recover(window: BrowserWindow): void {
       buttons: choices.map(([, label]) => label),
       defaultId: 0,
       cancelId: choices.length - 1,
+      signal,
     })
     return choices[response]![0]
   }
@@ -98,21 +106,33 @@ function recover(window: BrowserWindow): void {
       close: () => {
         if (!window.isDestroyed()) window.destroy()
       },
-      askLoadFailed: () =>
-        ask('页面没有加载出来', '重新加载会丢掉页面里还没保存的输入。', [
-          ['reload', '重新加载'],
-          ['close', '关闭'],
-        ]),
-      askUnresponsive: () =>
-        ask('页面没有响应', '重新加载会丢掉页面里还没保存的输入。', [
-          ['wait', '继续等待'],
-          ['reload', '重新加载'],
-          ['close', '关闭'],
-        ]),
+      askLoadFailed: signal =>
+        ask(
+          '页面没有加载出来',
+          '重新加载会丢掉页面里还没保存的输入。',
+          [
+            ['reload', '重新加载'],
+            ['close', '关闭'],
+          ],
+          signal,
+        ),
+      askUnresponsive: signal =>
+        ask(
+          '页面没有响应',
+          '重新加载会丢掉页面里还没保存的输入。',
+          [
+            ['wait', '继续等待'],
+            ['reload', '重新加载'],
+            ['close', '关闭'],
+          ],
+          signal,
+        ),
     },
     () =>
       /* wall-clock: operation-timing -- spaces automatic reloads apart; compared only with itself */ Date.now(),
+    utility.current(),
   )
+  window.once('closed', utility.subscribe(state => recovery.utility(state)))
   const contents = window.webContents
   contents.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
     if (isMainFrame && code !== LOAD_ABORTED) recovery.failed()
@@ -124,7 +144,7 @@ function recover(window: BrowserWindow): void {
   window.on('responsive', () => recovery.responsive())
 }
 
-export function openAppWindow(saved: WindowStateFile): BrowserWindow {
+export function openAppWindow(saved: WindowStateFile, utility: UtilityWatch): BrowserWindow {
   const state = usableState(
     saved.load(),
     screen.getAllDisplays().map(display => display.workArea),
@@ -132,7 +152,7 @@ export function openAppWindow(saved: WindowStateFile): BrowserWindow {
   const window = new BrowserWindow(windowOptions(state))
   if (state?.maximized === true) window.maximize()
   harden(window.webContents)
-  recover(window)
+  recover(window, utility)
 
   const show = (): void => {
     if (!window.isDestroyed() && !window.isVisible()) window.show()
