@@ -61,6 +61,7 @@ export function judgeSigning(facts: SignatureFacts, distribution: boolean): Verd
         reason: `Authenticode signature valid${facts.signer ? `: ${facts.signer}` : ''}`,
       }
     if (facts.status === 'NotSigned' && !distribution) return local('Authenticode: NotSigned')
+    if (facts.status === 'NotSigned') return { status: 'fail', reason: 'Authenticode: NotSigned' }
     return { status: 'fail', reason: `Authenticode status ${facts.status}: ${facts.message}` }
   }
   if (facts.signature !== 'identity') {
@@ -91,5 +92,19 @@ export function judgeSigning(facts: SignatureFacts, distribution: boolean): Verd
   return {
     status: 'pass',
     reason: `signed${facts.authority ? ` by ${facts.authority}` : ''}, verified deep and strict, notarized and stapled, accepted by Gatekeeper`,
+  }
+}
+
+/** A Windows distribution is the application and its separately signed installer: both must pass. */
+export function judgeWindowsDistribution(
+  application: Extract<SignatureFacts, { platform: 'win32' }>,
+  installerName: string,
+  installer: Extract<SignatureFacts, { platform: 'win32' }> | undefined,
+): Verdict {
+  const app = judgeSigning(application, true)
+  const setup = installer === undefined ? undefined : judgeSigning(installer, true)
+  return {
+    status: app.status === 'pass' && setup?.status === 'pass' ? 'pass' : 'fail',
+    reason: `application: ${app.reason}; ${setup ? `${installerName}: ${setup.reason}` : `missing distribution installer: ${installerName}`}`,
   }
 }

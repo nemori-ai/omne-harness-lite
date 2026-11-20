@@ -18,6 +18,13 @@ export default {
   afterPack,
   mac: { target: ['dmg', 'zip'], category: 'public.app-category.developer-tools', identity: null },
   win: { target: ['nsis'] },
-  nsis: { oneClick: false, allowToChangeInstallationDirectory: true },
+  // An assisted installer that lets the user choose the directory and a per-user or all-users
+  // installation; nsis/installer.nsh keeps it and its uninstaller off files it did not install.
+  nsis: {
+    include: 'nsis/installer.nsh',
+    artifactName: '${productName} Setup ${version}.${ext}',
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+  },
   linux: { target: ['deb', 'rpm'], category: 'Development' },
 }

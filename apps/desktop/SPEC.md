@@ -236,11 +236,13 @@
 
 ### 打包
 
-- `pnpm run package` 构建测试档并打出解开的应用到 `out/test`；`pnpm run package:release` 构建发行档并打出解开的应用到 `out/release`；`pnpm run dist` 构建发行档并打出安装包：macOS 是 dmg 与 zip，Windows 是可以选安装目录与安装范围的 NSIS，Linux 是 deb 与 rpm（rpm 要本机有 `rpmbuild`）。安装包只出发行档。只打一个平台，给 `dist` 加 `--mac`、`--win` 或 `--linux`。
+- `pnpm run package` 构建测试档并打出解开的应用到 `out/test`；`pnpm run package:release` 构建发行档并打出解开的应用到 `out/release`；`pnpm run dist` 构建发行档并打出安装包：macOS 是 dmg 与 zip，Windows 是可以选安装目录与安装范围的 NSIS，Linux 是 deb 与 rpm（rpm 要本机有 `rpmbuild`）。安装包只出发行档。只打一个平台，给 `dist` 加 `--mac`、`--win` 或 `--linux`。Windows 安装包要在 Windows 上打：electron-builder 26 在 macOS 上交叉打出的安装包能装、应用能跑，但没配应用图标时卸载程序过不了 NSIS 的完整性检查（electron-userland/electron-builder 的 issue 10258，27 版修复）。
 - electron-builder 的配置分 `electron-builder.base.mjs` 与两份各自写全应用目录与输出目录的 `electron-builder.test.mjs`、`electron-builder.release.mjs`。它打的就是 `dist/<档>`，去掉源码映射与模块清单；应用里不装 `node_modules`。
 - 应用名、包名与 `appId` 在 `product.json` 里只写一次，都是可移植的文件名：electron-builder 不改写它们，可执行文件的路径照它的缺省名字算。应用名决定用户数据目录。
 - fuses 一张表两列，在 `scripts/fuses.ts`：不能以 Node 运行，不认 `NODE_OPTIONS`，只从自己的 asar 加载且核对它的完整性，cookie 加密打开。测试档只多开 Node 调试参数，Playwright 的 Electron 驱动要靠它接上应用。两档都在打包后翻上并逐个读回，没翻上打包失败。
-- 三个平台都不签名。macOS 上翻 fuses 之后重做临时签名，arm64 的应用没有签名起不来。正式签名、公证、发行渠道与自动更新不在本应用里。Linux 的 deb 要维护者的邮箱，`product.json` 还没有，`pnpm run dist --linux` 现在会报错。
+- Windows 安装包（`nsis/installer.nsh`）不碰不是它装的文件。首次安装只接受空目录或不存在的目录，读不了的目录也拒绝；升级只接受注册过、且卸载程序按文件删除的那一份安装。卸载与升级只删打包时列下的文件（`scripts/nsis-files.ts` 在打包后写出 `out/nsis/<架构>.nsh`，编进卸载程序），目录空了才删，用户自己放进去的文件留下。安装路径或已装目录里有目录链接就拒绝。删不掉的文件报出 Windows 错误码并停下，卸载程序与注册都留着，可以重试。没有这份记录的旧安装不替用户调用它的递归卸载程序，而是拒绝并请人先备份、处理旧安装。
+- 打出 Windows 安装包之后，`scripts/installer-receipt.ts` 在它旁边写一份按架构的 SHA-256 回执，把安装包与这次打包的可执行文件、`app.asar` 绑在一起；`verify:release --no-build` 拿它核对要发出去的就是验过的那一份。
+- 三个平台都不签名。macOS 上翻 fuses 之后重做临时签名，arm64 的应用没有签名起不来；打 universal 包时 electron-builder 先为每个架构各打一份临时切片，切片上不重做签名，否则合不成一份。正式签名、公证、发行渠道与自动更新不在本应用里。Linux 的 deb 要维护者的邮箱，`product.json` 还没有，`pnpm run dist --linux` 现在会报错。
 
 ### 端到端用例
 
@@ -256,7 +258,7 @@
   2. 包内容：最终的 app.asar 恰好是 `dist/release` 的文件，逐字节相同、包内记的完整性对得上；package.json 从主进程包进；旁边没有解开的目录；macOS 上 Info.plist 记的 asar 完整性是它的头；`dist/release` 过 verify:build，包里的包带着该有的标记。
   3. 拒绝远程调试：带两种开关各起一次，都以 97 退出、主进程只打一行拒绝、端口不接受连接、管道不答、不留进程；测试档同样起一次作阳性对照，它必须答，否则这一项失败。
   4. 启动冒烟：在新的用户数据目录上起，30 秒内报 release 档并打出主窗口就绪行；从外面请它退出（SIGTERM，Windows 上不带 `/F` 的 taskkill）要以 0 退出、它建出的进程全部离开、看得到主进程、渲染进程与它自己的 utility 进程；只写进给它的目录，安装的应用的用户数据目录前后不变；Windows 上新目录要有一次存下密钥与一次核对，别处一行都不能有。macOS 锁屏时跳过。
-  5. 签名与公证：本地未签名的包跳过；`--distribution` 时 macOS 要 Developer ID 签名、公证并装订、Gatekeeper 接受，Windows 要 Authenticode 有效。Linux 没有这一项。
+  5. 签名与公证：本地未签名的包跳过；`--distribution` 时 macOS 要 Developer ID 签名、公证并装订、Gatekeeper 接受，Windows 要应用与 `out/release` 里的 NSIS 安装包两者的 Authenticode 都有效，安装包还要与它的回执对得上。Linux 没有这一项。
 - Linux 上沙箱起不来时跳过 3 与 4 并说怎样打开，`--allow-no-sandbox` 让它们不带沙箱跑并在结果里写明。只数启动自己建出的进程：起之前先列一次进程，再看开始时间、父进程与进程组；Windows 上杀一个进程之前先按创建时间认准它，不碰复用了 PID 的别的进程。起不来时报出原因。辅助进程确认都退出了才删它们用的临时目录，确认不了就留下目录并判这一项失败；被打断时同样先杀、再确认、再删。退出码：0 验过；1 有失败；2 不完整，1 到 4 有跳过，或要发行时 5 跳过。
 
 ## 原则与约束
@@ -312,3 +314,5 @@
 | DT-35 | 发行档在新目录上能起来、打出就绪行、请它退出时以 0 退出并带走它建出的全部进程 | 装好的应用起不来或退不干净，只在人手里才发现 | `verify:release` 第 4 项；`readiness` 用例 |
 | DT-36 | Windows 上新目录首次启动之前 cookie 密钥已经写下，启动用的就是它 | 首次启动后 10 秒内崩溃，人被登出 | `cookie-key` 用例；`verify:release` 第 4 项在 Windows 上 |
 | DT-37 | 按 Ctrl+C 退出 `pnpm run window` 与 `pnpm run dev`，应用干净退出，不留进程；关闭途中渲染进程没了窗口被销毁；还没生出来就被停掉的 utility 进程生出来即被杀 | 退出卡住或留下进程，下一次启动拿不到单实例锁 | `utility-process` 用例；手动冒烟 |
+| DT-38 | 启动器、e2e 与 `verify:release` 只停自己起的进程，Windows 上按创建时间认准；辅助进程确认退出之前不删它们用的用户数据目录 | 误杀人另外起的应用或复用了 PID 的进程；目录在用时被删，下一次检查读到半截数据 | `release-launch`、`e2e-close` 慢层用例 |
+| DT-39 | Windows 的安装、升级与卸载只删它装进去的文件，目录空了才删；首次安装只进空目录；没有按文件卸载记录的旧安装不替人卸载 | 人把应用装进放着自己文件的目录，卸载或升级时连那些文件一起删掉 | `installer` 用例核对卸载清单；Windows 上实际的安装、升级与卸载没有自动化用例 |

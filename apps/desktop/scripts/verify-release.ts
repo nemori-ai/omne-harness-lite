@@ -17,6 +17,7 @@ import {
   linuxSandboxBlocker,
   windowStateSwitches,
 } from './launch.ts'
+import { checkInstaller } from './installer-receipt.ts'
 import { packagedBinary } from './packaged-path.ts'
 import { powershellOutput } from './powershell.ts'
 import {
@@ -40,6 +41,7 @@ import {
 import { describeProcesses, type ProcessLocation } from './release-processes.ts'
 import {
   judgeSigning,
+  judgeWindowsDistribution,
   parseAuthenticode,
   requiresSigning,
   type SignatureFacts,
@@ -500,15 +502,18 @@ function runTool(command: string, args: string[]): { ok: boolean; output: string
   }
 }
 
+function windowsSignature(file: string): Extract<SignatureFacts, { platform: 'win32' }> {
+  return parseAuthenticode(
+    powershellOutput(
+      "Get-AuthenticodeSignature -ErrorAction Stop -LiteralPath $env:VERIFY_RELEASE_FILE | Select-Object @{n='Status';e={[string]$_.Status}},StatusMessage,@{n='Signer';e={$_.SignerCertificate.Subject}} | ConvertTo-Json -Compress",
+      { VERIFY_RELEASE_FILE: file },
+    ),
+  )
+}
+
 function signatureFacts(pkg: Package): SignatureFacts {
   if (process.platform === 'linux') return { platform: 'linux' }
-  if (isWindows)
-    return parseAuthenticode(
-      powershellOutput(
-        "Get-AuthenticodeSignature -LiteralPath $env:VERIFY_RELEASE_EXE | Select-Object @{n='Status';e={[string]$_.Status}},StatusMessage,@{n='Signer';e={$_.SignerCertificate.Subject}} | ConvertTo-Json -Compress",
-        { VERIFY_RELEASE_EXE: pkg.executable },
-      ),
-    )
+  if (isWindows) return windowsSignature(pkg.executable)
   const bundle = pkg.bundle!
   const display = runTool('codesign', ['-dv', '--verbose=2', bundle])
   if (/not signed at all/.test(display.output)) return { platform: 'darwin', signature: 'unsigned' }
@@ -523,17 +528,26 @@ function signatureFacts(pkg: Package): SignatureFacts {
   }
 }
 
-function checkSigning(pkg: Package, distribution: boolean): CheckResult {
+/** On Windows a distribution also needs its signed installer, bound by its receipt to this package. */
+async function checkSigning(pkg: Package, distribution: boolean): Promise<CheckResult> {
+  const name = 'signing and notarization'
   try {
-    const verdict = judgeSigning(signatureFacts(pkg), distribution)
-    return report(5, 'signing and notarization', verdict.status, verdict.reason)
+    const app = signatureFacts(pkg)
+    if (app.platform === 'win32' && distribution) {
+      const installerName = `${pkg.manifest.productName} Setup ${pkg.manifest.version}.exe`
+      const installer = join(desktopDir, 'out', 'release', installerName)
+      const verdict = judgeWindowsDistribution(
+        app,
+        installerName,
+        existsSync(installer) ? windowsSignature(installer) : undefined,
+      )
+      if (verdict.status === 'pass') await checkInstaller(installer, process.arch, pkg.executable)
+      return report(5, name, verdict.status, verdict.reason)
+    }
+    const verdict = judgeSigning(app, distribution)
+    return report(5, name, verdict.status, verdict.reason)
   } catch (failure) {
-    return report(
-      5,
-      'signing and notarization',
-      'fail',
-      `could not read the signature: ${describe(failure)}`,
-    )
+    return report(5, name, 'fail', `could not verify the signing: ${describe(failure)}`)
   }
 }
 

@@ -9,6 +9,7 @@ import {
 } from '@electron/fuses'
 import type { AfterPackContext } from 'electron-builder'
 import { type PackagedProfile, bundleDir } from './build-profile.ts'
+import { writeNsisFileList } from './nsis-files.ts'
 import { packagedBinary } from './packaged-path.ts'
 
 export const FUSE_NAMES = [
@@ -106,14 +107,19 @@ export default async function afterPack(context: AfterPackContext): Promise<void
   const profile = packagedProfileOf(context.packager.config.directories?.app)
   const binary = packedExecutable(context)
   const fuses = FUSES[profile]
+  const { Arch } = await import('electron-builder')
+  // A universal build calls this for each temporary slice too; signing a slice stops them merging.
+  const temporarySlice = context.appOutDir.endsWith(`-universal-${Arch[context.arch]}-temp`)
   await flipFuses(binary, {
     version: FuseVersion.V1,
     // Flipping breaks the ad-hoc signature an arm64 Mac binary needs to start at all.
-    resetAdHocDarwinSignature: context.electronPlatformName === 'darwin',
+    resetAdHocDarwinSignature: context.electronPlatformName === 'darwin' && !temporarySlice,
     strictlyRequireAllFuses: true,
     ...Object.fromEntries(FUSE_NAMES.map(name => [FuseV1Options[name], fuses[name]])),
   } as Parameters<typeof flipFuses>[1])
   await checkPackagedFuses(binary, profile)
+  if (context.electronPlatformName === 'win32' && profile === 'release')
+    writeNsisFileList(context.appOutDir, context.packager.projectDir, Arch[context.arch])
 }
 
 if (import.meta.main) {
