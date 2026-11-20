@@ -36,6 +36,7 @@ import {
   type ToolCatalog,
   type ToolConsumerProfile,
   type ToolInvokeRequest,
+  type ToolDefinition,
 } from '@omne-harness/tool-contract'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
@@ -46,7 +47,7 @@ import {
   readPublishedNeed,
   readPublishedView,
 } from '../rows/session-ad03/published-view.ts'
-import { judgeMetaCommand, type SessionInteractionRead } from './meta-capabilities.ts'
+import { judgeCallConditions, type SessionInteractionRead } from './meta-capabilities.ts'
 import { toolOperatorSettingsKey } from '../rows/tool-host/operator-settings.ts'
 import { toolLimitsOf } from './tool-limits.ts'
 import { releaseOf, type ToolRelease } from './tool-release.ts'
@@ -201,7 +202,10 @@ async function availabilityOf(
     return unavailable(`${name} is not available`)
   const selected = callOf(availability.definition, input.effectiveArguments)
   if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
-  const closed = await closedBySession(ports, input, session, selected.command)
+  const closed = await closedBySession(ports, input, session, {
+    definition: availability.definition,
+    command: selected.command,
+  })
   if ('failure' in closed) return closed
   const access = { principal: input.principal, tenant: input.tenant, session }
   return closed.ok === null
@@ -225,10 +229,10 @@ async function closedBySession(
   ports: ToolRequestPorts,
   input: DescribeInput,
   session: SessionId,
-  command: string | null,
+  call: Readonly<{ definition: ToolDefinition; command: string | null }>,
 ): Promise<Outcome<ToolCallAnswer | null, Failure>> {
   const access = { principal: input.principal, tenant: input.tenant, session }
-  const verdict = await judgeMetaCommand(ports, access, input.original.name, command)
+  const verdict = await judgeCallConditions(ports, access, call.definition, call.command)
   switch (verdict.kind) {
     case 'unreadable':
       return unavailable(verdict.diagnostic)

@@ -190,6 +190,11 @@ describe('the four steps in their order, needing a decision', () => {
       },
     ],
     ['never', read('deny'), { kind: 'refuse', reason: 'inquiry-policy', basis }],
+    [
+      'a session where nobody can be asked',
+      { ...read('deny'), policy: { onAsk: 'deny', denial: 'nobody-to-ask' } },
+      { kind: 'refuse', reason: 'nobody-to-ask', basis },
+    ],
     ['auto_permission', read('ask-human'), { kind: 'ask', basis }],
     [
       'bypass-permissions',

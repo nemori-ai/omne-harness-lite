@@ -30,6 +30,9 @@ import { textReturns } from './returns.ts'
 
 const encoder = new TextEncoder()
 
+/** Asking needs a person who can answer where the call is made. */
+const ASK_CONDITIONS = ['person-answers'] as const
+
 export const askGuide = [
   'Ask exists to make answering fast. You can always ask a question in plain text in your reply. Use Ask when a few options to pick let the person answer faster. If options would not make it easier for the person, ask in text instead. Use Ask only when the answer changes what you do next and you cannot get it from the request, the workspace, or a sensible default. Do not ask for facts that you can look up. Do not ask for a polite confirmation before you start.',
   'Do not use Ask to ask for permission, such as "May I delete these files?" or "Can I run this command?". You do not decide whether an action needs the approval of the person; the system does. When an action needs approval, the system asks the person itself before the action starts. An answer to Ask grants no permission for any action.',
@@ -97,6 +100,7 @@ export function createAskAuthor(
       summary: string
       operation: ToolOperation<null, ToolMessageContentBlock>
       release: ToolCommandRelease
+      conditions: readonly string[]
     }
   > = {}
   for (const command of askCommands) {
@@ -145,6 +149,7 @@ export function createAskAuthor(
       summary: command.summary,
       operation: operation.ok,
       release: { gate: null },
+      conditions: ASK_CONDITIONS,
     }
   }
   const author = defineCommandTool({

@@ -272,6 +272,12 @@
       ]
     },
     {
+      "row": "agent-context",
+      "names": [
+        "sessionModesInstallation"
+      ]
+    },
+    {
       "row": "agent-journal",
       "names": [
         "storage",

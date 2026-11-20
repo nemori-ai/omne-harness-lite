@@ -29,6 +29,7 @@ import type { PermissionBasisReading, PermissionBasisRequest } from '@omne-harne
 import { loadProductionRelease, TOOL_RELEASE_TENANT } from '../../../src/entry/tool-release.ts'
 import {
   createCurrentToolPermission,
+  NOBODY_TO_ASK,
   declaredPermission,
   type ToolPermissionAction,
   type ToolPermissionPorts,
@@ -809,4 +810,24 @@ it.each([
     diagnostic: 'The permission source answered for another request.',
   })
   expect(w.reads()).toBe(1)
+})
+
+it('denies an asking gate and says why when the session has nobody to ask', async () => {
+  const w = world()
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  const policy = { onAsk: 'deny', denial: 'nobody-to-ask' } as const
+  const check = createCurrentToolPermission({
+    ...w.ports,
+    inquiry: async () => ({ ...w.inquiry, inquiry: { ...w.inquiry.inquiry, policy } }),
+  })
+  expect(await check.check(w.input)).toMatchObject({
+    kind: 'deny',
+    category: 'rule',
+    reason: 'nobody-to-ask',
+    notice: NOBODY_TO_ASK,
+  })
+  const refuse = { onAsk: 'deny' } as const
+  const never = { ...w.inquiry, inquiry: { ...w.inquiry.inquiry, policy: refuse } }
+  const plain = createCurrentToolPermission({ ...w.ports, inquiry: async () => never })
+  expect(await plain.check(w.input)).not.toHaveProperty('notice')
 })

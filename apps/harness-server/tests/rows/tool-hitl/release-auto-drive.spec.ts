@@ -40,7 +40,7 @@ describe('Ask in an auto-drive session', () => {
             seen => seen.some(entry => entry.kind === 'message.tool'),
           )
           expect(toolResults(history)).toEqual([
-            'Ask: the command "ask" is not available now. This session does not let you ask a person (collaboration mode). Continue without the answer, or stop and report what you need.',
+            'Ask: the command "ask" is not available here: no person can be asked for an answer in this session now. Continue without it, or stop and report what you need.',
           ])
           expect(await world.cards({ states: ['pending', 'decided', 'invalidated'] })).toEqual([])
           expect(toolLedger(world.storageRoot)).toEqual([])

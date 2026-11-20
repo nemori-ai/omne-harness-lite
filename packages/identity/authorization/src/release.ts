@@ -45,7 +45,11 @@ export type ReleaseDecision =
       grant: GrantRef
     }>
   | Readonly<{ kind: 'ask'; basis: ReleaseBasis }>
-  | Readonly<{ kind: 'refuse'; reason: 'prohibited' | 'inquiry-policy'; basis: ReleaseBasis }>
+  | Readonly<{
+      kind: 'refuse'
+      reason: 'prohibited' | 'inquiry-policy' | 'nobody-to-ask'
+      basis: ReleaseBasis
+    }>
   | Readonly<{ kind: 'unavailable'; missing: 'verdict' | 'session' }>
 
 // The four steps in their fixed order (packages/identity/SPEC.md, 人工决定与询问处理).
@@ -78,7 +82,7 @@ export function decideRelease(facts: ReleaseFacts): ReleaseDecision {
   }
   switch (session.policy.onAsk) {
     case 'deny':
-      return { kind: 'refuse', reason: 'inquiry-policy', basis }
+      return { kind: 'refuse', reason: session.policy.denial ?? 'inquiry-policy', basis }
     case 'ask-human':
       return { kind: 'ask', basis }
     case 'skip-ask': {

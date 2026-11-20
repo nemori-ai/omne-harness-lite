@@ -323,6 +323,9 @@ function guardedCondition(
   return { ...condition, commands: [...commands, guard] }
 }
 
+export const NOBODY_TO_ASK =
+  'This action needs the approval of a person, and no person can be asked here. Continue without it, or stop and report what you need.'
+
 function releaseDecision(decided: ReleaseDecision, found: Found): ToolPermissionDecision {
   const { evidence, once, gate } = found
   switch (decided.kind) {
@@ -340,8 +343,9 @@ function releaseDecision(decided: ReleaseDecision, found: Found): ToolPermission
       return {
         kind: 'deny',
         category: 'rule',
-        reason: decided.reason === 'prohibited' ? 'permission-policy' : 'inquiry-policy',
+        reason: decided.reason === 'prohibited' ? 'permission-policy' : decided.reason,
         evidence,
+        ...(decided.reason === 'nobody-to-ask' ? { notice: NOBODY_TO_ASK } : {}),
       }
     case 'ask':
       return gate === undefined ? { kind: 'ask', evidence } : { kind: 'ask', evidence, gate }
