@@ -215,6 +215,17 @@ describe('the cascade of an archive', () => {
       { child: 'child-1', state: 'pending' },
     ])
   })
+  it('drives each child once when a scan finds the tasks while the archive is already driving them', async () => {
+    const h = await tree()
+    const seen = childControls(h)
+    succeeded(await archive(h), 'archive')
+    const handle = succeeded(await h.instance.maintain(TENANT_A), 'maintain')
+    await settle()
+    expect(seen.map(item => item.session).sort()).toEqual(['child-1', 'child-2', 'grandchild'])
+    expect(cascades(await read(h, 'parent'))).toEqual([])
+    await handle.release()
+  })
+
   it('ends once no task is left: later it reads nothing and drives nothing', async () => {
     const h = await tree()
     succeeded(await archive(h, 'child-2'), 'archive a session without children')
