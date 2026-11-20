@@ -415,6 +415,7 @@
 - `SessionAccessCheckService` · `cordis.d.ts`
 - `SessionAdoptedRequestsService` · `cordis.d.ts`
 - `SessionAdoptionSourceService` · `cordis.d.ts`
+- `SessionBeforeIntakeService` · `cordis.d.ts`
 - `SessionCallControlService` · `cordis.d.ts`
 - `SessionCallStatesService` · `cordis.d.ts`
 - `SessionClockService` · `cordis.d.ts`
@@ -448,6 +449,8 @@
 - `sessionAdoptedRequestsKey` · `cordis.d.ts`
 - `sessionAdoptionSourceKey` · `cordis.d.ts`
 - `sessionAgentDriveKey` · `cordis.d.ts`
+- `sessionBeforeIntakeKey` · `cordis.d.ts`
+- `sessionBeforeIntakePlugin` · `cordis.d.ts`
 - `sessionCallControlKey` · `cordis.d.ts`
 - `sessionCallStatesKey` · `cordis.d.ts`
 - `sessionClockKey` · `cordis.d.ts`
@@ -563,7 +566,7 @@ export interface SessionScopeLookup {
 ```ts
 import { type Context, type Plugin, Service } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import { type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSources, type SessionDerivedInputs } from '@omne-harness/session-contract';
+import { type BeforeIntakeRegistry, type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSources, type IntakeProcessor, type SessionDerivedInputs } from '@omne-harness/session-contract';
 import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallControl, SessionCallStates, SessionCallerClass, SessionClock, SessionContextInput, SessionDirectory, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 import type { SessionAdoptedRequests } from './adopted-request.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
@@ -778,6 +781,15 @@ export declare class SessionInputSourcesService extends Service implements Input
 }
 export declare const sessionInputSourcesKey = "sessionInputSources";
 export declare const sessionInputSourcesPlugin: Plugin.Object;
+export declare class SessionBeforeIntakeService extends Service implements Pick<BeforeIntakeRegistry<unknown>, 'current'> {
+    static readonly provide = "sessionBeforeIntake";
+    private readonly registry;
+    constructor(ctx: Context);
+    register(processor: IntakeProcessor<unknown>): void;
+    current(): readonly IntakeProcessor<unknown>[];
+}
+export declare const sessionBeforeIntakeKey = "sessionBeforeIntake";
+export declare const sessionBeforeIntakePlugin: Plugin.Object;
 export declare abstract class SessionDerivedInputsService extends Service implements SessionDerivedInputs {
     static readonly provide = "sessionDerivedInputs";
     constructor(ctx: Context);
@@ -788,6 +800,7 @@ declare module '@deepseek-ai/cordis' {
     interface Context {
         session: SessionService<unknown>;
         sessionInputSources: SessionInputSourcesService;
+        sessionBeforeIntake: SessionBeforeIntakeService;
         sessionDerivedInputs: SessionDerivedInputsService;
         sessionAccessCheck: SessionAccessCheckService<unknown>;
         sessionTransactions: SessionTransactionPortService<unknown>;

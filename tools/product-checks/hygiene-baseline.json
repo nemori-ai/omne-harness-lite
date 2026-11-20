@@ -579,7 +579,7 @@
       },
       "packages/session/session/src/command.ts": {
         "count": 1,
-        "longest": 260
+        "longest": 239
       },
       "packages/session/session/src/control.ts": {
         "count": 1,
