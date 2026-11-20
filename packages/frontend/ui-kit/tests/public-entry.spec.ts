@@ -143,6 +143,7 @@ const REST = [
   'RadioGroup',
   'RadioGroupItem',
   'ReceiptPill',
+  'SIZE_TIERS',
   'STATE_FACT',
   'STATE_LABELS',
   'SaveReceipt',
@@ -189,6 +190,7 @@ const REST = [
   'buttonVariants',
   'cn',
   'colorSchemeQuery',
+  'createSizeController',
   'createThemeController',
   'formatInstant',
   'formatRelative',
@@ -197,6 +199,8 @@ const REST = [
   'objectPart',
   'objectView',
   'resolveTheme',
+  'sizeStepForKey',
+  'stepSize',
   'useAgeClock',
   'useArrival',
   'useLoopPause',
@@ -204,10 +208,11 @@ const REST = [
   'useObjectTransition',
   'usePresenceInert',
   'useReducedMotion',
+  'useSizeFactor',
   'useSettleCue',
 ]
 
-it('the root entry exports the controls, patterns, charts, Prose, icons, motion and theme controller', async () => {
+it('the root entry exports the controls, patterns, charts, Prose, icons, motion, theme and size controllers', async () => {
   const root = (await import('../src/index.ts')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([...ICONS, ...REST].sort())
 })

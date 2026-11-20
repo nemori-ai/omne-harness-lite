@@ -48,7 +48,7 @@
   width: 0.6em;
   height: 0.6em;
   margin-inline-end: 0.3em;
-  border-radius: 2px;
+  border-radius: var(--omne-radius-mark);
   background: currentColor;
 }
 .omne-chart-table summary {
@@ -71,7 +71,7 @@
 .omne-share-bar {
   display: block;
   width: 100%;
-  height: 8px;
+  height: var(--omne-share-bar-height);
   border-radius: var(--omne-radius-pill);
 }
 .omne-share-legend {
@@ -99,7 +99,7 @@
 }
 .omne-meter-track {
   width: 100%;
-  height: 6px;
+  height: var(--omne-meter-track-height);
 }
 .omne-meter-rail {
   color: var(--omne-chart-unknown);

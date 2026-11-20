@@ -4,11 +4,11 @@
 .omne-disclosure-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: calc(var(--spacing) * 1.5);
   min-height: var(--omne-control-height);
   max-width: 100%;
-  margin-left: -6px;
-  padding: 4px 8px 4px 6px;
+  margin-left: calc(var(--spacing) * -1.5);
+  padding: var(--spacing) calc(var(--spacing) * 2) var(--spacing) calc(var(--spacing) * 1.5);
   border-radius: var(--omne-radius-control);
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-ui);
@@ -35,24 +35,24 @@
   overflow-wrap: anywhere;
 }
 .omne-disclosure-content {
-  margin-top: 8px;
+  margin-top: var(--omne-space-inline);
 }
 .page-column {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--omne-page-column-width);
   min-width: 0;
   min-height: calc(100dvh - var(--omne-window-inset));
   margin-inline: auto;
-  padding: 32px 40px 48px;
+  padding: var(--omne-page-column-padding);
   overflow-wrap: anywhere;
 }
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: var(--spacing);
   max-width: 44ch;
-  padding: 24px 0;
+  padding: var(--omne-space-section) 0;
   font-size: var(--omne-text-ui);
   line-height: var(--omne-leading-wrapped);
 }
@@ -82,8 +82,8 @@
 .empty-state-action {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
+  gap: var(--omne-space-inline);
+  margin-top: calc(var(--spacing) * 2.5);
 }
 .page-header-title {
   font-family: var(--omne-font-reading);
@@ -94,13 +94,13 @@
 }
 .omne-toast-stack {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  right: var(--omne-space-block);
+  bottom: var(--omne-space-block);
   z-index: 50;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: min(360px, calc(100vw - 32px));
+  gap: var(--omne-space-inline);
+  width: min(var(--omne-toast-width), calc(100vw - 2 * var(--omne-space-block)));
 }
 .omne-toast {
   border-radius: var(--omne-radius-control);

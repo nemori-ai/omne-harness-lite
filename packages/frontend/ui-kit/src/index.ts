@@ -154,6 +154,20 @@ export {
   type ThemeRoot,
 } from './theme/controller.ts'
 export {
+  createSizeController,
+  SIZE_TIERS,
+  type SizeController,
+  type SizeControllerInput,
+  type SizeKey,
+  type SizeKeyPlatform,
+  type SizeRoot,
+  type SizeStep,
+  type SizeTier,
+  sizeStepForKey,
+  stepSize,
+} from './size/controller.ts'
+export { useSizeFactor } from './size/use-size-factor.ts'
+export {
   CHART_COPY,
   type ChartCopy,
   type ChartFormat,

@@ -4,14 +4,14 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: var(--omne-icon-label);
+  height: var(--omne-icon-label);
   vertical-align: -0.125em;
   color: inherit;
 }
 .omne-loading-indicator[data-size='sm'] {
-  width: 12px;
-  height: 12px;
+  width: var(--omne-icon-micro);
+  height: var(--omne-icon-micro);
 }
 .omne-loading-indicator > svg {
   display: block;
@@ -62,7 +62,7 @@
 .omne-loading-state {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: calc(var(--spacing) * 2.5);
   min-height: var(--omne-control-height);
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-ui);

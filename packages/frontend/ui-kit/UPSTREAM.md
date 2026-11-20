@@ -32,6 +32,8 @@
   - `time.ts` 与 `ago` 不再读多语言目录。
 - 多语言：`sheet`、`confirm/*`、`state-word`、`prose` 的 Markdown 控件、图表（`frame`、`simple`、`series`）、`time.ts` 与 `ago` 的相对时间，文案都改为属性，缺省值是中文。
 - `input` 去掉 `dark:` 的第二套颜色，颜色只走 `light-dark()`。
+- 样式里的长度只读 token：各个 CSS 文件里大于 1px 的 px 与 rem 换成已有的 token 或 `--spacing` 的倍数；单处用到的长度在 `tokens.css` 里按角色起名，四档各写一个值。代码块右缘渐隐的 `--omne-code-edge` 改为 0 到 1 的系数，乘 `--omne-code-fade`。`patterns.css` 读的 `--omne-window-inset` 在 `tokens.css` 里定义，缺省 0。
+- 字号档的控制器与一档一档调的函数（`src/size/`）是本成员写的：偏好的读写由调用者注入，自己不碰存储；四档的名字与系数是来源 `tokens.css` 里的那四档。
 - 去掉的死代码：`brush.ts` 里只给来源的脚本用的函数。
 - `styles.css` 里 `main.list-reading` 一类业务版式、壳与设置的类不取。
 
