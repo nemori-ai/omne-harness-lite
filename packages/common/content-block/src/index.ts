@@ -55,6 +55,19 @@ export type MediaFacts =
   | Readonly<{ kind: 'voice'; durationMs: number; sampleRate: number; channels: number }>
   | Readonly<{ kind: 'file' }>
 
+export type Provenance = Readonly<{ name: string; revision: string }>
+
+/** What a medium was made into, by which definition and engine. The inline text is the block's `transcript`. */
+export type RepresentationSnapshot = Readonly<{ definition: Provenance; engine: Provenance }> &
+  (
+    | Readonly<{
+        outcome: 'converted'
+        text: ContentReference | null
+        others: readonly ContentReference[]
+      }>
+    | Readonly<{ outcome: 'inconvertible' }>
+  )
+
 export type ReferenceContentBlock = Readonly<{
   kind: 'voice' | 'image' | 'file'
   id: BlockId
@@ -63,6 +76,7 @@ export type ReferenceContentBlock = Readonly<{
   transcript: string | null
   /** Given by whoever took the medium into custody; a block from a caller does not bring its own. */
   facts?: MediaFacts
+  snapshot?: RepresentationSnapshot
 }>
 
 export type ContentBlock =
@@ -88,6 +102,7 @@ export type ContentBlockRejection =
   | 'digest'
   | 'transcript'
   | 'facts'
+  | 'snapshot'
 
 export type ContentBlockJudgment =
   | { readonly ok: ContentBlock }
@@ -215,7 +230,17 @@ const VISIBILITY_KEYS = ['toHuman', 'toModel'] as const
 type ReferenceKind = ReferenceContentBlock['kind']
 
 const REFERENCE_KINDS: readonly ReferenceKind[] = ['voice', 'image', 'file']
-const REFERENCE_BLOCK_KEYS = ['kind', 'id', 'visibility', 'ref', 'transcript', 'facts'] as const
+const REFERENCE_BLOCK_KEYS = [
+  'kind',
+  'id',
+  'visibility',
+  'ref',
+  'transcript',
+  'facts',
+  'snapshot',
+] as const
+const SOURCE_KEYS = ['definition', 'engine'] as const
+const CONVERTED_KEYS = ['outcome', ...SOURCE_KEYS, 'text', 'others'] as const
 const FACT_KEYS = {
   image: ['widthPixels', 'heightPixels'],
   voice: ['durationMs', 'sampleRate', 'channels'],
@@ -299,6 +324,34 @@ function factsOf(value: unknown): MediaFacts | undefined {
   ) as unknown as MediaFacts
 }
 
+function provenanceOf(value: unknown): Provenance | undefined {
+  if (!isRecord(value) || hasUnknownKey(value, ['name', 'revision'])) return undefined
+  const { name, revision } = value
+  return isFilled(name) && isFilled(revision) ? { name, revision } : undefined
+}
+
+function referenceOrUndefined(value: unknown): ContentReference | undefined {
+  const judged = referenceOf(value)
+  return 'ok' in judged ? judged.ok : undefined
+}
+
+/** The snapshot of a representation: one of its two outcomes, each with where it came from. */
+function snapshotOf(value: unknown): RepresentationSnapshot | undefined {
+  if (!isRecord(value)) return undefined
+  const [definition, engine] = [provenanceOf(value.definition), provenanceOf(value.engine)]
+  if (definition === undefined || engine === undefined) return undefined
+  if (value.outcome === 'inconvertible')
+    return hasUnknownKey(value, ['outcome', ...SOURCE_KEYS])
+      ? undefined
+      : { outcome: 'inconvertible', definition, engine }
+  if (value.outcome !== 'converted' || hasUnknownKey(value, CONVERTED_KEYS)) return undefined
+  if (!Array.isArray(value.others)) return undefined
+  const text = value.text === null ? null : referenceOrUndefined(value.text)
+  const others = value.others.map(referenceOrUndefined)
+  if (text === undefined || others.includes(undefined)) return undefined
+  return { outcome: 'converted', definition, engine, text, others: others as ContentReference[] }
+}
+
 function admitReference(
   kind: ReferenceKind,
   value: Record<string, unknown>,
@@ -309,11 +362,21 @@ function admitReference(
   if ('rejected' in ref) return ref
   const transcript = value.transcript
   if (transcript !== null && typeof transcript !== 'string') return { rejected: 'transcript' }
-  if (!Object.hasOwn(value, 'facts'))
-    return { ok: { kind, id, visibility, ref: ref.ok, transcript } }
-  const facts = factsOf(value.facts)
+  const facts = Object.hasOwn(value, 'facts') ? factsOf(value.facts) : null
   if (facts === undefined) return { rejected: 'facts' }
-  return { ok: { kind, id, visibility, ref: ref.ok, transcript, facts } }
+  const snapshot = Object.hasOwn(value, 'snapshot') ? snapshotOf(value.snapshot) : null
+  if (snapshot === undefined) return { rejected: 'snapshot' }
+  return {
+    ok: {
+      kind,
+      id,
+      visibility,
+      ref: ref.ok,
+      transcript,
+      ...(facts === null ? {} : { facts }),
+      ...(snapshot === null ? {} : { snapshot }),
+    },
+  }
 }
 
 export function judgeContentBlock(value: unknown): ContentBlockJudgment {

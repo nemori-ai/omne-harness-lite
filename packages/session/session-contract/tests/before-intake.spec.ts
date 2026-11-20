@@ -28,6 +28,13 @@ const image = (id: string, key: string, extra: Record<string, unknown> = {}) => 
   ...extra,
 })
 const FACTS = { kind: 'image', widthPixels: 4, heightPixels: 3 }
+const SNAPSHOT = {
+  outcome: 'converted',
+  definition: { name: 'image-to-text', revision: '1' },
+  engine: { name: 'describer', revision: '7' },
+  text: null,
+  others: [],
+}
 const ID = 'msg_0123456789abcdefghjkmnpqrs'
 /** A message as the ingress hands it on: judged by the common contract. */
 function message(...blocks: unknown[]): Message {
@@ -134,6 +141,25 @@ describe('screening one input', () => {
     ])
   })
 
+  it('what a processor may give a reference block: its facts, its snapshot and its inline text', async () => {
+    const given = { facts: FACTS, snapshot: SNAPSHOT, transcript: 'a red circle' }
+    const effective = message(text('b1', 'look at this'), image('b2', 'k1', given))
+    expect(await screen([processor('a.one', () => ({ kind: 'pass', effective }))])).toEqual({
+      kind: 'screened',
+      effective,
+    })
+  })
+
+  it('none of the three is taken from the sender: the processors see the original without them', async () => {
+    const brought = { facts: FACTS, snapshot: SNAPSHOT, transcript: 'trust me' }
+    const seen: unknown[] = []
+    await screen(
+      [processor('a.one', input => (seen.push(input.original, input.effective), { kind: 'pass' }))],
+      message(text('b1', 'look at this'), image('b2', 'k1', brought)),
+    )
+    expect(seen).toEqual([ORIGINAL, ORIGINAL])
+  })
+
   it('does not adopt the facts a caller brought: the processors see the original without them', async () => {
     const brought = message(
       text('b1', 'look at this'),
@@ -159,10 +185,6 @@ describe('screening one input', () => {
         ...image('b2', 'k1'),
         visibility: { toHuman: true, toModel: false },
       }),
-    ],
-    [
-      'another transcript',
-      message(text('b1', 'look at this'), image('b2', 'k1', { transcript: 'said' })),
     ],
     ['another message id', { ...MEASURED, id: 'msg_0123456789abcdefghjkmnpqrt' }],
     [
@@ -331,6 +353,12 @@ describe('the digest a replay is compared by', () => {
   it('is the same for the original content and for the effective content made of it', () => {
     expect(commandDigest(accept(MEASURED))).toBe(commandDigest(accept(ORIGINAL)))
     expect(commandDigest(interrupt(MEASURED))).toBe(commandDigest(interrupt(ORIGINAL)))
+  })
+
+  it('is the same with a snapshot and an inline text on the reference block, given or brought', () => {
+    const given = { facts: FACTS, snapshot: SNAPSHOT, transcript: 'a red circle' }
+    const effective = message(text('b1', 'look at this'), image('b2', 'k1', given))
+    expect(commandDigest(accept(effective))).toBe(commandDigest(accept(ORIGINAL)))
   })
 
   it('still differs for another text, another reference and another input', () => {

@@ -170,9 +170,11 @@
 - `encodeModelInvocationRef` · `reference.d.ts`
 - `encodeModelOutputV1` · `model-output-v1.d.ts`
 - `faultIsTransient` · `result.d.ts`
+- `isNativeFileType` · `profile.d.ts`
 - `judgeModelDelivery` · `result-delivery-judge.d.ts`
 - `judgeModelParameters` · `profile-codec.d.ts`
 - `judgeToolDeclarations` · `profile-codec.d.ts`
+- `profileCovers` · `profile.d.ts`
 - `profileResolutionValue` · `profile-codec.d.ts`
 - `projectModelOutputV1` · `model-output-v1.d.ts`
 - `readProfileResolution` · `profile-codec.d.ts`
@@ -1391,6 +1393,7 @@ export type * from './call-surface.ts';
 export type * from './dispatch-facts.ts';
 export type { MaterializationReceipt, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
 export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
+export { isNativeFileType, profileCovers } from './profile.ts';
 export type { ConversionResult, ConvertedContent } from './conversion.ts';
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts';
 export type { ModelPreparationLease, ModelPreparationResources, ModelRequestRules, PreparationLineage, } from './profile-source.ts';
@@ -1633,7 +1636,7 @@ export interface ModelStreamReferences<P> {
 
 ```ts
 import { type Outcome } from '@omne-harness/operation-result';
-import type { ProfileResolution } from './profile.ts';
+import { type ProfileResolution } from './profile.ts';
 import type { Parameter, ToolDeclaration } from './root.ts';
 import type { ModelInputRejection } from './judge-request.ts';
 export declare function profileResolutionValue(value: ProfileResolution): Outcome<unknown, ModelInputRejection>;
@@ -1720,7 +1723,7 @@ export interface ModelContentAuthority<P> {
 ```ts
 import type { Outcome } from '@omne-harness/operation-result';
 import type { OrganizationId, TenantId } from '@omne-harness/legal-identity';
-import type { Modality } from '@omne-harness/modality';
+import { type Modality } from '@omne-harness/modality';
 import type { ContentBlock, ContentReference } from '@omne-harness/content-block';
 import type { Message, MessageId } from '@omne-harness/message';
 import type { JsonValue } from '@omne-harness/json-text';
@@ -1792,6 +1795,7 @@ export type ModelProfileDefinition = Readonly<{
         ModelModality,
         ...ModelModality[]
     ];
+    fileTypes?: readonly string[];
     output: readonly [
         ModelModality,
         ...ModelModality[]
@@ -1816,8 +1820,11 @@ export type ModalityRequirement = Readonly<{
         Modality,
         ...Modality[]
     ];
+    fileTypes?: readonly string[];
     source: DurableEvidence;
 }>;
+export declare function isNativeFileType(value: string): boolean;
+export declare function profileCovers(definition: Pick<ModelProfileDefinition, 'input' | 'fileTypes'>, required: Pick<ModalityRequirement, 'modalities' | 'fileTypes'>): boolean;
 export type ProfileResolution = Readonly<{
     kind: 'resolved';
     profile: ModelProfile;

@@ -54,12 +54,12 @@ export function createBeforeIntakeRegistry<P>(): BeforeIntakeRegistry<P> {
 const isReference = (block: ContentBlock): block is Extract<ContentBlock, { ref: unknown }> =>
   Object.hasOwn(block, 'ref')
 
-/** A message as its sender may bring it: the facts on its reference blocks are not the sender's to give. */
+/** A message as its sender may bring it: facts, snapshot and inline text of a reference block are not the sender's to give. */
 export function originalContent<M extends Message>(message: M): M {
   const blocks = message.blocks.map(block => {
-    if (!isReference(block as ContentBlock) || !Object.hasOwn(block, 'facts')) return block
-    const { facts: _facts, ...bare } = block as Record<string, unknown>
-    return bare
+    if (!isReference(block as ContentBlock)) return block
+    const { facts: _facts, snapshot: _snapshot, ...bare } = block as Record<string, unknown>
+    return Object.hasOwn(bare, 'transcript') ? { ...bare, transcript: null } : bare
   })
   return { ...message, blocks } as M
 }

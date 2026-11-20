@@ -1,6 +1,6 @@
 import type { Outcome } from '@omne-harness/operation-result'
 import type { OrganizationId, TenantId } from '@omne-harness/legal-identity'
-import type { Modality } from '@omne-harness/modality'
+import { judgeMediaType, type Modality } from '@omne-harness/modality'
 import type { ContentBlock, ContentReference } from '@omne-harness/content-block'
 import type { Message, MessageId } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -62,6 +62,7 @@ export type ModelProfileDefinition = Readonly<{
   suppliers: readonly [ProfileSupplier, ...ProfileSupplier[]]
   fallback: boolean
   input: readonly [ModelModality, ...ModelModality[]]
+  fileTypes?: readonly string[]
   output: readonly [ModelModality, ...ModelModality[]]
   context: ContextLimits
   limits: readonly ModelLimit[]
@@ -80,8 +81,27 @@ export type ModelProfile = Readonly<{
 }>
 export type ModalityRequirement = Readonly<{
   modalities: readonly [Modality, ...Modality[]]
+  fileTypes?: readonly string[]
   source: DurableEvidence
 }>
+
+export function isNativeFileType(value: string): boolean {
+  const judged = judgeMediaType(value)
+  return 'ok' in judged && judged.ok.mediaType === value && judged.ok.modality === null
+}
+
+/** File types are canonical media types of no modality; a profile covers what it takes natively. */
+export function profileCovers(
+  definition: Pick<ModelProfileDefinition, 'input' | 'fileTypes'>,
+  required: Pick<ModalityRequirement, 'modalities' | 'fileTypes'>,
+): boolean {
+  const input: readonly string[] = definition.input
+  const files = definition.fileTypes ?? []
+  return (
+    required.modalities.every(modality => input.includes(modality)) &&
+    (required.fileTypes ?? []).every(type => files.includes(type))
+  )
+}
 export type ProfileResolution =
   | Readonly<{
       kind: 'resolved'

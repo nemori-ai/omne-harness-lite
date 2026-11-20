@@ -19,7 +19,9 @@
 - `FileContentBlock` · `index.d.ts`
 - `MediaContentBlock` · `index.d.ts`
 - `MediaFacts` · `index.d.ts`
+- `Provenance` · `index.d.ts`
 - `ReferenceContentBlock` · `index.d.ts`
+- `RepresentationSnapshot` · `index.d.ts`
 - `TextContentBlock` · `index.d.ts`
 - `ThinkingContentBlock` · `index.d.ts`
 - `Visibility` · `index.d.ts`
@@ -91,6 +93,20 @@ export type MediaFacts = Readonly<{
 }> | Readonly<{
     kind: 'file';
 }>;
+export type Provenance = Readonly<{
+    name: string;
+    revision: string;
+}>;
+export type RepresentationSnapshot = Readonly<{
+    definition: Provenance;
+    engine: Provenance;
+}> & (Readonly<{
+    outcome: 'converted';
+    text: ContentReference | null;
+    others: readonly ContentReference[];
+}> | Readonly<{
+    outcome: 'inconvertible';
+}>);
 export type ReferenceContentBlock = Readonly<{
     kind: 'voice' | 'image' | 'file';
     id: BlockId;
@@ -98,9 +114,10 @@ export type ReferenceContentBlock = Readonly<{
     ref: ContentReference;
     transcript: string | null;
     facts?: MediaFacts;
+    snapshot?: RepresentationSnapshot;
 }>;
 export type ContentBlock = TextContentBlock | ThinkingContentBlock | MediaContentBlock | FileContentBlock | ReferenceContentBlock;
-export type ContentBlockRejection = 'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file' | 'ref' | 'storage' | 'key' | 'mediaType' | 'bytes' | 'digest' | 'transcript' | 'facts';
+export type ContentBlockRejection = 'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file' | 'ref' | 'storage' | 'key' | 'mediaType' | 'bytes' | 'digest' | 'transcript' | 'facts' | 'snapshot';
 export type ContentBlockJudgment = {
     readonly ok: ContentBlock;
 } | {

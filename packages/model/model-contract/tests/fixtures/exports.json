@@ -803,6 +803,16 @@
               "pending": false
             },
             {
+              "name": "profileCovers",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "isNativeFileType",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "readProfileResolution",
               "kind": "value",
               "pending": false
