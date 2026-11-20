@@ -344,7 +344,16 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Tools',
       'Web',
     ])
-    for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask', 'Skills', 'Sessions', 'Agents'])
+    for (const tool of [
+      'Shell',
+      'Files',
+      'Web',
+      'TodoItems',
+      'Ask',
+      'Skills',
+      'Sessions',
+      'Agents',
+    ])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
     for (const tool of [
       'Tools',

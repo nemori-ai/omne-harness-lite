@@ -222,7 +222,7 @@ describe('message', () => {
     const named = { to: PEER as never, text: 'hello', id: 'note-1' }
     expect(valueOf(await ask(w, { command: 'message', params: named }))).toEqual({
       head: 'done Agents message',
-      value: { to: PEER, recalled: false },
+      value: { to: PEER },
     })
     await ask(w, { command: 'message', params: { to: PEER as never, text: 'hello' } })
     expect(w.made('message')).toEqual([

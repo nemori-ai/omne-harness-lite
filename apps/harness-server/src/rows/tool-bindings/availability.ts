@@ -12,7 +12,6 @@ import type { PrincipalVerifier } from '@omne-harness/identity'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
 import { sessionKey, sessionSearchKey } from '@omne-harness/session-cordis-contract/cordis'
-import { dispatchingKey } from '@omne-harness/dispatch-cordis-contract/cordis'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
@@ -112,7 +111,6 @@ const CAPABILITY_SERVICES: Readonly<Record<string, string>> = {
   'notification.write': notificationSendingKey,
   'session.read': sessionKey,
   'session.search': sessionSearchKey,
-  dispatch: dispatchingKey,
   'workspace.switch': workspaceInstancesKey,
 }
 

@@ -155,7 +155,7 @@ export const HANDLERS: { [K in Reaching]: Handler<K> } = {
     writing(
       'message',
       () => dispatching.message(context, { to, text, id: id ?? bound.call }),
-      (value, recalled) => ({ to: value.to, recalled }),
+      value => ({ to: value.to }),
     ),
   list: (reached, params, bound) =>
     params.dispatch === undefined

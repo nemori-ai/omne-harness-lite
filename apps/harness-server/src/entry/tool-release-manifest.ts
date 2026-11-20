@@ -124,7 +124,7 @@ export const RELEASE_TOOLS = Object.freeze([
   Object.freeze({
     name: 'Agents',
     package: DISPATCH_TOOLS_PACKAGE,
-    capabilities: Object.freeze(['dispatch']),
+    capabilities: Object.freeze([] as string[]),
     export: 'agentsToolModule',
     construction: Object.freeze(['resultMaxBytes']),
   }),
