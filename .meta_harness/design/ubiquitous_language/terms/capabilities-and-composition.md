@@ -801,7 +801,7 @@
 > **EN**: The actions an agent can recognize and attempt in a session. It has two sources: resident entries placed in the context, which are a record fixed at the adoption point and only grow within a session; and entries discoverable through the access entry point, computed from the subject's facts at that moment and never stored as a set. A resident entry becomes unavailable, and keeps its identity, when its definition changes or it is disabled, unloaded or revoked. An attempt is not execution authorization; an unavailable entry returns its reason through a stand-in.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 13） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 14） · [PF-004 §4 动作空间](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#动作空间) · [§6.3 三类变化背后只有一条判据](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#三类变化背后只有一条判据系统提示词的成分会不会变) · [§6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#65-权限变化动作空间不变)（rev 20）
 - **别混**：能力身份可见不等于定义内容、实现绑定或可执行集合不变；也不要求每次提示词包含全部已知能力。能发现的那部分就是[工具条目](reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)与此刻合法可用的 Skill，主体此刻没有使用资格的不出现。
 - **注意**：封存的 PF-004 把它写成「由合法纳入会话的能力条目投影、整体单调增加」。现行产品里只有常驻那部分是这样，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
@@ -843,7 +843,7 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 13） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 13）
+- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 14） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 14）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
   [权限照常作用在命令这一级](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)——
   **一条命令可以被关掉，而那扇门关不掉**。
@@ -863,6 +863,7 @@
 - **注意 ⑥**：`Tools()` 这扇门也按[工具](#ul-tool--工具--tool)的对象链实现：官方资产引用一个实现包，实现包导出作者插件，系统装载时派生它的工具定义。它仍是官方的，仍不可替换。它与 example 同一波迁移，依据见 [RFC-0012 对象链](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#对象链)。卸载与会话冻结的规则对 meta 能力豁免：它不参与卸载与冻结判定，经它发现和使用非常驻工具只是对它的一次调用，依据见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6332679272)。
 - **注意 ⑦**：Run 中途新装载的工具不进[常驻工具集合](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)，agent 经 `Tools()` 够到它们
 - **运行期边界**：Ask() 可被会话协作模式关闭人交互能力；这不删除、替换或解除 meta 资产的必需绑定。命令是否可用仍受各自权限限制。
+- **会话的事实**：命令可以声明[调用条件](reach-and-availability.md#ul-invocation-condition--调用条件--invocation-condition)。一扇门的命令在某个会话里全不成立时，这扇门不装进那个会话，例如无人值守的会话里没有 Ask()。**这不是禁用**：没有谁关了它，是这种会话里它无事可做。
 - **采用范围**：必需绑定及常驻约束作用于已采用并提供的入口。未实现定义、候选及纯占位不因此进入模型工具清单；多命令约定不替未定义占位发明命令。
 
 ### UL-prompt-slot · 提示词槽位 · Prompt Slot
@@ -880,7 +881,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 13）
+- **出处**：[PF-006 §4 槽位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 14）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 
