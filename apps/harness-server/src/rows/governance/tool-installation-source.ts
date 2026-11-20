@@ -54,10 +54,6 @@ function observe(
     : { kind: 'outdated', projection }
 }
 
-/**
- * Moves the organization target to the definition the current release declares, keeping the grants
- * the organization left on it; remount never changes assignments or restores retired targets.
- */
 export async function installToolOrganizationSource(
   input: Installation,
 ): Promise<ToolSourceInstallation> {

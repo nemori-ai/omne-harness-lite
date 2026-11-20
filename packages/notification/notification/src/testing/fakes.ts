@@ -80,8 +80,6 @@ export function context(tenant = 't1', actor: Actor = { kind: 'owner' }): CallCo
 export type FakeCreators = SubscriptionCreators &
   Readonly<{ set(answer: Creator | null | 'throw'): void; asked: readonly CallContext[] }>
 
-/** The default names the owner a human `owner`, and an agent by its recipient reference and the
- * call of its context; an agent's context without a call has no creator. */
 function namedIn(ctx: CallContext): Creator | null {
   if (ctx.actor.kind === 'owner') return { kind: 'human', actorRef: 'owner' }
   const { ref } = ctx.actor.recipient
@@ -90,7 +88,6 @@ function namedIn(ctx: CallContext): Creator | null {
     : { kind: 'agent', actorRef: ref, originatingSessionRef: ref, originatingCallRef: ctx.call }
 }
 
-/** Who acts in a context, as an adapter would name it, until a test sets a fixed answer. */
 export function fakeCreators(): FakeCreators {
   let fixed: Creator | null | 'throw' | undefined
   const asked: CallContext[] = []

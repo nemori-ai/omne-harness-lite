@@ -76,8 +76,6 @@ export type Term = z.infer<typeof termSchema>
 
 const creatorRef = z.string().min(1)
 
-/** Who made a subscription: a person, an agent in the session and the tool call it ran in, or the
- * system. The caller's adapter names it; the same shape as the author of a schedule. */
 export const creatorSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('human'), actorRef: creatorRef }).readonly(),
   z

@@ -8,7 +8,6 @@ import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 /** The access of a tool call while its scope is open; a handle for naming where it runs, not a fact. */
 export type LiveCall = Readonly<{ principal: unknown; tenant: TenantId; call: ToolCallId }>
 
-/** Where a live call runs: the agent that makes it, the agent's session, and the call. */
 export type CallOrigin = Readonly<{ actorRef: string; session: string; call: string }>
 
 const registries = new WeakMap<Context, Map<string, LiveCall>>()
@@ -25,8 +24,6 @@ export function liveCalls(ctx: Context): Map<string, LiveCall> {
   return created
 }
 
-/** Where the live call of a tenant runs; undefined once its scope closed, or when it is not the call
- * of a session's agent. It reads no release. */
 export function liveCallOrigin(ctx: Context) {
   return (tenantRef: string, call: string): CallOrigin | undefined => {
     const live = liveCalls(ctx).get(liveCallKey(tenantRef, call))

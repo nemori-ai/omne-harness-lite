@@ -32,7 +32,6 @@ const card = {
 }
 const detail = {
   ...card,
-  basis: { kind: 'owner' },
   createdAt: '2026-11-17T00:00:00.000Z',
   definition: {},
 }

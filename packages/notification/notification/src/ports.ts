@@ -46,8 +46,6 @@ export async function ask(
 }
 
 export interface SubscriptionCreators {
-  /** Who acts in this context, as its caller's adapter names it; null when it cannot be named now.
-   * Asked only when a subscription is written. */
   creatorOf(ctx: CallContext): Promise<Creator | null>
 }
 
