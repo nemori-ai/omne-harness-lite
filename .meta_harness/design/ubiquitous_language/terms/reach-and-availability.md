@@ -101,7 +101,7 @@
 > far side of an MCP access point is one tool entry.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 12） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 13） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
 - **别混 ①**：**不是[工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)**——定义是条目带着的那份内容；条目是这份内容此刻在入口里的那一项
 - **别混 ②**：**不是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)里会话已知的那一项**——那一项按会话合法纳入的能力投影、在会话内只增不减；工具条目按主体此刻的事实现算。两者的关系见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)
 - **注意**：主体此刻没有使用资格的不出现；有资格但此刻调不动的，以不可用呈现并说明原因。调一个条目就是一次工具调用
@@ -131,7 +131,7 @@
 > **EN**: The evaluated usability of a tool, skill or MCP capability: current selection and governance must permit it, and required implementations and dependencies must hold. It is evaluated from the facts at the moment on each discovery and at each attempt start, and subsequent use respects effective changes. An unavailable resident entry keeps its identity.
 
 - **形态**：视图
-- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 5） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 12） · [PF-006 §4 可用性](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
+- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 5） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 13） · [PF-006 §4 可用性](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
 - **别混**：禁用是治理输入，当下可用性是求值结果；禁用可使已知条目不可用，不能使主体此刻没有使用资格的条目凭空可见。执行权限准入仍单独适用。
 - **注意**：封存的 PF-006 把它限定为「已纳入会话的」能力。现行产品里发现不经纳入，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 

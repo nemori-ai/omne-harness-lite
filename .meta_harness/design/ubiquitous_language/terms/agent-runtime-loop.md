@@ -255,7 +255,7 @@
 
 - **形态**：属性
 - **出处**：[PF-015 §4 会话运行模式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 21）；
-  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 12）里是第 ④ 步
+  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 13）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。
@@ -602,7 +602,7 @@
 - **别混 ②**：**不是[拓展位置](#ul-loop-extension-point--loop-拓展点--loop-extension-point)上的否决**——产品暂不在消息成立前后另设拓展位置，准入不依附任何位置
 - **注意 ①**：产品页也称「消息入口」，指同一件事
 - **注意 ②**：**被拒收的模型回复不是一次模型调用失败**——原调用照常收场，不交给重试挂件。连续拒收没有次数上限，原「连续否决上限」已弃用，见[该词条](execution-and-outcome.md#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)
-- **注意 ③**：**非 Tool ref 来源的模态转换在接纳之前完成**：实现消息准入的提供者在接纳前调用[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)，Agent 只看到接纳后的消息及其派生表示。这一归属已由项目负责人接受，见 [C-58](../conflicts.md#c-58模态转换件的执行时点)
+- **注意 ③**：**人发的媒体在上传完成之后、接纳之前已经转换**，工具产出的媒体只在需要时由采用结果的一方转换；[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)归媒体，不站在任何拓展位置上。Agent 只看到已经带着[表示快照](record-and-context.md#ul-representation-snapshot--表示快照--representation-snapshot)的消息，见 [C-93](../conflicts.md#c-93转换件站不站在扩展位置上)
 
 ### UL-side-question · 旁路提问 · Side Question
 
