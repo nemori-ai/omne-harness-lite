@@ -1,8 +1,9 @@
-import type { ToolCallId } from '@omne-harness/tool-contract'
+import type { ToolState, ToolTerminal } from '@omne-harness/tool-contract'
 import type { ToolInstant } from '@omne-harness/tool-contract/provider'
 import { LEDGER_OWNER, mintEvidence } from './evidence.ts'
 import { put, type Mint, type Snapshot } from './ledger-decider.ts'
-import type { CallAccount, LedgerWrite, TenantId } from './ledger-store.ts'
+import type { CallAccount, CallRecord, LedgerWrite } from './ledger-store.ts'
+import { usageFactOf } from './ledger-usage.ts'
 
 export const SETTLEMENT_EVENT = 'settlement'
 
@@ -17,16 +18,20 @@ export function measuredDuration(
   return `PT${Math.floor(milliseconds / 1000)}.${String(milliseconds % 1000).padStart(3, '0')}S`
 }
 
-// The account of a real execution, written in the commit that settles it: revision 1 when the
-// call has none, else the next revision of the same account, marked late.
+/** The ending a usage row keeps: the settled call's, which a late result does not change. */
+export const usageEndingOf = (state: ToolState, final: ToolTerminal): ToolTerminal =>
+  state.phase === 'settled' ? state.terminal : final
+
+// The account of a real execution and its usage row, written in the commit that settles it:
+// revision 1 when the call has none, else the next revision of the same account, marked late.
 export function settlementAccount(
   snapshot: Snapshot,
-  place: Readonly<{ tenant: TenantId; call: ToolCallId }>,
+  record: CallRecord,
+  terminal: ToolTerminal,
   duration: string | null,
   mint: Mint,
-): LedgerWrite {
-  // The caller hands the call record in; the account names the call and nothing else of it.
-  const { tenant, call } = place
+): readonly LedgerWrite[] {
+  const { tenant, call } = record
   const previous = snapshot.accounts.at(-1)
   const event = previous?.event ?? SETTLEMENT_EVENT
   const value: CallAccount = {
@@ -39,15 +44,18 @@ export function settlementAccount(
     receipt: previous === undefined ? 'received' : 'late',
     revision: previous === undefined ? '1' : String(BigInt(previous.value.revision) + 1n),
   }
-  return put({
-    kind: 'account',
-    account: {
-      tenant,
-      call,
-      start: null,
-      source: mintEvidence('account', { tenant, call, event }, mint.revision, value),
-      event,
-      value,
-    },
-  })
+  return [
+    put({
+      kind: 'account',
+      account: {
+        tenant,
+        call,
+        start: null,
+        source: mintEvidence('account', { tenant, call, event }, mint.revision, value),
+        event,
+        value,
+      },
+    }),
+    { kind: 'usage', fact: usageFactOf(record, terminal, value) },
+  ]
 }

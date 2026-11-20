@@ -1,0 +1,39 @@
+{
+  "name": "@omne-harness/usage-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Usage facts, queries, measures and coverage; the folding functions; the source and session-scope ports",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@js-temporal/polyfill": "0.5.1",
+    "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/exchange-refs": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

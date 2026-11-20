@@ -236,8 +236,11 @@ export type {
   ToolStartReleases,
 } from './records.ts'
 export type {
-  AccountScope,
   ToolAccounts,
+  ToolUsageFact,
+  ToolUsageOutcome,
+  ToolUsagePage,
+  ToolUsageQuery,
   ToolContentReader,
   ToolOffloader,
   ToolReads,

@@ -62,6 +62,8 @@ catalog:
   elkjs: 0.12.0
   react: 19.3.0
   react-dom: 19.3.0
+  react-is: 19.3.0
+  recharts: 3.11.0
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
   # session-ui：流式 Markdown、组件测试与它的 DOM 环境。

@@ -29,7 +29,10 @@
         "packages/common/content-block",
         "packages/common/modality",
         "packages/common/stream-arrival",
-        "packages/common/exchange-refs"
+        "packages/common/exchange-refs",
+        "packages/usage/usage-contract",
+        "packages/usage/usage-cordis-contract",
+        "packages/usage/usage-protocol"
       ]
     },
     {

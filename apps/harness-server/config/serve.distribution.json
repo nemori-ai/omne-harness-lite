@@ -161,6 +161,16 @@
       "config": {}
     },
     {
+      "id": "usage",
+      "plugin": "usageRow",
+      "config": {}
+    },
+    {
+      "id": "usage-adapters",
+      "plugin": "usageAdaptersRow",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
       "config": {
@@ -721,6 +731,11 @@
     {
       "id": "model-access",
       "plugin": "modelAccessRow",
+      "config": {}
+    },
+    {
+      "id": "usage-access",
+      "plugin": "usageAccessRow",
       "config": {}
     }
   ]

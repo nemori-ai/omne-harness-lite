@@ -204,6 +204,7 @@ export async function settlementFixture(
   const store: ToolLedgerStore = {
     durability: 'none',
     scanPending: input => harness.memory.scanPending(input),
+    usage: query => harness.memory.usage(query),
     readRecord: harness.memory.readRecord,
     due: harness.memory.due,
     read: domain => harness.memory.read(domain),

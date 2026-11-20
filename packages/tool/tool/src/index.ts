@@ -67,12 +67,21 @@ export type {
   ToolLedgerStore,
 } from './ledger-store.ts'
 export { recordKey, hostKey, CALL_RECORD_KEY } from './ledger-store.ts'
+export type { LedgerUsageQuery, LedgerUsageRead } from './ledger-store.ts'
+export {
+  USAGE_PAGE_MAX,
+  USAGE_WORKS_MAX,
+  createToolAccounts,
+  inConsumerScope,
+  usageFactOf,
+} from './ledger-usage.ts'
 export type {
   AccessVerdict,
   GrantVerdict,
   SourceVerdict,
   StartVerdict,
   ToolAccessGuard,
+  ToolAccountsGuard,
   ToolFactAcknowledgementGuard,
   ToolInvokeAuthority,
   ToolGrantVerifier,
