@@ -9,6 +9,7 @@ import {
   objectPart,
   objectView,
   ownsTyping,
+  useObjectTransition,
   useReducedMotion,
 } from '../src/index.ts'
 
@@ -128,4 +129,40 @@ it('navigateWithin focuses the search field, scrolls a reading surface, and repo
   document.getElementById('x')?.focus()
   expect(navigateWithin('j')).toBe(false)
   expect(navigateWithin('/')).toBe(false)
+})
+
+it('navigateWithin falls back only to the region the caller names', () => {
+  document.body.innerHTML =
+    '<main id="shell-content"><div data-keyboard-list><button data-keyboard-item id="a">a</button><button data-keyboard-item id="b">b</button></div></main><button id="out">out</button>'
+  document.getElementById('out')?.focus()
+  expect(navigateWithin('j')).toBe(false)
+  expect(document.activeElement?.id).toBe('out')
+  expect(navigateWithin('j', document.getElementById('shell-content'))).toBe(true)
+  expect(document.activeElement?.id).toBe('a')
+})
+
+it('the object transition lands on the view shown, not on one inside an inert face', () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }))
+  const names: Record<string, string> = {}
+  vi.stubGlobal('CSS', { escape: (value: string) => value })
+  Object.assign(document, {
+    startViewTransition: (update: () => void) => {
+      update()
+      for (const id of ['hidden-part', 'shown-part'])
+        names[id] = (document.getElementById(id) as HTMLElement).style.viewTransitionName
+      return { ready: Promise.resolve(), finished: Promise.resolve() }
+    },
+  })
+  document.body.innerHTML =
+    '<div id="source" data-object-part="cover"></div>' +
+    '<div inert><div data-object-view="o1"><span id="hidden-part" data-object-part="title"></span></div></div>' +
+    '<div data-object-view="o1"><span id="shown-part" data-object-part="title"></span></div>'
+  const { result } = renderHook(() => useObjectTransition())
+  result.current('o1', document.getElementById('source'), () => undefined)
+  Reflect.deleteProperty(document, 'startViewTransition')
+  expect(names).toEqual({ 'hidden-part': '', 'shown-part': 'omne-object-title' })
 })

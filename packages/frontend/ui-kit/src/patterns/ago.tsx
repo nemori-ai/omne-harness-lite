@@ -1,13 +1,21 @@
-import { formatInstant, formatRelative, useAgeClock } from './time.ts'
+import {
+  formatInstant,
+  formatRelative,
+  RELATIVE_WORDS,
+  type RelativeWords,
+  useAgeClock,
+} from './time.ts'
 
 export function Ago({
   at,
   now: shared,
+  words = RELATIVE_WORDS,
   className,
 }: {
   readonly at: string
 
   readonly now?: number
+  readonly words?: RelativeWords
   readonly className?: string
 }): React.JSX.Element {
   const own = useAgeClock(shared === undefined)
@@ -21,7 +29,7 @@ export function Ago({
       dateTime={at}
       title={formatInstant(at) || at}
     >
-      {formatRelative(at, now)}
+      {formatRelative(at, now, words)}
     </time>
   )
 }

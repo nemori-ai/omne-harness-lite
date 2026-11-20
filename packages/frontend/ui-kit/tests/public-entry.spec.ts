@@ -65,6 +65,7 @@ const ICONS = [
 
 const REST = [
   'AreaChart',
+  'CHART_COPY',
   'formatAmount',
   'formatNumber',
   'formatPercent',
@@ -128,6 +129,7 @@ const REST = [
   'LoadingState',
   'MOTIONS',
   'PROSE_TRANSLATIONS',
+  'RELATIVE_WORDS',
   'PageColumn',
   'PageHeader',
   'Popover',

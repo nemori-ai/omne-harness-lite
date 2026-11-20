@@ -240,6 +240,23 @@ it.each([
   expect(formatRelative(new Date(base - seconds * 1000).toISOString(), base)).toBe(words)
 })
 
+it('formatRelative and Ago take the words from the caller when given', () => {
+  const words = {
+    justNow: 'just now',
+    minutes: (count: number) => `${count} min ago`,
+    hours: (count: number) => `${count} h ago`,
+    days: (count: number) => `${count} d ago`,
+  }
+  const base = Date.parse('2026-06-01T00:00:00.000Z')
+  const before = (seconds: number) => new Date(base - seconds * 1000).toISOString()
+  expect(formatRelative(before(10), base, words)).toBe('just now')
+  expect(formatRelative(before(120), base, words)).toBe('2 min ago')
+  expect(formatRelative(before(3 * 3600), base, words)).toBe('3 h ago')
+  expect(formatRelative(before(4 * 86400), base, words)).toBe('4 d ago')
+  render(<Ago at={before(300)} now={base} words={words} />)
+  expect(screen.getByText('5 min ago').tagName).toBe('TIME')
+})
+
 it('formatRelative gives a dash for no instant or an unreadable one', () => {
   expect(formatRelative(null, 0)).toBe('—')
   expect(formatRelative('x', 0)).toBe('—')
@@ -299,6 +316,22 @@ it('ValuePill and ReceiptPill show their words and tones', () => {
   expect(receipt?.getAttribute('data-outcome')).toBe('unknown')
   expect(receipt?.textContent).toContain('结果未知')
   expect(receipt?.textContent).toContain('#7')
+})
+
+it('ReceiptPill says a refusal with the refusing mark in the ending tone, never as accepted', () => {
+  const { container } = render(
+    <>
+      <ReceiptPill tone="declined">已拒绝</ReceiptPill>
+      <ReceiptPill tone="cancelled">已取消</ReceiptPill>
+      <ReceiptPill tone="accepted">已接受</ReceiptPill>
+    </>,
+  )
+  const [declined, cancelled, accepted] = [...container.querySelectorAll('[data-receipt-pill]')]
+  expect(declined?.getAttribute('data-outcome')).toBe('declined')
+  expect(declined?.getAttribute('data-tone')).toBe(cancelled?.getAttribute('data-tone'))
+  expect(declined?.getAttribute('data-tone')).not.toBe(accepted?.getAttribute('data-tone'))
+  expect(declined?.querySelector('svg')?.getAttribute('data-icon')).toBe('close')
+  expect(accepted?.querySelector('svg')?.getAttribute('data-icon')).toBe('done')
 })
 
 it('EntityChip is a link, a button or plain by what it is given, and removes on request', () => {

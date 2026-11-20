@@ -101,7 +101,14 @@ export {
   type ToastStackProps,
   type ToastTone,
 } from './patterns/toast.tsx'
-export { AGE_TICK_MS, formatInstant, formatRelative, useAgeClock } from './patterns/time.ts'
+export {
+  AGE_TICK_MS,
+  formatInstant,
+  formatRelative,
+  RELATIVE_WORDS,
+  type RelativeWords,
+  useAgeClock,
+} from './patterns/time.ts'
 
 export { Prose, type ProseProps } from './prose/prose.tsx'
 export { PROSE_TRANSLATIONS } from './prose/translations.ts'
@@ -146,7 +153,13 @@ export {
   type ThemeControllerInput,
   type ThemeRoot,
 } from './theme/controller.ts'
-export { type ChartFormat, type ChartRow, type ChartSeries } from './charts/frame.tsx'
+export {
+  CHART_COPY,
+  type ChartCopy,
+  type ChartFormat,
+  type ChartRow,
+  type ChartSeries,
+} from './charts/frame.tsx'
 export { formatAmount, formatNumber, formatPercent, UNKNOWN_TEXT } from './charts/format.ts'
 export { AreaChart, LineChart, StackedBarChart, type SeriesChartProps } from './charts/series.tsx'
 export { ReadingMeter, ShareBar, Sparkline, StatBlock, type SharePart } from './charts/simple.tsx'

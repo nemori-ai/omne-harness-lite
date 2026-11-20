@@ -17,25 +17,38 @@ export function seriesState(series: readonly ChartSeries[], rows: readonly Chart
   return drawn ? 'drawn' : 'unknown'
 }
 
-const EMPTY: Readonly<Record<Exclude<ChartState, 'drawn'>, string>> = {
+export type ChartCopy = Readonly<{
+  empty: string
+  unknown: string
+  unknownValue: string
+  table: string
+  unknownCount: (count: number) => string
+}>
+
+export const CHART_COPY: ChartCopy = {
   empty: '这段时间没有数据',
   unknown: '没有可用的数',
+  unknownValue: '未知',
+  table: '表格',
+  unknownCount: count => `未知 ${count} 项`,
 }
 
-export function Unknown(): React.JSX.Element {
-  return <span aria-label="未知">{UNKNOWN_TEXT}</span>
+export function Unknown({ copy }: { readonly copy: ChartCopy }): React.JSX.Element {
+  return <span aria-label={copy.unknownValue}>{UNKNOWN_TEXT}</span>
 }
 
 export function ChartFrame({
   label,
   state,
   table,
+  copy,
   className,
   children,
 }: {
   readonly label: string
   readonly state: ChartState
   readonly table: React.ReactNode
+  readonly copy: ChartCopy
   readonly className?: string
   readonly children: React.ReactNode
 }): React.JSX.Element {
@@ -46,12 +59,12 @@ export function ChartFrame({
         children
       ) : (
         <p className="omne-chart-empty" role="status">
-          {EMPTY[state]}
+          {copy[state]}
         </p>
       )}
       {state !== 'empty' && (
         <details className="omne-chart-table">
-          <summary>表格</summary>
+          <summary>{copy.table}</summary>
           {table}
         </details>
       )}
@@ -63,10 +76,12 @@ export function SeriesTable({
   series,
   rows,
   format,
+  copy,
 }: {
   readonly series: readonly ChartSeries[]
   readonly rows: readonly ChartRow[]
   readonly format: ChartFormat
+  readonly copy: ChartCopy
 }): React.JSX.Element {
   return (
     <table>
@@ -87,7 +102,9 @@ export function SeriesTable({
             {series.map(item => {
               const value = row.values[item.key]
               return (
-                <td key={item.key}>{typeof value === 'number' ? format(value) : <Unknown />}</td>
+                <td key={item.key}>
+                  {typeof value === 'number' ? format(value) : <Unknown copy={copy} />}
+                </td>
               )
             })}
           </tr>

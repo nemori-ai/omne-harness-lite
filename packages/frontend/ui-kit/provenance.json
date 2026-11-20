@@ -1,6 +1,15 @@
 {
   "repository": "https://github.com/pandazki/super-assistant",
-  "commit": "3b967f58768714d57cd1bacf67b599d2aa7a8f53",
+  "commit": "83c1616f44d000d1f333e929bfd94d31dff847da",
+  "realigned": {
+    "from": "3b967f58768714d57cd1bacf67b599d2aa7a8f53",
+    "changed": [
+      "desktop/src/renderer/src/design/use-object-transition.ts",
+      "desktop/src/renderer/src/design/icons/brush.ts",
+      "desktop/src/renderer/src/components/ai/receipt-pill.tsx",
+      "desktop/src/renderer/src/i18n/state-labels.ts"
+    ]
+  },
   "authorization": "Project owner, 2026-11-13: design language, visuals, motion, assets, fonts and front-end stack may be reused.",
   "licenses": {
     "LICENSE.shadcn": "MIT, copyright shadcn; the base controls derive from shadcn/ui new-york-v4",
@@ -27,11 +36,11 @@
     },
     {
       "path": "desktop/src/renderer/src/design/use-object-transition.ts",
-      "sha256": "e7e116036b63157a1a7e59a37f04b72e0cb9ab6ee5debcc9e4e882d6fd2c8254"
+      "sha256": "6e332b42523aa303644a8fc1b3e754b933d8603455e0bde0672ccdf11155a595"
     },
     {
       "path": "desktop/src/renderer/src/design/icons/brush.ts",
-      "sha256": "fdb23af3d7d8568e42fdf52d2e9653b35584744eae479c3decb1185ed8abf805"
+      "sha256": "a1beffff350bec605030139c896a3cf25438f026449bdd25d878cb3c2a3893f8"
     },
     {
       "path": "desktop/src/renderer/src/design/icons/glyphs.ts",
@@ -147,7 +156,7 @@
     },
     {
       "path": "desktop/src/renderer/src/components/ai/receipt-pill.tsx",
-      "sha256": "0675ecea1764f52617898c13e5f2871621e61c3fa7a43390f63d57d525085187"
+      "sha256": "07d7bee101b1f014d4726316951d9a389f208424ba961dd5217fb61fe3151092"
     },
     {
       "path": "desktop/src/renderer/src/components/ai/shimmer.tsx",
@@ -179,7 +188,7 @@
     },
     {
       "path": "desktop/src/renderer/src/i18n/state-labels.ts",
-      "sha256": "10961d0a2dc10dbffcafe277baa8b6a13de4f54edd6f5591c4a3d8bd0b836629"
+      "sha256": "10795f25b6d46d95d07882ee21399ebdc153e8d4abfba8e5385159dd63fa2153"
     },
     {
       "path": "desktop/src/renderer/src/components/disclosure.tsx",

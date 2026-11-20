@@ -1,6 +1,6 @@
 # 来历
 
-本成员的设计语言、素材、字体与代码取自外部项目 `pandazki/super-assistant`，提交 `3b967f58768714d57cd1bacf67b599d2aa7a8f53`。项目负责人在 2026-11-13 说它的设计语言、视觉、动画、素材、字体和前端技术栈都可以复用，并已全面授权。外部项目的仓库里没有 LICENSE 文件，复用依据只有这一条授权。每个来源文件的哈希在 [provenance.json](provenance.json)。
+本成员的设计语言、素材、字体与代码取自外部项目 `pandazki/super-assistant`，提交 `83c1616f44d000d1f333e929bfd94d31dff847da`。项目负责人在 2026-11-13 说它的设计语言、视觉、动画、素材、字体和前端技术栈都可以复用，并已全面授权。外部项目的仓库里没有 LICENSE 文件，复用依据只有这一条授权。每个来源文件的哈希在 [provenance.json](provenance.json)。
 
 ## 取了哪几块
 
@@ -27,11 +27,24 @@
   - `inline-notice` 重写：属性是语气、标题、正文、详情、可选的动作，失败码到文案的映射归调用者。
   - 图标只留 `gentle` 一种风格，笔画的粗线分支与偏好订阅删去。
   - `prose` 去掉 `omne://` 与提及的链接解析，链接按外链处理；Markdown 控件的文案换成中文。
+  - `focus.ts` 不认识外壳：没有落在键盘区里时，回退到调用者给的区，不给就不回退。
   - 主题控制器的偏好来源改为注入：`createThemeController({ read, write, system })`。
-  - `time.ts` 与 `ago` 不再读多语言目录，相对时间的词写成中文。
-- 多语言：`sheet`、`confirm/*`、`state-word` 的文案改为属性，缺省值是中文。
+  - `time.ts` 与 `ago` 不再读多语言目录。
+- 多语言：`sheet`、`confirm/*`、`state-word`、`prose` 的 Markdown 控件、图表（`frame`、`simple`、`series`）、`time.ts` 与 `ago` 的相对时间，文案都改为属性，缺省值是中文。
+- `input` 去掉 `dark:` 的第二套颜色，颜色只走 `light-dark()`。
 - 去掉的死代码：`brush.ts` 里只给来源的脚本用的函数。
 - `styles.css` 里 `main.list-reading` 一类业务版式、壳与设置的类不取。
+
+## 重新对齐
+
+2026-11-21 从 `3b967f58768714d57cd1bacf67b599d2aa7a8f53` 对齐到 `83c1616f44d000d1f333e929bfd94d31dff847da`。两个提交之间，取过的文件里变了四个，[provenance.json](provenance.json) 里它们的哈希随之更新，`realigned` 记着起点与这四个文件：
+
+| 来源文件 | 来源的改动 | 本成员 |
+| --- | --- | --- |
+| `components/ai/receipt-pill.tsx` | 回执多一种 `declined`：拒绝，用拒绝的记号与结束的语气 | `src/patterns/ai/receipt-pill.tsx` 照改 |
+| `design/use-object-transition.ts` | 对象过渡落到看得见的那一面，跳过 `[inert]` 里同一个对象的视图 | `src/motion/use-object-transition.ts` 照改 |
+| `i18n/state-labels.ts` | 多一个状态词 `notDone`（没做），算作 `released` | `src/patterns/ai/state-labels.ts` 照改，只取中文 |
+| `design/icons/brush.ts` | 删去 `smoothPath` | 本成员本来就没有它，不用改 |
 
 ## 没取的
 

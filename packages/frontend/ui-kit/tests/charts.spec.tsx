@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   AreaChart,
+  CHART_COPY,
   formatAmount,
   formatNumber,
   formatPercent,
@@ -363,5 +364,50 @@ describe('the sparkline and the stat block', () => {
     const bare = render(<StatBlock label="费用" value={null} />).container
     expect(bare.textContent).toBe(`费用${UNKNOWN_TEXT}`)
     expect(bare.querySelector('.omne-stat-detail')).toBeNull()
+  })
+})
+
+describe('the chart words', () => {
+  const copy = {
+    empty: 'No data',
+    unknown: 'Nothing usable',
+    unknownValue: 'Unknown',
+    table: 'Table',
+    unknownCount: (count: number) => `${count} unknown`,
+  }
+
+  it('are Chinese unless the caller gives its own', () => {
+    expect(CHART_COPY.unknownValue).toBe('未知')
+    const series = [{ key: 'a', label: 'A' }]
+    const empty = render(<LineChart label="L" series={series} rows={[]} copy={copy} />).container
+    expect(empty.textContent).toContain('No data')
+    cleanup()
+    const unknownRow = [{ label: 'd', values: { a: null } }]
+    const unknown = render(
+      <StackedBarChart label="B" series={series} rows={unknownRow} copy={copy} />,
+    ).container
+    expect(unknown.textContent).toContain('Nothing usable')
+    expect(unknown.querySelector('.omne-chart-table summary')?.textContent).toBe('Table')
+    expect(unknown.querySelector('.omne-chart-table [aria-label="Unknown"]')).not.toBeNull()
+    cleanup()
+    const parts = [
+      { key: 'a', label: 'A', value: 1 },
+      { key: 'b', label: 'B', value: null },
+    ]
+    expect(
+      render(<ShareBar label="S" parts={parts} copy={copy} />).container.textContent,
+    ).toContain('1 unknown')
+    cleanup()
+    const spark = render(<Sparkline label="P" values={[1, null]} copy={copy} />).container
+    expect(spark.querySelector('svg')?.getAttribute('aria-label')).toBe('P：1、Unknown')
+    cleanup()
+    const none = render(<Sparkline label="P" values={[]} copy={copy} />).container
+    expect(none.querySelector('.omne-spark')?.getAttribute('aria-label')).toBe('P：Nothing usable')
+    cleanup()
+    const meter = render(<ReadingMeter label="M" percent={null} copy={copy} />).container
+    expect(meter.querySelector('[aria-label="Unknown"]')).not.toBeNull()
+    cleanup()
+    const stat = render(<StatBlock label="T" value={null} copy={copy} />).container
+    expect(stat.querySelector('[aria-label="Unknown"]')).not.toBeNull()
   })
 })
