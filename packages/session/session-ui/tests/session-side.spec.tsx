@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { SESSION_DOCK, SESSION_SIDE, sessionDock, sessionSide } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { assistantEntry, listed, listPage, page } from './fixtures/frames.ts'
+import { stubRoom } from './fixtures/room.ts'
 import { mountModule } from './fixtures/shell.tsx'
 
 const TENANT =
@@ -13,6 +14,7 @@ const TENANT =
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 async function settle(): Promise<void> {
@@ -72,6 +74,9 @@ async function contribute(root: Context, name: string, put: (ctx: Context) => vo
 }
 
 const panel = () => document.querySelector<HTMLElement>('.omne-session-side')
+const control = () => screen.getByRole('button', { name: 'Agent' })
+/** The side area's markup, its generated id aside: each mount names it anew. */
+const markup = () => (panel()?.outerHTML ?? '').replace(/ id="[^"]*"/, '')
 const paneOf = (id: string) => screen.getByTestId(id).closest<HTMLElement>('[data-side-pane]')
 const tabs = () =>
   [...(panel()?.querySelectorAll<HTMLElement>('[data-segment]') ?? [])].map(tab => tab.textContent)
@@ -91,6 +96,7 @@ it('没有贡献时没有侧边区的元素，对话页的主体只有主列', a
 })
 
 it('一个贡献：侧边区出现在主列之后，这一项收到当前会话与租户，不出页签', async () => {
+  stubRoom(1440)
   const { root } = await opened()
   await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0, '状态')))
   expect(panel()?.previousElementSibling?.className).toBe('omne-session-main')
@@ -100,6 +106,7 @@ it('一个贡献：侧边区出现在主列之后，这一项收到当前会话�
 })
 
 it('两个贡献：两个页签，次序取项上写的次序；点第二个，第二个显示、第一个藏起来不卸下', async () => {
+  stubRoom(1440)
   const { root } = await opened()
   await contribute(root, 'two', ctx => {
     sessionSide.contribute(ctx.shell, side('later', 2, '后'))
@@ -114,6 +121,7 @@ it('两个贡献：两个页签，次序取项上写的次序；点第二个，�
 })
 
 it('两个贡献方按三种先后放进来：会话打开之后先甲后乙、先乙后甲、打开之前就放，侧边区逐字相同', async () => {
+  stubRoom(1440)
   const first = (ctx: Context) => sessionSide.contribute(ctx.shell, side('a', 1, '甲签'))
   const second = (ctx: Context) => sessionSide.contribute(ctx.shell, side('b', 2, '乙签'))
   const markups: string[] = []
@@ -123,7 +131,7 @@ it('两个贡献方按三种先后放进来：会话打开之后先甲后乙、�
   ]) {
     const { root } = await opened()
     for (const [index, put] of order.entries()) await contribute(root, `c${index}`, put)
-    markups.push(panel()?.outerHTML ?? '')
+    markups.push(markup())
     cleanup()
   }
   const fake = createFakeClient()
@@ -133,12 +141,13 @@ it('两个贡献方按三种先后放进来：会话打开之后先甲后乙、�
   ;(await fake.next('list-sessions')).answer(listPage([listed('ses_a', '甲')]))
   await settle()
   await openFromList(fake, '甲', 'ses_a')
-  markups.push(panel()?.outerHTML ?? '')
+  markups.push(markup())
   expect(tabs()).toEqual(['甲签', '乙签'])
   expect(new Set(markups).size).toBe(1)
 })
 
 it('换一个会话：侧边区的项收到的对象跟着变', async () => {
+  stubRoom(1440)
   const { root, fake } = await opened([
     ['ses_a', '甲'],
     ['ses_b', '乙'],
@@ -158,6 +167,7 @@ it('没有会话打开时没有侧边区，有贡献也一样', async () => {
 })
 
 it('选中的项撤下：回到第一项；项全撤下：侧边区消失', async () => {
+  stubRoom(1440)
   const { root } = await opened()
   const first = await contribute(root, 'first', ctx =>
     sessionSide.contribute(ctx.shell, side('a', 1, '甲签')),
@@ -178,68 +188,127 @@ it('选中的项撤下：回到第一项；项全撤下：侧边区消失', asyn
   expect(panel()).toBeNull()
 })
 
-it('收起与展开：收起后内容藏起来不卸下，按钮换成展开', async () => {
+it('停靠时收起与展开：收起后整个侧边区藏起来不卸下，对话头的控件再展开', async () => {
+  stubRoom(1440)
   const { root } = await opened()
   await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0)))
-  expect(panel()?.dataset['folded']).toBe('false')
+  expect(panel()?.dataset['presentation']).toBe('docked')
+  expect(panel()?.dataset['region']).toBe('side')
+  expect(control().getAttribute('aria-expanded')).toBe('true')
+  expect(control().getAttribute('aria-controls')).toBe(panel()?.id)
   fireEvent.click(screen.getByRole('button', { name: '收起侧边区' }))
-  expect(panel()?.dataset['folded']).toBe('true')
-  expect(panel()?.querySelector<HTMLElement>('.omne-session-side-body')?.hidden).toBe(true)
+  expect(panel()?.hidden).toBe(true)
   expect(screen.getByTestId('status')).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: '展开侧边区' }))
-  expect(panel()?.dataset['folded']).toBe('false')
-  expect(panel()?.querySelector<HTMLElement>('.omne-session-side-body')?.hidden).toBe(false)
+  expect(control().getAttribute('aria-expanded')).toBe('false')
+  fireEvent.click(control())
+  expect(panel()?.hidden).toBe(false)
+  fireEvent.click(control())
+  expect(panel()?.hidden).toBe(true)
 })
 
-function stubWidth(narrow: boolean) {
-  const listeners = new Set<() => void>()
-  const otherTypes: string[] = []
-  const media = {
-    matches: narrow,
-    addEventListener: (type: string, listener: () => void) => {
-      if (type === 'change') listeners.add(listener)
-      else otherTypes.push(type)
-    },
-    removeEventListener: (type: string, listener: () => void) => {
-      if (type === 'change') listeners.delete(listener)
-      else otherTypes.push(type)
-    },
-  }
-  const queries: string[] = []
-  vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => {
-    queries.push(query)
-    return media as unknown as MediaQueryList
-  })
-  return {
-    queries,
-    otherTypes,
-    listening: () => listeners.size,
-    set(next: boolean) {
-      media.matches = next
-      for (const listener of Array.from(listeners)) listener()
-    },
-  }
-}
+it('对话区不小于 1160 时停靠，窄于 1160 收在对话头的控件后面；量的是对话区自己的宽度，不是窗口', async () => {
+  const room = stubRoom(1160)
+  const { root } = await opened()
+  await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0, '状态')))
+  expect(panel()?.dataset['presentation']).toBe('docked')
+  expect(panel()?.previousElementSibling?.className).toBe('omne-session-main')
+  vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1920)
+  act(() => room.resize(1130))
+  expect(panel()).toBeNull()
+  expect(screen.queryByTestId('status')).toBeNull()
+  expect(control().getAttribute('aria-expanded')).toBe('false')
+  act(() => room.resize(1159))
+  expect(panel()).toBeNull()
+  act(() => room.resize(1160))
+  expect(panel()?.dataset['presentation']).toBe('docked')
+  expect(control().getAttribute('aria-expanded')).toBe('true')
+})
 
-it('窗口不到 768 像素宽时默认收起；变宽后跟着展开；人点过之后不再跟着窗口变', async () => {
-  const width = stubWidth(true)
+const HEADER = { left: 240, top: 0, width: 900, height: 64 }
+const SEAT = { left: 674, top: 16, width: 32, height: 32 }
+const boxes = new Map([
+  ['.omne-session-bar', HEADER],
+  ['[data-figure-seat="header"]', SEAT],
+])
+
+it('窄时按对话头的控件展开淡墨框：盖在页面上，开在头部细线下 8，宽度不越出头部', async () => {
+  stubRoom(1100, boxes)
+  vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(800)
+  const { root } = await opened()
+  await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0, '状态')))
+  expect(panel()).toBeNull()
+  fireEvent.click(control())
+  const bubble = panel()!
+  expect(bubble.dataset['presentation']).toBe('bubble')
+  expect(bubble.dataset['region']).toBe('side')
+  expect(bubble.dataset['inkStrength']).toBe('light')
+  expect(bubble.classList.contains('omne-ink-bubble')).toBe(true)
+  expect(bubble.style.top).toBe(`${HEADER.top + HEADER.height + 8}px`)
+  expect(bubble.style.maxWidth).toBe(`${HEADER.width}px`)
+  expect(bubble.style.maxHeight).toBe(`${800 - (HEADER.height + 8) - 8}px`)
+  expect(control().getAttribute('aria-expanded')).toBe('true')
+  expect(control().getAttribute('aria-controls')).toBe(bubble.id)
+  expect(screen.getByTestId('status').closest('.omne-session-side')).toBe(bubble)
+  expect(bubble.querySelector('.omne-session-side-title')?.textContent).toBe('状态')
+  expect(document.querySelector('.omne-session-main')?.contains(bubble)).toBe(false)
+})
+
+it('墨框收起：Escape 收起并把焦点还给对话头的控件；点墨框外面收起；点墨框里面不收', async () => {
+  stubRoom(1100, boxes)
   const { root } = await opened()
   await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0)))
-  expect(width.queries).toContain('(max-width: 767px)')
-  expect(panel()?.dataset['folded']).toBe('true')
-  act(() => width.set(false))
-  expect(panel()?.dataset['folded']).toBe('false')
-  act(() => width.set(true))
-  expect(panel()?.dataset['folded']).toBe('true')
-  fireEvent.click(screen.getByRole('button', { name: '展开侧边区' }))
-  expect(panel()?.dataset['folded']).toBe('false')
-  act(() => width.set(false))
-  act(() => width.set(true))
-  expect(panel()?.dataset['folded']).toBe('false')
-  expect(width.listening()).toBeGreaterThan(0)
-  cleanup()
-  expect(width.listening()).toBe(0)
-  expect(width.otherTypes).toEqual([])
+  fireEvent.click(control())
+  const inside = screen.getByTestId('status')
+  fireEvent.pointerDown(inside)
+  expect(control().getAttribute('aria-expanded')).toBe('true')
+  fireEvent.keyDown(inside, { key: 'Escape' })
+  expect(control().getAttribute('aria-expanded')).toBe('false')
+  expect(document.activeElement).toBe(control())
+  fireEvent.click(control())
+  expect(control().getAttribute('aria-expanded')).toBe('true')
+  fireEvent.pointerDown(document.querySelector('.omne-session-main')!)
+  expect(control().getAttribute('aria-expanded')).toBe('false')
+})
+
+it('墨框开着时按控件上的 Escape 也收起；变宽时墨框收起，侧边区回到停靠', async () => {
+  const room = stubRoom(1100, boxes)
+  const { root } = await opened()
+  await contribute(root, 'one', ctx => sessionSide.contribute(ctx.shell, side('status', 0)))
+  fireEvent.click(control())
+  fireEvent.keyDown(control(), { key: 'Escape' })
+  expect(control().getAttribute('aria-expanded')).toBe('false')
+  fireEvent.click(control())
+  act(() => room.resize(1440))
+  expect(panel()?.dataset['presentation']).toBe('docked')
+  act(() => room.resize(1100))
+  expect(control().getAttribute('aria-expanded')).toBe('false')
+})
+
+it('宽窄之间切换时，选中的页签不变', async () => {
+  const room = stubRoom(1440, boxes)
+  const { root } = await opened()
+  await contribute(root, 'two', ctx => {
+    sessionSide.contribute(ctx.shell, side('a', 1, '甲签'))
+    sessionSide.contribute(ctx.shell, side('b', 2, '乙签'))
+  })
+  fireEvent.click(screen.getByRole('button', { name: '乙签' }))
+  act(() => room.resize(1100))
+  fireEvent.click(control())
+  expect(panel()?.dataset['presentation']).toBe('bubble')
+  expect(screen.getByRole('button', { name: '乙签' }).getAttribute('aria-pressed')).toBe('true')
+  expect(paneOf('b')?.hidden).toBe(false)
+  act(() => room.resize(1440))
+  expect(panel()?.dataset['presentation']).toBe('docked')
+  expect(paneOf('b')?.hidden).toBe(false)
+  expect(paneOf('a')?.hidden).toBe(true)
+})
+
+it('没有侧边区的内容时，对话头只有座位与名字，不是控件', async () => {
+  stubRoom(1100, boxes)
+  await opened()
+  expect(screen.queryByRole('button', { name: 'Agent' })).toBeNull()
+  const seat = document.querySelector('.omne-session-bar [data-figure-seat="header"]')
+  expect(seat?.closest('.omne-session-figure')?.textContent).toBe('Agent')
 })
 
 it('经带类型的点往 session.dock 放的项，出现在转写区与输入框之间，收到解回来的会话', async () => {

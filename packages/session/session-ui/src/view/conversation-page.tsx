@@ -2,6 +2,7 @@ import { CopyButton, StatusPill, Textarea, ValuePill } from '@omne-harness/ui-ki
 import {
   Fragment,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type KeyboardEvent,
@@ -19,6 +20,7 @@ import { ComposerActionSlot } from './composer-action-slot.tsx'
 import { NoticeLine } from './notice.tsx'
 import { ItemView } from './parts.tsx'
 import { useFollowBottom } from './scroll.ts'
+import { FigureControl, SideFrameContext, useSideFrame } from './side-frame.tsx'
 import { TranscriptRow, usePublication } from './transcript-arrivals.tsx'
 import { useSession } from './use-session.ts'
 import { WaitingNotice, waitingAnchor } from './waiting-notice.tsx'
@@ -48,10 +50,15 @@ export function ConversationPage({
   const handle = useSession(workspaces, scope)
   switch (handle.kind) {
     case 'waiting':
-      return <div className="omne-session-page" />
+      return (
+        <div className="omne-session-page">
+          <SeatOnly />
+        </div>
+      )
     case 'unreadable':
       return (
         <div className="omne-session-page">
+          <SeatOnly />
           <NoticeLine
             notice={{ kind: 'refused', text: '外壳给的租户读不懂，会话界面不能工作。' }}
           />
@@ -77,6 +84,17 @@ type Parts = Readonly<{
   work: (session: string, revision: string | null) => ReactNode
 }>
 
+/** Before there is a session to show, the header still holds the figure's seat. */
+function SeatOnly() {
+  return (
+    <header className="omne-session-bar">
+      <div className="omne-session-heading" />
+      <FigureControl frame={null} />
+      <div className="omne-session-bar-end" />
+    </header>
+  )
+}
+
 function Page({
   driver,
   dock,
@@ -90,27 +108,34 @@ function Page({
   readonly heading: (session: string) => ReactNode
 }) {
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
+  const page = useRef<HTMLDivElement>(null)
+  const frame = useSideFrame(page)
   return (
-    <div className="omne-session-page">
-      <header className="omne-session-bar">
-        <div className="omne-session-heading">
-          <h2 className="omne-session-title">{titleOf(state, list)}</h2>
-          {state.kind === 'open' || state.kind === 'unavailable' ? (
-            <SessionId session={state.session} />
-          ) : null}
-          {state.kind === 'open' ? (
-            <div className="omne-session-actions">{heading(state.session)}</div>
-          ) : null}
+    <SideFrameContext.Provider value={frame}>
+      <div className="omne-session-page" ref={page}>
+        <header className="omne-session-bar" ref={frame.header}>
+          <div className="omne-session-heading">
+            <h2 className="omne-session-title">{titleOf(state, list)}</h2>
+            {state.kind === 'open' || state.kind === 'unavailable' ? (
+              <SessionId session={state.session} />
+            ) : null}
+            {state.kind === 'open' ? (
+              <div className="omne-session-actions">{heading(state.session)}</div>
+            ) : null}
+          </div>
+          <FigureControl frame={frame} />
+          <div className="omne-session-bar-end">
+            <ConnectionBadge state={state} />
+          </div>
+        </header>
+        <div className="omne-session-body">
+          <div className="omne-session-main">
+            <Body state={state} driver={driver} dock={dock} status={status} work={work} />
+          </div>
+          {state.kind === 'open' ? side(state.session) : null}
         </div>
-        <ConnectionBadge state={state} />
-      </header>
-      <div className="omne-session-body">
-        <div className="omne-session-main">
-          <Body state={state} driver={driver} dock={dock} status={status} work={work} />
-        </div>
-        {state.kind === 'open' ? side(state.session) : null}
       </div>
-    </div>
+    </SideFrameContext.Provider>
   )
 }
 

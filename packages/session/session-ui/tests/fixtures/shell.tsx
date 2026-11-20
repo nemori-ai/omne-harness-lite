@@ -6,6 +6,8 @@ import type { SessionProtocol } from '@omne-harness/session-protocol'
 import {
   createSlotStore,
   type AttachedLayout,
+  type FigureBoard,
+  type FigureReport,
   type ItemOf,
   type ScopeSource,
   type ShellLogin,
@@ -18,6 +20,8 @@ import { sessionClientService, sessionUiModule } from '../../src/cordis.ts'
 
 export class TestShell extends ShellService implements ShellSlots {
   readonly navigated: string[] = []
+  /** Every report handed to the figure port, in order. */
+  readonly reports: FigureReport[] = []
   readonly login: ShellLogin = {
     state: () => 'signed-in',
     subscribe: () => () => undefined,
@@ -58,6 +62,10 @@ export class TestShell extends ShellService implements ShellSlots {
 
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
     return this.store.place(slot, item)
+  }
+
+  protected override figures(): FigureBoard {
+    return { report: (_owner, report) => void this.reports.push(report), withdraw: () => undefined }
   }
 }
 

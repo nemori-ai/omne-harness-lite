@@ -79,7 +79,8 @@
   padding: 0 40px 32px;
 }
 .omne-session-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   min-height: 64px;
@@ -112,7 +113,6 @@
 }
 .omne-session-heading {
   display: flex;
-  flex: 1;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
@@ -133,13 +133,33 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
+.omne-session-bar-end {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+/* The figure's seat in the header and the agent's name: one control (agent-work-panel.tsx in the source). */
+.omne-session-figure {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--omne-space-block);
+  padding-inline: var(--omne-space-inline);
+}
+.omne-session-figure-seat {
+  width: var(--omne-control-height);
+  height: var(--omne-control-height);
+}
+.omne-session-figure-name {
+  font-size: var(--omne-text-ui);
+  font-weight: var(--omne-weight-strong);
+}
 .omne-session-body {
   display: flex;
   gap: 24px;
   min-width: 0;
   min-height: 0;
 }
-.omne-session-side {
+.omne-session-side[data-presentation='docked'] {
   display: flex;
   flex: none;
   flex-direction: column;
@@ -149,8 +169,22 @@
   padding: var(--omne-space-inline) 0 0 16px;
   border-left: 1px solid var(--omne-line-subtle);
 }
-.omne-session-side[data-folded='true'] {
-  width: auto;
+.omne-session-side[data-presentation='docked'][hidden] {
+  display: none;
+}
+/* Over the page the side content is the agent's light ink bubble (ink-bubble.tsx): it gives the paper, edge and
+   lift; nothing clips it, so the tail up to the figure's gap stays whole. Its width is the source's 600. */
+.omne-session-side[data-presentation='bubble'] {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+  width: var(--omne-measure-decision);
+  padding: var(--omne-space-block) var(--omne-space-block) var(--omne-space-inline);
+}
+.omne-session-side[data-presentation='bubble'] .omne-session-side-body {
+  flex: 1 1 auto;
 }
 .omne-session-side-bar {
   display: flex;
@@ -160,11 +194,23 @@
   min-width: 0;
 }
 .omne-session-side-title {
-  overflow: hidden;
+  display: flex;
+  align-items: baseline;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+  margin: 0;
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
-  text-overflow: ellipsis;
+  font-weight: var(--omne-weight-strong);
   white-space: nowrap;
+}
+.omne-session-side-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.omne-session-side-number {
+  font-variant-numeric: tabular-nums;
 }
 .omne-session-side-body {
   flex: 1 1 0;

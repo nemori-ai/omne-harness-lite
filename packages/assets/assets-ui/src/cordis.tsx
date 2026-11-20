@@ -52,6 +52,7 @@ export const assetsUiModule = defineUiModule<Record<string, ClientOf<AssetsProto
       title: '设置',
       order: SETTINGS_PAGE_ORDER,
       icon: 'settings',
+      group: 'utility',
       render: ({ scope }) =>
         scope === undefined ? null : <SettingsPage client={client} tenant={scope} />,
     })

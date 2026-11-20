@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
-import { afterEach, expect, it } from 'vitest'
+import type { ComponentProps } from 'react'
+import { afterEach, expect, it, vi } from 'vitest'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, page } from './fixtures/frames.ts'
 import { mountModule } from './fixtures/shell.tsx'
@@ -9,7 +10,24 @@ const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 const LONG = `ses_${'0123456789abcdef'.repeat(4)}`
 
-afterEach(cleanup)
+type SeatProps = ComponentProps<typeof import('@omne-harness/ui-kit').FigureSeat>
+const seats = vi.hoisted(() => [] as SeatProps[])
+
+vi.mock('@omne-harness/ui-kit', async importOriginal => {
+  const kit = await importOriginal<typeof import('@omne-harness/ui-kit')>()
+  return {
+    ...kit,
+    FigureSeat: (props: SeatProps) => {
+      seats.push(props)
+      return kit.FigureSeat(props)
+    },
+  }
+})
+
+afterEach(() => {
+  cleanup()
+  seats.length = 0
+})
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -53,4 +71,20 @@ it('页头：会话还不在列表里时，主标题是「新会话」', async (
   })
   await settle()
   expect(within(heading()).getByRole('heading').textContent).toBe('新会话')
+})
+
+it('对话头：页头里放形的座位，名字 header、优先级 2，在标题旁；还没有租户、还没有会话时也在', async () => {
+  const fake = createFakeClient()
+  const { rerender } = await mountModule(fake.client, undefined)
+  const seat = () => heading().querySelector('[data-figure-seat]')
+  expect(seat()?.getAttribute('data-figure-seat')).toBe('header')
+  rerender(TENANT)
+  ;(await fake.next('list-sessions')).answer(listPage([]))
+  await settle()
+  expect(within(heading()).getByRole('heading').textContent).toBe('还没有会话')
+  expect(seat()?.getAttribute('data-figure-seat')).toBe('header')
+  expect(seats.length).toBeGreaterThan(0)
+  expect(seats.every(props => props.name === 'header' && props.priority === 2)).toBe(true)
+  expect(seat()?.closest('.omne-session-figure')?.textContent).toBe('Agent')
+  expect(seat()?.closest('.omne-session-heading')).toBeNull()
 })

@@ -123,7 +123,7 @@ describe('the 后台 item of the side area (C26)', () => {
   it('appears after the other entries while calls run in the background, and not otherwise', async () => {
     const { SideWithBackground } = await import('../src/view/background-pane.tsx')
     const others = [{ id: 'notes', label: '笔记', node: <p>notes</p> }]
-    const running = storeWith({ kind: 'listed', calls: [item('b1')] }).store
+    const running = storeWith({ kind: 'listed', calls: [item('b1'), item('b2')] }).store
     render(
       <SideWithBackground
         entries={others}
@@ -133,8 +133,24 @@ describe('the 后台 item of the side area (C26)', () => {
         detail={() => null}
       />,
     )
-    expect(screen.getByRole('button', { name: '后台' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '笔记' })).toBeTruthy()
+    const tab = screen.getByRole('button', { name: /^后台/ })
+    expect(tab.querySelector('.omne-session-side-label')?.textContent).toBe('后台')
+    expect(tab.querySelector('.omne-session-side-number')?.textContent).toBe('2')
+    expect(screen.getByRole('button', { name: '笔记' }).textContent).toBe('笔记')
+    cleanup()
+    render(
+      <SideWithBackground
+        entries={[]}
+        store={running}
+        tenant="t"
+        session="s"
+        detail={() => null}
+      />,
+    )
+    const title = document.querySelector('.omne-session-side-title')
+    expect(title?.tagName).toBe('H3')
+    expect(title?.querySelector('.omne-session-side-label')?.textContent).toBe('后台')
+    expect(title?.querySelector('.omne-session-side-number')?.textContent).toBe('2')
     cleanup()
     const idle = storeWith({ kind: 'listed', calls: [] }).store
     const { container } = render(

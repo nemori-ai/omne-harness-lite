@@ -1,6 +1,7 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import type { JSX } from 'react'
 import type { CardsHub } from '../model/cards-hub.ts'
+import { awaitingCount } from '../model/cards-machine.ts'
 import { useCards, useTenant } from './use-cards.ts'
 
 export type PendingBadgeProps = Readonly<{ hub: CardsHub; tenant: string }>
@@ -20,7 +21,7 @@ function Count({
   readonly hub: CardsHub
   readonly tenant: TenantId
 }): JSX.Element | null {
-  const count = useCards(hub, tenant).state.entries.length
+  const count = awaitingCount(useCards(hub, tenant).state)
   if (count === 0) return null
   return <span className="hitl-badge">{count > SHOWN_MAX ? `${SHOWN_MAX}+` : count}</span>
 }
