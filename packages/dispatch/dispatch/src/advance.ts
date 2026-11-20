@@ -1,11 +1,12 @@
 import {
   deliveryDue,
-  settleDelivery,
+  settleSecondPlace,
+  settleWait,
   type Delivery,
-  type DeliveryObservation,
   type Dispatch,
   type DispatchEvent,
   type DispatchId,
+  type SecondPlace,
   type TenantId,
 } from '@omne-harness/dispatch-contract'
 import { reportInputOf } from './identity.ts'
@@ -20,9 +21,6 @@ export type AdvanceDependencies = Readonly<{
   waits: ReportWaits
   clock: Clock
 }>
-
-type SecondPlace = Pick<DeliveryObservation, 'input' | 'archived'>
-const NOT_READ: SecondPlace = { input: 'unknown', archived: 'unknown' }
 
 const outcomeOf = (dispatch: Dispatch): WaitOutcome => ({
   id: dispatch.id,
@@ -62,8 +60,11 @@ export function createAdvance(deps: AdvanceDependencies) {
     const { permission } = row.value
     const answer = await sessions.create(dispatch.tenant, { session, dispatch, permission })
     if (answer.kind === 'unknown') return undefined
-    const { kind, detail } = { detail: '', ...answer }
-    return apply(dispatch, kind === 'created' ? CREATED : { kind: 'session-failed', detail })
+    const { kind } = answer
+    return apply(
+      dispatch,
+      kind === 'created' ? CREATED : { kind: 'session-failed', detail: answer.detail },
+    )
   }
 
   /** `started`: the end of the run the starting input started is the end of the dispatch. */
@@ -95,12 +96,11 @@ export function createAdvance(deps: AdvanceDependencies) {
     }
   }
 
-  /** An outcome goes to the wait; only when Tool answers that the wait is closed is the rest read. */
+  /** An outcome goes to the wait; only when Tool answers that the wait is closed is the second place read. */
   async function handOver(dispatch: Dispatch): Promise<unknown> {
     const wait = await waits.hand(dispatch.tenant, dispatch, outcomeOf(dispatch))
-    const closedReport = wait === 'closed' && dispatch.state === 'reported'
-    const second = closedReport ? await secondPlace(dispatch) : NOT_READ
-    const step = settleDelivery(dispatch, { wait, ...second })
+    const first = settleWait(dispatch, wait)
+    const step = first.kind === 'look' ? settleSecondPlace(await secondPlace(dispatch)) : first
     if (step.kind === 'record') return record(dispatch, step.delivery)
     return step.kind === 'send-input' ? sendReport(dispatch) : undefined
   }
@@ -125,12 +125,12 @@ export function createAdvance(deps: AdvanceDependencies) {
 
   /** Takes one step after another while each one changes the dispatch, and stops at the first that does not. */
   return async function advance(tenant: TenantId, id: DispatchId): Promise<void> {
-    let known = await current(tenant, id)
-    while (known !== null) {
+    let before: string | null = null
+    for (;;) {
+      const known = await current(tenant, id)
+      if (known === null || known.changedAt === before) return
+      before = known.changedAt
       await stepOf(known)
-      const next = await current(tenant, id)
-      if (next?.changedAt === known.changedAt) return
-      known = next
     }
   }
 }

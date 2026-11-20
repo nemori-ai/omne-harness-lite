@@ -309,6 +309,31 @@ describe('the one report and its one place (DP-01, DP-02, DP-03)', () => {
     expect(w.sessions.counts().sends).toBe(1)
   })
 
+  it('holds while it can read only one of the two facts of the second place', async () => {
+    for (const blind of ['rows', 'looks'] as const) {
+      const w = world()
+      const dispatch = await started(w)
+      w.waits.close('call-1')
+      w.sessions.readable(false, blind)
+      const held = valueOf(await w.registry.report(w.ctx(dispatch.session), 'the report'))
+      expect(held.delivery, blind).toEqual({ kind: 'pending' })
+      expect(w.sessions.counts().sends, blind).toBe(0)
+      w.sessions.readable(true, blind)
+      await w.registry.reconcile(TENANT)
+      expect((await read(w, dispatch.id)).delivery).toEqual({ kind: 'delivered', to: 'input' })
+    }
+  })
+
+  it('records the report as undeliverable when the dispatching session is gone', async () => {
+    const w = world()
+    const dispatch = await started(w)
+    w.waits.close('call-1')
+    w.sessions.remove(TENANT, PARENT)
+    const reported = valueOf(await w.registry.report(w.ctx(dispatch.session), 'the report'))
+    expect(reported.delivery).toEqual({ kind: 'undeliverable' })
+    expect(w.sessions.counts().sends).toBe(0)
+  })
+
   it('records nothing when the send is refused, and settles on the next pass', async () => {
     const w = world()
     const dispatch = await started(w)

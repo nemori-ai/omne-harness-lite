@@ -3,11 +3,12 @@ import {
   decideAccept,
   decideMessage,
   deliveryDue,
-  settleDelivery,
+  settleSecondPlace,
+  settleWait,
   type AcceptFacts,
-  type DeliveryObservation,
   type Dispatch,
   type MessageFacts,
+  type SecondPlace,
   type SessionRef,
 } from '@omne-harness/dispatch-contract'
 
@@ -97,74 +98,70 @@ describe('a message goes between any two open sessions of one tenant', () => {
 
 type Outcome = Pick<Dispatch, 'state' | 'delivery'>
 const due = (state: Dispatch['state']): Outcome => ({ state, delivery: { kind: 'pending' } })
-const seen = (change: Partial<DeliveryObservation>): DeliveryObservation => ({
-  wait: 'closed',
+const seen = (change: Partial<SecondPlace>): SecondPlace => ({
   input: 'absent',
   archived: false,
   ...change,
 })
 const record = (delivery: object) => ({ kind: 'record', delivery })
 const HOLD = { kind: 'hold' }
+const ENDED = ['reported', 'failed', 'withdrawn', 'handed-off'] as const
 
-describe('an outcome is handed over at exactly one place', () => {
+describe('an outcome goes to the wait of the call first', () => {
   it('is due only while its delivery is pending', () => {
     expect(deliveryDue(due('reported'))).toBe(true)
     expect(deliveryDue({ delivery: null })).toBe(false)
     expect(deliveryDue({ delivery: { kind: 'delivered', to: 'result' } })).toBe(false)
   })
 
-  it('takes no step for a dispatch whose delivery is not pending', () => {
-    expect(settleDelivery({ state: 'started', delivery: null }, seen({}))).toEqual(HOLD)
-    expect(
-      settleDelivery({ state: 'reported', delivery: { kind: 'undeliverable' } }, seen({})),
-    ).toEqual(HOLD)
+  it('takes no step for a dispatch whose delivery is not pending, whatever the wait answers', () => {
+    for (const wait of ['delivered', 'closed', 'unreadable'] as const) {
+      expect(settleWait({ state: 'started', delivery: null }, wait)).toEqual(HOLD)
+      expect(settleWait({ state: 'reported', delivery: { kind: 'undeliverable' } }, wait)).toEqual(
+        HOLD,
+      )
+    }
   })
 
-  it.each(['reported', 'failed', 'withdrawn', 'handed-off'] as const)(
+  it.each(ENDED)(
     'the wait took the outcome of a %s dispatch: it is the result of the call',
     state => {
-      expect(settleDelivery(due(state), seen({ wait: 'delivered' }))).toEqual(
+      expect(settleWait(due(state), 'delivered')).toEqual(
         record({ kind: 'delivered', to: 'result' }),
       )
     },
   )
 
-  it('sends nothing while the wait cannot be read, whatever else is known', () => {
-    for (const state of ['reported', 'failed', 'withdrawn'] as const)
-      expect(settleDelivery(due(state), seen({ wait: 'unreadable' }))).toEqual(HOLD)
+  it.each(ENDED)('nothing moves for a %s dispatch while the wait cannot be read', state => {
+    expect(settleWait(due(state), 'unreadable')).toEqual(HOLD)
   })
 
-  it('a report whose wait is closed goes into the dispatching session as an input', () => {
-    expect(settleDelivery(due('reported'), seen({}))).toEqual({ kind: 'send-input' })
+  it('only a report has a second place to look at when the wait is closed', () => {
+    expect(settleWait(due('reported'), 'closed')).toEqual({ kind: 'look' })
+    for (const state of ['failed', 'withdrawn', 'handed-off'] as const)
+      expect(settleWait(due(state), 'closed')).toEqual(record({ kind: 'wait-closed' }))
+  })
+})
+
+describe('a report whose wait is closed is handed over at exactly one second place', () => {
+  it('goes into the dispatching session as an input', () => {
+    expect(settleSecondPlace(seen({}))).toEqual({ kind: 'send-input' })
   })
 
   it('an input that is already there is recorded, and not sent again', () => {
-    expect(settleDelivery(due('reported'), seen({ input: 'present' }))).toEqual(
-      record({ kind: 'delivered', to: 'input' }),
-    )
-    expect(settleDelivery(due('reported'), seen({ input: 'present', archived: true }))).toEqual(
-      record({ kind: 'delivered', to: 'input' }),
-    )
+    const there = record({ kind: 'delivered', to: 'input' })
+    expect(settleSecondPlace(seen({ input: 'present' }))).toEqual(there)
+    expect(settleSecondPlace(seen({ input: 'present', archived: true }))).toEqual(there)
+    expect(settleSecondPlace(seen({ input: 'present', archived: 'unknown' }))).toEqual(there)
   })
 
-  it('a report for an archived dispatcher that got no input is undeliverable', () => {
-    expect(settleDelivery(due('reported'), seen({ archived: true }))).toEqual(
-      record({ kind: 'undeliverable' }),
-    )
+  it('is undeliverable for an archived dispatcher that got no input', () => {
+    expect(settleSecondPlace(seen({ archived: true }))).toEqual(record({ kind: 'undeliverable' }))
   })
 
   it('holds while it is not known whether the input is there or the dispatcher is archived', () => {
-    expect(settleDelivery(due('reported'), seen({ input: 'unknown' }))).toEqual(HOLD)
-    expect(settleDelivery(due('reported'), seen({ archived: 'unknown' }))).toEqual(HOLD)
+    expect(settleSecondPlace(seen({ input: 'unknown' }))).toEqual(HOLD)
+    expect(settleSecondPlace(seen({ input: 'unknown', archived: true }))).toEqual(HOLD)
+    expect(settleSecondPlace(seen({ archived: 'unknown' }))).toEqual(HOLD)
   })
-
-  it.each(['failed', 'withdrawn', 'handed-off'] as const)(
-    'a %s dispatch whose wait is closed has no second place: nothing is sent',
-    state => {
-      expect(settleDelivery(due(state), seen({}))).toEqual(record({ kind: 'wait-closed' }))
-      expect(settleDelivery(due(state), seen({ input: 'unknown', archived: 'unknown' }))).toEqual(
-        record({ kind: 'wait-closed' }),
-      )
-    },
-  )
 })

@@ -69,13 +69,13 @@ export type FakeSessions = DispatchSessions &
     cancelled: readonly SessionRef[]
     /** The next creation answers this instead of creating. `unknown-created` creates and answers unknown. */
     createNext(answer: 'failed' | 'unknown' | 'unknown-created'): void
-    /** The next send answers this; `unknown-sent` also puts the input in the session. */
+    /** The next send answers this; `unknown-sent` also puts the input in the session. `readable(false, only)` fails one kind of read. */
     sendNext(answer: 'unknown' | 'unknown-sent' | 'refused'): void
     counts(): Readonly<{ sends: number; looks: number }>
     /** Where the starting input of a created session is. */
     fate(session: SessionRef, fate: InputFate): void
     cancelAnswers(answer: CancelAnswer): void
-    readable(on: boolean): void
+    readable(on: boolean, only?: 'rows' | 'looks'): void
   }>
 
 const key = (tenant: TenantId, session: SessionRef) => JSON.stringify([tenant, session])
@@ -91,9 +91,9 @@ export function fakeSessions(): FakeSessions {
   let nextSend: 'unknown' | 'unknown-sent' | 'refused' | null = null
   const counted = { sends: 0, looks: 0 }
   let cancelAnswer: CancelAnswer = 'stopped'
-  let canRead = true
-  const read = <T>(value: T) =>
-    canRead ? ({ kind: 'read', value } as const) : ({ kind: 'unavailable' } as const)
+  const off = new Set<'rows' | 'looks' | 'fates'>()
+  const read = <T>(what: 'rows' | 'looks' | 'fates', value: T) =>
+    off.has(what) ? ({ kind: 'unavailable' } as const) : ({ kind: 'read', value } as const)
 
   function seat(tenant: TenantId, row: Partial<SessionRow> & Pick<SessionRow, 'session'>): void {
     rows.set(key(tenant, row.session), {
@@ -135,12 +135,16 @@ export function fakeSessions(): FakeSessions {
     counts: () => ({ ...counted }),
     fate: (session, fate) => void fates.set(session, fate),
     cancelAnswers: answer => void (cancelAnswer = answer),
-    readable: on => void (canRead = on),
+    readable(on, only) {
+      for (const what of only === undefined ? (['rows', 'looks', 'fates'] as const) : [only])
+        if (on) off.delete(what)
+        else off.add(what)
+    },
     sessionOf: (tenant, dispatch: DispatchId) =>
       createHash('sha256')
         .update(JSON.stringify([tenant, dispatch]))
         .digest('hex') as SessionRef,
-    row: async (tenant, session) => read(rows.get(key(tenant, session)) ?? null),
+    row: async (tenant, session) => read('rows', rows.get(key(tenant, session)) ?? null),
     async create(tenant, creation): Promise<CreateAnswer> {
       const answer = nextCreate
       nextCreate = null
@@ -149,7 +153,7 @@ export function fakeSessions(): FakeSessions {
       make(tenant, creation)
       return answer === 'unknown-created' ? { kind: 'unknown' } : { kind: 'created' }
     },
-    startFate: async (_tenant, session) => read(fates.get(session) ?? { kind: 'absent' }),
+    startFate: async (_tenant, session) => read('fates', fates.get(session) ?? { kind: 'absent' }),
     async send(tenant, input): Promise<SendAnswer> {
       counted.sends += 1
       const row = rows.get(key(tenant, input.to))
@@ -167,7 +171,7 @@ export function fakeSessions(): FakeSessions {
     },
     async has(tenant, session, input) {
       counted.looks += 1
-      return read(inputs.get(key(tenant, session))?.has(input) ?? false)
+      return read('looks', inputs.get(key(tenant, session))?.has(input) ?? false)
     },
     async cancelStart(_tenant, session) {
       cancelled.push(session)
