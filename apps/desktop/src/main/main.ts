@@ -1,11 +1,30 @@
+import { writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, session, type BrowserWindow } from 'electron'
+import { app, safeStorage, session, type BrowserWindow } from 'electron'
 import { DEFAULT_SERVER } from '../shared/server.ts'
-import { BUILD_PROFILE_MESSAGE } from '../startup-signals.ts'
+import {
+  BUILD_PROFILE_MESSAGE,
+  COOKIE_KEY_CHECKED_MESSAGE,
+  COOKIE_KEY_MISMATCH_MESSAGE,
+  COOKIE_KEY_NO_PROBE_MESSAGE,
+  COOKIE_KEY_NOT_STORED_MESSAGE,
+  COOKIE_KEY_SKIPPED_MESSAGE,
+  COOKIE_KEY_STORED_MESSAGE,
+  COOKIE_KEY_UNKNOWN_MESSAGE,
+  COOKIE_KEY_WRITER_SWITCH,
+} from '../startup-signals.ts'
 import { serveAppProtocol } from './app-protocol.ts'
 import { APP_HOST, INTERNAL_ORIGIN } from './app-url.ts'
 import { COOKIE_JAR_ORIGIN, createCookieJar, flushForQuit } from './cookie-jar.ts'
+import {
+  checkCookieKeyProbe,
+  COOKIE_KEY_PROBE_TEXT,
+  cookieKeyProbeLine,
+  type CookieKeyOutcome,
+  cookieKeyWriterCrashHandler,
+  storeCookieKeyFirst,
+} from './cookie-key.ts'
 import { developmentHost } from './dev-host.ts'
 import { createLogger, type Logger } from './log.ts'
 import type { UtilityState } from './recovery.ts'
@@ -38,7 +57,7 @@ function utilityWatch(): UtilityWatch & { set(state: UtilityState): void } {
   }
 }
 
-async function main(log: Logger): Promise<void> {
+async function main(log: Logger, cookieKey: CookieKeyOutcome): Promise<void> {
   await app.whenReady()
   const pageRoot = fileURLToPath(new URL('../page/', import.meta.url))
   const appSession = session.fromPartition(APP_PARTITION)
@@ -63,6 +82,7 @@ async function main(log: Logger): Promise<void> {
 
   const saved = windowStateFile(join(app.getPath('userData'), 'window-state.json'))
   let window: BrowserWindow | undefined = openAppWindow(saved, utility, log)
+  checkCookieKey(log, cookieKey)
   window.on('closed', () => {
     window = undefined
   })
@@ -103,12 +123,69 @@ function start(): void {
     app.quit()
     return
   }
+  const cookieKey: CookieKeyOutcome =
+    OMNE_BUILD_PROFILE === 'dev'
+      ? { kind: 'none' }
+      : storeCookieKeyFirst({
+          platform: process.platform,
+          userData: app.getPath('userData'),
+          execPath: process.execPath,
+          appPath: process.defaultApp ? app.getAppPath() : undefined,
+          appVersion: app.getVersion(),
+        })
+  logCookieKey(log, cookieKey)
   app.enableSandbox()
   registerAppScheme()
-  main(log).catch((failure: unknown) => {
+  main(log, cookieKey).catch((failure: unknown) => {
     log.error({ err: failure }, 'startup failed')
     app.exit(1)
   })
 }
 
-start()
+/** What an unstored key costs: only a packaged app encrypts its cookies. */
+const unstoredKeyRisk = (): string =>
+  app.isPackaged
+    ? "a crash in this launch's first ~10 s loses its persistent cookies"
+    : 'this unpackaged launch does not encrypt its cookies, so they are not at risk'
+
+function logCookieKey(log: Logger, cookieKey: CookieKeyOutcome): void {
+  if (cookieKey.kind === 'skipped')
+    log.warn({ failedAt: cookieKey.failedAt, risk: unstoredKeyRisk() }, COOKIE_KEY_SKIPPED_MESSAGE)
+  if (cookieKey.kind !== 'ran') return
+  const { ms, status, error, readError } = cookieKey
+  if (cookieKey.key === 'stored') log.info({ ms }, COOKIE_KEY_STORED_MESSAGE)
+  else if (cookieKey.key === 'missing')
+    log.warn({ ms, status, error, risk: unstoredKeyRisk() }, COOKIE_KEY_NOT_STORED_MESSAGE)
+  else log.warn({ ms, status, error, reason: readError }, COOKIE_KEY_UNKNOWN_MESSAGE)
+}
+
+/** Once the window is on its way: whether this launch runs on the key its writer stored. */
+function checkCookieKey(log: Logger, cookieKey: CookieKeyOutcome): void {
+  if (cookieKey.kind !== 'ran' || cookieKey.key !== 'stored') return
+  if (cookieKey.probe === undefined) return void log.warn({}, COOKIE_KEY_NO_PROBE_MESSAGE)
+  const checked = checkCookieKeyProbe(cookieKey.probe, sealed => safeStorage.decryptString(sealed))
+  if (checked.ok) log.info({}, COOKIE_KEY_CHECKED_MESSAGE)
+  else log.error({ reason: checked.reason, risk: unstoredKeyRisk() }, COOKIE_KEY_MISMATCH_MESSAGE)
+}
+
+/** The copy: no log, no lock, no window; Chromium makes the key, the clean quit writes it. */
+function runCookieKeyWriter(): void {
+  const crash = cookieKeyWriterCrashHandler(code => process.exit(code))
+  process.on('uncaughtException', crash)
+  process.on('unhandledRejection', crash)
+  app.disableHardwareAcceleration()
+  void app.whenReady().then(() => {
+    try {
+      if (safeStorage.isEncryptionAvailable())
+        writeSync(1, cookieKeyProbeLine(safeStorage.encryptString(COOKIE_KEY_PROBE_TEXT)))
+    } catch {}
+    app.quit()
+  })
+}
+
+const keyWriter =
+  OMNE_BUILD_PROFILE !== 'dev' &&
+  process.platform === 'win32' &&
+  app.commandLine.hasSwitch(COOKIE_KEY_WRITER_SWITCH)
+if (keyWriter) runCookieKeyWriter()
+else start()

@@ -4,11 +4,9 @@
 export const REMOTE_DEBUGGING_SWITCHES = ['remote-debugging-port', 'remote-debugging-pipe'] as const
 export type RemoteDebuggingSwitch = (typeof REMOTE_DEBUGGING_SWITCHES)[number]
 
-/** A release build started with a remote debugging switch exits with this, and nothing else does. */
 export const REMOTE_DEBUGGING_EXIT_CODE = 97
 export const REMOTE_DEBUGGING_REFUSED_MESSAGE = 'remote debugging refused'
 
-/** The first main-process line of every launch, with the profile as `buildProfile`. */
 export const BUILD_PROFILE_MESSAGE = 'build profile'
 
 /** Once per process, when the main window holds a document answered 2xx and is shown. */
@@ -38,7 +36,6 @@ export function remoteDebuggingSwitch(
   return undefined
 }
 
-/** The build profile a main-process log line reports, if it is the line that carries one. */
 export function reportedBuildProfile(line: string): string | undefined {
   if (!line.startsWith('{')) return undefined
   try {
@@ -50,3 +47,23 @@ export function reportedBuildProfile(line: string): string | undefined {
     return undefined
   }
 }
+
+export const COOKIE_KEY_WRITER_SWITCH = 'omne-cookie-key-writer'
+export const COOKIE_KEY_WRITER_FAILED_FILE = 'cookie-key-writer-failed.json'
+export const COOKIE_KEY_STORED_MESSAGE = 'cookie key stored before start'
+export const COOKIE_KEY_CHECKED_MESSAGE = 'cookie key checked: this launch uses the stored key'
+export const COOKIE_KEY_MISMATCH_MESSAGE =
+  'this launch does not use the cookie key its key writer stored'
+export const COOKIE_KEY_NOT_STORED_MESSAGE = 'the cookie key writer did not store the cookie key'
+export const COOKIE_KEY_UNKNOWN_MESSAGE =
+  'could not tell whether the cookie key writer stored the cookie key'
+export const COOKIE_KEY_SKIPPED_MESSAGE =
+  'cookie key writer skipped: a run of this version failed within a day'
+export const COOKIE_KEY_NO_PROBE_MESSAGE =
+  'the cookie key writer printed no probe; the key in use is not checked'
+export const COOKIE_KEY_WRITER_WARNINGS = [
+  COOKIE_KEY_NOT_STORED_MESSAGE,
+  COOKIE_KEY_UNKNOWN_MESSAGE,
+  COOKIE_KEY_SKIPPED_MESSAGE,
+  COOKIE_KEY_NO_PROBE_MESSAGE,
+] as const
