@@ -189,10 +189,11 @@ export function openAppWindow(
     screen.getAllDisplays().map(display => display.workArea),
   )
   const window = new BrowserWindow(windowOptions(state))
+  // Before maximize(), which shows a hidden window: its `show` must count.
+  const afterShown = reportReady(window, log)
   if (state?.maximized === true) window.maximize()
   harden(window.webContents)
   recover(window, utility, log)
-  const afterShown = reportReady(window, log)
 
   // macOS sends no `show` while the screen is locked: a window just shown counts if it says visible.
   const show = (): void => {

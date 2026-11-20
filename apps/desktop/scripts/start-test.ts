@@ -69,7 +69,11 @@ process.once('exit', () => {
   note(`exiting while the app (pid ${child.pid}) runs: sent it SIGTERM`)
   child.kill('SIGTERM')
 })
-child.once('error', failure => fail(failure))
+child.once('error', failure => {
+  // No process ever ran on the directory: it can go at once.
+  if (temporary) removeUserDataDir(userDataDir)
+  fail(failure)
+})
 child.once('close', (code, signal) => {
   if (signal !== null) note(`the app was ended by ${signal}`)
   process.exitCode = wrongBuild ? 1 : (code ?? 1)
@@ -77,9 +81,9 @@ child.once('close', (code, signal) => {
   const owner: LaunchOwner = {
     root: { pid: child.pid, spawnedAt, userDataDir },
     preexisting,
-    location: { command: spec!.command, processDir: spec!.processDir },
   }
-  // Its helpers may still use the directory: it goes only once they are confirmed gone.
+  // Its helpers may still use the directory: it goes only once they are confirmed gone. They are
+  // found by descent and process group, not by path: `pnpm run dev` runs the same Electron.
   void reapHelpers(owner, [], 3_000).then(
     killed => {
       if (killed.length > 0)

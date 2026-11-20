@@ -94,12 +94,15 @@ function createdByLaunch(
   return process.startedAt >= earliest
 }
 
-/** The processes the launch at `root` created: its descendants, its group, or its executable. */
+/**
+ * The processes the launch at `root` created: its descendants, its group, or its executable. Without
+ * `location`, never by executable: another launcher's app may run from the same Electron.
+ */
 export function launchProcesses(
   listing: readonly ProcessInfo[],
   root: LaunchRoot,
   preexisting: ReadonlySet<number>,
-  location: ProcessLocation,
+  location: ProcessLocation | undefined,
   platform: NodeJS.Platform,
 ): ProcessInfo[] {
   const created = listing.filter(process => createdByLaunch(process, root, preexisting, platform))
@@ -128,7 +131,7 @@ export function launchProcesses(
       process !== impostor &&
       (ours.has(process.pid) ||
         (process.pgid !== undefined && process.pgid === root.pid) ||
-        runsFrom(process, location, platform)),
+        (location !== undefined && runsFrom(process, location, platform))),
   )
 }
 
@@ -138,7 +141,7 @@ export function leftoverProcesses(
   launched: readonly ProcessInfo[],
   root: LaunchRoot,
   preexisting: ReadonlySet<number>,
-  location: ProcessLocation,
+  location: ProcessLocation | undefined,
   platform: NodeJS.Platform,
 ): ProcessInfo[] {
   const seen = new Map(launched.map(process => [process.pid, process]))

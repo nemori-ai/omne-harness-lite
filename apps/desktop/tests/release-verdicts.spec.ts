@@ -217,6 +217,9 @@ describe('进程归属', () => {
       process => process.pid,
     )
     expect(created).toEqual([100, 101, 102, 103])
+    // Without a location only descent and group count: 103 runs from the same place but is not ours.
+    const owned = launchProcesses(listing, ROOT, new Set([200]), undefined, 'darwin')
+    expect(owned.map(process => process.pid)).toEqual([100, 101, 102])
     const kinds = launchProcesses(listing, ROOT, new Set([200]), LOCATION, 'darwin')
     expect(missingKinds(kinds, 100)).toEqual([])
     const left = leftoverProcesses(

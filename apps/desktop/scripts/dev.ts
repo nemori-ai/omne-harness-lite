@@ -50,6 +50,8 @@ function stop(code: number): void {
   if (exiting) return
   exiting = stopping = true
   clearTimeout(restartTimer)
+  // The app leads its own process group: an exit of this script would not end it.
+  if (app !== undefined && app.exitCode === null && app.signalCode === null) app.kill('SIGTERM')
   void Promise.allSettled(watchers.map(watcher => watcher.close())).finally(() =>
     process.exit(code),
   )
@@ -57,7 +59,8 @@ function stop(code: number): void {
 
 function startApp(): void {
   const spec = launchSpec('unpackaged', 'dev')
-  const started = spawn(spec.command, spec.args, {
+  // Arguments after `pnpm run dev` go to Electron, after the launch's own.
+  const started = spawn(spec.command, [...spec.args, ...process.argv.slice(2)], {
     cwd: spec.cwd,
     env: launchEnvironment(process.env),
     stdio: ['ignore', 'pipe', 'inherit'],
@@ -65,6 +68,8 @@ function startApp(): void {
   })
   app = started
   verifyBuildProfile(started.stdout!, 'dev').catch((failure: unknown) => {
+    // A restart ends the old app on purpose, often before it reports its profile.
+    if (app !== started) return
     say(failure instanceof Error ? failure.message : String(failure))
     started.kill('SIGKILL')
   })
@@ -98,17 +103,19 @@ const restartSoon = () => {
   restartTimer = setTimeout(restartApp, 300)
 }
 
+let built = false
 try {
   rmSync(resolve(desktopDir, bundleDir('dev')), { recursive: true, force: true })
   writeManifest('dev')
   watchers.push(await watchBuild(pageConfig('dev', true)))
   for (const bundle of BUNDLES)
     watchers.push(await watchBuild(bundleConfig('dev', bundle, true), restartSoon))
+  built = true
 } catch (failure) {
   say(failure instanceof Error ? failure.message : String(failure))
   stop(1)
 }
-startApp()
+if (built) startApp()
 forwardSignals(
   () => app,
   say,
