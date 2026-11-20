@@ -5,6 +5,7 @@ import type { WorkspaceFaces, WorkspacePrincipals } from '@omne-harness/workspac
 import { createWorkspaceAccessPlugin } from '@omne-harness/workspace-access/cordis'
 import {
   workspaceCatalogKey,
+  workspaceInstancesKey,
   workspaceGovernanceKey,
 } from '@omne-harness/workspace-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
@@ -22,8 +23,10 @@ function principalsOf(ctx: Context): WorkspacePrincipals {
 
 function facesOf(ctx: Context): WorkspaceFaces | undefined {
   const governance = ctx.get(workspaceGovernanceKey)
+  const instances = ctx.get(workspaceInstancesKey)
   const catalog = ctx.get(workspaceCatalogKey)
-  return governance === undefined || catalog === undefined ? undefined : { governance, catalog }
+  const absent = governance === undefined || instances === undefined || catalog === undefined
+  return absent ? undefined : { governance, instances, catalog }
 }
 
 const plugin = createWorkspaceAccessPlugin({ principals: principalsOf, faces: facesOf })

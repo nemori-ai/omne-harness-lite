@@ -54,6 +54,25 @@ const commit = {
   countsAsAccess: true,
 } as const
 
+const changeFields = { ...ofTenant, operation: { rule: text }, workspace: { rule: text } } as const
+const changes = <const F extends Fields>(fields: F) => ({
+  change: {
+    ...commit,
+    body: ruleCodec(object(fields)),
+    outcomes: { succeeded: none, 'no-change': none, invalid: refused, conflict: none },
+  },
+  query: {
+    ...read,
+    body: ruleCodec(object(fields)),
+    outcomes: { succeeded: none, 'not-committed': none },
+  },
+})
+const onTarget = changes({ ...changeFields, target: { rule: tenant } })
+const onSelf = changes(changeFields)
+const onInstance = changes({ ...changeFields, instance: { rule: text } })
+const association = { ...changeFields, address: { rule: text } } as const
+const associated = ruleCodec(object({ instance: { rule: text } }))
+
 /** A commit names itself with `operation`: after `unknown`, the query with the same body says what was done. */
 export const workspaceProtocol = defineProtocol({
   name: 'workspace',
@@ -86,6 +105,36 @@ export const workspaceProtocol = defineProtocol({
       body: ruleCodec(object({ ...ofTenant, workspace: { rule: text } })),
       outcomes: { succeeded: ruleCodec(view), 'not-found': none },
     },
+    /** One more directory of the same resource becomes an instance. Nothing in the directory is touched. */
+    associate: {
+      ...commit,
+      body: ruleCodec(object(association)),
+      outcomes: {
+        succeeded: associated,
+        'no-change': associated,
+        invalid: refused,
+        conflict: none,
+      },
+    },
+    'query-associate': {
+      ...read,
+      body: ruleCodec(object(association)),
+      outcomes: { succeeded: associated, 'not-committed': none },
+    },
+    dissociate: onInstance.change,
+    'query-dissociate': onInstance.query,
+    'grant-participation': onTarget.change,
+    'query-grant-participation': onTarget.query,
+    'grant-admin': onTarget.change,
+    'query-grant-admin': onTarget.query,
+    'revoke-admin': onTarget.change,
+    'query-revoke-admin': onTarget.query,
+    remove: onTarget.change,
+    'query-remove': onTarget.query,
+    leave: onSelf.change,
+    'query-leave': onSelf.query,
+    destroy: onSelf.change,
+    'query-destroy': onSelf.query,
   },
   observations: {},
 })

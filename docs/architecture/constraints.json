@@ -1036,6 +1036,22 @@
       "source": "packages/workspace/SPEC.md"
     },
     {
+      "id": "packages/workspace/workspace-git",
+      "paths": ["packages/workspace/workspace-git/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "packages/workspace/workspace-tools",
+      "paths": ["packages/workspace/workspace-tools/src/**"],
+      "layer": "unknown",
+      "domains": ["workspace"],
+      "status": "candidate",
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
       "id": "packages/workspace/workspace-cordis-contract",
       "paths": ["packages/workspace/workspace-cordis-contract/src/**"],
       "layer": "contract",
@@ -1500,6 +1516,7 @@
         "packages/workspace/workspace-contract",
         "packages/workspace/workspace",
         "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
         "packages/workspace/workspace-cordis-contract",
         "packages/workspace/workspace-local",
         "packages/workspace/workspace-protocol",
@@ -1536,11 +1553,19 @@
       "from": ["packages/workspace/workspace-contract", "packages/workspace/workspace"],
       "to": [
         "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
         "packages/workspace/workspace-cordis-contract",
         "packages/workspace/workspace-local",
         "packages/workspace/workspace-protocol",
-        "packages/workspace/workspace-access"
+        "packages/workspace/workspace-access",
+        "packages/workspace/workspace-tools"
       ],
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-TYPES",
+      "from": ["packages/workspace/workspace-filesystem"],
+      "to": ["packages/workspace/workspace-git"],
       "source": "packages/workspace/SPEC.md"
     },
     {
@@ -1552,7 +1577,9 @@
         "packages/workspace/workspace-cordis-contract",
         "packages/workspace/workspace-local",
         "packages/workspace/workspace-filesystem",
-        "packages/workspace/workspace-access"
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-access",
+        "packages/workspace/workspace-tools"
       ],
       "source": "packages/workspace/SPEC.md"
     },
@@ -1562,7 +1589,24 @@
       "to": [
         "packages/workspace/workspace",
         "packages/workspace/workspace-local",
-        "packages/workspace/workspace-filesystem"
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-tools"
+      ],
+      "source": "packages/workspace/SPEC.md"
+    },
+    {
+      "id": "DIR-WORKSPACE-TOOLS",
+      "from": ["packages/workspace/workspace-tools"],
+      "to": [
+        "packages/workspace/workspace-contract",
+        "packages/workspace/workspace",
+        "packages/workspace/workspace-cordis-contract",
+        "packages/workspace/workspace-local",
+        "packages/workspace/workspace-filesystem",
+        "packages/workspace/workspace-git",
+        "packages/workspace/workspace-protocol",
+        "packages/workspace/workspace-access"
       ],
       "source": "packages/workspace/SPEC.md"
     }

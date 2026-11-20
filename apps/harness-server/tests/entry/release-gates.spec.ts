@@ -44,6 +44,7 @@ const EXPECTED: Readonly<
     ['subscribe', 'auto', ['subscribe']],
   ],
   Sessions: [['invoke', 'auto', ['help', 'list', 'search', 'show', 'read']]],
+  SwitchWorkspace: [['invoke', 'ask', []]],
 }
 const sorted = (names: readonly string[]) => [...names].sort()
 
@@ -70,7 +71,15 @@ describe('the gates of the release tools', () => {
       const inspected = await catalog.inspect({ name: entry.asset.name } as never)
       if (!('ok' in inspected) || inspected.ok.kind !== 'available') throw new Error('catalog')
       const { definition } = inspected.ok
-      if (definition.kind !== 'commands') throw new Error(`${entry.asset.name} has no commands`)
+      if (definition.kind !== 'commands') {
+        // A function is one action: it stands under the one gate of its tool, which names no command.
+        expect(releasedGatesOf(definition, [])).toEqual(entry.gates)
+        expect([entry.asset.name, entry.gates.map(gate => gate.commands)]).toEqual([
+          entry.asset.name,
+          [[]],
+        ])
+        continue
+      }
       const named = RELEASE_UNGATED[entry.asset.name] ?? []
       const gated = entry.gates.flatMap(gate => gate.commands)
       expect(new Set(gated).size).toBe(gated.length)

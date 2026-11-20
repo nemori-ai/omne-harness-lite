@@ -1,5 +1,6 @@
 import type { DurableEvidence } from '@omne-harness/exchange-refs'
 import type { WorkspaceId } from '@omne-harness/legal-identity'
+import type { RelationOperation } from './policy.ts'
 
 declare const workspaceValue: unique symbol
 type Brand<K extends string> = string & { readonly [workspaceValue]: K }
@@ -104,13 +105,18 @@ export type Verification =
   | Readonly<{ kind: 'instance-unavailable'; reason: Reason }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+export type Located =
+  | Readonly<{ kind: 'located'; workspace: WorkspaceId; instance: InstanceId }>
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
 export type OperationView =
   | Readonly<{ kind: 'recorded'; operation: OperationKind; value: Json }>
   | Readonly<{ kind: 'not-recorded' }>
   | NotPermitted
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-export type OperationKind = 'register' | 'associate' | 'dissociate'
+export type OperationKind = 'register' | 'associate' | 'dissociate' | RelationOperation | 'destroy'
 
 export type Json =
   | null

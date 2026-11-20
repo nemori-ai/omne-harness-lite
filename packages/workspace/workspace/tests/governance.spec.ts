@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { fakeAccess } from '@omne-harness/workspace/testing'
+import { reason } from '@omne-harness/workspace-contract'
+import { createCatalog, createGovernance, createManagementTypes } from '@omne-harness/workspace'
+import {
+  createMemoryStore,
+  fakeAccess,
+  fakeAuthority,
+  fakeMinting,
+  fakeWorld,
+} from '@omne-harness/workspace/testing'
 import { named, op, world } from './world.ts'
 
 const ALICE = fakeAccess(1)
@@ -35,6 +43,27 @@ describe('registering a directory', () => {
     const answer = await w.governance.register(ALICE, { operation: op('r1'), address: '/a' })
     expect(answer.kind).toBe('unavailable')
     expect(await w.catalog.list(ALICE)).toEqual({ kind: 'read', value: [] })
+  })
+
+  it('a refusal a type calls final ends the search: a less specific type does not take the address', async () => {
+    const things = fakeWorld()
+    things.put('/a', { kinds: ['plain'] })
+    const types = createManagementTypes()
+    const plainType = things.type('plain')
+    types.contribute(plainType)
+    const answer = { refused: reason('unsupported-form'), final: true } as const
+    types.contribute({
+      ...things.type('strict', { extends: 'plain' }),
+      recognise: async () => answer,
+    })
+    const store = createMemoryStore()
+    const deps = { authority: fakeAuthority(), store, types, minting: fakeMinting(), node: 'n' }
+    const governance = createGovernance(deps)
+    expect(await governance.register(ALICE, { operation: op('r1'), address: '/a' })).toEqual({
+      kind: 'not-performed',
+      reason: 'unsupported-form',
+    })
+    expect(await createCatalog(deps).list(ALICE)).toEqual({ kind: 'read', value: [] })
   })
 
   it('a named type that does not recognise the address is not performed', async () => {

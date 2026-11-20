@@ -5,12 +5,17 @@ import {
   workspaceCodec,
   type Access,
   type TenantId,
+  type WorkspaceId,
 } from '@omne-harness/legal-identity'
 import {
   operationId,
   typeName,
   type Answer,
+  type InstanceId,
   type InstanceView,
+  type Json,
+  type OperationId,
+  type OperationKind,
   type RegisteredWorkspace,
   type WorkspaceSummary,
 } from '@omne-harness/workspace-contract'
@@ -37,6 +42,8 @@ const NOT_COMMITTED = { outcome: 'not-committed', body: {} } as const
 const invalid = (reason: string) => ({ outcome: 'invalid', body: { reason } }) as const
 
 type Ready = Readonly<{ outcome: null; faces: WorkspaceFaces; caller: Access<unknown> }>
+type ChangeBody = Readonly<{ tenant: TenantId; operation: string; workspace: string }>
+type Named = Readonly<{ operation: OperationId; workspace: WorkspaceId }>
 
 /** Steps one to three: the login acts for the tenant, the principal is current, the faces are here. */
 async function prepare(
@@ -87,12 +94,13 @@ function registrationOf(body: Registration) {
   return { operation, address: body.address, ...(type === undefined ? {} : { type }) }
 }
 
-function registerAnswer(answer: Answer<RegisteredWorkspace>) {
+/** What a commit answered, with the body its success carries. */
+function committed<T, B>(answer: Answer<T>, body: (value: T) => B) {
   switch (answer.kind) {
     case 'done':
       return {
         outcome: answer.changed ? 'succeeded' : 'no-change',
-        body: registeredOf(answer.value),
+        body: body(answer.value),
       } as const
     case 'not-permitted':
       return DENIED
@@ -107,6 +115,56 @@ function registerAnswer(answer: Answer<RegisteredWorkspace>) {
   }
 }
 
+/** The commit and the query of a change, each over the first three steps. */
+function changeHandlers(input: WorkspaceContributionInput) {
+  /** A change names its workspace and itself. A text that is no workspace identity is no workspace. */
+  const changed =
+    <B extends ChangeBody, T, R>(
+      run: (
+        faces: WorkspaceFaces,
+        caller: Access<unknown>,
+        named: Named,
+        body: B,
+      ) => Promise<Answer<T>>,
+      answered: (value: T) => R,
+    ) =>
+    async (call: { principal: Login }, body: B) => {
+      const ready = await prepare(input, call.principal, body.tenant)
+      if (ready.outcome !== null) return ready
+      const operation = operationId(body.operation)
+      if (operation === null) return invalid('invalid-request')
+      const workspace = workspaceCodec.parse(body.workspace)
+      if (!workspace.ok) return DENIED
+      try {
+        const named = { operation, workspace: workspace.value }
+        return committed(await run(ready.faces, ready.caller, named, body), answered)
+      } catch {
+        return UNKNOWN
+      }
+    }
+
+  const queried =
+    <R>(kind: OperationKind, answered: (value: Json) => R) =>
+    async (call: { principal: Login }, body: ChangeBody) => {
+      const ready = await prepare(input, call.principal, body.tenant)
+      if (ready.outcome !== null) return ready
+      const operation = operationId(body.operation)
+      if (operation === null) return NOT_COMMITTED
+      try {
+        const view = await ready.faces.governance.operation(ready.caller, operation)
+        if (view.kind === 'not-permitted') return DENIED
+        if (view.kind === 'unavailable') return UNAVAILABLE
+        const done = view.kind === 'recorded' && view.operation === kind
+        return done
+          ? ({ outcome: 'succeeded', body: answered(view.value) } as const)
+          : NOT_COMMITTED
+      } catch {
+        return UNAVAILABLE
+      }
+    }
+  return { changed, queried }
+}
+
 export function createWorkspaceContribution(
   input: WorkspaceContributionInput,
 ): Omit<AccessContribution<WorkspaceProtocol>, 'protocol'> {
@@ -116,7 +174,8 @@ export function createWorkspaceContribution(
     const registration = registrationOf(body)
     if (registration === null) return invalid('invalid-request')
     try {
-      return registerAnswer(await ready.faces.governance.register(ready.caller, registration))
+      const answer = await ready.faces.governance.register(ready.caller, registration)
+      return committed(answer, registeredOf)
     } catch {
       return UNKNOWN
     }
@@ -173,8 +232,53 @@ export function createWorkspaceContribution(
     }
   }
 
+  const { changed, queried } = changeHandlers(input)
+  const nothing = () => ({})
+  const instanceOfValue = (value: Json) => ({ instance: (value as { instance: string }).instance })
+
+  const onTarget = (method: 'grantParticipation' | 'grantAdmin' | 'revokeAdmin' | 'remove') =>
+    changed(
+      (faces, caller, named, body: ChangeBody & { target: TenantId }) =>
+        faces.governance[method](caller, { ...named, target: body.target }),
+      nothing,
+    )
+  const onSelf = (method: 'leave' | 'destroy') =>
+    changed((faces, caller, named) => faces.governance[method](caller, named), nothing)
+  const associate = changed(
+    (faces, caller, named, body: ChangeBody & { address: string }) =>
+      faces.instances.associate(caller, { ...named, address: body.address }),
+    ({ instance }) => ({ instance: instance as string }),
+  )
+  /** An instance text that is none is refused by the domain as an instance that is not there. */
+  const dissociate = changed(
+    (faces, caller, named, body: ChangeBody & { instance: string }) =>
+      faces.instances.dissociate(caller, { ...named, instance: body.instance as InstanceId }),
+    nothing,
+  )
+
   return {
-    operations: { register, 'query-register': queryRegister, list, describe },
+    operations: {
+      register,
+      'query-register': queryRegister,
+      list,
+      describe,
+      associate,
+      'query-associate': queried('associate', instanceOfValue),
+      dissociate,
+      'query-dissociate': queried('dissociate', nothing),
+      'grant-participation': onTarget('grantParticipation'),
+      'query-grant-participation': queried('grant-participation', nothing),
+      'grant-admin': onTarget('grantAdmin'),
+      'query-grant-admin': queried('grant-admin', nothing),
+      'revoke-admin': onTarget('revokeAdmin'),
+      'query-revoke-admin': queried('revoke-admin', nothing),
+      remove: onTarget('remove'),
+      'query-remove': queried('remove', nothing),
+      leave: onSelf('leave'),
+      'query-leave': queried('leave', nothing),
+      destroy: onSelf('destroy'),
+      'query-destroy': queried('destroy', nothing),
+    },
     observations: {},
   }
 }

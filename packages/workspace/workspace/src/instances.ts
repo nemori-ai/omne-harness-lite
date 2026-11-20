@@ -1,3 +1,4 @@
+import { workspaceCodec } from '@omne-harness/legal-identity'
 import {
   decide,
   instanceId,
@@ -6,6 +7,7 @@ import {
   standingOf,
   type Answer,
   type InstanceId,
+  type Located,
   type ManagementType,
   type Reason,
   type Recognised,
@@ -29,8 +31,10 @@ import {
   type Blocked,
 } from './gate.ts'
 import type { WorkspaceState } from './store.ts'
+import type { InstanceRecord } from './txn.ts'
 
 const INVALID = { kind: 'not-performed', reason: reason('invalid-request') } as const
+const NOWHERE = { kind: 'none' } as const
 const notPerformed = (why: Reason) => ({ kind: 'not-performed', reason: why }) as const
 
 /** How often an association is decided again after the workspace changed under it. */
@@ -80,6 +84,37 @@ async function admission<P>(
 function associated(value: Readonly<{ instance: string }>): { instance: InstanceId } | undefined {
   const instance = instanceId(value.instance)
   return instance === null ? undefined : { instance }
+}
+
+/** The instance registered at this address on this node, among those of one workspace. */
+function instanceAt(
+  instances: readonly InstanceRecord[],
+  node: string,
+  address: string,
+): Located | undefined {
+  const record = instances.find(each => each.node === node && each.address === address)
+  if (record === undefined) return undefined
+  const workspace = workspaceCodec.parse(record.workspace)
+  return workspace.ok
+    ? { kind: 'located', workspace: workspace.value, instance: record.instance }
+    : unavailable('stored-value')
+}
+
+/** Looks through the workspaces the tenant has a relation with. A workspace that went away meanwhile has nothing there. */
+async function locatedAmong<P>(
+  deps: Pick<WorkspaceDependencies<P>, 'store' | 'node'>,
+  tenant: string,
+  address: string,
+): Promise<Located> {
+  const memberships = await deps.store.memberships(tenant)
+  if (memberships.kind === 'unavailable') return unavailable('store')
+  for (const { workspace } of memberships.value) {
+    const state = await deps.store.state(tenant, workspace.workspace)
+    if (state.kind === 'unavailable') return unavailable('store')
+    const found = instanceAt(state.value?.instances ?? [], deps.node, address)
+    if (found !== undefined) return found
+  }
+  return NOWHERE
 }
 
 export function createInstances<P>(deps: WorkspaceDependencies<P>): WorkspaceInstances<P> {
@@ -166,6 +201,14 @@ export function createInstances<P>(deps: WorkspaceDependencies<P>): WorkspaceIns
           digest: digestOf({ tenant, workspace, instance, directory, basis }),
         },
       }
+    },
+
+    async locate(access, address): Promise<Located> {
+      const tenant = tenantText(access)
+      if (tenant === null) return NOWHERE
+      const blocked = await admitted(deps.authority, access, 'workspace.list', deps.node)
+      if (blocked !== null) return blocked.kind === 'unavailable' ? blocked : NOWHERE
+      return locatedAmong(deps, tenant, address)
     },
   }
 }

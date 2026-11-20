@@ -4,6 +4,7 @@ it('the public entry exports the value parsers, the standing of a relation and t
   const root = (await import('@omne-harness/workspace-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'decide',
+    'govern',
     'instanceId',
     'loadBasis',
     'operationId',

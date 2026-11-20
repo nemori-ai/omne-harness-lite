@@ -1,6 +1,6 @@
 ---
 name: domain-mental-models
-description: "本项目各领域的心智模型与跨领域协调的模型：每个领域是什么、不是什么、拿它怎样量一个设计。在 Session、Agent、Model、Tool、Context、接入层、资产、Skill、MCP 等任何一个领域里做设计或实现时加载；判断一个能力怎样到 agent 手上、一次变化要不要重新装配时加载；改动会波及别的领域、要判断一件事归谁、两个领域之间该怎样来往、生命周期与卸载怎样处理、要新增一个领域时也加载，任务里没有出现「心智模型」这个词也一样。只查一个已知事实、纯工具链或纯文档排版的改动不加载。"
+description: "本项目各领域的心智模型与跨领域协调的模型：每个领域是什么、不是什么、拿它怎样量一个设计。在 Session、Agent、Model、Tool、Context、接入层、资产、Skill、MCP、工作区等任何一个领域里做设计或实现时加载；判断一个能力怎样到 agent 手上、一次变化要不要重新装配时加载；改动会波及别的领域、要判断一件事归谁、两个领域之间该怎样来往、生命周期与卸载怎样处理、要新增一个领域时也加载，任务里没有出现「心智模型」这个词也一样。只查一个已知事实、纯工具链或纯文档排版的改动不加载。"
 ---
 
 # 各领域的心智模型
@@ -37,8 +37,9 @@ description: "本项目各领域的心智模型与跨领域协调的模型：每
 | 在 Skill 这个领域里：目录、三层披露、`Skills` 入口、脚本由谁运行、提交 | [references/skill.md](references/skill.md) |
 | 在 MCP 这个领域里：接入点、连接、动作清单、动作怎样成为工具条目、认证 | [references/mcp.md](references/mcp.md) |
 | 在拓展件这个领域里：包与声明、租户启用了哪些、实现怎样取得与运行、命令型 | [references/loop-extension.md](references/loop-extension.md) |
+| 在工作区这个领域里：登记与实例、关系与授权、管理类型、附着核验、会话的工作目录、agent 自己更换 | [references/workspace.md](references/workspace.md) |
 
-还没有写的领域：身份、授权；设置与权限的配值和求值；Model 与 Tool 作为被调用的一方；Request Context；执行环境；人工介入；工作区。碰到它们时读根 `AGENTS.md` 的两张图和跨领域那一份，再读那个领域的正文（`docs/domains/` 下它的目录）。
+还没有写的领域：身份、授权；设置与权限的配值和求值；Model 与 Tool 作为被调用的一方；Request Context；执行环境；人工介入。碰到它们时读根 `AGENTS.md` 的两张图和跨领域那一份，再读那个领域的正文（`docs/domains/` 下它的目录）。
 
 ## 这些文字的地位
 

@@ -1,6 +1,6 @@
 import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { encodeTenantText } from '@omne-harness/public-contract'
+import { encodeTenantText, readTenantText } from '@omne-harness/public-contract'
 import { workspaceProtocol } from '@omne-harness/workspace-protocol'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
@@ -27,13 +27,33 @@ type Action = Readonly<{
   /** How many words follow the action before the options. */
   words: number
   options: readonly string[]
+  switches?: readonly string[]
 }>
 
+const ON_TENANT: Action = { words: 2, options: ['--resume'] }
 const ACTIONS: Readonly<Record<string, Action>> = {
   register: { words: 1, options: ['--type', '--resume'] },
   list: { words: 0, options: [] },
   show: { words: 1, options: [] },
+  associate: ON_TENANT,
+  dissociate: ON_TENANT,
+  grant: ON_TENANT,
+  'grant-admin': ON_TENANT,
+  'revoke-admin': ON_TENANT,
+  remove: ON_TENANT,
+  leave: { words: 1, options: ['--resume'] },
+  destroy: { words: 1, options: ['--resume'], switches: ['--yes'] },
 }
+
+/** The actions that change a relation of another tenant, by the operation each one is. */
+const CHANGES = {
+  grant: 'grant-participation',
+  'grant-admin': 'grant-admin',
+  'revoke-admin': 'revoke-admin',
+  remove: 'remove',
+} as const
+const DESTROYS =
+  'this ends the registration and every relation of the workspace; its directories are not deleted. To do it, run it again with --yes'
 
 type Parsed = Readonly<{ action: string; words: readonly string[]; values: Option }>
 
@@ -47,6 +67,7 @@ function parse(args: readonly string[]): Parsed | string {
   const read = readOptions(rest.slice(spec.words), {
     accepted: [serverOption, ...spec.options],
     required: [],
+    switches: spec.switches ?? [],
   })
   return read.kind === 'options'
     ? { action, words, values: read.values }
@@ -75,31 +96,67 @@ async function read(ready: Ready, workspace?: string): Promise<ExitCode> {
   return report(name, result, { messageId, tenant: encodeTenantText(tenant) }, output)
 }
 
+type Commit = Exclude<
+  keyof typeof workspaceProtocol.operations,
+  `query-${string}` | 'list' | 'describe'
+>
+
 /** Resumed, the query comes first: only an operation that was not committed is committed now. */
-async function register(ready: Ready): Promise<ExitCode> {
-  const { name, words, values, login, messageId, output } = ready
+async function commit(ready: Ready, call: Commit, fields: object): Promise<ExitCode> {
+  const { name, values, login, messageId, output } = ready
   const { tenant, link } = login
   const resumed = values.get('--resume')
   const operation = resumed ?? ready.newId()
-  const type = values.get('--type')
-  const body = {
-    tenant,
-    operation,
-    address: addressOf(words[0] ?? ''),
-    ...(type === undefined ? {} : { type }),
-  }
+  const body = { tenant, operation, ...fields } as never
   const request = { messageId, tenant: encodeTenantText(tenant), operation }
   if (resumed !== undefined) {
-    const known = await link.call(workspaceProtocol, 'query-register', body, messageId)
+    const known = await link.call(workspaceProtocol, `query-${call}`, body, messageId)
     if (known === undefined) return usageError(output, unrecognized(name))
     const open = known.kind === 'response' && known.outcome === 'not-committed'
     if (!open) return report(name, known, request, output)
   }
-  const result = await link.call(workspaceProtocol, 'register', body, messageId)
+  const result = await link.call(workspaceProtocol, call, body, messageId)
   if (result === undefined) return usageError(output, unrecognized(name))
   if (exitCodeOf(result) === 5)
     output.stderr(`omne ${name}: to learn the result, run it again with --resume ${operation}\n`)
   return report(name, result, request, output)
+}
+
+const registers = ({ words, values }: Ready) => {
+  const type = values.get('--type')
+  return { address: addressOf(words[0] ?? ''), ...(type === undefined ? {} : { type }) }
+}
+
+/** A tenant that does not read as one is a usage error: nothing is sent. */
+function onTenant(ready: Ready, call: Commit): Promise<ExitCode> | ExitCode {
+  const target = readTenantText(ready.words[1] ?? '')
+  if (target === undefined) return usageError(ready.output, unrecognized(ready.name))
+  return commit(ready, call, { workspace: ready.words[0], target })
+}
+
+function destroy(ready: Ready): Promise<ExitCode> | ExitCode {
+  if (!ready.values.has('--yes'))
+    return usageError(ready.output, `omne ${ready.name}: ${DESTROYS}\n`)
+  return commit(ready, 'destroy', { workspace: ready.words[0] })
+}
+
+const ACT: Readonly<Record<string, (ready: Ready) => Promise<ExitCode> | ExitCode>> = {
+  register: ready => commit(ready, 'register', registers(ready)),
+  ...Object.fromEntries(
+    Object.entries(CHANGES).map(([action, call]) => [
+      action,
+      (ready: Ready) => onTenant(ready, call),
+    ]),
+  ),
+  associate: ready =>
+    commit(ready, 'associate', {
+      workspace: ready.words[0],
+      address: addressOf(ready.words[1] ?? ''),
+    }),
+  dissociate: ready =>
+    commit(ready, 'dissociate', { workspace: ready.words[0], instance: ready.words[1] }),
+  leave: ready => commit(ready, 'leave', { workspace: ready.words[0] }),
+  destroy,
 }
 
 async function runWorkspace(
@@ -122,14 +179,14 @@ async function runWorkspace(
     output,
     newId,
   }
-  if (action === 'register') return register(ready)
-  return action === 'list' ? read(ready) : read(ready, words[0] ?? '')
+  return ACT[action]?.(ready) ?? read(ready, words[0])
 }
 
 export const workspaceCommand: CommandSpec = {
   name: 'workspace',
-  usage: 'register <directory> [--type <type>] [--resume <operation>] | list | show <workspace>',
+  usage:
+    'register|list|show|associate|dissociate|grant|grant-admin|revoke-admin|remove|leave|destroy',
   summary:
-    'Register a directory of the server as a workspace without touching what is in it, list your workspaces, or show one with its instances.',
+    'Register a directory of the server as a workspace without touching what is in it (register <directory>, --type <type>), list your workspaces or show one (show <workspace>); make one more directory of the same resource an instance or end that (associate <workspace> <directory>, dissociate <workspace> <instance>); let another tenant take part or end that (grant, grant-admin, revoke-admin, remove <workspace> <tenant>), leave one, or destroy one with --yes: the directories stay. A commit takes --resume <operation>.',
   run: runWorkspace,
 }

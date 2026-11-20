@@ -3,6 +3,7 @@ import { storeConformanceCases } from '@omne-harness/workspace/testing'
 import participant from '../../src/storage/participant.ts'
 import reader from '../../src/storage/read.ts'
 import migration from '../../src/storage/migration.ts'
+import sources from '../../src/storage/migration-sources.ts'
 import { select, sqlTxn } from '../../src/storage/facts.ts'
 import { createInProcessStore, portOf } from './in-process.ts'
 
@@ -32,6 +33,14 @@ describe('the tables keep what the scripts rely on', () => {
     expect(migration.verify(portOf(db))).toEqual({ kind: 'verified' })
     db.exec('DROP TABLE ws_operations')
     expect(() => migration.verify(portOf(db))).toThrow()
+  })
+
+  it('the second migration verifies the table of source counts, and the first does not depend on it', () => {
+    const { db } = createInProcessStore()
+    expect(sources.verify(portOf(db))).toEqual({ kind: 'verified' })
+    db.exec('DROP TABLE ws_source_revisions')
+    expect(() => sources.verify(portOf(db))).toThrow()
+    expect(migration.verify(portOf(db))).toEqual({ kind: 'verified' })
   })
 })
 

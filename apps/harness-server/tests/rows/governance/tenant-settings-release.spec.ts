@@ -42,6 +42,7 @@ it('a login principal sets the Shell run permission to deny on the release tree 
         'Shell/read:auto',
         'Shell/run:ask',
         'Skills/invoke:auto',
+        'SwitchWorkspace/invoke:ask',
         'TodoItems/invoke:auto',
         'Tools/discover:auto',
         'Tools/forward:auto',

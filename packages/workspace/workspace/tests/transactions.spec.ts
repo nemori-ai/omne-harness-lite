@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { InstanceId, TypeName } from '@omne-harness/workspace-contract'
 import {
   associateInstance,
+  changeRelation,
   dissociateInstance,
   registerWorkspace,
   type AssociateCommand,
@@ -206,5 +207,31 @@ describe('the dissociate script', () => {
       kind: 'not-permitted',
     })
     expect([...facts.instances.values()].map(record => record.state)).toEqual(['active', 'active'])
+  })
+})
+
+describe('a change to a relation writes it or ends it, never both', () => {
+  it('removing ends the relation and writes none; granting writes one and ends none', () => {
+    const facts = emptyFacts()
+    const calls: string[] = []
+    const plain = memoryTxn(facts)
+    const txn = {
+      ...plain,
+      putRelation: (...args: Parameters<typeof plain.putRelation>) => {
+        calls.push(`put ${args[1]}`)
+        plain.putRelation(...args)
+      },
+      endRelation: (...args: Parameters<typeof plain.endRelation>) => {
+        calls.push(`end ${args[1]}`)
+        plain.endRelation(...args)
+      },
+    }
+    registerWorkspace(txn, register())
+    const change = { tenant: 'alice', digest: 'd', workspace: 'wsp_1', target: 'bob' }
+    changeRelation(txn, { ...change, operation: 'g1', change: 'grant-participation' })
+    changeRelation(txn, { ...change, operation: 'x1', change: 'remove' })
+    expect(calls).toEqual(['put alice', 'put bob', 'end bob'])
+    expect(plain.relation('wsp_1', 'bob')).toBeNull()
+    expect(plain.workspace('wsp_1')?.revision).toBe(3)
   })
 })

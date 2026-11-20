@@ -3095,7 +3095,7 @@ import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvid
 import type { BoundedClose, CallBinding, Participation } from './values.ts';
 import type { ProducerFact } from './faces.ts';
 export type SessionOperationElements = Readonly<{
-    kind: 'todo-tool-call' | 'stop-tool-call';
+    kind: 'todo-tool-call' | 'stop-tool-call' | 'workspace-tool-call';
     tenant: string;
     session: SessionId;
     call: string;
@@ -3773,8 +3773,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:33d8d6be1dbe02d30c4b6ea2156c07adcd197fc76914774aab6ffa3a6e5aefd4";
-export declare const SESSION_RELEASE_DIGEST = "sha256:33d8d6be1dbe02d30c4b6ea2156c07adcd197fc76914774aab6ffa3a6e5aefd4";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:10634f2a94541a04128dd870614f5767e3ce860ee485099f2bbb10f9ed3813b1";
+export declare const SESSION_RELEASE_DIGEST = "sha256:10634f2a94541a04128dd870614f5767e3ce860ee485099f2bbb10f9ed3813b1";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

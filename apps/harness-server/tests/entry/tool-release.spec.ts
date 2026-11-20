@@ -225,6 +225,7 @@ describe('the startup snapshot', () => {
       '@omne-harness/schedule-tools',
       '@omne-harness/notification-tools',
       '@omne-harness/session-tools',
+      '@omne-harness/workspace-tools',
     ])
   })
 

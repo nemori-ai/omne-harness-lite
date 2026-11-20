@@ -154,6 +154,7 @@ describe('Skills in a real coding session', () => {
         'Sessions',
         'Shell',
         'Skills',
+        'SwitchWorkspace',
         'TodoItems',
         'Tools',
         'Web',

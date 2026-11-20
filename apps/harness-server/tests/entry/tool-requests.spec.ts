@@ -1,4 +1,5 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
+import { switchWorkspaceToolModule } from '@omne-harness/workspace-tools'
 import { describe, expect, it } from 'vitest'
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import type { PrincipalIssuer } from '@omne-harness/identity'
@@ -77,8 +78,12 @@ async function world() {
       'TodoItems',
     ).facts,
     Tools: okOf(toolsToolModule.createAuthor(tree(TEST_CONSTRUCTION.Tools)), 'Tools').facts,
+    SwitchWorkspace: okOf(
+      switchWorkspaceToolModule.createAuthor(tree({ resultMaxBytes: 4096 })),
+      'SwitchWorkspace',
+    ).facts,
   }
-  for (const name of ['Shell', 'Files', 'Ask', 'TodoItems', 'Tools'] as const)
+  for (const name of ['Shell', 'Files', 'Ask', 'TodoItems', 'Tools', 'SwitchWorkspace'] as const)
     definitions.set(
       name,
       okOf(
@@ -445,29 +450,45 @@ describe('the trusted Tool request source', () => {
     })
   })
 
-  it('pins the forwarding tool when the session has a directory, and never answers or fails it for the lack of one', async () => {
-    const { ports, principalA } = await world()
-    const directoryFor = async (answer: Outcome<WorkingDirectory | null, string>) => {
-      const source = createReleaseToolRequests({ ...ports, workingDirectory: async () => answer })
-      const input = actionInput(principalA, TENANT_A, 'Tools', SEARCH_TOOLS)
-      const described = okOf(await source.describe(input), 'describe')
-      if (described.kind !== 'tool') throw new Error(`describe answered: ${described.text}`)
-      const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
-      const prepared = await source.prepare({
-        ...input,
-        definition: described.definition,
-        admission,
+  it.each([
+    ['the forwarding tool', 'Tools', SEARCH_TOOLS],
+    ['the workspace switch', 'SwitchWorkspace', '{"none":true}'],
+  ])(
+    'pins %s when the session has a directory, and never answers or fails it for the lack of one',
+    async (_what, tool, call) => {
+      const { ports, principalA } = await world()
+      const directoryFor = async (answer: Outcome<WorkingDirectory | null, string>) => {
+        const source = createReleaseToolRequests({ ...ports, workingDirectory: async () => answer })
+        const input = actionInput(principalA, TENANT_A, tool, call)
+        const described = okOf(await source.describe(input), 'describe')
+        if (described.kind !== 'tool') throw new Error(`describe answered: ${described.text}`)
+        const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+        const prepared = await source.prepare({
+          ...input,
+          definition: described.definition,
+          admission,
+        })
+        return (okOf(prepared, 'prepare') as ToolInvokeRequest).directory
+      }
+      expect(await directoryFor(succeed({ state: 'default', directory: '/srv/default' }))).toEqual({
+        path: '/srv/default',
+        workspace: null,
       })
-      return (okOf(prepared, 'prepare') as ToolInvokeRequest).directory
-    }
-    expect(await directoryFor(succeed({ state: 'default', directory: '/srv/default' }))).toEqual({
-      path: '/srv/default',
-      workspace: null,
-    })
-    const unusable = { state: 'unusable', workspace: 'w', instance: 'i', reason: 'not-permitted' }
-    for (const none of [succeed(null), succeed(unusable as WorkingDirectory), fail('read: x')])
-      expect(await directoryFor(none)).toBeUndefined()
-  })
+      const blog = {
+        state: 'attached',
+        workspace: 'wsp_00000000000000000000000001',
+        instance: 'wsi_x',
+        directory: '/srv/blog',
+      }
+      expect(await directoryFor(succeed(blog as WorkingDirectory))).toMatchObject({
+        path: '/srv/blog',
+        workspace: { instance: 'wsi_x' },
+      })
+      const unusable = { state: 'unusable', workspace: 'w', instance: 'i', reason: 'not-permitted' }
+      for (const none of [succeed(null), succeed(unusable as WorkingDirectory), fail('read: x')])
+        expect(await directoryFor(none)).toBeUndefined()
+    },
+  )
 
   it('does not read the working directory for a tool that works in no environment', async () => {
     const { ports, principalA } = await world()

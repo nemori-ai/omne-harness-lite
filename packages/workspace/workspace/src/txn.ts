@@ -44,10 +44,17 @@ export interface WorkspaceTxn {
 
   relation(workspace: string, tenant: string): Relation | null
   putRelation(workspace: string, tenant: string, relation: Relation): void
+  endRelation(workspace: string, tenant: string): void
+  endRelations(workspace: string): void
+
+  sourceRevision(workspace: string, tenant: string): number
+  bumpSource(workspace: string, tenant: string): void
+  bumpSources(workspace: string): void
 
   instance(instance: string): InstanceRecord | null
   /** The active instance at this position, whatever workspace it belongs to. */
   occupant(node: string, occupancy: string): InstanceRecord | null
   insertInstance(record: InstanceRecord): void
   setInstanceState(instance: string, state: InstanceRecord['state']): void
+  dissociateInstances(workspace: string): void
 }

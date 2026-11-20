@@ -9,6 +9,8 @@ const READS = {
   memberships: membershipsOf,
   operation: (port: SqlPort, tenant: string, operation: string) =>
     sqlTxn(port).operation(tenant, operation),
+  'source-revision': (port: SqlPort, tenant: string, workspace: string) =>
+    sqlTxn(port).sourceRevision(workspace, tenant),
 } as const
 
 export type ReadName = keyof typeof READS

@@ -85,16 +85,16 @@ describe('the directory a call is admitted into before its placement', () => {
       down('working-directory', 'the request pins no working directory'),
     ],
     [
-      'denied when the tenant is no longer permitted in the workspace',
+      'nothing, when the tenant is no longer permitted in the workspace',
       { kind: 'not-permitted' } as Verification,
       attachedTo(BLOG),
-      { failure: { kind: 'denied', action: 'workspace' } },
+      { ok: null },
     ],
     [
-      'denied when the instance now stands in another directory than the pinned one',
+      'nothing, when the instance now stands in another directory than the pinned one',
       attachable(SHOP),
       attachedTo(BLOG),
-      { failure: { kind: 'denied', action: 'workspace-instance' } },
+      { ok: null },
     ],
     [
       'unavailable, with the reason, when the instance is unavailable',
@@ -209,11 +209,22 @@ describe('the fence of a call is the directory pinned in its own request', () =>
     expect(await w.read(blog.ok.origin, join(BLOG, 'a.txt'), 'stranger')).toBe('notAuthorized')
   })
 
-  it('binds nothing for a call that works in an environment and whose directory is not admitted', async () => {
+  it('binds a call whose tenant is no longer permitted, and fences it into nothing: the plan does not fail', async () => {
     const refused = world({ kind: 'not-permitted' } as Verification)
-    expect(await refused.bind('call-refused', attachedTo(BLOG))).toEqual({
-      failure: { kind: 'denied', action: 'workspace' },
+    const bound = await refused.bind('call-refused', attachedTo(BLOG))
+    if ('failure' in bound) throw new Error(JSON.stringify(bound.failure))
+    expect(await refused.read(bound.ok.origin, join(BLOG, 'a.txt'))).toBe('notAuthorized')
+    expect(await refused.name(bound.ok.origin, BLOG)).toEqual({
+      failure: { kind: 'denied', action: 'name-host-object' },
     })
+    const moved = world(attachable(SHOP))
+    const elsewhere = await moved.bind('call-moved', attachedTo(BLOG))
+    if ('failure' in elsewhere) throw new Error(JSON.stringify(elsewhere.failure))
+    for (const directory of [BLOG, SHOP])
+      expect(await moved.read(elsewhere.ok.origin, join(directory, 'a.txt'))).toBe('notAuthorized')
+  })
+
+  it('binds nothing for a call that works in an environment and pins no directory', async () => {
     expect(await world().bind('call-bare', undefined)).toEqual(
       down('working-directory', 'the request pins no working directory'),
     )

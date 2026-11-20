@@ -169,6 +169,14 @@ describe('accept is judged by the RoutedInput branch', () => {
     expect(resolveCell(cell, { routed: 'card-decision' }).verdict).toBe('deny')
   })
 
+  it('lets the session work principal declare an answered authorization and its workspace, and nothing else', () => {
+    const cell = SESSION_POLICY.change.work
+    expect(resolveCell(cell, { declaration: 'authorization-expression' }).verdict).toBe('member')
+    expect(resolveCell(cell, { declaration: 'workspace' }).verdict).toBe('member')
+    for (const declaration of ['permission-mode', 'collaboration-mode', 'model'] as const)
+      expect(resolveCell(cell, { declaration }).verdict).toBe('deny')
+  })
+
   it('denies a branched cell when the request carries no branch', () => {
     expect(resolveCell(SESSION_POLICY.accept.work, {}).verdict).toBe('deny')
     expect(resolveCell(SESSION_POLICY.accept.login, {}).verdict).toBe('deny')

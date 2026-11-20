@@ -1,5 +1,7 @@
 import {
   associateInstance,
+  changeRelation,
+  destroyWorkspace,
   dissociateInstance,
   registerWorkspace,
   type WorkspaceTxn,
@@ -14,6 +16,8 @@ const RUN: Record<ScriptName, (txn: WorkspaceTxn, command: never) => unknown> = 
   register: registerWorkspace,
   associate: associateInstance,
   dissociate: dissociateInstance,
+  govern: changeRelation,
+  destroy: destroyWorkspace,
 }
 
 export default {
