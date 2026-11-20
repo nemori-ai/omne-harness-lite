@@ -81,6 +81,7 @@
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/media": "workspace:*",
     "@omne-harness/media-access": "workspace:*",
+    "@omne-harness/media-adapters": "workspace:*",
     "@omne-harness/media-contract": "workspace:*",
     "@omne-harness/media-cordis-contract": "workspace:*",
     "@omne-harness/media-image": "workspace:*",

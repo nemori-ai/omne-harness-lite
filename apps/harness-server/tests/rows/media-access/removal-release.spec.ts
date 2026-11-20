@@ -15,6 +15,7 @@ const MEDIA_ROWS = [
   'media',
   'media-storage-local',
   'media-sweep',
+  'media-intake',
   'media-access',
 ]
 

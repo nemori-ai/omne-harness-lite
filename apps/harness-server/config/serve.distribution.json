@@ -116,6 +116,11 @@
       "config": {}
     },
     {
+      "id": "session-before-intake",
+      "plugin": "sessionBeforeIntakeRow",
+      "config": {}
+    },
+    {
       "id": "session-history-index",
       "plugin": "sessionHistoryIndexRow",
       "config": {}
@@ -191,6 +196,11 @@
       "config": {}
     },
     {
+      "id": "media-intake",
+      "plugin": "mediaIntakeRow",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "workspaceRow",
       "config": {}
@@ -208,9 +218,7 @@
     {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
-      "config": {
-        "admission": "none"
-      }
+      "config": {}
     },
     {
       "id": "session-ad02",

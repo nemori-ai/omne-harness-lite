@@ -31,6 +31,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
   'session-input-sources': { provides: ['sessionInputSources'] },
+  'session-before-intake': { provides: ['sessionBeforeIntake'] },
   'session-history-index': { provides: ['sessionHistoryIndex'], phase: 'composition' },
   'session-search': {
     provides: ['sessionSearch'],
@@ -448,6 +449,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   media: { provides: ['mediaStores', 'media'], injects: ['mediaIndex', 'mediaImage'] },
   'media-storage-local': { injects: ['mediaStores'] },
   'media-sweep': { injects: ['media', 'tenantDomains', 'tenantDomainScannerPrincipal'] },
+  'media-intake': { injects: ['media', 'sessionBeforeIntake'] },
   'workspace-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }

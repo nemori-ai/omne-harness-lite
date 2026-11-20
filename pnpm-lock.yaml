@@ -713,6 +713,9 @@ importers:
       '@omne-harness/media-access':
         specifier: workspace:*
         version: link:../../packages/media/media-access
+      '@omne-harness/media-adapters':
+        specifier: workspace:*
+        version: link:../../packages/media/media-adapters
       '@omne-harness/media-contract':
         specifier: workspace:*
         version: link:../../packages/media/media-contract

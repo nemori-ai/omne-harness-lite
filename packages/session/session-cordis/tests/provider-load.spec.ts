@@ -222,6 +222,30 @@ describe('the admission declaration', () => {
     })
   })
 
+  it('with the point there and no processor of media, an input that refers to media is unavailable (SE-37)', async () => {
+    const a = await build({ provider: {} })
+    await a.mount(sessionBeforeIntakePlugin)
+    const intake = await a.caller('intake')
+    await a.create(intake)
+    const plain = ordinaryInput('pictured')
+    const ref = {
+      storage: 'local',
+      key: 'k',
+      mediaType: 'image/png',
+      bytes: '3',
+      digest: 'sha256:k',
+    }
+    const picture = { kind: 'image', id: 'b2', visibility: { toHuman: true, toModel: true }, ref }
+    const blocks = [...plain.message.blocks, { ...picture, transcript: null }]
+    const answer = await intake.session().work.accept({
+      ...a.access(),
+      operation: operationId('accept-pictured'),
+      value: { ...plain, message: { ...plain.message, blocks } as unknown as typeof plain.message },
+    })
+    expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'sessionAdmission' } })
+    expect(await words(a, intake, 'plain')).toHaveProperty('ok')
+  })
+
   it('the registry of input sources is read at each intake: gone, the input is unavailable', async () => {
     const a = await build()
     const intake = await a.caller('intake')

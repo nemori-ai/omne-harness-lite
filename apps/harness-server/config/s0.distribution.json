@@ -30,6 +30,10 @@
       "plugin": "stubPlugin",
       "config": {}
     },
+      "id": "session-before-intake",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
     {
       "id": "session-history-index",
       "plugin": "stubPlugin",
@@ -97,6 +101,11 @@
     },
     {
       "id": "media-sweep",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-intake",
       "plugin": "stubPlugin",
       "config": {}
     },
