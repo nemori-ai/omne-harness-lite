@@ -2,12 +2,13 @@ import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { usageProtocol, type UsageProtocol } from '@omne-harness/usage-protocol'
+import { ianaZoneOf } from './model/range.ts'
 import { contributeUsage, type UsageUiOptions } from './places.tsx'
 import { createUsageReads } from './view/reads.ts'
 
 export const USAGE = protocolServiceName({ name: usageProtocol.name, major: usageProtocol.major })
 
-const localZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone
+const localZone = (): string => ianaZoneOf(Intl.DateTimeFormat().resolvedOptions().timeZone)
 
 type UiModule = ReturnType<typeof defineUiModule>
 

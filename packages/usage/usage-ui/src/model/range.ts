@@ -18,3 +18,16 @@ export function windowOf(choice: RangeChoice, now: Date): RangeWindow {
   const since = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1 - DAYS[choice])
   return { since, before: tomorrow, bucket: choice === 'today' ? 'hour' : 'day' }
 }
+
+const OFFSET = /^([+-])(\d{2}):(\d{2})$/u
+
+/** The usage protocol takes IANA names only; a host may report its zone as a fixed offset instead. */
+export function ianaZoneOf(resolved: string): string {
+  const offset = OFFSET.exec(resolved)
+  if (offset === null) return resolved
+  const [, sign, hours, minutes] = offset
+  const whole = Number(hours)
+  if (minutes !== '00' || whole === 0) return 'UTC'
+  if (sign === '+') return whole <= 14 ? `Etc/GMT-${whole}` : 'UTC'
+  return whole <= 12 ? `Etc/GMT+${whole}` : 'UTC'
+}

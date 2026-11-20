@@ -337,6 +337,27 @@ describe('the details of editing (C28)', () => {
   })
 })
 
+describe('a host whose zone is a fixed offset', () => {
+  it('still reads: the query names the zone by IANA', async () => {
+    const real = Intl.DateTimeFormat.prototype.resolvedOptions
+    const resolved = vi
+      .spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
+      .mockImplementation(function (this: Intl.DateTimeFormat) {
+        return { ...real.call(this), timeZone: '+08:00' }
+      })
+    try {
+      const { fake } = await page()
+      const zones = fake.calls
+        .filter(call => call.operation === 'query-usage')
+        .map(call => call.body['zone'])
+      expect(new Set(zones)).toEqual(new Set(['Etc/GMT-8']))
+      expect(card('usage.summary')?.textContent).toContain('0.0123 USD')
+    } finally {
+      resolved.mockRestore()
+    }
+  })
+})
+
 describe('what the panel leaves alone', () => {
   it('lists none of the widgets already in a layout of several, and adds no note when the chosen presentation is there', async () => {
     const store = memoryLayoutStore({

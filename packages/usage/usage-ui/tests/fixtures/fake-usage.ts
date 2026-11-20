@@ -82,7 +82,7 @@ export const KNOWN_OCCUPANCY: Occupancy = {
   asOf: { at: instant('2026-11-19T10:00:00Z'), model: 'openai/gpt-5.6-sol' },
 }
 
-/** A usage client answering every read from `answer`, recording what it was asked. */
+/** A usage client answering every read from `answer`, recording what it was asked; like the server it refuses a zone that is an offset. */
 export function fakeUsage(answer?: (call: Call) => Answer | undefined) {
   const calls: Call[] = []
   const reply = async (operation: string, body: unknown): Promise<never> => {
@@ -90,6 +90,9 @@ export function fakeUsage(answer?: (call: Call) => Answer | undefined) {
     calls.push(call)
     const given = answer?.(call)
     if (given !== undefined) return given as never
+    const zone = call.body['zone']
+    if (operation === 'query-usage' && (typeof zone !== 'string' || /^[+-]/u.test(zone)))
+      return { outcome: 'invalid', body: { field: 'zone', reason: 'iana-name' } } as never
     if (operation === 'read-context-occupancy')
       return { outcome: 'succeeded', body: KNOWN_OCCUPANCY } as never
     return { outcome: 'succeeded', body: result(call.body['groupBy'] as string[]) } as never
