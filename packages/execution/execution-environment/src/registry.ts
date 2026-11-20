@@ -758,7 +758,7 @@ export function createEnvironmentRegistry<P>(
     async resolvePlacement(access, input) {
       if (!mintedTenant(access.tenant)) return rejected('invalidInput')
       const scope = copyScope(input.scope)
-      const { requirement, filesRoot } = input
+      const { requirement, filesScope } = input
       const checked = await checkAccess(ports, access, { kind: 'resolve', scope }, scope)
       if (checked.kind !== 'granted') return lookupAnswer(checked)
       if (closed) return rejected('ownerStopped')
@@ -771,7 +771,7 @@ export function createEnvironmentRegistry<P>(
       if (foreignTenantBinding(match.binding, access.tenant)) return rejected('notAuthorized')
       if (!fitsScope(match.binding, scope)) return rejected('invalidInput')
       const { identity, provider } = match.provider.entry
-      return placementOn({ requirement, filesRoot }, match.binding, identity, provider)
+      return placementOn({ requirement, filesScope }, match.binding, identity, provider)
     },
 
     async acquire(access, input) {

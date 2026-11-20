@@ -81,7 +81,7 @@ public static partial class OmneFiles {
   // The first request of a copy: streams the source block by block into the new object temporary
   // below the target's parent and flushes it. The reply names that object, the source and the target
   // as it was, or null when there was none. The target is not changed.
-  public static object Copy(string root,string expectedRoot,string[] segments,string named,string version,bool hasVersion,bool directory,bool follow,string targetRoot,string expectedTargetRoot,string[] targetSegments,string targetNamed,bool replace,string temporary,bool rooted) {
+  public static object Copy(string root,string expectedRoot,string[] segments,string named,string version,bool hasVersion,bool directory,bool follow,string targetRoot,string expectedTargetRoot,string[] targetSegments,string targetNamed,bool replace,string temporary,bool rooted,bool targetRooted) {
     List<IntPtr> held=new List<IntPtr>(); IntPtr staged=IntPtr.Zero;
     try {
       CheckTemporary(temporary);
@@ -93,7 +93,7 @@ public static partial class OmneFiles {
       if(hasVersion && Version(info)!=version) throw new IOException("conflict");
       object from=Metadata(source,"");
       if(targetSegments.Length==0) throw new IOException("notAuthorized");
-      IntPtr targetStart=Root(targetRoot,expectedTargetRoot,rooted,held), parent=Parent(targetStart,targetRoot,targetSegments,rooted,held);
+      IntPtr targetStart=Root(targetRoot,expectedTargetRoot,targetRooted,held), parent=Parent(targetStart,targetRoot,targetSegments,targetRooted,held);
       object existing=Existing(parent,targetSegments[targetSegments.Length-1],targetNamed,replace);
       staged=CreateNew(parent,temporary); held.Add(staged);
       byte[] block=new byte[CopyBlock];

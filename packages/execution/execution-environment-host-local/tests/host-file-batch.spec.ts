@@ -363,9 +363,10 @@ it('keeps recovery observations inside the root when an ancestor becomes a link'
   await mkdir(inside)
   await mkdir(outside)
   const victim = await replacing(s, 'sub/victim.txt', 'mine')
-  const files = createHostFilesEngine({ root: s.files, stateDirectory: s.state }).facilityFor(
-    'root-recovery',
-  )
+  const files = createHostFilesEngine({
+    scope: { read: s.files, write: s.files },
+    stateDirectory: s.state,
+  }).facilityFor('root-recovery')
   rules.list.push({ fn: 'rename', match: '/victim.txt', skip: 0, code: 'EIO' })
   const result = done(await commit(files, [created(s, 'one.txt', 'one'), victim]))
   expect(result).toMatchObject({ kind: 'unknown', published: [join(s.files, 'one.txt')] })

@@ -484,7 +484,10 @@ function rootedInput(
   const input = inputFor(provider, undefined, host, key)
   return filesRoot === undefined
     ? input
-    : { ...input, placement: { ...input.placement, filesRoot } }
+    : {
+        ...input,
+        placement: { ...input.placement, filesScope: { read: filesRoot, write: filesRoot } },
+      }
 }
 
 async function filesOf(

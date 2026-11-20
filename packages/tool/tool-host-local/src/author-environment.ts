@@ -70,6 +70,8 @@ export type AuthorEnvironmentInput<P> = Readonly<{
   lease: EnvironmentLease
   naming: FileObjectNaming<P>
   facts: EnvironmentFacts
+  /** The directory pinned in the request, if any. */
+  directory?: string
 }>
 
 function namingFailure(requestId: string, failure: ToolFailure): FacilityResult<never> {
@@ -81,10 +83,10 @@ function namingFailure(requestId: string, failure: ToolFailure): FacilityResult<
   }
 }
 
-/** The default directory of the author is the files root of the placement: one pinned value. */
+/** The default directory of the author is the directory pinned in the request: one pinned value. */
 export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue {
   const value = boundFacilities(input)
-  const directory = input.lease.placement.filesRoot
+  const directory = input.directory
   return directory === undefined ? value : Object.freeze({ ...value, directory })
 }
 

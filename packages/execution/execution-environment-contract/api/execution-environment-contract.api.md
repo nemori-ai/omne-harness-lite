@@ -52,6 +52,7 @@
 - `FileBatchOutcome` · `facilities/files.d.ts`
 - `FileBatchRecognition` · `facilities/files.d.ts`
 - `FileBatchRef` · `facilities/files.d.ts`
+- `FileEffect` · `files-scope.d.ts`
 - `FileEntry` · `facilities/files.d.ts`
 - `FileIdentity` · `facilities/files.d.ts`
 - `FileInformation` · `facilities/files.d.ts`
@@ -60,6 +61,7 @@
 - `FileTarget` · `facilities/files.d.ts`
 - `FileVersion` · `facilities/files.d.ts`
 - `FileWriteResult` · `facilities/files.d.ts`
+- `FilesScope` · `files-scope.d.ts`
 - `HandleGeneration` · `facilities/files.d.ts`
 - `HostDate` · `blocks.d.ts`
 - `InstanceIdentity` · `lease.d.ts`
@@ -117,6 +119,7 @@
 - `RetainedTerminalLedger` · `ports.d.ts`
 - `Retirement` · `environment.d.ts`
 - `ScopeTerminalRetention` · `ports.d.ts`
+- `ScopedFileOperation` · `files-scope.d.ts`
 - `TerminalFacility` · `facilities/terminal.d.ts`
 - `TerminalInformation` · `facilities/terminal.d.ts`
 - `TerminalRef` · `facilities/terminal.d.ts`
@@ -124,6 +127,7 @@
 - `TerminalRetentionOperation` · `facilities/terminal.d.ts`
 - `UnknownAcquisition` · `lease.d.ts`
 - `UnsupportedRecovery` · `environment.d.ts`
+- `WindowsPathRefusal` · `files-scope.d.ts`
 - `acquireParamsSchema` · `operation-schemas.d.ts`
 - `acquireResultSchema` · `operation-schemas.d.ts`
 - `acquisitionRef` · `identity.d.ts`
@@ -139,6 +143,7 @@
 - `environmentNeedSchemaRef` · `need-schema-ref.d.ts`
 - `executionHostFactsBlock` · `blocks.d.ts`
 - `executionPlacementBlock` · `blocks.d.ts`
+- `fileEffects` · `files-scope.d.ts`
 - `filesFacility` · `facilities/files.d.ts`
 - `inspectAcquisitionParamsSchema` · `operation-schemas.d.ts`
 - `inspectAcquisitionResultSchema` · `operation-schemas.d.ts`
@@ -163,7 +168,10 @@
 - `releaseScopeResultSchema` · `operation-schemas.d.ts`
 - `resolvePlacementParamsSchema` · `operation-schemas.d.ts`
 - `resolvePlacementResultSchema` · `operation-schemas.d.ts`
+- `segmentsBelow` · `files-scope.d.ts`
 - `terminalFacility` · `facilities/terminal.d.ts`
+- `windowsPathSegments` · `files-scope.d.ts`
+- `withinScope` · `files-scope.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
 
@@ -342,6 +350,7 @@ export declare function standardSchema<T>(decode: Decoder<T>): StandardSchemaV1<
 
 ```ts
 import type { JsonValue } from '@omne-harness/json-text';
+import type { FilesScope } from './files-scope.ts';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { AuthorityDecision, ScopeRef } from '@omne-harness/runtime-context-contract';
 import type { BindingKind, EnvironmentBinding, EnvironmentContinuity } from './binding.ts';
@@ -520,7 +529,7 @@ export type OwnedRecovery = Readonly<{
 export type PlacementInput = Readonly<{
     scope: ScopeRef;
     requirement: EnvironmentRequirement;
-    filesRoot?: string;
+    filesScope?: FilesScope;
 }>;
 export type AcquireInput<P> = Readonly<{
     acquisition: AcquisitionRef;
@@ -969,6 +978,66 @@ export declare function describeFacility<K extends FacilityKey>(key: K, operatio
 }): FacilityDescriptor<K>;
 ```
 
+## 声明文件 `files-scope.d.ts`
+
+```ts
+import type { FileSystemFacility } from './facilities/files.ts';
+export type FilesScope = Readonly<{
+    read?: string;
+    write?: string;
+}>;
+export type FileEffect = 'read' | 'write';
+export type ScopedFileOperation = Exclude<keyof FileSystemFacility<unknown>, 'close'>;
+export declare const fileEffects: Readonly<{
+    read: Readonly<{
+        path: 'read';
+    }>;
+    stat: Readonly<{
+        path: 'read';
+    }>;
+    list: Readonly<{
+        path: 'read';
+    }>;
+    search: Readonly<{
+        path: 'read';
+    }>;
+    recoverBatch: Readonly<{
+        path: 'read';
+    }>;
+    write: Readonly<{
+        path: 'write';
+    }>;
+    mkdir: Readonly<{
+        path: 'write';
+    }>;
+    remove: Readonly<{
+        path: 'write';
+    }>;
+    commitBatch: Readonly<{
+        path: 'write';
+    }>;
+    move: Readonly<{
+        path: 'read';
+        target: 'write';
+    }>;
+    copy: Readonly<{
+        path: 'read';
+        target: 'write';
+    }>;
+}>;
+export type WindowsPathRefusal = 'form' | 'parent';
+export declare function windowsPathSegments(path: string): Readonly<{
+    ok: true;
+    drive: string;
+    segments: readonly string[];
+}> | Readonly<{
+    ok: false;
+    refusal: WindowsPathRefusal;
+}>;
+export declare function segmentsBelow(root: string, path: string, platform?: NodeJS.Platform): readonly string[] | undefined;
+export declare function withinScope(scope: FilesScope, effect: FileEffect, path: string, platform?: NodeJS.Platform): boolean;
+```
+
 ## 声明文件 `identity.d.ts`
 
 ```ts
@@ -993,6 +1062,8 @@ export type { BindingKind, EnvironmentBinding, EnvironmentContinuity } from './b
 export type { EnvironmentRequirement, IsolationClaim, IsolationClaims } from './requirement.ts';
 export { describeFacility } from './facility.ts';
 export type { EnvironmentFacilities, FacilityDescriptor, FacilityKey, FacilityOperation, FacilityReason, FacilityRequest, FacilityResult, } from './facility.ts';
+export { fileEffects, segmentsBelow, windowsPathSegments, withinScope } from './files-scope.ts';
+export type { FileEffect, FilesScope, ScopedFileOperation, WindowsPathRefusal, } from './files-scope.ts';
 export { filesFacility } from './facilities/files.ts';
 export type { FileBatchOutcome, FileBatchRecognition, FileBatchRef, FileEntry, FileIdentity, FileInformation, FileRequest, FileSystemFacility, FileTarget, FileVersion, FileWriteResult, HandleGeneration, ObjectToken, } from './facilities/files.ts';
 export { commandFacility } from './facilities/command.ts';
@@ -1046,6 +1117,7 @@ export declare function judgeRequirement(value: unknown): Outcome<EnvironmentReq
 import type { JsonValue } from '@omne-harness/json-text';
 import type { EnvironmentBinding, EnvironmentContinuity } from './binding.ts';
 import type { EnvironmentFacilities, FacilityKey } from './facility.ts';
+import type { FilesScope } from './files-scope.ts';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { ScopeRef } from '@omne-harness/runtime-context-contract';
 import type { AcquisitionRef, OriginRef } from './identity.ts';
@@ -1072,7 +1144,7 @@ export type Placement = Readonly<{
     provider: ProviderIdentity;
     continuity: EnvironmentContinuity;
     quotaDomain: string;
-    filesRoot?: string;
+    filesScope?: FilesScope;
 }>;
 export type RegistryInvalidationReason = 'providerRetired' | 'scopeReleased' | 'registryClosed' | 'released' | 'providerInvalidated';
 export type LeaseInvalidation = {

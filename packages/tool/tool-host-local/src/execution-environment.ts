@@ -76,7 +76,7 @@ export type LocalEnvironmentPlanInput<P> = Readonly<{
   facts(placement: Placement): Reply<EnvironmentFacts>
 }>
 
-/** What is asked of the placement: its files root is the directory pinned in the request, if any. */
+/** What is asked of the placement: reads and writes below the directory pinned in the request, if any. */
 function wantedPlacement(
   scope: ScopeRef,
   requirement: EnvironmentRequirement,
@@ -84,7 +84,25 @@ function wantedPlacement(
 ) {
   return pinned === undefined
     ? { scope, requirement }
-    : { scope, requirement, filesRoot: pinned.path }
+    : { scope, requirement, filesScope: { read: pinned.path, write: pinned.path } }
+}
+
+/** The author of a prepared call: its lease, and the directory pinned in the request as its own. */
+function authorOf<P>(
+  request: EnvPreparationInput<P>,
+  plan: EnvironmentPlan<P>,
+  lease: EnvironmentLease,
+  naming: FileObjectNaming<P>,
+) {
+  const directory = request.request.directory
+  return createAuthorEnvironment({
+    access: request,
+    origin: plan.acquire.origin,
+    lease,
+    naming,
+    facts: plan.facts,
+    ...(directory === undefined ? {} : { directory: directory.path }),
+  })
 }
 
 export function createLocalEnvironmentPlanResolver<P>(
@@ -311,13 +329,7 @@ export function createLocalExecutionEnvironment<P>(
     )
       return environmentFailure('original live environment unavailable')
     if (!current.value || !Object.is(current.principal, request.principal)) {
-      current.value = createAuthorEnvironment({
-        access: request,
-        origin: current.plan.acquire.origin,
-        lease: current.lease,
-        naming: input.naming,
-        facts: current.plan.facts,
-      })
+      current.value = authorOf(request, current.plan, current.lease, input.naming)
       current.principal = request.principal
     }
     return succeed({
