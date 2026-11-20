@@ -9,14 +9,7 @@ import {
   type Uploads,
 } from '@omne-harness/media-contract'
 import { collect, digestOf } from './bytes.ts'
-import {
-  isPortFailure,
-  later,
-  tenantText,
-  unavailable,
-  writeFailure,
-  type MediaDependencies,
-} from './deps.ts'
+import { later, tenantText, unavailable, writeFailure, type MediaDependencies } from './deps.ts'
 import type { Objects } from './objects.ts'
 
 const UPLOAD = /^[\w.:-]{1,128}$/
@@ -33,8 +26,8 @@ function createContext(deps: MediaDependencies, objects: Objects) {
         }
       : { kind: 'committed', committed: objects.committed(row) }
 
-  async function rowOf(tenant: string | null, upload: string) {
-    if (tenant === null || !UPLOAD.test(upload)) return notFound
+  async function rowOf(tenant: string, upload: string) {
+    if (!UPLOAD.test(upload)) return notFound
     const row = await index.readUpload(tenant, upload)
     if ('ok' in row) return row
     return row.failure.kind === 'not-found' ? notFound : unavailable('index')
@@ -47,10 +40,7 @@ function createContext(deps: MediaDependencies, objects: Objects) {
     const begun = await store?.begin(row.key)
     if (begun === undefined || 'failure' in begun) return unavailable('store')
     const attached = await index.attachWrite(row.tenant, row.key, begun.ok.write)
-    if ('failure' in attached)
-      return isPortFailure(attached.failure)
-        ? writeFailure('index', attached.failure)
-        : unavailable('index')
+    if ('failure' in attached) return writeFailure('index', attached.failure)
     return succeed(begun.ok.write)
   }
 
@@ -64,8 +54,7 @@ async function begin(
 ): ReturnType<Uploads['begin']> {
   const { deps, index, config, statusOf, writeOf } = context
   const tenant = tenantText(input.tenant)
-  if (tenant === null || !UPLOAD.test(input.upload))
-    return fail({ kind: 'invalid', field: 'upload' })
+  if (!UPLOAD.test(input.upload)) return fail({ kind: 'invalid', field: 'upload' })
   if (!Number.isSafeInteger(input.bytes) || input.bytes < 1)
     return fail({ kind: 'invalid', field: 'bytes' })
   if (!KNOWN_MEDIA_TYPES.includes(input.mediaType)) return fail({ kind: 'unsupported-type' })
@@ -160,7 +149,7 @@ async function sealedBytes(
 /** What the sealed bytes are, or the refusal after which nothing of the upload is kept. */
 async function examined(objects: Objects, row: MediaRow, bytes: Uint8Array, digest: string) {
   const measured =
-    bytes.byteLength === row.bytes && digestOf(bytes) === digest
+    digestOf(bytes) === digest
       ? await objects.measure(row.mediaType, bytes)
       : fail({ kind: 'digest-mismatch' } as const)
   if ('failure' in measured) await objects.discard(row)
@@ -195,8 +184,7 @@ async function commit(
   if ('ok' in settled) return settled
   if (settled.failure.kind !== 'not-uploading') return fail(settled.failure)
   const again = await rowOf(row.tenant, input.upload)
-  if ('failure' in again) return again
-  return again.ok.state === 'uploading' ? notFound : succeed(objects.committed(again.ok))
+  return 'failure' in again ? again : succeed(objects.committed(again.ok))
 }
 
 export function createUploads(deps: MediaDependencies, objects: Objects): Uploads {

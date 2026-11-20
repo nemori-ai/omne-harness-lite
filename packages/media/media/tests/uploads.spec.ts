@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { T1, T2, digestOf, failureOf, ok, pdf, png, tenantText, world } from './world.ts'
+import {
+  CONFIG,
+  T1,
+  T2,
+  digestOf,
+  failureOf,
+  ok,
+  pdf,
+  png,
+  tenantText,
+  wav,
+  world,
+} from './world.ts'
 
 const IMAGE = png(4, 3, 7)
 
@@ -107,6 +119,53 @@ describe('an upload session (T2)', () => {
     const w = world()
     const text = pdf('a page')
     expect((await w.staged(T1, 'doc', text, 'application/pdf')).facts).toEqual({ kind: 'file' })
+  })
+})
+
+describe('what an upload is found to be', () => {
+  const begin = (w: ReturnType<typeof world>, bytes: number, mediaType = 'image/png') =>
+    w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType, bytes })
+
+  it('begin takes one byte and takes exactly the limit of the medium', async () => {
+    expect(ok(await begin(world(), 1)).kind).toBe('uploading')
+    expect(ok(await begin(world(), CONFIG.maxBytes.image)).kind).toBe('uploading')
+  })
+
+  it('a voice is staged with its duration, its sample rate and its channels', async () => {
+    const w = world()
+    const sound = wav(16)
+    expect((await w.staged(T1, 'voice', sound, 'audio/wav')).facts).toEqual({
+      kind: 'voice',
+      durationMs: 2,
+      sampleRate: 8000,
+      channels: 1,
+    })
+  })
+
+  it.each([
+    ['a file declared for the bytes of an image', png(4, 3), 'application/pdf'],
+    ['a voice with no sound in it', wav(16, false), 'audio/wav'],
+    ['an image that names its type and does not decode', png(4, 255), 'image/png'],
+  ])('%s is refused as another type than declared, and deleted', async (_, bytes, mediaType) => {
+    const w = world()
+    await w.upload(T1, 'u', bytes, mediaType)
+    expect(
+      await w.media.uploads.commit({ tenant: T1, upload: 'u', digest: digestOf(bytes) }),
+    ).toEqual({ failure: { kind: 'type-mismatch' } })
+    expect(await w.liveKeys()).toEqual([])
+    expect(failureOf(await w.media.uploads.status({ tenant: T1, upload: 'u' }))).toBe('not-found')
+  })
+
+  it('a tenant that is no tenant identity is a fault of the caller, not an answer', async () => {
+    const w = world()
+    await expect(
+      w.media.uploads.begin({
+        tenant: {} as never,
+        upload: 'u',
+        mediaType: 'image/png',
+        bytes: 11,
+      }),
+    ).rejects.toThrow('the tenant is not a tenant identity')
   })
 })
 
@@ -231,6 +290,33 @@ describe('a port that does not answer', () => {
         await w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 }),
       ).toEqual(answer)
     }
+  })
+
+  it('an index that cannot be read after the row was written: unavailable', async () => {
+    const w = world()
+    w.faults.methods.set('readUpload', 'unavailable')
+    expect(
+      await w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 }),
+    ).toEqual({ failure: { kind: 'unavailable', dependency: 'index' } })
+  })
+
+  it('a part for an upload whose write could not be opened: unavailable while the store is off', async () => {
+    const w = world()
+    w.faults.methods.set('begin', 'unavailable')
+    await w.media.uploads.begin({ tenant: T1, upload: 'u', mediaType: 'image/png', bytes: 11 })
+    const part = () =>
+      w.media.uploads.append({ tenant: T1, upload: 'u', sequence: 0, part: IMAGE.subarray(0, 8) })
+    expect(await part()).toEqual(storeOff)
+    w.faults.methods.clear()
+    expect(await part()).toEqual({ ok: { nextSequence: 1 } })
+  })
+
+  it('an abandon while the index is off: unavailable, not done', async () => {
+    const { w } = await begun()
+    w.faults.index = 'unavailable'
+    expect(await w.media.uploads.abandon({ tenant: T1, upload: 'u' })).toEqual({
+      failure: { kind: 'unavailable', dependency: 'index' },
+    })
   })
 
   it('a store that is off while a part is appended: unavailable, and the same part goes through once it is back', async () => {

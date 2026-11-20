@@ -55,7 +55,6 @@ export function createObjects(deps: MediaDependencies) {
     const probed = await image.probe(bytes)
     if ('failure' in probed)
       return fail({ kind: probed.failure.kind === 'over-budget' ? 'over-budget' : 'type-mismatch' })
-    if (probed.ok.mediaType !== mediaType) return fail({ kind: 'type-mismatch' })
     const { widthPixels, heightPixels } = probed.ok
     return succeed({ kind: 'image', widthPixels, heightPixels })
   }
@@ -71,7 +70,7 @@ export function createObjects(deps: MediaDependencies) {
 
   async function discard(row: MediaRow): Promise<void> {
     const marked = await index.markDeleting(row.tenant, row.key)
-    if ('ok' in marked && marked.ok.marked) await erase({ ...row, state: 'deleting' })
+    if ('ok' in marked && marked.ok.marked) await erase(row)
   }
 
   /** Stages or merges in one transaction of the index; only then is the reference handed out. */
@@ -97,17 +96,16 @@ export function createObjects(deps: MediaDependencies) {
       return isPortFailure(staged.failure)
         ? writeFailure('index', staged.failure)
         : fail(staged.failure)
-    if (staged.ok.kind === 'merged') await erase({ ...row, state: 'deleting' })
+    if (staged.ok.kind === 'merged') await erase(row)
     return succeed(committed(staged.ok.row))
   }
 
   /** The live row a reference of this tenant names, every item of the reference the same. */
   async function resolve(
-    tenant: string | null,
+    tenant: string,
     ref: ContentReference,
   ): Promise<Outcome<MediaRow, InvalidReference | MediaUnavailable>> {
-    if (tenant === null || !isMediaKey(ref.key) || storeOf(ref.storage) === undefined)
-      return invalidReference
+    if (!isMediaKey(ref.key)) return invalidReference
     const row = await index.readLive(ref.key, tenant)
     if ('failure' in row)
       return row.failure.kind === 'not-found' ? invalidReference : unavailable('index')
@@ -124,8 +122,9 @@ export function createObjects(deps: MediaDependencies) {
   async function whole(
     row: MediaRow,
   ): Promise<Outcome<Uint8Array, MaterialUnavailable | MediaUnavailable>> {
-    const opened = await storeOf(row.storage)?.open(row.key)
-    if (opened === undefined) return materialUnavailable
+    const store = storeOf(row.storage)
+    if (store === undefined) return unavailable('store')
+    const opened = await store.open(row.key)
     if ('failure' in opened)
       return opened.failure.kind === 'not-found' ? materialUnavailable : unavailable('store')
     const bytes = await collect(opened.ok)

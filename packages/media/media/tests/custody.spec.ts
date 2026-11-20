@@ -87,6 +87,29 @@ describe('a product put while a port does not answer', () => {
     },
   )
 
+  it('takes exactly the limit of the medium', async () => {
+    const w = world()
+    const full = png(4, 3, 7).slice(0, 11)
+    const padded = new Uint8Array(64)
+    padded.set(full)
+    async function* whole() {
+      yield padded
+    }
+    const answer = await w.media.custody.put({
+      tenant: T1,
+      mediaType: 'image/png',
+      bytes: whole(),
+      holder: holder('call-1'),
+    })
+    expect(ok(answer).ref.bytes).toBe('64')
+  })
+
+  it('a row that was swept before the product was staged: unavailable, not a reference', async () => {
+    const w = world()
+    w.faults.methods.set('stageOrMerge', 'not-uploading')
+    expect(await put(w)).toEqual({ failure: { kind: 'unavailable', dependency: 'index' } })
+  })
+
   it('an index that is off or does not know: the answer says which, before and after the bytes are stored', async () => {
     const answers = {
       unavailable: { failure: { kind: 'unavailable', dependency: 'index' } },
@@ -120,6 +143,51 @@ describe('hold and describe', () => {
       )
     }
     expect(ok(await w.media.custody.describe({ tenant: T1, ref })).state).toBe('staged')
+  })
+})
+
+describe('hold, describe and sweep while the index does not answer', () => {
+  const staged = async () => {
+    const w = world()
+    return { w, ...(await w.staged(T1, 'up', IMAGE)) }
+  }
+
+  it('describe answers the state and the facts, and nothing else', async () => {
+    const { w, ref } = await staged()
+    const facts = { kind: 'image', widthPixels: 4, heightPixels: 3 }
+    expect(await w.media.custody.describe({ tenant: T1, ref })).toEqual({
+      ok: { state: 'staged', facts },
+    })
+    ok(await w.media.custody.hold({ tenant: T1, ref, holder: holder('s1') }))
+    expect(await w.media.custody.describe({ tenant: T1, ref })).toEqual({
+      ok: { state: 'held', facts },
+    })
+  })
+
+  it.each([
+    ['unavailable', { failure: { kind: 'unavailable', dependency: 'index' } }],
+    ['unknown', { failure: { kind: 'outcome-unknown' } }],
+  ])(
+    'a hold the index answers %s: the answer says so, not that the reference is invalid',
+    async (fault, answer) => {
+      const { w, ref } = await staged()
+      w.faults.methods.set('holdIfLive', fault)
+      expect(await w.media.custody.hold({ tenant: T1, ref, holder: holder('s1') })).toEqual(answer)
+    },
+  )
+
+  it.each([
+    [
+      'markDeletingIfExpired',
+      'unavailable',
+      { failure: { kind: 'unavailable', dependency: 'index' } },
+    ],
+    ['markDeletingIfExpired', 'unknown', { failure: { kind: 'outcome-unknown' } }],
+    ['listDeleting', 'unavailable', { failure: { kind: 'unavailable', dependency: 'index' } }],
+  ])('a sweep while %s answers %s says so', async (method, fault, answer) => {
+    const { w } = await staged()
+    w.faults.methods.set(method, fault)
+    expect(await w.media.custody.sweep({ tenant: T1, limit: 10 })).toEqual(answer)
   })
 })
 

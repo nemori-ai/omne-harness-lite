@@ -42,8 +42,7 @@ export function createCustody(deps: MediaDependencies, objects: Objects): Custod
   return {
     async put(input) {
       const tenant = tenantText(input.tenant)
-      if (tenant === null || !KNOWN_MEDIA_TYPES.includes(input.mediaType))
-        return fail({ kind: 'unsupported-type' })
+      if (!KNOWN_MEDIA_TYPES.includes(input.mediaType)) return fail({ kind: 'unsupported-type' })
       const limit = config.maxBytes[modalityOf(input.mediaType)]
       const bytes = await within(input.bytes, limit)
       if (bytes === null) return fail({ kind: 'too-large', limit })
@@ -59,10 +58,7 @@ export function createCustody(deps: MediaDependencies, objects: Objects): Custod
         upload: null,
         expiresAt: later(deps.clock, config.uploadTtlMs),
       })
-      if ('failure' in inserted)
-        return inserted.failure.kind === 'exists'
-          ? unavailable('index')
-          : writeFailure('index', inserted.failure)
+      if ('failure' in inserted) return writeFailure('index', inserted.failure)
       const row: MediaRow = {
         key,
         tenant,
@@ -120,12 +116,11 @@ export function createCustody(deps: MediaDependencies, objects: Objects): Custod
 
     async sweep(input) {
       const tenant = tenantText(input.tenant)
-      if (tenant === null) return succeed({ removed: 0, more: false })
       const { limit } = input
       const expired = await index.markDeletingIfExpired({ tenant, now: deps.clock.now(), limit })
       if ('failure' in expired) return writeFailure('index', expired.failure)
       const deleting = await index.listDeleting(tenant, limit)
-      if ('failure' in deleting) return unavailable('index')
+      if ('failure' in deleting) return writeFailure('index', deleting.failure)
       let removed = 0
       for (const row of deleting.ok) if (await objects.erase(row)) removed += 1
       return succeed({ removed, more: deleting.ok.length >= limit })

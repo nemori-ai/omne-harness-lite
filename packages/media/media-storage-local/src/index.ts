@@ -8,7 +8,7 @@ import { isMediaKey, type ByteStore, type PortFailure } from '@omne-harness/medi
 export type LocalByteStoreOptions = Readonly<{ root: string; name?: string }>
 
 const PREFIX = 'local:'
-const codeOf = (error: unknown): string => (error as NodeJS.ErrnoException).code ?? 'error'
+const codeOf = (error: unknown): string => String((error as NodeJS.ErrnoException).code)
 const missing = (error: unknown): boolean => codeOf(error) === 'ENOENT'
 const unavailable = (error: unknown) =>
   fail<PortFailure>({ kind: 'unavailable', diagnostic: codeOf(error) })
@@ -55,8 +55,8 @@ export function createLocalByteStore(options: LocalByteStoreOptions): ByteStore 
   const sealedAt = (key: string): string => join(home(key), key)
   const writingAt = (key: string): string => join(options.root, 'writing', key)
   const keyOf = (write: string): string | null => {
-    const key = write.startsWith(PREFIX) ? write.slice(PREFIX.length) : ''
-    return isMediaKey(key) ? key : null
+    const key = write.slice(PREFIX.length)
+    return write.startsWith(PREFIX) && isMediaKey(key) ? key : null
   }
 
   /** Joins the segments into the object, durably. False: a segment is missing. */
@@ -125,12 +125,7 @@ export function createLocalByteStore(options: LocalByteStoreOptions): ByteStore 
         const { size } = await stat(sealedAt(key))
         const start = range?.offset ?? 0
         const end = Math.min(size, start + (range?.length ?? size)) - 1
-        if (start > end)
-          return succeed(
-            (async function* (): AsyncIterable<Uint8Array> {
-              yield* []
-            })(),
-          )
+        if (start > end) return succeed((async function* (): AsyncIterable<Uint8Array> {})())
         return succeed(createReadStream(sealedAt(key), { start, end }) as AsyncIterable<Uint8Array>)
       } catch (error) {
         return missing(error) ? fail({ kind: 'not-found' }) : unavailable(error)

@@ -35,8 +35,8 @@ export const unavailable = (dependency: string) =>
   fail<MediaUnavailable>({ kind: 'unavailable', dependency })
 export const unknownOutcome = fail<MediaUnknown>({ kind: 'outcome-unknown' })
 
-/** What a failed write of a port means to the caller of the core. */
-export function writeFailure(dependency: string, failure: PortFailure) {
+/** What a failed call of a port means to the caller of the core: only `unknown` may have taken effect. */
+export function writeFailure(dependency: string, failure: Readonly<{ kind: string }>) {
   return failure.kind === 'unknown' ? unknownOutcome : unavailable(dependency)
 }
 
@@ -44,9 +44,11 @@ export function isPortFailure(failure: { kind: string }): failure is PortFailure
   return failure.kind === 'unavailable' || failure.kind === 'unknown'
 }
 
-export function tenantText(tenant: TenantId): string | null {
+/** A tenant comes parsed from the caller: one that does not encode is a fault of the caller, not an answer. */
+export function tenantText(tenant: TenantId): string {
   const text = tenantCodec.encode(tenant)
-  return text.ok ? text.value : null
+  if (!text.ok) throw new TypeError('media: the tenant is not a tenant identity')
+  return text.value
 }
 
 export function later(clock: MediaClock, ms: number): string {

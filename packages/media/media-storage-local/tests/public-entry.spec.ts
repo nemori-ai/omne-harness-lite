@@ -58,17 +58,20 @@ it('does not read a draft a crash left beside an object as that object', async (
   })
 })
 
-it('keeps a sealed object at objects/<first two of the key>/<key>, and nothing under writing', async () => {
+it('leaves one file under its root for a sealed object, with the bytes of the object', async () => {
   const at = root()
   const store = createLocalByteStore({ root: at })
-  const key = 'ab'.padEnd(32, '0')
-  const begun = await store.begin(key)
+  const begun = await store.begin('ab'.padEnd(32, '0'))
   if ('failure' in begun) throw new Error(begun.failure.kind)
-  await store.append(begun.ok.write, 0, Buffer.from('kept'))
-  await store.seal(begun.ok.write, 1)
-  expect(readFileSync(join(at, 'objects', 'ab', key), 'utf8')).toBe('kept')
-  expect(readdirSync(join(at, 'objects', 'ab'))).toEqual([key])
-  expect(readdirSync(join(at, 'writing'))).toEqual([])
+  await store.append(begun.ok.write, 0, Buffer.from('ke'))
+  await store.append(begun.ok.write, 1, Buffer.from('pt'))
+  await store.seal(begun.ok.write, 2)
+  const files = readdirSync(at, { recursive: true, withFileTypes: true }).filter(entry =>
+    entry.isFile(),
+  )
+  expect(files.map(file => readFileSync(join(file.parentPath, file.name), 'utf8'))).toEqual([
+    'kept',
+  ])
 })
 
 const openFiles = (): number => readdirSync('/dev/fd').length

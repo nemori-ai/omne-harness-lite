@@ -49,6 +49,26 @@ export const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 export const png = (width: number, height: number, filler = 0): Uint8Array =>
   new Uint8Array([...PNG, width, height, filler])
 export const pdf = (text: string): Uint8Array => new TextEncoder().encode(`%PDF-1.7 ${text}`)
+/** A WAV of one channel, 8000 samples of one byte a second; `sound: false` leaves the sound out. */
+export function wav(samples: number, sound = true): Uint8Array {
+  const bytes = new Uint8Array(44 + samples)
+  const view = new DataView(bytes.buffer)
+  const tag = (at: number, text: string) => bytes.set(new TextEncoder().encode(text), at)
+  tag(0, 'RIFF')
+  view.setUint32(4, 36 + samples, true)
+  tag(8, 'WAVE')
+  tag(12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, 8000, true)
+  view.setUint32(28, 8000, true)
+  view.setUint16(32, 1, true)
+  view.setUint16(34, 8, true)
+  tag(36, sound ? 'data' : 'junk')
+  view.setUint32(40, samples, true)
+  return bytes
+}
 export const digestOf = (bytes: Uint8Array): string =>
   `sha256:${createHash('sha256').update(bytes).digest('hex')}`
 export const holder = (work: string): Holder => ({
@@ -83,6 +103,7 @@ export function fakeImage() {
       if (!PNG.every((byte, at) => bytes[at] === byte)) return fail({ kind: 'not-image' })
       const [widthPixels = 0, heightPixels = 0] = bytes.subarray(8, 10)
       if (widthPixels > 200) return fail({ kind: 'over-budget' })
+      if (heightPixels === 255) return fail({ kind: 'not-image' })
       return succeed({ mediaType: 'image/png', widthPixels, heightPixels })
     },
     async fit(bytes, target) {
@@ -104,16 +125,30 @@ export function fakeImage() {
 export function world(config: Partial<MediaConfig> = {}) {
   const medium = createMemoryMedium()
   const crash = createCrashSwitch()
-  type Fault = 'unavailable' | 'unknown'
-  /** `index` turns every call of the index off; `methods` turns one method of either port off. */
-  const faults = { index: null as Fault | null, methods: new Map<string, Fault>() }
-  const faulty = <T extends object>(port: T, all: () => Fault | null): T =>
+  type Call = (...args: never[]) => Promise<unknown>
+  /**
+   * `index` turns every call of the index off; `methods` makes one method of either port answer a
+   * failure of that kind; `hooks` puts a test in the place of one method, with the real one in hand.
+   */
+  const faults = {
+    index: null as string | null,
+    methods: new Map<string, string>(),
+    hooks: new Map<string, (real: Call, ...args: never[]) => Promise<unknown>>(),
+  }
+  const faulty = <T extends object>(port: T, all: () => string | null): T =>
     new Proxy(port, {
       get(target, name, receiver) {
         const value: unknown = Reflect.get(target, name, receiver)
-        const kind = faults.methods.get(String(name)) ?? all()
-        if (typeof value !== 'function' || kind === null) return value
-        return async () => fail({ kind, diagnostic: `${String(name)} is off` })
+        if (typeof value !== 'function') return value
+        const real = value.bind(target) as Call
+        return async (...args: never[]) => {
+          const hook = faults.hooks.get(String(name))
+          if (hook !== undefined) return hook(real, ...args)
+          const kind = faults.methods.get(String(name)) ?? all()
+          return kind === null
+            ? real(...args)
+            : fail({ kind, diagnostic: `${String(name)} is off` })
+        }
       },
     })
   const plainStore = createMemoryByteStore(medium)
@@ -126,9 +161,10 @@ export function world(config: Partial<MediaConfig> = {}) {
   }
   const image = fakeImage()
   let keys = 0
+  const stores: ByteStore[] = [crash.wrap(store)]
   const open = (): Media =>
     createMedia({
-      stores: [crash.wrap(store)],
+      stores,
       writeTo: store.name,
       index: crash.wrap(index),
       image: image.codec,
@@ -145,6 +181,13 @@ export function world(config: Partial<MediaConfig> = {}) {
     index: plainIndex,
     store: plainStore,
     media: open(),
+    /** The store leaves the deployment, as when its provider is unloaded; `returnStore` brings it back. */
+    withdrawStore(): void {
+      stores.length = 0
+    },
+    returnStore(): void {
+      stores.push(crash.wrap(store))
+    },
     /** A new core over the same store and index: the process after a restart. */
     restart(): Media {
       crash.restart()
