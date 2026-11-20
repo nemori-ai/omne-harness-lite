@@ -56,7 +56,7 @@ const screen = (processors: readonly IntakeProcessor<unknown>[], original = ORIG
 describe('the registry of processors before intake', () => {
   it('runs them in the code unit order of their names, whatever the order they came in', () => {
     const registry = createBeforeIntakeRegistry<unknown>()
-    for (const name of ['media.references', 'audit.b', 'audit.a2', 'audit.a'])
+    for (const name of ['audit.b', 'media.references', 'audit.a', 'audit.a2'])
       registry.register(processor(name, () => ({ kind: 'pass' })))
     expect(registry.current().map(entry => entry.name)).toEqual([
       'audit.a',
@@ -77,6 +77,10 @@ describe('the registry of processors before intake', () => {
         'is not a processor name',
       )
     expect(() => registry.register({ name: 'a.b' } as never)).toThrow('cannot run')
+    const run = () => Promise.resolve({ kind: 'pass' } as const)
+    expect(() => registry.register({ name: ['a.b'], run } as never)).toThrow(
+      'is not a processor name',
+    )
   })
 
   it('withdraws only the registration that is its own', () => {
@@ -118,6 +122,15 @@ describe('screening one input', () => {
         request: { input: 'in-1', operation: 'op-1' },
         access: { principal: 'p', tenant: 't', session: 's-1' },
       },
+    ])
+  })
+
+  it('takes the facts off reference blocks only: a block of words that carries them stays as it came', () => {
+    const stray = { ...text('b1', 'look at this'), facts: FACTS }
+    const brought = { id: ID, role: 'user', blocks: [stray, image('b2', 'k1', { facts: FACTS })] }
+    expect(originalContent(brought as unknown as Message).blocks).toEqual([
+      stray,
+      image('b2', 'k1'),
     ])
   })
 
@@ -169,7 +182,11 @@ describe('screening one input', () => {
           throw new Error('must not run')
         }),
       ])
-      expect(result).toMatchObject({ kind: 'unavailable', processor: 'a.one' })
+      expect(result).toEqual({
+        kind: 'unavailable',
+        processor: 'a.one',
+        diagnostic: 'its effective content changes more than the reference blocks may gain',
+      })
     },
   )
 
@@ -222,6 +239,7 @@ describe('screening one input', () => {
     ],
     ['answers something else', () => ({ kind: 'maybe' }) as never, 'no verdict'],
     ['answers nothing', () => undefined as never, 'no verdict'],
+    ['answers null', () => null as never, 'no verdict'],
     ['answers a word', () => 'pass' as never, 'no verdict'],
   ])(
     'a processor that %s makes the input unavailable, never passed',
@@ -243,6 +261,11 @@ describe('what the blocks of an input must be to enter the log', () => {
   it('a reference block that carries facts is accepted; one without is unmeasured, by its place and id', () => {
     expect(judgeIntakeBlocks(MEASURED)).toBeNull()
     expect(judgeIntakeBlocks(ORIGINAL)).toEqual({ kind: 'unmeasured', index: 1, block: 'b2' })
+    expect(judgeIntakeBlocks(message(image('b1', 'k1')))).toEqual({
+      kind: 'unmeasured',
+      index: 0,
+      block: 'b1',
+    })
   })
 
   it.each(['image', 'voice'])('an inline %s block is refused: upload first', kind => {
@@ -321,6 +344,12 @@ describe('the digest a replay is compared by', () => {
 
   it('is what it was for an input with no reference block', () => {
     expect(commandDigest(accept(message(text('b1', 'hello'))))).toBe(PLAIN_DIGEST)
+  })
+
+  it('digests an ordinary input that brings no message as it is, and does not throw', () => {
+    const bare = { kind: 'accept', input: { operation: 'op-1', value: { kind: 'ordinary' } } }
+    const other = { kind: 'accept', input: { operation: 'op-1', value: { kind: 'card' } } }
+    expect(commandDigest(bare as never)).not.toBe(commandDigest(other as never))
   })
 })
 

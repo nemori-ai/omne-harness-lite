@@ -154,6 +154,10 @@ describe('the processors before intake, in the pipeline of an accept', () => {
       field: 'value.message.blocks[1]',
       reason: 'media.references: the reference is not valid',
     })
+    h.setAdmission([answering({ kind: 'block', block: 'b1' as never, reason: 'no such words' })])
+    expect(failureOf(await accept(h, pictured('pic')))).toMatchObject({
+      field: 'value.message.blocks[0]',
+    })
     h.setAdmission([answering({ kind: 'block', reason: 'not now' }, 'audit.words')])
     expect(failureOf(await accept(h, pictured('pic')))).toEqual({
       kind: 'invalid',
@@ -217,9 +221,10 @@ describe('the processors before intake, in the pipeline of an accept', () => {
   it('the list of processors that is not there, or cannot be read, leaves a screened input unaccepted', async () => {
     const h = await service({ admission: null })
     for (const value of [ordinaryInput('words'), pictured('pic')])
-      expect(failureOf(await accept(h, value))).toMatchObject({
+      expect(failureOf(await accept(h, value))).toEqual({
         kind: 'unavailable',
         owner: 'sessionAdmission',
+        diagnostic: 'the list of processors before intake is absent',
       })
     Object.assign(h.dependencies.admission, {
       current: () => {
@@ -252,16 +257,30 @@ describe('the source of an input decides whether it is screened', () => {
     const seen: Seen[] = []
     const h = await service({ admission: [measuring(seen)], sources: { kind: 'absent' } })
     const before = await revisionOf(h)
-    expect(failureOf(await accept(h, ordinaryInput('words')))).toMatchObject({
+    const words = ordinaryInput('words')
+    expect(failureOf(await accept(h, words))).toEqual({
       kind: 'unavailable',
       owner: 'sessionInputSources',
+      diagnostic: `the input source ${words.source} is not registered`,
     })
     h.setSources(null)
-    expect(failureOf(await accept(h, ordinaryInput('words')))).toMatchObject({
+    expect(failureOf(await accept(h, words))).toEqual({
+      kind: 'unavailable',
+      owner: 'sessionInputSources',
+      diagnostic: 'the registry of input sources is absent',
+    })
+    expect([seen, await revisionOf(h)]).toEqual([[], before])
+  })
+
+  it('a source whose name is no source name is unavailable, whatever the registry would say', async () => {
+    const seen: Seen[] = []
+    const h = await service({ admission: [measuring(seen)] })
+    const nameless = { ...ordinaryInput('words'), source: 'Not A Name' as never }
+    expect(failureOf(await accept(h, nameless))).toMatchObject({
       kind: 'unavailable',
       owner: 'sessionInputSources',
     })
-    expect([seen, await revisionOf(h)]).toEqual([[], before])
+    expect(seen).toEqual([])
   })
 })
 

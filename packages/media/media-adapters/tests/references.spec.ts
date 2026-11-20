@@ -28,7 +28,7 @@ function screening(input: string, tenant = T1, ...blocks: unknown[]): Screening 
 }
 const blocksOf = (verdict: IntakeVerdict): readonly unknown[] =>
   verdict.kind === 'pass' && verdict.effective !== undefined ? verdict.effective.blocks : []
-const processorOver = (custody: Pick<Custody, 'hold'> | null) =>
+const processorOver = (custody: Pick<Custody, 'hold'> | undefined) =>
   createReferencesProcessor<string>(() => custody)
 const A = png(4, 3, 1)
 const B = png(8, 6, 2)
@@ -91,7 +91,7 @@ describe('the processor media.references', () => {
     expect(await processorOver({ hold }).run(screening('in-1', T1, text('b1')))).toEqual({
       kind: 'pass',
     })
-    expect(await processorOver(null).run(screening('in-1', T1, text('b1')))).toEqual({
+    expect(await processorOver(undefined).run(screening('in-1', T1, text('b1')))).toEqual({
       kind: 'pass',
     })
     expect(hold).not.toHaveBeenCalled()
@@ -112,7 +112,11 @@ describe('the processor media.references', () => {
       const verdict = await processor.run(
         screening('in-1', T1, text('b1'), image('b2', good), image('b3', bad)),
       )
-      expect(verdict).toEqual({ kind: 'block', block: 'b3', reason: expect.any(String) as unknown })
+      expect(verdict).toEqual({
+        kind: 'block',
+        block: 'b3',
+        reason: 'the content reference names no medium of this tenant that is ready',
+      })
     }
     expect(ok(await w.media.custody.describe({ tenant: T2, ref: foreign })).state).toBe('staged')
   })
@@ -131,8 +135,9 @@ describe('the processor media.references', () => {
 
   it('custody that is not there is unavailable for an input that refers to media', async () => {
     const ref = await world().staged(T1, 'up-a', A)
-    expect(await processorOver(null).run(screening('in-1', T1, image('b1', ref)))).toMatchObject({
+    expect(await processorOver(undefined).run(screening('in-1', T1, image('b1', ref)))).toEqual({
       kind: 'unavailable',
+      diagnostic: 'the custody of media is not there',
     })
   })
 })

@@ -47,8 +47,7 @@ export function createBeforeIntakeRegistry<P>(): BeforeIntakeRegistry<P> {
         if (registered.get(name) === processor) registered.delete(name)
       }
     },
-    current: () =>
-      [...registered.values()].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
+    current: () => [...registered.values()].sort((a, b) => (a.name < b.name ? -1 : 1)),
   })
 }
 

@@ -23,6 +23,7 @@ describe('the ./cordis entry', () => {
   it('exports the plugin of the intake adapter', async () => {
     const cordis = (await import('@omne-harness/media-adapters/cordis')) as Record<string, unknown>
     expect(Object.keys(cordis)).toEqual(['mediaIntakePlugin'])
+    expect(mediaIntakePlugin.name).toBe('media-intake')
   })
 
   it('registers media.references while media and the registration point are there', async () => {
@@ -35,17 +36,21 @@ describe('the ./cordis entry', () => {
     const ref = { storage: 'memory', key: 'k', mediaType: 'image/png', bytes: '3', digest: 'd' }
     const block = { kind: 'image', id: 'b1', ref }
     const message = { id: 'm', role: 'user', blocks: [block] }
-    const verdict = await root.sessionBeforeIntake.current()[0]!.run({
+    const screening = {
       original: message,
       effective: message,
       source: 'session.member',
       request: { input: 'in-1', operation: 'op-1' },
       access: { principal: null, tenant: 't', session: 's' },
-    } as never)
+    } as never
+    const verdict = await root.sessionBeforeIntake.current()[0]!.run(screening)
     expect(verdict).toMatchObject({ kind: 'pass', effective: { blocks: [{ facts: {} }] } })
     expect(holds).toEqual([ref])
+    const [inFlight] = root.sessionBeforeIntake.current()
     await media.dispose()
     expect(names(root)).toEqual([])
+    expect(await inFlight!.run(screening)).toMatchObject({ kind: 'unavailable' })
+    expect(holds).toEqual([ref])
   })
 
   it('stays out while the registration point is not there', async () => {

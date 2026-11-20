@@ -8,7 +8,7 @@ type Block = Screening<unknown>['effective']['blocks'][number]
 
 /** Holds every medium an input refers to before the input is written, and gives its facts (ME-4). */
 export function createReferencesProcessor<P>(
-  custody: () => Pick<Custody, 'hold'> | null | undefined,
+  custody: () => Pick<Custody, 'hold'> | undefined,
 ): IntakeProcessor<P> {
   async function run({ effective, request, access }: Screening<P>): Promise<IntakeVerdict> {
     const holder = {
@@ -24,7 +24,7 @@ export function createReferencesProcessor<P>(
         continue
       }
       const media = custody()
-      if (media === null || media === undefined)
+      if (media === undefined)
         return { kind: 'unavailable', diagnostic: 'the custody of media is not there' }
       const held = await media.hold({ tenant: access.tenant, ref: block.ref, holder })
       if ('ok' in held) blocks.push({ ...block, facts: held.ok.facts })
