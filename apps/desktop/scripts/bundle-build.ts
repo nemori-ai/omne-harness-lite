@@ -68,8 +68,12 @@ function replaceExcluded(profile: BuildProfile): Plugin {
 }
 
 /** One bundle of one profile: everything bundled but Electron and Node's own modules. */
-export function bundleConfig(profile: BuildProfile, bundle: Bundle, watch = false): InlineConfig {
-  const outDir = resolve(desktopDir, bundleDir(profile))
+export function bundleConfig(
+  profile: BuildProfile,
+  bundle: Bundle,
+  watch = false,
+  outDir = resolve(desktopDir, bundleDir(profile)),
+): InlineConfig {
   const name = bundle.replace(/\.js$/, '')
   const production = profile !== 'dev'
   return {
@@ -113,8 +117,12 @@ export function pageConfig(profile: BuildProfile, watch = false): InlineConfig {
 }
 
 /** Reads a bundle's module record; throws, naming the build to run, when it is missing. */
-export function readBundleModules(profile: BuildProfile, bundle: Bundle): BundleModules {
-  const file = resolve(desktopDir, bundleDir(profile), modulesRecordName(bundle))
+export function readBundleModules(
+  profile: BuildProfile,
+  bundle: Bundle,
+  directory = resolve(desktopDir, bundleDir(profile)),
+): BundleModules {
+  const file = resolve(directory, modulesRecordName(bundle))
   try {
     return JSON.parse(readFileSync(file, 'utf8')) as BundleModules
   } catch {
