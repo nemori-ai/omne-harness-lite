@@ -21,6 +21,8 @@ import { report, type RequestEcho } from './report.ts'
 type Operations = MediaProtocol['operations']
 type Reference = BodyOf<Operations['describe-media']>['ref']
 type Context = Readonly<{ name: string; link: Link; tenant: TenantId; newId: () => string }>
+type Sender = Omit<Context, 'name'>
+export type MediaReference = Reference
 /** What an action ends with: a result to print with what it repeats, or the exit a local fault gives. */
 type Ending =
   | Readonly<{ result: CallResult | undefined; echo: RequestEcho; uncertain?: string }>
@@ -43,7 +45,7 @@ const succeeded = (
   result?.kind === 'response' && result.outcome === 'succeeded'
 
 function call<K extends keyof Operations & string>(
-  context: Context,
+  context: Sender,
   operation: K,
   body: BodyOf<Operations[K]>,
 ) {
@@ -61,7 +63,7 @@ function referenceOf(text: string): Reference {
 
 /** Sends the parts from the one the server says is next; the first that is not taken stops it. */
 async function sendParts(
-  context: Context,
+  context: Sender,
   upload: string,
   bytes: Uint8Array,
   from: Readonly<{ nextSequence: number; partBytes: number }>,
@@ -76,34 +78,59 @@ async function sendParts(
   return null
 }
 
-async function put(context: Context, values: Option): Promise<Ending> {
-  const file = values.get('--file') ?? ''
-  const mediaType = values.get('--media-type') ?? TYPES[extname(file).toLowerCase()]
-  if (mediaType === undefined)
-    return { usage: 'the name of the file says no type; give --media-type' }
+export type ReadFile =
+  | Readonly<{ file: string; mediaType: string; bytes: Uint8Array }>
+  | Readonly<{ usage: string }>
+  | Readonly<{ local: string }>
+
+export async function readUpload(file: string, mediaType?: string): Promise<ReadFile> {
+  const type = mediaType ?? TYPES[extname(file).toLowerCase()]
+  if (type === undefined)
+    return { usage: `the name of the file ${file} says no type; give --media-type` }
   const bytes = await readFile(file).catch(() => undefined)
   if (bytes === undefined) return { local: `cannot read ${file}; nothing was sent` }
+  return { file, mediaType: type, bytes }
+}
+
+/** Begins, sends the parts and commits; the answer that stopped it, or the reference committed. */
+export async function sendUpload(
+  context: Sender,
+  read: Extract<ReadFile, { file: string }>,
+  upload: string,
+): Promise<Readonly<{ result: CallResult | undefined; ref: Reference | null }>> {
   const { tenant } = context
-  const upload = values.get('--upload') ?? context.newId()
-  const ending = (result: CallResult | undefined): Ending => ({
-    result,
-    echo: { upload, file },
-    uncertain: `omne ${context.name}: to go on with this upload, run the same command with --upload ${upload}\n`,
-  })
+  const { mediaType, bytes } = read
   const begun = await call(context, 'begin-upload', {
     tenant,
     upload,
     mediaType,
     bytes: bytes.byteLength,
   })
-  if (!succeeded(begun)) return ending(begun)
+  if (!succeeded(begun)) return { result: begun, ref: null }
   const { status } = begun.body as {
     status: { kind: string; nextSequence: number; partBytes: number }
   }
+  // An upload already committed takes no part; committing again answers its reference.
   const stopped =
     status.kind === 'uploading' ? await sendParts(context, upload, bytes, status) : null
-  if (stopped !== null) return ending(stopped.result)
-  return ending(await call(context, 'commit-upload', { tenant, upload, digest: digestOf(bytes) }))
+  if (stopped !== null) return { result: stopped.result, ref: null }
+  const digest = digestOf(bytes)
+  const committed = await call(context, 'commit-upload', { tenant, upload, digest })
+  const ref = succeeded(committed) ? (committed.body as { ref: Reference }).ref : null
+  return { result: committed, ref }
+}
+
+async function put(context: Context, values: Option): Promise<Ending> {
+  const file = values.get('--file') ?? ''
+  const read = await readUpload(file, values.get('--media-type'))
+  if (!('file' in read)) return read
+  const upload = values.get('--upload') ?? context.newId()
+  const { result } = await sendUpload(context, read, upload)
+  return {
+    result,
+    echo: { upload, file },
+    uncertain: `omne ${context.name}: to go on with this upload, run the same command with --upload ${upload}\n`,
+  }
 }
 
 async function get(context: Context, values: Option): Promise<Ending> {
