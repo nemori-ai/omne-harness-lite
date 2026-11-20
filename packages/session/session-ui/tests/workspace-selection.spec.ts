@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   reasonText,
+  sameTarget,
   selectText,
   WorkspaceSelectionStore,
 } from '../src/model/workspace-selection.ts'
@@ -67,6 +68,47 @@ describe('the workspace of a session, as Session answered it last', () => {
     store.subscribe(TENANT, SESSION, heard)
     await store.load(TENANT, SESSION)
     expect(store.read(TENANT, SESSION)).toEqual({ kind: 'unreadable', reason: 'denied' })
+    expect(heard).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the choices handed over, and which one a session stands at', () => {
+  it('names the same instance only when both its workspace and its instance agree', () => {
+    const other = { workspace: 'wsp_other', instance: 'wsi_shop' }
+    const sibling = { workspace: 'wsp_shop', instance: 'wsi_other' }
+    expect([
+      sameTarget(SHOP, { ...SHOP }),
+      sameTarget(SHOP, other),
+      sameTarget(SHOP, sibling),
+      sameTarget(null, null),
+      sameTarget(null, SHOP),
+      sameTarget(SHOP, null),
+    ]).toEqual([true, false, false, true, false, false])
+  })
+
+  it('reads the list of a tenant nobody showed yet, and lists nothing once taken away', async () => {
+    const { store } = storeWith([])
+    const choice = { ...SHOP, label: 'shop', selectable: true, note: null }
+    const withdraw = store.attach({ list: async () => ({ kind: 'listed', choices: [choice] }) })
+    expect(store.choices(TENANT)).toEqual({ kind: 'unread' })
+    await store.loadChoices(TENANT)
+    expect(store.choices(TENANT)).toEqual({ kind: 'listed', choices: [choice] })
+    withdraw()
+    expect(store.choices(TENANT)).toEqual({ kind: 'absent' })
+  })
+
+  it('keeps each session apart, and a listener that left hears nothing more', async () => {
+    const { store } = storeWith([read('/srv/a'), read('/srv/b'), read('/srv/a2')])
+    const heard = vi.fn()
+    const leave = store.subscribe(TENANT, 'ses_a', heard)
+    await store.load(TENANT, 'ses_a')
+    await store.load(TENANT, 'ses_b')
+    expect(store.read(TENANT, 'ses_a')).toMatchObject({ directory: '/srv/a' })
+    expect(store.read(TENANT, 'ses_b')).toMatchObject({ directory: '/srv/b' })
+    expect(heard).toHaveBeenCalledTimes(1)
+    leave()
+    await store.load(TENANT, 'ses_a')
+    expect(store.read(TENANT, 'ses_a')).toMatchObject({ directory: '/srv/a2' })
     expect(heard).toHaveBeenCalledTimes(1)
   })
 })

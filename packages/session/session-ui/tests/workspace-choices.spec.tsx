@@ -8,6 +8,7 @@ import {
   type WorkspaceChoiceSource,
 } from '../src/cordis.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
+import { listed, listPage, page } from './fixtures/frames.ts'
 import { mountModule } from './fixtures/shell.tsx'
 
 const TENANT =
@@ -57,6 +58,19 @@ async function pickOption(trigger: HTMLElement, name: RegExp): Promise<void> {
   await settle()
 }
 
+async function openFromList(
+  fake: FakeClient,
+  name: string,
+  selection: Record<string, unknown>,
+): Promise<void> {
+  fireEvent.click(screen.getByRole('button', { name }))
+  await settle()
+  ;(await fake.next('read-history')).answer({ outcome: 'succeeded', body: page([], '1') })
+  const read = await fake.next('read-workspace-selection')
+  read.answer({ outcome: 'succeeded', body: { revision: '1', reason: null, ...selection } })
+  await settle()
+}
+
 async function opened(fake: FakeClient, selection: Record<string, unknown>): Promise<void> {
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
   ;(await fake.next('create-session')).answer({
@@ -93,9 +107,13 @@ it('a list is handed over: a new session starts in the instance picked; taken aw
     withdraw = holderOf(root).attach(list)
   })
   await settle()
+  expect(picker()!.textContent).toContain('不选工作区')
   fireEvent.keyDown(picker()!, { key: 'Enter' })
   const old = await screen.findByRole('option', { name: /old/u })
-  expect(old.getAttribute('aria-disabled')).toBe('true')
+  expect([old.getAttribute('aria-disabled'), old.textContent]).toEqual([
+    'true',
+    'old（实例用不了）',
+  ])
   fireEvent.click(await screen.findByRole('option', { name: /shop/u }))
   await settle()
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
@@ -145,11 +163,40 @@ it('the heading shows where the session works and changes it, to another instanc
   await settle()
   expect(screen.getByText('已换到 /srv/shop')).toBeTruthy()
   expect(screen.getByText('工作目录：/srv/shop')).toBeTruthy()
+  fireEvent.keyDown(heading()!, { key: 'Enter' })
+  expect((await screen.findAllByRole('option')).map(option => option.textContent)).toEqual([
+    '不选工作区',
+    'blog',
+    'shop',
+    'old（实例用不了）',
+  ])
+  fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+  await settle()
 
   await pickOption(heading()!, /不选工作区/u)
   const cleared = await fake.next('select-workspace')
   expect(cleared.body).toMatchObject({ session: 'ses_a', workspace: null })
-  cleared.answer({ outcome: 'invalid', body: { reason: 'not-permitted' } })
+  cleared.answer({ outcome: 'succeeded', body: { controlId: 'c', directory: null } })
+  await settle()
+  ;(await fake.next('read-workspace-selection')).answer({
+    outcome: 'succeeded',
+    body: {
+      workspace: null,
+      state: 'default',
+      directory: '/srv/default',
+      reason: null,
+      revision: '3',
+    },
+  })
+  await settle()
+  expect(heading()!.textContent).toContain('不选工作区')
+  expect(screen.getByText('工作目录：/srv/default')).toBeTruthy()
+
+  await pickOption(heading()!, /blog/u)
+  ;(await fake.next('select-workspace')).answer({
+    outcome: 'invalid',
+    body: { reason: 'not-permitted' },
+  })
   await settle()
   ;(await fake.next('read-workspace-selection')).answer({ outcome: 'unknown' })
   await settle()
@@ -171,7 +218,45 @@ it('an instance it cannot work in now is said, and one nobody offers any more st
   })
   const said = screen.getByText('工作区用不了：没有在这个工作区里工作的权限')
   expect(said.textContent).not.toMatch(/隔离|保证/u)
+  expect(picker()).toBeNull()
   expect(heading()!.textContent).toContain(OLD.instance)
+  fireEvent.keyDown(heading()!, { key: 'Enter' })
+  const kept = await screen.findByRole('option', { name: new RegExp(OLD.instance, 'u') })
+  expect([kept.getAttribute('aria-disabled'), kept.textContent]).toEqual([
+    'true',
+    `${OLD.instance}（不在现在的列表里）`,
+  ])
+})
+
+it('another session opened in the same page reads its own place, and what was said goes', async () => {
+  const fake = createFakeClient()
+  const { root } = await mountModule(fake.client, TENANT)
+  await act(async () => {
+    holderOf(root).attach(list)
+  })
+  ;(await fake.next('list-sessions')).answer(
+    listPage([listed('ses_a', '甲'), listed('ses_b', '乙')]),
+  )
+  await settle()
+  await openFromList(fake, '甲', { workspace: BLOG, state: 'attached', directory: '/srv/blog' })
+  await pickOption(heading()!, /shop/u)
+  ;(await fake.next('select-workspace')).answer({ outcome: 'archived', body: {} })
+  await settle()
+  ;(await fake.next('read-workspace-selection')).answer({
+    outcome: 'succeeded',
+    body: {
+      workspace: BLOG,
+      state: 'attached',
+      directory: '/srv/blog',
+      reason: null,
+      revision: '2',
+    },
+  })
+  await settle()
+  expect(screen.getByText('没有换：会话已归档')).toBeTruthy()
+  await openFromList(fake, '乙', { workspace: SHOP, state: 'attached', directory: '/srv/shop' })
+  expect(screen.getByText('工作目录：/srv/shop')).toBeTruthy()
+  expect(screen.queryByText('没有换：会话已归档')).toBeNull()
 })
 
 it('the place a list is handed over goes when the session interface unloads', async () => {

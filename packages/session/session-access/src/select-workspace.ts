@@ -95,15 +95,14 @@ export type ReadWorkspaceSelectionPorts = Pick<SelectWorkspacePorts, 'admit'> &
 type Read = Extract<WorkspaceSelectionReading, { kind: 'read' }>
 type Selected = Extract<Answer<'read-workspace-selection'>, { outcome: 'succeeded' }>['body']
 
-/** The reading in the protocol's words. Undefined: a workspace its codec did not mint. */
-function selectedBody({ selection, directory, revision }: Read): Selected | undefined {
+function selectedBody({ selection, directory, revision }: Read): Selected {
   const place =
     directory.state === 'unusable'
       ? { state: directory.state, directory: null, reason: directory.reason }
       : { state: directory.state, directory: directory.directory, reason: null }
   if (selection === null) return { workspace: null, ...place, revision }
   const text = workspaceCodec.encode(selection.workspace)
-  if (!text.ok) return undefined
+  if (!text.ok) throw new TypeError('the selected workspace is not a minted workspace')
   const workspace = { workspace: text.value, instance: selection.attachment.instance }
   return { workspace, ...place, revision }
 }
@@ -121,6 +120,5 @@ export async function readWorkspaceSelection(
   const read = await readCall(() => selections.read(admitted.access))
   if (read === 'basis-unavailable' || read.kind === 'unavailable') return UNAVAILABLE
   if (read.kind === 'refused') return refused('read-workspace-selection', read.failure)
-  const selected = selectedBody(read)
-  return selected === undefined ? UNAVAILABLE : { outcome: 'succeeded', body: selected }
+  return { outcome: 'succeeded', body: selectedBody(read) }
 }
