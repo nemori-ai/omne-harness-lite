@@ -325,6 +325,90 @@ const SCENARIOS: readonly Scenario[] = [
     },
   },
   {
+    id: 'C25',
+    title: 'a commit releases earlier receipts of its own domain',
+    async run({ storage, materials }) {
+      await registerAll(storage, materials)
+      const all = { combinationVersion: 'all-v1' }
+      const early = identity({ operationKey: 'early' })
+      const first = committed(
+        await storage.commit(commitRequest(materials, { ...all, identity: early })),
+      )
+      const stopped = await storage.commit(
+        commitRequest(materials, {
+          ...all,
+          identity: identity({ operationKey: 'stopped' }),
+          commands: [command('session'), command('probe', { mode: 'conflict' })],
+          releases: [early],
+        }),
+      )
+      expect(stopped.kind === 'rolled_back', `a conflict reply rolls back, got ${kindOf(stopped)}`)
+      same(await storage.query(early), stored(first), 'a rollback releases nothing')
+      for (const foreign of [
+        identity({ operationKey: 'early', transactionDomain: 'other-domain' }),
+        identity({ operationKey: 'early', scope: TENANT_B }),
+      ]) {
+        const refused = await storage.commit(
+          commitRequest(materials, {
+            ...all,
+            identity: identity({ operationKey: 'foreign' }),
+            releases: [early, foreign],
+          }),
+        )
+        expect(
+          kindOf(refused) === 'rejected_before_accept/release_outside_domain',
+          `a release outside the domain refuses the whole commit, got ${kindOf(refused)}`,
+        )
+      }
+      const malformed = await storage.commit(
+        commitRequest(materials, {
+          ...all,
+          identity: identity({ operationKey: 'malformed' }),
+          releases: [{ ...early, operationKey: '' }],
+        }),
+      )
+      expect(
+        kindOf(malformed) === 'rejected_before_accept/field_missing',
+        `a malformed release is refused, got ${kindOf(malformed)}`,
+      )
+      same(await storage.query(early), stored(first), 'a refused commit releases nothing')
+      const release = commitRequest(materials, {
+        ...all,
+        identity: identity({ operationKey: 'release' }),
+        releases: [early, identity({ operationKey: 'absent' })],
+      })
+      const released = committed(await storage.commit(release))
+      expect(released.recalled === false, 'the releasing commit runs')
+      const gone = await storage.query(early)
+      expect(gone.kind === 'not_committed', `a released receipt is gone, got ${gone.kind}`)
+      const again = committed(
+        await storage.commit(commitRequest(materials, { ...all, identity: early })),
+      )
+      expect(again.recalled === false, 'the released identity runs again as a new operation')
+      const recognised = await storage.commit({ ...release, releases: [] })
+      expect(
+        recalled(recognised) === true,
+        `releases are not part of the input, got ${kindOf(recognised)}`,
+      )
+      expect(recalled(await storage.commit(release)) === true, 'the same commit is recognised')
+      same(await storage.query(early), stored(again), 'a recognised commit releases nothing')
+      committed(
+        await storage.commit(
+          commitRequest(materials, {
+            ...all,
+            identity: identity({ operationKey: 'never-release' }),
+            releases: [{ ...early, recall: 'never' }],
+          }),
+        ),
+      )
+      same(
+        await storage.query(early),
+        stored(again),
+        'an identity that is never recalled has no receipt to release',
+      )
+    },
+  },
+  {
     id: 'C07',
     title: 'port and fact cell boundaries',
     async run({ storage, materials }) {

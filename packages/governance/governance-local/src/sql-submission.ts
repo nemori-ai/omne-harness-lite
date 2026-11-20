@@ -66,7 +66,6 @@ export function recognizeSubmission(
     case 'not_committed':
       return { kind: 'not-committed', proof: result }
     case 'unknown':
-    // Governance commits no identity with `recall: 'never'`; the answer says nothing about this one.
     case 'not_recallable':
       return { kind: 'unknown', identity: envelope.identity }
     case 'rejected_before_accept':

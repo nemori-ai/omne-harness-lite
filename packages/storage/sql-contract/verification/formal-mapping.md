@@ -24,7 +24,7 @@
 | `Commit` 执行     | 同文件的 `settleReceipt`：本条目自己的调用答 `recalled: false`                                                                   |
 | `Take`、`Query`   | 消费者的提交适配：Session 的 Journal 提交、`session-storage-sql`、`model-storage-sql` 的提交                                     |
 
-不覆盖：同身份异输入（`identity_conflict`，它不执行，与认回同一条路）；`recall: 'never'` 的身份。
+不覆盖：同身份异输入（`identity_conflict`，它不执行，与认回同一条路）；`recall: 'never'` 的身份；`releases` 放回执。模型里的回执不删除，三条性质只对还留着回执的身份成立；调用方只在身份不会再来之后放它的回执（规格「身份与认回」）。
 
 ## AdmissionWait
 

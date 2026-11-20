@@ -10,6 +10,7 @@ import {
   insertReceipt,
   readReceipt,
   receiptOf,
+  releaseReceipts,
   runParticipants,
   type Outcome,
 } from './execute.ts'
@@ -78,7 +79,7 @@ export class GroupRunner {
 
   private groupable(job: CommitJob): boolean {
     const db = this.state.db
-    if (db === null) return false
+    if (db === null || (job.request.request.releases?.length ?? 0) > 0) return false
     this.singletons ??= new Set(findSingletons(db, this.env.catalog.participants))
     const singletons = this.singletons
     return job.request.request.commands.every(command => {
@@ -230,6 +231,7 @@ export class GroupRunner {
           outcome.entries,
         )
         try {
+          releaseReceipts(db, request)
           if (keepsReceipt(entry.job)) insertReceipt(db, receipt)
           db.exec(`RELEASE ${savepoint}`)
         } catch (error) {

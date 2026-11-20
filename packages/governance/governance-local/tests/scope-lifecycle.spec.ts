@@ -98,10 +98,7 @@ it('stops ingress synchronously and closes only after durable isolation and acce
   await call
   expect(await lifetime.close(2000)).toEqual({ kind: 'closed' })
   expect(await lifecycle.open(null)).toMatchObject({ kind: 'unavailable' })
-  expect(await sql.lookup(w.binding('registered').ref)).toMatchObject({
-    kind: 'found',
-    record: { state: 'committed' },
-  })
+  expect(await sql.lookup(w.binding('registered').ref)).toEqual({ kind: 'absent' })
   expect(await lifetime.close(2000)).toEqual({ kind: 'closed' })
 })
 
