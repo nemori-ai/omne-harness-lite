@@ -282,6 +282,14 @@ describe('adopting the sources for a key (C6)', () => {
       reading: { revision: 0, packages: [] },
     })
     if (empty.kind === 'adopted') expect(empty.reason).toMatch(/cannot be used now/u)
+    const none = {
+      category: 'gadget',
+      name: 'lamp',
+      root: 'shared' as const,
+      path: 'MAIN.md',
+      digest: 'x',
+    }
+    expect(await s.sources.open(ALICE, { key: 'turn-1', at: none })).toEqual({ kind: 'not-found' })
 
     s.w.things.things.get('/a')!.state = 'present'
     s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
@@ -501,6 +509,21 @@ describe('what the sources answer when something on the way fails', () => {
       adoption: async () => ({ kind: 'unavailable' }) as const,
     }))
     expect(await s.adopt('turn-1')).toEqual({ kind: 'unavailable', diagnostic: 'store' })
+  })
+
+  it('answers unavailable when the relation cannot be read though the adoption can', async () => {
+    let failing = false
+    const s = await setup(store => ({
+      ...store,
+      state: async (...args: Parameters<typeof store.state>) =>
+        failing ? ({ kind: 'unavailable' } as const) : store.state(...args),
+    }))
+    await s.adopt('turn-1')
+    failing = true
+    expect(await s.sources.adopted(ALICE, { key: 'turn-1' })).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'store',
+    })
   })
 
   it('is not permitted when the relation ends between the read and the commit, and records nothing', async () => {
