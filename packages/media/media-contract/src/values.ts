@@ -109,8 +109,11 @@ export interface Custody {
     tenant: TenantId
     ref: ContentReference
   }): MediaRead<Readonly<{ state: 'staged' | 'held'; facts: MediaFacts }>, InvalidReference>
-  /** Maintenance, for every tenant: expired media first, then what a crash left. */
-  sweep(input: { limit: number }): MediaReply<Readonly<{ removed: number; more: boolean }>>
+  /** Maintenance, for one tenant: expired media first, then what a crash left. */
+  sweep(input: {
+    tenant: TenantId
+    limit: number
+  }): MediaReply<Readonly<{ removed: number; more: boolean }>>
 }
 
 export interface Variants {

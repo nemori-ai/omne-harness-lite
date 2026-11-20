@@ -20,7 +20,7 @@ const hold = (w: World, ref: ContentReference, work = 'w1') =>
   w.media.custody.hold({ tenant: T1, ref, holder: holder(work) })
 const read = (w: World, ref: ContentReference) =>
   w.media.variants.open({ tenant: T1, ref, target: null })
-const sweep = (w: World) => w.media.custody.sweep({ limit: 10 })
+const sweep = (w: World) => w.media.custody.sweep({ tenant: T1, limit: 10 })
 /** The reference the staged medium of these tests would have, for the states that have none. */
 const wouldBe = (key = '0'.repeat(32)): ContentReference => ({
   storage: 'memory',
@@ -97,7 +97,7 @@ describe('an uploading medium', () => {
     expect(await abandon(w)).toEqual({ ok: null })
     expect(w.medium.writes.size).toBe(0)
     expect(failureOf(await w.media.uploads.status({ tenant: T1, upload: 'up' }))).toBe('not-found')
-    expect(ok(await w.index.listDeleting(10))).toEqual([])
+    expect(ok(await w.index.listDeleting(tenantText(T1), 10))).toEqual([])
   })
   it('hold is refused: it is not committed', async () => {
     expect(failureOf(await hold(await uploading(), wouldBe()))).toBe('invalid-reference')
@@ -247,6 +247,6 @@ describe('a medium being deleted', () => {
     w.faults.remove = false
     expect(ok(await sweep(w))).toEqual({ removed: 1, more: false })
     expect(await w.liveKeys()).toEqual([])
-    expect(ok(await w.index.listDeleting(10))).toEqual([])
+    expect(ok(await w.index.listDeleting(tenantText(T1), 10))).toEqual([])
   })
 })

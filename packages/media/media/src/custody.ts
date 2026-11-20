@@ -119,16 +119,16 @@ export function createCustody(deps: MediaDependencies, objects: Objects): Custod
     },
 
     async sweep(input) {
-      const expired = await index.markDeletingIfExpired({
-        now: deps.clock.now(),
-        limit: input.limit,
-      })
+      const tenant = tenantText(input.tenant)
+      if (tenant === null) return succeed({ removed: 0, more: false })
+      const { limit } = input
+      const expired = await index.markDeletingIfExpired({ tenant, now: deps.clock.now(), limit })
       if ('failure' in expired) return writeFailure('index', expired.failure)
-      const deleting = await index.listDeleting(input.limit)
+      const deleting = await index.listDeleting(tenant, limit)
       if ('failure' in deleting) return unavailable('index')
       let removed = 0
       for (const row of deleting.ok) if (await objects.erase(row)) removed += 1
-      return succeed({ removed, more: deleting.ok.length >= input.limit })
+      return succeed({ removed, more: deleting.ok.length >= limit })
     },
   }
 }

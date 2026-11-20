@@ -25,7 +25,10 @@ describe('a product a referrer puts', () => {
       ok(await w.media.variants.open({ tenant: T1, ref: put.ref, target: null })).bytes,
     ).toEqual(IMAGE)
     w.advance(10 * 600_000)
-    expect(ok(await w.media.custody.sweep({ limit: 10 }))).toEqual({ removed: 0, more: false })
+    expect(ok(await w.media.custody.sweep({ tenant: T1, limit: 10 }))).toEqual({
+      removed: 0,
+      more: false,
+    })
   })
 
   it('of the same bytes as a staged medium merges into it and holds it', async () => {
@@ -90,7 +93,7 @@ describe('the sweep and a hold at the same moment (ME-3, ME-4)', () => {
       const { ref } = await w.staged(T1, 'up', IMAGE)
       w.advance(601_000)
       const hold = () => w.media.custody.hold({ tenant: T1, ref, holder: holder('w') })
-      const sweep = () => w.media.custody.sweep({ limit: 10 })
+      const sweep = () => w.media.custody.sweep({ tenant: T1, limit: 10 })
       const [held] =
         first === 'hold'
           ? await Promise.all([hold(), sweep()])
@@ -109,7 +112,10 @@ describe('the sweep and a hold at the same moment (ME-3, ME-4)', () => {
     const first = await kept.staged(T1, 'up', IMAGE)
     kept.advance(601_000)
     ok(await kept.media.custody.hold({ tenant: T1, ref: first.ref, holder: holder('w') }))
-    expect(ok(await kept.media.custody.sweep({ limit: 10 }))).toEqual({ removed: 0, more: false })
+    expect(ok(await kept.media.custody.sweep({ tenant: T1, limit: 10 }))).toEqual({
+      removed: 0,
+      more: false,
+    })
     expect(
       ok(await kept.media.variants.open({ tenant: T1, ref: first.ref, target: null })).bytes,
     ).toEqual(IMAGE)
@@ -117,7 +123,10 @@ describe('the sweep and a hold at the same moment (ME-3, ME-4)', () => {
     const gone = world()
     const second = await gone.staged(T1, 'up', IMAGE)
     gone.advance(601_000)
-    expect(ok(await gone.media.custody.sweep({ limit: 10 }))).toEqual({ removed: 1, more: false })
+    expect(ok(await gone.media.custody.sweep({ tenant: T1, limit: 10 }))).toEqual({
+      removed: 1,
+      more: false,
+    })
     expect(
       await gone.media.custody.hold({ tenant: T1, ref: second.ref, holder: holder('w') }),
     ).toEqual({ failure: { kind: 'invalid-reference' } })
@@ -127,8 +136,14 @@ describe('the sweep and a hold at the same moment (ME-3, ME-4)', () => {
     const w = world()
     for (const [n, name] of ['a', 'b', 'c'].entries()) await w.staged(T1, name, png(1, 1, n))
     w.advance(601_000)
-    expect(ok(await w.media.custody.sweep({ limit: 2 }))).toEqual({ removed: 2, more: true })
-    expect(ok(await w.media.custody.sweep({ limit: 2 }))).toEqual({ removed: 1, more: false })
+    expect(ok(await w.media.custody.sweep({ tenant: T1, limit: 2 }))).toEqual({
+      removed: 2,
+      more: true,
+    })
+    expect(ok(await w.media.custody.sweep({ tenant: T1, limit: 2 }))).toEqual({
+      removed: 1,
+      more: false,
+    })
     expect(await w.liveKeys()).toEqual([])
   })
 })
@@ -176,16 +191,21 @@ describe('a crash of the process (C8)', () => {
       const { ref } = await w.staged(T1, 'up', IMAGE)
       w.advance(601_000)
       w.crash.at(point)
-      await expect(w.media.custody.sweep({ limit: 10 })).rejects.toBeInstanceOf(ProcessCrashed)
-      const rows = ok(await w.index.listDeleting(10)).map(row => row.key)
+      await expect(w.media.custody.sweep({ tenant: T1, limit: 10 })).rejects.toBeInstanceOf(
+        ProcessCrashed,
+      )
+      const rows = ok(await w.index.listDeleting(tenantText(T1), 10)).map(row => row.key)
       for (const key of await w.liveKeys()) expect(rows, JSON.stringify(point)).toContain(key)
       const after = w.restart()
       expect(failureOf(await after.variants.open({ tenant: T1, ref, target: null }))).toBe(
         'invalid-reference',
       )
-      expect(ok(await after.custody.sweep({ limit: 10 }))).toEqual({ removed: 1, more: false })
+      expect(ok(await after.custody.sweep({ tenant: T1, limit: 10 }))).toEqual({
+        removed: 1,
+        more: false,
+      })
       expect(await w.liveKeys()).toEqual([])
-      expect(ok(await w.index.listDeleting(10))).toEqual([])
+      expect(ok(await w.index.listDeleting(tenantText(T1), 10))).toEqual([])
     }
   })
 
@@ -219,7 +239,10 @@ describe('a crash of the process (C8)', () => {
     expect(await w.liveKeys()).toHaveLength(1)
     const after = w.restart()
     w.advance(61_000)
-    expect(ok(await after.custody.sweep({ limit: 10 }))).toEqual({ removed: 1, more: false })
+    expect(ok(await after.custody.sweep({ tenant: T1, limit: 10 }))).toEqual({
+      removed: 1,
+      more: false,
+    })
     expect(await w.liveKeys()).toEqual([])
   })
 })

@@ -62,8 +62,8 @@ async function staged(
   ok(await index.insertUploading(uploading(letter, tenant)))
   return ok(await index.stageOrMerge(staging(letter, tenant, extra)))
 }
-const states = async (index: MediaIndex): Promise<string[]> =>
-  ok(await index.listDeleting(10)).map((row: MediaRow) => row.key)
+const states = async (index: MediaIndex, tenant = T1): Promise<string[]> =>
+  ok(await index.listDeleting(tenant, 10)).map((row: MediaRow) => row.key)
 
 export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
   {
@@ -109,22 +109,26 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
     async run(create) {
       const index = await create()
       ok(await index.insertUploading(uploading('a')))
-      ok(await index.attachWrite(key('a'), 'write-a'))
+      ok(await index.attachWrite(T1, key('a'), 'write-a'))
       assert.equal(
-        failure(await index.advance({ key: key('a'), sequence: 1, digest: 'd1', bytes: 4 })),
+        failure(
+          await index.advance({ tenant: T1, key: key('a'), sequence: 1, digest: 'd1', bytes: 4 }),
+        ),
         'stale',
       )
       assert.deepEqual(
-        ok(await index.advance({ key: key('a'), sequence: 0, digest: 'd0', bytes: 6 })),
+        ok(await index.advance({ tenant: T1, key: key('a'), sequence: 0, digest: 'd0', bytes: 6 })),
         {
           nextSequence: 1,
         },
       )
       assert.equal(
-        failure(await index.advance({ key: key('a'), sequence: 0, digest: 'd0', bytes: 6 })),
+        failure(
+          await index.advance({ tenant: T1, key: key('a'), sequence: 0, digest: 'd0', bytes: 6 }),
+        ),
         'stale',
       )
-      ok(await index.advance({ key: key('a'), sequence: 1, digest: 'd1', bytes: 4 }))
+      ok(await index.advance({ tenant: T1, key: key('a'), sequence: 1, digest: 'd1', bytes: 4 }))
       const row = ok(await index.readUpload(T1, 'up-a'))
       assert.deepEqual(
         [row.write, row.nextSequence, row.received, row.parts],
@@ -132,10 +136,12 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
       )
       ok(await index.stageOrMerge(staging('a')))
       assert.equal(
-        failure(await index.advance({ key: key('a'), sequence: 2, digest: 'd2', bytes: 1 })),
+        failure(
+          await index.advance({ tenant: T1, key: key('a'), sequence: 2, digest: 'd2', bytes: 1 }),
+        ),
         'stale',
       )
-      assert.equal(failure(await index.attachWrite(key('a'), 'other')), 'not-uploading')
+      assert.equal(failure(await index.attachWrite(T1, key('a'), 'other')), 'not-uploading')
     },
   },
   {
@@ -178,6 +184,31 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
       assert.equal(ok(await index.readLive(key('b'), T2)).tenant, T2)
       assert.equal(failure(await index.readLive(key('a'), T2)), 'not-found')
       assert.deepEqual(await states(index), [])
+    },
+  },
+  {
+    name: 'a tenant does not reach the row of another through any write',
+    async run(create) {
+      const index = await create()
+      ok(await index.insertUploading(uploading('a', T1)))
+      assert.equal(failure(await index.attachWrite(T2, key('a'), 'w')), 'not-uploading')
+      assert.equal(
+        failure(
+          await index.advance({ tenant: T2, key: key('a'), sequence: 0, digest: 'd', bytes: 1 }),
+        ),
+        'stale',
+      )
+      assert.deepEqual(ok(await index.markDeleting(T2, key('a'))), { marked: false })
+      ok(await index.markDeleting(T1, key('a')))
+      assert.deepEqual(await states(index, T2), [])
+      ok(await index.dropRow(T2, key('a')))
+      assert.deepEqual(await states(index, T1), [key('a')])
+      await staged(index, 'b', T1, { expiresAt: EARLIER })
+      assert.deepEqual(
+        ok(await index.markDeletingIfExpired({ tenant: T2, now: NOW, limit: 10 })),
+        [],
+      )
+      assert.equal(ok(await index.readLive(key('b'), T1)).state, 'staged')
     },
   },
   {
@@ -242,11 +273,14 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
       await staged(index, 'c', T1, { digest: 'sha256:c', expiresAt: LATER })
       await staged(index, 'd', T1, { digest: 'sha256:d', expiresAt: EARLIER })
       ok(await index.holdIfLive({ key: key('d'), tenant: T1, holder: holder('w') }))
-      const one = ok(await index.markDeletingIfExpired({ now: NOW, limit: 1 }))
+      const one = ok(await index.markDeletingIfExpired({ tenant: T1, now: NOW, limit: 1 }))
       assert.equal(one.length, 1)
-      const rest = ok(await index.markDeletingIfExpired({ now: NOW, limit: 10 }))
+      const rest = ok(await index.markDeletingIfExpired({ tenant: T1, now: NOW, limit: 10 }))
       assert.deepEqual([...one, ...rest].map(row => row.key).sort(), [key('a'), key('b')])
-      assert.deepEqual(ok(await index.markDeletingIfExpired({ now: NOW, limit: 10 })), [])
+      assert.deepEqual(
+        ok(await index.markDeletingIfExpired({ tenant: T1, now: NOW, limit: 10 })),
+        [],
+      )
       assert.equal(ok(await index.readLive(key('c'), T1)).state, 'staged')
       assert.equal(ok(await index.readLive(key('d'), T1)).state, 'held')
       assert.equal(failure(await index.readLive(key('b'), T1)), 'not-found')
@@ -262,10 +296,10 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
       const index = await create()
       ok(await index.insertUploading(uploading('a')))
       await staged(index, 'b', T1, { digest: 'sha256:b' })
-      assert.deepEqual(ok(await index.markDeleting(key('a'))), { marked: true })
-      assert.deepEqual(ok(await index.markDeleting(key('a'))), { marked: false })
-      assert.deepEqual(ok(await index.markDeleting(key('b'))), { marked: false })
-      assert.deepEqual(ok(await index.markDeleting(key('z'))), { marked: false })
+      assert.deepEqual(ok(await index.markDeleting(T1, key('a'))), { marked: true })
+      assert.deepEqual(ok(await index.markDeleting(T1, key('a'))), { marked: false })
+      assert.deepEqual(ok(await index.markDeleting(T1, key('b'))), { marked: false })
+      assert.deepEqual(ok(await index.markDeleting(T1, key('z'))), { marked: false })
       assert.equal(failure(await index.readUpload(T1, 'up-a')), 'not-found')
       assert.equal(ok(await index.readLive(key('b'), T1)).state, 'staged')
     },
@@ -275,13 +309,13 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
     async run(create) {
       const index = await create()
       await staged(index, 'a')
-      ok(await index.dropRow(key('a')))
+      ok(await index.dropRow(T1, key('a')))
       assert.equal(ok(await index.readLive(key('a'), T1)).state, 'staged')
       ok(await index.insertUploading(uploading('b')))
-      ok(await index.markDeleting(key('b')))
+      ok(await index.markDeleting(T1, key('b')))
       assert.deepEqual(await states(index), [key('b')])
-      ok(await index.dropRow(key('b')))
-      ok(await index.dropRow(key('b')))
+      ok(await index.dropRow(T1, key('b')))
+      ok(await index.dropRow(T1, key('b')))
       assert.deepEqual(await states(index), [])
       assert.equal(failure(await index.readUpload(T1, 'up-b')), 'not-found')
     },
@@ -291,10 +325,10 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
     async run(create) {
       const index = await create()
       ok(await index.insertUploading(uploading('a')))
-      ok(await index.markDeleting(key('a')))
+      ok(await index.markDeleting(T1, key('a')))
       ok(await index.insertUploading({ ...uploading('b'), upload: 'up-a' }))
       assert.equal(ok(await index.readUpload(T1, 'up-a')).key, key('b'))
-      ok(await index.dropRow(key('a')))
+      ok(await index.dropRow(T1, key('a')))
       assert.equal(ok(await index.readUpload(T1, 'up-a')).key, key('b'))
     },
   },
@@ -303,7 +337,7 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
     async run(create) {
       const index = await create()
       await staged(index, 'a', T1, { expiresAt: EARLIER })
-      ok(await index.markDeletingIfExpired({ now: NOW, limit: 10 }))
+      ok(await index.markDeletingIfExpired({ tenant: T1, now: NOW, limit: 10 }))
       const again = await staged(index, 'b')
       assert.equal(again.kind, 'staged')
       assert.equal(again.row.key, key('b'))

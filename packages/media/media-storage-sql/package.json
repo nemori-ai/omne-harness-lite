@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft media-storage-sql package; complete the accepted public contract before delivery",
+  "description": "SQL provider of the media index: one storage domain per tenant",
   "engines": {
     "node": ">=24"
   },
@@ -24,10 +24,15 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/media-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness/sqlite-provider": "workspace:*"
   }
 }

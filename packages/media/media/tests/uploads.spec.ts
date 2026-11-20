@@ -63,7 +63,7 @@ describe('an upload session (T2)', () => {
       failureOf(await w.media.uploads.commit({ tenant: T1, upload: 'u', digest: 'sha256:other' })),
     ).toBe('digest-mismatch')
     expect(await w.liveKeys()).toEqual([])
-    expect(ok(await w.index.listDeleting(10))).toEqual([])
+    expect(ok(await w.index.listDeleting(tenantText(T1), 10))).toEqual([])
     expect(failureOf(await w.media.uploads.status({ tenant: T1, upload: 'u' }))).toBe('not-found')
   })
 
@@ -117,7 +117,7 @@ describe('the same bytes twice', () => {
     const second = await w.staged(T1, 'two', IMAGE)
     expect(second).toEqual(first)
     expect(await w.liveKeys()).toEqual([first.ref.key])
-    expect(ok(await w.index.listDeleting(10))).toEqual([])
+    expect(ok(await w.index.listDeleting(tenantText(T1), 10))).toEqual([])
     expect(ok(await w.media.uploads.status({ tenant: T1, upload: 'two' }))).toEqual({
       kind: 'committed',
       committed: first,

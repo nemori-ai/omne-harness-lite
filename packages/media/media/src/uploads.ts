@@ -46,7 +46,7 @@ function createContext(deps: MediaDependencies, objects: Objects) {
     const store = objects.storeOf(row.storage)
     const begun = await store?.begin(row.key)
     if (begun === undefined || 'failure' in begun) return unavailable('store')
-    const attached = await index.attachWrite(row.key, begun.ok.write)
+    const attached = await index.attachWrite(row.tenant, row.key, begun.ok.write)
     if ('failure' in attached)
       return isPortFailure(attached.failure)
         ? writeFailure('index', attached.failure)
@@ -117,6 +117,7 @@ async function append(
   const stored = await objects.storeOf(row.storage)?.append(write.ok, input.sequence, input.part)
   if (stored === undefined || 'failure' in stored) return unavailable('store')
   const advanced = await index.advance({
+    tenant: row.tenant,
     key: row.key,
     sequence: input.sequence,
     digest,

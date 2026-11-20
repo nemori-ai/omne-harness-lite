@@ -1,2 +1,2 @@
-// PACKAGE_TEMPLATE_DRAFT: Export the accepted public functions/types here.
-export {}
+export { mediaIndexParticipant, mediaSqlMaterials, type MediaSqlMaterials } from './materials.ts'
+export { createSqlMediaIndex, type MediaSqlOptions, type TenantBinding } from './store.ts'

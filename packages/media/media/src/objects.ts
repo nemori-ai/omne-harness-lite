@@ -66,11 +66,11 @@ export function createObjects(deps: MediaDependencies) {
     if (store === undefined) return false
     if (row.write !== null && 'failure' in (await store.abort(row.write))) return false
     if ('failure' in (await store.remove(row.key))) return false
-    return 'ok' in (await index.dropRow(row.key))
+    return 'ok' in (await index.dropRow(row.tenant, row.key))
   }
 
   async function discard(row: MediaRow): Promise<void> {
-    const marked = await index.markDeleting(row.key)
+    const marked = await index.markDeleting(row.tenant, row.key)
     if ('ok' in marked && marked.ok.marked) await erase({ ...row, state: 'deleting' })
   }
 

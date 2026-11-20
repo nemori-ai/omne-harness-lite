@@ -66,12 +66,17 @@ export type Staging = Readonly<{
   holder: Holder | null
 }>
 
-/** The metadata of media: every operation is one transaction and carries its own condition. */
+/** The metadata of media, one tenant at a time: every operation is one transaction with its own condition. */
 export interface MediaIndex {
   insertUploading(row: NewRow): PortReply<null, Readonly<{ kind: 'exists'; row: MediaRow }>>
-  attachWrite(key: string, write: string): PortReply<null, Readonly<{ kind: 'not-uploading' }>>
+  attachWrite(
+    tenant: string,
+    key: string,
+    write: string,
+  ): PortReply<null, Readonly<{ kind: 'not-uploading' }>>
   readUpload(tenant: string, upload: string): PortReply<MediaRow, Readonly<{ kind: 'not-found' }>>
   advance(input: {
+    tenant: string
     key: string
     sequence: number
     digest: string
@@ -90,11 +95,15 @@ export interface MediaIndex {
     holder: Holder
   }): PortReply<MediaRow, Readonly<{ kind: 'not-live' }>>
   readLive(key: string, tenant: string): PortReply<MediaRow, Readonly<{ kind: 'not-found' }>>
-  markDeleting(key: string): PortReply<Readonly<{ marked: boolean }>>
+  markDeleting(tenant: string, key: string): PortReply<Readonly<{ marked: boolean }>>
   /** Marks deleting the uploading and staged rows whose time is over, in the same write. */
-  markDeletingIfExpired(input: { now: Instant; limit: number }): PortReply<readonly MediaRow[]>
-  listDeleting(limit: number): PortReply<readonly MediaRow[]>
-  dropRow(key: string): PortReply<null>
+  markDeletingIfExpired(input: {
+    tenant: string
+    now: Instant
+    limit: number
+  }): PortReply<readonly MediaRow[]>
+  listDeleting(tenant: string, limit: number): PortReply<readonly MediaRow[]>
+  dropRow(tenant: string, key: string): PortReply<null>
 }
 
 export type Probe = Readonly<{ mediaType: string; widthPixels: number; heightPixels: number }>

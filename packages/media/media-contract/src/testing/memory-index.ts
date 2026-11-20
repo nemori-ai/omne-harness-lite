@@ -18,21 +18,28 @@ function addHolder(row: Row, holder: Holder): void {
   row.expiresAt = null
 }
 
-/** The metadata of media in memory, with the same conditions as the SQL provider. */
+/** The metadata of media in memory: a row is seen only through its own tenant, as in the SQL provider. */
 export function createMemoryMediaIndex(): MediaIndex {
-  const rows = new Map<string, Row>()
+  const all = new Map<string, Row>()
+  const rows = {
+    get: (tenant: string, key: string): Row | undefined => {
+      const row = all.get(key)
+      return row?.tenant === tenant ? row : undefined
+    },
+    of: (tenant: string): Row[] => [...all.values()].filter(row => row.tenant === tenant),
+  }
   const uploads = new Map<string, string>()
   const pointer = (tenant: string, upload: string): string => `${tenant}\n${upload}`
   return {
     async insertUploading(input) {
-      if (rows.has(input.key)) return fail({ kind: 'unavailable', diagnostic: 'duplicate key' })
+      if (all.has(input.key)) return fail({ kind: 'unavailable', diagnostic: 'duplicate key' })
       if (input.upload !== null) {
-        const known = rows.get(uploads.get(pointer(input.tenant, input.upload)) ?? '')
+        const known = rows.get(input.tenant, uploads.get(pointer(input.tenant, input.upload)) ?? '')
         if (known !== undefined && known.state !== 'deleting')
           return fail({ kind: 'exists', row: copy(known) })
         uploads.set(pointer(input.tenant, input.upload), input.key)
       }
-      rows.set(input.key, {
+      all.set(input.key, {
         key: input.key,
         tenant: input.tenant,
         storage: input.storage,
@@ -50,19 +57,19 @@ export function createMemoryMediaIndex(): MediaIndex {
       })
       return succeed(null)
     },
-    async attachWrite(key, write) {
-      const row = rows.get(key)
+    async attachWrite(tenant, key, write) {
+      const row = rows.get(tenant, key)
       if (row?.state !== 'uploading') return fail({ kind: 'not-uploading' })
       row.write = write
       return succeed(null)
     },
     async readUpload(tenant, upload) {
-      const row = rows.get(uploads.get(pointer(tenant, upload)) ?? '')
+      const row = rows.get(tenant, uploads.get(pointer(tenant, upload)) ?? '')
       if (row === undefined || row.state === 'deleting') return fail({ kind: 'not-found' })
       return succeed(copy(row))
     },
     async advance(input) {
-      const row = rows.get(input.key)
+      const row = rows.get(input.tenant, input.key)
       if (row?.state !== 'uploading' || row.nextSequence !== input.sequence)
         return fail({ kind: 'stale' })
       row.parts = [...row.parts, input.digest]
@@ -71,12 +78,11 @@ export function createMemoryMediaIndex(): MediaIndex {
       return succeed({ nextSequence: row.nextSequence })
     },
     async stageOrMerge(staging) {
-      const row = rows.get(staging.key)
-      if (row?.state !== 'uploading' || row.tenant !== staging.tenant)
-        return fail({ kind: 'not-uploading' })
-      const twin = [...rows.values()].find(
-        other => live(other) && other.tenant === staging.tenant && other.digest === staging.digest,
-      )
+      const row = rows.get(staging.tenant, staging.key)
+      if (row?.state !== 'uploading') return fail({ kind: 'not-uploading' })
+      const twin = rows
+        .of(staging.tenant)
+        .find(other => live(other) && other.digest === staging.digest)
       if (twin !== undefined) {
         row.state = 'deleting'
         for (const [name, key] of uploads) if (key === row.key) uploads.set(name, twin.key)
@@ -93,25 +99,25 @@ export function createMemoryMediaIndex(): MediaIndex {
       return succeed({ kind: 'staged', row: copy(row) })
     },
     async holdIfLive(input) {
-      const row = rows.get(input.key)
-      if (!live(row) || row.tenant !== input.tenant) return fail({ kind: 'not-live' })
+      const row = rows.get(input.tenant, input.key)
+      if (!live(row)) return fail({ kind: 'not-live' })
       addHolder(row, input.holder)
       return succeed(copy(row))
     },
     async readLive(key, tenant) {
-      const row = rows.get(key)
-      if (!live(row) || row.tenant !== tenant) return fail({ kind: 'not-found' })
+      const row = rows.get(tenant, key)
+      if (!live(row)) return fail({ kind: 'not-found' })
       return succeed(copy(row))
     },
-    async markDeleting(key) {
-      const row = rows.get(key)
+    async markDeleting(tenant, key) {
+      const row = rows.get(tenant, key)
       if (row?.state !== 'uploading') return succeed({ marked: false })
       row.state = 'deleting'
       return succeed({ marked: true })
     },
     async markDeletingIfExpired(input) {
       const marked: MediaRow[] = []
-      for (const row of rows.values()) {
+      for (const row of rows.of(input.tenant)) {
         if (marked.length >= input.limit) break
         if ((row.state !== 'uploading' && row.state !== 'staged') || !over(row, input.now)) continue
         row.state = 'deleting'
@@ -119,17 +125,18 @@ export function createMemoryMediaIndex(): MediaIndex {
       }
       return succeed(marked)
     },
-    async listDeleting(limit) {
+    async listDeleting(tenant, limit) {
       return succeed(
-        [...rows.values()]
+        rows
+          .of(tenant)
           .filter(row => row.state === 'deleting')
           .slice(0, limit)
           .map(copy),
       )
     },
-    async dropRow(key) {
-      if (rows.get(key)?.state !== 'deleting') return succeed(null)
-      rows.delete(key)
+    async dropRow(tenant, key) {
+      if (rows.get(tenant, key)?.state !== 'deleting') return succeed(null)
+      all.delete(key)
       for (const [name, target] of uploads) if (target === key) uploads.delete(name)
       return succeed(null)
     },
