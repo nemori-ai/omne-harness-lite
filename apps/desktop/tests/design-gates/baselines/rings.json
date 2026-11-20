@@ -1,0 +1,21 @@
+{
+  "gate": "rings",
+  "entries": {
+    "apps/desktop/src/page/styles.css | .shell-brand overflow: hidden": 1,
+    "apps/desktop/src/page/styles.css | .shell-navigation-content[data-expanded='false'] .shell-nav-badge overflow: hidden": 1,
+    "apps/desktop/src/page/styles.css | .shell-sidebar overflow: hidden": 1,
+    "packages/frontend/ui-kit/src/controls/dropdown-menu.tsx | class overflow-hidden": 1,
+    "packages/frontend/ui-kit/src/controls/dropdown-menu.tsx | class overflow-x-hidden": 1,
+    "packages/frontend/ui-kit/src/controls/select.tsx | class overflow-x-hidden": 1,
+    "packages/frontend/ui-kit/src/patterns/ai/entity-chip.tsx | class truncate": 1,
+    "packages/frontend/ui-kit/src/patterns/ai/receipt-pill.tsx | class truncate": 1,
+    "packages/frontend/ui-kit/src/patterns/ai/trace.tsx | class truncate": 1,
+    "packages/frontend/ui-kit/src/styles/prose.css | .omne-prose [data-streamdown='table-wrapper'] > div:has(> [data-streamdown='table']) overflow: hidden": 1,
+    "packages/frontend/ui-kit/src/styles/prose.css | .omne-prose [data-streamdown='table-wrapper'] overflow: hidden": 1,
+    "packages/human-intervention/human-intervention-ui/src/view/human-intervention-ui.css | .hitl-strip-mark overflow: hidden": 1,
+    "packages/identity/identity-ui/src/view/identity-ui.css | .identity-account-tenant overflow: hidden": 1,
+    "packages/session/session-ui/src/view/session-ui.css | .omne-session-item-title overflow: hidden": 1,
+    "packages/session/session-ui/src/view/session-ui.css | .omne-session-side-title overflow: hidden": 1,
+    "packages/session/session-ui/src/view/session-ui.css | .omne-session-title overflow: hidden": 1
+  }
+}
