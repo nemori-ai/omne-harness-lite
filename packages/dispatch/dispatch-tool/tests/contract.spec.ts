@@ -28,6 +28,7 @@ function plain(tree: JsonValue): unknown {
 }
 const bytes = (tree: JsonValue): number => Buffer.byteLength(JSON.stringify(plain(tree)))
 const text = (value: string): JsonValue => ({ kind: 'string', value })
+const flag = (value: boolean): JsonValue => ({ kind: 'boolean', value })
 const object = (members: Record<string, JsonValue>): JsonValue => ({
   kind: 'object',
   entries: Object.entries(members).map(([key, value]) => ({ key, value })),
@@ -137,6 +138,59 @@ describe('the wait contract of the report of a dispatch', () => {
       expect(await judge('response', answer)).toBe('valid')
     },
   )
+
+  it('cuts a long report at the last character that fits, not one before it', () => {
+    const long = 'a'.repeat(REPORT_TEXT_ANSWER_BYTES + 100)
+    const answer = reportWaitAnswer({ ...reported, report: { text: long, origin: 'report' } })
+    const shown = plain(answer) as { report: { text: string } }
+    expect(shown.report.text).toHaveLength(REPORT_TEXT_ANSWER_BYTES - 2)
+  })
+
+  it('writes what the dispatch does not have as null, never as an empty text', () => {
+    const entries = (tree: JsonValue) => (tree.kind === 'object' ? tree.entries : [])
+    const answer = reportWaitAnswer({ ...accepted, state: 'withdrawn' })
+    const absent = entries(answer).filter(entry => entry.value.kind === 'null')
+    expect(absent.map(entry => entry.key)).toEqual(['report', 'failure', 'expectation'])
+  })
+
+  it.each([
+    ['a state the dispatch does not have', { state: text('paused') }],
+    ['a report that is a text', { report: text('done') }],
+    [
+      'a report from another origin',
+      { report: object({ text: text('x'), origin: text('guess'), truncated: flag(false) }) },
+    ],
+    [
+      'a report whose cut mark is not a boolean',
+      { report: object({ text: text('x'), origin: text('report'), truncated: text('no') }) },
+    ],
+    ['a failure that is a text', { failure: text('broke') }],
+    [
+      'an expectation that is a number',
+      { expectation: { kind: 'number', lexeme: '3' } as JsonValue },
+    ],
+    ['a member the response does not have', { more: text('x') }],
+  ])('does not take %s as a response', async (_name, change) => {
+    const members = {
+      dispatch: text(accepted.id),
+      state: text('reported'),
+      session: text(accepted.session),
+      report: { kind: 'null' } as JsonValue,
+      failure: { kind: 'null' } as JsonValue,
+      expectation: { kind: 'null' } as JsonValue,
+    }
+    expect(await judge('response', object(members))).toBe('valid')
+    expect(await judge('response', object({ ...members, ...change }))).not.toBe('valid')
+  })
+
+  it('names its two schemas apart and gives each a sha256 digest', () => {
+    const { request, response, adoption } = dispatchReportWait
+    expect(request.identity.id).toBe('@omne-harness/dispatch-tool/report-request')
+    expect(response.identity.id).toBe('@omne-harness/dispatch-tool/report-response')
+    for (const digest of [request.identity.digest, response.identity.digest, adoption.digest])
+      expect(digest).toMatch(/^sha256:[0-9a-f]{64}$/u)
+    expect(request.identity.digest).not.toBe(response.identity.digest)
+  })
 
   it('writes a lone surrogate of a report as a well-formed text', () => {
     const answer = reportWaitAnswer({ ...reported, report: { text: 'a\ud800b', origin: 'report' } })

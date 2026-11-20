@@ -50,10 +50,7 @@ const evidence = (record: string, parts: readonly string[]): DurableEvidence => 
 
 /** Whether a wait of a call is a report wait: its request contract is the contract of this member. */
 export function isReportWait(record: WaitRecord): boolean {
-  const { intent } = record
-  return (
-    intent.kind === 'ask' && intent.schemas.contract.digest === dispatchReportWait.adoption.digest
-  )
+  return record.intent.schemas.contract.digest === dispatchReportWait.adoption.digest
 }
 
 function dispatchIdOf(facts: Facts, wait: ToolWaitId): Outcome<DispatchId, ToolFailure> {
@@ -67,7 +64,12 @@ function dispatchIdOf(facts: Facts, wait: ToolWaitId): Outcome<DispatchId, ToolF
 }
 
 const closing = (access: Access, wait: ToolWaitId, terminal: DurableEvidence, cause: string) =>
-  evidence(`report-wait-closed/${digestOf([access.call, wait])}`, [terminal.digest, cause])
+  evidence(`report-wait-closed/${digestOf([access.call, wait])}`, [
+    access.call,
+    wait,
+    terminal.digest,
+    cause,
+  ])
 
 export function createReportBridge(input: ReportBridgeInput): Bridge {
   const dispatchFor = async (

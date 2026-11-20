@@ -28,7 +28,7 @@ export function createReportWaits(input: ReportWaitsInput): ReportWaits {
       if (read.value === null) return 'closed'
       const waits = read.value.waits.filter(isReportWait)
       if (waits.some(took)) return 'delivered'
-      if (read.value.settled || waits.some(wait => wait.phase === 'closed')) return 'closed'
+      if (read.value.settled) return 'closed'
       await input.schedule(tenant, dispatch).catch(() => undefined)
       return 'unreadable'
     },

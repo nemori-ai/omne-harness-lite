@@ -129,14 +129,54 @@ describe('the decisions of a wait go to the bridge of its request contract', () 
     })
   })
 
-  it('does not take a contract of the same name from another owner for the contract of a route', async () => {
+  it.each([
+    ['of the same name from another owner', { ...PERSON, owner: 'someone-else' }],
+    ['of another name from the same owner', { ...PERSON, name: 'another-wait' }],
+  ])('does not take a contract %s for the contract of a route', async (_name, contract) => {
     const person = scriptedBridge('registers')
-    const bridge = routed(
-      { waits: [asking('w', { ...PERSON, owner: 'someone-else' })], tasks: [] },
-      [{ contract: PERSON, bridge: () => person }],
-    )
-    expect(await bridge.inspect({ ...ACCESS, wait: wait('w') })).toMatchObject({
-      failure: { kind: 'unavailable', dependency: 'tool-decisions' },
+    const bridge = routed({ waits: [asking('w', contract)], tasks: [] }, [
+      { contract: PERSON, bridge: () => person },
+    ])
+    expect(await bridge.inspect({ ...ACCESS, wait: wait('w') })).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'tool-decisions',
+        diagnostic: `no decision bridge is mounted for the wait contract ${contract.owner}/${contract.name}`,
+      },
+    })
+  })
+
+  it('reads the call with the access of the call, and with nothing else of the request', async () => {
+    const read: unknown[] = []
+    const bridge = routeToolDecisions<typeof principalA>({
+      recoveryOf: access => {
+        read.push(access)
+        return Promise.resolve(succeed(FACTS))
+      },
+      routes: () => [{ contract: PERSON, bridge: () => scriptedBridge('registers') }],
+    })
+    await bridge.inspect({ ...ACCESS, wait: wait('w-person') })
+    await bridge.inspectOperation(mutation('close-person'))
+    expect(read).toEqual([ACCESS, ACCESS])
+  })
+
+  it('does not take a task of another kind with the same operation for a wait duty', async () => {
+    const delivery = { kind: 'deliver', operation: operationId('ensure-report') } as never
+    const bridge = routed({ ...FACTS, tasks: [delivery, ...FACTS.tasks] }, [
+      { contract: REPORT, bridge: () => scriptedBridge('registers') },
+    ])
+    expect(await bridge.inspectOperation(mutation('ensure-report'))).toMatchObject({
+      ok: { kind: 'excluded', operation: 'ensure-report' },
+    })
+    const only = routed({ ...FACTS, tasks: [delivery] }, [
+      { contract: REPORT, bridge: () => scriptedBridge('registers') },
+    ])
+    expect(await only.inspectOperation(mutation('ensure-report'))).toEqual({
+      ok: {
+        kind: 'unknown',
+        operation: 'ensure-report',
+        diagnostic: 'the bridge of the operation is not found: invalid',
+      },
     })
   })
 

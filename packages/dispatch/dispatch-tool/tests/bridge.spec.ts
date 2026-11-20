@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { PortRead } from '@omne-harness/dispatch'
 import type { Dispatch, DispatchId } from '@omne-harness/dispatch-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
+import type { ToolWaitId } from '@omne-harness/tool-contract'
+import { acceptedDispatch } from '@omne-harness/dispatch/testing'
 import { createReportBridge, reportWaitAnswer } from '../src/index.ts'
 import {
   ACCESS,
@@ -17,6 +19,13 @@ import {
 } from './values.ts'
 
 type Read = PortRead<Dispatch | null>
+
+const outcomeOf = (text: string) =>
+  ({
+    state: 'reported',
+    report: { text, origin: 'report' },
+    delivery: { kind: 'pending' },
+  }) as const
 
 function world(
   start: Readonly<{ facts?: Facts; dispatch?: Dispatch | null | 'unavailable' }> = {},
@@ -46,37 +55,55 @@ const inspect = (bridge: ReturnType<typeof world>['bridge']) =>
   bridge.inspect({ ...ACCESS, wait: WAIT })
 
 const stranger = { owner: 'someone-else', name: 'report-wait', revision: '1', digest: 'sha256:x' }
+const OTHER = 'op-c1/start/other' as ToolWaitId
+const OWNER = '@omne-harness/dispatch-tool'
+const invalid = (field: string, reason: string) => ({ kind: 'invalid', field, reason })
+const NOT_A_REPORT_WAIT = invalid('wait', 'the wait is not a report wait of a dispatch')
+const kept = (wait: ToolWaitId, request: string) => facts({ waitRequest: { wait, request } })
 const REFUSALS: readonly (readonly [string, Parameters<typeof world>[0], object])[] = [
   [
     'a wait of another contract',
     { facts: facts({ waits: [waitRecord('open', stranger)] }) },
-    { kind: 'invalid', field: 'wait' },
+    NOT_A_REPORT_WAIT,
   ],
   [
-    'a wait the call does not have',
-    { facts: facts({ waits: [] }) },
-    { kind: 'invalid', field: 'wait' },
+    'a wait the call does not have, beside a report wait it has',
+    { facts: facts({ waits: [waitRecord('open', undefined, OTHER)] }) },
+    NOT_A_REPORT_WAIT,
   ],
   [
     'no kept request',
     { facts: facts({ waitRequest: null }) },
-    { kind: 'invalid', field: 'request' },
+    invalid('request', 'the wait request is not kept'),
+  ],
+  [
+    'a kept request of another wait',
+    { facts: kept(OTHER, JSON.stringify({ dispatch: accepted.id })) },
+    invalid('request', 'the wait request is not kept'),
   ],
   [
     'a kept request that names no dispatch',
-    { facts: facts({ waitRequest: { wait: WAIT, request: '{"dispatch":"x"}' } }) },
-    { kind: 'invalid', field: 'request' },
+    { facts: kept(WAIT, '{"dispatch":"x"}') },
+    invalid('request', 'the kept request names no dispatch'),
   ],
-  ['a dispatch that does not exist', { dispatch: null }, { kind: 'invalid', field: 'request' }],
+  [
+    'a dispatch that does not exist',
+    { dispatch: null },
+    invalid('request', 'the dispatch of the wait does not exist'),
+  ],
   [
     'a dispatch of another call',
     { dispatch: { ...accepted, call: 'call-2' } },
-    { kind: 'invalid', field: 'request' },
+    invalid('request', 'the dispatch of the wait is not of this call'),
   ],
   [
     'a registry that cannot be read',
     { dispatch: 'unavailable' },
-    { kind: 'unavailable', dependency: '@omne-harness/dispatch-tool' },
+    {
+      kind: 'unavailable',
+      dependency: OWNER,
+      diagnostic: 'the dispatch of the wait cannot be read',
+    },
   ],
 ]
 
@@ -94,11 +121,11 @@ describe('the bridge of the report wait', () => {
     'refuses %s at every step that reads the wait',
     async (_name, start, failure) => {
       const { bridge } = world(start)
-      expect(await ensure(bridge)).toMatchObject({ failure })
-      expect(await inspect(bridge)).toMatchObject({ failure })
-      expect(
-        await bridge.resolve({ ...ACCESS, wait: WAIT, decision: evidence('any') }),
-      ).toMatchObject({ failure })
+      expect(await ensure(bridge)).toEqual({ failure })
+      expect(await inspect(bridge)).toEqual({ failure })
+      expect(await bridge.resolve({ ...ACCESS, wait: WAIT, decision: evidence('any') })).toEqual({
+        failure,
+      })
     },
   )
 
@@ -241,21 +268,130 @@ describe('the bridge of the report wait', () => {
     })
   })
 
+  it('finds the wait among the waits of the call by its identity', async () => {
+    const both = facts({ waits: [waitRecord('open', stranger, OTHER), waitRecord('open')] })
+    expect(await inspect(world({ facts: both }).bridge)).toMatchObject({ ok: { decision: null } })
+  })
+
+  it('derives the registration from the dispatch, the call and the wait', async () => {
+    const first = await ensure(world().bridge)
+    if (!('ok' in first)) throw new Error('not registered')
+    expect(first.ok).toMatchObject({
+      owner: OWNER,
+      record: `report-wait/${accepted.id}`,
+      revision: '1',
+    })
+    expect(first.ok.digest).toMatch(/^sha256:[0-9a-f]{64}$/u)
+    const another = acceptedDispatch(2, { call: ACCESS.call })
+    const forAnother = world({
+      dispatch: another,
+      facts: kept(WAIT, JSON.stringify({ dispatch: another.id })),
+    })
+    const second = await ensure(forAnother.bridge)
+    expect('ok' in second && second.ok.digest).not.toBe(first.ok.digest)
+    expect('ok' in second && second.ok.record).toBe(`report-wait/${another.id}`)
+  })
+
+  it('does not take the outcome of another dispatch as the decision of this wait', async () => {
+    const other = { ...acceptedDispatch(2, { call: ACCESS.call }), ...outcomeOf('done elsewhere') }
+    const elsewhere = world({
+      dispatch: other,
+      facts: kept(WAIT, JSON.stringify({ dispatch: other.id })),
+    })
+    const shown = await inspect(elsewhere.bridge)
+    if (!('ok' in shown) || shown.ok.decision === null) throw new Error('no decision is shown')
+    expect(shown.ok.decision).toMatchObject({
+      owner: OWNER,
+      record: `dispatch-outcome/${other.id}`,
+    })
+    const here = world({ dispatch: reported })
+    expect(
+      await here.bridge.resolve({ ...ACCESS, wait: WAIT, decision: shown.ok.decision }),
+    ).toEqual({
+      failure: invalid('decision', 'the decision is not the outcome of the dispatch of the wait'),
+    })
+  })
+
+  it('gives the closing of each wait of each call its own evidence', async () => {
+    const { bridge } = world({ facts: facts({ waits: [waitRecord('cancelled')] }) })
+    const close = (call: string, wait: ToolWaitId, terminal: string) =>
+      bridge.invalidate({
+        ...ACCESS,
+        call: call as typeof ACCESS.call,
+        operation: operation('close'),
+        wait,
+        terminal: evidence(terminal),
+        cause: 'cancelled',
+      })
+    const answers = await Promise.all([
+      close('call-1', WAIT, 'terminal'),
+      close('call-2', WAIT, 'terminal'),
+      close('call-1', OTHER, 'terminal'),
+      close('call-1', WAIT, 'another-terminal'),
+    ])
+    const records = answers.map(answer => ('ok' in answer ? answer.ok.record : ''))
+    expect(new Set(records).size).toBe(3)
+    expect(records[0]).toMatch(/^report-wait-closed\/sha256:[0-9a-f]{64}$/u)
+    expect(new Set(answers.map(answer => 'ok' in answer && answer.ok.digest)).size).toBe(4)
+  })
+
+  it('recalls the right duty among several tasks and waits of the call', async () => {
+    const other = { ...duty('ensure-9', 'ensure'), wait: OTHER } as never
+    const delivery = { kind: 'deliver', operation: operation('close-1') } as never
+    const several = facts({
+      waits: [waitRecord('open', stranger, OTHER), waitRecord('cancelled')],
+      tasks: [delivery, other, duty('close-1', 'invalidate')],
+    })
+    const { bridge } = world({ facts: several })
+    const receipt = await bridge.invalidate({
+      ...ACCESS,
+      operation: operation('close-1'),
+      wait: WAIT,
+      terminal: evidence('terminal'),
+      cause: 'cancelled',
+    })
+    expect(await bridge.inspectOperation({ ...ACCESS, operation: operation('close-1') })).toEqual({
+      ok: { kind: 'committed', operation: 'close-1', receipt: 'ok' in receipt && receipt.ok },
+    })
+  })
+
   it.each([
-    ['an operation no wait duty carries', facts()],
+    ['an operation no wait duty carries', facts(), 'no wait duty of the call has the operation'],
     [
       'a registration whose dispatch cannot be read',
       facts({ waitRequest: null, tasks: [duty('op', 'ensure')] }),
+      'the registration cannot be rebuilt: invalid',
     ],
-    ['a closing of a wait that is still open', facts({ tasks: [duty('op', 'invalidate')] })],
+    [
+      'a closing of a wait that is still open',
+      facts({ tasks: [duty('op', 'invalidate')] }),
+      'the wait of the closing is not closed by a control or a terminal',
+    ],
     [
       'a closing of a wait that was continued',
       facts({ waits: [waitRecord('continued')], tasks: [duty('op', 'invalidate')] }),
+      'the wait of the closing is not closed by a control or a terminal',
     ],
-  ])('leaves %s unknown', async (_name, kept) => {
-    const { bridge } = world({ facts: kept })
-    expect(await bridge.inspectOperation({ ...ACCESS, operation: operation('op') })).toMatchObject({
-      ok: { kind: 'unknown', operation: 'op' },
+    [
+      'a closing of a wait the call does not have',
+      facts({ waits: [], tasks: [duty('op', 'invalidate')] }),
+      'the wait of the closing is not closed by a control or a terminal',
+    ],
+  ])('leaves %s unknown, and says why', async (_name, keptFacts, diagnostic) => {
+    const { bridge } = world({ facts: keptFacts })
+    expect(await bridge.inspectOperation({ ...ACCESS, operation: operation('op') })).toEqual({
+      ok: { kind: 'unknown', operation: 'op', diagnostic },
+    })
+  })
+
+  it('leaves an operation unknown when the call cannot be read', async () => {
+    const bridge = createReportBridge({
+      recoveryOf: () => Promise.resolve(fail({ kind: 'denied', action: 'recover' })),
+      dispatchOf: () => Promise.reject(new Error('not asked')),
+      waitClosed: () => undefined,
+    })
+    expect(await bridge.inspectOperation({ ...ACCESS, operation: operation('op') })).toEqual({
+      ok: { kind: 'unknown', operation: 'op', diagnostic: 'the call cannot be read: denied' },
     })
   })
 })

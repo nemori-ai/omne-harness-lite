@@ -114,10 +114,9 @@ export function readReportWaitRequest(kept: string): DispatchId | null {
 
 const jsonBytes = (value: string): number => Buffer.byteLength(JSON.stringify(value))
 
-/** The longest well-formed start of the text whose JSON form fits the budget. */
+/** The longest start of the text whose JSON form fits the budget. A pair is never cut: half of it costs more than all of it. */
 function fitted(value: string, budget: number): string {
   const whole = value.toWellFormed()
-  if (jsonBytes(whole) <= budget) return whole
   let low = 0
   let high = whole.length
   while (low < high) {
@@ -125,26 +124,27 @@ function fitted(value: string, budget: number): string {
     if (jsonBytes(whole.slice(0, middle)) <= budget) low = middle
     else high = middle - 1
   }
-  const cut = whole.slice(0, low)
-  return cut.isWellFormed() ? cut : cut.slice(0, -1)
+  return whole.slice(0, low)
+}
+
+function reportOf(report: WaitOutcome['report']): JsonValue {
+  if (report === null) return NULL
+  const shown = fitted(report.text, REPORT_TEXT_ANSWER_BYTES)
+  return object({
+    text: text(shown),
+    origin: text(report.origin),
+    truncated: { kind: 'boolean', value: shown !== report.text },
+  })
 }
 
 /** The answer of the wait: the outcome as the dispatch keeps it, with a long report cut and marked. */
 export function reportWaitAnswer(outcome: WaitOutcome): JsonValue {
-  const { report, failure } = outcome
-  const shown = report === null ? null : fitted(report.text, REPORT_TEXT_ANSWER_BYTES)
+  const { failure } = outcome
   return object({
     dispatch: text(outcome.id),
     state: text(outcome.state),
     session: text(outcome.session),
-    report:
-      report === null || shown === null
-        ? NULL
-        : object({
-            text: text(shown),
-            origin: text(report.origin),
-            truncated: { kind: 'boolean', value: shown !== report.text },
-          }),
+    report: reportOf(outcome.report),
     failure:
       failure === null
         ? NULL
