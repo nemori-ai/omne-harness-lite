@@ -1159,6 +1159,14 @@
       "domains": ["media"],
       "status": "candidate",
       "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-ui",
+      "paths": ["packages/media/media-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
     }
   ],
   "rules": [
@@ -1728,7 +1736,8 @@
         "packages/media/media-image",
         "packages/media/media-protocol",
         "packages/media/media-access",
-        "packages/media/media-adapters"
+        "packages/media/media-adapters",
+        "packages/media/media-ui"
       ],
       "source": "packages/media/SPEC.md"
     },
