@@ -11,7 +11,7 @@
 | --- | --- | --- | --- |
 | C1 | 一个语义角色只有一个名字，名字说它画什么 | 面 `--omne-surface-page`、`-panel`、`-panel-soft`、`-overlay`、`-field`；交互的底 `--omne-hover`、`--omne-press`、`--omne-selected`；强调 `--omne-accent`、`-hover`、`-press`、`--omne-accent-ink`；墨 `--omne-ink-primary`、`-muted`、`-faint`；线 `--omne-line-subtle`、`--omne-line`、`--omne-line-focus`；事实色 `--omne-{caution,danger,good,info}-{ink,fill,line}` | 令牌 |
 | C2 | 墨蓝只标出动作、链接与键盘焦点 | `--omne-accent`、`--omne-line-focus` | 人看 |
-| C3 | 琥珀只写待答数：形口外的数字与导航「待你决定」后的计数胶囊。别的计数用中性的样子。结果未知是中性的，不是琥珀也不是红 | `--omne-caution-ink`；共用件的计数胶囊 | 一事一件 |
+| C3 | 琥珀是唯一「等你回答」的颜色：形口外的待答数、导航「待你决定」后的计数胶囊、等人回答的决策卡片、列表里等人的行；别的颜色不表示在等人。此外琥珀只作已知事实的「注意」语气（行内通知、状态词）。别的计数用中性的样子。结果未知是中性的，不是琥珀也不是红；一轮失败用失败语气 | `--omne-caution-{ink,fill,line}`；共用件的计数胶囊 | 一事一件；人看 |
 | C4 | 红只用在失败的事实与不可撤销的最后一步上。可以撤销的确认用默认的墨色 | `--omne-danger-*` | 人看 |
 | C5 | 只用已有的语义角色：不为页面加调色板、别名或冷灰的卡片。正文与状态词对底色 4.5:1，字段边界与焦点 3:1，装饰的细线可以更淡 | 语义层的 token | 令牌、对比 |
 | C6 | 弱墨规则：`ink-faint` 是写在纸上的元信息墨（页、面板、侧栏、字段）。它后面有底（悬停、按下、选中的控件，事实色的淡底）时，它落到 `ink-muted`，所以元信息仍有 4.5:1，并随悬停深一步。组件照写 `ink-faint`，动效样式表统一处理一次。字段与控件的边界画在页、面板与字段上；侧栏的底上只放行和字，不放边界 | `--omne-ink-faint`、`--omne-ink-muted` | 对比 |
