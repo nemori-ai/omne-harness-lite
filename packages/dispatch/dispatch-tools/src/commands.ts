@@ -70,14 +70,12 @@ const kept = (row: Row, { relation, attendance, definition }: ListParams): boole
   (attendance === undefined || row.attendance === attendance) &&
   (definition === undefined || row.definition === definition)
 
-const byState: Handler<'list'> = ({ dispatching, context }, params) =>
+type State = NonNullable<ListParams['dispatch']>
+
+const byState = ({ dispatching, context }: Reached, params: ListParams, state: State) =>
   reading(
     'list',
-    () =>
-      dispatching.list(context, {
-        by: { dispatcher: context.session },
-        states: params.dispatch === undefined ? [] : [params.dispatch],
-      }),
+    () => dispatching.list(context, { by: { dispatcher: context.session }, states: [state] }),
     found => ({
       sessions: found.map(rowOf).filter(row => kept(row, params)),
       next: null,
@@ -160,5 +158,5 @@ export const HANDLERS: { [K in Reaching]: Handler<K> } = {
   list: (reached, params, bound) =>
     params.dispatch === undefined
       ? byDirectory(reached, params, bound)
-      : byState(reached, params, bound),
+      : byState(reached, params, params.dispatch),
 }

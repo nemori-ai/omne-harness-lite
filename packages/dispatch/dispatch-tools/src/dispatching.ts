@@ -54,7 +54,7 @@ const HANDED =
 
 function stateOf(checkpoint: Uint8Array): DispatchId | undefined {
   try {
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(checkpoint)
+    const text = new TextDecoder().decode(checkpoint)
     return stateSchema.parse(JSON.parse(text)).dispatch
   } catch {
     return undefined

@@ -65,7 +65,11 @@ describe('targets', () => {
   it('is unavailable when the definitions cannot be read', async () => {
     const w = world({}, { targets: async () => undefined })
     expect(await ask(w, { command: 'targets', params: {} })).toMatchObject({
-      failure: { kind: 'unavailable', operation: 'Agents.targets' },
+      failure: {
+        kind: 'unavailable',
+        operation: 'Agents.targets',
+        reason: 'the agent definitions cannot be read now',
+      },
     })
   })
 })
@@ -87,6 +91,22 @@ describe('show', () => {
       expectation: null,
     })
     expect(w.made('show')).toEqual([[CONTEXT, reported.id]])
+  })
+
+  it('leaves out the report, the failure and the stop of a dispatch that has none', async () => {
+    const started = dispatchOf({ state: 'started' })
+    const w = world({ show: async () => done(started) })
+    const { value } = valueOf(await ask(w, { command: 'show', params: { dispatch: started.id } }))
+    expect(Object.keys(value).sort()).toEqual([
+      'agent',
+      'delivery',
+      'dispatch',
+      'dispatcher',
+      'expectation',
+      'mode',
+      'session',
+      'state',
+    ])
   })
 
   it.each([
@@ -317,10 +337,9 @@ describe('list', () => {
   it('does not ask the registry for an empty page', async () => {
     const w = world()
     w.pages.push({ ok: { items: [], next: null, complete: true } })
-    expect(valueOf(await ask(w, { command: 'list', params: {} })).value).toEqual({
-      sessions: [],
-      next: null,
-      complete: true,
+    expect(valueOf(await ask(w, { command: 'list', params: {} }))).toEqual({
+      head: 'done Agents list',
+      value: { sessions: [], next: null, complete: true },
     })
     expect(w.filters).toEqual([
       {
@@ -385,6 +404,27 @@ describe('list', () => {
   })
 
   it.each([
+    [{ relation: 'handed-off' }, 0],
+    [{ relation: 'child' }, 1],
+    [{ attendance: 'unattended' }, 1],
+    [{ attendance: 'attended' }, 0],
+    [{ definition: 'coding' }, 0],
+    [{ definition: 'helper' }, 1],
+  ] as const)('keeps a child dispatch of helper under the filter %j: %i', async (filter, count) => {
+    const open = dispatchOf({ session: PEER as never, state: 'started' })
+    const w = world({ list: async () => done([open]) })
+    const listed = await ask(w, { command: 'list', params: { dispatch: 'started', ...filter } })
+    expect((valueOf(listed).value['sessions'] as unknown[]).length).toBe(count)
+  })
+
+  it('is unavailable under its own name when the registry cannot list by state', async () => {
+    const w = world({ list: async () => ({ kind: 'basis-unavailable' }) })
+    expect(await ask(w, { command: 'list', params: { dispatch: 'started' } })).toMatchObject({
+      failure: { kind: 'unavailable', operation: 'Agents.list' },
+    })
+  })
+
+  it.each([
     ['denied', 'unsupported'],
     ['invalid', 'invalid'],
     ['unavailable', 'unavailable'],
@@ -392,6 +432,18 @@ describe('list', () => {
     const w = world()
     w.pages.push({ failure })
     expect(await ask(w, { command: 'list', params: {} })).toMatchObject({ failure: { kind } })
+  })
+
+  it('names the list and the directory when the directory cannot answer', async () => {
+    const w = world()
+    w.pages.push({ failure: 'unavailable' })
+    expect(await ask(w, { command: 'list', params: {} })).toMatchObject({
+      failure: {
+        kind: 'unavailable',
+        operation: 'Agents.list',
+        reason: 'the session directory cannot answer now',
+      },
+    })
   })
 
   it('is unavailable when the registry cannot give the states of the page', async () => {

@@ -37,6 +37,9 @@ describe('the dispatch command: the first segment', () => {
       request: reportWaitRequest(accepted.id),
     })
     expect(first.ok.closedResult).toBe(DISPATCH_CLOSED_RESULT)
+    expect(DISPATCH_CLOSED_RESULT).toBe(
+      'The dispatch is still in progress: this call stopped waiting, the dispatched work did not stop. Its report will come to this session later as a reminder. Read it with the command show, or take it back with withdraw.',
+    )
     expect(JSON.parse(new TextDecoder().decode(first.ok.state))).toEqual({ dispatch: accepted.id })
     expect(w.made('dispatch')).toEqual([
       [
@@ -80,13 +83,17 @@ describe('the dispatch command: the first segment', () => {
     expect(await dispatchExecutor.initial(ARGS, null, segment(unknown))).toMatchObject({
       failure: { kind: 'unknown', operation: 'Agents.dispatch' },
     })
+    const thrown = world({ dispatch: async () => Promise.reject(new Error('down')) })
+    expect(await dispatchExecutor.initial(ARGS, null, segment(thrown))).toMatchObject({
+      failure: { kind: 'unknown', operation: 'Agents.dispatch' },
+    })
     const absent = world({ dispatch: async () => ({ kind: 'basis-unavailable' }) })
     expect(await dispatchExecutor.initial(ARGS, null, segment(absent))).toMatchObject({
-      failure: { kind: 'unavailable' },
+      failure: { kind: 'unavailable', operation: 'Agents.dispatch' },
     })
     const unattached = world()
     expect(await dispatchExecutor.initial(ARGS, null, unattached.context as never)).toMatchObject({
-      failure: { kind: 'unavailable' },
+      failure: { kind: 'unavailable', operation: 'Agents.dispatch' },
     })
   })
 })
@@ -137,6 +144,7 @@ describe('the dispatch command: the segment after the wait', () => {
     const handed = dispatchOf({ mode: 'handoff', state: 'handed-off' })
     const result = await resume(answered(handed))
     if (!('ok' in result) || result.ok.kind !== 'completed') throw new Error(JSON.stringify(result))
+    expect(result.ok.value.split('\n')[0]).toBe('done Agents dispatch')
     expect(JSON.parse(result.ok.value.split('\n').slice(1).join('\n'))).toEqual({
       dispatch: handed.id,
       session: handed.session,
@@ -166,6 +174,22 @@ describe('the dispatch command: the segment after the wait', () => {
   })
 
   it.each([
+    ['a report that is not there', { state: 'reported', report: null }, 'reported'],
+    [
+      'a report on a dispatch that did not end with one',
+      { state: 'withdrawn', report: { text: 'x', origin: 'report', truncated: false } },
+      'withdrawn',
+    ],
+  ])('fails the call on %s', async (_name, change, end) => {
+    const base = answered(dispatchOf({ state: 'withdrawn', stop: 'requested' }))
+    const result = await resume({ ...base, value: { ...(base.value as object), ...change } })
+    expect(result).toMatchObject({ failure: { kind: 'unsupported' } })
+    expect('failure' in result && result.failure.reason).toContain(
+      `ended without a report: ${end}. Its session`,
+    )
+  })
+
+  it.each([
     ['no answer', { kind: 'no-answer' }],
     ['a declined decision', { kind: 'declined' }],
     ['an answer of another shape', { kind: 'answer', value: { state: 'reported' } }],
@@ -180,7 +204,12 @@ describe('the dispatch command: the segment after the wait', () => {
       ),
     ],
   ])('does not take %s for the outcome of its dispatch', async (_name, response) => {
-    expect(await resume(response)).toMatchObject({ failure: { kind: 'invalid' } })
+    expect(await resume(response)).toEqual({
+      failure: {
+        kind: 'invalid',
+        reason: 'the answer of the wait is not the outcome of the dispatch of this call',
+      },
+    })
   })
 
   it('does not take a checkpoint it did not write', async () => {
@@ -190,6 +219,8 @@ describe('the dispatch command: the segment after the wait', () => {
       null,
       {} as never,
     )
-    expect(result).toMatchObject({ failure: { kind: 'invalid' } })
+    expect(result).toEqual({
+      failure: { kind: 'invalid', reason: 'the kept state of the dispatch call is not readable' },
+    })
   })
 })
