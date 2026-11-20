@@ -14,9 +14,13 @@ import type {
   TerminalFacility,
   TerminalRetention,
 } from '@omne-harness/execution-environment-contract'
-import type { Outcome } from '@omne-harness/operation-result'
-import type { ToolFailure } from '@omne-harness/tool-contract'
-import type { CallAccess } from '@omne-harness/tool-contract/provider'
+import { fail, type Outcome } from '@omne-harness/operation-result'
+import type { ConsumerRef, ToolFailure } from '@omne-harness/tool-contract'
+import type {
+  CallAccess,
+  ToolMediaSink,
+  ToolMediaStore,
+} from '@omne-harness/tool-contract/provider'
 
 type BusinessRequest<T> = T extends { readonly entries: readonly (infer E)[] }
   ? Omit<T, keyof FacilityRequest<unknown> | 'entries'> & {
@@ -49,6 +53,7 @@ export type ToolEnvironmentValue = Readonly<{
     readonly retention?: AuthorFacility<TerminalRetention<unknown>>
   }
   facts: EnvironmentFacts & Readonly<{ os: string }>
+  media: ToolMediaSink
   /** Where the call works by default: the directory pinned in its request. Absent: it has none. */
   directory?: string
 }>
@@ -70,6 +75,8 @@ export type AuthorEnvironmentInput<P> = Readonly<{
   lease: EnvironmentLease
   naming: FileObjectNaming<P>
   facts: EnvironmentFacts
+  /** The provider that stores products, taken anew at each put; absent while none is installed. */
+  media: () => ToolMediaStore<P> | undefined
 }>
 
 function namingFailure(requestId: string, failure: ToolFailure): FacilityResult<never> {
@@ -83,12 +90,42 @@ function namingFailure(requestId: string, failure: ToolFailure): FacilityResult<
 
 /** The default directory of the author is the files root of the placement: one pinned value. */
 export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue {
-  const value = boundFacilities(input)
+  const value = { ...boundFacilities(input), media: productSink(input) }
   const directory = input.lease.placement.filesRoot
-  return directory === undefined ? value : Object.freeze({ ...value, directory })
+  return Object.freeze(directory === undefined ? value : { ...value, directory })
 }
 
-function boundFacilities<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue {
+export const TOOL_PRODUCT_OWNER = '@omne-harness/tool-host-local/products'
+const PUT = 'media.put'
+
+/** The author names a media type and bytes; the tenant and the holder are those of this call. */
+function productSink<P>(input: AuthorEnvironmentInput<P>): ToolMediaSink {
+  const { principal, tenant, call } = input.access
+  const holder: ConsumerRef = {
+    owner: TOOL_PRODUCT_OWNER,
+    work: call,
+    position: 'result',
+    purpose: 'product',
+  }
+  return Object.freeze({
+    async put({ mediaType, bytes }) {
+      const store = input.media()
+      if (store === undefined)
+        return fail({
+          kind: 'unavailable',
+          operation: PUT,
+          reason: 'no provider stores products on this host',
+        })
+      try {
+        return await store.put({ principal, tenant, holder, mediaType, bytes })
+      } catch {
+        return fail({ kind: 'unknown', operation: PUT, reason: 'the store did not answer' })
+      }
+    },
+  } satisfies ToolMediaSink)
+}
+
+function boundFacilities<P>(input: AuthorEnvironmentInput<P>): Omit<ToolEnvironmentValue, 'media'> {
   const base = (): FacilityRequest<P> => ({
     requestId: randomUUID(),
     access: { principal: input.access.principal, tenant: input.access.tenant },
