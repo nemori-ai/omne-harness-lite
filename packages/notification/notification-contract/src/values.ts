@@ -74,25 +74,23 @@ export const termSchema = z.discriminatedUnion('kind', [
 ])
 export type Term = z.infer<typeof termSchema>
 
-export const GRANT_MAX_BYTES = 2048
-const encoder = new TextEncoder()
-const grantSchema = z
-  .string()
-  .min(1)
-  .refine(value => encoder.encode(value).byteLength <= GRANT_MAX_BYTES)
+const creatorRef = z.string().min(1)
 
-export const basisSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('owner') }).readonly(),
+/** Who made a subscription: a person, an agent in the session and the tool call it ran in, or the
+ * system. The caller's adapter names it; the same shape as the author of a schedule. */
+export const creatorSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('human'), actorRef: creatorRef }).readonly(),
   z
     .strictObject({
-      kind: z.literal('blanket'),
-      scope: z.enum(['standing', 'session']),
-      grant: grantSchema,
+      kind: z.literal('agent'),
+      actorRef: creatorRef,
+      originatingSessionRef: creatorRef,
+      originatingCallRef: creatorRef,
     })
     .readonly(),
-  z.strictObject({ kind: z.literal('granular'), grant: grantSchema }).readonly(),
+  z.strictObject({ kind: z.literal('system'), principalRef: creatorRef }).readonly(),
 ])
-export type Basis = z.infer<typeof basisSchema>
+export type Creator = z.infer<typeof creatorSchema>
 
 export const noteSchema = z.string().min(1).max(500)
 

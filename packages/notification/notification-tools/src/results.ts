@@ -42,10 +42,6 @@ const REFUSALS: Readonly<Record<Refusal, readonly [Kind, string]>> = {
   'not-subscribable': ['unsupported', 'agents cannot subscribe to this event type'],
   'scope-does-not-fit': ['invalid', 'the scope does not fit the subject this event type takes'],
   'not-own-recipient': ['unsupported', 'you can only change your own subscriptions'],
-  'consent-required': [
-    'unsupported',
-    'this call was not released with a consent to subscribe; nothing was changed',
-  ],
 }
 
 const completed = (command: NotificationsCommandName, value: unknown): Answer =>

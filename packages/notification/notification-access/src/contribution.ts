@@ -71,7 +71,6 @@ function subscriptionRefusal(reason: SubscriptionRefusal) {
       return REQUEST
     case 'not-permitted':
     case 'not-own-recipient':
-    case 'consent-required':
       return DENIED
   }
 }
@@ -274,7 +273,6 @@ function subscriptionHandlers(input: NotificationContributionInput) {
     )
   }
 
-  /** The owner needs nobody's consent. */
   const setSubscription: Handlers['set-subscription'] = async (call, body) => {
     const ready = await prepare(input, call.principal, body.tenant)
     if (ready.outcome !== null) return ready

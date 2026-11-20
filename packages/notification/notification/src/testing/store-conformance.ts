@@ -288,7 +288,7 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         level: 'strong',
         note: null,
         term: { kind: 'standing' },
-        basis: { kind: 'owner' },
+        creator: { kind: 'human', actorRef: 'owner' },
         expired: false,
       } as const
       assert.deepEqual(
@@ -348,7 +348,7 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         level: 'strong',
         note: null,
         term: { kind: 'once' },
-        basis: { kind: 'owner' },
+        creator: { kind: 'human', actorRef: 'owner' },
         expired: false,
       } as const
       const other = {
@@ -356,7 +356,7 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         level: 'weak',
         note: null,
         term: { kind: 'standing' },
-        basis: { kind: 'owner' },
+        creator: { kind: 'human', actorRef: 'owner' },
         expired: false,
       } as const
       committed(await store.subscribe(T1, { defaults: DEFAULTS, key, expected: null, next: once }))
@@ -438,7 +438,7 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
           level: 'strong',
           note: null,
           term: { kind: 'standing' },
-          basis: { kind: 'owner' },
+          creator: { kind: 'human', actorRef: 'owner' },
           expired: false,
         } as const
         committed(await store.subscribe(T1, { defaults: DEFAULTS, key, expected: null, next }))

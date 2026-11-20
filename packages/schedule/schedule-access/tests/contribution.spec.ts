@@ -26,7 +26,12 @@ const ID = '7d1c2c0e-3b1f-4a52-9c1b-8f3e2a6d5b40'
 const view = (control: string) => ({
   scheduleId: ID,
   owner: { kind: 'tenant', tenantId: 't', ownerId: 'a' },
-  author: { kind: 'agent', actorRef: 'agent', originatingSessionRef: 'session-1' },
+  author: {
+    kind: 'agent',
+    actorRef: 'agent',
+    originatingSessionRef: 'session-1',
+    originatingCallRef: 'call-1',
+  },
   createdBy: 'p',
   createdAt: at,
   definition: { label: control },
@@ -34,10 +39,6 @@ const view = (control: string) => ({
   control,
   standing: { kind: 'ready' },
   nextOccurrence: null,
-  consentAdoption:
-    control === 'active'
-      ? { grantRef: 'g', adoptionKind: 'blanket', scope: 'standing', adoptedAt: at }
-      : null,
 })
 const error = (code: string) => ({
   code,
@@ -132,15 +133,14 @@ describe('reads', () => {
     expect(all).toMatchObject({ body: { items: [{}, {}, {}] } })
   })
 
-  it('names the consent a schedule took effect on, and the agent session that wrote it', async () => {
+  it('answers a schedule with who created it, and with no consent it took effect on', async () => {
     const { ops } = world({ get: { kind: 'ok', value: view('active') } })
-    expect(await ops['read-schedule'](call, { tenant: tenantId, schedule: ID })).toMatchObject({
+    const answer = await ops['read-schedule'](call, { tenant: tenantId, schedule: ID })
+    expect(answer).toMatchObject({
       outcome: 'succeeded',
-      body: {
-        basis: { kind: 'blanket', scope: 'standing' },
-        author: { kind: 'agent', session: 'session-1' },
-      },
+      body: { author: { kind: 'agent', session: 'session-1' } },
     })
+    expect((answer as { body: object }).body).not.toHaveProperty('basis')
   })
 
   it('answers another tenant and a missing schedule the same way', async () => {
@@ -188,7 +188,6 @@ describe('writes', () => {
   })
 
   it.each([
-    ['consent_required', { outcome: 'unsupported', body: { code: 'consent_required' } }],
     ['revision_conflict', { outcome: 'conflict', body: { code: 'revision_conflict' } }],
     ['capacity_exceeded', { outcome: 'limited', body: {} }],
     ['invalid_transition', { outcome: 'invalid', body: { code: 'invalid_transition' } }],

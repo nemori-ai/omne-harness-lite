@@ -32,7 +32,7 @@ const subscription = {
   level: 'strong',
   note: 'open a card',
   term: { kind: 'until', at: instant },
-  basis: { kind: 'granular' },
+  creator: { kind: 'agent', session: 'session-1' },
   expired: false,
 }
 const destination = {
@@ -236,8 +236,8 @@ describe('a send by the owner', () => {
 })
 
 describe('subscriptions and the beat', () => {
-  it('sets, lists and removes a subscription over every scope, level, term and basis', () => {
-    const { basis: _basis, expired: _expired, ...change } = subscription
+  it('sets, lists and removes a subscription over every scope, level, term and creator', () => {
+    const { creator: _creator, expired: _expired, ...change } = subscription
     expectRoundTrip(operations['set-subscription'].body, { tenant, ...change })
     for (const scope of [{ kind: 'all' }, { kind: 'subject-prefix', prefix: 'repo/' }])
       for (const term of [{ kind: 'standing' }, { kind: 'once' }])
@@ -250,16 +250,34 @@ describe('subscriptions and the beat', () => {
             level,
             note: null,
           })
-    for (const basis of [
-      { kind: 'owner' },
-      { kind: 'blanket', scope: 'standing' },
-      { kind: 'blanket', scope: 'session' },
+    for (const creator of [
+      { kind: 'human' },
+      { kind: 'agent', session: 's-1' },
+      { kind: 'system' },
     ])
       expectRoundTrip(operations['set-subscription'].outcomes.succeeded, {
         ...subscription,
-        basis,
+        creator,
         expired: true,
       })
+    for (const creator of [
+      { kind: 'agent' },
+      { kind: 'human', session: 's-1' },
+      { kind: 'owner' },
+      { kind: 'blanket', scope: 'standing' },
+    ])
+      expect(
+        readSample(operations['set-subscription'].outcomes.succeeded, {
+          ...subscription,
+          creator,
+        }).ok,
+      ).toBe(false)
+    expect(
+      readSample(operations['set-subscription'].outcomes.succeeded, {
+        ...subscription,
+        basis: { kind: 'owner' },
+      }).ok,
+    ).toBe(false)
     expectRoundTrip(operations['set-subscription'].outcomes['no-change'], subscription)
     expectRoundTrip(operations['list-subscriptions'].outcomes.succeeded, {
       subscriptions: [subscription],

@@ -105,7 +105,6 @@ export default {
       return fail('forbidden')
     const mode = authority[3]
     if (mode === 'deny') return fail('forbidden')
-    if (mode === 'consent') return fail('consent_required')
     const failure = quota(port, requirement, authority[5])
     if (failure !== null) return fail(failure)
     if (mode === 'sql') {

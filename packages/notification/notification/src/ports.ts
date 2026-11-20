@@ -1,7 +1,7 @@
 import type {
   AuthorityAnswer,
   CallContext,
-  ConsentAnswer,
+  Creator,
   Destination,
   Disclosure,
   Instant,
@@ -45,9 +45,10 @@ export async function ask(
   }
 }
 
-export interface SubscriptionConsents {
-  /** What the call of this context was released on. Asked only when an agent's subscription writes. */
-  consent(ctx: CallContext): Promise<ConsentAnswer>
+export interface SubscriptionCreators {
+  /** Who acts in this context, as its caller's adapter names it; null when it cannot be named now.
+   * Asked only when a subscription is written. */
+  creatorOf(ctx: CallContext): Promise<Creator | null>
 }
 
 /** This group's need for standing items, in its own shape. The assembly binds the sources' blocks to it. */

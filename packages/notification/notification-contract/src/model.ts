@@ -1,8 +1,8 @@
 import {
   sameRecipient,
-  type Basis,
   type BoxedLevel,
   type Cause,
+  type Creator,
   type EventTypeName,
   type Instant,
   type Level,
@@ -26,7 +26,7 @@ export type Subscription = SubscriptionKey &
     level: Level
     note: string | null
     term: Term
-    basis: Basis
+    creator: Creator
     /** Set in the commit that hit a `once` subscription. */
     expired: boolean
   }>
@@ -58,9 +58,11 @@ function scopeKey(scope: Scope): string {
   return scope.kind === 'subject-prefix' ? `^${scope.prefix}` : '*'
 }
 const termKey = (term: Term) => (term.kind === 'until' ? `until ${term.at}` : term.kind)
-function basisKey(basis: Basis): string {
-  if (basis.kind === 'blanket') return JSON.stringify([basis.kind, basis.scope, basis.grant])
-  return basis.kind === 'granular' ? JSON.stringify([basis.kind, basis.grant]) : 'owner'
+function creatorKey(creator: Creator): string {
+  if (creator.kind === 'system') return JSON.stringify([creator.kind, creator.principalRef])
+  if (creator.kind === 'human') return JSON.stringify([creator.kind, creator.actorRef])
+  const { actorRef, originatingSessionRef, originatingCallRef } = creator
+  return JSON.stringify([creator.kind, actorRef, originatingSessionRef, originatingCallRef])
 }
 
 export const sameScope = (a: Scope, b: Scope): boolean => scopeKey(a) === scopeKey(b)
@@ -84,7 +86,7 @@ export function sameSubscription(a: Subscription | null, b: Subscription | null)
     a.level === b.level &&
     a.note === b.note &&
     sameTerm(a.term, b.term) &&
-    basisKey(a.basis) === basisKey(b.basis) &&
+    creatorKey(a.creator) === creatorKey(b.creator) &&
     a.expired === b.expired
   )
 }

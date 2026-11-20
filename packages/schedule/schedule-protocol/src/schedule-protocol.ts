@@ -55,18 +55,8 @@ const card = object({
   revision: { rule: count },
 })
 
-/** Why a schedule is in effect: the owner's own act, a blanket consent standing or for one session,
- * or the owner's release of this one change. */
-const basis = oneOf(
-  object({ kind: { rule: literal('owner') } }),
-  object({ kind: { rule: literal('blanket') }, scope: { rule: literal('standing', 'session') } }),
-  object({ kind: { rule: literal('granular') } }),
-  object({ kind: { rule: literal('none') } }),
-)
-
 const detail = object({
   ...card.fields,
-  basis: { rule: basis },
   createdAt: { rule: instant },
   definition: { rule: json },
 })

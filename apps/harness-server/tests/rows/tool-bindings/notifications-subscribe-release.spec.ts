@@ -5,6 +5,7 @@ import {
   onReleaseTree,
   pollUntil,
   startAcceptances,
+  toolCalls,
   toolCallsThenText,
   toolResults,
   type ReleaseTree,
@@ -41,28 +42,34 @@ async function settled(tree: ReleaseTree, session: string, what: string) {
   return toolResults(entries).join('\n')
 }
 
-/** The basis the subscription was written with, as the tool's result shows it to the agent. */
-function basisIn(result: string): unknown {
+/** The calls of the Notifications tool the tool host recorded, in the order they were queued. */
+const callsOf = (tree: ReleaseTree) =>
+  toolCalls(tree.storageRoot)
+    .filter(row => row.tool === 'Notifications')
+    .map(row => row.call)
+
+/** Who created the subscription, as the tool's result shows it to the agent. */
+function creatorIn(result: string): unknown {
   const [head, body] = result.split('\n')
   if (head !== 'done Notifications subscribe' || body === undefined) return result
-  return (JSON.parse(body) as { basis: unknown }).basis
+  return (JSON.parse(body) as { creator: unknown }).creator
 }
 
 describe('a subscription of the Notifications tool on the release tree', () => {
   it(
-    'is made on the standing permission; once the subscribe gate asks, the answer to the release card is the consent',
+    'is made on the standing permission; once the subscribe gate asks, the answer to the release card lets it through',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
       const exit = await onReleaseTree({ script, permission: 'auto_permission' }, async tree => {
-        const standing = await settled(
-          tree,
-          await tree.startSession('notifications: standing'),
-          'standing',
-        )
-        expect(basisIn(standing)).toEqual({
-          kind: 'blanket',
-          scope: 'standing',
-          grant: expect.stringContaining('"layer":"tenant"'),
+        const session = await tree.startSession('notifications: standing')
+        const standing = await settled(tree, session, 'standing')
+        const [standingCall, ...others] = callsOf(tree)
+        expect(others).toEqual([])
+        expect(creatorIn(standing)).toEqual({
+          kind: 'agent',
+          actorRef: expect.any(String),
+          originatingSessionRef: session,
+          originatingCallRef: standingCall,
         })
         expect(startAcceptances(tree.storageRoot).map(row => row['release'])).toContainEqual({
           by: 'verdict',
@@ -89,9 +96,14 @@ describe('a subscription of the Notifications tool on the release tree', () => {
           },
         })
         await answerCard(tree, card, ['--option', 'allow-once'], 'reply-once')
-        expect(basisIn(await settled(tree, once, 'once'))).toEqual({
-          kind: 'granular',
-          grant: expect.stringContaining('"via":"once"'),
+        const settledOnce = await settled(tree, once, 'once')
+        const onceCalls = callsOf(tree).filter(call => call !== standingCall)
+        expect(onceCalls).toHaveLength(1)
+        expect(creatorIn(settledOnce)).toEqual({
+          kind: 'agent',
+          actorRef: expect.any(String),
+          originatingSessionRef: once,
+          originatingCallRef: onceCalls[0],
         })
 
         const denied = await tree.startSession('notifications: denied')

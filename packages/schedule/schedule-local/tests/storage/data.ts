@@ -60,12 +60,12 @@ export function access(ctx = context): ManagementAccess {
                 kind: 'agent',
                 actorRef: ctx.actor.actorRef,
                 originatingSessionRef: ctx.originatingSessionRef ?? 'invalid',
+                originatingCallRef: ctx.requestId,
               },
       role: ctx.actor.kind === 'system' ? 'system' : 'owner',
       authorityVersion: 'authority:1',
       guardRef: 'authority:guard',
     },
-    consent: { kind: 'notRequired', guardRef: 'consent:guard' },
     currentStanding: {
       kind: 'ready',
       generation: 1,

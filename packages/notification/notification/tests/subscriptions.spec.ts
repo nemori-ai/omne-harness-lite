@@ -33,7 +33,7 @@ describe('the owner sets subscriptions', () => {
     expect(set).toMatchObject({
       kind: 'done',
       recalled: false,
-      value: { basis: { kind: 'owner' }, expired: false },
+      value: { creator: { kind: 'human' }, expired: false },
     })
     await w.sending.send(w.ctx, request('e1'))
     expect(await w.list(agent('a'))).toMatchObject([
@@ -103,83 +103,79 @@ describe('the owner sets subscriptions', () => {
   })
 })
 
-describe('an agent subscribes', () => {
-  const grant = '{"via":"verdict"}'
-  const inCall = (w: ReturnType<typeof world>) => ({ ...w.as('a'), call: 'call-1' })
-
-  it('writes the consent its call was released on, asking the port with the context of the call', async () => {
+describe('who created a subscription', () => {
+  it('an agent sets one at once, and it records the agent, its session and its call', async () => {
     const w = world()
-    w.consent.set({ kind: 'consented', basis: { kind: 'blanket', scope: 'standing', grant } })
-    expect(await w.subscriptions.set(inCall(w), change())).toMatchObject({
+    const ctx = { ...w.as('a'), call: 'call-7' }
+    const creator = {
+      kind: 'agent',
+      actorRef: 'a',
+      originatingSessionRef: 'a',
+      originatingCallRef: 'call-7',
+    }
+    expect(await w.subscriptions.set(ctx, change())).toMatchObject({
       kind: 'done',
       recalled: false,
-      value: { basis: { kind: 'blanket', scope: 'standing', grant } },
+      value: { creator },
     })
-    expect(w.consent.asked).toEqual([inCall(w)])
+    expect(await w.subscriptions.list(w.ctx, agent('a'))).toMatchObject({
+      kind: 'done',
+      value: [{ creator }],
+    })
+    expect(w.creators.asked).toEqual([ctx])
+  })
+
+  it('the owner sets one, and it records a human', async () => {
+    const w = world()
+    expect(await w.subscriptions.set(w.ctx, change())).toMatchObject({
+      kind: 'done',
+      value: { creator: { kind: 'human', actorRef: 'owner' } },
+    })
+  })
+})
+
+describe('an agent subscribes', () => {
+  const inCall = (w: ReturnType<typeof world>) => ({ ...w.as('a'), call: 'call-1' })
+
+  it('and later sends to it follow the subscription', async () => {
+    const w = world()
+    expect(await w.subscriptions.set(inCall(w), change())).toMatchObject({ kind: 'done' })
     await w.sending.send(w.ctx, request('e1'))
-    expect(await w.list(agent('a'))).toHaveLength(1)
+    expect(await w.list(agent('a'))).toMatchObject([{ level: 'strong' }])
   })
 
   it.each([
-    [
-      'a blanket consent of this session',
-      { kind: 'consented', basis: { kind: 'blanket', scope: 'session', grant } },
-      { kind: 'blanket', scope: 'session', grant },
-    ],
-    [
-      'a granular consent',
-      { kind: 'consented', basis: { kind: 'granular', scope: 'session', grant } },
-      { kind: 'granular', grant },
-    ],
-  ] as const)('writes %s as its basis', async (_case, answer, basis) => {
+    ['a context whose creator cannot be named', null],
+    ['a port that throws', 'throw'],
+  ] as const)('writes nothing on %s, and has no basis', async (_case, answer) => {
     const w = world()
-    w.consent.set(answer)
-    expect(await w.subscriptions.set(inCall(w), change())).toMatchObject({ value: { basis } })
-  })
-
-  it.each([
-    ['no consent', { kind: 'none' }, refused('consent-required')],
-    ['a consent that cannot be read', { kind: 'unavailable' }, unavailable],
-    ['a port that throws', 'throw', unavailable],
-  ] as const)('writes nothing on %s', async (_case, answer, expected) => {
-    const w = world()
-    w.consent.set(answer)
-    expect(await w.subscriptions.set(inCall(w), change())).toEqual(expected)
+    w.creators.set(answer)
+    expect(await w.subscriptions.set(inCall(w), change())).toEqual(unavailable)
     expect(w.store.commits()).toBe(0)
   })
 
-  it('needs consent to lower or shorten a subscription too, and writes the new basis', async () => {
+  it('lowers or shortens a subscription at once, and records itself as its creator', async () => {
     const w = world()
     await w.subscriptions.set(w.ctx, change())
     for (const lower of [{ level: 'weak' }, { term: { kind: 'once' } }] as const)
-      expect(await w.subscriptions.set(inCall(w), change(lower))).toEqual(
-        refused('consent-required'),
-      )
-    w.consent.set({ kind: 'consented', basis: { kind: 'granular', scope: 'session', grant } })
-    expect(await w.subscriptions.set(inCall(w), change({ level: 'weak' }))).toMatchObject({
-      kind: 'done',
-      value: { level: 'weak', basis: { kind: 'granular', grant } },
-    })
+      expect(await w.subscriptions.set(inCall(w), change(lower))).toMatchObject({
+        kind: 'done',
+        value: { ...lower, creator: { kind: 'agent', originatingCallRef: 'call-1' } },
+      })
   })
 
-  it('asks no port for the owner, for a subscription that would not change, or for a removal', async () => {
+  it('a subscription that would not change keeps its creator, and a removal names nobody', async () => {
     const w = world()
     await w.subscriptions.set(w.ctx, change())
-    expect(await w.subscriptions.set(inCall(w), change())).toMatchObject({ recalled: true })
+    expect(await w.subscriptions.set(inCall(w), change())).toMatchObject({
+      recalled: true,
+      value: { creator: { kind: 'human' } },
+    })
     expect(await w.subscriptions.remove(inCall(w), keyOf(change()))).toMatchObject({
       kind: 'done',
       recalled: false,
     })
-    expect(w.consent.asked).toEqual([])
-  })
-
-  it('keeps a subscription after the consent it was made on is gone', async () => {
-    const w = world()
-    w.consent.set({ kind: 'consented', basis: { kind: 'blanket', scope: 'session', grant } })
-    await w.subscriptions.set(inCall(w), change())
-    w.consent.set({ kind: 'none' })
-    await w.sending.send(w.ctx, request('e1'))
-    expect(await w.list(agent('a'))).toHaveLength(1)
+    expect(w.creators.asked).toEqual([w.ctx, inCall(w)])
   })
 
   it('refuses to remove a key that is not one, and writes nothing', async () => {
@@ -203,7 +199,7 @@ describe('an agent subscribes', () => {
 
   it('cannot subscribe or unsubscribe for another recipient, nor set a beat', async () => {
     const w = world()
-    const self = w.as('a')
+    const self = inCall(w)
     await w.subscriptions.set(w.ctx, change({ recipient: agent('b') }))
     expect(await w.subscriptions.set(self, change({ recipient: agent('b') }))).toEqual(
       refused('not-own-recipient'),
@@ -290,7 +286,7 @@ describe('what blocks a subscription', () => {
       authority: w.authority,
       store: racing,
       sources: w.sources,
-      consent: w.consent,
+      creators: w.creators,
       clock: w.clock,
       defaults,
       beatRange: { min: 5, max: 1440 },
@@ -396,7 +392,7 @@ describe('what each operation asks and reads', () => {
           throw new Error('registry is down')
         },
       },
-      consent: w.consent,
+      creators: w.creators,
       clock: w.clock,
       defaults,
       beatRange: { min: 5, max: 1440 },

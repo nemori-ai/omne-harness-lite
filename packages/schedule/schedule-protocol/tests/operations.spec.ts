@@ -16,7 +16,6 @@ const card = {
 }
 const detail = {
   ...card,
-  basis: { kind: 'blanket', scope: 'standing' },
   createdAt: at,
   definition: { any: 'json' },
 }
@@ -40,7 +39,7 @@ describe('schedule/v1', () => {
     expect(Object.keys(scheduleProtocol.observations)).toEqual([])
   })
 
-  it('round-trips a page of cards and a detail with its consent basis', () => {
+  it('round-trips a page of cards and a detail with its author, and no consent', () => {
     expectRoundTrip(operations['list-schedules'].body, {
       tenant,
       control: null,
@@ -49,13 +48,10 @@ describe('schedule/v1', () => {
       limit: 50,
     })
     expectRoundTrip(operations['list-schedules'].outcomes.succeeded, { items: [card], next: null })
-    for (const basis of [
-      { kind: 'owner' },
-      { kind: 'blanket', scope: 'session' },
-      { kind: 'granular' },
-      { kind: 'none' },
-    ])
-      expectRoundTrip(operations['read-schedule'].outcomes.succeeded, { ...detail, basis })
+    for (const author of [{ kind: 'human' }, { kind: 'agent', session: 's-2' }, { kind: 'system' }])
+      expectRoundTrip(operations['read-schedule'].outcomes.succeeded, { ...detail, author })
+    const succeeded = operations['read-schedule'].outcomes.succeeded
+    expect(readSample(succeeded, { ...detail, basis: { kind: 'owner' } }).ok).toBe(false)
   })
 
   it('carries a create and every manage action', () => {

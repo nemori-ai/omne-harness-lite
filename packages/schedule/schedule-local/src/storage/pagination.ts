@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { ReadAccess } from '@omne-harness/schedule'
 import type { SqlValue } from '@omne-harness/sql-contract/worker'
-import { ScheduleIdSchema } from '@omne-harness/schedule-contract'
+import { ScheduleIdSchema, scheduleAuthorIdentity } from '@omne-harness/schedule-contract'
 import { canonical, digest } from './encoding.ts'
 import type { PageRequest } from './read-schema.ts'
 const cursorSchema = z.strictObject({
@@ -23,7 +23,7 @@ export function visibleRelation(access: ReadAccess): Relation {
   relation.params.push(...ids)
   if (access.visibility.kind === 'authoredIds') {
     relation.sql += ' AND author = ?'
-    relation.params.push(canonical(access.visibility.author))
+    relation.params.push(canonical(scheduleAuthorIdentity(access.visibility.author)))
   }
   return relation
 }

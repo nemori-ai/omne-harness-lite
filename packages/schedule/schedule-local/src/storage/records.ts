@@ -3,7 +3,11 @@ import {
   type ManagementDecision,
   type ScheduleRecord,
 } from '@omne-harness/schedule'
-import type { ScheduleId, ScheduleOwner } from '@omne-harness/schedule-contract'
+import {
+  scheduleAuthorIdentity,
+  type ScheduleId,
+  type ScheduleOwner,
+} from '@omne-harness/schedule-contract'
 import type { ParticipantPort, ReadPort } from '@omne-harness/sql-contract/worker'
 import { canonical, equal } from './encoding.ts'
 import { recordSchema, revisionSchema } from './schema.ts'
@@ -36,7 +40,7 @@ function saveRecord(port: ParticipantPort, value: ScheduleRecord) {
     [
       owner,
       view.scheduleId,
-      canonical(view.author),
+      canonical(scheduleAuthorIdentity(view.author)),
       view.author.kind === 'agent' ? view.author.actorRef : null,
       view.control,
       view.standing.kind,

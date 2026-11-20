@@ -57,22 +57,11 @@ describe('equality of the stored values', () => {
       { level: 'weak' },
       { note: null },
       { term: { kind: 'once' } },
-      { basis: { kind: 'blanket', scope: 'standing', grant: 'g' } },
-      { basis: { kind: 'granular', grant: 'g' } },
+      { creator: { kind: 'human', actorRef: 'someone' } },
+      { creator: { kind: 'system', principalRef: 'owner' } },
       { expired: true },
       { scope: { kind: 'subject-prefix', prefix: 'x' } },
     ]
     for (const change of changes) expect(sameSubscription(base, { ...base, ...change })).toBe(false)
-    const blanket = { ...base, basis: { kind: 'blanket', scope: 'standing', grant: 'g' } } as const
-    for (const basis of [
-      { kind: 'blanket', scope: 'session', grant: 'g' },
-      { kind: 'blanket', scope: 'standing', grant: 'h' },
-    ] as const)
-      expect(sameSubscription(blanket, { ...blanket, basis })).toBe(false)
-    const granular = { ...base, basis: { kind: 'granular', grant: 'd' } } as const
-    expect(
-      sameSubscription(granular, { ...granular, basis: { kind: 'granular', grant: 'e' } }),
-    ).toBe(false)
-    expect(sameSubscription(granular, { ...granular })).toBe(true)
   })
 })

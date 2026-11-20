@@ -1,6 +1,7 @@
 import {
   createScheduleOperationIntent,
   fingerprintScheduleOperation,
+  scheduleAuthorIdentity,
   type ScheduleCallContext,
 } from '@omne-harness/schedule-contract'
 import type { ManagementDecisionInput, ManagementRequest, RecoveryScope } from './types.ts'
@@ -54,7 +55,10 @@ export function decisionIdentityMatches(input: ManagementDecisionInput): boolean
   if (
     access.authority.role === 'author' &&
     current !== null &&
-    !managementValueEqual(current.view.author, author)
+    !managementValueEqual(
+      scheduleAuthorIdentity(current.view.author),
+      scheduleAuthorIdentity(author),
+    )
   )
     return false
   return true

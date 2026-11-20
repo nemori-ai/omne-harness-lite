@@ -7,7 +7,6 @@ import type { JSX } from 'react'
 import { useReading } from '../model/reading.ts'
 import {
   authorText,
-  basisText,
   CONTROL_WORDS,
   STANDING_WORDS,
   upcomingText,
@@ -57,7 +56,6 @@ function Facts({ detail }: Readonly<{ detail: ScheduleDetail }>): JSX.Element {
       <FactRow term="状态">{CONTROL_WORDS[detail.control]}</FactRow>
       <FactRow term="能否运行">{STANDING_WORDS[detail.standing]}</FactRow>
       <FactRow term="谁建的">{authorText(detail.author)}</FactRow>
-      <FactRow term="凭什么生效">{basisText(detail.basis)}</FactRow>
       <FactRow term="建于">{formatInstant(encodeInstant(detail.createdAt), 'h23')}</FactRow>
       <FactRow term="修订">{detail.revision}</FactRow>
     </FactList>

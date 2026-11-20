@@ -3,11 +3,10 @@ import type { ManagementRequest, ScheduleRecord } from '@omne-harness/schedule'
 import type { ScheduleCallContext, ScheduleInstant } from '@omne-harness/schedule-contract'
 import {
   actorOf,
-  commandOf,
   createScheduleAuthorizers,
-  subjectOf,
+  ownedByAgent,
 } from '../../../src/rows/schedule/authorizer.ts'
-import type { CallConsent } from '../../../src/rows/tool-bindings/call-consent.ts'
+import type { CallOrigin } from '../../../src/rows/tool-bindings/live-calls.ts'
 
 const now = '2026-11-17T00:00:00.000Z' as ScheduleInstant
 const owner = { kind: 'tenant', tenantId: 'tenant-a', ownerId: 'acc-a' } as const
@@ -29,18 +28,14 @@ const create = (initial: 'active' | 'draft') =>
       meta: { operationKey: 'k', expectedRevision: null },
     },
   }) as unknown as ManagementRequest
-const STANDING: CallConsent = {
-  kind: 'consented',
-  basis: { kind: 'blanket', scope: 'standing', grant: '{"via":"verdict"}' },
-}
+const LIVE: CallOrigin = { actorRef: 'agent-1', session: 'session-1', call: 'request-1' }
 
-function reading(answer: CallConsent | Error = STANDING) {
+function reading(origin: CallOrigin | null = LIVE) {
   const asked: [string, string][] = []
   const live = createScheduleAuthorizers({
-    consent: async (tenant, call) => {
+    origin: (tenant, call) => {
       asked.push([tenant, call])
-      if (answer instanceof Error) throw answer
-      return answer
+      return origin ?? undefined
     },
     now: () => now,
   })
@@ -60,90 +55,61 @@ const call = (
   })
 
 describe('the schedule management authorizer', () => {
-  it('asks what the call was released on, by the tenant and the call', async () => {
+  it('names the agent with the session and the call its live call runs in, found by the tenant and the call', async () => {
     const { live, asked } = reading()
-    await call(live, context('agent'), create('active'))
-    expect(asked).toEqual([['tenant-a', 'request-1']])
-  })
-
-  it.each([
-    ['a blanket consent of the tenant', 'blanket', 'standing'],
-    ['a blanket consent of the session', 'blanket', 'session'],
-    ['one release by the owner', 'granular', 'session'],
-  ] as const)('adopts %s, with the grant as its reference', async (_, kind, scope) => {
-    const grant = `{"via":"${kind}-${scope}"}`
-    const { live } = reading({ kind: 'consented', basis: { kind, scope, grant } })
     expect(await call(live, context('agent'), create('active'))).toMatchObject({
       kind: 'ok',
       value: {
-        consent: {
-          kind: 'adopt',
-          adoption: { grantRef: grant, adoptionKind: kind, scope, adoptedAt: now },
+        authority: {
+          role: 'author',
+          authorOnCreate: {
+            kind: 'agent',
+            actorRef: 'agent-1',
+            originatingSessionRef: 'session-1',
+            originatingCallRef: 'request-1',
+          },
         },
       },
     })
+    expect(asked).toEqual([['tenant-a', 'request-1']])
   })
 
-  it('refuses a change in effect that the call was not released for', async () => {
-    const { live } = reading({ kind: 'none' })
-    expect(await call(live, context('agent'), create('active'))).toMatchObject({
-      kind: 'unavailable',
-      error: { code: 'consent_required', retryable: false },
-    })
+  it('answers unavailable, to be retried, when the call of an agent is not live', async () => {
+    const { live } = reading(null)
+    for (const request of [create('active'), create('draft')])
+      expect(await call(live, context('agent'), request)).toMatchObject({
+        kind: 'unavailable',
+        error: { code: 'authority_unavailable', retryable: true },
+      })
   })
 
-  it.each([
-    ['the release cannot be read', { kind: 'unavailable' } as const],
-    ['the port throws', new Error('down')],
-  ])('answers unavailable when %s', async (_, answer) => {
-    const { live } = reading(answer)
-    expect(await call(live, context('agent'), create('active'))).toMatchObject({
-      kind: 'unavailable',
-      error: { code: 'authority_unavailable', retryable: true },
-    })
-  })
-
-  it('lets the owner act and an agent keep drafts without consent, and reads no release for them', async () => {
-    const { live, asked } = reading({ kind: 'none' })
+  it('lets the owner act as a human and reads no live call for it', async () => {
+    const { live, asked } = reading()
     expect(await call(live, context('human'), create('active'))).toMatchObject({
       kind: 'ok',
-      value: { authority: { role: 'owner' }, consent: { kind: 'notRequired' } },
-    })
-    expect(await call(live, context('agent'), create('draft'))).toMatchObject({
-      kind: 'ok',
-      value: { consent: { kind: 'notRequired' } },
+      value: {
+        authority: { role: 'owner', authorOnCreate: { kind: 'human', actorRef: 'acc-a' } },
+      },
     })
     expect(asked).toEqual([])
+  })
+
+  it('lets an agent create a draft or a schedule in effect alike, with nothing about a release', async () => {
+    const { live } = reading()
+    for (const request of [create('draft'), create('active')]) {
+      const answer = await call(live, context('agent'), request)
+      expect(answer).toMatchObject({ kind: 'ok', value: { authority: { role: 'author' } } })
+      expect(Object.keys(answer.kind === 'ok' ? answer.value : {})).toEqual([
+        'authority',
+        'currentStanding',
+      ])
+    }
   })
 
   it('refuses a context that is neither the owner nor an agent of a session', async () => {
     const { live } = reading()
     const read = await live.read.observe({ context: context('agent', null), action: 'list' })
     expect(read).toMatchObject({ kind: 'unavailable', error: { code: 'forbidden' } })
-  })
-})
-
-describe('what needs consent', () => {
-  const current = (control: string) => ({ view: { control } }) as unknown as ScheduleRecord
-  const execute = (action: string) =>
-    ({ kind: 'execute', input: { action, meta: {} } }) as unknown as ManagementRequest
-  it.each([
-    ['reviseDraft', 'draft', 'draftLocal'],
-    ['discard', 'draft', 'draftLocal'],
-    ['update', 'draft', 'draftLocal'],
-    ['update', 'active', 'consent'],
-    ['promote', 'draft', 'consent'],
-    ['pause', 'active', 'consent'],
-    ['resume', 'paused', 'consent'],
-    ['stop', 'active', 'consent'],
-    ['replace', 'active', 'consent'],
-  ])('%s on a %s schedule is %s', (action, control, expected) => {
-    expect(commandOf(execute(action), current(control))).toBe(expected)
-  })
-
-  it('keeps discarding a draft local, and needs consent to update a schedule it cannot see', () => {
-    expect(commandOf(execute('discard'), current('active'))).toBe('draftLocal')
-    expect(commandOf(execute('update'), null)).toBe('consent')
   })
 })
 
@@ -154,17 +120,22 @@ describe('whose schedule an agent is acting on', () => {
         author:
           session === null
             ? { kind: 'human', actorRef }
-            : { kind: 'agent', actorRef, originatingSessionRef: session },
+            : {
+                kind: 'agent',
+                actorRef,
+                originatingSessionRef: session,
+                originatingCallRef: 'call-0',
+              },
       },
     }) as unknown as ScheduleRecord
   it.each([
-    ['a new schedule', null, 'new'],
-    ['its own schedule from the same session', written('agent-1', 'session-1'), 'agentOwn'],
-    ['its schedule from another session', written('agent-1', 'session-2'), 'others'],
-    ["another agent's schedule", written('agent-2', 'session-1'), 'others'],
-    ["the owner's schedule", written('acc-a', null), 'others'],
-  ])('%s is %s', (_, current, expected) => {
-    expect(subjectOf(context('agent'), current)).toBe(expected)
+    ['a new schedule', null, true],
+    ['its own schedule from the same session', written('agent-1', 'session-1'), true],
+    ['its schedule from another session', written('agent-1', 'session-2'), false],
+    ["another agent's schedule", written('agent-2', 'session-1'), false],
+    ["the owner's schedule", written('acc-a', null), false],
+  ])('%s is its own: %s', (_, current, expected) => {
+    expect(ownedByAgent(context('agent'), current)).toBe(expected)
   })
 
   it.each([
@@ -195,11 +166,16 @@ describe('what the authorizer records and refuses', () => {
     ({
       view: {
         control: 'active',
-        author: { kind: 'agent', actorRef, originatingSessionRef: 'session-1' },
+        author: {
+          kind: 'agent',
+          actorRef,
+          originatingSessionRef: 'session-1',
+          originatingCallRef: 'call-0',
+        },
       },
     }) as unknown as ScheduleRecord
 
-  it('records exactly what a consent adopts', async () => {
+  it('records exactly who acts and its standing', async () => {
     const { live } = reading()
     expect(await call(live, context('agent'), create('active'))).toEqual({
       kind: 'ok',
@@ -215,20 +191,11 @@ describe('what the authorizer records and refuses', () => {
             kind: 'agent',
             actorRef: 'agent-1',
             originatingSessionRef: 'session-1',
+            originatingCallRef: 'request-1',
           },
           role: 'author',
           authorityVersion: 'harness-server.schedule/1',
           guardRef: 'harness-server.schedule/authority',
-        },
-        consent: {
-          kind: 'adopt',
-          guardRef: 'harness-server.schedule/consent',
-          adoption: {
-            grantRef: '{"via":"verdict"}',
-            adoptionKind: 'blanket',
-            scope: 'standing',
-            adoptedAt: now,
-          },
         },
         currentStanding: {
           kind: 'ready',
@@ -240,15 +207,12 @@ describe('what the authorizer records and refuses', () => {
         },
       },
     })
-    expect(await call(live, context('human'), create('active'))).toMatchObject({
-      value: { authority: { authorOnCreate: { kind: 'human', actorRef: 'acc-a' } } },
-    })
   })
 
-  it('reads the release only for an agent bringing its own schedule into effect', async () => {
+  it('reads the live call only for an agent acting on what is its own', async () => {
     for (const [given, request, current, reads] of [
       [context('human'), create('active'), null, 0],
-      [context('agent'), create('draft'), null, 0],
+      [context('agent'), create('draft'), null, 1],
       [context('agent'), pause, writtenBy('agent-2'), 0],
       [context('agent'), pause, writtenBy('agent-1'), 1],
     ] as const) {
@@ -271,7 +235,7 @@ describe('what the authorizer records and refuses', () => {
     expect(await call(live, given as unknown as ScheduleCallContext, pause, current)).toMatchObject(
       {
         kind: 'unavailable',
-        error: { code: 'forbidden', retryable: false, message: 'schedule consent: forbidden' },
+        error: { code: 'forbidden', retryable: false, message: 'schedule authority: forbidden' },
       },
     )
   })

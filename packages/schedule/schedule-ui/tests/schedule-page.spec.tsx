@@ -46,7 +46,6 @@ const WEEKLY = {
 }
 const DETAIL = {
   ...MONTHLY,
-  basis: { kind: 'blanket', scope: 'standing' },
   createdAt: instant('2026-11-17T03:00:00Z'),
   definition: {},
 }
@@ -111,7 +110,7 @@ it('L4 the whole span asks for the ended ones too; more reads the next page afte
   expect((await fake.next('list-schedules')).body).toMatchObject({ terminal: true, cursor: null })
 })
 
-it('D1 picking one shows its state, author, the basis it is in effect on, and its next few times', async () => {
+it('D1 picking one shows its state, author and its next few times', async () => {
   const fake = await listed([MONTHLY])
   fireEvent.click(screen.getByRole('button', { name: '月报提醒' }))
   const read = await fake.next('read-schedule')
@@ -134,26 +133,29 @@ it('D1 picking one shows its state, author, the basis it is in effect on, and it
   })
   const facts = screen.getByLabelText('日程详情').textContent
   expect(facts).toContain('能按时运行')
-  expect(facts).toContain('你的全权同意（始终放行）')
   expect(facts).toContain('agent（会话 ses_1）')
   expect(screen.getByLabelText('时间表').children).toHaveLength(2)
   expect(screen.getByText('只列出了能确定的几次。')).toBeTruthy()
 })
 
 it.each([
-  [{ kind: 'owner' }, '你本人的操作'],
-  [{ kind: 'blanket', scope: 'session' }, '你的全权同意（只在那个会话里）'],
-  [{ kind: 'granular' }, '你对这一次的放行'],
-  [{ kind: 'none' }, '无：还没有生效'],
-])('D2 the basis %o reads as a sentence', async (basis, text) => {
-  const fake = await listed([MONTHLY])
-  fireEvent.click(screen.getByRole('button', { name: '月报提醒' }))
-  await answer(await fake.next('read-schedule'), {
-    outcome: 'succeeded',
-    body: { ...DETAIL, basis },
-  })
-  expect(screen.getByLabelText('日程详情').textContent).toContain(text)
-})
+  [{ kind: 'human' }, '谁建的你'],
+  [{ kind: 'agent', session: 'ses_2' }, '谁建的agent（会话 ses_2）'],
+  [{ kind: 'system' }, '谁建的系统'],
+])(
+  'D2 the author %o reads as who created it, and no row says what it took effect on',
+  async (author, text) => {
+    const fake = await listed([MONTHLY])
+    fireEvent.click(screen.getByRole('button', { name: '月报提醒' }))
+    await answer(await fake.next('read-schedule'), {
+      outcome: 'succeeded',
+      body: { ...DETAIL, author },
+    })
+    const facts = screen.getByLabelText('日程详情').textContent
+    expect(facts).toContain(text)
+    expect(facts).not.toContain('凭什么生效')
+  },
+)
 
 it('D3 a schedule that is not visible any more, and a preview the calendar cannot answer, say so', async () => {
   const fake = await listed([MONTHLY])

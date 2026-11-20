@@ -38,21 +38,6 @@ export function authorText(author: ScheduleCard['author']): string {
   }
 }
 
-export function basisText(basis: ScheduleDetail['basis']): string {
-  switch (basis.kind) {
-    case 'owner':
-      return '你本人的操作'
-    case 'blanket':
-      return basis.scope === 'standing'
-        ? '你的全权同意（始终放行）'
-        : '你的全权同意（只在那个会话里）'
-    case 'granular':
-      return '你对这一次的放行'
-    case 'none':
-      return '无：还没有生效'
-  }
-}
-
 /** A local date-time of the tenant's zone, as a person reads it: `2026-11-30 17:00`. */
 export function localText(local: string): string {
   return local.replace('T', ' ').replace(/:00$/, '')

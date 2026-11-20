@@ -244,23 +244,21 @@ it.each(['pause', 'resume', 'stop', 'discard'] as const)(
   },
 )
 
-it.each([
-  'search_limit',
-  'coverage_insufficient',
-  'missing_environment',
-  'consent_required',
-] as const)('preserves %s as a definite rejection with zero commits', async code => {
-  const fixture = protocolFixture(record('draft'))
-  vi.mocked(fixture.dependency.definitions.resolve).mockResolvedValue({
-    kind: 'unavailable',
-    error: error(code),
-  })
-  expect(await fixture.commands.execute(context, command('promote'))).toMatchObject({
-    kind: 'rejected',
-    error: { code },
-  })
-  expect(fixture.dependency.persistence.commit).not.toHaveBeenCalled()
-})
+it.each(['search_limit', 'coverage_insufficient', 'missing_environment'] as const)(
+  'preserves %s as a definite rejection with zero commits',
+  async code => {
+    const fixture = protocolFixture(record('draft'))
+    vi.mocked(fixture.dependency.definitions.resolve).mockResolvedValue({
+      kind: 'unavailable',
+      error: error(code),
+    })
+    expect(await fixture.commands.execute(context, command('promote'))).toMatchObject({
+      kind: 'rejected',
+      error: { code },
+    })
+    expect(fixture.dependency.persistence.commit).not.toHaveBeenCalled()
+  },
+)
 
 it('rejects terminal resume before resolving any definition, ID or quota', async () => {
   const fixture = protocolFixture(record('stopped'))
