@@ -45,6 +45,8 @@ export type SendAnswer =
 
 export type CancelAnswer = 'stopped' | 'requested' | 'unknown'
 
+export type Started = Pick<Dispatch, 'id' | 'session'>
+
 /** What this group needs of sessions. Every write goes through a public operation of Session, and doing it again under the same identity recalls it. */
 export interface DispatchSessions {
   sessionOf(tenant: TenantId, dispatch: DispatchId): SessionRef
@@ -52,9 +54,9 @@ export interface DispatchSessions {
   row(tenant: TenantId, session: SessionRef): Promise<PortRead<SessionRow | null>>
   create(tenant: TenantId, creation: SessionToCreate): Promise<CreateAnswer>
   /** Where the starting input of the session a dispatch created is now. */
-  startFate(tenant: TenantId, session: SessionRef): Promise<PortRead<InputFate>>
+  startFate(tenant: TenantId, dispatch: Started): Promise<PortRead<InputFate>>
   send(tenant: TenantId, input: InputToSend): Promise<SendAnswer>
   has(tenant: TenantId, session: SessionRef, input: string): Promise<PortRead<boolean>>
   /** Asks the run the starting input of this session started to stop. */
-  cancelStart(tenant: TenantId, session: SessionRef): Promise<CancelAnswer>
+  cancelStart(tenant: TenantId, dispatch: Started): Promise<CancelAnswer>
 }

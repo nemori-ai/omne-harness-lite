@@ -69,7 +69,7 @@ export function createAdvance(deps: AdvanceDependencies) {
 
   /** `started`: the end of the run the starting input started is the end of the dispatch. */
   async function follow(dispatch: Dispatch): Promise<unknown> {
-    const fate = await sessions.startFate(dispatch.tenant, dispatch.session)
+    const fate = await sessions.startFate(dispatch.tenant, dispatch)
     const event = fate.kind === 'read' ? endOf(fate.value) : null
     return event === null ? undefined : apply(dispatch, event)
   }
@@ -106,7 +106,7 @@ export function createAdvance(deps: AdvanceDependencies) {
   }
 
   async function stop(dispatch: Dispatch): Promise<unknown> {
-    const answer = await sessions.cancelStart(dispatch.tenant, dispatch.session)
+    const answer = await sessions.cancelStart(dispatch.tenant, dispatch)
     if (answer !== 'stopped') return undefined
     return store.confirmStop(dispatch.tenant, { id: dispatch.id, at: clock.now() })
   }

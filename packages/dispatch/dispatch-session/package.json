@@ -1,0 +1,39 @@
+{
+  "name": "@omne-harness/dispatch-session",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Session port adapter of dispatch: the three input sources, and the calls of Session a dispatch makes",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/dispatch": "workspace:*",
+    "@omne-harness/dispatch-contract": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/session-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@omne-harness/operation-result": "workspace:*"
+  }
+}

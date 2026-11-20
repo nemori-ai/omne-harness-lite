@@ -153,7 +153,8 @@ export function fakeSessions(): FakeSessions {
       make(tenant, creation)
       return answer === 'unknown-created' ? { kind: 'unknown' } : { kind: 'created' }
     },
-    startFate: async (_tenant, session) => read('fates', fates.get(session) ?? { kind: 'absent' }),
+    startFate: async (_tenant, { session }) =>
+      read('fates', fates.get(session) ?? { kind: 'absent' }),
     async send(tenant, input): Promise<SendAnswer> {
       counted.sends += 1
       const row = rows.get(key(tenant, input.to))
@@ -173,7 +174,7 @@ export function fakeSessions(): FakeSessions {
       counted.looks += 1
       return read('looks', inputs.get(key(tenant, session))?.has(input) ?? false)
     },
-    async cancelStart(_tenant, session) {
+    async cancelStart(_tenant, { session }) {
       cancelled.push(session)
       return cancelAnswer
     },
