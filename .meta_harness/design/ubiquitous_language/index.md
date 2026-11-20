@@ -438,6 +438,13 @@
 | [UL-asset-page](terms/interaction-and-dispatch.md#ul-asset-page--资产页--asset-page) | 资产页 | Asset Page | 桌面应用里人管理本租户各类资产的那一部分；按类别分页签；资产自己的设置在这里改 |
 | [UL-asset-category-page](terms/interaction-and-dispatch.md#ul-asset-category-page--资产类别页面--asset-category-page) | 资产类别页面 | Asset Category Page | 一类资产在资产页里自己的那一页；由这一类的界面模块带来，没带来时用通用的页面；**不存事实** |
 | [UL-asset-governance-port](terms/interaction-and-dispatch.md#ul-asset-governance-port--资产治理口--asset-governance-port) | 资产治理口 | Asset Governance Port | 资产的界面模块交给一类资产的界面模块的口：这一类的资产、设置项与改它们的操作；**规则不由它判** |
+| [UL-agent-figure](terms/interaction-and-dispatch.md#ul-agent-figure--agent-形--agent-figure) | Agent 形 | Agent Figure | 桌面应用里代表 agent 的那一个墨圆，**一个窗口里同一时刻只有一个**；用笔画说状态，口外写待答数；**不存事实** |
+| [UL-figure-seat](terms/interaction-and-dispatch.md#ul-figure-seat--形座位--figure-seat) | 形座位 | Figure Seat | 界面里给 Agent 形留出的固定位置：门、家、对话头；**自己不画东西** |
+| [UL-figure-port](terms/interaction-and-dispatch.md#ul-figure-port--形口--figure-port) | 形口 | Figure Port | 界面外壳交给界面模块的口：报会话在做什么与待答数；**只交数据，没有结果** |
+| [UL-awaiting-answer-count](terms/interaction-and-dispatch.md#ul-awaiting-answer-count--待答数--awaiting-answer-count) | 待答数 | Awaiting-Answer Count | 决策池里此刻等着人回答的决策卡片的张数；**琥珀只写它**，没了结的通知不算 |
+| [UL-ink-bubble](terms/interaction-and-dispatch.md#ul-ink-bubble--墨框--ink-bubble) | 墨框 | Ink Bubble | Agent 形展开的内容外面的墨边，浓淡两种；**应用自己的菜单与浮层不是墨框** |
+| [UL-told-note](terms/interaction-and-dispatch.md#ul-told-note--告知笺--told-note) | 告知笺 | Told Note | 形在家旁用浓墨框写的一句话，同时只有最新一条；**不按时间消失，写过不等于看到** |
+| [UL-size-tier](terms/interaction-and-dispatch.md#ul-size-tier--字号档--size-tier) | 字号档 | Size Tier | 整个界面一起放大缩小的档位，**恰四档**：小楷、中楷、大楷、老花；不是窗口缩放 |
 | [UL-notification](terms/interaction-and-dispatch.md#ul-notification--通知--notification) | 通知 | Notification | 一个收件人的收件箱里的一条 |
 | [UL-notification-source](terms/interaction-and-dispatch.md#ul-notification-source--通知来源--notification-source) | 通知来源 | Notification Source | 一个会产生通知事件的东西，在通知这里登记过 |
 | [UL-notification-event-type](terms/interaction-and-dispatch.md#ul-notification-event-type--通知事件类型--notification-event-type) | 通知事件类型 | Notification Event Type | 一个通知来源声明的一类事 |
