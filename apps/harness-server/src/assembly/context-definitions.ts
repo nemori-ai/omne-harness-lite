@@ -9,9 +9,14 @@ import type {
 import {
   sessionModesBindings,
   sessionModesDescriptor,
+  workingDirectoryBindings,
+  workingDirectoryDescriptor,
   type SessionContextDefinitions,
 } from '@omne-harness/session-adapters/cordis'
-import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
+import {
+  SESSION_MODES_PUBLICATION,
+  SESSION_WORKING_DIRECTORY,
+} from '@omne-harness/session-adapters'
 import type { Adoption } from '@omne-harness/session-contract'
 
 export type DeclaredContextBlocks = Readonly<{
@@ -77,6 +82,11 @@ const ADOPTED: readonly DeclaredContextBlocks[] = [
     bindings: sessionModesBindings,
     declarations: [],
   },
+  {
+    definition: SESSION_WORKING_DIRECTORY,
+    bindings: workingDirectoryBindings,
+    declarations: [],
+  },
 ]
 
 export const adoptedContextDefinitions: SessionContextDefinitions =
@@ -85,6 +95,7 @@ export const adoptedContextDefinitions: SessionContextDefinitions =
 // The supplied blocks of this release; the journal tells the model the ones it may read.
 const SUPPLIED = new Map<string, ReturnType<DescriptorCatalog['get']>>([
   [sessionModesDescriptor.key, sessionModesDescriptor],
+  [workingDirectoryDescriptor.key, workingDirectoryDescriptor],
 ])
 export const suppliedContextBlocks: DescriptorCatalog = Object.freeze({
   get: (key: ContextBlockKey) => SUPPLIED.get(key),

@@ -16,7 +16,6 @@ const absolutePath = z
   .refine(value => (process.platform === 'win32' ? /^[a-z]:[\\/]/i.test(value) : isAbsolute(value)))
 const rowConfig = z
   .object({
-    filesRoot: absolutePath,
     stateDirectory: absolutePath,
     maintainIntervalMs: z.number().int().positive().safe().default(60000),
   })

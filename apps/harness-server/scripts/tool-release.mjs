@@ -8,8 +8,8 @@ const ZERO = `sha256:${'0'.repeat(64)}`
 
 const PROBES = [
   {
-    Shell: { resultMaxBytes: 1, executable: 'probe', argsPrefix: [], cwd: 'probe', env: {} },
-    Files: { resultMaxBytes: 1, cwd: '/probe' },
+    Shell: { resultMaxBytes: 1, executable: 'probe', argsPrefix: [], env: {} },
+    Files: { resultMaxBytes: 1 },
     Tools: { resultMaxBytes: 4096, outputModalities: ['text'] },
     TodoItems: { resultMaxBytes: 4096 },
     BkgToolCalls: { resultMaxBytes: 4096 },
@@ -26,10 +26,9 @@ const PROBES = [
       resultMaxBytes: 65536,
       executable: 'other',
       argsPrefix: ['-c'],
-      cwd: 'elsewhere',
       env: { A: 'b' },
     },
-    Files: { resultMaxBytes: 65536, cwd: 'C:\\elsewhere' },
+    Files: { resultMaxBytes: 65536 },
     Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
     TodoItems: { resultMaxBytes: 1048576 },
     BkgToolCalls: { resultMaxBytes: 1048576 },

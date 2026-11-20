@@ -40,7 +40,7 @@ it('creates a separate entry-owned domain before loading each run and clears its
           {
             id: 'execution-host',
             plugin: 'executionHost',
-            config: { filesRoot: directory, stateDirectory: directory, maintainIntervalMs: 60123 },
+            config: { stateDirectory: directory, maintainIntervalMs: 60123 },
           },
         ],
       },
@@ -83,7 +83,7 @@ it('does not start maintenance when entry-object installation fails', async () =
         {
           id: 'execution-host',
           plugin: 'executionHost',
-          config: { filesRoot: directory, stateDirectory: directory, maintainIntervalMs: 12345 },
+          config: { stateDirectory: directory, maintainIntervalMs: 12345 },
         },
       ],
     },
@@ -141,7 +141,7 @@ it('clears the periodic timer when a business start fails after the host row loa
           {
             id: 'execution-host',
             plugin: 'executionHost',
-            config: { filesRoot: directory, stateDirectory: directory, maintainIntervalMs: 29 },
+            config: { stateDirectory: directory, maintainIntervalMs: 29 },
           },
           { id: 'failing', plugin: 'failing', config: {} },
         ],

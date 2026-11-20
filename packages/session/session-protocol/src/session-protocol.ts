@@ -75,6 +75,7 @@ function controlAnswer<const T extends Fields, const R extends Rule>(controlled:
 }
 
 const empty = ruleCodec(object({}))
+const workspaceTarget = object({ workspace: { rule: text }, instance: { rule: text } })
 const limited = ruleCodec(
   object({
     resource: { rule: literal('pending-inputs', 'input-bytes') },
@@ -362,6 +363,7 @@ export const sessionProtocol = defineProtocol({
           createCallId: { rule: text },
           definition: { rule: text, optional: true },
           model: { rule: text, optional: true },
+          workspace: { rule: workspaceTarget, optional: true },
           purpose: { rule: anyText },
         }),
       ),
@@ -660,6 +662,31 @@ export const sessionProtocol = defineProtocol({
               rule: literal('unknown-name', 'withdrawn', 'excluded', 'modality', 'locked', 'scope'),
             },
           }),
+        ),
+        archived: empty,
+        frozen: empty,
+        'not-found': empty,
+        conflict: empty,
+      },
+      countsAsAccess: true,
+    },
+    'select-workspace': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(
+        object({
+          ...target,
+          controlId: { rule: text },
+          workspace: { rule: nullable(workspaceTarget) },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ controlId: { rule: text }, directory: { rule: nullable(text) } }),
+        ),
+        invalid: ruleCodec(
+          object({ reason: { rule: literal('not-permitted', 'instance-unavailable') } }),
         ),
         archived: empty,
         frozen: empty,

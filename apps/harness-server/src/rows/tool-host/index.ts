@@ -25,7 +25,6 @@ export const toolHostConfig = z
             resultMaxBytes: positive,
             executable: z.string().min(1),
             argsPrefix: z.array(z.string()),
-            cwd: z.string().min(1),
             env: z.record(z.string(), z.string()),
           })
           .optional(),
@@ -44,9 +43,7 @@ export const toolHostConfig = z
             outputModalities: z.tuple([z.literal('text')]),
           })
           .optional(),
-        Files: z
-          .strictObject({ resultMaxBytes: positive, cwd: z.string().min(1).optional() })
-          .optional(),
+        Files: z.strictObject({ resultMaxBytes: positive }).optional(),
       })
       .optional(),
     /** The operator's values for the settings a release tool declares, by tool name and item id. */

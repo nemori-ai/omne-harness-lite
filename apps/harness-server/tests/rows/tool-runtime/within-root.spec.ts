@@ -72,7 +72,7 @@ describe('the binding hands the retained view as both retention ledgers (#1137)'
     if ('failure' in scope) throw new Error('fixture scope')
     const holder = toolRuntimeHolder({ root: {} } as unknown as Context)
     const { input } = createReleaseEnvironment(holder, {} as unknown as ReleaseToolIdentity, {
-      filesRoot: ROOT,
+      workspaces: () => undefined,
       commitAttempts: 1,
       schemaProvider: () => null,
     })
@@ -85,7 +85,10 @@ describe('the binding hands the retained view as both retention ledgers (#1137)'
       tenant: TENANT_A,
       call: 'call-binding',
       preparation,
-      request: { requesterScope: scope.ok },
+      request: {
+        requesterScope: scope.ok,
+        availability: { definition: { declarations: { environment: null } } },
+      },
     } as unknown as Parameters<typeof input.plan.binding>[0]
     const bound = await input.plan.binding(request)
     if ('failure' in bound) throw new Error(`binding: ${JSON.stringify(bound.failure)}`)

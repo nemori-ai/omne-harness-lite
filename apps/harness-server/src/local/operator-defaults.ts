@@ -334,9 +334,8 @@ export function shellEnvironment(
 
 export const LOCAL_TOOL_RESULT_BYTES = 1_048_576
 
-function toolRecords(workspace: string, combinationVersion: string) {
+function toolRecords(combinationVersion: string) {
   return {
-    filesRoot: workspace,
     combinationVersion,
     configuration: {
       authorBufferBytes: 65_536,
@@ -397,6 +396,8 @@ const AGENT_HOST = {
   loopGuardPolicy: { ...ADOPTION, name: 'local-single-user/loop-guard' },
   instanceIdleMs: 60_000,
 } as const
+
+const LOCAL_NODE = 'local'
 
 /** A person gets every notification on the application's own surfaces. An agent has no destination until sessions take input from notifications. */
 const NOTIFICATION_POLICY = {
@@ -500,10 +501,9 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
             resultMaxBytes: LOCAL_TOOL_RESULT_BYTES,
             executable: settings.shell,
             argsPrefix: shellArguments(platform, settings.shell),
-            cwd: settings.workspace,
             env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
           },
-          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, cwd: settings.workspace },
+          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
           Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
           TodoItems: { resultMaxBytes: 1_048_576 },
           BkgToolCalls: { resultMaxBytes: 65_536 },
@@ -517,7 +517,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         },
       },
     ],
-    ['tool-records', toolRecords(settings.workspace, combinationVersion)],
+    ['tool-records', toolRecords(combinationVersion)],
     [
       'tool-body-sweep',
       {
@@ -555,11 +555,15 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ...(rows.has('notification')
       ? ([['notification', { policy: NOTIFICATION_POLICY }]] as const)
       : []),
-    ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
+    ...(rows.has('workspace') ? ([['workspace', { node: LOCAL_NODE }]] as const) : []),
+    ['execution-host', { stateDirectory: locations.hostFilesDir }],
     ['request-context', {}],
     ['agent-context', {}],
     ['agent-host', AGENT_HOST],
-    ['session-ad03', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
+    [
+      'session-ad03',
+      { scopeIndexEntries: 4096, pageBytes: 65_536, defaultDirectory: settings.workspace },
+    ],
     ['session-ad04', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
     [
       'session-access',

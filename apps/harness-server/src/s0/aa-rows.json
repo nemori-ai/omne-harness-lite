@@ -16,6 +16,7 @@
     "schedule",
     "notification",
     "calendar-notification",
+    "workspace",
     "usage",
     "usage-adapters",
     "session-provider",
@@ -80,6 +81,7 @@
     "calendar-access",
     "schedule-access",
     "notification-access",
+    "workspace-access",
     "tool-access",
     "model-access",
     "usage-access"
@@ -158,6 +160,14 @@
       ]
     },
     {
+      "row": "workspace",
+      "names": [
+        "storage",
+        "principalVerifier",
+        "tenantStanding"
+      ]
+    },
+    {
       "row": "authorization",
       "names": [
         "principalVerifier",
@@ -209,6 +219,7 @@
         "storage",
         "tenantDomainLookup",
         "sessionModesInstallation",
+        "sessionWorkingDirectory",
         "definitionMappings"
       ]
     },
@@ -265,7 +276,8 @@
       "names": [
         "storage",
         "tenantDomainLookup",
-        "agentReceivedRecords"
+        "agentReceivedRecords",
+        "sessionWorkingDirectory"
       ]
     },
     {
@@ -449,6 +461,13 @@
     },
     {
       "row": "notification-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "workspace-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

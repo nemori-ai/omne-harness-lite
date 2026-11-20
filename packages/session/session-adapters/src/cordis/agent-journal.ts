@@ -143,7 +143,7 @@ import {
   type Reader,
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
-import { createModelTelling, type ModelReminders } from './model-telling.ts'
+import { createModelTelling, type StepOpening } from './model-telling.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -154,8 +154,8 @@ export type SessionLogJournalOptions<P> = Readonly<{
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
   fault?: Fault
   report?: (report: JournalPublicationReport) => void
-  reminders?: ModelReminders<P> | undefined
-}>
+}> &
+  StepOpening<P>
 
 export type JournalPublicationReport = Readonly<{
   tenant: string

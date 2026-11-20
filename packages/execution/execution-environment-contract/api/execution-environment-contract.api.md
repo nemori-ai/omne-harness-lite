@@ -520,6 +520,7 @@ export type OwnedRecovery = Readonly<{
 export type PlacementInput = Readonly<{
     scope: ScopeRef;
     requirement: EnvironmentRequirement;
+    filesRoot?: string;
 }>;
 export type AcquireInput<P> = Readonly<{
     acquisition: AcquisitionRef;
@@ -1071,6 +1072,7 @@ export type Placement = Readonly<{
     provider: ProviderIdentity;
     continuity: EnvironmentContinuity;
     quotaDomain: string;
+    filesRoot?: string;
 }>;
 export type RegistryInvalidationReason = 'providerRetired' | 'scopeReleased' | 'registryClosed' | 'released' | 'providerInvalidated';
 export type LeaseInvalidation = {

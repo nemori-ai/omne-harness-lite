@@ -4,7 +4,7 @@ import type {
   LoginIdentity,
   Principal,
 } from '@omne-harness/access-cordis-contract'
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
   DurableEvidence,
@@ -14,6 +14,7 @@ import type {
   SessionHistory,
   SessionManagement,
   SessionWork,
+  WorkspaceAttachment,
 } from '@omne-harness/session-contract'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
 import type { QueuedRequest } from './request-queue.ts'
@@ -162,4 +163,26 @@ export interface ModelTargets {
   check(
     input: Readonly<{ principal: Principal; tenant: TenantId; route: string }>,
   ): Promise<ModelTargetCheck>
+}
+
+/** Whether a tenant may attach an instance now: Workspace answers it, the release adapts. */
+export type WorkspaceTargetCheck =
+  | Readonly<{
+      kind: 'attachable'
+      directory: string
+      attachment: WorkspaceAttachment
+      basis: DurableEvidence
+    }>
+  | Readonly<{ kind: 'refused'; reason: 'not-permitted' | 'instance-unavailable' }>
+  | Readonly<{ kind: 'unavailable' }>
+
+export interface WorkspaceTargets {
+  check(
+    input: Readonly<{
+      principal: Principal
+      tenant: TenantId
+      workspace: WorkspaceId
+      instance: string
+    }>,
+  ): Promise<WorkspaceTargetCheck>
 }

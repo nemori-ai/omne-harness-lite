@@ -119,6 +119,11 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
     phase: 'composition',
   },
+  workspace: {
+    provides: ['workspaceGovernance', 'workspaceInstances', 'workspaceCatalog', 'workspaceTypes'],
+    injects: ['storage'],
+    phase: 'composition',
+  },
   'session-storage': {
     provides: [
       'sessionTransactions',
@@ -162,6 +167,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionReplayFacts',
       'sessionScopeLookup',
       'sessionModesInstallation',
+      'sessionWorkingDirectory',
     ],
     injects: [
       'sessionWorkPrincipals',
@@ -436,6 +442,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'model-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'schedule-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'notification-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'workspace-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }
 

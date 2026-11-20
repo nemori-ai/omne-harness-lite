@@ -24,12 +24,12 @@ import {
   type SessionCreation,
 } from '@omne-harness/session-contract'
 import {
-  modesInitialization,
-  type ModesPreparationRecord,
-} from '../../assembly/session-modes-initialization.ts'
-import { prepareInitialModes } from './modes.ts'
+  contextInitialization,
+  type ContextPreparationRecord,
+} from '../../assembly/session-context-initialization.ts'
+import { prepareInitialContext, type PreparedBlock } from './initial-context.ts'
 import { jsonOf } from './json.ts'
-import { recallInitialModes } from './recall-modes.ts'
+import { recallInitialContext } from './recall-context.ts'
 import { plannedResidents } from './residents.ts'
 
 const OWNER = '@omne-harness/harness-server'
@@ -92,12 +92,12 @@ function undeclaredByMapping(
     (initialization.sources.length > 0 || initialization.results.length > 0) &&
     !same(
       initialization,
-      modesInitialization({ ...command.input, principal: undefined }).initialization,
+      contextInitialization({ ...command.input, principal: undefined }).initialization,
     )
   )
     return invalid(
       'initialization',
-      'the initialization does not match the application modes adoption',
+      'the initialization does not match the application context adoption',
     )
   const declared = creation.residentAdoption
   if (declared === undefined) return undefined
@@ -149,7 +149,7 @@ function initialAdoptionOf(
   mappings: DefinitionMappings,
   entry: DefinitionMappingEntry,
   residents: ResidentAdoption,
-  preparation: ModesPreparationRecord | undefined,
+  preparations: readonly ContextPreparationRecord[],
 ): InitialAdoption {
   return {
     definitionName: entry.name,
@@ -162,7 +162,7 @@ function initialAdoptionOf(
       schema: MAPPING_ENTRY_SCHEMA,
       value: jsonOf({
         ...entry,
-        contextPreparations: preparation === undefined ? [] : [canonicalText(preparation)],
+        contextPreparations: preparations.map(canonicalText),
       }),
     },
     residentBindings: residents.keys,
@@ -172,7 +172,7 @@ function initialAdoptionOf(
 
 function planOf(
   entry: DefinitionMappingEntry,
-  preparation: ModesPreparationRecord | undefined,
+  preparations: readonly ContextPreparationRecord[],
 ): readonly InitializationPlanItem[] {
   const identity: InitializationPlanItem[] = entry.requiredIdentities.map(
     ({ capability, name }) => ({
@@ -183,18 +183,16 @@ function planOf(
       originalInput: jsonOf({ capability, name }),
     }),
   )
-  return preparation === undefined
-    ? identity
-    : [
-        ...identity,
-        {
-          kind: 'context-registration',
-          owner: preparation.source.owner,
-          item: preparation.source.item,
-          protocol: preparation.source.protocol,
-          originalInput: jsonOf(preparation.source.input),
-        },
-      ]
+  return [
+    ...identity,
+    ...preparations.map(({ source }): InitializationPlanItem => ({
+      kind: 'context-registration',
+      owner: source.owner,
+      item: source.item,
+      protocol: source.protocol,
+      originalInput: jsonOf(source.input),
+    })),
+  ]
 }
 
 function requirementsOf(
@@ -230,7 +228,7 @@ function initializationGuardOf(
   command: CreateCommand,
   entry: DefinitionMappingEntry,
   residents: ResidentAdoption,
-  preparation: ModesPreparationRecord | undefined,
+  blocks: readonly PreparedBlock[],
 ): Prepared {
   const { creation } = command.input
   const tenant = tenantCodec.encode(command.input.tenant)
@@ -238,7 +236,8 @@ function initializationGuardOf(
   const workspace = creation.workspace === null ? null : workspaceCodec.encode(creation.workspace)
   if (workspace !== null && !workspace.ok)
     return invalid('workspace', 'the workspace is not minted by its codec')
-  const plan = planOf(entry, preparation)
+  const preparations = blocks.map(block => block.record)
+  const plan = planOf(entry, preparations)
   const facts: InitializationGuardFacts = {
     version: 1,
     command: 'create',
@@ -249,13 +248,10 @@ function initializationGuardOf(
       createOperation: command.input.operation,
     },
     input: commandInputOf(command, tenant.value, workspace === null ? null : workspace.value),
-    initialAdoption: initialAdoptionOf(mappings, entry, residents, preparation),
+    initialAdoption: initialAdoptionOf(mappings, entry, residents, preparations),
     requirements: requirementsOf(entry, plan),
     plan,
-    results:
-      preparation === undefined
-        ? []
-        : [modesInitialization({ ...command.input, principal: undefined }).outcome],
+    results: blocks.map(block => block.outcome),
   }
   return initializationMaterial(facts)
 }
@@ -279,7 +275,7 @@ async function prepareFrom<P>(
 ): Promise<Prepared> {
   switch (command.kind) {
     case 'create': {
-      const recalled = await recallInitialModes(ctx, command, access, MAPPING_ENTRY_SCHEMA)
+      const recalled = await recallInitialContext(ctx, command, access, MAPPING_ENTRY_SCHEMA)
       if ('failure' in recalled) return recalled
       if (recalled.ok !== undefined) return initializationMaterial(recalled.ok)
       const { creation } = command.input
@@ -293,7 +289,7 @@ async function prepareFrom<P>(
       if (undeclared !== undefined) return undeclared
       const residents = await plannedResidents(ctx, entry.residentCapabilities ?? [], access)
       if ('failure' in residents) return residents
-      const preparation = await prepareInitialModes(ctx, command, access)
+      const preparation = await prepareInitialContext(ctx, command, access)
       if ('failure' in preparation) return preparation
       return initializationGuardOf(mappings, command, entry, residents.ok, preparation.ok)
     }

@@ -29,6 +29,8 @@ type Transfer = BoundRequest<Parameters<FileSystemFacility<unknown>['move']>[0]>
 type Batch = BoundRequest<Parameters<FileSystemFacility<unknown>['commitBatch']>[0]>
 
 export type FilesAuthorEnvironment = Readonly<{
+  /** The working directory of this call: relative paths resolve against it. Absent: it has none. */
+  directory?: string
   files: FileOperations & {
     move(
       request: Omit<Transfer, 'target'> & { readonly target: { readonly path: string } },
@@ -43,6 +45,8 @@ export type FilesAuthorEnvironment = Readonly<{
 }>
 
 export type ShellAuthorEnvironment = Readonly<{
+  /** The working directory of this call: where a command or a new terminal starts by default. */
+  directory?: string
   command: BoundCommand
   terminal: BoundTerminal
   facts: Readonly<{

@@ -8,6 +8,26 @@ export {
   sessionModesModelBinding,
 } from './cordis/mode-block.ts'
 export {
+  workingDirectoryBindings,
+  workingDirectoryCallBinding,
+  workingDirectoryDescriptor,
+  workingDirectoryModelBinding,
+  workingDirectoryProducer,
+} from './cordis/working-directory-block.ts'
+export {
+  createWorkingDirectoryPublishers,
+  type DirectoryPublication,
+  type WorkingDirectoryPublishersInput,
+} from './cordis/working-directory-publisher.ts'
+export {
+  createStepDirectory,
+  type StepDirectory,
+  type StepDirectoryInput,
+  type StepDirectoryPorts,
+  type StepDirectoryResult,
+  type WorkingDirectoryTargets,
+} from './cordis/working-directory-step.ts'
+export {
   createSessionModesPlugin,
   type SessionModesPluginInput,
   type SessionPermissionModeReading,

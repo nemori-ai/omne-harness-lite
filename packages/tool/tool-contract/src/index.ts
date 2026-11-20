@@ -60,6 +60,7 @@ export type {
   ToolCommandRelease,
   ToolCommandReleaseDetail,
   ToolDefinition,
+  ToolCallDirectory,
   ToolEnvironmentDeclaration,
   ToolGate,
   ToolGateDefault,

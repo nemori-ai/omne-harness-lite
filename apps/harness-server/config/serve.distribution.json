@@ -161,6 +161,11 @@
       "config": {}
     },
     {
+      "id": "workspace",
+      "plugin": "workspaceRow",
+      "config": {}
+    },
+    {
       "id": "usage",
       "plugin": "usageRow",
       "config": {}
@@ -721,6 +726,11 @@
     {
       "id": "notification-access",
       "plugin": "notificationAccessRow",
+      "config": {}
+    },
+    {
+      "id": "workspace-access",
+      "plugin": "workspaceAccessRow",
       "config": {}
     },
     {

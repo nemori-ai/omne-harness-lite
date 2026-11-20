@@ -28,6 +28,7 @@ type Name = Exclude<
   | 'list-background-calls'
   | 'select-model'
   | 'read-model-selection'
+  | 'select-workspace'
   | 'read-permission-mode'
   | 'change-permission-mode'
 >

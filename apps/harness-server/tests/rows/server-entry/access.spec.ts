@@ -282,6 +282,7 @@ describe('the serve process with the release', () => {
         'session/v1',
         'tool/v1',
         'usage/v1',
+        'workspace/v1',
       ])
       const records = stdout
         .trim()

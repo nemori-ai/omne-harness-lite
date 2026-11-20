@@ -154,6 +154,12 @@
     "@omne-harness/usage-adapters": "workspace:*",
     "@omne-harness/usage-cordis-contract": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",
+    "@omne-harness/workspace": "workspace:*",
+    "@omne-harness/workspace-access": "workspace:*",
+    "@omne-harness/workspace-contract": "workspace:*",
+    "@omne-harness/workspace-cordis-contract": "workspace:*",
+    "@omne-harness/workspace-filesystem": "workspace:*",
+    "@omne-harness/workspace-local": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

@@ -56,7 +56,6 @@ const emptyConfig: EmptyConfig = {
 export type HostFilesConfig = Readonly<
   {
     drainBoundMs?: number
-    filesRoot?: string
     stateDirectory?: string
     terminal?: HostTerminalOptions
   } & HostCommandOptions
@@ -87,7 +86,7 @@ const commandFields = [
   'probeRetryMs',
 ] as const
 const residueNumberFields = ['retainedPerScope', 'retainedPollMs', 'retainedOutputBytes'] as const
-const pathFields = ['filesRoot', 'stateDirectory'] as const
+const pathFields = ['stateDirectory'] as const
 const numberFields = ['drainBoundMs', ...commandFields, ...residueNumberFields] as const
 const hostFields: readonly string[] = [...numberFields, ...pathFields, 'terminal', 'residuePolicy']
 const terminalFields = [
@@ -329,7 +328,6 @@ export function createHostFilesPlugin(domain: HostFilesDomain) {
         command: commandOptionsOf(config),
         ...(config.terminal === undefined ? {} : { terminal: config.terminal }),
         ...(config.drainBoundMs === undefined ? {} : { drainBoundMs: config.drainBoundMs }),
-        ...(config.filesRoot === undefined ? {} : { filesRoot: config.filesRoot }),
         ...(config.stateDirectory === undefined ? {} : { stateDirectory: config.stateDirectory }),
       }
       return ctx.executionEnvironment.registerProvider(createHostFilesProvider(options))

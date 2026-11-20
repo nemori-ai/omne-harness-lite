@@ -76,6 +76,11 @@
       "config": {}
     },
     {
+      "id": "workspace",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "usage",
       "plugin": "stubPlugin",
       "config": {}
@@ -392,6 +397,11 @@
     },
     {
       "id": "notification-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "workspace-access",
       "plugin": "stubPlugin",
       "config": {}
     },

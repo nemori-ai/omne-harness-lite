@@ -41,6 +41,7 @@ import { calendarCommand } from './calendar-command.ts'
 import { usageCommands } from './usage-command.ts'
 import { scheduleCommand } from './schedule-command.ts'
 import { notificationCommand } from './notification-command.ts'
+import { workspaceCommand } from './workspace-command.ts'
 import { callsCommand } from './calls-command.ts'
 
 async function runAccount(
@@ -123,6 +124,7 @@ interface SessionCommandBase<Parsed> {
   readonly name: string
   readonly accepted: readonly string[]
   readonly required: readonly string[]
+  readonly switches?: readonly string[]
   readonly parse: (values: Option) => Parsed | undefined
 }
 
@@ -205,7 +207,8 @@ async function runSession<Parsed>(
   environment: CommandEnvironment,
 ): Promise<ExitCode> {
   const { name } = command
-  const read = readOptions(args, { accepted: command.accepted, required: command.required })
+  const { accepted, required, switches = [] } = command
+  const read = readOptions(args, { accepted, required, switches })
   if (read.kind === 'unrecognized') return usageError(output, unrecognized(name))
   if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))
   const parsed = command.parse(read.values)
@@ -229,23 +232,43 @@ async function runSession<Parsed>(
   return recordCreated(name, session, owners, loaded, output) ?? code
 }
 
+type WorkspaceTarget = Readonly<{ workspace: string; instance: string }>
+
+function workspaceOption(values: Option): WorkspaceTarget | null | undefined {
+  const workspace = values.get('--workspace')
+  const instance = values.get('--instance')
+  if (workspace === undefined && instance === undefined) return null
+  return workspace && instance ? { workspace, instance } : undefined
+}
+
 const createSession: CreatingCommand<{
   definition: string
   purpose: string
   model: string | undefined
+  workspace: WorkspaceTarget | null
   createCallId: string | undefined
 }> = {
   kind: 'creating',
   name: 'create-session',
-  accepted: ['--definition', '--purpose', '--model', '--create-call-id', serverOption],
+  accepted: [
+    '--definition',
+    '--purpose',
+    '--model',
+    '--workspace',
+    '--instance',
+    '--create-call-id',
+    serverOption,
+  ],
   required: ['--definition'],
   parse: values => {
     const model = values.get('--model')
-    if (model === '') return undefined
+    const workspace = workspaceOption(values)
+    if (model === '' || workspace === undefined) return undefined
     return {
       definition: values.get('--definition') ?? '',
       purpose: values.get('--purpose') ?? '',
       model,
+      workspace,
       createCallId: values.get('--create-call-id'),
     }
   },
@@ -262,6 +285,7 @@ const createSession: CreatingCommand<{
             definition: parsed.definition,
             purpose: parsed.purpose,
             ...(parsed.model === undefined ? {} : { model: parsed.model }),
+            ...(parsed.workspace === null ? {} : { workspace: parsed.workspace }),
           },
           messageId,
         ),
@@ -649,6 +673,37 @@ const selectModel: ExistingCommand<Targeted & { model: string }> = {
   },
 }
 
+const selectWorkspace: ExistingCommand<Targeted & { workspace: WorkspaceTarget | null }> = {
+  kind: 'existing',
+  name: 'select-workspace',
+  accepted: ['--session', '--workspace', '--instance', '--tenant', '--control-id', serverOption],
+  required: ['--session'],
+  switches: ['--none'],
+  parse: values => {
+    const target = targeted(values)
+    const workspace = workspaceOption(values)
+    if (target === undefined || workspace === undefined) return undefined
+    if (values.has('--none') === (workspace !== null)) return undefined
+    return { ...target, workspace }
+  },
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { owner: tenant, newId }) => {
+    const messageId = newId()
+    const controlId = parsed.controlId ?? newId()
+    const { session, workspace } = parsed
+    return {
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'select-workspace',
+          { tenant, session, controlId, workspace },
+          messageId,
+        ),
+      echo: { messageId, controlId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
 const readModelSelection: ExistingCommand<Targeted> = {
   kind: 'existing',
   name: 'read-model-selection',
@@ -705,8 +760,8 @@ export const productionCommands: readonly CommandSpec[] = [
   },
   {
     name: 'create-session',
-    usage: '--definition <name> [--model <route>]',
-    summary: 'Create a session.',
+    usage: '--definition <name> [--model <route>] [--workspace <id> --instance <id>]',
+    summary: 'Create a session, in a workspace when one is named.',
     run: (args, output, environment) => runSession(createSession, args, output, environment),
   },
   {
@@ -776,6 +831,12 @@ export const productionCommands: readonly CommandSpec[] = [
     run: (args, output, environment) => runSession(selectModel, args, output, environment),
   },
   {
+    name: 'select-workspace',
+    usage: '--session <id> (--workspace <id> --instance <id> | --none)',
+    summary: 'Select the workspace a session works in, or none: it is in force from the next step.',
+    run: (args, output, environment) => runSession(selectWorkspace, args, output, environment),
+  },
+  {
     name: 'read-model-selection',
     usage: '--session <id>',
     summary: 'Read the model a session stands at now.',
@@ -826,6 +887,7 @@ export const productionCommands: readonly CommandSpec[] = [
   calendarCommand,
   scheduleCommand,
   notificationCommand,
+  workspaceCommand,
   settingCommand,
   assetCommand,
   ...usageCommands,

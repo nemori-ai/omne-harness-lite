@@ -9,7 +9,7 @@ Commands
 
   omne register --login-identifier <id>                                                                                   Register and activate an account.
   omne login --login-identifier <id>                                                                                      Issue a login and save it in the state directory.
-  omne create-session --definition <name> [--model <route>]                                                               Create a session.
+  omne create-session --definition <name> [--model <route>] [--workspace <id> --instance <id>]                            Create a session, in a workspace when one is named.
   omne send-input --session <id> --text <text> [--model <route>]                                                          Send a user message to a session.
   omne interrupt-input --session <id> --text <text> [--model <route>]                                                     Send an urgent user message: it releases what the run waits for, or is ordinary.
   omne read-history --session <id>                                                                                        Read the whole history of a session.
@@ -21,6 +21,7 @@ Commands
   omne cancel-run --session <id> --run <id>                                                                               Cancel a run.
   omne stop-call --session <id> --producer-kind <kind> --call <id>                                                        Stop a model or tool call.
   omne select-model --session <id> --model <route>                                                                        Select the model of a session: the next model request uses it.
+  omne select-workspace --session <id> (--workspace <id> --instance <id> | --none)                                        Select the workspace a session works in, or none: it is in force from the next step.
   omne read-model-selection --session <id>                                                                                Read the model a session stands at now.
   omne list-models [--tenant <tenant>]                                                                                    List the models of the tenant: which can be selected, and why one cannot.
   omne archive-session --session <id>                                                                                     Archive a session: its run ends and its background calls are withdrawn.
@@ -53,6 +54,7 @@ Commands
   omne calendar list|environment|health|day|count|shift|next|nth                                                          Ask a date question on the calendar your settings choose, or on one you name with --calendar and --version: list the calendars, read the one in effect, read the supply health, or classify, count, shift and list working days.
   omne schedule list|show|history|agenda|preview|create|<action>                                                          Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard.
   omne notification send|sent|list|show|seen|done|dismiss|restore|sources                                                 Post a notification to yourself and ask what became of it, list and read the inbox of the acting tenant, mark a notification seen, done, dismissed or restored, or list the sources.
+  omne workspace register <directory> [--type <type>] [--resume <operation>] | list | show <workspace>                    Register a directory of the server as a workspace without touching what is in it, list your workspaces, or show one with its instances.
   omne setting list|set|show|unset [--independent]                                                                        List the asset settings of the acting tenant, or with --independent its independent settings (named <provider>/<definition>); set, show or unset one; set reads a secret from the prompt, or takes --value <JSON>.
   omne asset categories|list|show|create|enable|disable|remove|watch                                                      Manage the assets of the acting tenant: list the categories, list one category, show one (<category>:<name>), create one from --data <JSON|@file> or --dir <directory>, enable, disable or remove one (remove needs --yes), and watch for changes; --resume <operation> recalls an uncertain outcome.
   omne query-usage --since <instant> --before <instant> --zone <tz> [--session <id>] [--bucket <b>] [--group-by <d,d>]    Sum the usage and cost of a tenant or one session from --since up to --before: buckets none, hour, day, week or month in the IANA zone, split by up to two of source, model, provider, purpose and tool. --tenant names another tenant.

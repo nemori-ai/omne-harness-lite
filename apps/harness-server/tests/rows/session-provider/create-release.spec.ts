@@ -1,6 +1,6 @@
 import { readPublishedView } from '../../../src/rows/session-ad03/published-view.ts'
 import '../../../src/rows/session-ad03/modes.ts'
-import { modesInitialization } from '../../../src/assembly/session-modes-initialization.ts'
+import { contextInitialization } from '../../../src/assembly/session-context-initialization.ts'
 import { sessionAd03Row } from '../../../src/rows/session-ad03/index.ts'
 import { sessionModesPrincipals } from '../../../src/entry/session-modes-principals.ts'
 import { sessionModesIssuerOf, sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
@@ -175,7 +175,15 @@ async function start(
       declared(sessionAd10Row),
       declared(runtimeContextRow),
       declared(sessionAd12Row),
-      ...(modes ? [declared(sessionAd03Row, { scopeIndexEntries: 100, pageBytes: 1048576 })] : []),
+      ...(modes
+        ? [
+            declared(sessionAd03Row, {
+              scopeIndexEntries: 100,
+              pageBytes: 1048576,
+              defaultDirectory: base.stateRoot,
+            }),
+          ]
+        : []),
       declared(sessionProviderRealRow, { admission: 'none' }),
       ...(release
         ? [
@@ -454,7 +462,10 @@ it(
       }
       return {
         ...input,
-        creation: { ...input.creation, initialization: modesInitialization(input).initialization },
+        creation: {
+          ...input.creation,
+          initialization: contextInitialization(input).initialization,
+        },
       }
     }
     const input = await makeInput(first.modePrincipal)

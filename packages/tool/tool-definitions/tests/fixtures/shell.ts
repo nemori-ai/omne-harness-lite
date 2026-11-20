@@ -57,6 +57,7 @@ export function shellFixture(output = 'one-shot output') {
     }
   }
   const environment: ShellAuthorEnvironment = {
+    directory: '/initial',
     facts: {
       os: 'fixtureOS',
       release: 'fixtureRelease',
@@ -118,7 +119,6 @@ export function shellFixture(output = 'one-shot output') {
     resultMaxBytes: 32768,
     executable: '/explicit-shell',
     argsPrefix: ['-c'],
-    cwd: '/initial',
     env: { A: 'base', BASE: 'yes' },
   }
   return {

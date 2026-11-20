@@ -21,6 +21,8 @@ import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts
 import { sessionModesPrincipalsKey } from '../../entry/session-modes-principals.ts'
 import { defaultModesOf } from '../session-conditions/index.ts'
 import { SessionModesInstallation, sessionModesInstallationKey } from './modes.ts'
+import { SessionWorkingDirectory, sessionWorkingDirectoryKey } from './working-directory.ts'
+import { workspaceTargets } from '../session-access/workspace-targets.ts'
 import { adoptedContextDefinitions } from '../../assembly/context-definitions.ts'
 import { defineRow } from '../../row.ts'
 import { coordinatorPrincipalsOf } from '../session-adapters/coordinator.ts'
@@ -29,6 +31,8 @@ const positive = z.number().int().positive()
 export const sessionAd03Config = z.strictObject({
   scopeIndexEntries: positive,
   pageBytes: positive,
+  /** Where a session with no workspace attached works: the real path of the server's directory. */
+  defaultDirectory: z.string().min(1),
 })
 export type SessionAd03Config = z.output<typeof sessionAd03Config>
 
@@ -54,7 +58,12 @@ const plugin: Plugin.Object = {
       principals: ctx[sessionModesPrincipalsKey],
       verifier: ctx[principalVerifierKey],
       defaultModes: defaultModesOf(ctx[definitionMappingsKey]),
-      recoverSession: input => bundle.recoverSession(input),
+      // Runtime Context must know both blocks of a session before a reader of its scope reads:
+      // a block it does not know reads as no value at all, not as a required one that is missing.
+      recoverSession: async input => {
+        if ((await directory.ensure(input.tenant)).kind !== 'ready') return { kind: 'unavailable' }
+        return bundle.recoverSession(input)
+      },
     })
     const bundle = createSessionContextHolder<unknown>({
       coordinator,
@@ -72,6 +81,13 @@ const plugin: Plugin.Object = {
       scopeIndexEntries: config.scopeIndexEntries,
       pageBytes: config.pageBytes,
     })
+    const directory = new SessionWorkingDirectory(ctx, {
+      defaultDirectory: config.defaultDirectory,
+      targets: () => workspaceTargets(ctx),
+      recover: input => bundle.recoverSession(input),
+      principals: ctx[sessionModesPrincipalsKey],
+      runtime: ctx[runtimeContextKey],
+    })
     await ctx.plugin(bundle.holder)
     await ctx.plugin(bundle.replay)
     await ctx.plugin(bundle.facts)
@@ -87,6 +103,7 @@ export const sessionAd03Row = defineRow({
       sessionReplayFactsKey,
       sessionScopeLookupKey,
       sessionModesInstallationKey,
+      sessionWorkingDirectoryKey,
     ],
     injects: INJECTS,
     sameProviderGroup: null,

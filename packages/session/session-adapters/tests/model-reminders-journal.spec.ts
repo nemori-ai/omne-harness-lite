@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SystemReminderMessage } from '@omne-harness/message'
 import type { SqlStorage } from '@omne-harness/sql-contract'
-import type { ModelReminders } from '@omne-harness/session-adapters/cordis'
+import type { ModelReminders, StepDirectory } from '@omne-harness/session-adapters/cordis'
 import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
 import { evidence, ok, operation } from './fixtures/common-journal.ts'
 import { assistantMessage } from '@omne-harness/session-contract/testing'
@@ -54,8 +54,10 @@ function journalOf(
   s: SqlScene,
   reminders: ModelReminders<string>,
   storage: SqlStorage = s.storage,
+  directory?: StepDirectory<string>,
 ) {
   return createSessionLogJournal<string>({
+    ...(directory === undefined ? {} : { directory }),
     storage,
     tenantDomainLookup: { lookup: () => Promise.resolve({ kind: 'ready', domain: s.domain }) },
     sessionAccessCheck: {
@@ -174,6 +176,103 @@ describe('the journal tells the model before a step takes its inputs (C4, C7)', 
       expect(
         (await modelView(s)).filter(role => role === 'system_reminder').length,
       ).toBeGreaterThan(0)
+    } finally {
+      await s.close()
+    }
+  })
+})
+
+// The working directory of a session changes in the action before a step and nowhere else.
+describe('the journal settles the working directory before a step, then tells the model (C9)', () => {
+  function settling(calls: string[], answer: 'refreshed' | 'unavailable' = 'refreshed') {
+    const inputs: unknown[] = []
+    const directory: StepDirectory<string> = {
+      refresh: async input => {
+        calls.push('refresh')
+        inputs.push(input)
+        return answer === 'refreshed'
+          ? { kind: 'refreshed' }
+          : { kind: 'unavailable', diagnostic: 'scripted verification failure' }
+      },
+    }
+    return { directory, inputs }
+  }
+
+  it('refreshes before it reads what to tell, with the selection of the snapshot it writes on', async () => {
+    const s = await sqlScene('directory-first')
+    try {
+      ok(await s.view.journal.open(s.openInput))
+      const { reminders, calls } = scripted()
+      const { directory, inputs } = settling(calls)
+      await takeInputs(s, journalOf(s, reminders, s.storage, directory))
+      // Reading first would tell the model the directory of the step before this one.
+      expect(calls.slice(0, 2)).toEqual(['refresh', expect.stringMatching(/^prepare@/)])
+      expect(calls.filter(call => call !== 'advance')).toEqual([
+        'refresh',
+        expect.stringMatching(/^prepare@/),
+        'refresh',
+        expect.stringMatching(/^prepare@/),
+      ])
+      const work = ok(await s.port.readWork(s.sessionAccess))
+      expect(inputs[0]).toMatchObject({
+        principal: s.access.principal,
+        tenant: s.access.tenant,
+        session: s.sessionAccess.session,
+        scope: { ref: work.contextScopes?.at(-1)?.scope },
+        snapshot: { creation: work.creation },
+      })
+    } finally {
+      await s.close()
+    }
+  })
+
+  it('a write that begins no step leaves the working directory as the step has it', async () => {
+    const s = await sqlScene('directory-only-steps')
+    try {
+      ok(await s.view.journal.open(s.openInput))
+      const { reminders, calls } = scripted()
+      const journal = journalOf(s, reminders, s.storage, settling(calls).directory)
+      await takeInputs(s, journal)
+      const refreshed = calls.filter(call => call === 'refresh').length
+      const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
+      const message = assistantMessage('reply')
+      ok(
+        await journal.commit({
+          ...s.access,
+          execution: s.execution,
+          operation: operation('reply'),
+          authority: loaded.executionAttachment!,
+          expected: loaded.revision,
+          checkpoint: loaded.checkpoint,
+          state: { kind: 'advancing' },
+          events: [{ kind: 'message', message, source: evidence('reply-admission') }],
+          effects: [],
+          caller: {
+            kind: 'message',
+            message,
+            source: evidence('reply-source'),
+            admission: evidence('reply-admission'),
+          },
+          replyAdmission: null,
+          handoff: null,
+          finish: null,
+        }),
+      )
+      expect(calls.filter(call => call === 'refresh')).toHaveLength(refreshed)
+    } finally {
+      await s.close()
+    }
+  })
+
+  it('a verification that cannot be done fails the step: nothing is told, no input is delivered', async () => {
+    const s = await sqlScene('directory-fail')
+    try {
+      ok(await s.view.journal.open(s.openInput))
+      const { reminders, calls } = scripted()
+      const journal = journalOf(s, reminders, s.storage, settling(calls, 'unavailable').directory)
+      await expect(takeInputs(s, journal)).rejects.toThrow(/scripted verification failure/)
+      expect(calls).toEqual(['refresh'])
+      expect(await modelView(s)).toEqual([])
     } finally {
       await s.close()
     }

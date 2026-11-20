@@ -1,7 +1,10 @@
 import type { ActingForTenantPrincipal, PrincipalVerifier } from '@omne-harness/identity'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type { AuthorityDecision, ProducerAction } from '@omne-harness/runtime-context-contract'
-import { sessionModesProducer } from '@omne-harness/session-adapters/cordis'
+import {
+  sessionModesProducer,
+  workingDirectoryProducer,
+} from '@omne-harness/session-adapters/cordis'
 import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
 import { ENTRY_COMPONENTS, SESSION_MODES_WORK } from './principals.ts'
 import type { SessionScopeOwnership, SessionScopeOwnershipSource } from './session-scope-source.ts'
@@ -11,6 +14,12 @@ export type SessionModesAuthoritySources = Readonly<{
   scopeOwners?: SessionScopeOwnershipSource | undefined
   sessionWork?: SessionWorkPrincipals<unknown>['forSession'] | undefined
 }>
+
+/** The blocks the Session adapters produce for a session scope, each by its own producer. */
+const PRODUCED = new Map<string, string>([
+  ['session.modes', sessionModesProducer.producer],
+  ['session.working-directory', workingDirectoryProducer.producer],
+])
 
 async function supplyPrincipal(
   sources: SessionModesAuthoritySources,
@@ -49,8 +58,7 @@ export async function decideSessionModesProducer(
     principal.work.owner !== SESSION_MODES_WORK.owner ||
     principal.work.work !== SESSION_MODES_WORK.work ||
     !tenantEquals(principal.tenant, action.tenant) ||
-    action.key !== 'session.modes' ||
-    action.producer.producer !== sessionModesProducer.producer
+    PRODUCED.get(action.key) !== action.producer.producer
   )
     return { kind: 'refused' }
   if (action.kind === 'register' || action.kind === 'invalidate-tenant')

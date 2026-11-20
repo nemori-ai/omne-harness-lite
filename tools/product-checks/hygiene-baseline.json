@@ -76,7 +76,7 @@
       "packages/agent/agent/src/loop/coordinator.ts": 3305,
       "packages/agent/agent/src/testing/journal.ts": 3589,
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1055,
-      "packages/execution/execution-environment/src/registry.ts": 1046,
+      "packages/execution/execution-environment/src/registry.ts": 1040,
       "packages/identity/identity/src/testing/governance-contract.ts": 2224,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
       "packages/model/model-storage-sql/src/commit.ts": 1109,
@@ -119,7 +119,7 @@
       },
       "apps/harness-server/src/rows/tool-runtime/environment.ts": {
         "count": 1,
-        "longest": 165
+        "longest": 164
       },
       "apps/harness-server/src/run.ts": {
         "count": 1,
@@ -299,7 +299,7 @@
       },
       "packages/execution/execution-environment-host-local/src/host-provider.ts": {
         "count": 1,
-        "longest": 422
+        "longest": 420
       },
       "packages/execution/execution-environment-host-local/src/host-retained-processes.ts": {
         "count": 1,
@@ -355,7 +355,7 @@
       },
       "packages/execution/execution-environment/src/registry.ts": {
         "count": 1,
-        "longest": 810
+        "longest": 803
       },
       "packages/human-intervention/human-intervention-local/src/application.ts": {
         "count": 1,

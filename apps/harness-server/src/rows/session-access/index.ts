@@ -30,14 +30,15 @@ import type { Outcome } from '@omne-harness/operation-result'
 import { encodeInstant, parseInstant, type Instant } from '@omne-harness/utc-instant'
 import { z } from 'zod'
 import {
-  modesInitialization,
-  type ModesCreation,
-} from '../../assembly/session-modes-initialization.ts'
+  contextInitialization,
+  type ContextCreation,
+} from '../../assembly/session-context-initialization.ts'
 import { LOCAL_HISTORY_KINDS } from '../../local/operator-defaults.ts'
 import { defineRow } from '../../row.ts'
 import { accessIdentityOfCall, memberActingOfCall } from '../server-entry/identity.ts'
 import { runFailureCauses } from './causes.ts'
 import { modelTargets } from './model-targets.ts'
+import { workspaceTargets } from './workspace-targets.ts'
 import { sessionPermissionModes } from './permission-modes.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -149,7 +150,7 @@ function definitionsOf(ctx: Context) {
 }
 
 function prepareCreation(input: SessionCreateInput): SessionCreateInput {
-  const { initialization } = modesInitialization(input as unknown as ModesCreation)
+  const { initialization } = contextInitialization(input as unknown as ContextCreation)
   return { ...input, creation: { ...input.creation, initialization } }
 }
 
@@ -162,6 +163,7 @@ const plugin = createSessionAccessPlugin({
   listing: sessionListingOf,
   causes: runFailureCauses,
   modelTargets,
+  workspaceTargets,
   permissionModes: sessionPermissionModes,
   prepareCreation,
 })

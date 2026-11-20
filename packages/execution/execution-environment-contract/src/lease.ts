@@ -41,6 +41,8 @@ export type Placement = Readonly<{
   continuity: EnvironmentContinuity
   /** The trusted capacity domain of the chosen provider; it routes the original acquisition after a rebuild. */
   quotaDomain: string
+  /** The directory every file request of the acquisition stays in. Left out: the placement names none. */
+  filesRoot?: string
 }>
 
 export type RegistryInvalidationReason =

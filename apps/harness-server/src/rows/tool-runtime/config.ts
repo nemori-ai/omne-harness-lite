@@ -1,4 +1,3 @@
-import { isAbsolute } from 'node:path'
 import type { ToolConfiguration } from '@omne-harness/tool'
 import { z } from 'zod'
 
@@ -43,12 +42,7 @@ export const toolConfigurationSchema = z.strictObject({
   driverRetryDelayMs: timerMs,
 }) satisfies z.ZodType<Omit<ToolConfiguration, 'readResultArguments'>>
 
-const absolutePath = z
-  .string()
-  .refine(value => (process.platform === 'win32' ? /^[a-z]:[\\/]/i.test(value) : isAbsolute(value)))
-
 export const toolRuntimeConfigSchema = z.strictObject({
-  filesRoot: absolutePath,
   combinationVersion: z.string().min(1).max(1024),
   configuration: toolConfigurationSchema,
   capacity: positive,

@@ -23,7 +23,7 @@ it('keeps the maintenance field outside member config and requires native absolu
   try {
     const binding = createExecutionHostBinding(runtime)
     const root = process.platform === 'win32' ? 'C:/files' : '/files'
-    const config = { filesRoot: root, stateDirectory: `${root}/state`, drainBoundMs: 7 }
+    const config = { stateDirectory: `${root}/state`, drainBoundMs: 7 }
     expect(binding.parseConfig(config)).toEqual({ maintainIntervalMs: 60000, member: config })
     expect(binding.parseConfig({ ...config, maintainIntervalMs: 23 })).toEqual({
       maintainIntervalMs: 23,
@@ -35,7 +35,7 @@ it('keeps the maintenance field outside member config and requires native absolu
       )
     for (const invalid of [
       {},
-      { ...config, filesRoot: 'relative' },
+      { ...config, filesRoot: root },
       { ...config, stateDirectory: 'relative' },
       { ...config, extra: true },
     ])
@@ -65,7 +65,7 @@ it('reuses the original acquisition history when a real Cordis factory row reloa
   try {
     await root.plugin(Registry)
     const { plugin } = createExecutionHostBinding(runtime)
-    const config = { filesRoot: directory, stateDirectory: directory }
+    const config = { stateDirectory: directory }
     const first = await root.plugin(plugin, config)
     const old = providers[0]
     if (old === undefined) throw new Error('provider was not registered')

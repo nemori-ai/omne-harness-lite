@@ -116,11 +116,13 @@ describe('localServeInputs', () => {
     if (result.kind !== 'ready') throw new Error(JSON.stringify(result))
     const root = realpathSync.native(real)
     const config = (id: string) => result.operator?.ops.find(op => op.id === id)?.config
-    expect(config('execution-host')).toMatchObject({ filesRoot: root })
-    expect(config('tool-records')).toMatchObject({ filesRoot: root })
-    expect(config('tool-host')).toMatchObject({
-      construction: { Shell: { cwd: root }, Files: { cwd: root } },
-    })
+    // The real path is the default directory of sessions, and it is given in that one place.
+    expect(config('session-ad03')).toMatchObject({ defaultDirectory: root })
+    expect(JSON.stringify([config('execution-host'), config('tool-records')])).not.toContain(root)
+    const construction = (config('tool-host') as { construction: Record<string, object> })
+      .construction
+    expect(Object.keys(construction['Shell']!)).not.toContain('cwd')
+    expect(Object.keys(construction['Files']!)).toEqual(['resultMaxBytes'])
     expect(result.settings?.workspace).toBe(link)
     const written = JSON.parse(readFileSync(join(h.home, 'config', 'server.json'), 'utf8')) as {
       workspace: string
