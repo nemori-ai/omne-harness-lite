@@ -3448,6 +3448,9 @@ importers:
       '@omne-harness/media-contract':
         specifier: workspace:*
         version: link:../media-contract
+      '@omne-harness/media-cordis-contract':
+        specifier: workspace:*
+        version: link:../media-cordis-contract
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
@@ -3492,6 +3495,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.1.0
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -3504,10 +3510,23 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/media/media-image:
+    dependencies:
+      '@omne-harness/image':
+        specifier: workspace:*
+        version: link:../../execution/image
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.3(@types/node@24.13.6)
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

@@ -1,4 +1,4 @@
-import { decodeRaster, encodeRaster } from './adapter.ts'
+import { decodeRaster, encodeRaster, type RasterTarget } from './adapter.ts'
 import { readContainer } from './container.ts'
 
 declare const imageBudgetBrand: unique symbol
@@ -55,9 +55,17 @@ export interface ImageDeclaration {
   readonly trusted: false
 }
 
+/** A target size comes as a pair, no larger than the picture; quality is 1 to 100, for the lossy formats. */
+export interface EncodeRequest {
+  readonly format: ImageFormat
+  readonly width?: number
+  readonly height?: number
+  readonly quality?: number
+}
+
 export interface OpenImageHandle {
   readonly phase: 'open'
-  encode(request: { readonly format: ImageFormat }): Promise<EncodeResult>
+  encode(request: EncodeRequest): Promise<EncodeResult>
   close(): Promise<CloseResult>
 }
 
@@ -89,6 +97,8 @@ export type OpenResult =
       readonly handle: OpenImageHandle
       readonly declaration: ImageDeclaration
       readonly verifiedBytes: Uint8Array
+      /** Observed on the decoded pixels: no pixel lets anything through. */
+      readonly opaque: boolean
     }
 
 const mediaTypeByFormat = {
@@ -188,6 +198,23 @@ function overLimit(
   return undefined
 }
 
+const within = (value: number, most: number): boolean =>
+  Number.isInteger(value) && value >= 1 && value <= most
+
+function targetOf(request: EncodeRequest, width: number, height: number): RasterTarget | undefined {
+  const { quality } = request
+  if (quality !== undefined && !within(quality, 100)) return undefined
+  if (request.width === undefined && request.height === undefined) return { width, height, quality }
+  if (request.width === undefined || request.height === undefined) return undefined
+  if (!within(request.width, width) || !within(request.height, height)) return undefined
+  return { width: request.width, height: request.height, quality }
+}
+
+function isOpaque(raster: Buffer): boolean {
+  for (let at = 3; at < raster.length; at += 4) if (raster[at] !== 255) return false
+  return true
+}
+
 function reject(reason: ImageRejectReason): OpenResult {
   return { kind: 'rejected', reason }
 }
@@ -229,6 +256,7 @@ async function finishOpen(
   return {
     kind: 'opened',
     ...createHandle(pool, decoded, width, height, estimate, mediaType, bytes),
+    opaque: isOpaque(decoded),
   }
 }
 
@@ -254,10 +282,12 @@ function createHandle(
     async encode(request) {
       const format = request.format
       if (closed !== undefined || pixels === null) return { kind: 'rejected', reason: 'closed' }
-      if (!IMAGE_FORMATS.includes(format)) return { kind: 'rejected', reason: 'encode' }
+      const target = targetOf(request, width, height)
+      if (!IMAGE_FORMATS.includes(format) || target === undefined)
+        return { kind: 'rejected', reason: 'encode' }
       encoding += 1
       try {
-        const encoded = await encodeRaster(pixels, width, height, format)
+        const encoded = await encodeRaster(pixels, width, height, format, target)
         if (encoded === undefined) return { kind: 'rejected', reason: 'encode' }
         return {
           kind: 'encoded',

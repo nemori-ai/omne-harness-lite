@@ -18,7 +18,7 @@ Media 回答三个问题：一份非文字内容的字节在不在、是谁的�
 | `media-ui` | 界面模块：输入框的附件区、消息里一块非文字内容的画法 |
 | 每个转换引擎一个成员 | 一份声明加一个转换函数。只依赖 `media-contract` |
 
-源码依赖只朝内。`media-contract` 不导入任何实现。`media` 只依赖 `media-contract`：它不导入存放提供者、SQL 提供者、图像成员与任何引擎。只有 `media-adapters` 认识邻域，而且只认识它们的公开契约。Session、Agent、Request Context、Model、Tool、执行环境的成员不导入本组的任何成员。
+源码依赖只朝内。`media-contract` 不导入任何实现。`media` 只依赖 `media-contract`，它的 `./cordis` 入口另依赖 `media-cordis-contract`：它不导入存放提供者、SQL 提供者、图像成员与任何引擎。只有 `media-adapters` 认识邻域，而且只认识它们的公开契约。Session、Agent、Request Context、Model、Tool、执行环境的成员不导入本组的任何成员。
 
 ## 领域边界
 

@@ -33,6 +33,7 @@
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/media-contract": "workspace:*",
+    "@omne-harness/media-cordis-contract": "workspace:*",
     "@omne-harness/operation-result": "workspace:*"
   },
   "devDependencies": {

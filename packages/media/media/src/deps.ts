@@ -21,7 +21,7 @@ export type MediaConfig = Readonly<{
 }>
 
 export type MediaDependencies = Readonly<{
-  /** Every store a reference may name; new objects go to `writeTo`. */
+  /** Every store a reference may name, read at each call; new objects go to `writeTo`. */
   stores: readonly ByteStore[]
   writeTo: string
   index: MediaIndex

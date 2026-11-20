@@ -1712,7 +1712,6 @@
         "packages/media/media"
       ],
       "to": [
-        "packages/media/media-cordis-contract",
         "packages/media/media-storage-local",
         "packages/media/media-storage-sql",
         "packages/media/media-image"
@@ -1725,7 +1724,8 @@
         "packages/media/media-contract"
       ],
       "to": [
-        "packages/media/media"
+        "packages/media/media",
+        "packages/media/media-cordis-contract"
       ],
       "source": "packages/media/SPEC.md"
     },

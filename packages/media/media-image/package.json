@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft media-image package; complete the accepted public contract before delivery",
+  "description": "Image port of media: probe, scale and the quality ladder, within a decode budget",
   "engines": {
     "node": ">=24"
   },
@@ -24,10 +24,15 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/image": "workspace:*",
+    "@omne-harness/media-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "sharp": "catalog:"
   }
 }

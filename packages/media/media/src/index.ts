@@ -7,10 +7,8 @@ import { createUploads } from './uploads.ts'
 
 export type { MediaConfig, MediaDependencies } from './deps.ts'
 
-/** The custody of media over a byte store and an index, with no Cordis, storage or image library in it. */
+/** The custody of media over its ports, with no Cordis, storage or image library in it. A store is found by name at each call. */
 export function createMedia(deps: MediaDependencies): Media {
-  if (!deps.stores.some(store => store.name === deps.writeTo))
-    throw new Error(`media: no byte store is named "${deps.writeTo}"`)
   const objects = createObjects(deps)
   return {
     uploads: createUploads(deps, objects),

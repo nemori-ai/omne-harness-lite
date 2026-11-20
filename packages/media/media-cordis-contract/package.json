@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft media-cordis-contract package; complete the accepted public contract before delivery",
+  "description": "Cordis service definitions of media: the custody, the store registry and the two ports",
   "engines": {
     "node": ">=24"
   },
@@ -30,7 +30,8 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "catalog:"
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/media-contract": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
