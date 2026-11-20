@@ -37,6 +37,7 @@ import {
   type ToolConsumerProfile,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
+import { commandResultModalities } from '@omne-harness/tool-contract/provider'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
 import { RELEASE_REQUEST_CONTEXT, runToolScope } from '../rows/tool-runtime/scope.ts'
@@ -201,12 +202,68 @@ async function availabilityOf(
     return unavailable(`${name} is not available`)
   const selected = callOf(availability.definition, input.effectiveArguments)
   if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
-  const closed = await closedBySession(ports, input, session, selected.command)
+  const asked = { catalog, release, input, definition: availability.definition }
+  const closed = await answeredInstead(ports, asked, session, selected.command)
   if ('failure' in closed) return closed
   const access = { principal: input.principal, tenant: input.tenant, session }
   return closed.ok === null
     ? placedCall(ports, access, { ...availability, ...selected })
     : succeed(closed.ok)
+}
+
+const WHY_UNAVAILABLE: Readonly<Record<string, string>> = Object.freeze({
+  'products-unstorable': ' This deployment has nowhere to store what the command produces.',
+  'output-incompatible': ' The model of this session does not take what the command returns.',
+})
+
+type CommandQuestion = Readonly<{
+  catalog: ToolCatalog<unknown>
+  release: Trusted
+  input: DescribeInput
+  definition: ToolAvailability['definition']
+}>
+
+async function answeredInstead(
+  ports: ToolRequestPorts,
+  asked: CommandQuestion,
+  session: SessionId,
+  command: string | null,
+): Promise<Outcome<ToolCallAnswer | null, Failure>> {
+  const products = await unavailableByProducts(asked, command)
+  if ('failure' in products || products.ok !== null) return products
+  return closedBySession(ports, asked.input, session, command)
+}
+
+async function unavailableByProducts(
+  { catalog, release, input, definition }: CommandQuestion,
+  command: string | null,
+): Promise<Outcome<ToolCallAnswer | null, Failure>> {
+  const own = definition.declarations.outputModalities
+  if (commandResultModalities(definition, command).every(modality => own.includes(modality)))
+    return succeed(null)
+  const name = definition.name
+  let answer: Awaited<ReturnType<ToolCatalog<unknown>['inspect']>>
+  try {
+    answer = await catalog.inspect({
+      principal: input.principal,
+      tenant: input.tenant,
+      name,
+      command,
+      consumer: consumerOf(release),
+    })
+  } catch {
+    return unavailable('tool catalog threw')
+  }
+  if ('failure' in answer)
+    return answer.failure.kind === 'denied'
+      ? denied('tool-request')
+      : unavailable(`tool catalog answered ${answer.failure.kind} for ${command}`)
+  if (answer.ok.kind === 'available') return succeed(null)
+  const { reason } = answer.ok
+  return succeed({
+    kind: 'answered',
+    text: `${name}: the command "${command}" is not available now (${reason}).${WHY_UNAVAILABLE[reason] ?? ''} Continue without it.`,
+  })
 }
 
 async function placedCall<C extends Pick<ToolAvailability, 'definition'>>(

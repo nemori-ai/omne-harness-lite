@@ -17,6 +17,7 @@ const MEDIA_ROWS = [
   'media-sweep',
   'media-intake',
   'media-model-source',
+  'media-tool-store',
   'media-access',
 ]
 

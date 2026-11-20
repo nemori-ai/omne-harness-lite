@@ -46,6 +46,7 @@
 | `media-sweep` | 媒体的维护行：启动时与之后每个节拍，枚举有事务域的租户，逐个调 `media` 的 `custody.sweep`（到期的先标记删除，再接着删停在删除中的对象），一个节拍没跑完不起下一个 | 无公开服务 | `media`、`tenantDomains`、`tenantDomainScannerPrincipal` | 无 | `intervalMs`、`limit`，都有缺省值；批量 1–1000 |
 | `media-intake` | `@omne-harness/media-adapters` 的 `./cordis` 插件 `mediaIntakePlugin`：媒体对 Session 受理的适配。向 `session.before-intake` 登记处理件 `media.references`：对输入里每个带内容引用的块先持有，再补上媒体事实；引用无效就拦下并点名那一块，媒体答不可用就答不可用。这一行不在时，带内容引用的输入不被受理 | 无公开服务 | `media`、`sessionBeforeIntake` | 无 | 无 |
 | `media-model-source` | `@omne-harness/media-adapters` 的 `./cordis` 插件 `MediaModelSourcePlugin`：媒体对 Model 读媒体端口的适配。发出一次模型请求时，按这次发出的访问身份的租户、请求里的引用与型号的限额向 `media` 要字节：原件在限额内交原件，超过时交限额内的版本；做不出答超限，引用无效或字节读不到答材料不可用，媒体答不可用就答不可用。媒体每次读时现取。这一行不在时，带媒体引用的请求答依据不可用，纯文字的请求照常 | `modelMediaSource` | `media` | 无 | 无 |
+| `media-tool-store` | `@omne-harness/media-adapters` 的 `./cordis` 插件 `MediaToolStorePlugin`：媒体对 Tool「存产出」端口的适配。工具的一次调用交来媒体类型与字节时，用 `media` 的保管一步存入并持有，持有方是这次调用，租户是这次调用的；媒体拒绝、不可用或结果不知道各照实答。媒体每次存时现取。这一行不在时，结果带非文字模态的命令在原位不可用（原因 `products-unstorable`），别的命令照常 | `toolMediaStore` | `media` | 无 | 无 |
 | `workspace` | 应用成员的工作区组合：`@omne-harness/workspace-local` 的 `./cordis` 插件 `createWorkspaceLocalPlugin`，一个提供者服务全部租户。工作区的事实不属于任何一个租户，存在系统作用域的事务域 `system.workspace` 里，隔离靠仓储的每个入口按租户过滤；第一次用到时在那里登记工作区的存储组合，摘要从存储目录现算。本应用在这一行接上工作区留的端口：成员资格与动作准入用身份域适配（操作与目标由工作区命名，拥有者 `@omne-harness/workspace`）；身份域的服务不在时答依据不可用。行体向登记面 `workspace.types` 贡献文件系统型与拓展它的 Git 型 | `workspaceGovernance`、`workspaceInstances`、`workspaceCatalog`、`workspaceTypes` | `storage` | `principalVerifier`、`tenantStanding`（受信；每次调用现取）；`composition`，行体承载，停止时撤下提供者，不删事实 | 节点名 `node`：由运维层给，发行层不写数值；缺失或为空时这一行不启动 |
 | `usage` | 用量的查询服务与来源登记表：`@omne-harness/usage` 的 `./cordis` 插件 `UsageSourcesProvider` 与 `createUsagePlugin`。上限由本行显式给出：向来源每页至多 200 笔，一次查询至多读 2000 页、至多 1000 个时间桶。去掉这一行，核心照常，用量的查询不在 | `usage`、`usageSources` | 无 | `usageSessionScope`（范围是会话时按查询现取；缺席时答依据不可用，依据是会话范围） | 无 |
 | `usage-adapters` | `@omne-harness/usage-adapters` 的 `./cordis` 插件 `createUsageAdaptersPlugin`：装上时向 `usageSources` 登记模型与工具两个来源、提供会话范围，卸下时撤回自己那两份。会话范围读会话日志的 Run 开始与压缩消息，答出 Agent 拥有者下的执行与压缩提供者拥有者下的压缩任务；两个拥有者名由本行显式给出（`@omne-harness/agent`、`@omne-harness/context-compaction`） | `usageSessionScope` | `usageSources` | `modelDispatchFacts`、`toolAccounts`、`session`（以 `reader` 调用方）。取不到时那一个来源或会话范围答依据不可用 | 无 |
@@ -177,6 +178,9 @@ flowchart LR
   media -->|media| media-intake
   media -->|media| media-model-source
   media-model-source -. modelMediaSource .-> model-records
+  media -->|media| media-tool-store
+  media-tool-store -. toolMediaStore .-> tool-environments
+  media-tool-store -. toolMediaStore .-> tool-bindings
   session-before-intake -->|sessionBeforeIntake| media-intake
   session-before-intake -. sessionBeforeIntake .-> session-provider
   session-input-sources -. sessionInputSources .-> session-provider

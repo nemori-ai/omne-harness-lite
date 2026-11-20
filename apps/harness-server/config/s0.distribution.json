@@ -116,6 +116,11 @@
       "config": {}
     },
     {
+      "id": "media-tool-store",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "stubPlugin",
       "config": {}

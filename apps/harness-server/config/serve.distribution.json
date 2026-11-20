@@ -206,6 +206,11 @@
       "config": {}
     },
     {
+      "id": "media-tool-store",
+      "plugin": "mediaToolStoreRow",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "workspaceRow",
       "config": {}
