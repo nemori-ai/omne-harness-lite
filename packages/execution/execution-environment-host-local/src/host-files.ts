@@ -47,6 +47,8 @@ import {
   unknown,
   versionOf,
   type FileStats,
+  type CloseHandle,
+  type HostPathsCore,
   type Located,
   type ScopedPaths,
 } from './host-paths.ts'
@@ -164,21 +166,39 @@ type CloseCheck = Readonly<{
   macosPrerequisite(): Promise<boolean>
 }>
 
+type Below = (
+  check: CloseCheck,
+  requestId: string,
+  path: string,
+  effect: FileEffect,
+  root: string,
+) => Promise<FacilityResult<never> | undefined>
+
+const macosBelow: Below = async (check, requestId, path, effect) => {
+  const located = await createMacosPaths(check.macosRootIdentity?.[effect])(path)
+  if (!located.ok) return failed(requestId, located.failure, 'unresolved')
+  return (await check.macosPrerequisite()) ? undefined : reject(requestId, 'unavailable')
+}
+
+const windowsBelow: Below = async (_check, requestId, path, _effect, root) =>
+  (await windowsSegmentsBelow(root, path)) === undefined
+    ? reject(requestId, 'notAuthorized')
+    : undefined
+
+const descriptorBelow: Below = (check, requestId, path, effect) =>
+  gate(check.paths, requestId, [{ path, effect }])
+
 /** A handle is closed below either root of the scope: it was issued by a read or a write. */
 function createCloseCheck(check: CloseCheck) {
-  const below = async (requestId: string, path: string, effect: FileEffect) => {
-    if (!check.paths(effect).rooted) return undefined
+  const platform =
+    process.platform === 'darwin'
+      ? macosBelow
+      : process.platform === 'win32'
+        ? windowsBelow
+        : descriptorBelow
+  const below = (requestId: string, path: string, effect: FileEffect) => {
     const root = check.scope[effect]
-    if (process.platform === 'darwin') {
-      const located = await createMacosPaths(check.macosRootIdentity?.[effect])(path)
-      if (!located.ok) return failed(requestId, located.failure, 'unresolved')
-      return (await check.macosPrerequisite()) ? undefined : reject(requestId, 'unavailable')
-    }
-    if (process.platform === 'win32' && root !== undefined)
-      return (await windowsSegmentsBelow(root, path)) === undefined
-        ? reject(requestId, 'notAuthorized')
-        : undefined
-    return gate(check.paths, requestId, [{ path, effect }])
+    return root === undefined ? undefined : platform(check, requestId, path, effect, root)
   }
   return async (requestId: string, path: string): Promise<FacilityResult<never> | undefined> => {
     const refusal = await below(requestId, path, 'read')
@@ -186,6 +206,14 @@ function createCloseCheck(check: CloseCheck) {
       ? undefined
       : refusal
   }
+}
+
+/** The paths of each effect for one owner; a scope with one root binds it once. */
+function bindScoped(cores: Readonly<Record<FileEffect, HostPathsCore>>, close: CloseHandle) {
+  const read = cores.read.bind(close)
+  const write = cores.write === cores.read ? read : cores.write.bind(close)
+  const paths: ScopedPaths = effect => (effect === 'read' ? read : write)
+  return paths
 }
 
 /** The roots of a scope, checked and bound once per effect: the path cores and each platform's identities. */
@@ -284,9 +312,7 @@ export function createHostFilesEngine(
       }
     }
 
-    const readPaths = cores.read.bind(closeOrTrack)
-    const writePaths = cores.write === cores.read ? readPaths : cores.write.bind(closeOrTrack)
-    const paths: ScopedPaths = effect => (effect === 'read' ? readPaths : writePaths)
+    const paths = bindScoped(cores, closeOrTrack)
     const closeCheck = createCloseCheck({ paths, scope, macosRootIdentity, macosPrerequisite })
     const tree = createHostFileTree({
       paths,

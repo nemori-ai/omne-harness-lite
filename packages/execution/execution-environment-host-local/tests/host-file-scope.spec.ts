@@ -1,5 +1,6 @@
 import {
   link,
+  lstat,
   mkdir,
   mkdtemp,
   readFile,
@@ -62,6 +63,7 @@ type Place = Readonly<{ dir: string; file: string }>
 
 type World = Readonly<{
   base: string
+  state: string
   inside: Place
   outside: Place
   facility: FileSystemFacility<unknown>
@@ -91,7 +93,7 @@ async function world(scope: ScopeName): Promise<World> {
   const state = join(base, 'state')
   await mkdir(state)
   const engine = createHostFilesEngine({ scope: scopes[scope](inside.dir), stateDirectory: state })
-  return { base, inside, outside, facility: engine.facilityFor(`scope-${scope}`) }
+  return { base, state, inside, outside, facility: engine.facilityFor(`scope-${scope}`) }
 }
 
 type Operation = (w: World, from: Place, to: Place) => Promise<FacilityResult<unknown>>
@@ -305,4 +307,23 @@ it('closes a handle below either root of the scope, and refuses one below neithe
     requestId: 'close',
     reason: 'notAuthorized',
   })
+})
+
+it('refuses a write outside the write root before anything touches the state directory, when reads are not limited', async () => {
+  for (const operation of ['replace', 'create', 'mkdir', 'remove'] as const) {
+    const w = await world('readOutside')
+    const stamp = async () => {
+      const own = await lstat(w.state, { bigint: true })
+      return { mtimeNs: own.mtimeNs, ctimeNs: own.ctimeNs, below: await readdir(w.state) }
+    }
+    const before = await stamp()
+    await new Promise(resolve => setTimeout(resolve, 25))
+    const result = await operations[operation]!(w, w.outside, w.outside)
+    expect(result, operation).toEqual({
+      kind: 'rejected',
+      requestId: operation,
+      reason: 'notAuthorized',
+    })
+    expect(await stamp(), operation).toEqual(before)
+  }
 })

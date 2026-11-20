@@ -1,12 +1,16 @@
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { withinScope, type FileEffect } from '@omne-harness/execution-environment-contract'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import type { ReleaseToolIdentity } from '../../../src/rows/tool-runtime/access.ts'
+import { hostObjectToken } from '@omne-harness/execution-environment-host-local'
 import {
   confinedToScope,
   createReleaseEnvironment,
+  nameUnder,
 } from '../../../src/rows/tool-runtime/environment.ts'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
 import { TENANT_A } from '../storage/fixtures/tree.ts'
@@ -106,6 +110,53 @@ describe('the guard checks every path of a facility request by its effect', () =
     expect(await confinedToScope(both, 'files', 'close', { path: outside })).toBe(false)
     expect(await confinedToScope(both, 'files', 'close', { path: inside })).toBe(true)
     expect(await confinedToScope({}, 'files', 'rename', { path: inside })).toBe(false)
+  })
+})
+
+describe('a host object is named below the root of a side that admits its path', () => {
+  const bases: string[] = []
+  afterEach(async () => {
+    await Promise.all(bases.splice(0).map(base => rm(base, { recursive: true, force: true })))
+  })
+  const tree = async () => {
+    const base = await realpath(await mkdtemp(join(tmpdir(), 'omne-naming-')))
+    bases.push(base)
+    const workspace = join(base, 'workspace')
+    const outside = join(base, 'outside')
+    await mkdir(workspace)
+    await mkdir(join(outside, 'sub'), { recursive: true })
+    await writeFile(join(outside, 'file.txt'), 'x')
+    return { base, workspace, outside }
+  }
+  const denied = { failure: { kind: 'denied', action: 'name-host-object' } }
+
+  it('names an object outside the workspace when reads are not limited, and not when they are', async () => {
+    const t = await tree()
+    const file = join(t.outside, 'file.txt')
+    const token = await hostObjectToken(file)
+    expect(await nameUnder({ write: t.workspace }, { path: file, role: 'object' })).toEqual({
+      ok: token,
+    })
+    expect(
+      await nameUnder({ read: t.workspace, write: t.workspace }, { path: file, role: 'object' }),
+    ).toEqual(denied)
+    expect(await nameUnder(undefined, { path: file, role: 'object' })).toEqual(denied)
+  })
+
+  it('climbs to the nearest ancestor that exists, below the root or up to the top when there is none', async () => {
+    const t = await tree()
+    const deep = join(t.outside, 'sub', 'a', 'b', 'new.txt')
+    expect(await nameUnder({}, { path: deep, role: 'ancestor' })).toEqual({
+      ok: await hostObjectToken(join(t.outside, 'sub')),
+    })
+    const inside = join(t.workspace, 'a', 'new.txt')
+    expect(
+      await nameUnder(
+        { read: t.workspace, write: t.workspace },
+        { path: inside, role: 'ancestor' },
+      ),
+    ).toEqual({ ok: await hostObjectToken(t.workspace) })
+    expect(await nameUnder({}, { path: 'relative/new.txt', role: 'parent' })).toEqual(denied)
   })
 })
 

@@ -190,7 +190,7 @@ async function nearestToken(
   }
 }
 
-async function nameUnder(
+export async function nameUnder(
   scope: FilesScope | undefined,
   input: Readonly<{ path: string; role: 'object' | 'parent' | 'ancestor' }>,
 ): Promise<NamingResult> {
