@@ -37,8 +37,12 @@ description: "本项目各领域的心智模型与跨领域协调的模型：每
 | 在 Skill 这个领域里：目录、三层披露、`Skills` 入口、脚本由谁运行、提交 | [references/skill.md](references/skill.md) |
 | 在 MCP 这个领域里：接入点、连接、动作清单、动作怎样成为工具条目、认证 | [references/mcp.md](references/mcp.md) |
 | 在拓展件这个领域里：包与声明、租户启用了哪些、实现怎样取得与运行、命令型 | [references/loop-extension.md](references/loop-extension.md) |
+| 一个动作许不许、在哪判、结论记在哪；资格与许可的分别；撤回影响什么 | [references/authorization.md](references/authorization.md) |
+| 卡片、人的答复交回哪里；谁出卡、卡上的字谁写 | [references/human-intervention.md](references/human-intervention.md) |
+| Tool 作为被调用的一方：受理核什么、不判什么、定义与贡献的寿命 | [references/tool.md](references/tool.md) |
+| 一份事实该存几份、存多久；一次调用写进存储多少 | [references/cross-domain.md](references/cross-domain.md)「存一次，寿命跟着用途」 |
 
-还没有写的领域：身份、授权；设置与权限的配值和求值；Model 与 Tool 作为被调用的一方；Request Context；执行环境；人工介入；工作区。碰到它们时读根 `AGENTS.md` 的两张图和跨领域那一份，再读那个领域的正文（`docs/domains/` 下它的目录）。
+还没有写的领域：设置与权限的配值和求值；Model 作为被调用的一方；Request Context；执行环境；工作区。碰到它们时读根 `AGENTS.md` 的两张图和跨领域那一份，再读那个领域的正文（`docs/domains/` 下它的目录）。
 
 ## 这些文字的地位
 

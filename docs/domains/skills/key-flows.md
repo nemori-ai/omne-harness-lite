@@ -86,7 +86,7 @@ sequenceDiagram
 
 对应 J-SK05。`Skills` 没有执行命令，没有脚本桥接。
 
-Skill 目录里的脚本是文件，按路径读，走 F-SK03。运行是 agent 发起的一次普通 Shell 工具调用：资产一定先加载到本地，单机装配下目录在本机的文件系统里，agent 从 `Skills` 的读取结果知道它的位置。准入、权限、环境与落点、等待、取消和结果归[工具执行](../tool-execution/README.md)与[执行环境](../execution-environments/README.md)。Skill 不持有执行权，Shell 的许可不因为脚本来自某个 Skill 而放宽，也不因此收紧。防护与隔离不在这一阶段。
+Skill 目录里的脚本是文件，按路径读，走 F-SK03。运行是 agent 发起的一次普通 Shell 工具调用：资产一定先加载到本地，单机装配下目录在本机的文件系统里，agent 从 `Skills` 的读取结果知道它的位置。许不许归 Agent 发起时的放行判断；受理、环境与落点、等待、取消和结果归[工具执行](../tool-execution/README.md)与[执行环境](../execution-environments/README.md)。Skill 不持有执行权，Shell 的许可不因为脚本来自某个 Skill 而放宽，也不因此收紧。防护与隔离不在这一阶段。
 
 ## F-SK06 绑定命令读取与用户消息承接
 
