@@ -216,6 +216,7 @@
 | [UL-session](terms/agent-runtime-loop.md#ul-session--会话--session) | 会话 | Session | 一段协作的耐久身份与归属边界，**不要求有人说过话**；冻结后不再开始新的运行 |
 | [UL-primary-session](terms/agent-runtime-loop.md#ul-primary-session--主会话--primary-session) | 主会话 | Primary Session | 不是任何会话之子会话的那个；**彼此生命周期独立** |
 | [UL-child-session](terms/agent-runtime-loop.md#ul-child-session--子会话--child-session) | 子会话 | Child Session | `delegate`/`spawn` 出的子 agent 所在的会话；**不继承历史，spawn 不是 fork** |
+| [UL-session-attendance](terms/agent-runtime-loop.md#ul-session-attendance--会话值守--session-attendance) | 会话值守 | Session Attendance | 随创建固定：另一头有没有人可以沟通、交互、接收通知；**不是协作模式** |
 | [UL-session-archival](terms/agent-runtime-loop.md#ul-session-archival--会话归档--session-archival) | 会话归档 | Session Archival | **唯一那个「协作到此为止」的锚点**；**租户手动或到期自动**；**本身可撤销，连带的三件事不可逆**；冻结过的会话撤销归档后回到冻结 |
 | [UL-session-freeze](terms/agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze) | 会话冻结 | Session Freeze | 采用点判定常驻工具形状无法保持时进入的会话状态；**不再开始新的运行，不可逆，不是归档** |
 | [UL-session-type](terms/agent-runtime-loop.md#ul-session-type--会话类型--session-type) | 会话类型 | Session Type | 这个会话主要干什么的，**由 AgentDefinition 算出来**；**不是闸门** |
@@ -319,6 +320,7 @@
 | [UL-tool-entry](terms/reach-and-availability.md#ul-tool-entry--工具条目--tool-entry) | 工具条目 | Tool Entry | 工具入口里可发现、可调用的一项；**是视图**，按主体此刻的事实现算 |
 | [UL-tool-entry-source](terms/reach-and-availability.md#ul-tool-entry-source--工具条目来源--tool-entry-source) | 工具条目来源 | Tool Entry Source | 另一个领域向工具入口登记、按需交出工具条目的那个角色；MCP 是一个；**不登记工具** |
 | [UL-current-availability](terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability) | 当下可用性 | Current Availability | **依赖解析的结果，不是开关**；每一次执行尝试开始前重算。**可见但用了一定失败**，与禁用不同 |
+| [UL-invocation-condition](terms/reach-and-availability.md#ul-invocation-condition--调用条件--invocation-condition) | 调用条件 | Invocation Condition | 命令声明的、会话此刻必须成立的事实；不成立就不提供，**不是权限** |
 | [UL-stand-in](terms/reach-and-availability.md#ul-stand-in--替换件--stand-in) | 替换件 | Stand-in | 不可用时占在原位的**同形呈现**：只换说明，调用必得「不可用」；常驻工具的形状取首次定义 |
 | [UL-same-shape](terms/reach-and-availability.md#ul-same-shape--同形--same-shape) | 同形 | Same Shape | 两份工具定义的名字、种类、参数契约与命令表都相等；说明、返回、声明、版本与执行者不参与 |
 | [UL-dependency-declaration](terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration) | 依赖声明 | Dependency Declaration | **一串必需项的抽象名字**，种类不限；**只有且，只有必需** |
@@ -397,10 +399,11 @@
 
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
-| [UL-agent-dispatch](terms/interaction-and-dispatch.md#ul-agent-dispatch--agent-派发--agent-dispatch) | agent 派发 | Agent Dispatch | `spawn` / `delegate` / `handoff` 三种，**五维取值不同** |
-| [UL-inter-agent-communication](terms/interaction-and-dispatch.md#ul-inter-agent-communication--agent-间通信--inter-agent-communication) | agent 间通信 | Inter-Agent Communication | **两条规则，覆盖面不一样**；素不相识的也能通 |
+| [UL-agent-dispatch](terms/interaction-and-dispatch.md#ul-agent-dispatch--agent-派发--agent-dispatch) | agent 派发 | Agent Dispatch | `spawn` / `delegate` / `handoff` 三种，是一个命令的三种方式，**五维取值不同** |
+| [UL-inter-agent-communication](terms/interaction-and-dispatch.md#ul-inter-agent-communication--agent-间通信--inter-agent-communication) | agent 间通信 | Inter-Agent Communication | **一条规则**：同租户、未归档、此刻许发就通；不要求派发关系 |
 | [UL-subagent](terms/interaction-and-dispatch.md#ul-subagent--子-agent--subagent) | 子 agent | Subagent | 会话是当前会话之**子会话**的那个；**`handoff` 与第三方 harness 不算** |
 | [UL-dispatch-report](terms/interaction-and-dispatch.md#ul-dispatch-report--派发报告--dispatch-report) | 派发报告 | Dispatch Report | **终结这次派发，不是那个会话**；只来一次 |
+| [UL-dispatch-record](terms/interaction-and-dispatch.md#ul-dispatch-record--派发记录--dispatch-record) | 派发记录 | Dispatch Record | 一次派发留下的耐久记录；**不住在会话日志里，也不住在那次调用里** |
 | [UL-hitl](terms/interaction-and-dispatch.md#ul-hitl--人在回路--human-in-the-loop) | 人在回路 | Human in the Loop | 停下来等人，**没有上限** |
 | [UL-run-wait-state](terms/interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state) | 运行等待态 | Run Wait State | 系统算出来的、**直接把 run 停住**的那种等 |
 | [UL-decision-card](terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) | 决策卡片 | Decision Card | 让人**当场**就能判断；**一张只能答一次**；来源三种：agent / 系统 / 拓展件 |

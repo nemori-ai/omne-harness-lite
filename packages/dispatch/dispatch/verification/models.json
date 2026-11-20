@@ -1,0 +1,70 @@
+{
+  "member": "dispatch",
+  "model": "models/report/DispatchReport.tla",
+  "scope": "finite model DispatchReport: one tenant, one dispatching call and one dispatch made by spawn or delegate, from the moment the child session exists. Case two-tries: the report input may be sent twice, which stands for a send whose outcome stayed unknown. Case one-try: one send. Each action is one commit of its owner: the dispatch registry, the Tool ledger of the dispatching call, or the log of the dispatching session. The wait is modelled only as open, answered or closed; the session log only as a set that recalls by submission id. Not modelled: acceptance and creating the child session, handoff, messages, limits on depth and on open dispatches, qualification, several dispatches of one session, stopping the withdrawn run, the cascade of archiving to children. NoStrandedReport and CallAlwaysSettles are checked as safety over states where the run has ended and the system has no step left; nothing here shows that the system takes its steps. No refinement proof to the implementation.",
+  "workers": 4,
+  "timeoutSeconds": 600,
+  "cases": [
+    {
+      "name": "two-tries",
+      "config": "models/report/two-tries.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "one-try",
+      "config": "models/report/one-try.cfg",
+      "expected": "complete"
+    }
+  ],
+  "mutations": [
+    {
+      "name": "second-report",
+      "base": "two-tries",
+      "old": "CanReport == state = \"started\"",
+      "new": "CanReport == state \\in {\"started\", \"reported\"}",
+      "invariant": "AtMostOneReport"
+    },
+    {
+      "name": "report-after-withdrawal",
+      "base": "two-tries",
+      "old": "CanReport == state = \"started\"",
+      "new": "CanReport == state \\in {\"started\", \"withdrawn\"}",
+      "invariant": "WithdrawExcludesReport"
+    },
+    {
+      "name": "withdrawal-after-report",
+      "base": "two-tries",
+      "old": "CanWithdraw == state = \"started\"",
+      "new": "CanWithdraw == state \\in {\"started\", \"reported\"}",
+      "invariant": "WithdrawExcludesReport"
+    },
+    {
+      "name": "input-while-wait-unread",
+      "base": "two-tries",
+      "old": "WaitGone == wait = \"closed\"",
+      "new": "WaitGone == wait # \"answered\"",
+      "invariant": "DeliveredOnce"
+    },
+    {
+      "name": "new-submission-id-on-retry",
+      "base": "two-tries",
+      "old": "SubOf(n) == \"rep\"",
+      "new": "SubOf(n) == n",
+      "invariant": "DeliveredOnce"
+    },
+    {
+      "name": "no-input-after-closed-wait",
+      "base": "two-tries",
+      "old": "CanSendInput == state = \"reported\" /\\ delivery = \"pending\" /\\ WaitGone /\\ ~archived",
+      "new": "CanSendInput == FALSE",
+      "invariant": "NoStrandedReport"
+    },
+    {
+      "name": "withdrawal-not-answered",
+      "base": "two-tries",
+      "old": "    [] state = \"withdrawn\" -> \"withdrawn\"",
+      "new": "    [] state = \"withdrawn\" -> \"none\"",
+      "invariant": "CallAlwaysSettles"
+    }
+  ]
+}

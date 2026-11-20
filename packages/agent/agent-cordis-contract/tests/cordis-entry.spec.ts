@@ -164,7 +164,7 @@ describe('the cordis definition entry has no Agent implementation', () => {
   })
 })
 
-describe('under Cordis 4.0.4', () => {
+describe('under Cordis 4.1.0', () => {
   it('resolves a provider through the abstract definition key, as an instance of the definition', async () => {
     let available = true
     class FixedClock extends AgentClockService {

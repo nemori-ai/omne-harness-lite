@@ -1,20 +1,20 @@
 ---
 id: effect-disposal-concurrent-not-ordered
 upstream: cordis
-version: 4.0.4
+version: 4.1.0
 kind: negative
 symbols:
   - "fiber.ts: 同一 effect 内的 disposer 逆序释放"
   - "utils.ts: fiber 卸载时各 effect 按逆注册序取出"
-  - "fiber.ts: 取出后由 Promise.all 并发驱动，异常只写日志不上抛"
+  - "fiber.ts: 取出后由 Promise.all 并发驱动，异常只写日志不上抛；这一步之前先等本 fiber 提供的服务的依赖方卸完（见 provider-unload-waits-for-dependents）"
   - "fiber.ts: UNLOADING 或已 dispose 后再建 effect 抛 CordisError('INACTIVE_EFFECT')"
 lines:
-  - "fiber.ts:427-442"
+  - "fiber.ts:433-448"
   - "utils.ts:27-31"
-  - "fiber.ts:675-686"
-  - "fiber.ts:351-354, 418-422"
+  - "fiber.ts:720-730"
+  - "fiber.ts:357-360, 424-428"
 probe: packages/assembly/kernel-basis/tests/effect-disposal-concurrent-not-ordered.spec.ts
-checked: 2026-11-15
+checked: 2026-11-20
 ---
 
 # effect 之间的释放是并发的，逆序只约束取出
@@ -39,14 +39,14 @@ checked: 2026-11-15
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `fiber.ts` 单 effect 内（427–442 行） | disposer 逆序释放 | 一个 effect 注册多个 disposer，观察释放顺序 |
-| `utils.ts` + `fiber.ts` 卸载（27–31、675–686 行） | 逆注册序取出，`Promise.all` 并发驱动 | 注册两个耗时不同的 effect，观察后者未必先完成 |
-| `fiber.ts` 异常处理（683–685 行） | 异常只写日志不上抛 | 令一个 disposer 抛错，观察卸载照常完成且调用方无感 |
-| `fiber.ts` 建 effect（351–354、418–422 行） | fiber 已 dispose 或处于 UNLOADING 时抛 `INACTIVE_EFFECT` | 卸载后在其 ctx 上再建 effect |
+| `fiber.ts` 单 effect 内（433–448 行） | disposer 逆序释放 | 一个 effect 注册多个 disposer，观察释放顺序 |
+| `utils.ts` + `fiber.ts` 卸载（27–31、720–730 行） | 逆注册序取出，`Promise.all` 并发驱动 | 注册两个耗时不同的 effect，观察后者未必先完成 |
+| `fiber.ts` 异常处理（727–729 行） | 异常只写日志不上抛 | 令一个 disposer 抛错，观察卸载照常完成且调用方无感 |
+| `fiber.ts` 建 effect（357–360、424–428 行） | fiber 已 dispose 或处于 UNLOADING 时抛 `INACTIVE_EFFECT` | 卸载后在其 ctx 上再建 effect |
 
 ## 探针断言什么
 
-探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.1.0 核对：
 
 1. 先注册的 effect 其 disposer 延时 50ms，后注册的延时 0ms；卸载后完成顺序是「快的先」——
    逆注册序只约束取出，完成顺序由耗时决定，即并发。若上游改为顺序 await，此断言失败，本条目失效。

@@ -11,7 +11,7 @@
 ---
 id: async-control-not-bail
 upstream: cordis
-version: 4.0.4
+version: 4.1.0
 kind: negative
 symbols:
   - "events.ts: isBailed 只排除 null/false/undefined，Promise 本身算 bail 值"

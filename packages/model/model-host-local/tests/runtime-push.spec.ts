@@ -688,9 +688,9 @@ it.each(['material', 'responsibility', 'deduplication', 'retention'] as const)(
 )
 
 it.each(['foreign-key', 'foreign-owner'] as const)(
-  'does not take a receipt with a %s as saved and does not acknowledge',
+  'takes a receipt with a %s as an unknown outcome: it pushes the same delivery again, acknowledges once saved and gives the share back (#1421)',
   async kind => {
-    const w = world()
+    const w = world({ share: 1 })
     await w.services()
     await w.load()
     const scripted = scriptedReceiver()
@@ -698,11 +698,32 @@ it.each(['foreign-key', 'foreign-owner'] as const)(
     await w.register(scripted.receiver)
     await w.admit('one')
 
-    await until(() => w.record('one')?.result?.standing.status === 'failed', 'the refused receipt')
+    await until(() => w.record('one')?.cleanup === 'released', 'the ACK and its cleanup')
+    expect(scripted.pushes).toHaveLength(2)
+    expect(scripted.pushes[1]).toEqual(scripted.pushes[0])
+    expect(w.handoffs).toHaveLength(1)
+    expect(await w.custody('one')).toMatchObject({ kind: 'acknowledged' })
+    expect(w.messages.some(text => text.includes('receipt-mismatch'))).toBe(true)
+    expect(await w.tryAdmit('second')).toMatchObject({ ok: { call: callOf('second') } })
+  },
+)
+
+it.each(['foreign-key', 'foreign-owner'] as const)(
+  'keeps a delivery unknown, not failed, while every receipt of the round has a %s (#1421)',
+  async kind => {
+    const w = world({ limits: { ...LIMITS, maxRedeliveries: 1, delaysMs: [60_000] } })
+    await w.services()
+    await w.load()
+    const scripted = scriptedReceiver()
+    scripted.state.next = [kind, kind]
+    await w.register(scripted.receiver)
+    await w.admit('one')
+
+    await until(() => scripted.pushes.length === 2, 'the round of pushes')
     await quiet()
+    expect(w.record('one')?.result?.standing).toEqual({ status: 'unknown' })
     expect(w.handoffs).toEqual([])
     expect(await w.custody('one')).toEqual({ kind: 'producer' })
-    expect(w.messages.some(text => text.includes('receipt-mismatch'))).toBe(true)
   },
 )
 
@@ -720,6 +741,7 @@ it('redelivers the same key and frozen payload after an unknown outcome and ackn
   const [first, ...again] = scripted.pushes
   for (const delivery of again) expect(delivery).toEqual(first)
   expect(w.handoffs).toHaveLength(1)
+  expect(w.messages.some(text => text.includes('receipt-mismatch'))).toBe(false)
 })
 
 it.each(['unavailable', 'backpressured'] as const)(

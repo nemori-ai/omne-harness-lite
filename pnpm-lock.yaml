@@ -165,8 +165,8 @@ settings:
 catalogs:
   default:
     '@deepseek-ai/cordis':
-      specifier: 4.0.4
-      version: 4.0.4
+      specifier: 4.1.0
+      version: 4.1.0
     '@jscpd/core':
       specifier: 4.0.1
       version: 4.0.1
@@ -447,7 +447,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/assets-protocol':
         specifier: workspace:*
         version: link:../../packages/assets/assets-protocol
@@ -592,7 +592,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/access/access-cordis-contract
@@ -1004,7 +1004,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../public-contract
@@ -1023,7 +1023,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../public-contract
@@ -1089,7 +1089,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../access-cordis-contract
@@ -1212,7 +1212,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../agent-contract
@@ -1243,7 +1243,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/agent':
         specifier: workspace:*
         version: link:../agent
@@ -1359,7 +1359,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
@@ -1412,7 +1412,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -1443,7 +1443,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../assets
@@ -1552,7 +1552,7 @@ importers:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@testing-library/dom':
         specifier: 'catalog:'
         version: 10.4.2
@@ -1712,7 +1712,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -1793,7 +1793,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/calendar-contract':
         specifier: workspace:*
         version: link:../calendar-contract
@@ -1812,7 +1812,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/assets-cordis-contract':
         specifier: workspace:*
         version: link:../../assets/assets-cordis-contract
@@ -1951,7 +1951,7 @@ importers:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@testing-library/dom':
         specifier: 'catalog:'
         version: 10.4.2
@@ -2156,7 +2156,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../../agent/agent-contract
@@ -2226,7 +2226,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../../agent/agent-contract
@@ -2361,7 +2361,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/request-context':
         specifier: workspace:*
         version: link:../request-context
@@ -2389,7 +2389,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/request-context-contract':
         specifier: workspace:*
         version: link:../request-context-contract
@@ -2455,7 +2455,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/runtime-context':
         specifier: workspace:*
         version: link:../runtime-context
@@ -2483,7 +2483,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -2505,7 +2505,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -2595,7 +2595,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/execution-environment-contract':
         specifier: workspace:*
         version: link:../execution-environment-contract
@@ -2617,7 +2617,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/execution-environment':
         specifier: workspace:*
         version: link:../execution-environment
@@ -2651,7 +2651,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../assembly/kernel-basis
@@ -2673,7 +2673,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0
@@ -2765,7 +2765,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -2793,7 +2793,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/governance-contract':
         specifier: workspace:*
         version: link:../governance-contract
@@ -2864,7 +2864,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -3016,7 +3016,7 @@ importers:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@testing-library/dom':
         specifier: 'catalog:'
         version: 10.4.2
@@ -3083,7 +3083,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -3108,7 +3108,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -3164,7 +3164,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../identity
@@ -3201,7 +3201,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/client-assembly':
         specifier: workspace:*
         version: link:../../access/client-assembly
@@ -3324,7 +3324,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/mcp-contract':
         specifier: workspace:*
         version: link:../mcp-contract
@@ -3343,7 +3343,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/assets-cordis-contract':
         specifier: workspace:*
         version: link:../../assets/assets-cordis-contract
@@ -3414,7 +3414,7 @@ importers:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@testing-library/dom':
         specifier: 'catalog:'
         version: 10.4.2
@@ -3490,7 +3490,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -3567,7 +3567,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../assembly/kernel-basis
@@ -3601,7 +3601,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/assets-cordis-contract':
         specifier: workspace:*
         version: link:../../assets/assets-cordis-contract
@@ -3684,7 +3684,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -3737,7 +3737,7 @@ importers:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -3857,7 +3857,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../model-contract
@@ -3898,7 +3898,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -3954,7 +3954,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/notification-contract':
         specifier: workspace:*
         version: link:../notification-contract
@@ -3973,7 +3973,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/notification':
         specifier: workspace:*
         version: link:../notification
@@ -4088,7 +4088,7 @@ importers:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@testing-library/dom':
         specifier: 'catalog:'
         version: 10.4.2
@@ -4152,7 +4152,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -4214,7 +4214,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/schedule-contract':
         specifier: workspace:*
         version: link:../schedule-contract
@@ -4233,7 +4233,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/calendar':
         specifier: workspace:*
         version: link:../../calendar/calendar
@@ -4366,7 +4366,7 @@ importers:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@testing-library/dom':
         specifier: 'catalog:'
         version: 10.4.2
@@ -4455,7 +4455,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -4513,7 +4513,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../../agent/agent-contract
@@ -4647,7 +4647,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -4690,7 +4690,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -4718,7 +4718,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -4783,7 +4783,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -4963,7 +4963,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/client-assembly':
         specifier: workspace:*
         version: link:../../access/client-assembly
@@ -5077,7 +5077,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/skill-contract':
         specifier: workspace:*
         version: link:../skill-contract
@@ -5112,7 +5112,7 @@ importers:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../assets/assets-local
@@ -5142,7 +5142,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -5158,7 +5158,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../assembly/kernel-basis
@@ -5196,7 +5196,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/telemetry-contract':
         specifier: workspace:*
         version: link:../telemetry-contract
@@ -5215,7 +5215,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -5280,7 +5280,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -5372,7 +5372,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
@@ -5409,7 +5409,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
@@ -5455,7 +5455,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/call-account':
         specifier: workspace:*
         version: link:../../common/call-account
@@ -5569,7 +5569,7 @@ importers:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/execution-environment-contract':
         specifier: workspace:*
         version: link:../../execution/execution-environment-contract
@@ -5639,7 +5639,7 @@ importers:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@testing-library/dom':
         specifier: 'catalog:'
         version: 10.4.2
@@ -5669,7 +5669,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -5697,7 +5697,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -5734,7 +5734,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../../agent/agent-contract
@@ -5820,7 +5820,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/usage-contract':
         specifier: workspace:*
         version: link:../usage-contract
@@ -5889,7 +5889,7 @@ importers:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@testing-library/dom':
         specifier: 'catalog:'
         version: 10.4.2
@@ -5962,7 +5962,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/access-cordis-contract':
         specifier: workspace:*
         version: link:../../access/access-cordis-contract
@@ -6046,7 +6046,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/workspace-contract':
         specifier: workspace:*
         version: link:../workspace-contract
@@ -6112,7 +6112,7 @@ importers:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
-        version: 4.0.4
+        version: 4.1.0
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -6599,20 +6599,20 @@ packages:
   '@chevrotain/types@11.1.2':
     resolution: {integrity: sha512-U+HFai5+zmJCkK86QsaJtoITlboZHBqrVketcO2ROv865xfCMSFpELQoz1GkX5GzME8pTa+3kbKrZHQtI0gdbw==}
 
-  '@deepseek-ai/cordis@4.0.4':
-    resolution: {integrity: sha512-obgyxqWAmFn3Re8kvsuUnyW+ihrz6eJCnJO4fh1cQzDtmPYz/zzVeUkH9R94I0OwSVOocK67Kgakm04j/oQXzg==}
+  '@deepseek-ai/cordis@4.1.0':
+    resolution: {integrity: sha512-CJrjNyBkKn1SfvBQUcgFYKFnLjS+uKrhdMsbHU60xabvi12d+xQ+IQSNlME5Z+B+4Zi6n4BDknKY94tEPeo47w==}
     hasBin: true
     peerDependencies:
-      '@deepseek-ai/cordis-plugin-include': ~1.0.9
-      '@deepseek-ai/cordis-plugin-loader': ~1.0.5
+      '@deepseek-ai/cordis-plugin-include': ~1.1.0
+      '@deepseek-ai/cordis-plugin-loader': ~1.1.0
     peerDependenciesMeta:
       '@deepseek-ai/cordis-plugin-include':
         optional: true
       '@deepseek-ai/cordis-plugin-loader':
         optional: true
 
-  '@deepseek-ai/cosmokit@1.8.5':
-    resolution: {integrity: sha512-LXsrlem9z8dq4sLflj2yuCuYX7KqhdzF5hZly3eZyuTo8d6oDSOXuEgC5DbQWKW+lksm6zmOutQLsP/ma6wR6A==}
+  '@deepseek-ai/cosmokit@1.9.0':
+    resolution: {integrity: sha512-5O1S53mZiJyZYcvxxD0Qv1EY7qFPSxbGyD8CbVK6gw7W9FvcXZj2YIX1ZkOqyQQ3Xt2rFkZDHJv0+V3Zmmp8CA==}
 
   '@electron-internal/extract-zip@1.0.8':
     resolution: {integrity: sha512-8iajeLFbzNwM0m3AsQZSZgYREWglAImyGvvFSWU34FgMW8sHlzdwj9QKvv9dgN7jMP591EFUF/sLOC3Jl9YIjQ==}
@@ -12292,12 +12292,12 @@ snapshots:
 
   '@chevrotain/types@11.1.2': {}
 
-  '@deepseek-ai/cordis@4.0.4':
+  '@deepseek-ai/cordis@4.1.0':
     dependencies:
-      '@deepseek-ai/cosmokit': 1.8.5
+      '@deepseek-ai/cosmokit': 1.9.0
       '@standard-schema/spec': 1.1.0
 
-  '@deepseek-ai/cosmokit@1.8.5': {}
+  '@deepseek-ai/cosmokit@1.9.0': {}
 
   '@electron-internal/extract-zip@1.0.8': {}
 

@@ -107,28 +107,121 @@ it('returns sender-private unknown operations to the original sender, retaining 
     await f.dispose()
   }
 })
-it('aggregates with a positive delay and keeps a silent in-flight read in the original window after the timer', async () => {
-  const f = runtimeFixture({ outputBatchDelayMs: 10, outputBatchBytes: 10000 })
+it('saves a batch once its delay elapses while the upstream stays silent, and covers the in-flight read with a window opened before the save (#1428)', async () => {
+  const windowsOpenedAtSave: number[] = []
+  const f = runtimeFixture({ outputBatchDelayMs: 10, outputBatchBytes: 10000 }, commands => ({
+    ...commands,
+    preserve(input) {
+      windowsOpenedAtSave.push(f.openInputs.length)
+      return commands.preserve(input)
+    },
+  }))
+  try {
+    unbox(await f.provider.runtime.calls.admit(f.admit))
+    await f.start(f.admit.call)
+    f.channel(f.admit.call).push([open, delta('a')])
+    await eventually(() => f.channel(f.admit.call).reads === 3)
+    for (let i = 0; i < 100; i++) await Promise.resolve()
+    expect(f.preserveInputs).toHaveLength(0)
+    f.controls.clock.advanceTo('2026-10-19T00:00:00.010Z')
+    await eventually(() => f.preserveInputs.length === 1)
+    expect(f.preserveInputs[0]?.facts).toEqual([open, delta('a')])
+    expect(f.preserveInputs[0]?.window).toBe(f.openInputs[0]?.window)
+    expect(windowsOpenedAtSave).toEqual([2])
+    expect((await snapshot(f)).blocks).toMatchObject([{ value: 'a' }])
+    expect(f.channel(f.admit.call).reads).toBe(3)
+    f.channel(f.admit.call).push([delta('b'), end])
+    await eventually(() => f.preserveInputs.length === 2)
+    expect(f.preserveInputs[1]?.facts).toEqual([delta('b'), end])
+    expect(f.preserveInputs[1]?.window).toBe(f.openInputs[1]?.window)
+    expect(f.openInputs).toHaveLength(2)
+    expect((await snapshot(f)).blocks).toMatchObject([{ value: 'ab' }])
+    expect(f.channel(f.admit.call).starts).toBe(1)
+  } finally {
+    await f.dispose()
+  }
+  expect(f.controls.clock.pending()).toBe(0)
+})
+it('keeps the batch when the window opened ahead of its save is outdated, and opens another before saving (#1428)', async () => {
+  let refusedOnce = false
+  const f = runtimeFixture({ outputBatchDelayMs: 10, outputBatchBytes: 10000 }, commands => ({
+    ...commands,
+    async openReceiveWindow(input) {
+      if (f.openInputs.length === 2 && !refusedOnce) {
+        refusedOnce = true
+        return {
+          failure: {
+            kind: 'conflict' as const,
+            operation: input.operation,
+            revision: input.expected,
+          },
+        }
+      }
+      return commands.openReceiveWindow(input)
+    },
+  }))
   try {
     unbox(await f.provider.runtime.calls.admit(f.admit))
     await f.start(f.admit.call)
     f.channel(f.admit.call).push([open, delta('a')])
     await eventually(() => f.channel(f.admit.call).reads === 3)
     f.controls.clock.advanceTo('2026-10-19T00:00:00.010Z')
-    for (let i = 0; i < 100; i++) await Promise.resolve()
+    await eventually(() => f.results.has(f.admit.call))
+    expect(refusedOnce).toBe(true)
+    expect(f.results.get(f.admit.call)).toMatchObject({ failure: { kind: 'conflict' } })
     expect(f.preserveInputs).toHaveLength(0)
-    expect((await snapshot(f)).cursor).toBe('0')
-    f.channel(f.admit.call).push([delta('b')])
+    const again = f.drive()
     await eventually(() => f.preserveInputs.length === 1)
-    expect(f.preserveInputs[0]?.facts).toEqual([open, delta('a'), delta('b')])
+    expect(f.openInputs).toHaveLength(3)
+    expect(f.preserveInputs[0]?.facts).toEqual([open, delta('a')])
     expect(f.preserveInputs[0]?.window).toBe(f.openInputs[0]?.window)
-    await eventually(() => f.channel(f.admit.call).reads === 4)
+    f.channel(f.admit.call).push([delta('b'), end])
+    unbox(await again)
+    expect(f.preserveInputs[1]?.window).toBe(f.openInputs[2]?.window)
     expect((await snapshot(f)).blocks).toMatchObject([{ value: 'ab' }])
-    f.channel(f.admit.call).push([end])
+    expect(f.channel(f.admit.call).reads).toBe(4)
   } finally {
     await f.dispose()
   }
-  expect(f.controls.clock.pending()).toBe(0)
+})
+it('opens another window on the next drive when the window after a saved batch is outdated', async () => {
+  let refusedOnce = false
+  const f = runtimeFixture({}, commands => ({
+    ...commands,
+    async openReceiveWindow(input) {
+      if (f.openInputs.length === 2 && !refusedOnce) {
+        refusedOnce = true
+        return {
+          failure: {
+            kind: 'conflict' as const,
+            operation: input.operation,
+            revision: input.expected,
+          },
+        }
+      }
+      return commands.openReceiveWindow(input)
+    },
+  }))
+  try {
+    unbox(await f.provider.runtime.calls.admit(f.admit))
+    await f.start(f.admit.call)
+    f.channel(f.admit.call).push([open])
+    await eventually(() => f.results.has(f.admit.call))
+    expect(f.results.get(f.admit.call)).toMatchObject({ failure: { kind: 'conflict' } })
+    expect(f.preserveInputs).toHaveLength(1)
+    const again = f.drive()
+    f.channel(f.admit.call).push([delta('a'), end])
+    unbox(await again)
+    expect(f.openInputs).toHaveLength(4)
+    expect(f.preserveInputs.map(input => input.window)).toEqual([
+      f.openInputs[0]?.window,
+      f.openInputs[2]?.window,
+      f.openInputs[3]?.window,
+    ])
+    expect((await snapshot(f)).blocks).toMatchObject([{ value: 'a' }])
+  } finally {
+    await f.dispose()
+  }
 })
 it('makes the byte threshold change positive-delay batch boundaries and saves terminal batches immediately', async () => {
   const f = runtimeFixture({ outputBatchDelayMs: 100, outputBatchBytes: 1 })
