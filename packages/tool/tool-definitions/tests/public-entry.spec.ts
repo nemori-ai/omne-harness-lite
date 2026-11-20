@@ -70,6 +70,23 @@ it('publishes declared commands and the same complete help table', async () => {
   expect(partial).toMatchObject({ failure: { kind: 'incomplete' } })
 })
 
+it('checks the text a command returns against the byte budget, and codes it as strict UTF-8', () => {
+  const author = value(createFilesAuthor(filesConstruction({ resultMaxBytes: 8 })))
+  const registration = readToolRegistration(author)
+  if (registration?.kind !== 'commands') throw new Error('commands')
+  const read = registration.operations.find(([name]) => name === 'read')![1].author
+  if (read.kind !== 'ordinary') throw new Error('ordinary')
+  const check = (candidate: unknown) => read.output.check({ value: candidate } as never)
+  expect(check('12345678')).toEqual({ ok: '12345678' })
+  expect(check('123456789')).toEqual({ failure: { reason: 'bounded-text-required' } })
+  expect(check('中中中')).toEqual({ failure: { reason: 'bounded-text-required' } })
+  expect(check(8)).toEqual({ failure: { reason: 'bounded-text-required' } })
+  expect(read.codec.encode('中')).toEqual({ ok: new TextEncoder().encode('中') })
+  expect(read.codec.encode(1 as never)).toEqual({ failure: { reason: 'text-required' } })
+  expect(read.codec.decode(new TextEncoder().encode('中'))).toEqual({ ok: '中' })
+  expect(read.codec.decode(new Uint8Array([0xff]))).toEqual({ failure: { reason: 'invalid-utf8' } })
+})
+
 it('creates missing parents before a write only when asked', async () => {
   const fixture = filesFixture()
   const author = value(createFilesAuthor(fixture.config))

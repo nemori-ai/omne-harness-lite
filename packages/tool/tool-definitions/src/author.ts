@@ -149,6 +149,39 @@ function textOperation<E>(
   })
 }
 
+type TableEntry<E> = {
+  summary: string
+  operation: ToolOperation<E, ToolMessageContentBlock>
+  release?: ToolCommandRelease
+  modalities?: readonly Modality[]
+}
+
+const menuEntry = (
+  command: Command,
+  declared: CommandTable['commands'][number]['returns'],
+): CommandTable['commands'][number] => ({
+  name: command.name,
+  summary: command.summary,
+  parameters: { kind: 'declared', value: contract(command) },
+  returns: declared,
+  ...(command.background === undefined ? {} : { background: command.background }),
+})
+
+function tableEntry<E>(
+  command: Command,
+  operation: ToolOperation<E, ToolMessageContentBlock>,
+  gates: CommandGates | undefined,
+  modalities: readonly Modality[] | undefined,
+): TableEntry<E> {
+  return {
+    summary: command.summary,
+    operation,
+    ...(command.background === undefined ? {} : { background: command.background }),
+    ...(gates === undefined ? {} : { release: releaseOf(gates, command.name) }),
+    ...(modalities === undefined ? {} : { modalities }),
+  }
+}
+
 export function createAuthor<E>(
   name: string,
   purpose: string,
@@ -169,23 +202,11 @@ export function createAuthor<E>(
     name,
     encoding: ENCODING,
     guide: rules,
-    commands: commands.map(command => ({
-      name: command.name,
-      summary: command.summary,
-      parameters: { kind: 'declared', value: contract(command) },
-      returns: structured[command.name] === undefined ? returns : blocksReturns(codec),
-      ...(command.background === undefined ? {} : { background: command.background }),
-    })),
+    commands: commands.map(command =>
+      menuEntry(command, structured[command.name] === undefined ? returns : blocksReturns(codec)),
+    ),
   }
-  const table: Record<
-    string,
-    {
-      summary: string
-      operation: ToolOperation<E, ToolMessageContentBlock>
-      release?: ToolCommandRelease
-      modalities?: readonly Modality[]
-    }
-  > = {}
+  const table: Record<string, TableEntry<E>> = {}
   for (const command of commands) {
     const special = structured[command.name]
     const operation =
@@ -197,13 +218,7 @@ export function createAuthor<E>(
               : execute(command.name, args, environment, execution),
           )
     if ('failure' in operation) throw new TypeError(JSON.stringify(operation.failure))
-    table[command.name] = {
-      summary: command.summary,
-      operation: operation.ok,
-      ...(command.background === undefined ? {} : { background: command.background }),
-      ...(gates === undefined ? {} : { release: releaseOf(gates, command.name) }),
-      ...(special === undefined ? {} : { modalities: special.modalities }),
-    }
+    table[command.name] = tableEntry(command, operation.ok, gates, special?.modalities)
   }
   const result = defineCommandTool({
     implementation: {
