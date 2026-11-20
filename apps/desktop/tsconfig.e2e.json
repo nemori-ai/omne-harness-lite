@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.test.json",
+  "compilerOptions": {
+    "lib": ["ES2024"]
+  },
+  "include": ["e2e/**/*.ts", "playwright.config.ts"]
+}

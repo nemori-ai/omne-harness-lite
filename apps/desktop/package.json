@@ -16,8 +16,12 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && vite build",
     "window": "node scripts/window.mjs",
+    "package": "node scripts/package.mjs --dir",
+    "package:release": "node scripts/package.mjs --release --dir",
+    "dist": "node scripts/package.mjs --release",
+    "test:e2e": "playwright test",
     "dev": "node scripts/dev.mjs",
-    "typecheck": "tsc -p tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.test.json && tsc -p tsconfig.e2e.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
@@ -59,7 +63,9 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@electron/fuses": "catalog:",
     "@omne-harness/utc-instant": "workspace:*",
+    "@playwright/test": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/react": "catalog:",
@@ -68,6 +74,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "electron": "catalog:",
+    "electron-builder": "catalog:",
     "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",

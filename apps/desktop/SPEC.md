@@ -63,7 +63,7 @@
 - 属性：`HttpOnly`，`SameSite=Strict`，`Path=/bridge/`，`Max-Age` 是一年（31536000 秒）。应用关了再开，登录还在。
 - `Max-Age` 不是登录的有效期。登录有效不有效由服务端定：每份登录在签发时冻结了最长截止时刻与空闲截止时刻，到期、被撤销或换了凭据之后服务端答 `denied`。cookie 只保证证明不先于服务端的截止时刻丢掉。
 - 页面启动时问一次登录状态。服务端认这份登录，页面直接进「已登录」；不认，转发层清除 cookie，页面回登录门并显示原因。
-- 证明因此落在本机，以明文存在应用的用户数据目录里，保护它的只有这个目录的权限。现在没有加密：加密要靠打包时打开 Electron 的 cookie 加密开关，本应用还没有打包这一步。做打包时要一并打开它。
+- 证明因此落在本机，存在应用的用户数据目录里。发行档的应用打开了 Electron 的 cookie 加密，落盘的值由系统的钥匙串（macOS）或对应的密钥服务加密；测试档、`pnpm run window` 与 `pnpm run dev` 起的应用没有打开它，证明以明文落盘，保护它的只有这个目录的权限。
 - 转发层是唯一写这枚 cookie 的地方，写的时机只有三个：登录成功时签发；退出时清除；确认登录已失效时清除。
 - cookie 读不出（不是 base64url、不是 JSON、缺字段、超过长度上限）当作没有 cookie，并在这次答复里清除它。
 
@@ -204,6 +204,19 @@
   | `src/port-fetch` | 进程间传输                        |
   | `src/page`       | 页面；界面外壳在 `src/page/shell` |
 
+### 打包
+
+- `pnpm run build` 之后，`pnpm run package` 打出解开的测试档应用，`pnpm run package:release` 打出解开的发行档应用，`pnpm run dist` 打出发行档的安装包：macOS 是 dmg 与 zip，Windows 是 NSIS，Linux 是 deb 与 rpm（rpm 要本机有 `rpmbuild`）。产物在 `apps/desktop/out`。只打一个平台，给 `dist` 加 `--mac`、`--win` 或 `--linux`。
+- 打包先在 `dist/app` 里摆好要装进去的东西：主进程与 utility 进程的入口各打成一个自带依赖的包，再加构建好的页面与一份没有依赖的 `package.json`。`dist/app` 与 `dist` 的相对布局相同，运行时的代码不分打没打包。应用里不装 `node_modules`。
+- 应用名、包名与 `appId` 在 `electron-builder.config.mjs` 的 `PRODUCT` 里只写一次，都是可移植的文件名：electron-builder 不改写它们，可执行文件的路径照它的缺省名字算。应用名决定用户数据目录。
+- 两档的差别只有一样：发行档打完之后翻 Electron 的 fuses，再逐个读回核对。不能以 Node 运行，不认 `NODE_OPTIONS` 与调试参数，只从自己的 asar 加载且核对它的完整性，cookie 加密打开。测试档不翻，Playwright 的 Electron 驱动要靠调试参数接上应用。
+- 三个平台都不签名。macOS 上翻 fuses 之后重做临时签名，arm64 的应用没有签名起不来。正式签名、公证、发行渠道与自动更新不在本应用里。
+
+### 端到端用例
+
+- `pnpm run test:e2e` 经 Playwright 的 Electron 驱动起应用，对一个真的服务端与替身模型网关走一遍：注册、发一条消息、看到回复、页面读不到登录 cookie 与 Node；退出再打开，凭 cookie 直接进工作区。两个目标：`unpackaged` 起 `dist/main/main.js`，要先 `pnpm run build`；`packaged` 起测试档的应用，还要先 `pnpm run package`。发行档接不上驱动，只读回它的 fuses。
+- 每个用例用一个新建的用户数据目录，用完删掉；它起的应用在用例结束时退出。同一时刻只起一个应用。它不进测试分层。
+
 ## 原则与约束
 
 - 页面的代码读不到登录证明。新增任何路径、答复字段、头、日志或错误文本，先确认它不带登录证明与密码。
@@ -249,3 +262,5 @@
 | DT-27 | 进程间传输不给请求加时限                                                                                                                                                                                                 | 一个慢而合法的调用被掐断，变成不确定                                                        | `port-fetch` 下的用例；`utility-process` 用例                                                      |
 | DT-28 | utility 进程不在时，页面自己的文档请求以加载失败结束，不答成一页文字                                                                                                                                                     | 窗口停在一页失败的文字上，恢复不介入，要人关掉重开                                          | `app-protocol` 用例                                                                                |
 | DT-29 | 重新加载等 utility 进程就绪才做；「没有响应」的问题在页面恢复、崩溃或加载失败时收起，不留下一个点了会动错窗口的问题 | utility 进程重启的几秒里，自动重新加载白白用掉，人看到本来会自己好的失败；或者窗口停在一个没人问的坏页面上 | `window-support` 用例的「页面的恢复」一组 |
+| DT-30 | 发行档的应用翻上 fuses 并逐个读回：不能以 Node 运行，不认 `NODE_OPTIONS` 与调试参数，只从自己的 asar 加载并核对完整性，cookie 加密打开 | 装好的应用被当成 Node 跑任意脚本，asar 被替换，登录证明明文落盘 | `fuses.mjs` 打包时读回，没翻上打包失败；`packaging` 用例 |
+| DT-31 | 打进应用的只有两个自带依赖的入口、页面与一份没有依赖的 `package.json`，没有 `node_modules` | 工作区的依赖整个进了安装包，体积成倍、来源不明 | `electron-builder.config.mjs` 的 `files`；`test:e2e` 的 `packaged` 目标在这样的包上走通 |
