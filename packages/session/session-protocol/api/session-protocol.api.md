@@ -9,8 +9,10 @@
 - `ObserveSessionFrame` · `session-protocol.d.ts`
 - `ObserveSessionOpen` · `session-protocol.d.ts`
 - `SessionProtocol` · `session-protocol.d.ts`
+- `UserAttachment` · `user-message.d.ts`
 - `UserMessage` · `user-message.d.ts`
 - `sessionProtocol` · `session-protocol.d.ts`
+- `userMessage` · `user-message.d.ts`
 - `userMessageId` · `user-message.d.ts`
 - `userTextMessage` · `user-message.d.ts`
 
@@ -18,7 +20,7 @@
 
 ```ts
 export { sessionProtocol, type ObserveSessionFrame, type ObserveSessionOpen, type SessionProtocol, } from './session-protocol.ts';
-export { userMessageId, userTextMessage, type UserMessage } from './user-message.ts';
+export { userMessage, userMessageId, userTextMessage, type UserAttachment, type UserMessage, } from './user-message.ts';
 ```
 
 ## 声明文件 `session-protocol.d.ts`
@@ -1118,6 +1120,15 @@ import type { SessionProtocol } from './session-protocol.ts';
 type SendInputBody = SessionProtocol['operations']['send-input']['body'] extends Codec<infer Body> ? Body : never;
 export type UserMessage = SendInputBody['message'];
 export declare function userMessageId(inputId: string): Promise<string>;
+export type UserAttachment = Readonly<{
+    kind: 'image' | 'voice' | 'file';
+    ref: Readonly<Record<'storage' | 'key' | 'mediaType' | 'bytes' | 'digest', string>>;
+}>;
+export declare function userMessage(input: Readonly<{
+    inputId: string;
+    text: string;
+    attachments: readonly UserAttachment[];
+}>): Promise<UserMessage>;
 export declare function userTextMessage(text: string, inputId: string): Promise<UserMessage>;
 export {};
 ```
