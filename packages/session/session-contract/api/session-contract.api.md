@@ -2006,6 +2006,9 @@ export type ProducerFact = Readonly<{
     child: SessionId;
     childOperation: SessionOperationId;
     source: DurableEvidence;
+    refusal?: Readonly<{
+        reason: string;
+    }>;
 }> | Readonly<{
     kind: 'routed-input';
     originalOperation: SessionOperationId;
@@ -3855,8 +3858,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:20e544525234d7bebfa8fa9b7fb49a3e64f988e500005f2672701f45146d45e6";
-export declare const SESSION_RELEASE_DIGEST = "sha256:20e544525234d7bebfa8fa9b7fb49a3e64f988e500005f2672701f45146d45e6";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:438b0cfbdfc3634c6f76ff72811e6785b742304d309484d4ef5467001a3899be";
+export declare const SESSION_RELEASE_DIGEST = "sha256:438b0cfbdfc3634c6f76ff72811e6785b742304d309484d4ef5467001a3899be";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4894,6 +4897,10 @@ export type RoutedInput = Readonly<{
     input: DurableEvidence;
     destination: DurableEvidence;
 }>;
+export type ArchiveCascade = Readonly<{
+    parent: SessionId;
+    control: SessionOperationId;
+}>;
 export type Control = Readonly<{
     kind: 'cancel-run';
     run: RunId;
@@ -4910,6 +4917,7 @@ export type Control = Readonly<{
     }>;
 }> | Readonly<{
     kind: 'archive';
+    cascade?: ArchiveCascade;
 }> | Readonly<{
     kind: 'unarchive';
 }> | Readonly<{

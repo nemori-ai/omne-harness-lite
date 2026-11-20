@@ -323,6 +323,7 @@ export type ProducerFact =
       child: SessionId
       childOperation: SessionOperationId
       source: DurableEvidence
+      refusal?: Readonly<{ reason: string }>
     }>
   | Readonly<{
       kind: 'routed-input'

@@ -22,6 +22,7 @@ import {
   terminalEntries,
 } from './decision-support.ts'
 import type { SessionOperationId } from './identity.ts'
+import { standingOf } from './standing.ts'
 
 export function scopeBinding(
   snapshot: Pick<WorkSnapshot, 'tenant' | 'session' | 'contextScopes'>,
@@ -48,12 +49,23 @@ function settlesAtOnce(intent: ControlIntent, pending: readonly ProducerRef[]): 
   )
 }
 
+/** An archive that names a parent is taken only by a child of that parent. */
+function followsItsParent(snapshot: WorkSnapshot, intent: ControlIntent): boolean {
+  const cascade =
+    intent.kind === 'control' && intent.value.kind === 'archive' ? intent.value.cascade : undefined
+  if (cascade === undefined) return true
+  const { relation } = standingOf(snapshot)
+  return relation.kind === 'child' && relation.parent === cascade.parent
+}
+
 export function decideControl(
   snapshot: WorkSnapshot,
   intent: ControlIntent,
   operation: SessionOperationId,
   reads: DecideReads,
 ): Decision {
+  if (!followsItsParent(snapshot, intent))
+    return invalid('intent.cascade', 'the session is not a child of the session the archive names')
   const scope = resolveControlScope(snapshot, intent)
   if (scope.kind === 'invalid') return invalid('intent', scope.reason)
   if (scope.kind === 'terminal') return rejected(scope)
@@ -103,8 +115,15 @@ export function decideControl(
         last: [],
       },
     ]
+    const follows = { parent: snapshot.session, control: operation }
     const cascade = tasks.map(task =>
-      task.kind === 'cascade' ? { ...task, parentControl: operation } : task,
+      task.kind === 'cascade'
+        ? {
+            ...task,
+            parentControl: operation,
+            intent: { kind: 'archive' as const, cascade: follows },
+          }
+        : task,
     )
     out.push(
       encodeEntry(

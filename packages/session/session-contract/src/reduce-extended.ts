@@ -1,7 +1,7 @@
 import { applyPermissionEvent } from './permission-state.ts'
 import { reduceAuthorizations } from './authorizations.ts'
 import type { SessionEntry } from './entries.ts'
-import type { WorkSnapshot } from './values.ts'
+import type { RecoveryTask, WorkSnapshot } from './values.ts'
 import type { DurableEvidence } from './identity.ts'
 import type { SessionEntriesProgress } from './interpretation-values.ts'
 import { applyResult, applyProducerFact } from './reduce-results.ts'
@@ -274,13 +274,16 @@ function applyControlProgress(
   }
   const fact = entry.fact
   if (fact === null) return null
-  if (fact.kind === 'cascade')
-    draft.tasks = draft.tasks.filter(
-      task =>
-        task.kind !== 'cascade' ||
-        task.child !== fact.child ||
-        task.childOperation !== fact.childOperation,
-    )
+  if (fact.kind === 'cascade') {
+    const answered = (task: RecoveryTask): task is Extract<RecoveryTask, { kind: 'cascade' }> =>
+      task.kind === 'cascade' &&
+      task.child === fact.child &&
+      task.childOperation === fact.childOperation
+    draft.tasks =
+      fact.refusal === undefined
+        ? draft.tasks.filter(task => !answered(task))
+        : draft.tasks.map(task => (answered(task) ? { ...task, state: 'denied' } : task))
+  }
   if (fact.kind === 'routed-input')
     draft.tasks = draft.tasks.filter(
       task => task.kind !== 'routed-input' || task.originalOperation !== fact.originalOperation,

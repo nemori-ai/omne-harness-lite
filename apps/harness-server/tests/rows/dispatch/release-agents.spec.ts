@@ -1,7 +1,8 @@
 // @module-tag slow
-import { writeFileSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { savedLoginProof, savedTenant } from '../../r9/support.ts'
 import {
   historyOf,
   onReleaseTree,
@@ -39,15 +40,23 @@ function busyChildren(
     arguments: JSON.stringify({
       command: 'execute',
       intent: 'wait for the test',
-      params: { script: `while [ ! -f ${file} ]; do sleep 0.1; done; echo released` },
+      params: { script: `: > running; while [ ! -f ${file} ]; do sleep 0.1; done; echo released` },
     }),
   })
   const script = toolCallsByRequest(body =>
     body.includes(DISPATCHED) && !answered(body) ? [wait(fileOf(body))] : pick(body),
   )
-  const release = (tree: ReleaseTree, file = 'go') =>
-    writeFileSync(join(dirname(tree.storageRoot), 'workspace', file), '')
-  return { script, release }
+  const inWorkspace = (tree: ReleaseTree, file: string) =>
+    join(dirname(tree.storageRoot), 'workspace', file)
+  const release = (tree: ReleaseTree, file = 'go') => writeFileSync(inWorkspace(tree, file), '')
+  /** The script of a dispatched agent has begun: its Shell call is past its start, where a stop reaches it. */
+  const running = (tree: ReleaseTree) =>
+    pollUntil(
+      'the Shell call of the dispatched agent to run',
+      () => existsSync(inWorkspace(tree, 'running')),
+      begun => begun,
+    )
+  return { script, release, running }
 }
 
 /** The dispatch call of the tree is parked on its wait. */
@@ -88,6 +97,41 @@ const lateDispatch = (body: string) =>
     : []
 
 describe('the Agents tool on the release tree', () => {
+  it(
+    'lets the dispatched agent run its own tools while the dispatching call waits for the report',
+    { tags: ['slow'], timeout: 120_000 },
+    async () => {
+      const shell = {
+        id: 'c_work',
+        tool: 'Shell',
+        arguments: JSON.stringify({
+          command: 'execute',
+          intent: 'do the work',
+          params: { script: 'echo the child worked' },
+        }),
+      }
+      const script = toolCallsByRequest(body => {
+        if (body.includes(DISPATCHED)) {
+          if (!answered(body)) return [shell]
+          return body.includes('c_report')
+            ? []
+            : [call('c_report', 'report', { text: 'worked with a tool' })]
+        }
+        return lateDispatch(body)
+      })
+      const exitCode = await onReleaseTree({ ...OPTIONS, script }, async tree => {
+        const parent = await tree.startSession('agents: delegate late')
+        const { results } = await settled(tree, parent)
+        expect(results).toContain('"report":"worked with a tool"')
+        const [dispatch] = await (await registryAs(tree, parent)).made()
+        if (dispatch === undefined) throw new Error('no dispatch')
+        const child = await settled(tree, dispatch.session)
+        expect(child.results).toContain('the child worked')
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+
   it(
     'delegates work to a child session, returns its one report as the result of the call, and lists and shows the dispatch',
     { tags: ['slow'], timeout: 300_000 },
@@ -247,36 +291,78 @@ describe('the Agents tool on the release tree', () => {
   )
 
   it(
-    'records a report as not deliverable when the dispatching session is archived by then, and show reads it',
+    'takes back the open dispatch of a session that is archived, and archives the session it dispatched with it',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
-      const { script, release } = busyChildren(body => {
-        if (!body.includes(DISPATCHED)) return lateDispatch(body)
-        return body.includes('c_report')
-          ? []
-          : [call('c_report', 'report', { text: 'nobody is here to read this' })]
-      })
-      const exitCode = await onReleaseTree({ ...OPTIONS, script }, async tree => {
+      const { script, release, running } = busyChildren(body =>
+        body.includes(DISPATCHED) ? [] : lateDispatch(body),
+      )
+      await onReleaseTree({ ...OPTIONS, script }, async tree => {
         const parent = await tree.startSession('agents: delegate late')
         await parked(tree)
         const registry = await registryAs(tree, parent)
         const [dispatch] = await registry.made()
         if (dispatch === undefined) throw new Error('the registry has no dispatch of the parent')
-        await cancelFirstRun(tree, parent)
-        await settled(tree, parent)
+        const bystander = await tree.startSession('hello, I stay')
+        await settled(tree, bystander)
+        await running(tree)
         expect(await tree.archive(parent)).toHaveProperty('ok')
 
+        const taken = await pollUntil(
+          'the dispatch to be taken back',
+          () => registry.shown(dispatch.id),
+          shown => shown.state === 'withdrawn',
+        )
+        expect(taken).toMatchObject({ state: 'withdrawn', report: null })
+        const listed = async (command: string) => {
+          const answer = await tree.cli([command])
+          expect(answer.status, answer.stderr).toBe(0)
+          return answer.stdout
+        }
+        const archived = await pollUntil(
+          'the dispatched session to follow its parent into the archive',
+          () => listed('list-archived-sessions'),
+          text => text.includes(dispatch.session),
+        )
+        const byOf = (session: string) =>
+          new RegExp(`"session":"${session}"[^{}]*"archivedBy":"([a-z]+)"`, 'u').exec(archived)?.[1]
+        expect(byOf(parent)).toBe('person')
+        expect(byOf(dispatch.session)).toBe('parent')
+        expect(archived).not.toContain(bystander)
+        const response = await fetch(
+          `http://127.0.0.1:${String(tree.port)}/api/session/v1/list-sessions`,
+          {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              authorization: `Bearer ${savedLoginProof(tree.home)}`,
+              'omne-message-id': 'm-list-after-archive',
+            },
+            body: JSON.stringify({ tenant: savedTenant(tree.home), cursor: null }),
+          },
+        )
+        const open = await response.text()
+        expect(open).toContain(bystander)
+        expect(open).not.toContain(parent)
+        expect(open).not.toContain(dispatch.session)
+
         release(tree)
-        const ended = await registry.delivered(dispatch.id)
-        expect(ended).toMatchObject({
-          state: 'reported',
-          report: { text: 'nobody is here to read this' },
-          delivery: { kind: 'undeliverable' },
-        })
-        const after = await historyOf(tree, parent)
-        expect(reminders(after).some(text => text.includes('nobody is here'))).toBe(false)
+        const child = await pollUntil(
+          'the run of the dispatched session to end',
+          () => historyOf(tree, dispatch.session),
+          entries => entries.some(entry => entry.kind === 'run.terminal'),
+        )
+        expect(JSON.stringify(child.find(entry => entry.kind === 'run.terminal'))).toContain(
+          '"outcome":"cancelled"',
+        )
+        expect((await registry.shown(dispatch.id)).state).toBe('withdrawn')
+        const stopped = await pollUntil(
+          'Tool to report the call of the dispatched session as stopped',
+          () => toolLedger(tree.storageRoot).find(row => row.tool === 'Shell'),
+          row => row?.phase === 'settled',
+        )
+        expect(stopped?.terminal).toBe('interrupted')
       })
-      expect(exitCode).toBe(0)
     },
   )
 

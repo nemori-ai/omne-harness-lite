@@ -148,6 +148,8 @@ export type RoutedInput =
       input: DurableEvidence
       destination: DurableEvidence
     }>
+/** An archive that follows the archive of the parent: the parent and the control of the parent it follows. */
+export type ArchiveCascade = Readonly<{ parent: SessionId; control: SessionOperationId }>
 export type Control =
   | Readonly<{ kind: 'cancel-run'; run: RunId; urgency: 'graceful' | 'force' }>
   | Readonly<{
@@ -158,7 +160,7 @@ export type Control =
       reason?: string | null
     }>
   | Readonly<{ kind: 'background-tool'; producer: Extract<ProducerRef, { kind: 'tool' }> }>
-  | Readonly<{ kind: 'archive' }>
+  | Readonly<{ kind: 'archive'; cascade?: ArchiveCascade }>
   | Readonly<{ kind: 'unarchive' }>
   | Readonly<{ kind: 'retry-run'; run: RunId }>
 export type ControlIntent =

@@ -522,6 +522,51 @@ describe('the dispatch, its session and the dispatching call live apart (DP-07)'
       delivery: { kind: 'delivered', to: 'result' },
     })
   })
+  it('finds by itself, when it reconciles, that the dispatcher of a started dispatch is archived or gone', async () => {
+    for (const gone of [false, true]) {
+      const w = world()
+      const open = await started(w, 'call-1')
+      const reported = await started(w, 'call-2')
+      await w.registry.report(w.ctx(reported.session), 'done')
+      if (gone) w.sessions.remove(TENANT, PARENT)
+      else w.sessions.archive(TENANT, PARENT)
+      await w.rebuilt().reconcile(TENANT)
+      expect(await read(w, open.id)).toMatchObject({ state: 'withdrawn' })
+      expect(w.sessions.cancelled).toEqual([open.session])
+      expect(await read(w, reported.id)).toMatchObject({ state: 'reported' })
+    }
+  })
+
+  it('counts a run that was cancelled or failed after its dispatcher was archived as taken back, not as failed', async () => {
+    for (const kind of ['cancelled', 'failed'] as const) {
+      const w = world()
+      const open = await started(w)
+      w.sessions.fate(open.session, { kind, detail: 'the session was archived' })
+      w.sessions.archive(TENANT, PARENT)
+      await w.registry.reconcile(TENANT)
+      expect(await read(w, open.id)).toMatchObject({ state: 'withdrawn', failure: null })
+      const alive = world()
+      const other = await started(alive)
+      alive.sessions.fate(other.session, { kind, detail: 'it broke' })
+      await alive.registry.reconcile(TENANT)
+      expect(await read(alive, other.id)).toMatchObject({
+        state: 'failed',
+        failure: { cause: `run-${kind}`, detail: 'it broke' },
+      })
+    }
+  })
+
+  it('leaves a started dispatch where it is while the dispatcher cannot be read', async () => {
+    const w = world()
+    const open = await started(w)
+    w.sessions.archive(TENANT, PARENT)
+    w.sessions.readable(false)
+    await w.registry.reconcile(TENANT)
+    expect((await read(w, open.id)).state).toBe('started')
+    w.sessions.readable(true)
+    await w.registry.reconcile(TENANT)
+    expect((await read(w, open.id)).state).toBe('withdrawn')
+  })
 })
 
 describe('a handoff is handed over when its session exists', () => {

@@ -11,7 +11,7 @@ import {
 } from '@omne-harness/dispatch-contract'
 import { reportInputOf } from './identity.ts'
 import type { Clock } from './ports.ts'
-import type { DispatchSessions, InputFate } from './session-port.ts'
+import type { DispatchSessions, InputFate, SessionRow } from './session-port.ts'
 import type { ReportWaits, WaitOutcome } from './wait-port.ts'
 import type { DispatchStore } from './store.ts'
 
@@ -40,6 +40,7 @@ const endOf = (fate: InputFate): DispatchEvent | null => {
 
 const CREATED: DispatchEvent = { kind: 'session-created' }
 const ARCHIVED: DispatchEvent = { kind: 'dispatcher-archived' }
+const there = (row: SessionRow | null): row is SessionRow => row !== null && !row.archived
 
 /** Every step re-does the same thing under the same identity; an unknown result leaves the dispatch where it is. */
 export function createAdvance(deps: AdvanceDependencies) {
@@ -55,7 +56,7 @@ export function createAdvance(deps: AdvanceDependencies) {
   async function create(dispatch: Dispatch): Promise<unknown> {
     const row = await sessions.row(dispatch.tenant, dispatch.dispatcher)
     if (row.kind !== 'read') return undefined
-    if (row.value === null || row.value.archived) return apply(dispatch, ARCHIVED)
+    if (!there(row.value)) return apply(dispatch, ARCHIVED)
     const { session } = dispatch
     const { permission } = row.value
     const answer = await sessions.create(dispatch.tenant, { session, dispatch, permission })
@@ -67,10 +68,15 @@ export function createAdvance(deps: AdvanceDependencies) {
     )
   }
 
-  /** `started`: the end of the run the starting input started is the end of the dispatch. */
+  /** `started`: a run that ended with a reply ends the dispatch; an archived dispatcher takes it back; else a failed run fails it. */
   async function follow(dispatch: Dispatch): Promise<unknown> {
     const fate = await sessions.startFate(dispatch.tenant, dispatch)
-    const event = fate.kind === 'read' ? endOf(fate.value) : null
+    if (fate.kind !== 'read') return undefined
+    const event = endOf(fate.value)
+    if (event?.kind === 'run-ended') return apply(dispatch, event)
+    const row = await sessions.row(dispatch.tenant, dispatch.dispatcher)
+    if (row.kind !== 'read') return undefined
+    if (!there(row.value)) return apply(dispatch, ARCHIVED)
     return event === null ? undefined : apply(dispatch, event)
   }
 

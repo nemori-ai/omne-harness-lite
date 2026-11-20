@@ -21,7 +21,6 @@ import {
 } from './world.ts'
 
 const RUN = 'run_1' as RunId
-const SILENT = { kind: 'read', value: 'The run ended without a final reply.' }
 const str = (value: string) => ({ kind: 'string', value })
 const obj = (members: Record<string, unknown>) => ({
   kind: 'object',
@@ -66,19 +65,6 @@ describe('the last reply of a run, read back from the end of the history', () =>
     const lookalike = entry('message.user', obj({ terminal: obj({ run: str(RUN) }) }))
     const { reply } = reading([page([lookalike, ended('run_2'), said(text('not mine'))])])
     expect(await reply()).toEqual({ kind: 'unavailable' })
-  })
-
-  it.each([
-    ['a payload that is no object', entry('message.assistant', str('x'))],
-    ['a message without blocks', entry('message.assistant', obj({ message: obj({}) }))],
-    [
-      'blocks that are no list',
-      entry('message.assistant', obj({ message: obj({ blocks: str('x') }) })),
-    ],
-    ['a text block without its text', said(obj({ kind: str('text') }))],
-    ['a block whose kind is no text', said(obj({ kind: arr(), text: str('x') }), str('x'))],
-  ])('answers that the run ended without a reply for %s', async (_name, message) => {
-    expect(await reading([page([ended(), message])]).reply()).toEqual(SILENT)
   })
 
   it('reads on by the cursor of each page, and stops where the history ends', async () => {

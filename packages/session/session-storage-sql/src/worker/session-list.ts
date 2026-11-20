@@ -39,14 +39,16 @@ export function titleOf(entries: Iterable<HistoryEntry>): string | null {
 const nullable = (cell: unknown): string | null =>
   cell === null || cell === undefined ? null : String(cell)
 
-// How this commit archived the session: the idle rule asks for an auto-archive, a person archives.
-export function howArchived(entries: readonly HistoryEntry[]): 'person' | 'auto' {
-  const automatic = entries.some(entry => {
-    if (entry.kind !== 'control.requested') return false
-    const payload = plainOf(entry.payload) as { progress?: { intent?: { kind?: unknown } } }
-    return payload.progress?.intent?.kind === 'auto-archive'
-  })
-  return automatic ? 'auto' : 'person'
+// How this commit archived the session: the idle rule asks for an auto-archive, an archive that names a parent follows it, a person archives.
+export function howArchived(entries: readonly HistoryEntry[]): 'person' | 'auto' | 'parent' {
+  type Intent = { kind?: unknown; value?: { kind?: unknown; cascade?: unknown } }
+  const intents = entries
+    .filter(entry => entry.kind === 'control.requested')
+    .map(entry => (plainOf(entry.payload) as { progress?: { intent?: Intent } }).progress?.intent)
+  if (intents.some(intent => intent?.kind === 'auto-archive')) return 'auto'
+  const follows = (intent: Intent | undefined): boolean =>
+    intent?.value?.kind === 'archive' && intent.value.cascade !== undefined
+  return intents.some(follows) ? 'parent' : 'person'
 }
 
 // The archive row moves with the lifecycle: written by the commit that archives, gone on unarchive.
