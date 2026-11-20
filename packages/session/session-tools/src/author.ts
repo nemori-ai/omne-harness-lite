@@ -106,6 +106,12 @@ const summaryOf = (item: SessionSummary) => ({
   last_activity_at: item.lastActivityAt,
   archived_at: item.archivedAt,
   archived_by: item.archivedBy,
+  relation: item.relation,
+  parent: item.parent,
+  handed_from: item.origin,
+  depth: item.depth,
+  attendance: item.attendance,
+  definition: item.definition,
 })
 const nextOf = (next: string | null) => next ?? 'none'
 

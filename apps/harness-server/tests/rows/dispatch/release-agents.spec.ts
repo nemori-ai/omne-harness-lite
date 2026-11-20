@@ -160,6 +160,90 @@ describe('the Agents tool on the release tree', () => {
   )
 
   it(
+    'shows a person and an agent what the sessions are to each other: the command line and Sessions list give the relation and narrow by it',
+    { tags: ['slow'], timeout: 300_000 },
+    async () => {
+      const sessions = (id: string, params: Record<string, unknown>) => ({
+        id,
+        tool: 'Sessions',
+        arguments: JSON.stringify({ command: 'list', params }),
+      })
+      const script = toolCallsByRequest(body => {
+        if (body.includes(DISPATCHED))
+          return answered(body) ? [] : [call('c_report', 'report', { text: 'done' })]
+        if (body.includes('sessions: look') && !body.includes('c_children'))
+          return [
+            sessions('c_children', { relation: 'child' }),
+            sessions('c_mains', { relation: 'main', attendance: 'attended' }),
+          ]
+        return lateDispatch(body)
+      })
+      const exitCode = await onReleaseTree({ ...OPTIONS, script }, async tree => {
+        const parent = await tree.startSession('agents: delegate late')
+        await settled(tree, parent)
+        const [dispatch] = await (await registryAs(tree, parent)).made()
+        if (dispatch === undefined) throw new Error('no dispatch')
+        const child = dispatch.session
+        const rows = async (args: readonly string[]) => {
+          const answer = await tree.cli(['list-sessions', ...args])
+          expect(answer.status, answer.stderr).toBe(0)
+          const listed = (
+            JSON.parse(answer.stdout) as { body: { sessions: Record<string, unknown>[] } }
+          ).body.sessions
+          return Object.fromEntries(listed.map(row => [String(row['session']), row]))
+        }
+        const all = await rows([])
+        expect(all[child]).toMatchObject({
+          relation: 'child',
+          parent,
+          origin: null,
+          root: parent,
+          depth: 1,
+          attendance: 'unattended',
+          definition: 'coding',
+        })
+        expect(all[parent]).toMatchObject({
+          relation: 'main',
+          parent: null,
+          depth: 0,
+          attendance: 'attended',
+        })
+        expect(Object.keys(await rows(['--relation', 'child']))).toEqual([child])
+        expect(Object.keys(await rows(['--parent', parent]))).toEqual([child])
+        expect(Object.keys(await rows(['--attendance', 'attended']))).toEqual([parent])
+        expect(Object.keys(await rows(['--relation', 'handoff']))).toEqual([])
+        expect(Object.keys(await rows(['--definition', 'nobody']))).toEqual([])
+
+        const sent = await tree.cli(['send-input', '--session', parent, '--text', 'sessions: look'])
+        expect(sent.status, sent.stderr).toBe(0)
+        const { results } = await settled(tree, parent, 2)
+        const [children, mains] = results
+          .split('done Sessions list ')
+          .slice(1)
+          .map(
+            part =>
+              JSON.parse(part.slice(part.indexOf('\n') + 1).split('\n')[0] ?? '[]') as Record<
+                string,
+                unknown
+              >[],
+          )
+        expect(children).toMatchObject([
+          {
+            session: child,
+            relation: 'child',
+            parent,
+            depth: 1,
+            attendance: 'unattended',
+            definition: 'coding',
+          },
+        ])
+        expect(mains?.map(row => row['session'])).toEqual([parent])
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
     'lets the dispatched agent run its own tools while the dispatching call waits for the report',
     { tags: ['slow'], timeout: 120_000 },
     async () => {
