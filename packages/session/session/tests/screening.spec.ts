@@ -272,6 +272,15 @@ describe('the source of an input decides whether it is screened', () => {
     expect([seen, await revisionOf(h)]).toEqual([[], before])
   })
 
+  it('with no processor registered the registry of sources is not asked here: the commit judges the source', async () => {
+    const h = await service({ admission: [], sources: null })
+    succeeded(await accept(h, ordinaryInput('words')), 'words')
+    expect(failureOf(await accept(h, pictured('pic')))).toMatchObject({
+      kind: 'unavailable',
+      owner: 'sessionAdmission',
+    })
+  })
+
   it('a source whose name is no source name is unavailable, whatever the registry would say', async () => {
     const seen: Seen[] = []
     const h = await service({ admission: [measuring(seen)] })

@@ -38,11 +38,16 @@ function current<T>(owner: 'sources' | 'admission', what: string, read: () => T 
   }
 }
 
-/** The processors this input goes through: none when its source is declared unscreened. */
+/** The processors this input goes through: none where none are registered, or its source is unscreened. */
 function processorsOf<P>(
   dependencies: Sources<P>,
   input: Ordinary,
 ): Outcome<readonly IntakeProcessor<P>[], SessionFailure> {
+  const processors = current('admission', 'the list of processors before intake', () =>
+    dependencies.admission.current(),
+  )
+  // With nothing to run the source need not be known here: the commit judges it.
+  if ('ok' in processors && processors.ok.length === 0) return processors
   const sources = current('sources', 'the registry of input sources', () =>
     dependencies.sources.current(),
   )
@@ -52,10 +57,7 @@ function processorsOf<P>(
   if (found === null || found.kind === 'absent')
     return fail(unavailable(OWNERS.sources, `the input source ${input.source} is not registered`))
   const { accepts } = found.declaration
-  if (accepts.subject !== 'member' && !accepts.screened) return succeed([])
-  return current('admission', 'the list of processors before intake', () =>
-    dependencies.admission.current(),
-  )
+  return accepts.subject !== 'member' && !accepts.screened ? succeed([]) : processors
 }
 
 /** The input as the processors of its source left it; a block names the block it refused. */

@@ -30,6 +30,7 @@
       "plugin": "stubPlugin",
       "config": {}
     },
+    {
       "id": "session-before-intake",
       "plugin": "stubPlugin",
       "config": {}

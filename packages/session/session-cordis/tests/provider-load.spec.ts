@@ -246,10 +246,22 @@ describe('the admission declaration', () => {
     expect(await words(a, intake, 'plain')).toHaveProperty('ok')
   })
 
-  it('the registry of input sources is read at each intake: gone, the input is unavailable', async () => {
-    const a = await build()
+  it('the registry of input sources is read at each intake that has processors to run: gone, the input is unavailable', async () => {
+    const a = await build({ provider: {} })
+    await a.mount(sessionBeforeIntakePlugin)
+    await a.mount({
+      name: 'passing',
+      inject: [sessionBeforeIntakeKey],
+      apply(ctx: Context) {
+        ctx.sessionBeforeIntake.register({
+          name: 'audit.words',
+          run: async () => ({ kind: 'pass' }),
+        })
+      },
+    })
     const intake = await a.caller('intake')
     await a.create(intake)
+    expect(await words(a, intake, 'sourced')).toHaveProperty('ok')
     await a.sources.dispose()
     expect(await words(a, intake, 'sourceless')).toMatchObject({
       failure: { kind: 'unavailable', owner: 'sessionInputSources' },
