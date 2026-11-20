@@ -17,6 +17,8 @@
     "notification",
     "calendar-notification",
     "workspace",
+    "usage",
+    "usage-adapters",
     "session-provider",
     "session-ad02",
     "session-ad03",
@@ -81,7 +83,8 @@
     "notification-access",
     "workspace-access",
     "tool-access",
-    "model-access"
+    "model-access",
+    "usage-access"
   ],
   "trusted": [
     {
@@ -479,6 +482,13 @@
     },
     {
       "row": "model-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "usage-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

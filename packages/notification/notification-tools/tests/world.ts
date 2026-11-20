@@ -19,6 +19,7 @@ import {
   type SendRequestInput,
 } from '@omne-harness/notification-contract'
 import {
+  answerNotifications,
   attachNotifications,
   bindNotifications,
   createNotificationsAuthor,
@@ -35,7 +36,6 @@ import {
   fakeConsent,
 } from '@omne-harness/notification/testing'
 import { createIndependentToolScope } from '@omne-harness/tool'
-import type { ToolDecision } from '@omne-harness/tool-contract'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { commandArguments, deriveDefinition } from '@omne-harness/tool-contract/provider'
 
@@ -44,6 +44,10 @@ export const person: RecipientRef = { kind: 'person' }
 export const agent = (ref: string) => ({ kind: 'agent', ref }) as const
 export const POSTS = { source: 'agent.posts', type: 'post' } as const
 export const NOW = '2026-11-18T06:00:00.000Z'
+
+/** A call released on a standing blanket consent, as the port of the application answers it. */
+export const consented = (grant = 'grant-1') =>
+  ({ kind: 'consented', basis: { kind: 'blanket', scope: 'standing', grant } }) as const
 
 export const json = (value: unknown) => {
   const read = readJsonText(JSON.stringify(value), {
@@ -219,19 +223,17 @@ export function caller(
     ...overrides,
   })
   const execution = attachNotifications(scope(), bound)
-  const segment = { emit: () => undefined, signal: execution.context.signal } as never
 
   async function run(command: string, params: unknown = {}) {
     const parsed = tool.decode(command, params)
     if ('failure' in parsed) return { failure: parsed.failure }
-    return notificationsExecutor.initial(parsed.ok as never, null, segment)
+    return answerNotifications(parsed.ok as never, execution.context)
   }
   /** The value of a completed call: its first line and the JSON under it. */
   async function ok(command: string, params: unknown = {}) {
     const answer = await run(command, params)
     if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
-    if (answer.ok.kind !== 'completed') throw new Error(answer.ok.kind)
-    const [head = '', body = 'null'] = answer.ok.value.split('\n')
+    const [head = '', body = 'null'] = answer.ok.split('\n')
     return { head, value: JSON.parse(body) as any }
   }
   async function failure(command: string, params: unknown = {}) {
@@ -240,23 +242,15 @@ export function caller(
       throw new Error(`expected a failure, got ${JSON.stringify(answer.ok)}`)
     return answer.failure as { kind: string; reason: string; operation?: string }
   }
-  async function suspended(command: string, params: unknown = {}) {
-    const answer = await run(command, params)
-    if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
-    if (answer.ok.kind !== 'suspended') throw new Error(answer.ok.kind)
-    return answer.ok
+  /** What the executor itself gives the call: the text, or a throw with the reason. */
+  async function executed(command: string, params: unknown = {}) {
+    const parsed = tool.decode(command, params)
+    if ('failure' in parsed) throw new Error(JSON.stringify(parsed.failure))
+    return notificationsExecutor.execute(parsed.ok as never, null, execution.context)
   }
-  const resume = (state: Uint8Array, decision: ToolDecision<unknown>) =>
-    notificationsExecutor.resume({ checkpoint: state, response: decision }, null, segment)
-  return { self, bound, execution, segment, run, ok, failure, suspended, resume }
+  return { self, bound, execution, run, ok, failure, executed }
 }
 
 export function unattached() {
-  const execution = scope()
-  return { emit: () => undefined, signal: execution.context.signal } as never
+  return { signal: scope().context.signal }
 }
-
-export const selected = (cardId: string, optionId: string): ToolDecision<unknown> => ({
-  kind: 'answer',
-  value: { answers: [{ cardId, kind: 'selection', optionId }] },
-})

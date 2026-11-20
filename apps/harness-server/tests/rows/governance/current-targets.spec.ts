@@ -6,7 +6,7 @@ import {
 } from '../../../src/rows/governance/current-targets.ts'
 import { toolAssetPublication } from '../../../src/rows/governance/tool-assets.ts'
 import { loadProductionRelease } from '../../../src/entry/tool-release.ts'
-import { scheduleAgentAuthoringSettings } from '@omne-harness/schedule-local'
+import { sessionIntakeSettings } from '@omne-harness/session-adapters/cordis'
 
 type Input = Parameters<typeof currentGovernanceTargets>[0]
 let baseline: Input
@@ -264,7 +264,7 @@ it('takes a governed independent target with its publication into the catalog be
 
 it('leaves a target without governance items out of the governance catalog', () => {
   const input = managementInput()
-  const definition = scheduleAgentAuthoringSettings
+  const definition = sessionIntakeSettings
   const target = {
     kind: 'independent' as const,
     providerId: definition.providerId,
@@ -294,7 +294,7 @@ it('leaves a target without governance items out of the governance catalog', () 
 })
 
 it.each([
-  ['only preferences', () => scheduleAgentAuthoringSettings],
+  ['only preferences', () => sessionIntakeSettings],
   ['a permission item', () => managementInput().assets.views[0]!.definition],
 ] as const)(
   'leaves an asset a tenant published out of the governance catalog, its settings %s: no release has to publish it',

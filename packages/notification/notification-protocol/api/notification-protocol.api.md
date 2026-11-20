@@ -824,9 +824,13 @@ declare const subscription: {
                                     ];
                                 };
                             };
-                            readonly generation: {
+                            readonly scope: {
                                 rule: {
-                                    readonly kind: 'count';
+                                    readonly kind: 'literal';
+                                    readonly values: readonly [
+                                        "standing",
+                                        "session"
+                                    ];
                                 };
                             };
                         };
@@ -840,11 +844,6 @@ declare const subscription: {
                                     readonly values: readonly [
                                         "granular"
                                     ];
-                                };
-                            };
-                            readonly decision: {
-                                rule: {
-                                    readonly kind: 'text';
                                 };
                             };
                         };
@@ -1415,10 +1414,9 @@ export declare const notificationProtocol: {
                         readonly basis: {
                             readonly kind: "owner";
                         } | {
-                            readonly generation: number;
                             readonly kind: "blanket";
+                            readonly scope: "session" | "standing";
                         } | {
-                            readonly decision: string;
                             readonly kind: "granular";
                         };
                         readonly expired: boolean;
@@ -1478,10 +1476,9 @@ export declare const notificationProtocol: {
                     readonly basis: {
                         readonly kind: "owner";
                     } | {
-                        readonly generation: number;
                         readonly kind: "blanket";
+                        readonly scope: "session" | "standing";
                     } | {
-                        readonly decision: string;
                         readonly kind: "granular";
                     };
                     readonly expired: boolean;
@@ -1517,10 +1514,9 @@ export declare const notificationProtocol: {
                     readonly basis: {
                         readonly kind: "owner";
                     } | {
-                        readonly generation: number;
                         readonly kind: "blanket";
+                        readonly scope: "session" | "standing";
                     } | {
-                        readonly decision: string;
                         readonly kind: "granular";
                     };
                     readonly expired: boolean;

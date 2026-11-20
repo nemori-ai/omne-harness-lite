@@ -1,4 +1,5 @@
 export {
+  answerNotifications,
   createNotificationsAuthor,
   notificationsExecutor,
   notificationsToolModule,
@@ -10,7 +11,6 @@ export type {
   NotificationCallSource,
   NotificationToolFaces,
 } from './port.ts'
-export { cardIdOf } from './consent.ts'
 export {
   notificationsAdoption,
   notificationsCommandNames,

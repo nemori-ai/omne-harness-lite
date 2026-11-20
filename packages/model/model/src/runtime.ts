@@ -23,8 +23,6 @@ export type ModelConfiguration = Readonly<{
   observerCheckIntervalMs: number
   readIdleMs: number
   resultPageTargetBytes: number
-  /** @deprecated Read by nothing; give no value. */
-  cleanupRetryMs?: number
 }>
 export type ModelDependencies<P> = Readonly<{
   commands: ModelCommands<P>

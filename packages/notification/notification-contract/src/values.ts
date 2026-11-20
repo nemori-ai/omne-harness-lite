@@ -74,12 +74,23 @@ export const termSchema = z.discriminatedUnion('kind', [
 ])
 export type Term = z.infer<typeof termSchema>
 
+export const GRANT_MAX_BYTES = 2048
+const encoder = new TextEncoder()
+const grantSchema = z
+  .string()
+  .min(1)
+  .refine(value => encoder.encode(value).byteLength <= GRANT_MAX_BYTES)
+
 export const basisSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('owner') }).readonly(),
   z
-    .strictObject({ kind: z.literal('blanket'), generation: z.number().int().nonnegative() })
+    .strictObject({
+      kind: z.literal('blanket'),
+      scope: z.enum(['standing', 'session']),
+      grant: grantSchema,
+    })
     .readonly(),
-  z.strictObject({ kind: z.literal('granular'), decision: z.string().min(1).max(200) }).readonly(),
+  z.strictObject({ kind: z.literal('granular'), grant: grantSchema }).readonly(),
 ])
 export type Basis = z.infer<typeof basisSchema>
 

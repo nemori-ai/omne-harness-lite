@@ -20,7 +20,6 @@ import type {
 } from '@omne-harness/session-contract'
 import type { WorkingDirectory } from '@omne-harness/session-adapters'
 import {
-  sessionInquiryBinding,
   sessionInteractionBinding,
   workingDirectoryCallBinding,
 } from '@omne-harness/session-adapters/cordis'
@@ -47,11 +46,7 @@ import {
   readPublishedNeed,
   readPublishedView,
 } from '../rows/session-ad03/published-view.ts'
-import {
-  judgeMetaCommand,
-  type SessionInquiryRead,
-  type SessionInteractionRead,
-} from './meta-capabilities.ts'
+import { judgeMetaCommand, type SessionInteractionRead } from './meta-capabilities.ts'
 import { toolOperatorSettingsKey } from '../rows/tool-host/operator-settings.ts'
 import { toolLimitsOf } from './tool-limits.ts'
 import { releaseOf, type ToolRelease } from './tool-release.ts'
@@ -73,7 +68,6 @@ export type ToolRequestPorts = Readonly<{
   /** The operator's values for the settings a release tool declares; undefined when absent. */
   operatorSettings(tool: string): Readonly<Record<string, unknown>> | undefined
   interaction: SessionInteractionRead
-  inquiry: SessionInquiryRead
   workingDirectory(
     access: SessionAccess<unknown>,
   ): Promise<Outcome<WorkingDirectory | null, string>>
@@ -448,12 +442,6 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
       if (ports === null) return fail('the Session or Runtime Context services are absent')
       const view = await readPublishedView(ports, access, sessionInteractionBinding)
       return 'failure' in view ? view : succeed(view.ok.interaction)
-    },
-    inquiry: async access => {
-      const ports = publishedViewPortsOf(ctx)
-      if (ports === null) return fail('the Session or Runtime Context services are absent')
-      const view = await readPublishedView(ports, access, sessionInquiryBinding)
-      return 'failure' in view ? view : succeed(view.ok.inquiry.policy.onAsk)
     },
     workingDirectory: async access => {
       const ports = publishedViewPortsOf(ctx)

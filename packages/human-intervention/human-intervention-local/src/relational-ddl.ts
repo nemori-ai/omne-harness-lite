@@ -5,12 +5,12 @@ function stringCheck(column: string, maxBytes: number) {
 }
 
 function originColumns() {
-  return `origin_kind TEXT NOT NULL CHECK(origin_kind IN ('independent','tool','admission','agent-extension')),
+  return `origin_kind TEXT NOT NULL CHECK(origin_kind IN ('tool','admission','agent-extension')),
   session_ref TEXT CHECK(${stringCheck('session_ref', 1538)}),
   run_ref TEXT CHECK(${stringCheck('run_ref', 1538)}),
   tool_call_ref TEXT CHECK(${stringCheck('tool_call_ref', 1538)}),
   CHECK(run_ref IS NULL OR session_ref IS NOT NULL),
-  CHECK(CASE origin_kind WHEN 'independent' THEN session_ref IS NULL AND tool_call_ref IS NULL WHEN 'tool' THEN tool_call_ref IS NOT NULL WHEN 'agent-extension' THEN tool_call_ref IS NULL ELSE 1 END)`
+  CHECK(CASE origin_kind WHEN 'tool' THEN tool_call_ref IS NOT NULL WHEN 'agent-extension' THEN tool_call_ref IS NULL ELSE 1 END)`
 }
 
 export const terminalDdl = [
@@ -253,7 +253,7 @@ export const requestDdl = [
   bucket TEXT NOT NULL CHECK(bucket IN ('pending','invalidated','decided-pending','decided-accepted','decided-superseded')),
   actor_ref TEXT NOT NULL CHECK(${stringCheck('actor_ref', 1538)}),
   session_key TEXT NOT NULL CHECK(session_key='*' OR (${stringCheck('session_key', 1538)})),
-  origin_key TEXT NOT NULL CHECK(origin_key IN ('*','independent','tool','admission','agent-extension')),
+  origin_key TEXT NOT NULL CHECK(origin_key IN ('*','tool','admission','agent-extension')),
   PRIMARY KEY(tenant_ref,request_sequence,bucket,actor_ref,session_key,origin_key),
   CHECK(session_key<>'*' OR origin_key<>'*'),
   FOREIGN KEY(tenant_ref,request_sequence,actor_ref) REFERENCES hi_request_readers_v2(tenant_ref,request_sequence,actor_ref)

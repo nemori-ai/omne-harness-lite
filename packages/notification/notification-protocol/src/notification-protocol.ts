@@ -42,8 +42,8 @@ const term = oneOf(
 )
 const basis = oneOf(
   object({ kind: kind('owner') }),
-  object({ kind: kind('blanket'), generation: { rule: count } }),
-  object({ kind: kind('granular'), decision: { rule: text } }),
+  object({ kind: kind('blanket'), scope: { rule: literal('standing', 'session') } }),
+  object({ kind: kind('granular') }),
 )
 const cause = oneOf(
   object({ kind: kind('named') }),

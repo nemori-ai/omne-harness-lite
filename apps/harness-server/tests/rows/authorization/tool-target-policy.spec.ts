@@ -1,5 +1,9 @@
 import { Context } from '@deepseek-ai/cordis'
-import { decisionEvidence, referenceAdmissionCheck } from '@omne-harness/authorization'
+import {
+  decisionEvidence,
+  grantRefText,
+  referenceAdmissionCheck,
+} from '@omne-harness/authorization'
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
 import { describe, expect, it } from 'vitest'
 import { actionRulesSchema } from '../../../src/rows/authorization/action-rules.ts'
@@ -8,11 +12,15 @@ import {
   installToolTargetPolicy,
   toolTargetPolicyOf,
 } from '../../../src/rows/authorization/tool-target-policy.ts'
-import { decodeToolOperationId } from '@omne-harness/tool-contract'
+import { IMPLICIT_TOOL_GATE, decodeToolOperationId } from '@omne-harness/tool-contract'
 import { createToolActionResolution } from '../../../src/entry/tool-action-resolution.ts'
 import { okOf } from '../../entry/support.ts'
-import { toolsCall } from '../../entry/tool-call-support.ts'
+import { echoCall, toolsCall } from '../../entry/tool-call-support.ts'
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
+import { VERDICT_RELEASE } from '../../support/permission-release.ts'
+
+// The fence hands the start the release with its grant in canonical text, unread by Tool.
+const RELEASED = { by: 'verdict', grant: grantRefText(VERDICT_RELEASE.grant!) } as const
 
 type World = Awaited<ReturnType<typeof forwardWorld>>
 const resolving = (world: World) => {
@@ -68,6 +76,7 @@ describe('current target rules of the authorization row', () => {
               kind: 'allow',
               evidence: decisionEvidence('permission-fixture', '1', {}),
               condition: { basis: 'fixture' },
+              release: VERDICT_RELEASE,
             }
           },
         }),
@@ -116,6 +125,7 @@ describe('current target rules of the authorization row', () => {
       expect(await policy.qualify({ ...access, request: world.request('Tools') })).toEqual({
         kind: 'allowed',
         condition: { basis: 'fixture' },
+        release: RELEASED,
       })
       // A Tools execute call only carries its target, as admission judged it; a target is its own.
       const carrying = toolsCall(world, { name: 'ToyEcho', command: 'info', arguments: {} })
@@ -127,7 +137,15 @@ describe('current target rules of the authorization row', () => {
           arguments: { original: carrying, effective: carrying, complete: true },
         },
       })
-      await policy.qualify({ ...access, request: world.request('ToyEcho') })
+      // A real request's arguments name its command; the fixture's empty ones would name none.
+      const echo = echoCall(world, {})
+      await policy.qualify({
+        ...access,
+        request: {
+          ...world.request('ToyEcho'),
+          arguments: { original: echo, effective: echo, complete: true },
+        },
+      })
       expect(carriers.slice(-2)).toEqual([true, undefined])
       expect(await policy.qualify({ ...access, request: world.request('Shell') })).toEqual({
         kind: 'denied',
@@ -241,12 +259,12 @@ describe('what the start policy asks and answers', () => {
       policy.qualify({ ...access, request: world.request(tool) })
     return { world, access, identities, judged, qualify }
   }
-  const allow: Decision = { kind: 'allow', evidence, condition: null }
+  const allow: Decision = { kind: 'allow', evidence, condition: null, release: VERDICT_RELEASE }
 
   it('asks the identity check as the tool admitting this call, and the permission as this call', async () => {
     const w = await asking(allow)
     try {
-      expect(await w.qualify()).toEqual({ kind: 'allowed', condition: null })
+      expect(await w.qualify()).toEqual({ kind: 'allowed', condition: null, release: RELEASED })
       expect(w.identities).toMatchObject([
         {
           access: { principal: w.world.principal, tenant: w.world.tenant },
@@ -287,16 +305,82 @@ describe('what the start policy asks and answers', () => {
     },
   )
 
+  it('hands a start the permission let through as a carrier a release that names no grant', async () => {
+    const carried: Decision = {
+      kind: 'allow',
+      evidence,
+      condition: null,
+      release: { by: 'carrier', grant: null },
+    }
+    const w = await asking(carried)
+    try {
+      expect(await w.qualify()).toStrictEqual({
+        kind: 'allowed',
+        condition: null,
+        release: { by: 'carrier', grant: null },
+      })
+    } finally {
+      await w.world.close()
+    }
+  })
+
+  it('hands an ungated start the release that names no gate, without asking the permission', async () => {
+    const w = await asking(allow, undefined, () => ({
+      resolve: async () => ({ ok: { kind: 'own', gate: { kind: 'ungated' } } }),
+    }))
+    try {
+      expect(await w.qualify()).toStrictEqual({
+        kind: 'allowed',
+        condition: null,
+        release: { by: 'ungated', grant: null },
+      })
+      expect(w.judged).toEqual([])
+    } finally {
+      await w.world.close()
+    }
+  })
+
+  const unresolved: readonly (readonly [string, () => unknown])[] = [
+    ['no action resolution', () => undefined],
+    [
+      'an action resolution that cannot resolve now',
+      () => ({
+        resolve: async () => ({
+          failure: { kind: 'unavailable', dependency: 'tool-action', diagnostic: 'down' },
+        }),
+      }),
+    ],
+  ]
+  it.each(unresolved)(
+    'answers unavailable to a start with %s, without asking the permission',
+    async (_name, reader) => {
+      const w = await asking(allow, undefined, reader as never)
+      try {
+        expect(await w.qualify()).toMatchObject({ kind: 'unavailable' })
+        expect(w.judged).toEqual([])
+      } finally {
+        await w.world.close()
+      }
+    },
+  )
+
   it('records the once authorization a start rests on as the one consumption of its acceptance', async () => {
     const source = { owner: 'cards', record: 'answer-1', revision: '1', digest: 'answer-digest' }
     const consumer = { owner: '@omne-harness/agent', work: 'exe-1', position: 'act-1' }
     const authorization = { consumer, target: 't', argumentsDigest: 'd', source }
     const condition = { basis: 'fixture' } as never
-    const w = await asking({ kind: 'allow', evidence, condition, authorization })
+    const w = await asking({
+      kind: 'allow',
+      evidence,
+      condition,
+      release: VERDICT_RELEASE,
+      authorization,
+    })
     try {
       expect(await w.qualify()).toEqual({
         kind: 'allowed',
         condition,
+        release: RELEASED,
         authorizations: [
           {
             permit: { tenant: w.world.tenant, permit: 'answer-digest' },
@@ -330,7 +414,14 @@ describe('what the start policy asks and answers', () => {
 
   it('judges a call whose carried target is not valid as a carrier, and waits when the resolution cannot answer', async () => {
     const invalid = await asking(allow, undefined, () => ({
-      resolve: async () => ({ failure: { kind: 'invalid', field: 'arguments', reason: 'x' } }),
+      resolve: async () => ({
+        ok: {
+          kind: 'argument-error',
+          gate: { kind: 'gate', gate: IMPLICIT_TOOL_GATE },
+          field: 'arguments',
+          reason: 'x',
+        },
+      }),
     }))
     const failing = await asking(allow, undefined, () => ({
       resolve: async () => ({ failure: { kind: 'unavailable' } }),
@@ -360,7 +451,14 @@ describe('what the start policy asks and answers', () => {
     const absent = await asking(allow, undefined, () => undefined)
     const unknown = await asking(allow, undefined, () => ({ resolve: async () => undefined }))
     const invalid = await asking(allow, undefined, () => ({
-      resolve: async () => ({ failure: { kind: 'invalid', field: 'arguments', reason: 'x' } }),
+      resolve: async () => ({
+        ok: {
+          kind: 'argument-error',
+          gate: { kind: 'gate', gate: IMPLICIT_TOOL_GATE },
+          field: 'arguments',
+          reason: 'x',
+        },
+      }),
     }))
     try {
       for (const w of [failing, absent, unknown]) {
@@ -368,7 +466,11 @@ describe('what the start policy asks and answers', () => {
         expect(w.identities).toEqual([])
         expect(w.judged).toEqual([])
       }
-      expect(await invalid.qualify('Tools')).toStrictEqual({ kind: 'allowed', condition: null })
+      expect(await invalid.qualify('Tools')).toStrictEqual({
+        kind: 'allowed',
+        condition: null,
+        release: RELEASED,
+      })
       expect(invalid.identities).toHaveLength(1)
       expect(invalid.judged).toMatchObject([{ carrier: true }])
     } finally {

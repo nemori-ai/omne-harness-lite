@@ -21,6 +21,7 @@ import type {
 import type { CheckpointedToolExecutor } from './checkpointed-author.ts'
 import type { TextRenderer, ToolExecutor } from './execution.ts'
 import type { Access, Adoption, DurableEvidence, ToolCallId } from './identity.ts'
+import type { ToolReleaseDescriber } from './release-detail.ts'
 import type { Reply, ToolRenderedResult } from './results.ts'
 
 export type ToolDeclarations = Readonly<{
@@ -155,6 +156,8 @@ export type ToolOperationSpec<
   P extends ToolOperationParameters,
 > = Readonly<{
   parameters: P
+  /** Reads what one call would do, for a person to read before it starts; never writes. */
+  describeRelease?: ToolReleaseDescriber<A>
 }> &
   (
     | Readonly<{

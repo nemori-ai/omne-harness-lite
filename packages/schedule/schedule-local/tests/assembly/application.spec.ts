@@ -21,7 +21,7 @@ it('composes real SQL, worker, prediction and management with read-only queries'
     const input = {
       definition,
       initial: { kind: 'active' as const },
-      meta: { operationKey: 'assembly-create', expectedRevision: null, consentRef: null },
+      meta: { operationKey: 'assembly-create', expectedRevision: null },
     }
     const created = await app.commands.create(context, input)
     expect(created.kind).toBe('committed')
@@ -124,7 +124,6 @@ it('composes real SQL, worker, prediction and management with read-only queries'
       meta: {
         operationKey: 'assembly-pause',
         expectedRevision: created.value.revision,
-        consentRef: null,
       },
     })
     expect(paused).toMatchObject({ kind: 'committed', value: { control: 'paused' } })

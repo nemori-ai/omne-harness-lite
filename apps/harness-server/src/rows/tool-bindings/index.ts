@@ -9,6 +9,7 @@ import {
   toolBindingsKey,
   toolCatalogKey,
   toolContributionAuthorityKey,
+  toolReleaseDetailsKey,
   toolStartAuthorityKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
@@ -30,7 +31,7 @@ import { bindReleaseTodoItems } from './todo-items.ts'
 import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
 import { bindReleaseCalendar } from './calendar.ts'
-import { bindReleaseSchedules } from './schedules.ts'
+import { attachReleaseScheduleReads, bindReleaseSchedules } from './schedules.ts'
 import { bindReleaseNotifications } from './notifications.ts'
 import { bindReleaseSessions } from './sessions.ts'
 import { bindReleaseSwitchWorkspace } from './switch-workspace.ts'
@@ -165,6 +166,7 @@ const bindingsPlugin: Plugin.Object = {
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),
       capability: releaseCapability(ctx, { tools, web: config.web ?? null }),
+      releaseDetails: { attach: input => attachReleaseScheduleReads(ctx, input) },
     })
     new Bindings(ctx)
   },
@@ -174,7 +176,7 @@ export const toolBindingsRow = defineRow({
   row: 'tool-bindings',
   implementation: 'real',
   manifest: {
-    provides: [toolBindingsKey, toolCatalogKey],
+    provides: [toolBindingsKey, toolCatalogKey, toolReleaseDetailsKey],
     injects: [toolContributionAuthorityKey],
     sameProviderGroup: null,
   },

@@ -46,7 +46,7 @@ it('uses real Settings through both Cordis providers and persists the management
     const request = {
       definition,
       initial: { kind: 'active' as const },
-      meta: { operationKey: 'settings-create', expectedRevision: null, consentRef: null },
+      meta: { operationKey: 'settings-create', expectedRevision: null },
     }
     const created = await world.app.commands.create(world.context, request)
     expect(created).toMatchObject({
@@ -80,7 +80,7 @@ it('uses real Settings through both Cordis providers and persists the management
         action,
         reason: null,
         scheduleId: id,
-        meta: { operationKey: `settings-${action}`, expectedRevision, consentRef: null },
+        meta: { operationKey: `settings-${action}`, expectedRevision },
       })
       expect(result).toMatchObject({
         kind: 'committed',

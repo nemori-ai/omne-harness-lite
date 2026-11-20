@@ -647,7 +647,7 @@
       },
       "packages/tool/tool-host-local/src/bindings.ts": {
         "count": 1,
-        "longest": 184
+        "longest": 178
       },
       "packages/tool/tool-host-local/src/catalog.ts": {
         "count": 1,
@@ -747,7 +747,7 @@
       },
       "packages/tool/tool/src/testing-ledger-assembly.ts": {
         "count": 1,
-        "longest": 210
+        "longest": 190
       },
       "packages/tool/tool/src/testing-ledger-composition-cases.ts": {
         "count": 1,
@@ -771,7 +771,7 @@
       },
       "packages/tool/tool/src/testing-store.ts": {
         "count": 1,
-        "longest": 189
+        "longest": 185
       },
       "tools/product-checks/src/rules/model-credential-boundary.ts": {
         "count": 1,

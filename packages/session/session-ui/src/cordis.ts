@@ -15,9 +15,11 @@ export {
   SESSION_CALL_DETAIL,
   SESSION_DOCK,
   SESSION_SIDE,
+  SESSION_STATUS,
   sessionCallDetail,
   sessionDock,
   sessionSide,
+  sessionStatus,
   type SessionCallSubject,
   type SessionSubject,
 } from './points.ts'

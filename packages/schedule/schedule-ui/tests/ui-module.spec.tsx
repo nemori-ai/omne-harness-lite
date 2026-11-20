@@ -5,7 +5,9 @@ import { scheduleProtocol, type ScheduleProtocol } from '@omne-harness/schedule-
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import { scheduleUiModule } from '../src/cordis.ts'
+import { createScheduleUiModule } from '../src/cordis.ts'
+
+const scheduleUiModule = createScheduleUiModule()
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'

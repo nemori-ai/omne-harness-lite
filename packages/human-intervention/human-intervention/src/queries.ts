@@ -20,7 +20,7 @@ export const PoolFilterSchema = z
       .min(1)
       .max(3)
       .readonly(),
-    originKind: z.enum(['tool', 'agent-extension', 'admission', 'independent']).optional(),
+    originKind: z.enum(['tool', 'agent-extension', 'admission']).optional(),
     sessionRef: HitlIdentifierSchema.optional(),
     delivery: z.enum(['pending', 'accepted', 'superseded']).optional(),
   })

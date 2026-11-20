@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
-import type { ToolCatalog } from '@omne-harness/tool-contract'
+import { IMPLICIT_TOOL_GATE, type ToolCatalog } from '@omne-harness/tool-contract'
 import { encodeCommandCall } from '@omne-harness/tool-contract/provider'
 import type { LocalToolCatalogViewSource } from '@omne-harness/tool-host-local'
 import {
@@ -84,8 +84,14 @@ const adoptionOf = (world: World, name: 'Tools' | 'ToyEcho') => {
   return availability.definition.adoption
 }
 
+// ToyEcho is the released Shell under another name; ToyFn is a function tool with the one implicit gate.
+const READ = { kind: 'gate', gate: { id: 'read', title: '查看', default: 'auto' } } as const
+const DISCOVER = { kind: 'gate', gate: { id: 'discover', title: '发现', default: 'auto' } } as const
+const FORWARD = { kind: 'gate', gate: { id: 'forward', title: '转调', default: 'auto' } } as const
+const INVOKE = { kind: 'gate', gate: IMPLICIT_TOOL_GATE } as const
+
 describe('the action a tool call performs', () => {
-  it('a direct call, and a Tools call that runs no target, is its own action and reads nothing', async () => {
+  it('a direct call, and a Tools call that runs no target, is its own action under its command gate, read once', async () => {
     const world = await forwardWorld()
     try {
       let inspected = 0
@@ -105,10 +111,11 @@ describe('the action a tool call performs', () => {
         await resolution.resolve({
           ...access,
           name: 'ToyEcho',
+          definition: adoptionOf(world, 'ToyEcho'),
           effectiveArguments: echoCall(world, {}),
         }),
-      ).toEqual({ ok: { kind: 'own' } })
-      expect(inspected).toBe(0)
+      ).toEqual({ ok: { kind: 'own', gate: READ } })
+      expect(inspected).toBe(1)
       const tools = world.request('Tools').availability
       if (tools.kind !== 'available' || tools.definition.kind !== 'commands')
         throw new Error('fixture Tools is not a command tool')
@@ -120,8 +127,36 @@ describe('the action a tool call performs', () => {
         }),
       )
       expect(
-        await resolution.resolve({ ...access, name: 'Tools', effectiveArguments: search }),
-      ).toEqual({ ok: { kind: 'own' } })
+        await resolution.resolve({
+          ...access,
+          name: 'Tools',
+          definition: adoptionOf(world, 'Tools'),
+          effectiveArguments: search,
+        }),
+      ).toEqual({ ok: { kind: 'own', gate: DISCOVER } })
+      expect(inspected).toBe(2)
+    } finally {
+      await world.close()
+    }
+  })
+
+  it('answers unavailable for a definition other than the one the catalog offers now', async () => {
+    const world = await forwardWorld()
+    try {
+      const resolution = createToolActionResolution({
+        release: () => world.release,
+        catalog: () => world.catalog,
+        view: () => world.view,
+      })
+      expect(
+        await resolution.resolve({
+          principal: world.principal,
+          tenant: world.tenant,
+          name: 'ToyEcho',
+          definition: { ...adoptionOf(world, 'ToyEcho'), digest: 'another' },
+          effectiveArguments: echoCall(world, {}),
+        }),
+      ).toMatchObject({ failure: { kind: 'unavailable' } })
     } finally {
       await world.close()
     }
@@ -136,17 +171,19 @@ describe('the action a tool call performs', () => {
           principal: world.principal,
           tenant: world.tenant,
           name: 'Tools',
+          definition: adoptionOf(world, 'Tools'),
           effectiveArguments: toolsCall(world, { name: 'ToyEcho', command: 'info', arguments: {} }),
         }),
       ).toEqual({
         ok: {
           kind: 'carried',
-          carrier: { name: 'Tools', definition: adoptionOf(world, 'Tools') },
+          carrier: { name: 'Tools', definition: adoptionOf(world, 'Tools'), gate: FORWARD },
           target: {
             name: 'ToyEcho',
             definition: adoptionOf(world, 'ToyEcho'),
             command: 'info',
             effectiveArguments: echoCall(world, {}),
+            gate: READ,
           },
         },
       })
@@ -163,6 +200,7 @@ describe('the action a tool call performs', () => {
         principal: world.principal,
         tenant: world.tenant,
         name: 'Tools',
+        definition: adoptionOf(world, 'Tools'),
         effectiveArguments: toolsCall(world, {
           name: 'ToyFn',
           command: null,
@@ -172,8 +210,13 @@ describe('the action a tool call performs', () => {
       expect(answer).toMatchObject({
         ok: {
           kind: 'carried',
-          carrier: { name: 'Tools' },
-          target: { name: 'ToyFn', command: null, effectiveArguments: '{"path":"notes.md"}' },
+          carrier: { name: 'Tools', gate: FORWARD },
+          target: {
+            name: 'ToyFn',
+            command: null,
+            effectiveArguments: '{"path":"notes.md"}',
+            gate: INVOKE,
+          },
         },
       })
     } finally {
@@ -204,25 +247,29 @@ describe('the action a tool call performs', () => {
       { name: 'ToyFn', command: 'info', arguments: {} },
       'command',
     ],
-  ])('a Tools call that %s answers invalid', async (_label, intent, field) => {
-    const world = await forwardWorld()
-    try {
-      const resolution = withFunctionTool(world)
-      expect(
-        await resolution.resolve({
-          principal: world.principal,
-          tenant: world.tenant,
-          name: 'Tools',
-          effectiveArguments: toolsCall(world, intent),
-        }),
-      ).toMatchObject({ failure: { kind: 'invalid', field } })
-    } finally {
-      await world.close()
-    }
-  })
+  ])(
+    'a Tools call that %s answers an argument error under its own gate',
+    async (_label, intent, field) => {
+      const world = await forwardWorld()
+      try {
+        const resolution = withFunctionTool(world)
+        expect(
+          await resolution.resolve({
+            principal: world.principal,
+            tenant: world.tenant,
+            name: 'Tools',
+            definition: adoptionOf(world, 'Tools'),
+            effectiveArguments: toolsCall(world, intent),
+          }),
+        ).toMatchObject({ ok: { kind: 'argument-error', gate: FORWARD, field } })
+      } finally {
+        await world.close()
+      }
+    },
+  )
 })
 
-describe('the reason a Tools call that carries no valid target is invalid', () => {
+describe('the reason a Tools call that carries no valid target is an argument error', () => {
   it.each([
     [
       { name: 'Tools', command: 'search', arguments: {} },
@@ -260,9 +307,10 @@ describe('the reason a Tools call that carries no valid target is invalid', () =
           principal: world.principal,
           tenant: world.tenant,
           name: 'Tools',
+          definition: adoptionOf(world, 'Tools'),
           effectiveArguments: toolsCall(world, intent),
         }),
-      ).toEqual({ failure: { kind: 'invalid', ...expected } })
+      ).toEqual({ ok: { kind: 'argument-error', gate: FORWARD, ...expected } })
     } finally {
       await world.close()
     }
@@ -296,7 +344,65 @@ describe('the label a person reads on a release card', () => {
         definition: definition.adoption,
         effectiveArguments: call({ script: 'ls -la\nrm notes.txt' }),
       })
-      expect(label).toEqual({ tool: definition.name, command: 'execute', preview: 'ls -la' })
+      expect(label).toEqual({
+        tool: definition.name,
+        command: 'execute',
+        preview: 'ls -la',
+        detail: { kind: 'unavailable', reason: 'no-provider' },
+      })
+    } finally {
+      await world.close()
+    }
+  })
+
+  it('asks the tool once for the detail of the very call it labels, with the same arguments', async () => {
+    const world = await forwardWorld()
+    try {
+      const definition = judged(world)
+      const asked: unknown[] = []
+      const effectiveArguments = call({ script: 'ls' })
+      const given = { kind: 'detail', rows: [{ label: '命令', value: 'ls' }] } as const
+      const labeling = createToolCallLabeling({
+        release: () => world.release,
+        catalog: () => world.catalog,
+        view: () => world.view,
+        details: () => ({
+          describe: async request => {
+            asked.push(request)
+            return given
+          },
+        }),
+      })
+      const input = {
+        principal: world.principal,
+        tenant: world.tenant,
+        definition: definition.adoption,
+        effectiveArguments,
+      }
+      expect(await labeling.label(input)).toMatchObject({ command: 'execute', detail: given })
+      expect(asked).toEqual([
+        {
+          principal: world.principal,
+          tenant: world.tenant,
+          availability: expect.objectContaining({ kind: 'available', definition }),
+          command: 'execute',
+          effectiveArguments,
+        },
+      ])
+      const throwing = createToolCallLabeling({
+        release: () => world.release,
+        catalog: () => world.catalog,
+        view: () => world.view,
+        details: () => ({
+          describe: async () => {
+            throw new Error('provider gone')
+          },
+        }),
+      })
+      expect((await throwing.label(input))?.detail).toEqual({
+        kind: 'unavailable',
+        reason: 'threw',
+      })
     } finally {
       await world.close()
     }
@@ -344,6 +450,20 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
       inspect: async input =>
         input.name === 'Tools' ? (answer(tools(world)) as never) : world.catalog.inspect(input),
     })
+  const unavailable = (diagnostic: string) => ({
+    kind: 'unavailable',
+    dependency: 'tool-action',
+    diagnostic,
+  })
+  const NO_SNAPSHOT = unavailable('The release snapshot or the catalog is unavailable.')
+  const NOT_JUDGED = unavailable('The judged definition is not the one the catalog offers now.')
+  const NOT_RELEASED = unavailable('Tools is not available as released')
+  const releasing =
+    (world: World, entries: (all: World['release']['manifest']['entries']) => unknown) => () =>
+      ({
+        ...world.release,
+        manifest: { ...world.release.manifest, entries: entries(world.release.manifest.entries) },
+      }) as never
   const cases: readonly (readonly [
     string,
     (world: World) => Partial<Ports>,
@@ -352,9 +472,38 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
     [
       'no trusted release',
       () => ({ release: () => ({ kind: 'untrusted' }) as never }),
-      { kind: 'unavailable' },
+      NO_SNAPSHOT,
     ],
-    ['no catalog', () => ({ catalog: () => undefined }), { kind: 'unavailable' }],
+    ['no catalog', () => ({ catalog: () => undefined }), NO_SNAPSHOT],
+    [
+      'a Tools the catalog knows but cannot offer now',
+      world => ({
+        catalog: inspecting(world, read => ({
+          ok: { kind: 'known-unavailable', definition: read.definition, reason: 'paused' },
+        })),
+      }),
+      NOT_JUDGED,
+    ],
+    [
+      'a release that does not list Tools',
+      world => ({
+        release: releasing(world, entries => entries.filter(e => e.asset.name !== 'Tools')),
+      }),
+      NOT_RELEASED,
+    ],
+    [
+      'a release that lists another Tools',
+      world => ({
+        release: releasing(world, entries =>
+          entries.map(e =>
+            e.asset.name === 'Tools'
+              ? { ...e, asset: { ...e.asset, adoption: { ...e.asset.adoption, digest: 'other' } } }
+              : e,
+          ),
+        ),
+      }),
+      NOT_RELEASED,
+    ],
     [
       'a catalog that fails to inspect Tools',
       world => ({
@@ -375,14 +524,14 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
           },
         })),
       }),
-      { kind: 'unavailable' },
+      NOT_JUDGED,
     ],
     [
       'a Tools from another layer',
       world => ({
         catalog: inspecting(world, read => ({ ok: { ...read, layer: { kind: 'tenant' } } })),
       }),
-      { kind: 'unavailable' },
+      NOT_RELEASED,
     ],
   ]
 
@@ -402,6 +551,7 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
             principal: world.principal,
             tenant: world.tenant,
             name: 'Tools',
+            definition: adoptionOf(world, 'Tools'),
             effectiveArguments: toolsCall(world, {
               name: 'ToyEcho',
               command: 'info',
@@ -415,7 +565,34 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
     },
   )
 
-  it('answers invalid for a Tools command that does not exist, and for execute arguments of no target', async () => {
+  it('answers the failure of a target the catalog cannot read now, not an argument error', async () => {
+    const world = await forwardWorld()
+    try {
+      const down = { kind: 'unavailable', dependency: 'catalog', diagnostic: 'down' } as const
+      const resolution = createToolActionResolution({
+        release: () => world.release,
+        catalog: () => ({
+          ...world.catalog,
+          inspect: async input =>
+            input.name === 'ToyEcho' ? { failure: down } : world.catalog.inspect(input),
+        }),
+        view: () => world.view,
+      })
+      expect(
+        await resolution.resolve({
+          principal: world.principal,
+          tenant: world.tenant,
+          name: 'Tools',
+          definition: adoptionOf(world, 'Tools'),
+          effectiveArguments: toolsCall(world, { name: 'ToyEcho', command: 'info', arguments: {} }),
+        }),
+      ).toEqual({ failure: down })
+    } finally {
+      await world.close()
+    }
+  })
+
+  it('answers an argument error for a Tools command that does not exist, and for execute arguments of no target', async () => {
     const world = await forwardWorld()
     try {
       const resolution = createToolActionResolution({
@@ -428,25 +605,46 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
           principal: world.principal,
           tenant: world.tenant,
           name: 'Tools',
+          definition: adoptionOf(world, 'Tools'),
           effectiveArguments,
         })
-      expect(await resolve('{"command":"nope","params":{}}')).toMatchObject({
-        failure: { kind: 'invalid', field: 'command', reason: 'unknown-command' },
+      // A call naming no command of the tool performs no action; it is under the tool's first gate.
+      expect(await resolve('{"command":"nope","params":{}}')).toEqual({
+        ok: { kind: 'argument-error', gate: DISCOVER, field: 'command', reason: 'unknown-command' },
       })
-      expect(await resolve(toolsCall(world, { command: 'info' }))).toMatchObject({
-        failure: { kind: 'invalid', field: 'arguments', reason: 'tools-execute-arguments' },
+      // A known command its tool refuses to run (a background command without its intent) is under that command's gate.
+      expect(
+        await resolution.resolve({
+          principal: world.principal,
+          tenant: world.tenant,
+          name: 'ToyEcho',
+          definition: adoptionOf(world, 'ToyEcho'),
+          effectiveArguments: '{"command":"execute","params":{"script":"ls"}}',
+        }),
+      ).toMatchObject({
+        ok: { kind: 'argument-error', gate: { kind: 'gate', gate: { id: 'run' } } },
+      })
+      expect(await resolve(toolsCall(world, { command: 'info' }))).toEqual({
+        ok: {
+          kind: 'argument-error',
+          gate: FORWARD,
+          field: 'arguments',
+          reason: 'tools-execute-arguments',
+        },
       })
       expect(
         await resolve(
           toolsCall(world, { name: 'Shell', command: 'execute', arguments: { script: 'ls' } }),
         ),
-      ).toMatchObject({ failure: { kind: 'invalid', field: 'name', reason: 'target-refused' } })
+      ).toEqual({
+        ok: { kind: 'argument-error', gate: FORWARD, field: 'name', reason: 'target-refused' },
+      })
     } finally {
       await world.close()
     }
   })
 
-  it('answers invalid for a call its nonresident target would answer with usage', async () => {
+  it('answers an argument error for a call its nonresident target would answer with usage', async () => {
     const world = await forwardWorld()
     try {
       const resolution = createToolActionResolution({
@@ -474,10 +672,16 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
           principal: world.principal,
           tenant: world.tenant,
           name: 'Tools',
+          definition: adoptionOf(world, 'Tools'),
           effectiveArguments: carried,
         }),
-      ).toMatchObject({
-        failure: { kind: 'invalid', field: 'arguments', reason: 'target-call-refused' },
+      ).toEqual({
+        ok: {
+          kind: 'argument-error',
+          gate: FORWARD,
+          field: 'arguments',
+          reason: 'target-call-refused',
+        },
       })
     } finally {
       await world.close()

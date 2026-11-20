@@ -134,17 +134,23 @@ it('never lets a projected bypass override a structural prohibition or missing b
       override: { value: permission, source },
     })
     if (result.kind !== 'projected') throw new Error('not projected')
-    const session = {
-      kind: 'read' as const,
-      revision: '0',
-      policy: result.value.policy,
-      once: false,
-      sessionGrantBasis: null,
+    const facts = {
+      carrier: false,
+      session: {
+        kind: 'read' as const,
+        revision: '0',
+        policy: result.value.policy,
+        policySource: source,
+        once: null,
+        sessionGrant: null,
+      },
+      holders: { tenant: 'tenant-1', session: 'session-1' },
+      gate: { capability: 'tool.Shell', key: 'tool.run' },
     }
     expect(
-      decideRelease({ carrier: false, verdict: { kind: 'prohibited', revision: '1' }, session }),
+      decideRelease({ ...facts, verdict: { kind: 'prohibited', revision: '1' } }),
     ).toMatchObject({ kind: 'refuse', reason: 'prohibited' })
-    expect(decideRelease({ carrier: false, verdict: { kind: 'unavailable' }, session })).toEqual({
+    expect(decideRelease({ ...facts, verdict: { kind: 'unavailable' } })).toEqual({
       kind: 'unavailable',
       missing: 'verdict',
     })

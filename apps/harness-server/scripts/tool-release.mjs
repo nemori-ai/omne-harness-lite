@@ -65,24 +65,29 @@ async function compute() {
     if (read === undefined) throw new Error('probe construction is not JSON')
     return read
   }
+  // The draft only fixes each asset's adoption; its definitions are placeholders.
+  const placeholder = {
+    digest: ZERO,
+    gates: [{ id: 'invoke', title: '调用', default: 'ask', commands: [] }],
+  }
   const draft = release.composeManifest({
     version,
     artifacts,
     modules,
-    definitions: Object.fromEntries(release.RELEASE_TOOLS.map(tool => [tool.name, ZERO])),
+    definitions: Object.fromEntries(release.RELEASE_TOOLS.map(tool => [tool.name, placeholder])),
   })
-  const digests = {}
+  const definitions = {}
   for (const entry of draft.entries) {
     const module = modules[entry.module.export]
     const governance = release.governanceOf(entry)
     const [first, ...others] = PROBES.map(probe =>
-      release.definitionDigest(module, governance, tree(probe[entry.asset.name])),
+      release.releasedDefinition(module, governance, tree(probe[entry.asset.name])),
     )
-    if (others.some(digest => digest !== first))
+    if (others.some(other => JSON.stringify(other) !== JSON.stringify(first)))
       throw new Error(`the ${entry.asset.name} definition depends on construction values`)
-    digests[entry.asset.name] = first
+    definitions[entry.asset.name] = first
   }
-  const manifest = release.composeManifest({ version, artifacts, modules, definitions: digests })
+  const manifest = release.composeManifest({ version, artifacts, modules, definitions })
   return { manifest, text: release.manifestText(manifest) }
 }
 

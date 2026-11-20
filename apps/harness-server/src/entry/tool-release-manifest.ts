@@ -13,9 +13,15 @@ import {
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { z } from 'zod'
-import { toolPermissionRelease, toolPermissionReleaseSchema } from './tool-permission-release.ts'
+import {
+  releasedGateSchema,
+  releasedGatesOf,
+  toolPermissionRelease,
+  toolPermissionReleaseSchema,
+  type ReleasedGate,
+} from './tool-permission-release.ts'
 
-export const TOOL_RELEASE_FORMAT = 'omne-harness/tool-release/3'
+export const TOOL_RELEASE_FORMAT = 'omne-harness/tool-release/4'
 export const TOOL_RELEASE_FILE = 'tool-release.json'
 export const TOOL_RELEASE_OWNER = '@omne-harness/harness-server'
 export const TOOL_DEFINITIONS_PACKAGE = '@omne-harness/tool-definitions' as const
@@ -131,6 +137,13 @@ export const RELEASE_TOOLS = Object.freeze([
 
 export type ReleaseToolName = (typeof RELEASE_TOOLS)[number]['name']
 export type ReleaseToolExport = (typeof RELEASE_TOOLS)[number]['export']
+
+export const RELEASE_UNGATED: Readonly<Partial<Record<string, readonly string[]>>> = Object.freeze({
+  Ask: ['ask'],
+})
+export function namedUngated(tool: string): readonly string[] {
+  return RELEASE_UNGATED[tool] ?? []
+}
 export type ReleaseModule = ToolImplementationModule<unknown, ToolMessageContentBlock>
 export type ReleaseModules = Readonly<Record<ReleaseToolExport, ReleaseModule>>
 
@@ -181,6 +194,7 @@ const manifestSchema = z.strictObject({
       governance: toolPermissionReleaseSchema,
       settings: adoptionSchema,
       definition: digestText,
+      gates: z.array(releasedGateSchema),
       holding: evidenceSchema,
       publication: evidenceSchema,
     }),
@@ -322,18 +336,23 @@ export function governanceOf(entry: Pick<ToolReleaseEntry, 'asset' | 'requiredCa
   }) satisfies ToolGovernance
 }
 
-export function definitionDigest(
+export type ReleasedDefinition = Readonly<{ digest: string; gates: readonly ReleasedGate[] }>
+
+export function releasedDefinition(
   module: ReleaseModule,
   governance: ToolGovernance,
   construction: JsonValue,
-): string {
+): ReleasedDefinition {
   const created = module.createAuthor(construction)
   if ('failure' in created)
     throw new Error(`tool-release: construction refused (${created.failure.field})`)
   const definition = judgeToolDefinition(deriveDefinition(governance, created.ok.facts))
   if ('failure' in definition)
     throw new Error(`tool-release: definition refused (${definition.failure.field})`)
-  return canonicalDigest(definition.ok)
+  return {
+    digest: canonicalDigest(definition.ok),
+    gates: releasedGatesOf(definition.ok, namedUngated(governance.asset.name)),
+  }
 }
 
 const evidence = (record: string, generation: string, content: unknown): DurableEvidence => ({
@@ -347,7 +366,7 @@ export function composeManifest(input: {
   version: string
   artifacts: ToolReleaseArtifacts
   modules: ReleaseModules
-  definitions: Readonly<Record<string, string>>
+  definitions: Readonly<Record<string, ReleasedDefinition>>
 }): ToolReleaseManifest {
   const { version, artifacts, modules, definitions } = input
   const cores = RELEASE_TOOLS.map(tool => {
@@ -360,9 +379,10 @@ export function composeManifest(input: {
       artifacts: own.digest,
     }
     const construction = [...tool.construction]
-    const definition = definitions[tool.name]
-    if (definition === undefined)
+    const released = definitions[tool.name]
+    if (released === undefined)
       throw new Error(`tool-release: no definition digest for ${tool.name}`)
+    const { digest: definition, gates } = released
     const core = {
       asset: {
         name: tool.name,
@@ -383,6 +403,7 @@ export function composeManifest(input: {
         digest: canonicalDigest({ name: tool.name, construction }),
       },
       definition,
+      gates: gates.map(gate => ({ ...gate, commands: [...gate.commands] })),
     }
     return {
       ...core,
@@ -391,6 +412,7 @@ export function composeManifest(input: {
         adoption: core.asset.adoption,
         module,
         definition,
+        gates,
       }),
     }
   })
@@ -467,7 +489,10 @@ export async function loadToolRelease(input: {
     // The very roots whose artifacts were just checked; never a second resolution.
     const modules = await input.importModules(roots)
     const definitions = Object.fromEntries(
-      manifest.entries.map(entry => [entry.asset.name, entry.definition]),
+      manifest.entries.map(entry => [
+        entry.asset.name,
+        { digest: entry.definition, gates: entry.gates },
+      ]),
     )
     const expected = composeManifest({
       version: await input.version(),

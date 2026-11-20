@@ -64,6 +64,7 @@ export const schedulesCommandNames = [
   'help',
   'preview',
   'create',
+  'draft',
   'list',
   'show',
   'history',
@@ -82,11 +83,8 @@ const shapes = {
     schedule: scheduleId.optional(),
     count: z.int().min(1).max(20).optional(),
   }),
-  create: z.strictObject({
-    definition: agentDefinitionSchema,
-    state: z.enum(['active', 'draft']),
-    reason: reason.optional(),
-  }),
+  create: z.strictObject({ definition: agentDefinitionSchema }),
+  draft: z.strictObject({ definition: agentDefinitionSchema, reason }),
   list: z.strictObject({
     state: schedule.ScheduleControlSchema.optional(),
     limit: z.int().min(1).max(50).optional(),
@@ -128,8 +126,8 @@ export const schedulesSummaries: Readonly<Record<SchedulesCommandName, string>> 
   help: 'Read command usage.',
   preview:
     'The next times of a definition or a saved schedule, each with the calendar and version it used. Saves nothing.',
-  create:
-    'Create a schedule, active or draft. A draft needs a reason. When the owner asks to confirm, an inquiry card waits for the owner.',
+  create: 'Create a schedule that takes effect now.',
+  draft: 'Save a schedule as a draft: it does not run until it is promoted. Give a reason.',
   list: 'List schedules, newest first.',
   show: 'One schedule: definition, state, author, the consent it took effect on, and the next time.',
   history: 'The revisions of one schedule.',

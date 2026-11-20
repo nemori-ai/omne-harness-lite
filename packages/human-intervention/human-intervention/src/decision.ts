@@ -67,7 +67,7 @@ export const decisionRequestDocument = {
       type: 'array',
       minItems: 1,
       maxItems: DECISION_CARD_LIMIT,
-      items: { oneOf: [cardDocument('question'), cardDocument('approval')] },
+      items: cardDocument('question'),
     },
   },
 } as const

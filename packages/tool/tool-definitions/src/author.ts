@@ -8,6 +8,8 @@ import {
 import {
   type CommandCallEncoding,
   type CommandTable,
+  type ToolCommandRelease,
+  type ToolGate,
   type ToolSettingsDeclaration,
 } from '@omne-harness/tool-contract'
 import {
@@ -33,6 +35,17 @@ import { bounded } from './text.ts'
 export const ENCODING: CommandCallEncoding = 'wrapped'
 const returns = textReturns(adoption)
 
+export type CommandGates = Readonly<{
+  gates: readonly ToolGate[]
+  of: Readonly<Record<string, string | null>>
+}>
+
+function releaseOf(gates: CommandGates, command: string): ToolCommandRelease {
+  const gate = gates.of[command]
+  if (gate === undefined) throw new TypeError(`The command ${command} names no gate`)
+  return { gate }
+}
+
 export function createAuthor<E>(
   name: string,
   purpose: string,
@@ -47,6 +60,7 @@ export function createAuthor<E>(
     execution: ToolExecutionContext,
   ) => Promise<string>,
   settings: ToolSettingsDeclaration | null = null,
+  gates?: CommandGates,
 ): ToolImplementation<E, ToolMessageContentBlock> {
   const menu: CommandTable = {
     name,
@@ -62,7 +76,11 @@ export function createAuthor<E>(
   }
   const table: Record<
     string,
-    { summary: string; operation: ToolOperation<E, ToolMessageContentBlock> }
+    {
+      summary: string
+      operation: ToolOperation<E, ToolMessageContentBlock>
+      release?: ToolCommandRelease
+    }
   > = {}
   for (const command of commands) {
     const operation = defineToolOperation<
@@ -117,6 +135,7 @@ export function createAuthor<E>(
       summary: command.summary,
       operation: operation.ok,
       ...(command.background === undefined ? {} : { background: command.background }),
+      ...(gates === undefined ? {} : { release: releaseOf(gates, command.name) }),
     }
   }
   const result = defineCommandTool({
@@ -137,6 +156,7 @@ export function createAuthor<E>(
     },
     encoding: ENCODING,
     guide: rules,
+    ...(gates === undefined ? {} : { gates: gates.gates }),
     commands: table,
   })
   if ('failure' in result) throw new TypeError(JSON.stringify(result.failure))

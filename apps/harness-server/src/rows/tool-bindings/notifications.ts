@@ -18,6 +18,7 @@ import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract
 import { readSystemInstant } from '../../entry/session-clock.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { domainCallerOf } from './domain-caller.ts'
+import { holdLiveCall } from './live-calls.ts'
 
 type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
@@ -68,5 +69,5 @@ export function bindReleaseNotifications(
       return instant.text
     },
   })
-  return attachNotifications(scope, notifications)
+  return holdLiveCall(ctx, parent, attachNotifications(scope, notifications))
 }

@@ -50,11 +50,13 @@ export async function forwardWorld() {
           ? release.modules.backgroundCallsToolModule
           : name === 'Web'
             ? release.modules.webToolModule
-            : name === 'Tools'
-              ? release.modules.toolsToolModule
-              : name === 'Shell' || name === 'ToyEcho'
-                ? release.modules.shellToolModule
-                : release.modules.filesToolModule
+            : name === 'Ask'
+              ? release.modules.askToolModule
+              : name === 'Tools'
+                ? release.modules.toolsToolModule
+                : name === 'Shell' || name === 'ToyEcho'
+                  ? release.modules.shellToolModule
+                  : release.modules.filesToolModule
     const author = okOf(
       module.createAuthor(tree(TEST_CONSTRUCTION[name === 'ToyEcho' ? 'Shell' : name])),
       'author',
@@ -95,7 +97,8 @@ export async function forwardWorld() {
       input.name === 'Files' ||
       input.name === 'Shell' ||
       input.name === 'Tools' ||
-      input.name === 'ToyEcho'
+      input.name === 'ToyEcho' ||
+      input.name === 'Ask'
         ? { ok: request(input.name).availability }
         : { failure: { kind: 'invalid', field: 'name', reason: 'unknown' } },
     search: async () => ({

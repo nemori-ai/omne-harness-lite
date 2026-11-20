@@ -17,7 +17,7 @@ beforeAll(async () => {
 })
 
 it('publishes complete permission and Settings declarations from the actual verified release', () => {
-  expect(release.manifest.format).toBe('omne-harness/tool-release/3')
+  expect(release.manifest.format).toBe('omne-harness/tool-release/4')
   for (const entry of release.manifest.entries) {
     const { declaration, interpretations } = entry.governance
     expect(declaration.origin).toMatchObject({
@@ -25,14 +25,20 @@ it('publishes complete permission and Settings declarations from the actual veri
       assetId: `harness.tool.${entry.asset.name}`,
     })
     expect(declaration.reference.version).toMatch(/^[a-f0-9]{64}$/)
-    expect(declaration.permissions).toHaveLength(1)
-    for (const permission of declaration.permissions) {
+    // One permission per gate, in the order the tool declares its gates; the gates share one Settings group.
+    expect(declaration.permissions).toHaveLength(entry.gates.length)
+    expect(declaration.settings).toHaveLength(entry.gates.length === 0 ? 0 : 1)
+    const [settings] = declaration.settings
+    for (const [index, permission] of declaration.permissions.entries()) {
+      const gate = entry.gates[index]!
+      expect(permission.enforcementKey).toBe(`tool.${gate.id}`)
       expect(definePermission(permission).kind).toBe('defined')
       const projected = projectPermissionSettings(permission)
       expect(projected.kind).toBe('projected')
       if (projected.kind !== 'projected') throw new Error('release did not project Settings')
-      expect(declaration.settings).toEqual([projected.definition])
-      expect(permission.defaultRule).toEqual({ pick: 'ask', allowedSet: null })
+      expect(settings!.groups).toEqual(projected.definition.groups)
+      expect(settings!.items[index]).toEqual(projected.definition.items[0])
+      expect(permission.defaultRule).toEqual({ pick: gate.default, allowedSet: null })
       expect(permission.supportedScopes.map(scope => scope.kind)).toEqual([
         'one-time-call',
         'session',
@@ -60,7 +66,7 @@ it('serves the same original definition to separate tenant consumers without sha
     expect(b).toEqual(a)
     if (a.kind !== 'definition' || b.kind !== 'definition') throw new Error('missing release')
     a.declaration.permissions.splice(0)
-    expect(b.declaration.permissions).toHaveLength(1)
+    expect(b.declaration.permissions).toHaveLength(entry.governance.declaration.permissions.length)
     expect(await first.resolve(identity)).toEqual(b)
     expect(await first.resolve({ ...identity, version: 'another' })).toEqual({
       kind: 'unavailable',
@@ -79,6 +85,7 @@ it('changes governance and implementation identities when the same named Tool im
     adoption: entry.asset.adoption,
     module: entry.module,
     definition: entry.definition,
+    gates: entry.gates,
   }
   expect(toolPermissionRelease(input)).toEqual(entry.governance)
   const replacement = toolPermissionRelease({

@@ -18,11 +18,11 @@ import {
   createSourceRegistry,
   createSubscriptions,
   type Clock,
-  type ConsentModes,
   type NotificationAuthority,
   type NotificationChannels,
   type NotificationSources,
   type StandingItems,
+  type SubscriptionConsents,
 } from '@omne-harness/notification'
 import { createChanges, inAppChannel, observed } from './changes.ts'
 import { createWakeUps, realTimers, type Timers } from './hints.ts'
@@ -40,7 +40,7 @@ export type NotificationLocalOptions = Readonly<{
     }>
   ports: Readonly<{
     authority: NotificationAuthority
-    consent: ConsentModes
+    consent: SubscriptionConsents
     standing: StandingItems
   }>
   clock: Clock

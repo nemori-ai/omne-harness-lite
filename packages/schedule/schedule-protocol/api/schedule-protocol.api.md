@@ -79,10 +79,9 @@ export declare const scheduleProtocol: {
                     readonly basis: {
                         readonly kind: "owner";
                     } | {
-                        readonly generation: number;
                         readonly kind: "blanket";
+                        readonly scope: "session" | "standing";
                     } | {
-                        readonly decision: string;
                         readonly kind: "granular";
                     } | {
                         readonly kind: "none";
@@ -227,10 +226,9 @@ export declare const scheduleProtocol: {
                     readonly basis: {
                         readonly kind: "owner";
                     } | {
-                        readonly generation: number;
                         readonly kind: "blanket";
+                        readonly scope: "session" | "standing";
                     } | {
-                        readonly decision: string;
                         readonly kind: "granular";
                     } | {
                         readonly kind: "none";
@@ -290,10 +288,9 @@ export declare const scheduleProtocol: {
                     readonly basis: {
                         readonly kind: "owner";
                     } | {
-                        readonly generation: number;
                         readonly kind: "blanket";
+                        readonly scope: "session" | "standing";
                     } | {
-                        readonly decision: string;
                         readonly kind: "granular";
                     } | {
                         readonly kind: "none";
@@ -343,10 +340,9 @@ export declare const scheduleProtocol: {
                     readonly basis: {
                         readonly kind: "owner";
                     } | {
-                        readonly generation: number;
                         readonly kind: "blanket";
+                        readonly scope: "session" | "standing";
                     } | {
-                        readonly decision: string;
                         readonly kind: "granular";
                     } | {
                         readonly kind: "none";
@@ -420,10 +416,9 @@ export declare const scheduleProtocol: {
                     readonly basis: {
                         readonly kind: "owner";
                     } | {
-                        readonly generation: number;
                         readonly kind: "blanket";
+                        readonly scope: "session" | "standing";
                     } | {
-                        readonly decision: string;
                         readonly kind: "granular";
                     } | {
                         readonly kind: "none";

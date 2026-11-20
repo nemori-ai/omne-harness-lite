@@ -38,6 +38,7 @@ import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
 import { assetCommand } from './asset-command.ts'
 import { settingCommand } from './setting-command.ts'
 import { calendarCommand } from './calendar-command.ts'
+import { usageCommands } from './usage-command.ts'
 import { scheduleCommand } from './schedule-command.ts'
 import { notificationCommand } from './notification-command.ts'
 import { workspaceCommand } from './workspace-command.ts'
@@ -889,4 +890,5 @@ export const productionCommands: readonly CommandSpec[] = [
   workspaceCommand,
   settingCommand,
   assetCommand,
+  ...usageCommands,
 ]

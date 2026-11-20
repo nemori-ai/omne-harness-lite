@@ -71,7 +71,7 @@ function subscriptionRefusal(reason: SubscriptionRefusal) {
       return REQUEST
     case 'not-permitted':
     case 'not-own-recipient':
-    case 'confirmation-mismatch':
+    case 'consent-required':
       return DENIED
   }
 }
@@ -274,7 +274,7 @@ function subscriptionHandlers(input: NotificationContributionInput) {
     )
   }
 
-  /** The owner needs nobody's consent. A context that is asked for it cannot give it here: denied. */
+  /** The owner needs nobody's consent. */
   const setSubscription: Handlers['set-subscription'] = async (call, body) => {
     const ready = await prepare(input, call.principal, body.tenant)
     if (ready.outcome !== null) return ready
@@ -284,12 +284,7 @@ function subscriptionHandlers(input: NotificationContributionInput) {
       term: term.kind === 'until' ? { kind: term.kind, at: instantText(term.at) } : term,
     }
     return committing(
-      async () => {
-        const outcome = await ready.faces.subscriptions.set(ready.ctx, change)
-        return outcome.kind === 'needs-confirmation'
-          ? ({ kind: 'refused', reason: 'not-permitted' } as const)
-          : outcome
-      },
+      () => ready.faces.subscriptions.set(ready.ctx, change),
       (subscription, recalled) => committed(recalled, subscriptionOf(subscription)),
       subscriptionRefusal,
     )

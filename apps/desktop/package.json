@@ -51,12 +51,15 @@
     "@omne-harness/tool-protocol": "workspace:*",
     "@omne-harness/tool-ui": "workspace:*",
     "@omne-harness/ui-kit": "workspace:*",
+    "@omne-harness/usage-protocol": "workspace:*",
+    "@omne-harness/usage-ui": "workspace:*",
     "eventsource-parser": "catalog:",
     "hono": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@omne-harness/utc-instant": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/react": "catalog:",

@@ -158,6 +158,7 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
       store: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: memory.readRecord,
         due: memory.due,
         read: async domain => {
@@ -284,6 +285,7 @@ describe('23 retrigger: when a failed run is run again', () => {
       store: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: memory.readRecord,
         due: memory.due,
         read: async domain => {
@@ -340,6 +342,7 @@ describe('23 retrigger: when a failed run is run again', () => {
       store: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        usage: query => memory.usage(query),
         readRecord: memory.readRecord,
         due: memory.due,
         read: domain => memory.read(domain),

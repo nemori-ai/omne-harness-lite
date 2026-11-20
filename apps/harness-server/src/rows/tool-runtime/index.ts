@@ -14,6 +14,7 @@ import {
 } from '@omne-harness/sql-contract/cordis'
 
 import {
+  toolAccountsKey,
   toolClockKey,
   toolCommandsKey,
   toolEnvironmentsKey,
@@ -24,6 +25,7 @@ import {
   toolRuntimeKey,
   toolStartAuthorityKey,
   toolStartFenceKey,
+  toolStartReleasesKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
   createSqlToolBodyStore,
@@ -133,7 +135,9 @@ export function createToolRecordsRow(input: ToolRecordsRowInput = {}) {
         toolReadsKey,
         toolStartAuthorityKey,
         toolStartFenceKey,
+        toolStartReleasesKey,
         toolInvocationQualificationKey,
+        toolAccountsKey,
       ],
       injects: [
         storageKey,

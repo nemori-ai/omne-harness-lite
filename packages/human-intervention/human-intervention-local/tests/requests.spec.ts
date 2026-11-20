@@ -46,7 +46,7 @@ const registration = RegisterRequestSchema.parse({
   preparationRef: 'prepared',
   displayContext: 'Two questions',
   origin: {
-    kind: 'independent',
+    kind: 'agent-extension',
     originRef: 'form',
     wait: waitRef,
     positionRef: 'step-a',

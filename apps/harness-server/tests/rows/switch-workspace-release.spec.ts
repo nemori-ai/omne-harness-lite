@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { runOmne } from '../r9/support.ts'
+import { answerCard, pendingCard } from './authorization/release-flow-support.ts'
 import {
   historyOf,
   onReleaseTree,
@@ -239,6 +240,43 @@ describe('the agent of a session moves the session with SwitchWorkspace', () => 
         expect(reminders(entries)).toEqual([])
         expect(await instancesOf(tree, at.workspace)).toHaveLength(1)
         expect(await instancesOf(other, theirs.workspace)).toHaveLength(1)
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+})
+
+describe('the switch stands under the gate of its tool', () => {
+  it(
+    'waits for a person where the session asks: nothing is switched until the card is answered, then it is',
+    { tags: ['slow'], timeout: 360_000 },
+    async () => {
+      const base = realpathSync(mkdtempSync(join(tmpdir(), 'switch-asking-')))
+      const blog = repository(base, 'blog')
+      const asking = { ...options, permission: 'auto_permission' } as const
+      const exitCode = await onReleaseTree(asking, async tree => {
+        const session = await sessionIn(tree, await registered(tree, blog))
+        await ok(tree, [
+          'send-input',
+          '--session',
+          session,
+          '--text',
+          plan([switchTo({ none: true })]),
+        ])
+        const card = await pendingCard(tree, session, 'the switch of the step')
+        expect(toolResults(await historyOf(tree, session)).join('\n')).not.toContain(
+          'SwitchWorkspace',
+        )
+        await answerCard(tree, card, ['--option', 'allow-once'], 'reply-switch')
+        const entries = await pollUntil(
+          'the run ends after the answer',
+          () => historyOf(tree, session),
+          seen => seen.some(entry => entry.kind === 'run.terminal'),
+        )
+        expect(toolResults(entries).join('\n')).toContain(
+          'done SwitchWorkspace directory=none associated=no',
+        )
+        expect(reminders(entries)).toHaveLength(1)
       })
       expect(exitCode).toBe(0)
     },
