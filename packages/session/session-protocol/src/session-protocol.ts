@@ -86,7 +86,6 @@ const limited = ruleCodec(
 const instant = { kind: 'instant' } as const
 const relation = literal('main', 'child', 'handoff')
 const attendance = literal('attended', 'unattended')
-// Both lists narrow by what a session is to others: its relation, its parent, who attends it, its definition.
 const page = {
   tenant: { rule: tenant },
   cursor: { rule: nullable(text) },
