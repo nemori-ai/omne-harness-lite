@@ -15,9 +15,8 @@ import {
   SCRIPTS,
   type SyntaxNode,
   templateParts,
-  violation,
   visit,
-} from './source-text.ts'
+} from './script-text.ts'
 
 /**
  * FE-I31: a state has one name, the one in the shared kit's table `STATE_LABELS`, and it reaches the page only
@@ -95,7 +94,7 @@ describe('state words gate', () => {
 
   it('adds no state word a module writes itself', () => {
     const found = SCRIPTS.filter(file => !isKit(file.path)).flatMap(file =>
-      selfWrittenStates(moduleOf(file), LABELS).map(word => violation(file.path, word)),
+      selfWrittenStates(moduleOf(file), LABELS).map(word => `${file.path} | ${word}`),
     )
     const report = ratchet('state-words', tally(found))
     expect(report.missing, 'no baseline: write it once with DESIGN_GATES_SEED=1').toBe(false)

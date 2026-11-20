@@ -3,17 +3,8 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import {
-  type CssRule,
-  cssRules,
-  jsxElements,
-  normalise,
-  objectProperties,
-  scriptStrings,
-  scriptTree,
-  stringsIn,
-  valueOf,
-} from './css-text.ts'
+import { type CssRule, cssRules, normalise, valueOf } from './css-text.ts'
+import { jsxElements, moduleOf, objectProperties, scriptStrings, stringsIn } from './script-text.ts'
 import { ratchet, tally } from './ratchet.ts'
 import { FILES, KIT, isTokens, type ScannedFile } from './scope.ts'
 
@@ -137,7 +128,7 @@ export function scriptClipViolations(file: Source): string[] {
       .filter(utility => CLIP_UTILITY.test(utility))
       .map(utility => `class ${utility}`)
   })
-  const inline = objectProperties(scriptTree(file))
+  const inline = objectProperties(moduleOf(file))
     .filter(({ name }) => /^overflow(?:X|Y)?$/.test(name))
     .flatMap(({ name, value }) =>
       stringsIn(value)
@@ -210,7 +201,7 @@ describe('ring room gate', () => {
   })
 
   it('clips a disclosure only through the motion sheet, with the room', () => {
-    const fold = jsxElements(scriptTree(sheet(DISCLOSURE))).find(element =>
+    const fold = jsxElements(moduleOf(sheet(DISCLOSURE))).find(element =>
       element.attributes.has('data-expand-content'),
     )
     expect(fold, `${DISCLOSURE} draws the fold content`).toBeDefined()
@@ -247,7 +238,7 @@ describe('ring room gate', () => {
           .flatMap(text => text.split(/\s+/))
           .filter(token => /^scroll-p[xytblrse]?-/.test(token.replace(VARIANT, '')))
           .map(token => `${file.path} ${token}`),
-        ...objectProperties(scriptTree(file))
+        ...objectProperties(moduleOf(file))
           .filter(({ name }) => name.startsWith('scrollPadding'))
           .map(({ name }) => `${file.path} ${name}`),
       ],

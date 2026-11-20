@@ -9,14 +9,8 @@ import { describe, expect, it } from 'vitest'
 
 import { ICONS, MOTIONS, type Icon } from '@omne-harness/ui-kit'
 
-import {
-  callsNamed,
-  importSources,
-  jsxElements,
-  stringArgument,
-  stripCssComments,
-  scriptTree,
-} from './css-text.ts'
+import { stripCssComments } from './css-text.ts'
+import { callsNamed, importSources, jsxElements, moduleOf, stringArgument } from './script-text.ts'
 import { ratchet, tally } from './ratchet.ts'
 import { FILES, KIT, REPOSITORY, isKit, isTokens, type ScannedFile } from './scope.ts'
 
@@ -58,7 +52,7 @@ export function iconRule(rules: string): {
 /** Icon libraries a file imports, and `<svg>` elements it draws itself outside the kit. */
 export function drawingViolations(file: Source): string[] {
   if (file.kind === 'css' || file.kind === 'html') return []
-  const tree = scriptTree(file)
+  const tree = moduleOf(file)
   const found = importSources(tree)
     .filter(source => ICON_LIBRARY.test(source))
     .map(source => `imports ${source}`)

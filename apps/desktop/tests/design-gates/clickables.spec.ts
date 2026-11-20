@@ -15,9 +15,8 @@ import {
   parseModule,
   SCRIPTS,
   type SyntaxNode,
-  violation,
   visit,
-} from './source-text.ts'
+} from './script-text.ts'
 
 /**
  * FE-I25: everything clickable answers hover and press with its family's feel, and the motion sheet finds a family
@@ -132,9 +131,7 @@ describe('clickables gate', () => {
 
   it('adds no native control and no clickable outside a control family', () => {
     const found = SCRIPTS.filter(file => file.kind === 'tsx').flatMap(file =>
-      clickableViolations(moduleOf(file), isKit(file.path)).map(found =>
-        violation(file.path, found),
-      ),
+      clickableViolations(moduleOf(file), isKit(file.path)).map(found => `${file.path} | ${found}`),
     )
     const report = ratchet('clickables', tally(found))
     expect(report.missing, 'no baseline: write it once with DESIGN_GATES_SEED=1').toBe(false)

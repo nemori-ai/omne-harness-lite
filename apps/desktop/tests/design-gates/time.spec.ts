@@ -11,9 +11,8 @@ import {
   parseModule,
   SCRIPTS,
   type SyntaxNode,
-  violation,
   visit,
-} from './source-text.ts'
+} from './script-text.ts'
 
 /**
  * FE-I33: a moment is written once, by `Ago`, through its one formatting module `patterns/time.ts` (`Ago` imports
@@ -73,7 +72,7 @@ export function timeFormatting(tree: SyntaxNode): string[] {
 describe('time gate', () => {
   it('formats instants only through Ago and its formatting module', () => {
     const found = SCRIPTS.filter(file => !OWNERS.has(file.path)).flatMap(file =>
-      timeFormatting(moduleOf(file)).map(call => violation(file.path, call)),
+      timeFormatting(moduleOf(file)).map(call => `${file.path} | ${call}`),
     )
     const report = ratchet('time', tally(found))
     expect(report.missing, 'no baseline: write it once with DESIGN_GATES_SEED=1').toBe(false)
