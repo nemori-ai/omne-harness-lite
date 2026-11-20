@@ -199,6 +199,25 @@ function outsideScope(
 const shownDirectory = (environment: ShellAuthorEnvironment): string =>
   JSON.stringify(environment.directory ?? null)
 
+function scriptOutsideScope(
+  args: Arguments,
+  environment: ShellAuthorEnvironment,
+  config: Arguments,
+  inTerminal: boolean,
+): string | undefined {
+  const cwd = startDirectory(args, environment)
+  if (cwd === undefined) return undefined
+  return outsideScope(environment, {
+    cwd,
+    script: args.text('script'),
+    // A retained terminal runs the shell of its host; a one-shot command the configured one.
+    posix: inTerminal
+      ? !/^win/iu.test(environment.facts.os)
+      : isPosixShell(config.text('executable')),
+    env: { ...config.env('env'), ...args.env('env') },
+  })
+}
+
 async function createTerminal(
   args: Arguments,
   environment: ShellAuthorEnvironment,
@@ -315,20 +334,7 @@ async function executeScript(
     if (denied !== undefined) return denied
     if (execution.signal.aborted) return 'rejected reason=cancelled zero starts'
   }
-  const cwd = startDirectory(args, environment)
-  const refused =
-    cwd === undefined
-      ? undefined
-      : outsideScope(environment, {
-          cwd,
-          script: args.text('script'),
-          // A retained terminal runs the shell of its host; a one-shot command the configured one.
-          posix:
-            terminal === undefined
-              ? isPosixShell(config.text('executable'))
-              : !/^win/iu.test(environment.facts.os),
-          env: { ...config.env('env'), ...args.env('env') },
-        })
+  const refused = scriptOutsideScope(args, environment, config, terminal !== undefined)
   if (refused !== undefined) return refused
   const input = args.optionalText('stdin')
   const stdin = input === undefined ? {} : { stdin: new TextEncoder().encode(input) }

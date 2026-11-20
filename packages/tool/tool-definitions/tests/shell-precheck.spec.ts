@@ -35,6 +35,17 @@ describe('the words of a POSIX script', () => {
       literal(''),
     ])
     expect(shellWords('echo a\\\n/b')).toEqual([literal('echo', 'command'), literal('a/b')])
+    expect(shellWords('cat "a\\"b" "c\\\\d" "e\\x" "f\\\ng" "$H/x" "~/y" \\~/z ~/w')).toEqual([
+      literal('cat', 'command'),
+      literal('a"b'),
+      literal('c\\d'),
+      literal('e\\x'),
+      literal('fg'),
+      { kind: 'opaque' },
+      { kind: 'opaque' },
+      { kind: 'opaque' },
+      literal('~/w'),
+    ])
   })
 
   it('names the target of each redirection with what it does to the file, and leaves out duplications', () => {
