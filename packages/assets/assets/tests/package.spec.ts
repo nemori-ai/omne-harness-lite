@@ -65,7 +65,7 @@ describe('packageBody', () => {
     expect(made.ok).toEqual({
       kind: 'object',
       entries: [
-        ...(declared as { entries: unknown[] }).entries,
+        { key: 'name', value: { kind: 'string', value: 'lamp' } },
         {
           key: 'manifest',
           value: {

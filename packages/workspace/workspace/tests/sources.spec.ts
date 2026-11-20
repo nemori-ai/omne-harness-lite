@@ -258,8 +258,7 @@ describe('adopting the sources for a key (C6)', () => {
   it('a tenant with no relation is not permitted, and nothing is recorded for the key', async () => {
     const s = await setup()
     expect(await s.adopt('turn-1', [GADGETS], BOB)).toEqual({ kind: 'not-permitted' })
-    const workspace = workspaceOf(s.made.workspace)
-    expect(await s.w.store.adoption(tenantOf(BOB.tenant), workspace, 'turn-1')).toEqual({
+    expect(await s.w.store.adoption(tenantOf(BOB.tenant), 'turn-1')).toEqual({
       kind: 'read',
       value: null,
     })
@@ -519,9 +518,7 @@ describe('what the sources answer when something on the way fails', () => {
       })
     })
     expect(await s.adopt('turn-1', [GADGETS], BOB)).toEqual({ kind: 'not-permitted' })
-    expect(
-      await s.w.store.adoption(tenantOf(BOB.tenant), workspaceOf(s.made.workspace), 'turn-1'),
-    ).toEqual({
+    expect(await s.w.store.adoption(tenantOf(BOB.tenant), 'turn-1')).toEqual({
       kind: 'read',
       value: null,
     })
@@ -562,11 +559,7 @@ describe('reading a file when something on the way fails', () => {
     s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
     await s.adopt('turn-1')
     const open = (more: object) =>
-      s.sources.open(ALICE, {
-        workspace: s.target.workspace,
-        key: 'turn-1',
-        at: { ...at, digest: 'f:v1', ...more },
-      })
+      s.sources.open(ALICE, { key: 'turn-1', at: { ...at, digest: 'f:v1', ...more } })
     expect(await open({ root: 'local' })).toEqual({ kind: 'not-found' })
     expect(await open({ category: 'widget' })).toEqual({ kind: 'not-found' })
   })
