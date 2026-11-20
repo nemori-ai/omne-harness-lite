@@ -435,7 +435,7 @@
 | [UL-app-shell](terms/interaction-and-dispatch.md#ul-app-shell--界面外壳--app-shell) | 界面外壳 | App Shell | 一种应用形态自己的界面代码：窗口、导航与它声明的界面插入位置；**不含任何领域的代码**；不是 Shell 工具 |
 | [UL-ui-module](terms/interaction-and-dispatch.md#ul-ui-module--界面模块--ui-module) | 界面模块 | UI Module | 一个领域在客户端的界面部分，客户端装配树上的插件；**随它依赖的协议在协议可用性里出现与消失而加载与卸载** |
 | [UL-ui-slot](terms/interaction-and-dispatch.md#ul-ui-slot--界面插入位置--ui-slot) | 界面插入位置 | UI Slot | 界面外壳声明的、界面模块可以往里放东西的具名位点；**设计时列出，不在运行期创建**；只放一个或放一列 |
-| [UL-asset-page](terms/interaction-and-dispatch.md#ul-asset-page--资产页--asset-page) | 资产页 | Asset Page | 桌面应用里人管理本租户各类资产的那一部分；按类别分页签；资产自己的设置在这里改 |
+| [UL-asset-page](terms/interaction-and-dispatch.md#ul-asset-page--资产页--asset-page) | 资产页 | Asset Page | 桌面应用里人管理本租户各类资产的那一部分；按类别在左边的栏里切换；资产自己的设置在这里改 |
 | [UL-asset-category-page](terms/interaction-and-dispatch.md#ul-asset-category-page--资产类别页面--asset-category-page) | 资产类别页面 | Asset Category Page | 一类资产在资产页里自己的那一页；由这一类的界面模块带来，没带来时用通用的页面；**不存事实** |
 | [UL-asset-governance-port](terms/interaction-and-dispatch.md#ul-asset-governance-port--资产治理口--asset-governance-port) | 资产治理口 | Asset Governance Port | 资产的界面模块交给一类资产的界面模块的口：这一类的资产、设置项与改它们的操作；**规则不由它判** |
 | [UL-agent-figure](terms/interaction-and-dispatch.md#ul-agent-figure--agent-形--agent-figure) | Agent 形 | Agent Figure | 桌面应用里代表 agent 的那一个墨圆，**一个窗口里同一时刻只有一个**；用笔画说状态，口外写待答数；**不存事实** |

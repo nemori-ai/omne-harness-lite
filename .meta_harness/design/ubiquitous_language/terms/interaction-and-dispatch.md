@@ -872,12 +872,13 @@
 ### UL-asset-page · 资产页 · Asset Page
 
 > **中**：**桌面应用里人管理本租户各类资产的那一部分。**
-> 它按资产的类别分开，每一类一个页签。它自己只有页标题与页签；页签下面是那一类的[资产类别页面](#ul-asset-category-page--资产类别页面--asset-category-page)。
+> 它按资产的类别分开，每一类在左边的一条栏里占一行。它自己只有页标题与这条栏；选中一行，右边是那一类的[资产类别页面](#ul-asset-category-page--资产类别页面--asset-category-page)。
 > 一份资产自己的设置在这里改，不在「设置」那一部分。
 >
 > **EN**: **The part of the desktop application where a person manages the assets of the tenant.**
-> It is divided by asset category, one tab for each category. The page itself has only a title
-> and the tabs. Under each tab is the asset category page of that category. A person changes the
+> It is divided by asset category, and each category has one row in a rail on the left. The page
+> itself has only a title and this rail. When a row is selected, the asset category page of that
+> category shows on the right. A person changes the
 > settings of an asset here, not in the Settings part.
 
 - **形态**：位置
