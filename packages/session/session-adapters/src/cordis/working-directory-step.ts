@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import { workspaceCodec, type TenantId, type WorkspaceId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
@@ -6,7 +7,8 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import type { WorkingDirectory } from '../working-directory-schema.ts'
-import type { DirectoryPublication } from './working-directory-publisher.ts'
+import { heldBlock } from './context-records.ts'
+import { workingDirectoryDescriptor } from './working-directory-block.ts'
 
 /** Whether the selected instance can be worked in now, asked of the workspace owner. */
 export type WorkingDirectoryTargets<P> = Readonly<{
@@ -24,11 +26,13 @@ export type StepDirectoryInput<P> = Readonly<{
   tenant: TenantId
   session: SessionId
   scope: ScopeRef
-  snapshot: Pick<WorkSnapshot, 'creation' | 'changes'>
+  snapshot: Pick<WorkSnapshot, 'creation' | 'changes' | 'contextRecords'>
 }>
 
+/** Refreshed: the block already holds the value, or the scope holds no such block. */
 export type StepDirectoryResult =
   | Readonly<{ kind: 'refreshed' }>
+  | Readonly<{ kind: 'commit'; value: WorkingDirectory }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 /** The one place the working directory of a session changes: the action before a step. */
@@ -42,7 +46,6 @@ export type StepDirectoryPorts<P> = Readonly<{
   recover(
     input: Readonly<{ tenant: TenantId; session: SessionId; scope: ScopeRef }>,
   ): Promise<Readonly<{ kind: 'ready' | 'absent' | 'unavailable' }>>
-  publish(tenant: TenantId, scope: ScopeRef, value: WorkingDirectory): Promise<DirectoryPublication>
 }>
 
 type InForce = WorkingDirectory | Readonly<{ unavailable: string }>
@@ -90,16 +93,17 @@ export function createStepDirectory<P>(ports: StepDirectoryPorts<P>): StepDirect
         const recovered = await ports.recover(input)
         if (recovered.kind !== 'ready')
           return down(`the context scope of the session is ${recovered.kind}`)
+        const held = heldBlock(
+          input.snapshot.contextRecords ?? [],
+          input.scope,
+          workingDirectoryDescriptor.key,
+        )
+        if (held.kind === 'not-held') return REFRESHED
         const value = await directoryInForce(ports, input)
         if ('unavailable' in value) return down(value.unavailable)
-        const published = await ports.publish(input.tenant, input.scope, value)
-        // A session whose scope never registered the block has none to refresh.
-        if (published.kind === 'published' || published.kind === 'unregistered') return REFRESHED
-        return down(
-          'diagnostic' in published
-            ? published.diagnostic
-            : 'the working directory publisher has stopped',
-        )
+        return held.committed !== null && isDeepStrictEqual(held.committed.value, value)
+          ? REFRESHED
+          : { kind: 'commit', value }
       } catch (cause) {
         return down(`the working directory refresh threw: ${String(cause)}`)
       }

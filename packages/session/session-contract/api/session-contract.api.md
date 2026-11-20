@@ -3140,6 +3140,12 @@ export type SessionOperationElements = Readonly<{
     session: SessionId;
     source: DurableEvidence;
 }> | Readonly<{
+    kind: 'context-step';
+    session: SessionId;
+    scope: string;
+    at: string;
+    value: string;
+}> | Readonly<{
     kind: 'authorization';
     session: SessionId;
     card: DurableEvidence;
@@ -3773,8 +3779,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:10634f2a94541a04128dd870614f5767e3ce860ee485099f2bbb10f9ed3813b1";
-export declare const SESSION_RELEASE_DIGEST = "sha256:10634f2a94541a04128dd870614f5767e3ce860ee485099f2bbb10f9ed3813b1";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:0c317ea90dc9f987f3b3e0a8c396f15d30dd5b88226047dca6f2e7bd1f776253";
+export declare const SESSION_RELEASE_DIGEST = "sha256:0c317ea90dc9f987f3b3e0a8c396f15d30dd5b88226047dca6f2e7bd1f776253";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

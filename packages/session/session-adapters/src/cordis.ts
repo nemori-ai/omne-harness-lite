@@ -12,13 +12,7 @@ export {
   workingDirectoryCallBinding,
   workingDirectoryDescriptor,
   workingDirectoryModelBinding,
-  workingDirectoryProducer,
 } from './cordis/working-directory-block.ts'
-export {
-  createWorkingDirectoryPublishers,
-  type DirectoryPublication,
-  type WorkingDirectoryPublishersInput,
-} from './cordis/working-directory-publisher.ts'
 export {
   createStepDirectory,
   type StepDirectory,

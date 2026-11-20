@@ -158,15 +158,18 @@ async function prepareInitial(
     },
   })
   try {
-    const registered = await temporary.registerProducer<ContextBlockKey>(principal, {
-      tenant: input.tenant,
-      key: block.item,
-      producer: block.producer,
-      declaration: block.descriptor,
-      scoped: true,
-      supply: async () => ({ kind: 'none' }),
-    })
-    if (registered.kind !== 'registered') return unavailable()
+    // A supplied block is judged against its producer; a stateful one brings its declaration.
+    if ('producer' in block) {
+      const registered = await temporary.registerProducer<ContextBlockKey>(principal, {
+        tenant: input.tenant,
+        key: block.item,
+        producer: block.producer,
+        declaration: block.descriptor,
+        scoped: true,
+        supply: async () => ({ kind: 'none' }),
+      })
+      if (registered.kind !== 'registered') return unavailable()
+    }
     return await prepareContextRegistration(
       temporary,
       input.principal,
@@ -180,6 +183,7 @@ async function prepareInitial(
         basedOn: block.basedOn,
         bindings: block.bindings,
         parameters: undefined,
+        ...('producer' in block ? {} : { declaration: block.descriptor }),
       },
       { commit: record.decision.commit },
     )

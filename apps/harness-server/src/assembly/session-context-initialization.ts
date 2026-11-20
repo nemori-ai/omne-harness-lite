@@ -11,7 +11,6 @@ import {
   sessionModesProducer,
   workingDirectoryBindings,
   workingDirectoryDescriptor,
-  workingDirectoryProducer,
 } from '@omne-harness/session-adapters/cordis'
 import {
   contextScopeOf,
@@ -39,7 +38,6 @@ const DECLARED = [
     definition: SESSION_WORKING_DIRECTORY,
     bindings: workingDirectoryBindings,
     descriptor: workingDirectoryDescriptor,
-    producer: workingDirectoryProducer,
   },
 ] as const
 
@@ -54,6 +52,7 @@ function blockOf(declared: Declared, basedOn: number) {
       key: item,
       bindings: declared.bindings,
       parameters: undefined,
+      ...(declared.descriptor.kind === 'stateful' ? { declaration: declared.descriptor } : {}),
     },
     adoptedContextDefinitions,
   )
