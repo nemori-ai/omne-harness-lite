@@ -1,7 +1,7 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (convertMessages,
 // convertTools, addCacheControlToTextContent; the source file is named in provenance.json).
 // Copyright (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi. See provenance.json.
-import { referredImage, type MediaView } from '../media.ts'
+import { sentImage, type MediaView } from '../media.ts'
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -118,33 +118,11 @@ function contentPart(
   media: MediaView,
 ): Outcome<WirePart | null, TransportFailure> {
   if (!block.visibility.toModel) return { ok: null }
-  if ('ref' in block) {
-    const referred = referredImage(block, image?.mediaTypes, media)
-    if (referred === null || image === null) return unsupported(path, adapter)
-    const url = `data:${referred.mime};base64,${referred.data}`
-    return { ok: { type: 'image', url, detail: image.detail } }
-  }
-  switch (block.kind) {
-    case 'text':
-      return { ok: { type: 'text', text: block.text } }
-    case 'image':
-      if (image === null || !image.mediaTypes.includes(block.mediaType))
-        return unsupported(path, adapter)
-      return {
-        ok: {
-          type: 'image',
-          url: `data:${block.mediaType};base64,${block.inline}`,
-          detail: image.detail,
-        },
-      }
-    case 'voice':
-    case 'file':
-    case 'thinking':
-      return unsupported(path, adapter)
-    default: {
-      const _exhaustive: never = block
-      return _exhaustive
-    }
+  if (block.kind === 'text') return { ok: { type: 'text', text: block.text } }
+  const sent = sentImage(block, image?.mediaTypes, media)
+  if (sent === null || image === null) return unsupported(path, adapter)
+  return {
+    ok: { type: 'image', url: `data:${sent.mime};base64,${sent.data}`, detail: image.detail },
   }
 }
 

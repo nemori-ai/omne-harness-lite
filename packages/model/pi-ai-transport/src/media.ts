@@ -152,8 +152,7 @@ export function mediaPending(): MediaView {
   }
 }
 
-/** The data URL parts of an image by reference, or null when this model cannot be sent it. */
-export function referredImage(
+function referredImage(
   block: Referring,
   mediaTypes: readonly string[] | undefined,
   view: MediaView,
@@ -165,4 +164,15 @@ export function referredImage(
   const planned = mediaTypes.includes(block.ref.mediaType) ? block.ref.mediaType : first
   const mime = found.mime ?? planned
   return mime === undefined || !mediaTypes.includes(mime) ? null : { mime, data: found.data }
+}
+
+/** The image a block sends, inline or by reference; null when this model cannot be sent the block. */
+export function sentImage(
+  block: ContentBlock,
+  mediaTypes: readonly string[] | undefined,
+  view: MediaView,
+): Readonly<{ mime: string; data: string }> | null {
+  if ('ref' in block) return referredImage(block, mediaTypes, view)
+  if (block.kind !== 'image' || !(mediaTypes?.includes(block.mediaType) ?? false)) return null
+  return { mime: block.mediaType, data: block.inline }
 }
