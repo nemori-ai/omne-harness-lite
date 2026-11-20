@@ -7,7 +7,7 @@
 | 模型里的不变式 | 规格里的不变式 | 变异：改掉什么它应当变红 |
 | --- | --- | --- |
 | `AtMostOneReport` | DP-01 | 已有报告时还接受报告 |
-| `DeliveredOnce` | DP-02、Tool 的 TL-62 | 等待还读不出是不是已关就送输入；重送时换一个提交标识 |
+| `DeliveredOnce` | DP-02、Tool 的 TL-63 | 等待还读不出是不是已关就送输入；重送时换一个提交标识 |
 | `NoStrandedReport` | DP-03 | 等待已关之后不送输入 |
 | `WithdrawExcludesReport` | DP-04 | 撤回之后还接受报告；有报告之后还接受撤回 |
 | `CallAlwaysSettles` | DP-05 | 撤回成立之后不答复还在等的调用 |

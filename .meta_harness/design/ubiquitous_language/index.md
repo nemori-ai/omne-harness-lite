@@ -85,6 +85,7 @@
 | [UL-scope-composition-semantics](terms/scope-and-resolution.md#ul-scope-composition-semantics--作用域合成语义--scope-composition-semantics) | 作用域合成语义 | Scope Composition Semantics | 覆盖 / 收窄 / 组合三种 |
 | [UL-two-pass-resolution](terms/scope-and-resolution.md#ul-two-pass-resolution--两轮求值--two-pass-resolution) | 两轮求值 | Two-Pass Resolution | 先算哪个资产，再算它的属性项 |
 | [UL-adoption-change-counter](terms/scope-and-resolution.md#ul-adoption-change-counter--采用变更计数--adoption-change-counter) | 采用变更计数 | Adoption Change Counter | 来源拥有者按作用域维护的单调计数；**全部相同就不必重新求值** |
+| [UL-source-adoption-record](terms/scope-and-resolution.md#ul-source-adoption-record--来源采用记录--source-adoption-record) | 来源采用记录 | Source Adoption Record | 工作区按调用方给的键记下的一次来源读取；同一个键永远指向同一份 |
 | [UL-validated-assembly-candidate](terms/scope-and-resolution.md#ul-validated-assembly-candidate--已校验装配候选--validated-assembly-candidate) | 已校验装配候选 | Validated Assembly Candidate | 入口之前预先算好并校验的装配结果；**只在入口成为采用依据** |
 | [UL-immutable-marker](terms/scope-and-resolution.md#ul-immutable-marker--不可覆盖标记--immutable-marker) | 不可覆盖标记 | Immutable Marker | 把「默认这样」变成「必须这样」的那个标记 |
 | [UL-attribute-assignment](terms/scope-and-resolution.md#ul-attribute-assignment--属性配值--attribute-assignment) | 属性配值 | Attribute Assignment | 一份资产持有上、一个属性项的一个值，**设置与权限真正被读写的最小单位** |
@@ -297,6 +298,7 @@
 | [UL-environment-provider](terms/grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider) | 环境提供者 | Environment Provider | 向登记表登记、实际造出并掌管环境实例的一方；名加代；退役先拒新租约再排空 |
 | [UL-file-batch](terms/grounding-and-isolation.md#ul-file-batch--文件批次--file-batch) | 文件批次 | File Batch | 全批预检、暂存后逐路径发布的一次多路径写入；是受管资源；恢复只识别五态 |
 | [UL-session-working-directory](terms/grounding-and-isolation.md#ul-session-working-directory--会话工作目录--session-working-directory) | 会话工作目录 | Session Working Directory | 会话当前这一步里文件与命令类工具默认用的目录；由会话的选择算出 |
+| [UL-files-scope](terms/grounding-and-isolation.md#ul-files-scope--文件范围--files-scope) | 文件范围 | Files Scope | 一次工具调用的文件请求读可以到哪、写可以到哪；受理时定下并钉住 |
 | [UL-session-base](terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base) | 会话据点 | Session Base | 一个账号的会话、日志、卡片与 runtime 实际所在的那一处，身份是（一处 · 中心 · 账号）；**不是进程**，没人开着屏时照常发生事 |
 | [UL-governance-center](terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center) | 治理中心 | Governance Center | 治理事实与组织／租户层范围化对象所在的那一处，**一次部署一个、身份不是它的地址**；**它不知道任何会话** |
 | [UL-deployment-key](terms/grounding-and-isolation.md#ul-deployment-key--部署密钥--deployment-key) | 部署密钥 | Deployment Key | 这一次部署独有的一套秘密，让「只有中心自己能说的话」不可伪造；**不加密任何东西，换了什么都不丢** |
