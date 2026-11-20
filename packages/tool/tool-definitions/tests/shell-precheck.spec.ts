@@ -111,6 +111,29 @@ describe('the words of a POSIX script', () => {
     ])
   })
 
+  it('reads a redirection written into a word, a newline after one letter and an operator before an argument', () => {
+    expect(shellWords('cat a<b')).toEqual([
+      literal('cat', 'command'),
+      literal('a'),
+      { kind: 'redirect', effect: 'read', text: 'b' },
+    ])
+    expect(shellWords('cd a\nls')).toEqual([
+      literal('cd', 'command'),
+      literal('a'),
+      literal('ls', 'command'),
+    ])
+    expect(shellWords('cmd &>/all arg')).toEqual([
+      literal('cmd', 'command'),
+      { kind: 'redirect', effect: 'write', text: '/all' },
+      literal('arg'),
+    ])
+    expect(shellWords('ls x{a "a(b"')).toEqual([
+      literal('ls', 'command'),
+      { kind: 'opaque' },
+      literal('a(b'),
+    ])
+  })
+
   it('marks globs and unquoted expansions opaque, but not a quoted brace or a later quoted tilde', () => {
     expect(shellWords('ls a? b[c] {d,e} x} "{" a"~b" "\\$x" "\\`y"')).toEqual([
       literal('ls', 'command'),
@@ -130,6 +153,8 @@ describe('the words of a POSIX script', () => {
       'cat "$(pwd)"',
       'cat "`pwd`"',
       'echo a(b',
+      'echo a)',
+      'echo )',
       '{ ls',
       'ls {',
       'ls; }',
