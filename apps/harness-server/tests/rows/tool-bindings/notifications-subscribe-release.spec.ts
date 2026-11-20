@@ -10,7 +10,12 @@ import {
   toolResults,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
-import { answerCard, pendingCard, setGate } from '../authorization/release-flow-support.ts'
+import {
+  admittedReleases,
+  answerCard,
+  pendingCard,
+  setGate,
+} from '../authorization/release-flow-support.ts'
 
 const NOTIFICATIONS = { kind: 'asset', category: 'tool', name: 'Notifications' } as const
 
@@ -71,9 +76,12 @@ describe('a subscription of the Notifications tool on the release tree', () => {
           originatingSessionRef: session,
           originatingCallRef: standingCall,
         })
-        expect(startAcceptances(tree.storageRoot).map(row => row['release'])).toContainEqual({
+        expect(startAcceptances(tree.storageRoot).filter(row => 'release' in row)).toEqual([])
+        expect(admittedReleases(tree.storageRoot)).toContainEqual({
           by: 'verdict',
-          grant: expect.stringContaining('"key":"tool.subscribe"'),
+          grant: expect.objectContaining({
+            gate: expect.objectContaining({ key: 'tool.subscribe' }),
+          }),
         })
 
         await setGate(tree, NOTIFICATIONS, 'subscribe', 'ask', 'notifications-subscribe-asks')

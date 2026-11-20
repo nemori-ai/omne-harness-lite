@@ -1,8 +1,6 @@
 // @module-tag slow
 // Restarts the release tree at the points between a person's release and the start of the call.
-import { expect, it } from 'vitest'
-import { toolStartAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
-import type { ToolStartAuthority } from '@omne-harness/tool-contract/provider'
+import { expect, it, vi } from 'vitest'
 import {
   historyOf,
   hostRecords,
@@ -21,6 +19,33 @@ import {
   pendingCard,
   perMessageShell,
 } from './release-flow-support.ts'
+
+const residency = vi.hoisted(() => ({ on: false, asked: 0, entered: 0 }))
+
+vi.mock('../../../src/entry/tool-target-residency.ts', async importOriginal => {
+  const original =
+    await importOriginal<typeof import('../../../src/entry/tool-target-residency.ts')>()
+  return {
+    ...original,
+    targetResidency: async (...args: Parameters<typeof original.targetResidency>) => {
+      const [, , target] = args
+      if (residency.on && target.kind === 'available' && target.definition.name === 'Shell') {
+        residency.asked += 1
+        if (residency.asked > 1) {
+          residency.entered += 1
+          return {
+            failure: {
+              kind: 'unavailable' as const,
+              dependency: 'toolCatalogView',
+              diagnostic: 'test: not reachable before the restart',
+            },
+          }
+        }
+      }
+      return original.targetResidency(...args)
+    },
+  }
+})
 
 const options = {
   script: perMessageShell,
@@ -131,30 +156,21 @@ it(
   { timeout: 180_000 },
   async () => {
     let session = ''
-    await onReleaseTreeRuns(options, [
+    Object.assign(residency, { on: false, asked: 0, entered: 0 })
+    const restarted = {
+      ...options,
+      beforeRun: async (run: number) => {
+        if (run > 0) residency.on = false
+      },
+    }
+    await onReleaseTreeRuns(restarted, [
       async tree => {
-        const authority = tree.scope.get(toolStartAuthorityKey) as
-          | ToolStartAuthority<unknown>
-          | undefined
-        if (authority === undefined) throw new Error('no start authority installed')
-        const prepare = authority.prepare.bind(authority)
-        const stopped = counted()
-        Object.assign(authority, {
-          prepare: async (input: Parameters<typeof prepare>[0]) => {
-            if (input.request.availability.definition.name !== 'Shell') return prepare(input)
-            stopped.enter()
-            const failure = {
-              kind: 'unavailable',
-              dependency: 'toolStartAuthority',
-              diagnostic: NOT_NOW,
-            }
-            return { failure } as Awaited<ReturnType<typeof prepare>>
-          },
+        session = await releaseOnce(tree, 'taken', () => {
+          residency.on = true
         })
-        session = await releaseOnce(tree, 'taken', () => {})
         await pollUntil(
           'the Tool to reach the start',
-          async () => stopped.entered(),
+          async () => residency.entered,
           n => n > 0,
         )
         expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(1)

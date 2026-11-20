@@ -10,6 +10,7 @@ import {
 } from '../../support/release-tree.ts'
 import {
   ONCE,
+  admittedReleases,
   answerCard,
   endedRuns,
   pendingCard,
@@ -47,12 +48,13 @@ it(
       expect(toolResults(second).join('\n')).toContain('second-done')
       expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toEqual([])
       expect(second.filter(entry => entry.kind === ONCE)).toHaveLength(1)
-      expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toEqual([])
-      // Both starts rest on the one session grant, named by its own source and guarded at acceptance.
-      const releases = startAcceptances(tree.storageRoot).map(row => row['release'])
-      expect(releases).toEqual([
-        { by: 'session', grant: expect.stringContaining('"via":"session-grant"') },
-        { by: 'session', grant: expect.stringContaining('"via":"session-grant"') },
+      const accepted = startAcceptances(tree.storageRoot)
+      expect(accepted).toHaveLength(2)
+      expect(accepted.filter(row => 'authorizations' in row || 'release' in row)).toEqual([])
+      // Both admissions rest on the one session grant, named by its own source.
+      const released = admittedReleases(tree.storageRoot).filter(item => item.by === 'session')
+      expect(released).toEqual([
+        { by: 'session', grant: expect.objectContaining({ via: 'session-grant' }) },
       ])
 
       const other = await tree.startSession('start: echo other')

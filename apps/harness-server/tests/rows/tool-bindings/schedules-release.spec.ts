@@ -11,7 +11,12 @@ import {
   toolResults,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
-import { answerCard, pendingCard, setGate } from '../authorization/release-flow-support.ts'
+import {
+  admittedReleases,
+  answerCard,
+  pendingCard,
+  setGate,
+} from '../authorization/release-flow-support.ts'
 
 const SCHEDULES = { kind: 'asset', category: 'tool', name: 'Schedules' } as const
 const DEFINITION = {
@@ -116,13 +121,13 @@ describe('the Schedules tool on the release tree', () => {
           value => value !== undefined,
         )
         expect(shown).toEqual(byAgentOf(forwarded))
-        const releases = startAcceptances(tree.storageRoot).map(row => row['release'])
-        expect(releases).toEqual(
-          expect.arrayContaining([
-            { by: 'carrier', grant: null },
-            { by: 'verdict', grant: expect.stringContaining('"layer":"tenant"') },
-          ]),
-        )
+        expect(startAcceptances(tree.storageRoot).filter(row => 'release' in row)).toEqual([])
+        const releases = admittedReleases(tree.storageRoot)
+        expect(releases).toContainEqual({
+          by: 'verdict',
+          grant: expect.objectContaining({ layer: 'tenant' }),
+        })
+        expect(releases).not.toContainEqual(expect.objectContaining({ by: 'carrier' }))
       })
       expect(exit).toBe(0)
     },
