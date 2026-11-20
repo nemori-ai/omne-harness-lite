@@ -195,11 +195,10 @@ export function createCompactionAssessment<P>(
     const visible = projectMessageForModel(input.message)
     if (visible === null) return reject('model-invisible')
     // A provider must return a representation supported by the frozen target. This check
-    // does not rewrite the returned message or invent conversions on the provider's behalf.
+    // does not rewrite the returned message on the provider's behalf.
     const summary = chooseRepresentations({
       messages: [visible],
-      conversions: new Map(),
-      modalities: frozen.target.profile.profile.definition.input,
+      capability: frozen.target.profile.profile.definition,
       policy: {
         identity: frozen.target.representation,
         config: { preferences: { text: ['original'], image: ['original'], voice: ['original'] } },

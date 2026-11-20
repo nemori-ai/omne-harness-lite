@@ -1,6 +1,5 @@
-import type { ContentBlock } from '@omne-harness/content-block'
-import type * as M from '@omne-harness/model-contract'
 import {
+  modalityOfBlock,
   representationPolicyConfigSchema,
   type Adoption,
   type RepresentationPolicyConfig,
@@ -21,17 +20,7 @@ export type DefaultRepresentationOptions = Readonly<{
   preferences?: Partial<RepresentationPolicyConfig['preferences']>
 }>
 
-function modalityOf(block: ContentBlock): M.ModelModality | null {
-  if (block.kind === 'text' || block.kind === 'thinking') return 'text'
-  const media = 'ref' in block ? block.ref.mediaType : block.mediaType
-  if (media.startsWith('image/')) return 'image'
-  if (media.startsWith('audio/')) return 'voice'
-  return media.startsWith('text/') ? 'text' : null
-}
-function accepted(block: ContentBlock, modalities: readonly M.ModelModality[]): boolean {
-  const modality = modalityOf(block)
-  return block.visibility.toModel && modality !== null && modalities.includes(modality)
-}
+const FILE_ORDER = ['original', 'derived', 'transcript'] as const
 
 export function createDefaultRepresentationPolicy(
   options: DefaultRepresentationOptions = {},
@@ -50,23 +39,11 @@ export function createDefaultRepresentationPolicy(
   return {
     identity,
     config,
-    choose({ block, conversion, modalities }) {
-      const modality = modalityOf(block)
-      if (modality === null) return 'none'
-      for (const choice of config.preferences[modality]) {
-        if (choice === 'original' && modalities.includes(modality)) return 'original'
-        if (conversion?.kind !== 'converted') continue
-        const { derived, transcript } = conversion.value
-        if (
-          choice === 'derived' &&
-          derived.length > 0 &&
-          derived.every(b => accepted(b, modalities))
-        )
-          return 'derived'
-        if (choice === 'transcript' && transcript !== '' && modalities.includes('text'))
-          return 'transcript'
-      }
-      return 'none'
+    choose({ block, available }) {
+      const modality = modalityOfBlock(block)
+      const known = modality === 'text' || modality === 'image' || modality === 'voice'
+      const order = known ? config.preferences[modality] : FILE_ORDER
+      return order.find(option => available.includes(option)) ?? 'none'
     },
   }
 }
