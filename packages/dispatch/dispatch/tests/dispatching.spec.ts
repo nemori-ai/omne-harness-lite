@@ -220,6 +220,10 @@ describe('what is refused when it is asked for', () => {
       kind: 'basis-unavailable',
     })
     expect(await w.store.unfinished(TENANT)).toEqual({ kind: 'read', value: [] })
+    Object.assign(w.copies, { moment: () => Promise.reject(new Error('down')) })
+    expect(await w.registry.dispatch(w.ctx(), { ...ASK, mode: 'spawn' })).toEqual({
+      kind: 'basis-unavailable',
+    })
   })
 
   it('answers that its basis is unavailable when a fact it needs cannot be read', async () => {
