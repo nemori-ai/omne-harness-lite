@@ -28,14 +28,24 @@ function reloadOnRebuild(pageRoot: string, current: () => BrowserWindow | undefi
   })
 }
 
-// The default menu's View roles zoom the whole page on Command or Control with = - 0; the page
-// takes those keys for its size tiers, so the app menu keeps the standard roles without them.
+// The default View menu zooms the whole page on Command or Control with = - 0; the page takes
+// those keys for its size tiers, so the View menu keeps every standard item except the zoom roles.
 function setAppMenu(): void {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       ...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
       { role: 'fileMenu' },
       { role: 'editMenu' },
+      {
+        role: 'viewMenu',
+        submenu: [
+          { role: 'reload' },
+          { role: 'forceReload' },
+          { role: 'toggleDevTools' },
+          { type: 'separator' },
+          { role: 'togglefullscreen' },
+        ],
+      },
       { role: 'windowMenu' },
     ]),
   )
