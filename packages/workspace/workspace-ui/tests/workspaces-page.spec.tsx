@@ -64,12 +64,29 @@ describe('the workspaces page', () => {
     await shown([])
     expect(screen.getByText(REGISTER_HINT)).toBeTruthy()
     expect(REGISTER_HINT).not.toMatch(/隔离|保证/u)
+    expect(REGISTER_HINT).toContain('管谁能在这里工作、能不能读它的来源')
+    expect(REGISTER_HINT).toContain(
+      '它不拦原本就能做的文件读写；命令在这个目录之外读写，也不归它管',
+    )
     expect(screen.getByText('还没有工作区。登记一个目录开始。')).toBeTruthy()
-    expect((screen.getByRole('button', { name: '登记' }) as HTMLButtonElement).disabled).toBe(true)
+    const button = screen.getByRole('button', { name: '登记' }) as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    type('要登记的目录', '   ')
+    expect(button.disabled).toBe(true)
   })
 
-  it('registers a directory and reads the list again', async () => {
-    const fake = await shown([])
+  it('registers a directory and reads the list again; a list read before it does not win', async () => {
+    const fake = createFakeClient<ClientOf<WorkspaceProtocol>>(OPERATIONS)
+    let id = 0
+    render(
+      <WorkspacesPage
+        client={fake.client}
+        tenant={TENANT}
+        newId={() => `op-${String((id += 1))}`}
+      />,
+    )
+    const first = await fake.next('list')
+    expect(first.body).toEqual({ tenant: expect.anything() })
     type('要登记的目录', '/srv/blog')
     fireEvent.click(screen.getByRole('button', { name: '登记' }))
     const registered = await fake.next('register')
@@ -83,10 +100,58 @@ describe('the workspaces page', () => {
       body: { workspace: 'wsp_blog', instance: 'wsi_main', type: 'filesystem' },
     })
     await settle()
+    expect(screen.getByText('正在读……')).toBeTruthy()
     ;(await fake.next('list')).answer({ outcome: 'succeeded', body: { workspaces: [BLOG] } })
+    await settle()
+    first.answer({ outcome: 'succeeded', body: { workspaces: [] } })
     await settle()
     expect(screen.getByRole('status').textContent).toBe('已登记')
     expect(screen.getByText('拥有者')).toBeTruthy()
+  })
+
+  it('each change reads the list and the workspace again', async () => {
+    const fake = await shown()
+    await opened(fake)
+    for (const name of ['grant-participation', 'remove'] as const) {
+      type('对方的租户', `  ${OTHER}  `)
+      fireEvent.click(screen.getByRole('button', { name: name === 'remove' ? '移除' : '授予参与' }))
+      ;(await fake.next(name)).answer({ outcome: 'succeeded', body: {} })
+      await settle()
+      ;(await fake.next('list')).answer({ outcome: 'succeeded', body: { workspaces: [BLOG] } })
+      ;(await fake.next('describe')).answer({
+        outcome: 'succeeded',
+        body: { ...BLOG, instances: [] },
+      })
+      await settle()
+    }
+    const count = (name: string) => fake.calls.filter(call => call.operation === name).length
+    expect([count('list'), count('describe')]).toEqual([3, 3])
+    expect(screen.queryByText('对方的租户读不懂')).toBeNull()
+  })
+
+  it('a workspace still being read, or one it cannot see, is said', async () => {
+    const fake = await shown()
+    fireEvent.click(screen.getByRole('button', { name: `查看 ${BLOG.workspace}` }))
+    await settle()
+    expect(screen.getByRole('heading', { name: `工作区 ${BLOG.workspace}` })).toBeTruthy()
+    expect(screen.getByText('正在读……')).toBeTruthy()
+    expect((screen.getByLabelText('对方的租户') as HTMLInputElement).value).toBe('')
+    expect(screen.queryByText('对方的租户读不懂')).toBeNull()
+    ;(await fake.next('describe')).answer({ outcome: 'not-found', body: {} })
+    await settle()
+    expect(screen.getByRole('alert').textContent).toBe('看不了：没有这个工作区')
+    expect(screen.queryByText('正在读……')).toBeNull()
+  })
+
+  it('without a way to name an operation, each commit still gets a name of its own', async () => {
+    const fake = createFakeClient<ClientOf<WorkspaceProtocol>>(OPERATIONS)
+    render(<WorkspacesPage client={fake.client} tenant={TENANT} />)
+    ;(await fake.next('list')).answer({ outcome: 'succeeded', body: { workspaces: [] } })
+    await settle()
+    type('要登记的目录', '/srv/blog')
+    fireEvent.click(screen.getByRole('button', { name: '登记' }))
+    const { body } = await fake.next('register')
+    expect((body as { operation: unknown }).operation).toMatch(/^[0-9a-f-]{36}$/u)
   })
 
   it('shows the instances of a workspace and whether each can be worked in', async () => {
@@ -152,6 +217,16 @@ describe('the workspaces page', () => {
     ;(await fake.next('list')).answer({ outcome: 'denied' })
     await settle()
     expect(screen.getByRole('alert').textContent).toBe('列不出：没有权限看工作区')
+    cleanup()
+    const lost = createFakeClient<ClientOf<WorkspaceProtocol>>(OPERATIONS)
+    render(
+      <WorkspacesPage
+        client={{ ...lost.client, list: async () => Promise.reject(new Error('down')) }}
+        tenant={TENANT}
+      />,
+    )
+    await settle()
+    expect(screen.getByRole('alert').textContent).toBe('列不出：没有送达')
     cleanup()
     const none = createFakeClient<ClientOf<WorkspaceProtocol>>(OPERATIONS)
     render(<WorkspacesPage client={none.client} tenant="not a tenant" />)

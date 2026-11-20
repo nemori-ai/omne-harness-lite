@@ -40,4 +40,10 @@ it('no tenant yet: nothing is drawn and nothing is read', async () => {
   const view = render(<>{shell.items('pages')[0]!.render({ scope: undefined })}</>)
   expect(view.container.textContent).toBe('')
   expect(fake.calls).toEqual([])
+  cleanup()
+  const tenant =
+    '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
+  const drawn = render(<>{shell.items('pages')[0]!.render({ scope: tenant })}</>)
+  expect(drawn.getByRole('heading', { name: '工作区' })).toBeTruthy()
+  expect(fake.calls.map(call => call.operation)).toEqual(['list'])
 })
