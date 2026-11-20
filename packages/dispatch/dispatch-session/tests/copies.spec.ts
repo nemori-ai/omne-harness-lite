@@ -140,6 +140,25 @@ describe('the conversation as the starting input words it', () => {
       ]),
       row(5, 'assistant', [{ kind: 'reasoning_state', id: 'r', visibility: seen }]),
       row(6, 'compaction', [text('Earlier, in short.')]),
+      row(8, 'tool_internal', [text('kept by the tool')]),
+      row(9, 'assistant', [
+        {
+          kind: 'tool_call_incomplete',
+          id: 'p',
+          visibility: seen,
+          callId: 'c',
+          name: 'Shell',
+          partial: '{',
+        },
+        {
+          kind: 'tool_call_unparsed',
+          id: 'u',
+          visibility: seen,
+          callId: 'c',
+          name: 'Web',
+          raw: 'x',
+        },
+      ]),
       row(7, 'user', [{ kind: 'image', id: 'i', visibility: seen }]),
     ]
     expect(transcriptOf(rows.map(item => item.message) as never)).toBe(
@@ -149,6 +168,8 @@ describe('the conversation as the starting input words it', () => {
         'Assistant:\nI will look.\n[called the tool Files with {"command":"read","path":"a.txt"}]',
         'Tool result:\ncontents',
         'Summary of the earlier conversation:\nEarlier, in short.',
+        'Tool result:\nkept by the tool',
+        'Assistant:\n[called the tool Shell]\n[called the tool Web]',
         'User:\n[image]',
       ].join('\n\n'),
     )
