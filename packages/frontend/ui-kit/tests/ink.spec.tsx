@@ -92,6 +92,9 @@ function boxed(left: number, top: number, width: number, height: number): DOMRec
   }
 }
 
+const moved = new Map<string, Point>()
+const folded = new Set<string>()
+
 function placeSeats(): void {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
     this: HTMLElement,
@@ -99,7 +102,9 @@ function placeSeats(): void {
     if (this.classList.contains('omne-ink-bubble'))
       return boxed(BUBBLE.left, BUBBLE.top, BUBBLE.width, BUBBLE.height)
     const seat = SEATS.find(candidate => candidate.name === this.dataset['figureSeat'])
-    return seat === undefined ? boxed(0, 0, 0, 0) : boxed(seat.at[0] - 12, seat.at[1] - 12, 24, 24)
+    if (seat === undefined || folded.has(seat.name)) return boxed(0, 0, 0, 0)
+    const [x, y] = moved.get(seat.name) ?? seat.at
+    return boxed(x - 12, y - 12, 24, 24)
   })
   for (const key of ['offsetWidth', 'offsetHeight'] as const)
     vi.spyOn(HTMLElement.prototype, key, 'get').mockImplementation(function (this: HTMLElement) {
@@ -171,7 +176,127 @@ function cssRule(selector: string): string {
   return STYLES.slice(start, STYLES.indexOf('}', start))
 }
 
+interface Watching {
+  readonly callback: IntersectionObserverCallback
+  readonly margin: readonly number[]
+  readonly thresholds: readonly number[]
+  readonly targets: Map<Element, number>
+}
+
+const clipped = new Map<string, DOMRect>()
+
+function intersectionOf(
+  target: Element,
+  [top = 0, right = 0, bottom = 0, left = 0]: readonly number[],
+): { readonly ratio: number; readonly intersecting: boolean } {
+  const box = target.getBoundingClientRect()
+  const root = document.documentElement
+  const clip = clipped.get((target as HTMLElement).dataset['figureSeat'] ?? '')
+  const width =
+    Math.min(box.right, root.clientWidth + right, clip?.right ?? Infinity) -
+    Math.max(box.left, -left, clip?.left ?? -Infinity)
+  const height =
+    Math.min(box.bottom, root.clientHeight + bottom, clip?.bottom ?? Infinity) -
+    Math.max(box.top, -top, clip?.top ?? -Infinity)
+  if (width < 0 || height < 0) return { ratio: 0, intersecting: false }
+  return { ratio: (width * height) / (box.width * box.height), intersecting: true }
+}
+
+function resizes(): () => number {
+  const live = new Map<ResizeObserverCallback, Map<Element, string>>()
+  class Observer {
+    readonly #callback: ResizeObserverCallback
+    public constructor(callback: ResizeObserverCallback) {
+      this.#callback = callback
+      live.set(callback, new Map())
+    }
+    public observe(target: Element): void {
+      live.get(this.#callback)?.set(target, '')
+    }
+    public unobserve(target: Element): void {
+      live.get(this.#callback)?.delete(target)
+    }
+    public disconnect(): void {
+      live.delete(this.#callback)
+    }
+  }
+  vi.stubGlobal('ResizeObserver', Observer)
+  return () => {
+    let told = 0
+    const watched = [...live]
+    for (const [callback, targets] of watched)
+      for (const [target, before] of targets) {
+        const box = target.getBoundingClientRect()
+        const size = `${box.width} ${box.height}`
+        if (size === before || !live.has(callback)) continue
+        targets.set(target, size)
+        told += 1
+        callback([{ target } as ResizeObserverEntry], {} as ResizeObserver)
+      }
+    return told
+  }
+}
+
+function pageLayout(): { readonly frame: () => number } {
+  const sized = resizes()
+  const live = new Set<Watching>()
+  class Observer {
+    readonly #watching: Watching
+    public constructor(
+      callback: IntersectionObserverCallback,
+      options: IntersectionObserverInit = {},
+    ) {
+      const threshold = options.threshold ?? 0
+      this.#watching = {
+        callback,
+        margin: (options.rootMargin ?? '0px').split(/\s+/).map(Number.parseFloat),
+        thresholds: Array.isArray(threshold) ? threshold : [threshold],
+        targets: new Map(),
+      }
+      live.add(this.#watching)
+    }
+    public observe(target: Element): void {
+      this.#watching.targets.set(target, -1)
+    }
+    public unobserve(target: Element): void {
+      this.#watching.targets.delete(target)
+    }
+    public disconnect(): void {
+      live.delete(this.#watching)
+    }
+    public takeRecords(): IntersectionObserverEntry[] {
+      return []
+    }
+  }
+  vi.stubGlobal('IntersectionObserver', Observer)
+  return {
+    frame() {
+      let told = 0
+      act(() => {
+        told += sized()
+        const watched = [...live]
+        for (const watching of watched)
+          for (const [target, before] of watching.targets) {
+            const { ratio, intersecting } = intersectionOf(target, watching.margin)
+            const index = intersecting
+              ? watching.thresholds.filter(threshold => ratio >= threshold).length
+              : 0
+            if (index === before || !live.has(watching)) continue
+            watching.targets.set(target, index)
+            told += 1
+            const entry = { target, intersectionRatio: ratio, isIntersecting: intersecting }
+            watching.callback([entry as IntersectionObserverEntry], {} as IntersectionObserver)
+          }
+      })
+      return told
+    },
+  }
+}
+
 afterEach(() => {
+  moved.clear()
+  folded.clear()
+  clipped.clear()
   cleanup()
   document.body.innerHTML = ''
   document.documentElement.removeAttribute('style')
@@ -579,6 +704,93 @@ describe('what it does stays long enough to be seen (doing.ts)', () => {
     at(20, () => policy.follow(null, { kind: 'landed', serial: 2 }))
     at(30, () => policy.follow(null, { kind: 'landed', serial: 2 }))
     expect(moments).toEqual(['received', 'landed'])
+  })
+})
+
+describe('a seat that only moves (R4 slice 06)', () => {
+  it('has the figure back on it by the next frame, the seat and the page keeping their size, with no frame asked for', () => {
+    const time = frameClock()
+    placeSeats()
+    const page = pageLayout()
+    render(<Page seats={[HOME, HEAD]} />)
+    time.wait(3000)
+    page.frame()
+    page.frame()
+    expect(carried().style.transform).toBe(translateTo(HEAD.at, FIGURE_SIZE))
+    const asked = time.requested()
+    for (const at of [
+      [840, 86],
+      [736, 86],
+      [736.4, 86.4],
+      [840, 68],
+    ] satisfies Point[]) {
+      moved.set(HEAD.name, at)
+      page.frame()
+      expect(carried().style.transform).toBe(translateTo(at, FIGURE_SIZE))
+      page.frame()
+      expect(page.frame(), 'still, it hears of nothing more').toBe(0)
+    }
+    moved.set(HEAD.name, [736.4, 86.4])
+    page.frame()
+    moved.set(HEAD.name, [736.1, 86.1])
+    page.frame()
+    expect(carried().style.transform, 'moved within a pixel before its watch first answered').toBe(
+      translateTo([736.1, 86.1], FIGURE_SIZE),
+    )
+    page.frame()
+    expect(page.frame()).toBe(0)
+    expect(carried().dataset['phase']).toBe('seated')
+    expect(time.requested(), 'it follows the seat with no frame loop').toBe(asked)
+  })
+
+  const settle = (page: { readonly frame: () => number }): void => {
+    for (let frame = 0; frame < 4; frame += 1) page.frame()
+    expect(page.frame(), 'still, it hears of nothing more').toBe(0)
+  }
+
+  it('rests on a seat half hidden by what holds it, and follows it when it moves', () => {
+    const time = frameClock()
+    placeSeats()
+    const page = pageLayout()
+    clipped.set(HEAD.name, boxed(828, 0, 12, 200))
+    render(<Page seats={[HOME, HEAD]} />)
+    time.wait(3000)
+    settle(page)
+    moved.set(HEAD.name, [840, 76])
+    settle(page)
+    expect(carried().style.transform).toBe(translateTo([840, 76], FIGURE_SIZE))
+  })
+
+  it('rests on a seat wholly hidden by what holds it, and goes where it is once it shows', () => {
+    const time = frameClock()
+    placeSeats()
+    const page = pageLayout()
+    clipped.set(HEAD.name, boxed(0, 0, 10, 10))
+    render(<Page seats={[HOME, HEAD]} />)
+    time.wait(3000)
+    settle(page)
+    moved.set(HEAD.name, [840, 76])
+    clipped.delete(HEAD.name)
+    settle(page)
+    expect(carried().style.transform).toBe(translateTo([840, 76], FIGURE_SIZE))
+  })
+
+  it('follows a seat that had no size when it came, once it has one and moves', () => {
+    const time = frameClock()
+    placeSeats()
+    const page = pageLayout()
+    folded.add(HEAD.name)
+    render(<Page seats={[HOME, HEAD]} />)
+    time.wait(3000)
+    settle(page)
+    expect(carried().style.transform).toBe(translateTo(HOME.at, FIGURE_SIZE))
+    folded.delete(HEAD.name)
+    settle(page)
+    time.wait(3000)
+    expect(carried().dataset['phase']).toBe('seated')
+    moved.set(HEAD.name, [840, 86])
+    settle(page)
+    expect(carried().style.transform).toBe(translateTo([840, 86], FIGURE_SIZE))
   })
 })
 
