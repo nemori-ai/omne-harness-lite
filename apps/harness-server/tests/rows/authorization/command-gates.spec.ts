@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { IMPLICIT_TOOL_GATE } from '@omne-harness/tool-contract'
 import {
+  releasedGateSchema,
+  releasedGatesOf,
   toolPermissionRelease,
   type ReleasedGate,
 } from '../../../src/entry/tool-permission-release.ts'
@@ -25,6 +28,30 @@ const governance = toolPermissionRelease({
 const declarations = [
   { asset: files.asset, governance, holdingRef: 'harness.preinstalled.tool.Files' },
 ]
+
+describe('a tool without commands', () => {
+  it('stands under its one implicit gate, which names no command and can default to deny', () => {
+    const gates = releasedGatesOf({ kind: 'function' } as never, [])
+    expect(gates).toEqual([{ ...IMPLICIT_TOOL_GATE, commands: [] }])
+    expect(releasedGateSchema.parse({ ...gates[0]!, default: 'deny' }).default).toBe('deny')
+    const denied = toolPermissionRelease({
+      name: 'Files',
+      adoption: files.asset.adoption,
+      module: files.module,
+      definition: files.definition,
+      gates: [{ ...gates[0]!, default: 'deny' }],
+    })
+    expect(
+      denied.declaration.permissions.map(p => [p.title, p.description, p.defaultRule]),
+    ).toEqual([
+      [
+        'Files：调用',
+        '控制 Files 工具里归「调用」的命令。允许调用不代表执行环境可用或操作一定成功。',
+        { pick: 'deny', allowedSet: null },
+      ],
+    ])
+  })
+})
 
 describe('a tool with two gates', () => {
   it('declares one permission, binding and interpretation per gate, and one Settings item per gate', () => {

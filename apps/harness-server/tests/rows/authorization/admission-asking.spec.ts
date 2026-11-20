@@ -247,7 +247,15 @@ describe('the detail on the card of an asked action', () => {
   it('reads the permission and the detail of an ungated call not at all', async () => {
     const r = recording()
     const w = await world({ details: r.details, ungated: true })
-    expect(await w.admit('ToyEcho', echoCall(w.forward, {}))).toMatchObject({ kind: 'allow' })
+    const allowed = await w.admit('ToyEcho', echoCall(w.forward, {}))
+    expect(allowed).toMatchObject({
+      kind: 'allow',
+      evidence: { owner: 'authorization', record: 'action-ungated' },
+    })
+    // The evidence names the rule it rests on, not an empty record.
+    expect(allowed).not.toMatchObject({
+      evidence: { digest: decisionEvidence('action-ungated', '0', {}).digest },
+    })
     expect(w.judged).toEqual([])
     expect(r.asked).toEqual([])
   })

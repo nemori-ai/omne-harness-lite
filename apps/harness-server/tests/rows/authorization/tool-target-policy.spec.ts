@@ -340,6 +340,30 @@ describe('what the start policy asks and answers', () => {
     }
   })
 
+  const unresolved: readonly (readonly [string, () => unknown])[] = [
+    ['no action resolution', () => undefined],
+    [
+      'an action resolution that cannot resolve now',
+      () => ({
+        resolve: async () => ({
+          failure: { kind: 'unavailable', dependency: 'tool-action', diagnostic: 'down' },
+        }),
+      }),
+    ],
+  ]
+  it.each(unresolved)(
+    'answers unavailable to a start with %s, without asking the permission',
+    async (_name, reader) => {
+      const w = await asking(allow, undefined, reader as never)
+      try {
+        expect(await w.qualify()).toMatchObject({ kind: 'unavailable' })
+        expect(w.judged).toEqual([])
+      } finally {
+        await w.world.close()
+      }
+    },
+  )
+
   it('records the once authorization a start rests on as the one consumption of its acceptance', async () => {
     const source = { owner: 'cards', record: 'answer-1', revision: '1', digest: 'answer-digest' }
     const consumer = { owner: '@omne-harness/agent', work: 'exe-1', position: 'act-1' }
