@@ -81,10 +81,8 @@ async function deliverReaction(
   if (run.kind !== 'ok')
     return supplyError(context, 'provider_failure', 'Reaction ownership unavailable')
   if (!run.value) return { kind: 'ok', value: null }
-  if (
-    run.value.command.address.systemScopeRef !== systemScopeRef ||
-    run.value.command.address.calendarId !== record.calendarId
-  )
+  const { address } = run.value.run.command
+  if (address.systemScopeRef !== systemScopeRef || address.calendarId !== record.calendarId)
     return supplyError(context, 'provider_failure', 'Reaction ownership mismatch')
   const guards = await authorize(deps, context, 'reaction', record.calendarId)
   if (authorityFailed(guards)) return { kind: 'error', error: guards }

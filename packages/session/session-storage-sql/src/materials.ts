@@ -307,7 +307,11 @@ export const HANDLERS: readonly Handler[] = [
     maxRowsRead: SESSION_LIST_SCAN_ROWS + 1,
   },
 
-  { handler: 'session.references', file: 'read-references', tables: ['sl_resident_idx'] },
+  {
+    handler: 'session.references',
+    file: 'read-references',
+    tables: ['sl_resident_idx', 'sl_resident_shape'],
+  },
   {
     handler: 'session.released-scopes',
     file: 'read-released-scopes',

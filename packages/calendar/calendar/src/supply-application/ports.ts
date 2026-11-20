@@ -10,6 +10,7 @@ import type {
   Instant,
 } from '@omne-harness/calendar-contract'
 import type {
+  CalendarCandidate,
   CalendarDispositionCommand,
   CalendarReactionAcknowledgement,
   CalendarOperationQuery,
@@ -76,6 +77,17 @@ export type CalendarPreparedRun = Readonly<{
   command: CalendarDispositionCommand
   preparedAt: Instant
 }>
+export type CalendarSettledCommand = Omit<CalendarDispositionCommand, 'candidate' | 'disposition'> &
+  Readonly<{
+    candidate: Omit<CalendarCandidate, 'snapshot'> & Readonly<{ snapshot: string | null }>
+    disposition:
+      | Readonly<{ kind: 'publish'; snapshot: string }>
+      | Readonly<{ kind: 'noChange' | 'withheld' | 'rejected' }>
+  }>
+export type CalendarSettledRun = Readonly<{ command: CalendarSettledCommand; preparedAt: Instant }>
+export type CalendarJournalRun =
+  | Readonly<{ state: 'pending'; run: CalendarPreparedRun }>
+  | Readonly<{ state: 'completed'; run: CalendarSettledRun }>
 export type CalendarJournalResult<T> =
   | Readonly<{ kind: 'ok'; value: T }>
   | Readonly<{ kind: 'conflict' | 'unavailable' | 'unknown'; reason: string }>
@@ -99,8 +111,8 @@ export interface CalendarSupplyJournal {
   ): Promise<CalendarJournalResult<CalendarReactionAcknowledgement>>
   findRun(
     input: Readonly<{ systemScopeRef: string; operationRef: string }>,
-  ): Promise<CalendarJournalResult<CalendarPreparedRun | null>>
-  readRun(query: CalendarOperationQuery): Promise<CalendarJournalResult<CalendarPreparedRun | null>>
+  ): Promise<CalendarJournalResult<CalendarJournalRun | null>>
+  readRun(query: CalendarOperationQuery): Promise<CalendarJournalResult<CalendarJournalRun | null>>
   prepareRun(run: CalendarPreparedRun): Promise<CalendarJournalResult<CalendarPreparedRun>>
   completeRun(
     input: CalendarOperationQuery & CalendarRunCompletion,

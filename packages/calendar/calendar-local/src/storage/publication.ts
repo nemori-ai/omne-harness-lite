@@ -2,8 +2,8 @@ import { calendarSnapshotSchema, type CalendarSnapshot } from '@omne-harness/cal
 import type { CalendarDispositionCommand, CalendarPublicationReceipt } from '@omne-harness/calendar'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { canonical, digest } from './encoding.ts'
-import { record } from './records.ts'
 import { directorySchema } from './schema.ts'
+import { readVersion, saveSnapshot } from './snapshots.ts'
 
 type ProposedSnapshot = Omit<CalendarSnapshot, 'publicationGeneration'>
 type PublicationDecision =
@@ -48,13 +48,11 @@ export function publicationDecision(
 ): PublicationDecision {
   if (canonical(command.candidate.snapshot) !== canonical(proposed))
     return { kind: 'conflict', reason: 'invalid' }
-  const existing = record(
-    port.execute('SELECT snapshot FROM ca_versions WHERE calendar_id = ? AND version_id = ?', [
-      proposed.calendarId,
-      proposed.versionId,
-    ]),
-    calendarSnapshotSchema,
-  )
+  const existing = calendarSnapshotSchema
+    .nullable()
+    .parse(
+      readVersion(port, proposed.calendarId, { kind: 'pinned', versionId: proposed.versionId }),
+    )
   if (conflictsWithVersion(existing, proposed))
     return { kind: 'conflict', reason: 'versionConflict' }
   if (current?.contentHash === proposed.contentHash) {
@@ -80,11 +78,11 @@ export function savePublication(
     ...versionInfo
   } = snapshot
   port.execute(
-    'INSERT INTO ca_versions(calendar_id, version_id, snapshot, version_info, operation_ref) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO ca_versions(calendar_id, version_id, snapshot_digest, version_info, operation_ref) VALUES (?, ?, ?, ?, ?)',
     [
       snapshot.calendarId,
       snapshot.versionId,
-      canonical(snapshot),
+      saveSnapshot(port, proposed),
       canonical(versionInfo),
       receipt.operationRef,
     ],
