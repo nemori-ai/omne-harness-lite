@@ -109,4 +109,4 @@ app.on('browser-window-created', (_event, window) => {
   })
 })
 
-await import('../../dist/main/main.js')
+await import('../../dist/test/main/main.js')

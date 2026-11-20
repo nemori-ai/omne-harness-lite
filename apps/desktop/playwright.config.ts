@@ -1,8 +1,8 @@
 import { defineConfig } from '@playwright/test'
 import type { Target } from './e2e/desktop.ts'
 
-// The desktop app end to end against a real server. Three targets: `unpackaged` after
-// `pnpm run build`, `packaged` after `pnpm run package`, `release` after `pnpm run package:release`.
+// The test profile end to end against a real server: unpackaged after `pnpm run build`, packaged
+// after `pnpm run package`. The release profile is checked from outside by `pnpm run verify:release`.
 export default defineConfig<{ target: Target }>({
   testDir: 'e2e',
   testMatch: '*.spec.ts',
@@ -18,7 +18,7 @@ export default defineConfig<{ target: Target }>({
   use: { trace: 'retain-on-failure' },
   projects: [
     { name: 'unpackaged', use: { target: 'unpackaged' } },
-    { name: 'packaged', use: { target: 'packaged' } },
-    { name: 'release', use: { target: 'release' } },
+    { name: 'packaged-fuses', testMatch: 'packaged-fuses.setup.ts' },
+    { name: 'packaged', use: { target: 'packaged' }, dependencies: ['packaged-fuses'] },
   ],
 })

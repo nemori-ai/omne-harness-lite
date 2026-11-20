@@ -150,7 +150,12 @@ class Lifecycle {
   }
 
   #onSpawn(inst: Instance): void {
-    if (this.instance !== inst || inst.exited || this.#isStopping) return
+    if (inst.exited) return
+    // Electron cannot kill a child before it exists: one retired or stopped meanwhile is killed now.
+    if (this.instance !== inst || this.#isStopping) {
+      inst.child.kill()
+      return
+    }
     inst.spawned = true
     try {
       const { port1, port2 } = this.#deps.channel()

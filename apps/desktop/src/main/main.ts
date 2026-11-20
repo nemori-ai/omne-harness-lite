@@ -1,33 +1,25 @@
-import { watch } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, session, type BrowserWindow } from 'electron'
 import { DEFAULT_SERVER } from '../shared/server.ts'
+import { BUILD_PROFILE_MESSAGE } from '../startup-signals.ts'
 import { serveAppProtocol } from './app-protocol.ts'
 import { APP_HOST, INTERNAL_ORIGIN } from './app-url.ts'
 import { COOKIE_JAR_ORIGIN, createCookieJar, flushForQuit } from './cookie-jar.ts'
-import { createLogger } from './log.ts'
-import { startServerProcess } from './utility-process.ts'
+import { developmentHost } from './dev-host.ts'
+import { createLogger, type Logger } from './log.ts'
 import type { UtilityState } from './recovery.ts'
+import { refuseRemoteDebugging } from './remote-debugging.ts'
+import { startServerProcess } from './utility-process.ts'
 import { APP_PARTITION, openAppWindow, registerAppScheme, type UtilityWatch } from './window.ts'
 import { windowStateFile } from './window-state.ts'
 
-// An installed app is never a development run, whatever its environment says.
-const development = !app.isPackaged && process.env['OMNE_DESKTOP_DEV'] === '1'
-const log = createLogger()
+if (OMNE_BUILD_PROFILE === 'release') refuseRemoteDebugging()
 
 function focus(window: BrowserWindow | undefined): void {
   if (window === undefined) return
   if (window.isMinimized()) window.restore()
   window.focus()
-}
-
-function reloadOnRebuild(pageRoot: string, current: () => BrowserWindow | undefined): void {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  watch(pageRoot, { recursive: true }, () => {
-    clearTimeout(timer)
-    timer = setTimeout(() => current()?.webContents.reloadIgnoringCache(), 200)
-  })
 }
 
 function utilityWatch(): UtilityWatch & { set(state: UtilityState): void } {
@@ -46,7 +38,7 @@ function utilityWatch(): UtilityWatch & { set(state: UtilityState): void } {
   }
 }
 
-async function start(): Promise<void> {
+async function main(log: Logger): Promise<void> {
   await app.whenReady()
   const pageRoot = fileURLToPath(new URL('../page/', import.meta.url))
   const appSession = session.fromPartition(APP_PARTITION)
@@ -70,11 +62,11 @@ async function start(): Promise<void> {
   void forwarding.ready().catch(() => {})
 
   const saved = windowStateFile(join(app.getPath('userData'), 'window-state.json'))
-  let window: BrowserWindow | undefined = openAppWindow(saved, utility)
+  let window: BrowserWindow | undefined = openAppWindow(saved, utility, log)
   window.on('closed', () => {
     window = undefined
   })
-  if (development) reloadOnRebuild(pageRoot, () => window)
+  developmentHost?.watchPage(pageRoot, () => window?.webContents.reloadIgnoringCache())
   app.on('second-instance', () => focus(window))
   app.on('window-all-closed', () => app.quit())
 
@@ -89,16 +81,34 @@ async function start(): Promise<void> {
   })
 }
 
-// A development run keeps its own user data: its login cookie is not the installed app's.
-if (development && !app.commandLine.hasSwitch('user-data-dir'))
-  app.setPath('userData', `${app.getPath('userData')}-dev`)
+function start(): void {
+  const log = createLogger()
+  // Electron shows a blocking dialog for an uncaught main-process error; the app logs and goes on.
+  process.on('uncaughtException', err =>
+    log.error({ err }, 'uncaught exception in the main process'),
+  )
+  process.on('unhandledRejection', err =>
+    log.error({ err }, 'unhandled rejection in the main process'),
+  )
+  log.info({ buildProfile: OMNE_BUILD_PROFILE }, BUILD_PROFILE_MESSAGE)
+  if (OMNE_BUILD_PROFILE !== 'release') globalThis.desktopBuildProfile = OMNE_BUILD_PROFILE
 
-app.enableSandbox()
-registerAppScheme()
-
-if (!app.requestSingleInstanceLock()) app.quit()
-else
-  start().catch((failure: unknown) => {
-    process.stderr.write(`omne desktop failed to start: ${String(failure)}\n`)
+  // From appData: asking for the default userData creates the installed app's directory.
+  if (developmentHost !== undefined && !app.commandLine.hasSwitch('user-data-dir'))
+    app.setPath(
+      'userData',
+      join(app.getPath('appData'), `${app.getName()}-${developmentHost.userDataSuffix}`),
+    )
+  if (!app.requestSingleInstanceLock()) {
+    app.quit()
+    return
+  }
+  app.enableSandbox()
+  registerAppScheme()
+  main(log).catch((failure: unknown) => {
+    log.error({ err: failure }, 'startup failed')
     app.exit(1)
   })
+}
+
+start()

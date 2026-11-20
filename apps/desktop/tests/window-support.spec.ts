@@ -92,7 +92,8 @@ describe('页面的恢复', () => {
     let loadFailed = gate<LoadFailureChoice>()
     let hung = gate<UnresponsiveChoice>()
     // Like Electron: an aborted question closes and answers as if cancelled.
-    const asked = <Choice,>(name: string, answer: () => { promise: Promise<Choice> }, cancel: Choice) =>
+    const asked =
+      <Choice>(name: string, answer: () => { promise: Promise<Choice> }, cancel: Choice) =>
       (signal: AbortSignal) => {
         done.push(`ask-${name}`)
         const { promise } = answer()

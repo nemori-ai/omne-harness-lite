@@ -3,5 +3,5 @@
   "compilerOptions": {
     "lib": ["ES2024"]
   },
-  "include": ["e2e/**/*.ts", "playwright.config.ts"]
+  "include": ["e2e/**/*.ts", "playwright.config.ts", "src/build-profile.d.ts"]
 }

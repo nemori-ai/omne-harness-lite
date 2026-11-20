@@ -20,7 +20,7 @@ import { serveFakeHttp } from './support/http-fake.ts'
 
 const electron = createRequire(import.meta.url)('electron') as string
 const probeMain = fileURLToPath(new URL('./support/probe-main.mjs', import.meta.url))
-const builtMain = fileURLToPath(new URL('../dist/main/main.js', import.meta.url))
+const builtMain = fileURLToPath(new URL('../dist/test/main/main.js', import.meta.url))
 // Linux needs a virtual display; macOS and Windows start the window directly.
 const needsXvfb = process.platform === 'linux'
 const hasDisplay = !needsXvfb || spawnSync('xvfb-run', ['--help']).error === undefined

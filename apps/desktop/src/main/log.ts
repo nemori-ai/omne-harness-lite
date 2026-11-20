@@ -11,7 +11,33 @@ export interface Logger {
 
 const levels: LogLevel[] = ['debug', 'info', 'warn', 'error']
 
-export function createLogger(minimum: LogLevel = 'info'): Logger {
+export type LineStream = Readonly<{
+  write(line: string): unknown
+  on(event: 'error', listener: (err: Error) => void): unknown
+}>
+
+/** Drops every later line once the stream fails: a reader that went away must not loop the logger. */
+export function streamSink(stream: LineStream): (line: string) => void {
+  let failed = false
+  stream.on('error', () => {
+    failed = true
+  })
+  return line => {
+    if (failed) return
+    try {
+      stream.write(line)
+    } catch {
+      failed = true
+    }
+  }
+}
+
+let stdoutSink: ((line: string) => void) | undefined
+
+export function createLogger(
+  minimum: LogLevel = 'info',
+  output: (line: string) => void = line => (stdoutSink ??= streamSink(process.stdout))(line),
+): Logger {
   const threshold = levels.indexOf(minimum)
   const write = (level: LogLevel, data: Record<string, unknown>, msg: string) => {
     if (levels.indexOf(level) < threshold) return
@@ -22,7 +48,7 @@ export function createLogger(minimum: LogLevel = 'info'): Logger {
       ...serializable(data),
       msg,
     })
-    process.stdout.write(line + '\n')
+    output(line + '\n')
   }
   return {
     debug: (data, msg) => write('debug', data, msg),

@@ -10,8 +10,6 @@
     "src/shared/**/*.ts",
     "src/forwarding/**/*.ts",
     "src/standalone/**/*.ts",
-    "src/port-fetch/**/*.ts",
-    "src/utility/**/*.ts",
-    "src/main/**/*.ts"
+    "src/port-fetch/**/*.ts"
   ]
 }

@@ -75,9 +75,7 @@ export function createRecovery(
   }
 
   function askLoadFailed(): void {
-    ask('load', actions.askLoadFailed, choice =>
-      choice === 'reload' ? reload('manual') : close(),
-    )
+    ask('load', actions.askLoadFailed, choice => (choice === 'reload' ? reload('manual') : close()))
   }
 
   return {
