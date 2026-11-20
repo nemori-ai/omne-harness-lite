@@ -22,6 +22,12 @@ import {
   type SettingsPreparationOptions,
   type SettingsPreparationService,
 } from '@omne-harness/settings-local/preparation'
+import { assetsPublicationCommand } from '@omne-harness/assets-local'
+import {
+  SettingsValueProjectionSchema,
+  settingsValueProjectionCommand,
+  standaloneSettingsPublicationCommand,
+} from '@omne-harness/settings-local'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
 import type { ToolRelease } from '../../entry/tool-release.ts'
@@ -31,8 +37,12 @@ import { createIndependentSettingsPreparation } from './independent-settings-wri
 import { HELD_SETTINGS_CONFIGURATION } from './held-settings-current.ts'
 import { createHeldSettingsPreparation } from './held-settings-write.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
+import { GOVERNANCE_PROJECTION_READ } from './storage-materials.ts'
+import { NAMED_TARGETS } from './governed-capture.ts'
+import { readProjection } from './projection-read.ts'
 import {
   TARGET_SNAPSHOT,
+  targetCapture,
   targetSnapshotCommands,
   targetSnapshotSchema,
   type TargetSnapshot,
@@ -85,6 +95,10 @@ export type ReleaseSettingsRebaseResult =
   | Readonly<{ kind: 'rebased'; revision: number }>
   | Readonly<{ kind: 'undecided' }>
   | Readonly<{ kind: 'unavailable'; phase: 'snapshot' | 'prepare' | 'commit' }>
+export type ReleaseSettingsObservation =
+  | Readonly<{ kind: 'current' }>
+  | Readonly<{ kind: 'changed'; stored: ReleaseSettingsStored }>
+  | Readonly<{ kind: 'unknown' }>
 
 type Prepared = ReturnType<typeof createIdentityQualifiedSettingsPreparation>
 
@@ -157,6 +171,32 @@ async function snapshotOf(
       .response,
   )
   return parsed.success ? parsed.data : undefined
+}
+
+async function observeStored(
+  shared: Shared,
+  epoch: string,
+  entry: ToolReleaseEntry,
+  target: SettingsTarget,
+): Promise<ReleaseSettingsObservation> {
+  const handler = shared.options.materials.readHandlers.find(
+    item => item.handler === GOVERNANCE_PROJECTION_READ,
+  )
+  if (handler === undefined) return { kind: 'unknown' }
+  const capture = targetCapture(snapshotBinding(shared, epoch, entry, target))
+  const read = await readProjection(shared.options.storage, shared.domain, handler, [
+    assetsPublicationCommand(capture, NAMED_TARGETS),
+    standaloneSettingsPublicationCommand(capture),
+    settingsValueProjectionCommand(capture),
+  ])
+  if (read.kind !== 'completed') return { kind: 'unknown' }
+  const parsed = SettingsValueProjectionSchema.safeParse(read.response)
+  const view = parsed.success && parsed.data.views.length === 1 ? parsed.data.views[0] : undefined
+  if (view === undefined) return { kind: 'unknown' }
+  if (view.presence !== 'unavailable') return { kind: 'current' }
+  return view.reason === 'definition_changed'
+    ? { kind: 'changed', stored: view.stored }
+    : { kind: 'unknown' }
 }
 
 async function rebaseThrough(
@@ -294,6 +334,13 @@ function createReleaseSettingsPreparation(shared: Shared) {
     return rebaseThrough(maintenance.service, options.writer, target, snapshot?.values, decide)
   }
 
+  async function observe(target: SettingsTarget): Promise<ReleaseSettingsObservation> {
+    const entry = entryOf(target)
+    const epoch = await options.epoch()
+    if (entry === undefined || epoch === undefined) return { kind: 'unknown' }
+    return observeStored(shared, epoch, entry, target)
+  }
+
   return {
     control: {
       destination: prepared.control.destination,
@@ -302,6 +349,7 @@ function createReleaseSettingsPreparation(shared: Shared) {
         await maintenance.control.close()
       },
     },
+    observe,
     rebase,
     async write(input: Parameters<TenantSettingsWriter['write']>[0]) {
       planned = (await options.epoch()) ?? planned
@@ -350,6 +398,7 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
         : release.control
   return {
     writer,
+    observe: release.observe,
     rebase: release.rebase,
     destination: {
       seal: (reservation: Parameters<typeof release.control.destination.seal>[0]) =>

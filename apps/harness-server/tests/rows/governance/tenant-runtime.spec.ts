@@ -767,7 +767,6 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
     organizationTargets = targets,
     independentSettings: () => readonly SettingDefinitions[] = () => independent.list(),
     storage: SqlStorage = w.options.storage,
-    assets: typeof tenantAssets = tenantAssets,
   ) {
     const prepared = prepareInstalledTenantGovernance({
       ...w.options,
@@ -777,7 +776,7 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
       permissionDeclarations: () => w.release.manifest.entries.map(releasedDeclaration),
       organizationTargets,
       categories,
-      tenantAssets: assets,
+      tenantAssets,
       independentSettings,
       warn: message => warnings.push(message),
       registry,
@@ -1351,12 +1350,12 @@ describe('an upgrade that changed an official tool, over the state the earlier r
     })
 })
 
-function releaseWithEarlierShellRun(release: TrustedRelease): TrustedRelease {
+function releaseWithEarlierShellRun(release: TrustedRelease, prefix = '旧'): TrustedRelease {
   const manifest = structuredClone(release.manifest)
   manifest.entries = manifest.entries.map(entry => {
     if (entry.asset.name !== 'Shell') return entry
     const gates = entry.gates.map(gate =>
-      gate.id === 'run' ? { ...gate, title: `旧${gate.title}` } : gate,
+      gate.id === 'run' ? { ...gate, title: `${prefix}${gate.title}` } : gate,
     )
     const governance = toolPermissionRelease({
       name: 'Shell',
@@ -1372,7 +1371,25 @@ function releaseWithEarlierShellRun(release: TrustedRelease): TrustedRelease {
 
 const DENY = { kind: 'value' as const, value: { pick: 'deny', allowedSet: null } }
 
-async function shellStoredUnderEarlierRun() {
+function unpublishedShellSettings(release: TrustedRelease) {
+  const entry = releaseWithEarlierShellRun(release, '更早的').manifest.entries.find(
+    value => value.asset.name === 'Shell',
+  )!
+  const definition = entry.governance.declaration.settings[0]!
+  const { providerId, definitionId, version } = definition
+  return {
+    kind: 'declared' as const,
+    definition,
+    definitionRef: {
+      providerId,
+      definitionId,
+      version,
+      digest: canonicalDigest(definition).slice(7),
+    },
+  }
+}
+
+async function shellStoredUnderEarlierRun(under: 'earlier' | 'unpublished' = 'earlier') {
   const installed = await installedWorld(settingsSeedParticipants())
   const { w } = installed
   const earlier = releaseWithEarlierShellRun(w.release)
@@ -1404,7 +1421,8 @@ async function shellStoredUnderEarlierRun() {
   await assets.close()
   if (version.kind !== 'version' || version.version.declaration.kind !== 'declared')
     throw new Error(JSON.stringify(version))
-  const stored = version.version.declaration
+  const stored =
+    under === 'earlier' ? version.version.declaration : unpublishedShellSettings(w.release)
   const sources = projectSettingsSources(held.holding.sourceLayout, held.holding.ownerRevision)
   let revision = 0
   const snapshot = async (): Promise<TargetSnapshot> => ({
@@ -1522,18 +1540,13 @@ async function shellStoredUnderEarlierRun() {
 }
 
 describe('an upgrade that changed one gate of an official tool, over values stored under the earlier release (#1433)', () => {
-  it('rebases a target whose declaration changed: the unchanged item keeps its value, the changed one returns to its default', async () => {
-    const { w, prepare, tenantAssets, warnings, after, target, stored, request, changes } =
-      await shellStoredUnderEarlierRun()
-    const assets = await tenantAssets()
-    expect(
-      await installToolAsset({ owner: assets, tenantRef: w.options.scope.tenantRef, entry: after }),
-    ).toEqual({ kind: 'ready', target, replaced: stored })
+  it('the release preparation rebases a target whose declaration changed: the unchanged item keeps its value, the changed one returns to its default', async () => {
+    const { w, prepare, target, stored, request, changes } =
+      await shellStoredUnderEarlierRun('unpublished')
     const assembly = prepare()
     const runtime = await assembly.open()
     if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
     cleanup.push(runtime.close)
-    expect(warnings).toEqual([])
     expect(await assembly.readSettings(request([target]))).toEqual({
       kind: 'rejected',
       reason: 'definition_changed',
@@ -1610,30 +1623,36 @@ describe('an upgrade that changed one gate of an official tool, over values stor
     expect(await assembly.readSettings(request([]))).toMatchObject({ completeness: 'complete' })
   })
 
-  it('leaves the target alone and warns when the earlier definition cannot be read, the others unaffected', async () => {
-    const { w, prepare, tenantAssets, warnings, before, after, target, request, changes } =
+  it('finishes the rebase on the next open after the holding moved to the current version and the process stopped', async () => {
+    const { w, prepare, tenantAssets, warnings, after, target, request, changes } =
       await shellStoredUnderEarlierRun()
-    const earlier = before.governance.declaration.reference.version
-    const unreadable = async () => {
-      const assets = await tenantAssets()
-      return new Proxy(assets, {
-        get(owner, key) {
-          if (key === 'readVersion')
-            return async (lookup: Parameters<typeof assets.readVersion>[0]) =>
-              lookup.version === earlier
-                ? ({ kind: 'rejected', reason: 'unavailable' } as const)
-                : owner.readVersion(lookup)
-          const value: unknown = Reflect.get(owner, key)
-          return typeof value === 'function' ? value.bind(owner) : value
-        },
-      })
-    }
-    const assembly = prepare(undefined, undefined, undefined, unreadable)
+    const assets = await tenantAssets()
+    expect(
+      await installToolAsset({ owner: assets, tenantRef: w.options.scope.tenantRef, entry: after }),
+    ).toEqual({ kind: 'ready', target })
+    const assembly = prepare()
+    const runtime = await assembly.open()
+    if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+    cleanup.push(runtime.close)
+    expect(warnings).toEqual([])
+    const read = await assembly.readSettings(request([target]))
+    if ('kind' in read) throw new Error(JSON.stringify(read))
+    expect(read.views[0]?.state).toEqual({
+      revision: 3,
+      sources: [{ id: 'tenant', values: [{ itemId: 'read', value: DENY, locked: false }] }],
+    })
+    expect(await changes()).toMatchObject({ changes: [{}, {}, { revision: 3, kind: 'rebase' }] })
+  })
+
+  it('leaves the target alone with one warning when no version declares the stored definition, the others unaffected', async () => {
+    const { w, prepare, warnings, after, target, stored, request, changes } =
+      await shellStoredUnderEarlierRun('unpublished')
+    const assembly = prepare()
     const runtime = await assembly.open()
     if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
     cleanup.push(runtime.close)
     expect(warnings).toEqual([
-      'tool installation left the settings of harness.preinstalled.tool.Shell on their earlier definition: the earlier definition is unreadable',
+      `tool installation left the settings of tool Shell in tenant ${w.options.scope.tenantRef} as stored: no version of harness.tool.Shell declares ${canonicalText(stored.definitionRef)}`,
     ])
     expect(
       await assembly.assets.readHolding({

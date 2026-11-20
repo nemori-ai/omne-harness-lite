@@ -1,26 +1,36 @@
+import { MAX_ASSET_PAGE } from '@omne-harness/assets'
+import type { AssetsLocal } from '@omne-harness/assets-local'
 import { canonicalText } from '@omne-harness/authorization'
 import type {
   AssetTarget,
   SettingDefinitions,
+  SettingsDefinitionRef,
   SettingsRebase,
   SettingsState,
 } from '@omne-harness/settings'
 import type {
+  ReleaseSettingsObservation,
   ReleaseSettingsRebaseDecision,
   ReleaseSettingsRebaseResult,
 } from './tenant-settings-write.ts'
-import type { ReplacedSettings } from './tool-installation-assets.ts'
 
 export type ReleaseSettingsMaintenance = Readonly<{
+  observe(target: AssetTarget): Promise<ReleaseSettingsObservation>
   rebase(
     target: AssetTarget,
     decide: ReleaseSettingsRebaseDecision,
   ): Promise<ReleaseSettingsRebaseResult>
 }>
-export type ReplacedToolSettings = Readonly<{
+export type GovernedToolSettings = Readonly<{
+  name: string
+  assetRef: string
   target: AssetTarget
-  replaced: ReplacedSettings
-  next: SettingDefinitions | undefined
+}>
+type Reconciliation = Readonly<{
+  releaseSettings: ReleaseSettingsMaintenance
+  assets: Pick<AssetsLocal, 'listVersions' | 'readVersion'>
+  tenantRef: string
+  warn(message: string): void
 }>
 
 export function releaseRebaseAssignments(
@@ -43,32 +53,52 @@ export function releaseRebaseAssignments(
   )
 }
 
-function decisionFor(replaced: ReplacedSettings): ReleaseSettingsRebaseDecision {
-  if (replaced.kind !== 'declared') return () => undefined
-  return (stored, definition) =>
-    canonicalText(stored.definitionRef) === canonicalText(replaced.definitionRef)
-      ? releaseRebaseAssignments(replaced.definition, stored.state, definition)
-      : undefined
+async function declaredBy(
+  assets: Reconciliation['assets'],
+  assetRef: string,
+  definitionRef: SettingsDefinitionRef,
+): Promise<
+  | Readonly<{ kind: 'found'; definition: SettingDefinitions }>
+  | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'unknown' }>
+> {
+  let after: string | null = null
+  do {
+    const page = await assets.listVersions({ assetRef, after, limit: MAX_ASSET_PAGE })
+    if (page.kind !== 'page') return { kind: 'unknown' }
+    for (const version of page.versions) {
+      const read = await assets.readVersion({ assetRef, version })
+      if (read.kind !== 'version') return { kind: 'unknown' }
+      const { declaration } = read.version
+      if (
+        declaration.kind === 'declared' &&
+        canonicalText(declaration.definitionRef) === canonicalText(definitionRef)
+      )
+        return { kind: 'found', definition: declaration.definition }
+    }
+    after = page.next
+  } while (after !== null)
+  return { kind: 'absent' }
 }
 
-function undecidedReason(replaced: ReplacedSettings): string {
-  return replaced.kind === 'unreadable'
-    ? 'the earlier definition is unreadable'
-    : 'the values were stored under another definition'
-}
-
-export async function rebaseReplacedSettings(
-  input: Readonly<{ releaseSettings: ReleaseSettingsMaintenance; warn(message: string): void }>,
-  { target, replaced, next }: ReplacedToolSettings,
+export async function reconcileToolSettings(
+  input: Reconciliation,
+  tool: GovernedToolSettings,
 ): Promise<void> {
-  if (next === undefined) return
-  if (replaced.kind === 'declared' && canonicalText(replaced.definition) === canonicalText(next))
+  const observed = await input.releaseSettings.observe(tool.target)
+  if (observed.kind !== 'changed') return
+  const { definitionRef } = observed.stored
+  const previous = await declaredBy(input.assets, tool.assetRef, definitionRef)
+  if (previous.kind === 'unknown') return
+  if (previous.kind === 'absent') {
+    input.warn(
+      `tool installation left the settings of tool ${tool.name} in tenant ${input.tenantRef} as stored: no version of ${tool.assetRef} declares ${canonicalText(definitionRef)}`,
+    )
     return
-  const result = await input.releaseSettings.rebase(target, decisionFor(replaced))
-  if (result.kind === 'current' || result.kind === 'rebased') return
-  const reason =
-    result.kind === 'undecided' ? undecidedReason(replaced) : `the rebase ${result.phase} failed`
-  input.warn(
-    `tool installation left the settings of ${target.holdingRef} on their earlier definition: ${reason}`,
+  }
+  await input.releaseSettings.rebase(tool.target, (stored, definition) =>
+    canonicalText(stored.definitionRef) === canonicalText(definitionRef)
+      ? releaseRebaseAssignments(previous.definition, stored.state, definition)
+      : undefined,
   )
 }

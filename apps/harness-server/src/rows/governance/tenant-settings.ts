@@ -101,7 +101,7 @@ export function prepareTenantGovernanceWithSettings(
   return {
     readSettings,
     settings: { read: readSettings, writer: write.writer },
-    releaseSettings: { rebase: write.rebase },
+    releaseSettings: { observe: write.observe, rebase: write.rebase },
     destination: {
       seal: (reservation: Parameters<typeof settingsDestination.seal>[0]) =>
         reservation.binding.owner !== 'settings'

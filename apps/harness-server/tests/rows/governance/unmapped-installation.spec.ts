@@ -34,7 +34,10 @@ it('installs and adopts a real asset without inventing an organization Settings 
     service: w.service,
     assets: w.owner,
     organizationTargets,
-    releaseSettings: { rebase: vi.fn() },
+    releaseSettings: {
+      observe: vi.fn(async () => ({ kind: 'current' }) as const),
+      rebase: vi.fn(),
+    },
     warn: vi.fn(),
   }
   expect(await installToolGovernance(input)).toEqual({ kind: 'installed' })

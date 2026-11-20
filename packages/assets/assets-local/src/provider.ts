@@ -34,6 +34,8 @@ import {
   domainResultSchema,
   versionLookupSchema,
   versionResultSchema,
+  versionsLookupSchema,
+  versionsResultSchema,
   type Failure,
   type Mutation,
 } from './schema.ts'
@@ -145,13 +147,21 @@ function samePublication(command: Mutation): SameOperation {
     'expectedRevision' in mutation ? { ...mutation, expectedRevision: 0 } : mutation
   return recorded => equal(input(recorded), input(command))
 }
-type ReadKind = 'asset' | 'holding' | 'version' | 'heldCapability' | 'summary' | 'domain' | 'list'
+type ReadKind =
+  | 'asset'
+  | 'holding'
+  | 'version'
+  | 'heldCapability'
+  | 'summary'
+  | 'domain'
+  | 'list'
+  | 'versions'
 
 function storageRead(options: Pick<AssetsLocalOptions, 'storage' | 'domain'>) {
   return async (kind: ReadKind, lookup: unknown) => {
     const result = await options.storage.read({
       domain: options.domain,
-      handler: kind === 'list' ? LIST_HANDLER : HANDLER,
+      handler: kind === 'list' || kind === 'versions' ? LIST_HANDLER : HANDLER,
       protocol: PROTOCOL,
       requestKey: randomUUID(),
       input: json({ kind, domain: options.domain, lookup }),
@@ -245,6 +255,13 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     return parsed.success ? commit(parsed.data) : fail('invalid_input')
   }
   const read = storageRead(options)
+  function lookup<T>(kind: ReadKind, schema: z.ZodType, result: z.ZodType<T>) {
+    return (input: unknown) =>
+      run(async () => {
+        const parsed = schema.safeParse(input)
+        return parsed.success ? result.parse(await read(kind, parsed.data)) : fail('invalid_input')
+      })
+  }
   const local: Omit<AssetsLocal, 'packages' | 'uploads'> = {
     readAsset: input =>
       run(async () => {
@@ -284,20 +301,8 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
           ? change({ kind: 'changeHolding', ...parsed.data })
           : fail('invalid_input')
       }),
-    readHolding: input =>
-      run(async () => {
-        const parsed = holdingLookupSchema.safeParse(input)
-        return parsed.success
-          ? holdingResultSchema.parse(await read('holding', parsed.data))
-          : fail('invalid_input')
-      }),
-    readVersion: input =>
-      run(async () => {
-        const parsed = versionLookupSchema.safeParse(input)
-        return parsed.success
-          ? versionResultSchema.parse(await read('version', parsed.data))
-          : fail('invalid_input')
-      }),
+    readHolding: lookup('holding', holdingLookupSchema, holdingResultSchema),
+    readVersion: lookup('version', versionLookupSchema, versionResultSchema),
     readHeldCapability: input =>
       run(async () => {
         const parsed = heldCapabilityLookupSchema.safeParse({
@@ -308,20 +313,9 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
           ? holdingResultSchema.parse(await read('heldCapability', parsed.data))
           : fail('invalid_input')
       }),
-    listHeld: input =>
-      run(async () => {
-        const parsed = listLookupSchema.safeParse(input)
-        return parsed.success
-          ? listResultSchema.parse(await read('list', parsed.data))
-          : fail('invalid_input')
-      }),
-    readSummary: input =>
-      run(async () => {
-        const parsed = versionLookupSchema.safeParse(input)
-        return parsed.success
-          ? summaryResultSchema.parse(await read('summary', parsed.data))
-          : fail('invalid_input')
-      }),
+    listHeld: lookup('list', listLookupSchema, listResultSchema),
+    listVersions: lookup('versions', versionsLookupSchema, versionsResultSchema),
+    readSummary: lookup('summary', versionLookupSchema, summaryResultSchema),
     domainRevision: () => run(async () => domainResultSchema.parse(await read('domain', null))),
     getOperation: operationId =>
       run(async () => {
