@@ -22,7 +22,7 @@ import { FILES, KIT, isTokens, type ScannedFile } from './scope.ts'
  * ring width plus the ring offset, registered as one length. A container clips only in the ways the visual
  * standard names (K1): a clip kept for motion leaves the room as its clip margin, a scroll container takes the
  * room as its scroll padding, and the workspace edge alone clips exactly at its edge. `overflow: hidden` cannot
- * leave a margin, so a hidden container counts unless it only hides an element visually.
+ * leave a margin, so a hidden container counts unless it only hides an element visually or truncates its text.
  */
 
 /**
@@ -104,9 +104,9 @@ export function clipViolations(file: Source): string[] {
       .flatMap(declaration => declaration.value.split(/\s+/))
     const margin = valueOf(rule, 'overflow-clip-margin')
     const where = `${file.path} ${rule.selector}`
-    if (clips.includes('hidden') && !VISUALLY_HIDDEN(rule))
-      found.push(`${rule.selector} overflow: hidden`)
-    else if (clips.includes('clip') && margin !== ROOM_VALUE && !EXACT_EDGES.has(where))
+    const exempt = VISUALLY_HIDDEN(rule) || TRUNCATES(rule)
+    if (clips.includes('hidden') && !exempt) found.push(`${rule.selector} overflow: hidden`)
+    else if (clips.includes('clip') && margin !== ROOM_VALUE && !EXACT_EDGES.has(where) && !exempt)
       found.push(`${rule.selector} overflow: clip without the room`)
     if (margin !== undefined && margin !== ROOM_VALUE)
       found.push(`${rule.selector} overflow-clip-margin: ${margin}`)
@@ -114,18 +114,29 @@ export function clipViolations(file: Source): string[] {
   return found
 }
 
-const CLIP_UTILITY = /^overflow(?:-[xy])?-(?:hidden|clip)$|^truncate$/
+const CLIP_UTILITY = /^overflow(?:-[xy])?-(?:hidden|clip)$/
+
+/**
+ * Truncation is not a clipping container (design session, 2026-11-20): a rule that ends its own text with an
+ * ellipsis or clamps it to a number of lines clips only that text and holds no control, so no ring is cut. In a
+ * script the same is said by `truncate`, `text-ellipsis` or `line-clamp-*` in the class list that clips.
+ */
+const TRUNCATES = (rule: CssRule): boolean =>
+  valueOf(rule, 'text-overflow') === 'ellipsis' ||
+  valueOf(rule, '-webkit-line-clamp') !== undefined ||
+  valueOf(rule, 'line-clamp') !== undefined
+const TRUNCATION_UTILITY = /^(?:truncate|text-ellipsis|line-clamp-[\w[\]().-]+)$/
 const VARIANT = /^(?:[^:\s]*:)*!?/
 
 /** Clipping utilities and inline styles in one script. */
 export function scriptClipViolations(file: Source): string[] {
-  const classes = scriptStrings(file).flatMap(text =>
-    text
-      .split(/\s+/)
-      .map(token => token.replace(VARIANT, ''))
+  const classes = scriptStrings(file).flatMap(text => {
+    const utilities = text.split(/\s+/).map(token => token.replace(VARIANT, ''))
+    if (utilities.some(utility => TRUNCATION_UTILITY.test(utility))) return []
+    return utilities
       .filter(utility => CLIP_UTILITY.test(utility))
-      .map(utility => `class ${utility}`),
-  )
+      .map(utility => `class ${utility}`)
+  })
   const inline = objectProperties(scriptTree(file))
     .filter(({ name }) => /^overflow(?:X|Y)?$/.test(name))
     .flatMap(({ name, value }) =>
@@ -253,6 +264,7 @@ describe('ring room gate', () => {
         '.a { overflow: hidden; } .b { overflow-y: auto; } .c { overflow: clip; overflow-clip-margin: var(--omne-ring-room); }',
         '.d { overflow-x: clip; } .e { overflow: clip; overflow-clip-margin: 2px; }',
         '.label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }',
+        '.title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .clamp { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; }',
         '.f:focus-visible { outline: 2px solid red; outline-offset: 3px; } .g { box-shadow: 0 0 0 1px var(--omne-line), inset 0 0 0 9px red; }',
         '.h { box-shadow: 0 0 0 6px var(--omne-line-focus); } .i:focus-visible { outline-offset: calc(-1 * var(--omne-ring-width)); }',
         '.j { box-shadow: 0 8px 24px black; } .k { outline: var(--omne-ring-width) solid; outline-offset: var(--omne-ring-offset); }',
@@ -270,13 +282,12 @@ describe('ring room gate', () => {
       scriptClipViolations({
         path: 'a.tsx',
         kind: 'tsx',
-        text: "const a = <div className=\"overflow-hidden md:overflow-y-clip overflow-y-auto truncate\" style={{ overflowX: 'hidden', overflow: 'auto' }} />",
+        text: [
+          "const a = <div className=\"overflow-hidden md:overflow-y-clip overflow-y-auto\" style={{ overflowX: 'hidden', overflow: 'auto' }} />",
+          'const b = <p className="overflow-hidden line-clamp-2" />',
+          'const c = <span className="min-w-0 truncate" />',
+        ].join('\n'),
       }),
-    ).toEqual([
-      'class overflow-hidden',
-      'class overflow-y-clip',
-      'class truncate',
-      'inline overflowX: hidden',
-    ])
+    ).toEqual(['class overflow-hidden', 'class overflow-y-clip', 'inline overflowX: hidden'])
   })
 })

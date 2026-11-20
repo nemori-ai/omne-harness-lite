@@ -35,14 +35,6 @@ const TIMING = join(
 const CLOCK_SECTION = '## 1. 界面的一只钟'
 const KEYFRAME_TABLE = '公布的关键帧'
 
-/**
- * Names under the motion prefix that are not a duration or a curve. The arrival's travel is a distance: it is
- * declared once per size step and the scale gate owns lengths, so the clock table does not list it.
- */
-const DISTANCES: Readonly<Record<string, string>> = {
-  '--omne-motion-travel': 'the distance an arrival rises, a length per size step',
-}
-
 type Source = Pick<ScannedFile, 'path' | 'kind' | 'text'>
 
 /** The text of the clock section, from its heading to the next second-level heading. */
@@ -74,12 +66,12 @@ export function publishedKeyframes(section: string): string[] {
     .sort()
 }
 
-/** The `--omne-motion-*` declarations of tokens.css as `[token, value]`, distances aside, first declaration each. */
+/** The `--omne-motion-*` declarations of tokens.css as `[token, value]`, the first declaration of each (the standard size step). */
 export function declaredTokens(tokens: string): (readonly [string, string])[] {
   const found = new Map<string, string>()
   for (const rule of cssRules(tokens))
     for (const { property, value } of rule.declarations)
-      if (property.startsWith('--omne-motion-') && !(property in DISTANCES) && !found.has(property))
+      if (property.startsWith('--omne-motion-') && !found.has(property))
         found.set(property, normalise(value))
   return [...found]
 }
@@ -302,10 +294,6 @@ describe('motion gate', () => {
     const table = tabulatedTokens(SECTION)
     expect(table.length).toBeGreaterThan(10)
     expect(declaredTokens(tokenSheet())).toEqual(table)
-    for (const name of Object.keys(DISTANCES))
-      expect(tokenSheet().includes(`${name}:`), `${name} is gone: delete it from DISTANCES`).toBe(
-        true,
-      )
   })
 
   it('declares exactly the keyframes the visual standard publishes', () => {
@@ -405,6 +393,9 @@ describe('motion gate', () => {
       declaredTokens(
         ':root { --omne-motion-feedback: 120ms; --omne-motion-travel: 4px; } :root[data-size="large"] { --omne-motion-feedback: 9ms; }',
       ),
-    ).toEqual([['--omne-motion-feedback', '120ms']])
+    ).toEqual([
+      ['--omne-motion-feedback', '120ms'],
+      ['--omne-motion-travel', '4px'],
+    ])
   })
 })
