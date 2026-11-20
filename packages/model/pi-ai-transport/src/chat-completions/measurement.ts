@@ -149,43 +149,37 @@ function inputCheck<U extends MeteredUnit>(
   }
 }
 
+type Measured = readonly (readonly [subject: string, amount: string])[]
+
+/** What each limit is checked against; bytes only once read: a pending image is read at the send, within its limit. */
+function measuredOf(
+  representation: MeterFacts['representation'],
+): Record<MeterFacts['limits'][number]['metric'], Measured> {
+  const images = representation.media.filter(fact => fact.kind === 'image')
+  const read = representation.kind === 'materialized' ? representation : null
+  return {
+    'image-bytes': read === null ? [] : images.map(fact => [fact.reference.key, fact.bytes]),
+    'image-count': [['request', String(images.length)]],
+    'request-bytes': read === null ? [] : [['request', read.requestBytes]],
+    'voice-bytes': [],
+    'voice-duration-ms': [],
+  }
+}
+
 function exactChecks(measure: MeterFacts, method: Adoption): readonly BudgetCheck[] {
   const supplier = measure.supplier.adoption
-  const images = measure.representation.media.filter(fact => fact.kind === 'image')
-  const checks: BudgetCheck[] = []
-  for (const limit of measure.limits) {
+  const measured = measuredOf(measure.representation)
+  return measure.limits.flatMap(limit => {
     const constraint = { profile: measure.profile, upstream: upstreamOf(limit.upstream, supplier) }
-    const check = (subject: string, amount: string): BudgetCheck => ({
+    return measured[limit.metric].map(([subject, amount]) => ({
       supplier,
       metric: limit.metric,
       subject,
       measurement: { kind: 'exact', amount, method },
       limit: limit.provided,
       constraint,
-    })
-    switch (limit.metric) {
-      case 'image-bytes':
-        // A pending image is read at the send, as a version within this limit when it is over it.
-        if (measure.representation.kind === 'materialized')
-          for (const fact of images) checks.push(check(fact.reference.key, fact.bytes))
-        break
-      case 'image-count':
-        checks.push(check('request', String(images.length)))
-        break
-      case 'request-bytes':
-        if (measure.representation.kind === 'materialized')
-          checks.push(check('request', measure.representation.requestBytes))
-        break
-      case 'voice-bytes':
-      case 'voice-duration-ms':
-        break
-      default: {
-        const _exhaustive: never = limit.metric
-        return _exhaustive
-      }
-    }
-  }
-  return checks
+    }))
+  })
 }
 
 async function countWith(

@@ -108,12 +108,9 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
     throw new RangeError('families must have an acquire function')
   if (!isObject(config.credential) || typeof config.credential.read !== 'function')
     throw new RangeError('credential must have a read function')
-  if (config.onConnectRetry !== undefined && typeof config.onConnectRetry !== 'function')
-    throw new RangeError('onConnectRetry must be absent or a function')
-  if (config.onResponseBody !== undefined && typeof config.onResponseBody !== 'function')
-    throw new RangeError('onResponseBody must be absent or a function')
-  if (config.media !== undefined && typeof config.media !== 'function')
-    throw new RangeError('media must be absent or a function')
+  for (const name of ['onConnectRetry', 'onResponseBody', 'media'] as const)
+    if (config[name] !== undefined && typeof config[name] !== 'function')
+      throw new RangeError(`${name} must be absent or a function`)
   const network = networkInternalsOf(config.network)
   return {
     network,

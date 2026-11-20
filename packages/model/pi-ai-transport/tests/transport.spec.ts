@@ -316,7 +316,20 @@ describe('constructing the transport', () => {
     const onConnectRetry = 'not a function' as unknown as NonNullable<
       PiTransportConfig['onConnectRetry']
     >
-    expect(() => createPiTransport(configWith({ onConnectRetry }))).toThrow(RangeError)
+    expect(() => createPiTransport(configWith({ onConnectRetry }))).toThrow(
+      new RangeError('onConnectRetry must be absent or a function'),
+    )
+  })
+
+  it('refuses a media reader that is not a function, and accepts a function or none', () => {
+    const media = 'not a function' as unknown as NonNullable<PiTransportConfig['media']>
+    expect(() => createPiTransport(configWith({ media }))).toThrow(
+      new RangeError('media must be absent or a function'),
+    )
+    const read: PiTransportConfig['media'] = async () => ({
+      failure: { kind: 'material-unavailable' },
+    })
+    expect(() => createPiTransport(configWith({ media: read }))).not.toThrow()
   })
 
   it('refuses an onResponseBody that is not a function, and accepts a function or none', () => {
