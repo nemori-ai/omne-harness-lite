@@ -1,10 +1,11 @@
 import type { PortRead } from '@omne-harness/dispatch'
 import type { SessionRef } from '@omne-harness/dispatch-contract'
 import type { TenantId as LegalTenant } from '@omne-harness/legal-identity'
-import type { SessionFailure, SessionId } from '@omne-harness/session-contract'
+import type { Modes, SessionFailure, SessionId, WorkSnapshot } from '@omne-harness/session-contract'
 import type { Called, SessionCalls } from './ports.ts'
 
 export const UNAVAILABLE = { kind: 'unavailable' } as const
+type Unavailable = typeof UNAVAILABLE
 export const read = <T>(value: T): PortRead<T> => ({ kind: 'read', value })
 export const sessionId = (ref: SessionRef) => ref as unknown as SessionId
 
@@ -23,8 +24,16 @@ export async function called<T>(call: () => Promise<Called<T>>): Promise<Called<
   }
 }
 
-export const workOf = (calls: SessionCalls, tenant: LegalTenant, session: SessionRef) =>
+export const workOf = (
+  calls: SessionCalls,
+  tenant: LegalTenant,
+  session: SessionRef,
+): Promise<PortRead<WorkSnapshot | null> | Unavailable> =>
   calls.work({ tenant, session: sessionId(session) }).catch(() => UNAVAILABLE)
 
-export const modesOf = (calls: SessionCalls, tenant: LegalTenant, session: SessionRef) =>
+export const modesOf = (
+  calls: SessionCalls,
+  tenant: LegalTenant,
+  session: SessionRef,
+): Promise<PortRead<Modes> | Unavailable> =>
   calls.modes({ tenant, session: sessionId(session) }).catch(() => UNAVAILABLE)
