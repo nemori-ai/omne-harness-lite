@@ -150,6 +150,12 @@ describe('a host object is named below the root of a side that admits its path',
     const both = { read: t.workspace, write: t.workspace }
     expect(await confinedToScope(both, 'files', 'remove', { path: link })).toBe(true)
     expect(await confinedToScope(both, 'files', 'close', { path: link })).toBe(true)
+    const elsewhere = join(t.base, 'elsewhere')
+    for (const scope of [
+      { read: t.workspace, write: elsewhere },
+      { read: elsewhere, write: t.workspace },
+    ])
+      expect(await confinedToScope(scope, 'files', 'close', { path: link })).toBe(true)
     expect(await confinedToScope(both, 'command', 'start', { cwd: link })).toBe(false)
     expect(await nameUnder(both, { path: link, role: 'object' })).toEqual({
       ok: await hostObjectToken(link),
