@@ -3,7 +3,15 @@ import type { Membership, StoreAnswer, StoreRead, WorkspaceStore } from '../stor
 import { changeRelation, destroyWorkspace } from '../transactions/governance.ts'
 import { associateInstance, dissociateInstance } from '../transactions/instances.ts'
 import { registerWorkspace } from '../transactions/register.ts'
-import type { InstanceRecord, OperationRecord, WorkspaceRecord, WorkspaceTxn } from '../txn.ts'
+import { adoptSources } from '../transactions/sources.ts'
+import type {
+  AdoptionRecord,
+  InstanceRecord,
+  OperationRecord,
+  ReadingRecord,
+  WorkspaceRecord,
+  WorkspaceTxn,
+} from '../txn.ts'
 
 /** Every fact of the store. Plain data, so a transaction is a copy that replaces the original. */
 export type WorkspaceFacts = {
@@ -12,6 +20,8 @@ export type WorkspaceFacts = {
   instances: Map<string, InstanceRecord>
   operations: Map<string, OperationRecord>
   sources: Map<string, number>
+  readings: Map<string, ReadingRecord>
+  adoptions: Map<string, AdoptionRecord>
 }
 
 export const emptyFacts = (): WorkspaceFacts => ({
@@ -20,9 +30,12 @@ export const emptyFacts = (): WorkspaceFacts => ({
   instances: new Map(),
   operations: new Map(),
   sources: new Map(),
+  readings: new Map(),
+  adoptions: new Map(),
 })
 
 const pair = (left: string, right: string) => JSON.stringify([left, right])
+const triple = (...parts: readonly (string | number)[]) => JSON.stringify(parts)
 
 export function memoryTxn(facts: WorkspaceFacts): WorkspaceTxn {
   const related = (workspace: string): string[] =>
@@ -49,6 +62,24 @@ export function memoryTxn(facts: WorkspaceFacts): WorkspaceTxn {
     sourceRevision: (workspace, tenant) => facts.sources.get(pair(workspace, tenant)) ?? 0,
     bumpSource: (workspace, tenant) => bump(pair(workspace, tenant)),
     bumpSources: workspace => related(workspace).forEach(bump),
+    latestReading: (workspace, tenant) =>
+      [...facts.readings.values()]
+        .filter(record => record.workspace === workspace && record.tenant === tenant)
+        .reduce<ReadingRecord | null>(
+          (latest, record) =>
+            latest === null || record.revision > latest.revision ? record : latest,
+          null,
+        ),
+    reading: (workspace, tenant, revision) =>
+      facts.readings.get(triple(workspace, tenant, revision)) ?? null,
+    insertReading(record) {
+      facts.readings.set(triple(record.workspace, record.tenant, record.revision), record)
+    },
+    adoption: (workspace, tenant, key) =>
+      facts.adoptions.get(triple(workspace, tenant, key)) ?? null,
+    insertAdoption(record) {
+      facts.adoptions.set(triple(record.workspace, record.tenant, record.key), record)
+    },
     instance: instance => facts.instances.get(instance) ?? null,
     occupant: (node, occupancy) =>
       [...facts.instances.values()].find(
@@ -88,6 +119,8 @@ export function createMemoryStore(): MemoryStore {
     instances: new Map(facts.instances),
     operations: new Map(facts.operations),
     sources: new Map(facts.sources),
+    readings: new Map(facts.readings),
+    adoptions: new Map(facts.adoptions),
   })
 
   async function commit<C, R>(
@@ -129,6 +162,7 @@ export function createMemoryStore(): MemoryStore {
     dissociate: command => commit(dissociateInstance, command),
     govern: command => commit(changeRelation, command),
     destroy: command => commit(destroyWorkspace, command),
+    adopt: command => commit(adoptSources, command),
     state: async (tenant, workspace) =>
       read(() => {
         const found = membership(tenant, workspace)
@@ -149,5 +183,12 @@ export function createMemoryStore(): MemoryStore {
       read(() => facts.operations.get(pair(tenant, operation)) ?? null),
     sourceRevision: async (tenant, workspace) =>
       read(() => facts.sources.get(pair(workspace, tenant)) ?? 0),
+    adoption: async (tenant, workspace, key) =>
+      read(() => {
+        const adoption = facts.adoptions.get(triple(workspace, tenant, key))
+        if (adoption === undefined) return null
+        const reading = facts.readings.get(triple(workspace, tenant, adoption.revision)) ?? null
+        return { adoption, reading }
+      }),
   }
 }

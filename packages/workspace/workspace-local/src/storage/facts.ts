@@ -14,34 +14,11 @@ import type {
   TypeName,
 } from '@omne-harness/workspace-contract'
 import type { QueryRows, SqlValue } from '@omne-harness/sql-contract/worker'
-import { ROW_LIMIT, SOURCES_TABLE } from './schema.ts'
+import { SOURCES_TABLE } from './schema.ts'
+import { sourceFacts } from './source-facts.ts'
+import { count, select, text, type SqlPort } from './sql-port.ts'
 
-/** What both the participant and the read handler are given: one statement at a time, inside one transaction. */
-export type SqlPort = Readonly<{ execute(sql: string, params: readonly SqlValue[]): QueryRows }>
 type Row = QueryRows['rows'][number]
-
-/** A result that reaches past the row limit fails instead of being cut. */
-export function select(
-  port: SqlPort,
-  sql: string,
-  params: readonly SqlValue[],
-  limit = ROW_LIMIT,
-): QueryRows['rows'] {
-  const found = port.execute(`${sql} LIMIT ${limit + 1}`, params).rows
-  if (found.length > limit) throw new Error('more rows than one statement may return')
-  return found
-}
-
-function text(cell: unknown): string {
-  if (typeof cell !== 'string') throw new Error('a stored text cell is not text')
-  return cell
-}
-
-/** The storage worker reads every integer as a bigint. */
-function count(cell: unknown): number {
-  if (typeof cell !== 'bigint') throw new Error('a stored integer cell is not an integer')
-  return Number(cell)
-}
 
 function relationOf(role: unknown, superAdmin: unknown): Relation {
   if (role === 'owner') return { role: 'owner' }
@@ -163,6 +140,7 @@ export function sqlTxn(port: SqlPort): WorkspaceTxn {
       ]),
     dissociateInstances: workspace =>
       run('UPDATE ws_instances SET active = 0 WHERE workspace = ? AND active = 1', [workspace]),
+    ...sourceFacts(port),
   }
 }
 

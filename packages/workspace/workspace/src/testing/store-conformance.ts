@@ -4,6 +4,7 @@ import type { WorkspaceStore } from '../store.ts'
 import type { RelationCommand } from '../transactions/governance.ts'
 import type { AssociateCommand } from '../transactions/instances.ts'
 import type { RegisterCommand } from '../transactions/register.ts'
+import type { AdoptCommand } from '../transactions/sources.ts'
 
 export type StoreConformanceCase = Readonly<{
   name: string
@@ -60,6 +61,29 @@ const read = <T>(answer: { kind: string; value?: T }): T => {
   assert.equal(answer.kind, 'read', JSON.stringify(answer))
   return answer.value as T
 }
+
+const lamp = (version: string) => ({
+  category: 'gadget',
+  namespace: 'gadgets',
+  name: 'lamp',
+  root: 'shared' as const,
+  version,
+  entries: [{ path: 'MAIN.md', bytes: 2, digest: `f:${version}` }],
+})
+
+/** Alice adopts the sources of wsp_1 for a key: the packages read, or a reason to keep the last. */
+const adopt = (
+  key: string,
+  read: AdoptCommand['read'],
+  over: Partial<AdoptCommand> = {},
+): AdoptCommand => ({
+  tenant: 'alice',
+  workspace: 'wsp_1',
+  key,
+  instance: instance('1'),
+  read,
+  ...over,
+})
 
 const DONE = { kind: 'done', value: null, changed: true }
 const SAME = { kind: 'done', value: null, changed: false }
@@ -370,6 +394,92 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         address: '/c',
       })
       assert.equal(committed(await store.register(freed)).kind, 'done')
+    },
+  },
+  {
+    name: 'an adoption records a reading under its key, and the key keeps it',
+    async run(make) {
+      const store = await make()
+      committed(await store.register(register()))
+      assert.deepEqual(read(await store.adoption('alice', 'wsp_1', 'k1')), null)
+      const first = committed(
+        await store.adopt(adopt('k1', { kind: 'read', packages: [lamp('v1')] })),
+      )
+      assert.equal(first.kind, 'adopted')
+      assert.equal(read(await store.sourceRevision('alice', 'wsp_1')), 2)
+      const again = committed(
+        await store.adopt(adopt('k1', { kind: 'read', packages: [lamp('v2')] })),
+      )
+      assert.deepEqual(again, first)
+      assert.equal(read(await store.sourceRevision('alice', 'wsp_1')), 2)
+      const stored = read(await store.adoption('alice', 'wsp_1', 'k1'))
+      assert.deepEqual(stored, {
+        adoption: (first as { adoption: unknown }).adoption,
+        reading: (first as { reading: unknown }).reading,
+      })
+      assert.deepEqual(stored?.reading?.packages, [lamp('v1')])
+      assert.deepEqual(stored?.adoption, {
+        workspace: 'wsp_1',
+        tenant: 'alice',
+        key: 'k1',
+        instance: instance('1'),
+        revision: 2,
+        fresh: true,
+        reason: null,
+      })
+    },
+  },
+  {
+    name: 'a reading like the last one is not recorded again; a kept one points at the last, or at none',
+    async run(make) {
+      const store = await make()
+      committed(await store.register(register()))
+      const none = committed(await store.adopt(adopt('k0', { kind: 'kept', reason: 'gone' })))
+      assert.deepEqual(none, {
+        kind: 'adopted',
+        adoption: {
+          workspace: 'wsp_1',
+          tenant: 'alice',
+          key: 'k0',
+          instance: instance('1'),
+          revision: 0,
+          fresh: false,
+          reason: 'gone',
+        },
+        reading: null,
+      })
+      // What a kept key reads back is what it was given: not fresh, with its reason.
+      assert.deepEqual(read(await store.adoption('alice', 'wsp_1', 'k0')), {
+        adoption: (none as { adoption: unknown }).adoption,
+        reading: null,
+      })
+      committed(await store.adopt(adopt('k1', { kind: 'read', packages: [lamp('v1')] })))
+      const same = committed(
+        await store.adopt(adopt('k2', { kind: 'read', packages: [lamp('v1')] })),
+      )
+      assert.equal((same as { adoption: { revision: number } }).adoption.revision, 2)
+      assert.equal(read(await store.sourceRevision('alice', 'wsp_1')), 2)
+      const kept = committed(await store.adopt(adopt('k3', { kind: 'kept', reason: 'busy' })))
+      assert.equal((kept as { adoption: { revision: number } }).adoption.revision, 2)
+      assert.deepEqual((kept as { reading: { packages: unknown } }).reading.packages, [lamp('v1')])
+      committed(await store.adopt(adopt('k4', { kind: 'read', packages: [lamp('v2')] })))
+      assert.equal(read(await store.sourceRevision('alice', 'wsp_1')), 3)
+    },
+  },
+  {
+    name: 'a tenant with no relation adopts nothing, and tenants keep apart',
+    async run(make) {
+      const store = await make()
+      committed(await store.register(register()))
+      assert.deepEqual(
+        committed(
+          await store.adopt(adopt('k1', { kind: 'read', packages: [] }, { tenant: 'bob' })),
+        ),
+        DENIED,
+      )
+      assert.equal(read(await store.adoption('bob', 'wsp_1', 'k1')), null)
+      committed(await store.adopt(adopt('k1', { kind: 'read', packages: [lamp('v1')] })))
+      assert.equal(read(await store.adoption('bob', 'wsp_1', 'k1')), null)
     },
   },
   {
