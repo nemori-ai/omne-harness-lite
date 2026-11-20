@@ -2,8 +2,9 @@ import { expectTypeOf, it } from 'vitest'
 import { assetGovernanceKey, assetsCategoryPage } from '@omne-harness/assets-ui/cordis'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import { modelChoicesKey } from '@omne-harness/model-ui/cordis'
-import { sessionModelChoicesKey } from '@omne-harness/session-ui/cordis'
+import { sessionModelChoicesKey, sessionWorkspaceChoicesKey } from '@omne-harness/session-ui/cordis'
 import { serviceKey } from '@omne-harness/shell-contract'
+import { workspaceChoicesKey } from '@omne-harness/workspace-ui/cordis'
 import { handOver } from '../src/page/hand-over.ts'
 
 it('the asset governance key fits the port MCP declares', () => {
@@ -37,4 +38,10 @@ it('a list of another shape does not compile at the assembly', () => {
   const names = serviceKey<{ list: (tenant: string) => Promise<readonly string[]> }>('names')
   // @ts-expect-error a list of names is not a listing that says whether each can be picked
   handOver(sessionModelChoicesKey, names)
+})
+
+it('the list Workspace gives fits the place the session interface opened for one', () => {
+  expectTypeOf(handOver).toBeCallableWith(sessionWorkspaceChoicesKey, workspaceChoicesKey)
+  // @ts-expect-error a list of models is not a list of workspaces
+  handOver(sessionWorkspaceChoicesKey, modelChoicesKey)
 })
