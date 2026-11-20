@@ -1,7 +1,8 @@
 // @module-tag source-text
 import { describe, expect, it } from 'vitest'
 
-import { cssRules, jsxElements, scriptStrings, scriptTree, stringsIn } from './css-text.ts'
+import { cssRules } from './css-text.ts'
+import { jsxElements, moduleOf, scriptStrings, stringsIn } from './script-text.ts'
 import { ratchet, tally } from './ratchet.ts'
 import { FILES, isKit, isTokens, type ScannedFile } from './scope.ts'
 
@@ -90,7 +91,7 @@ const ICON_TOKEN = /^var\(--omne-icon-(?:compact|label|face|micro)\)$/
 /** Icon sizes off the icon scale, on any JSX element whose name ends in `Icon`. */
 export function iconViolations(file: Source): string[] {
   const found: string[] = []
-  for (const element of jsxElements(scriptTree(file))) {
+  for (const element of jsxElements(moduleOf(file))) {
     if (!/^(?:[A-Z]\w*)?Icon$/.test(element.name)) continue
     const size = element.attributes.get('size')
     if (size !== undefined) {

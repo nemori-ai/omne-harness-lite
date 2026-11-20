@@ -4,20 +4,18 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { cssRules, normalise, stripCssComments } from './css-text.ts'
 import {
-  type AstNode,
   callsNamed,
-  child,
-  children,
-  cssRules,
+  field,
   initialiserOf,
-  normalise,
+  moduleOf,
+  nodes,
   objectProperties,
   scriptStrings,
-  scriptTree,
   stringsIn,
-  stripCssComments,
-} from './css-text.ts'
+  type SyntaxNode,
+} from './script-text.ts'
 import { ratchet, tally } from './ratchet.ts'
 import { FILES, REPOSITORY, TOKENS, isTokens, type ScannedFile } from './scope.ts'
 
@@ -203,14 +201,14 @@ const INLINE = /^(?:transition|animation)(?:Duration|TimingFunction|Delay)?$/
 const ANIMATION_OPTIONS = /^(?:duration|easing|delay|endDelay)$/
 
 /** An identifier stands for the initialiser of the variable it names in the same file. */
-const resolved = (tree: AstNode, node: AstNode): AstNode =>
+const resolved = (tree: SyntaxNode, node: SyntaxNode): SyntaxNode =>
   node.type === 'Identifier' ? (initialiserOf(tree, node['name'] as string) ?? node) : node
 
 /** A number written as the value or as the fallback after `||` or `??`. */
-function numericFallback(node: AstNode): number | undefined {
+function numericFallback(node: SyntaxNode): number | undefined {
   if (node.type === 'Literal' && typeof node['value'] === 'number') return node['value']
   if (node.type === 'LogicalExpression') {
-    const right = child(node, 'right')
+    const right = field(node, 'right')
     return right === undefined ? undefined : numericFallback(right)
   }
   return undefined
@@ -218,7 +216,7 @@ function numericFallback(node: AstNode): number | undefined {
 
 /** Off-token motion in one script: class strings, style objects and Web Animations options. */
 export function scriptViolations(file: Source, theme: Theme): string[] {
-  const tree = scriptTree(file)
+  const tree = moduleOf(file)
   const found: string[] = []
   for (const text of scriptStrings(file)) found.push(...classViolations(text, theme))
   for (const { name, value } of objectProperties(tree)) {
@@ -229,14 +227,14 @@ export function scriptViolations(file: Source, theme: Theme): string[] {
     }
   }
   for (const call of callsNamed(tree, 'animate')) {
-    const argument = children(call, 'arguments')[1]
+    const argument = nodes(call, 'arguments')[1]
     if (argument === undefined) continue
     const options = resolved(tree, argument)
     if (options.type !== 'ObjectExpression') continue
-    for (const property of children(options, 'properties')) {
-      const key = child(property, 'key')
+    for (const property of nodes(options, 'properties')) {
+      const key = field(property, 'key')
       const name = key?.type === 'Identifier' ? (key['name'] as string) : undefined
-      const value = child(property, 'value')
+      const value = field(property, 'value')
       if (name === undefined || value === undefined || !ANIMATION_OPTIONS.test(name)) continue
       const expression = resolved(tree, value)
       for (const text of stringsIn(expression))

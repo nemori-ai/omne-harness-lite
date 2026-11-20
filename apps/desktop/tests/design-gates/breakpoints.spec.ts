@@ -1,15 +1,8 @@
 // @module-tag source-text
 import { describe, expect, it } from 'vitest'
 
-import {
-  type AstNode,
-  child,
-  keyName,
-  scriptStrings,
-  scriptTree,
-  stripCssComments,
-  walk,
-} from './css-text.ts'
+import { stripCssComments } from './css-text.ts'
+import { field, keyName, moduleOf, scriptStrings, type SyntaxNode, visit } from './script-text.ts'
 import { ratchet, tally } from './ratchet.ts'
 import { FILES, type ScannedFile } from './scope.ts'
 
@@ -50,17 +43,17 @@ function comparesAtBreakpoint(operator: string, value: number): boolean {
   return false
 }
 
-const numberOf = (node: AstNode | undefined): number | undefined =>
+const numberOf = (node: SyntaxNode | undefined): number | undefined =>
   node?.type === 'Literal' && typeof node['value'] === 'number' ? node['value'] : undefined
 
 /** Comparisons of `innerWidth`, `clientWidth` or `offsetWidth` with a number off the breakpoints. */
 export function comparisonViolations(file: Source): string[] {
   const found: string[] = []
-  walk(scriptTree(file), node => {
+  visit(moduleOf(file), node => {
     if (node.type !== 'BinaryExpression') return
     const operator = node['operator'] as string
     if (!/^(?:[<>]=?|[!=]==?)$/.test(operator)) return
-    const [left, right] = [child(node, 'left'), child(node, 'right')]
+    const [left, right] = [field(node, 'left'), field(node, 'right')]
     const [leftName, rightName] = [keyName(left), keyName(right)]
     const [leftNumber, rightNumber] = [numberOf(left), numberOf(right)]
     if (leftName !== undefined && WIDTHS.has(leftName) && rightNumber !== undefined) {

@@ -6,8 +6,8 @@ import { describe, expect, it } from 'vitest'
 
 import { ratchet, tally } from './ratchet.ts'
 import { DESKTOP_PAGE, REPOSITORY } from './scope.ts'
+import { cssRules, selectorClasses, STYLESHEETS } from './css-text.ts'
 import {
-  cssRules,
   field,
   isString,
   jsxName,
@@ -17,12 +17,9 @@ import {
   parseModule,
   resolveImport,
   SCRIPTS,
-  selectorClasses,
-  STYLESHEETS,
   type SyntaxNode,
-  violation,
   visit,
-} from './source-text.ts'
+} from './script-text.ts'
 
 /**
  * FE-I29: a stylesheet only styles what it is imported with, and a class only looks like something when a rule names
@@ -158,8 +155,8 @@ describe('classes gate', () => {
         ),
       ),
     )
-    const orphans = STYLESHEETS.filter(file => !imported.has(file.path)).map(file =>
-      violation(file.path, 'not imported'),
+    const orphans = STYLESHEETS.filter(file => !imported.has(file.path)).map(
+      file => `${file.path} | not imported`,
     )
     const rendered = SCRIPTS.filter(file => file.kind === 'tsx').flatMap(file =>
       renderedClasses(moduleOf(file)).map(name => ({ path: file.path, name })),
@@ -172,7 +169,7 @@ describe('classes gate', () => {
     const unstyled = new Set(candidates.filter((_, index) => css[index] === null))
     const bare = rendered
       .filter(({ name }) => unstyled.has(name))
-      .map(({ path, name }) => violation(path, `.${name}`))
+      .map(({ path, name }) => `${path} | .${name}`)
     const report = ratchet('classes', tally([...orphans, ...bare]))
     expect(report.missing, 'no baseline: write it once with DESIGN_GATES_SEED=1').toBe(false)
     expect(

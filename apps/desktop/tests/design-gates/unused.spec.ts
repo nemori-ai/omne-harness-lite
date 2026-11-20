@@ -6,15 +6,14 @@ import { ratchet, tally } from './ratchet.ts'
 import { isKit, KIT, KIT_NAME } from './scope.ts'
 import {
   field,
+  keyName,
   moduleOf,
   nodes,
   parseModule,
   resolveImport,
   SCRIPTS,
   type SyntaxNode,
-  specifierName,
-  violation,
-} from './source-text.ts'
+} from './script-text.ts'
 
 /**
  * FE-I30: a shared part nobody uses is a second visual language waiting to be imported. Every value the shared
@@ -59,7 +58,7 @@ export function exportedValues(path: string, read: Reader, seen = new Set<string
     const source = field(statement, 'source')
     if (statement.type === 'ExportAllDeclaration') {
       const exported = field(statement, 'exported')
-      if (exported !== undefined) return [specifierName(exported)]
+      if (exported !== undefined) return [keyName(exported) ?? '']
       const target = resolveImport(path, String(source?.['value'] ?? ''), new Map())
       return target === undefined ? [] : exportedValues(target, read, seen)
     }
@@ -68,7 +67,7 @@ export function exportedValues(path: string, read: Reader, seen = new Set<string
     if (declaration !== undefined) return declaredNames(declaration)
     return nodes(statement, 'specifiers')
       .filter(specifier => specifier['exportKind'] !== 'type')
-      .map(specifier => specifierName(field(specifier, 'exported')))
+      .map(specifier => keyName(field(specifier, 'exported')) ?? '')
   })
 }
 
@@ -83,7 +82,7 @@ export function kitImports(tree: SyntaxNode): string[] {
     )
     .flatMap(statement => nodes(statement, 'specifiers'))
     .filter(specifier => specifier.type === 'ImportSpecifier' && specifier['importKind'] !== 'type')
-    .map(specifier => specifierName(field(specifier, 'imported')))
+    .map(specifier => keyName(field(specifier, 'imported')) ?? '')
 }
 
 const readScanned: Reader = path => {
@@ -105,7 +104,7 @@ describe('unused shared parts gate', () => {
 
   it('adds no export of the shared kit that no module or page imports', () => {
     const unused = [...EXPORTED].filter(name => !USED.has(name) && !UNUSED_ON_PURPOSE.has(name))
-    const report = ratchet('unused', tally(unused.map(name => violation(ENTRY, name))))
+    const report = ratchet('unused', tally(unused.map(name => `${ENTRY} | ${name}`)))
     expect(report.missing, 'no baseline: write it once with DESIGN_GATES_SEED=1').toBe(false)
     expect(
       report.added,

@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 
 import { ratchet, tally } from './ratchet.ts'
 import { FILES } from './scope.ts'
-import { violation } from './source-text.ts'
 
 /**
  * FE-I32: the interface does not narrate what the system is doing, and a normal state does not ask for attention.
@@ -19,7 +18,7 @@ export function forbiddenWords(text: string): string[] {
 describe('words gate', () => {
   it('adds no forbidden word to any scanned file', () => {
     const found = FILES.flatMap(file =>
-      forbiddenWords(file.text).map(word => violation(file.path, word)),
+      forbiddenWords(file.text).map(word => `${file.path} | ${word}`),
     )
     const report = ratchet('words', tally(found))
     expect(report.missing, 'no baseline: write it once with DESIGN_GATES_SEED=1').toBe(false)

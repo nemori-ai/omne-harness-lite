@@ -1,12 +1,12 @@
-import { parseSync } from 'vite'
-
-import type { ScannedFile } from './scope.ts'
+import { FILES, type ScannedFile } from './scope.ts'
 
 /**
- * The text the style gates read: CSS rules with their at-rule context, and the strings, calls and object
- * properties of scripts. Scripts are parsed with the oxc parser Vite ships, so comments never count and a
- * template literal is one string whose substitutions read `${…}`.
+ * The stylesheets the gates read: rules with their at-rule context and declarations, the class names a selector
+ * names, and the calls inside a value. Scripts are read by `script-text.ts`.
  */
+
+/** The scanned stylesheets. */
+export const STYLESHEETS: readonly ScannedFile[] = FILES.filter(file => file.kind === 'css')
 
 /** Collapses whitespace and drops it around `(`, `)`, `,` and `/`; numbers keep their original spelling. */
 export const normalise = (value: string): string =>
@@ -84,7 +84,11 @@ function declaration(segment: string): CssDeclaration | undefined {
   }
 }
 
-/** Every block of one stylesheet that holds declarations, nested at-rules flattened into `context`. */
+/**
+ * Every rule of one stylesheet, in the order its block closes: qualified rules (nested ones and empty ones included)
+ * and the blocks of `@property`, `@font-face`, `@theme` and keyframe selectors; grouping at-rules are flattened
+ * into `context`.
+ */
 export function cssRules(source: string): CssRule[] {
   const text = stripCssComments(source)
   const rules: CssRule[] = []
@@ -110,7 +114,7 @@ export function cssRules(source: string): CssRule[] {
     }
     const last = declaration(text.slice(segment, end))
     if (last !== undefined) declarations.push(last)
-    if (selector !== '' && declarations.length > 0) rules.push({ selector, context, declarations })
+    if (selector !== '') rules.push({ selector, context, declarations })
   }
   walk(0, text.length, '', [])
   return rules
@@ -131,174 +135,10 @@ export function callsIn(value: string, name: RegExp): string[] {
   return found
 }
 
-export interface AstNode {
-  readonly type: string
-  readonly start: number
-  readonly end: number
-  readonly [key: string]: unknown
-}
-
-const isNode = (value: unknown): value is AstNode =>
-  typeof value === 'object' &&
-  value !== null &&
-  typeof (value as { type?: unknown }).type === 'string'
-
-const trees = new Map<string, AstNode>()
-
-/** The script's syntax tree; a file that does not parse fails the gate rather than escaping it. */
-export function scriptTree(file: Pick<ScannedFile, 'path' | 'text' | 'kind'>): AstNode {
-  const key = `${file.path}\0${file.text}`
-  const cached = trees.get(key)
-  if (cached !== undefined) return cached
-  const lang = file.kind === 'tsx' ? 'tsx' : file.kind === 'js' ? 'js' : 'ts'
-  const parsed = parseSync(file.path, file.text, { lang })
-  if (parsed.errors.length > 0)
-    throw new Error(`${file.path} does not parse: ${parsed.errors[0]!.message}`)
-  const tree = parsed.program as unknown as AstNode
-  trees.set(key, tree)
-  return tree
-}
-
-export function walk(
-  node: AstNode,
-  visit: (node: AstNode, parent: AstNode | undefined) => void,
-  parent?: AstNode,
-): void {
-  visit(node, parent)
-  for (const [key, value] of Object.entries(node)) {
-    if (key === 'parent') continue
-    if (Array.isArray(value)) {
-      for (const item of value) if (isNode(item)) walk(item, visit, node)
-    } else if (isNode(value)) walk(value, visit, node)
-  }
-}
-
-export const child = (node: AstNode, key: string): AstNode | undefined =>
-  isNode(node[key]) ? (node[key] as AstNode) : undefined
-
-export const children = (node: AstNode, key: string): AstNode[] =>
-  Array.isArray(node[key]) ? (node[key] as unknown[]).filter(isNode) : []
-
-/** The text of a string literal or a template literal (substitutions as `${…}`); undefined for anything else. */
-export function stringText(node: AstNode): string | undefined {
-  if (node.type === 'Literal' && typeof node['value'] === 'string') return node['value']
-  if (node.type !== 'TemplateLiteral') return undefined
-  return children(node, 'quasis')
-    .map(quasi => (quasi['value'] as { raw: string }).raw)
-    .join('${…}')
-}
-
-/** Every string a script writes: string literals and template literals, in source order. */
-export function scriptStrings(file: Pick<ScannedFile, 'path' | 'text' | 'kind'>): string[] {
-  const found: string[] = []
-  walk(scriptTree(file), (node, parent) => {
-    if (parent?.type === 'TemplateLiteral') return
-    const text = stringText(node)
-    if (text !== undefined) found.push(text)
-  })
-  return found
-}
-
-/** The name of a property key or member: `a`, `'a'`, `a.b` gives `b`. */
-export function keyName(node: AstNode | undefined): string | undefined {
-  if (node === undefined) return undefined
-  if (node.type === 'Identifier' || node.type === 'JSXIdentifier') return node['name'] as string
-  if (node.type === 'Literal' && typeof node['value'] === 'string') return node['value']
-  if (node.type === 'MemberExpression') return keyName(child(node, 'property'))
-  return undefined
-}
-
-/** `name: expression` pairs of every object literal, shorthand included. */
-export function objectProperties(
-  tree: AstNode,
-): { readonly name: string; readonly value: AstNode; readonly shorthand: boolean }[] {
-  const found: { name: string; value: AstNode; shorthand: boolean }[] = []
-  walk(tree, node => {
-    if (node.type !== 'Property' || node['computed'] === true) return
-    const name = keyName(child(node, 'key'))
-    const value = child(node, 'value')
-    if (name !== undefined && value !== undefined)
-      found.push({ name, value, shorthand: node['shorthand'] === true })
-  })
-  return found
-}
-
-/** Calls whose callee is `name` or ends in `.name`. */
-export function callsNamed(tree: AstNode, name: string): AstNode[] {
-  const found: AstNode[] = []
-  walk(tree, node => {
-    if (node.type === 'CallExpression' && keyName(child(node, 'callee')) === name) found.push(node)
-  })
-  return found
-}
-
-/** The text of a call's argument when it is a string or template literal. */
-export function stringArgument(call: AstNode, index = 0): string | undefined {
-  const argument = children(call, 'arguments')[index]
-  return argument === undefined ? undefined : stringText(argument)
-}
-
-/** The initialiser of the first `const` or `let` that declares `name` in the file. */
-export function initialiserOf(tree: AstNode, name: string): AstNode | undefined {
-  let found: AstNode | undefined
-  walk(tree, node => {
-    if (found !== undefined || node.type !== 'VariableDeclarator') return
-    if (keyName(child(node, 'id')) === name) found = child(node, 'init')
-  })
-  return found
-}
-
-/** Strings written inside one expression. */
-export function stringsIn(node: AstNode): string[] {
-  const found: string[] = []
-  walk(node, (inner, parent) => {
-    if (parent?.type === 'TemplateLiteral') return
-    const text = stringText(inner)
-    if (text !== undefined) found.push(text)
-  })
-  return found
-}
-
-/** Module specifiers of static imports, dynamic imports and re-exports. */
-export function importSources(tree: AstNode): string[] {
-  const found: string[] = []
-  walk(tree, node => {
-    if (
-      node.type === 'ImportDeclaration' ||
-      node.type === 'ExportNamedDeclaration' ||
-      node.type === 'ExportAllDeclaration' ||
-      node.type === 'ImportExpression'
-    ) {
-      const source = child(node, 'source')
-      if (source !== undefined && typeof source['value'] === 'string') found.push(source['value'])
-    }
-  })
-  return found
-}
-
-export interface JsxElement {
-  readonly name: string
-  readonly attributes: ReadonlyMap<string, AstNode | undefined>
-  readonly node: AstNode
-}
-
-/** Every JSX opening element with its named attributes; a valueless attribute maps to undefined. */
-export function jsxElements(tree: AstNode): JsxElement[] {
-  const found: JsxElement[] = []
-  walk(tree, node => {
-    if (node.type !== 'JSXOpeningElement') return
-    const name = child(node, 'name')
-    const attributes = new Map<string, AstNode | undefined>()
-    for (const attribute of children(node, 'attributes')) {
-      const key = keyName(child(attribute, 'name'))
-      if (attribute.type === 'JSXAttribute' && key !== undefined)
-        attributes.set(key, child(attribute, 'value'))
-    }
-    found.push({
-      name: name?.type === 'JSXIdentifier' ? (name['name'] as string) : '',
-      attributes,
-      node,
-    })
-  })
-  return found
+/** The class names a selector names, outside attribute selectors and strings. */
+export function selectorClasses(selector: string): string[] {
+  const bare = selector.replaceAll(/\[[^\]]*\]/gu, '').replaceAll(/(["'])(?:\\.|(?!\1).)*\1/gu, '')
+  return [...bare.matchAll(/\.((?:\\.|[\w-])+)/gu)]
+    .map(match => (match[1] ?? '').replaceAll(/\\(.)/gu, '$1'))
+    .filter(name => /^-?[_a-zA-Z]/u.test(name))
 }

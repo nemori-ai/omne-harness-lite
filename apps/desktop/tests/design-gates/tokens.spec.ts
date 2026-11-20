@@ -1,17 +1,14 @@
 // @module-tag source-text
 import { describe, expect, it } from 'vitest'
 
+import { callsIn, cssRules, normalise, stripCssComments } from './css-text.ts'
 import {
-  callsIn,
   callsNamed,
-  cssRules,
-  normalise,
+  moduleOf,
   objectProperties,
   scriptStrings,
-  scriptTree,
   stringArgument,
-  stripCssComments,
-} from './css-text.ts'
+} from './script-text.ts'
 import { ratchet, tally } from './ratchet.ts'
 import { FILES, isKit, isTokens, type ScannedFile } from './scope.ts'
 
@@ -102,7 +99,7 @@ export function reads(file: Source): Read[] {
       found.push({ name: match[1]!, fallback: false })
   }
   if (file.kind === 'ts' || file.kind === 'tsx' || file.kind === 'js') {
-    for (const call of callsNamed(scriptTree(file), 'getPropertyValue')) {
+    for (const call of callsNamed(moduleOf(file), 'getPropertyValue')) {
       const name = stringArgument(call)
       if (name?.startsWith('--') === true) found.push({ name, fallback: false })
     }
@@ -121,7 +118,7 @@ export function declarations(file: Source): string[] {
     ])
   }
   if (file.kind === 'html') return []
-  const tree = scriptTree(file)
+  const tree = moduleOf(file)
   return [
     ...objectProperties(tree)
       .map(property => property.name)
