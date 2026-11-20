@@ -205,6 +205,31 @@ describe.each([
   })
 })
 
+describe.each([
+  ['a line', LineChart],
+  ['an area', AreaChart],
+] as const)('%s with a point that has no known neighbour', (_name, Chart) => {
+  const one = [{ key: 'p50', label: '中位' }]
+  const week = ['11-14', '11-15', '11-16', '11-17', '11-18', '11-19', '11-20']
+
+  it('marks that point with a dot in the series color, since a line through one point draws nothing', async () => {
+    const lone = week.map((label, at) => ({ label, values: { p50: at === 6 ? 1302 : null } }))
+    const { container } = render(<Chart label="延迟" series={one} rows={lone} />)
+    await settle()
+    const dots = [...container.querySelectorAll('circle.omne-chart-point')]
+    expect(dots).toHaveLength(1)
+    expect(dots[0]?.getAttribute('fill')).toBe('currentColor')
+    expect(dots[0]?.getAttribute('stroke')).toBe('none')
+  })
+
+  it('draws no dot where the line reaches the point from a known neighbour', async () => {
+    const pair = week.map((label, at) => ({ label, values: { p50: at >= 5 ? 1000 + at : null } }))
+    const { container } = render(<Chart label="延迟" series={one} rows={pair} />)
+    await settle()
+    expect(container.querySelectorAll('circle.omne-chart-point')).toHaveLength(0)
+  })
+})
+
 describe('the share bar', () => {
   const parts = [
     { key: 'a', label: '模型 A', value: 3 },

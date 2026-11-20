@@ -85,7 +85,35 @@ function TooltipBody({
   )
 }
 
-function marks(kind: Kind, series: readonly ChartSeries[]): React.JSX.Element[] {
+const known = (data: readonly Datum[], key: string, at: number): boolean =>
+  typeof data[at]?.[key] === 'number'
+
+type PointProps = Readonly<{ cx?: number; cy?: number; index?: number }>
+
+const pointOf = (data: readonly Datum[], key: string) =>
+  function Point({ cx, cy, index = -1 }: PointProps): React.JSX.Element {
+    const lone =
+      known(data, key, index) && !known(data, key, index - 1) && !known(data, key, index + 1)
+    return lone && cx !== undefined && cy !== undefined ? (
+      <circle
+        key={index}
+        className="omne-chart-point"
+        cx={cx}
+        cy={cy}
+        r={3}
+        fill={INK}
+        stroke="none"
+      />
+    ) : (
+      <g key={index} />
+    )
+  }
+
+function marks(
+  kind: Kind,
+  series: readonly ChartSeries[],
+  data: readonly Datum[],
+): React.JSX.Element[] {
   return series.map((item, index) => {
     const shared = {
       key: item.key,
@@ -101,7 +129,7 @@ function marks(kind: Kind, series: readonly ChartSeries[]): React.JSX.Element[] 
           {...shared}
           key={item.key}
           type="monotone"
-          dot={false}
+          dot={pointOf(data, keyOf(index))}
           activeDot={ACTIVE_DOT}
           stroke={INK}
         />
@@ -112,6 +140,7 @@ function marks(kind: Kind, series: readonly ChartSeries[]): React.JSX.Element[] 
         key={item.key}
         type="monotone"
         stackId="stack"
+        dot={pointOf(data, keyOf(index))}
         activeDot={ACTIVE_DOT}
         stroke={INK}
         fill={INK}
@@ -129,6 +158,7 @@ function SeriesChart({
   height = 200,
 }: SeriesChartProps & { readonly kind: Kind }): React.JSX.Element {
   const Frame = kind === 'bar' ? BarFrame : kind === 'line' ? LineFrame : AreaFrame
+  const data = dataOf(series, rows)
   return (
     <ChartFrame
       label={label}
@@ -136,12 +166,7 @@ function SeriesChart({
       table={<SeriesTable series={series} rows={rows} format={format} />}
     >
       <ResponsiveContainer width="100%" height={height} initialDimension={{ width: 480, height }}>
-        <Frame
-          data={dataOf(series, rows)}
-          accessibilityLayer
-          className="omne-chart-plot"
-          margin={MARGIN}
-        >
+        <Frame data={data} accessibilityLayer className="omne-chart-plot" margin={MARGIN}>
           <CartesianGrid className="omne-chart-grid" vertical={false} stroke={INK} />
           <XAxis dataKey="x" className="omne-chart-axis" stroke={INK} tickLine={false} />
           <YAxis
@@ -164,7 +189,7 @@ function SeriesChart({
               />
             )}
           />
-          {marks(kind, series)}
+          {marks(kind, series, data)}
         </Frame>
       </ResponsiveContainer>
     </ChartFrame>
