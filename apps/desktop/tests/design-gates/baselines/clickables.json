@@ -1,0 +1,17 @@
+{
+  "gate": "clickables",
+  "entries": {
+    "apps/desktop/src/page/shell/shell.tsx | native <button>": 2,
+    "apps/desktop/src/page/shell/shell.tsx | unmarked <button>": 2,
+    "packages/frontend/ui-kit/src/charts/frame.tsx | native <details>": 1,
+    "packages/frontend/ui-kit/src/charts/frame.tsx | unmarked <summary>": 1,
+    "packages/frontend/ui-kit/src/prose/prose.tsx | unmarked <a>": 1,
+    "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | native <details>": 1,
+    "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | unmarked <summary>": 1,
+    "packages/session/session-ui/src/view/history-search.tsx | native <button>": 1,
+    "packages/session/session-ui/src/view/history-search.tsx | unmarked <button>": 1,
+    "packages/session/session-ui/src/view/session-list-panel.tsx | native <button>": 1,
+    "packages/session/session-ui/src/view/session-list-panel.tsx | unmarked <button>": 1,
+    "packages/usage/usage-ui/src/view/panel.tsx | native <select>": 3
+  }
+}

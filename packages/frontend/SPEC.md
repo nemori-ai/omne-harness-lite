@@ -280,7 +280,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I18 | 一个页面里至多一个形；形的大小等于 56px 乘字号档的系数，在每个座位上相同 | 屏幕上出现两个形，或形随座位变大小 | `ui-kit/tests/ink.spec.tsx` |
 | FE-I19 | 字号档控制器不自己读写存储：偏好的读与写只经注入的函数；中楷时 `<html>` 上没有 `data-size` | 字号偏好有第二个来源，与调用者的存储不一致 | `ui-kit/tests/size-controller.spec.ts` |
 | FE-I20 | 样式只读存在的 `--omne-*`；共用件以外不读 `--kami-*`、不声明自定义属性；`tokens.css` 以外没有颜色字面量与调色板类 | 一个变量没人定义时静默退回继承值，悬停或强调色悄悄丢掉；一种主题的颜色写死在件里 | `apps/desktop/tests/design-gates/tokens.spec.ts` |
-| FE-I21 | `tokens.css` 以外没有大于 1px 的 px 数，也没有 rem 与 em；字号、行高、圆角、控件高度只取 token，图标只取图标刻度 | 换字号档时这一处不跟着变，版式错开 | `apps/desktop/tests/design-gates/scale.spec.ts` |
+| FE-I21 | `tokens.css` 以外没有大于 1px 的 px 数，也没有 rem（跟着字号走的 em 可以）；字号、行高、圆角、控件高度只取 token，图标只取图标刻度 | 换字号档时这一处不跟着变，版式错开 | `apps/desktop/tests/design-gates/scale.spec.ts` |
 | FE-I22 | 时长与曲线只取动效 token；`tokens.css` 的动效 token 与视觉规范技能的时长表逐行相同；关键帧的名字恰好是技能公布的那几个 | 出现第二套时钟，动效的快慢各处不一 | `apps/desktop/tests/design-gates/motion.spec.ts` |
 | FE-I23 | 媒体查询与代码里比较的宽度只有 768、1100、1160（`max-width` 写成减一） | 不同的页面在不同的宽度换版式 | `apps/desktop/tests/design-gates/breakpoints.spec.ts` |
 | FE-I24 | 环的余量是一个注册的长度；每个裁切容器留出它，工作区的边除外；每个滚动容器拿它作滚动内边距 | 焦点环被裁掉一半，键盘用户看不到焦点 | `apps/desktop/tests/design-gates/rings.spec.ts` |
