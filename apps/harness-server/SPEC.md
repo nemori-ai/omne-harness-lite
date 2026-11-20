@@ -397,6 +397,6 @@
 | HS-44 | 指定了工作区的创建与更换，只在工作区核验答合法时提交；附着与确认依据取自工作区的答复 | 会话附着了一个这个租户无权使用的工作区，或一个不存在的实例 | 会话接入层的处理函数在提交之前调「工作区目标」端口（`packages/session/session-access/tests/select-workspace.spec.ts`）；发行树上的用例 `tests/rows/session-access/workspace-release.spec.ts` |
 | HS-45 | 模型发出一次调用所依据的工作目录，等于这次调用固定请求里钉住的目录；它只随一步开始之前的动作更换 | 模型发出的命令落在它没被告知的目录里 | 模型 `WorkingDirectory` 的 `ToldDirectory`、`ToldAtBoundary`（`packages/session/session-adapters/verification/working-directory`）；发行树上的 `tests/rows/working-directory-release.spec.ts` 与 `tests/rows/working-directory-tools-release.spec.ts` |
 | HS-46 | 固定请求带了工作区实例的调用，每次取落点之前按当时的关系再核一次资格，核不过的调用什么都做不成并以拒绝收场；会话工作目录是「选了但用不了」或读不到时，需要环境的调用答不可用，不改用默认目录 | 被移除的租户继续在工作区里干活；或文件被写进另一个项目 | `tests/rows/tool-runtime/pinned-directory.spec.ts`、`tests/entry/tool-requests.spec.ts`；发行树上的 `tests/rows/working-directory-tools-release.spec.ts` |
-| HS-47 | 一轮里对工作区层的每次求值用的是这一轮开始时采用的那一份来源读取；没有选工作区的会话没有工作区层 | 一轮跑到一半能用的 Skill 变了；或没选工作区的会话用上了某个项目的 Skill | 只有文字 |
+| HS-47 | 一轮里对工作区层的每次求值用的是这一轮开始时采用的那一份来源读取；没有选工作区的会话没有工作区层 | 一轮跑到一半能用的 Skill 变了；或没选工作区的会话用上了某个项目的 Skill | `tests/rows/workspace-skills-release.spec.ts`（发行树：下一轮读到、这一轮里改了不生效、没选的会话与被移除的租户读不到）；`tests/rows/tool-bindings/skills.spec.ts` 的作用域 |
 | HS-48 | 一次调用的文件范围在受理时算出并钉住，取落点与设施守卫只认钉住的那一份；没有选工作区的会话不受「工作区之外的文件」影响；设置读不到时调用答不可用 | 人放行的是一个范围，执行的是另一个；或没用工作区的人被这项设置改了行为 | 只有文字 |
 | HS-49 | 读不到会话工作目录的调用有确定的结局，包括作用域没有登记这个块的会话 | 这一轮永远不结束 | 只有文字 |

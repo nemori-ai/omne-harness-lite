@@ -52,7 +52,7 @@ export type SourceFile =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 export interface WorkspaceSources<P> {
-  /** Reads once for this key and records it; the same key answers the same reading afterwards. */
+  /** Reads once for a key of the caller's and records it; the key answers that reading afterwards. */
   adopt(
     access: Access<P>,
     input: Readonly<{
@@ -64,12 +64,9 @@ export interface WorkspaceSources<P> {
   ): Promise<SourceAdoption>
   adopted(
     access: Access<P>,
-    input: Readonly<{ workspace: WorkspaceId; key: string }>,
+    input: Readonly<{ key: string }>,
   ): Promise<SourceAdoption | Readonly<{ kind: 'none' }>>
-  open(
-    access: Access<P>,
-    input: Readonly<{ workspace: WorkspaceId; key: string; at: SourceFileAt }>,
-  ): Promise<SourceFile>
+  open(access: Access<P>, input: Readonly<{ key: string; at: SourceFileAt }>): Promise<SourceFile>
 }
 
 export type SourceFilesRead =

@@ -1,4 +1,4 @@
-import type { Access, WorkspaceId } from '@omne-harness/legal-identity'
+import { workspaceCodec, type Access, type WorkspaceId } from '@omne-harness/legal-identity'
 import {
   decide,
   standingOf,
@@ -31,7 +31,14 @@ export type SourcesDependencies<P> = WorkspaceDependencies<P> &
 
 type Named = Readonly<{ tenant: string; workspace: string }>
 
-function adoptionOf(workspace: WorkspaceId, stored: StoredAdoption): SourceAdoption {
+type Recorded = Readonly<{ workspace: WorkspaceId; stored: StoredAdoption }>
+
+function recordOf(stored: StoredAdoption): Recorded | Blocked {
+  const workspace = workspaceCodec.parse(stored.adoption.workspace)
+  return workspace.ok ? { workspace: workspace.value, stored } : unavailable('store')
+}
+
+function adoptionOf({ workspace, stored }: Recorded): SourceAdoption {
   const { adoption, reading } = stored
   const read: SourceReading = {
     workspace,
@@ -44,9 +51,8 @@ function adoptionOf(workspace: WorkspaceId, stored: StoredAdoption): SourceAdopt
 
 type FileIn = Readonly<{ instance: InstanceId; pkg: SourcePackage; entry: SourceEntry }>
 
-/** The file of a package of the reading the key points at, as it was recorded. */
-function fileIn(stored: StoredAdoption | null, at: SourceFileAt): FileIn | null {
-  const reading = stored?.reading ?? null
+function fileIn(stored: StoredAdoption, at: SourceFileAt): FileIn | null {
+  const { reading } = stored
   if (reading === null) return null
   const pkg = reading.packages.find(
     item => item.category === at.category && item.name === at.name && item.root === at.root,
@@ -57,7 +63,6 @@ function fileIn(stored: StoredAdoption | null, at: SourceFileAt): FileIn | null 
     : { instance: reading.instance, pkg, entry }
 }
 
-/** The bytes of the file now, when they are still the ones recorded. */
 async function bytesOf(
   ports: Pick<SourcesDependencies<unknown>, 'files' | 'digests'>,
   directory: string,
@@ -88,16 +93,20 @@ export function createSources<P>(deps: SourcesDependencies<P>): WorkspaceSources
     return { tenant, workspace: text }
   }
 
-  async function recorded(
-    access: Access<P>,
-    workspace: WorkspaceId,
-    key: string,
-  ): Promise<Readonly<{ named: Named; stored: StoredAdoption | null }> | Blocked> {
-    const named = await related(access, workspace)
-    if ('kind' in named) return named
-    const found = await deps.store.adoption(named.tenant, named.workspace, key)
-    return found.kind === 'read' ? { named, stored: found.value } : unavailable('store')
+  /** The adoption a key of the caller's points at, its relation checked now; null: none. */
+  async function recorded(access: Access<P>, key: string): Promise<Recorded | Blocked | null> {
+    const tenant = tenantText(access)
+    if (tenant === null) return NOT_PERMITTED
+    const found = await deps.store.adoption(tenant, key)
+    if (found.kind !== 'read') return unavailable('store')
+    if (found.value === null) return null
+    const record = recordOf(found.value)
+    if ('kind' in record) return record
+    const named = await related(access, record.workspace)
+    return 'kind' in named ? named : record
   }
+
+  const answerOf = (record: Recorded | Blocked) => ('kind' in record ? record : adoptionOf(record))
 
   async function sourcesOf(
     access: Access<P>,
@@ -115,13 +124,14 @@ export function createSources<P>(deps: SourcesDependencies<P>): WorkspaceSources
 
   return {
     async adopt(access, input) {
-      const found = await recorded(access, input.workspace, input.key)
-      if ('kind' in found) return found
-      if (found.stored !== null) return adoptionOf(input.workspace, found.stored)
+      const found = await recorded(access, input.key)
+      if (found !== null) return answerOf(found)
+      const named = await related(access, input.workspace)
+      if ('kind' in named) return named
       const read = await sourcesOf(access, input)
       if (read.kind === 'not-permitted' || read.kind === 'unavailable') return read
       const committed = await deps.store.adopt({
-        ...found.named,
+        ...named,
         key: input.key,
         instance: input.instance,
         read,
@@ -129,21 +139,21 @@ export function createSources<P>(deps: SourcesDependencies<P>): WorkspaceSources
       // An unknown answer is taken back by the same key: the next adoption of it reads the record.
       if (committed.kind !== 'committed') return unavailable('store')
       const result = committed.value
-      return result.kind === 'adopted' ? adoptionOf(input.workspace, result) : NOT_PERMITTED
+      return result.kind === 'adopted' ? answerOf(recordOf(result)) : NOT_PERMITTED
     },
 
     async adopted(access, input) {
-      const found = await recorded(access, input.workspace, input.key)
-      if ('kind' in found) return found
-      return found.stored === null ? { kind: 'none' } : adoptionOf(input.workspace, found.stored)
+      const found = await recorded(access, input.key)
+      return found === null ? { kind: 'none' } : answerOf(found)
     },
 
     async open(access, input): Promise<SourceFile> {
-      const found = await recorded(access, input.workspace, input.key)
+      const found = await recorded(access, input.key)
+      if (found === null) return { kind: 'not-found' }
       if ('kind' in found) return found
       const file = fileIn(found.stored, input.at)
       if (file === null) return { kind: 'not-found' }
-      const { workspace } = input
+      const { workspace } = found
       const verified = await instances.verify(access, { workspace, instance: file.instance })
       if (verified.kind === 'not-permitted' || verified.kind === 'unavailable') return verified
       // The instance it was read from is gone: what was adopted cannot be read as it was.

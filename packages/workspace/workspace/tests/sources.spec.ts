@@ -270,9 +270,7 @@ describe('adopting the sources for a key (C6)', () => {
     s.w.store.fail('unreadable')
     expect(await s.adopt('turn-1')).toEqual({ kind: 'unavailable', diagnostic: 'store' })
     s.w.store.fail('none')
-    expect(
-      await s.sources.adopted(ALICE, { workspace: s.target.workspace, key: 'turn-1' }),
-    ).toEqual({ kind: 'none' })
+    expect(await s.sources.adopted(ALICE, { key: 'turn-1' })).toEqual({ kind: 'none' })
   })
 
   it('keeps the last reading, or the empty one, with the reason, when the instance cannot be used', async () => {
@@ -325,9 +323,7 @@ describe('adopting the sources for a key (C6)', () => {
     s.w.things.things.get('/a')!.state = 'gone'
     expect(await s.adopt('turn-1')).toEqual(first)
     expect(s.t.listings()).toBe(listed)
-    expect(
-      await s.sources.adopted(ALICE, { workspace: s.target.workspace, key: 'turn-1' }),
-    ).toEqual(first)
+    expect(await s.sources.adopted(ALICE, { key: 'turn-1' })).toEqual(first)
   })
 
   it('a recorded key reads nothing once the relation ends, or while the store cannot be read', async () => {
@@ -347,8 +343,7 @@ describe('adopting the sources for a key (C6)', () => {
       target: BOB.tenant,
     })
     expect(await s.adopt('turn-1', [GADGETS], BOB)).toEqual({ kind: 'not-permitted' })
-    const workspace = s.target.workspace
-    expect(await s.sources.adopted(BOB, { workspace, key: 'turn-1' })).toEqual({
+    expect(await s.sources.adopted(BOB, { key: 'turn-1' })).toEqual({
       kind: 'not-permitted',
     })
   })
@@ -373,7 +368,7 @@ describe('reading a file of an adopted package', () => {
     const s = await setup()
     s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
     await s.adopt('turn-1')
-    const input = { workspace: s.target.workspace, key: 'turn-1', at: { ...at, digest: 'f:v1' } }
+    const input = { key: 'turn-1', at: { ...at, digest: 'f:v1' } }
     const read = await s.sources.open(ALICE, input)
     expect(read.kind === 'bytes' && text(read.bytes)).toBe('v1')
     s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v2')
@@ -386,31 +381,53 @@ describe('reading a file of an adopted package', () => {
     const s = await setup()
     s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
     await s.adopt('turn-1')
-    const workspace = s.target.workspace
     const open = (key: string, more: object) =>
-      s.sources.open(ALICE, { workspace, key, at: { ...at, digest: 'f:v1', ...more } })
+      s.sources.open(ALICE, { key, at: { ...at, digest: 'f:v1', ...more } })
     expect(await open('turn-1', { path: 'OTHER.md' })).toEqual({ kind: 'not-found' })
     expect(await open('turn-1', { name: 'fan' })).toEqual({ kind: 'not-found' })
     expect(await open('turn-1', { digest: 'f:v0' })).toEqual({ kind: 'not-found' })
     expect(await open('turn-2', {})).toEqual({ kind: 'not-found' })
   })
 
-  it('answers not permitted to a tenant with no relation', async () => {
+  it("a key is the caller's own: another tenant finds nothing under it", async () => {
     const s = await setup()
     s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
     await s.adopt('turn-1')
-    const input = { workspace: s.target.workspace, key: 'turn-1', at: { ...at, digest: 'f:v1' } }
-    expect(await s.sources.open(BOB, input)).toEqual({ kind: 'not-permitted' })
+    const input = { key: 'turn-1', at: { ...at, digest: 'f:v1' } }
+    expect(await s.sources.open(BOB, input)).toEqual({ kind: 'not-found' })
+    expect(await s.sources.adopted(BOB, { key: 'turn-1' })).toEqual({ kind: 'none' })
+  })
+
+  it('is not permitted to an access whose tenant is no tenant, whatever its key', async () => {
+    const s = await setup()
+    await s.adopt('turn-1')
+    const nobody = { ...ALICE, tenant: {} as never }
+    expect(await s.sources.adopted(nobody, { key: 'turn-1' })).toEqual({ kind: 'not-permitted' })
+  })
+
+  it('a key given again with another workspace answers the reading it was given first', async () => {
+    const s = await setup()
+    s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
+    s.w.things.put('/b', { kinds: ['plain'] })
+    const b = await s.w.governance.register(ALICE, { operation: op('register-b'), address: '/b' })
+    if (b.kind !== 'done') throw new Error(JSON.stringify(b))
+    const first = await s.adopt('turn-1')
+    const target = { workspace: b.value.workspace, instance: b.value.instance }
+    const again = await s.sources.adopt(ALICE, { ...target, key: 'turn-1', layouts: [GADGETS] })
+    expect(again).toEqual(first)
+    expect(again.kind === 'adopted' && again.reading.workspace).toEqual(s.target.workspace)
+    const input = { key: 'turn-1', at: { ...at, digest: 'f:v1' } }
+    const read = await s.sources.open(ALICE, input)
+    expect(read.kind === 'bytes' && text(read.bytes)).toBe('v1')
   })
 
   it('reads nothing recorded for a caller no longer admitted, at whichever check it is refused', async () => {
     const s = await setup()
     s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
     await s.adopt('turn-1')
-    const workspace = s.target.workspace
-    const input = { workspace, key: 'turn-1', at: { ...at, digest: 'f:v1' } }
+    const input = { key: 'turn-1', at: { ...at, digest: 'f:v1' } }
     s.w.authority.admits(() => 'denied')
-    expect(await s.sources.adopted(ALICE, { workspace, key: 'turn-1' })).toEqual({
+    expect(await s.sources.adopted(ALICE, { key: 'turn-1' })).toEqual({
       kind: 'not-permitted',
     })
     expect(await s.sources.open(ALICE, input)).toEqual({ kind: 'not-permitted' })
@@ -468,9 +485,7 @@ describe('what the sources answer when something on the way fails', () => {
     expect(await s.sources.adopt(ALICE, { ...other, key: 'turn-2', layouts })).toEqual({
       kind: 'not-permitted',
     })
-    expect(
-      await s.sources.adopted(ALICE, { workspace: s.target.workspace, key: 'turn-2' }),
-    ).toEqual({ kind: 'none' })
+    expect(await s.sources.adopted(ALICE, { key: 'turn-2' })).toEqual({ kind: 'none' })
   })
 
   it('answers unavailable and records nothing when the type cannot look at the instance', async () => {
@@ -478,9 +493,7 @@ describe('what the sources answer when something on the way fails', () => {
     s.w.things.things.get('/a')!.state = 'unreadable'
     expect((await s.adopt('turn-1')).kind).toBe('unavailable')
     s.w.things.things.get('/a')!.state = 'present'
-    expect(
-      await s.sources.adopted(ALICE, { workspace: s.target.workspace, key: 'turn-1' }),
-    ).toEqual({ kind: 'none' })
+    expect(await s.sources.adopted(ALICE, { key: 'turn-1' })).toEqual({ kind: 'none' })
   })
 
   it('answers unavailable when the adoption cannot be read though the workspace can', async () => {
@@ -582,7 +595,7 @@ describe('reading a file when something on the way fails', () => {
     s.t.write('/a/.omne/gadgets/lamp/MAIN.md', 'v1')
     await s.adopt('turn-1')
     s.w.things.things.get('/a')!.state = 'gone'
-    const input = { workspace: s.target.workspace, key: 'turn-1', at: { ...at, digest: 'f:v1' } }
+    const input = { key: 'turn-1', at: { ...at, digest: 'f:v1' } }
     expect(await s.sources.open(ALICE, input)).toEqual({ kind: 'changed' })
     s.w.things.things.get('/a')!.state = 'unreadable'
     expect((await s.sources.open(ALICE, input)).kind).toBe('unavailable')

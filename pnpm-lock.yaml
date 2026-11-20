@@ -935,6 +935,9 @@ importers:
       '@omne-harness/workspace-access':
         specifier: workspace:*
         version: link:../../packages/workspace/workspace-access
+      '@omne-harness/workspace-asset-source':
+        specifier: workspace:*
+        version: link:../../packages/workspace/workspace-asset-source
       '@omne-harness/workspace-contract':
         specifier: workspace:*
         version: link:../../packages/workspace/workspace-contract

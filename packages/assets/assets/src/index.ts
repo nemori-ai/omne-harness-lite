@@ -43,6 +43,7 @@ export {
   type PackageRejection,
   type PackageSourceFailure,
 } from './package.ts'
+export { packageBody } from './package-body.ts'
 export { isReadBody, readBodyText, readSnapshot } from './read-body.ts'
 export {
   createCategoryPoint,

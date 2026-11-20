@@ -401,7 +401,7 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
     async run(make) {
       const store = await make()
       committed(await store.register(register()))
-      assert.deepEqual(read(await store.adoption('alice', 'wsp_1', 'k1')), null)
+      assert.deepEqual(read(await store.adoption('alice', 'k1')), null)
       const first = committed(
         await store.adopt(adopt('k1', { kind: 'read', packages: [lamp('v1')] })),
       )
@@ -412,7 +412,7 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
       )
       assert.deepEqual(again, first)
       assert.equal(read(await store.sourceRevision('alice', 'wsp_1')), 2)
-      const stored = read(await store.adoption('alice', 'wsp_1', 'k1'))
+      const stored = read(await store.adoption('alice', 'k1'))
       assert.deepEqual(stored, {
         adoption: (first as { adoption: unknown }).adoption,
         reading: (first as { reading: unknown }).reading,
@@ -449,7 +449,7 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         reading: null,
       })
       // What a kept key reads back is what it was given: not fresh, with its reason.
-      assert.deepEqual(read(await store.adoption('alice', 'wsp_1', 'k0')), {
+      assert.deepEqual(read(await store.adoption('alice', 'k0')), {
         adoption: (none as { adoption: unknown }).adoption,
         reading: null,
       })
@@ -477,9 +477,27 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         ),
         DENIED,
       )
-      assert.equal(read(await store.adoption('bob', 'wsp_1', 'k1')), null)
+      assert.equal(read(await store.adoption('bob', 'k1')), null)
       committed(await store.adopt(adopt('k1', { kind: 'read', packages: [lamp('v1')] })))
-      assert.equal(read(await store.adoption('bob', 'wsp_1', 'k1')), null)
+      assert.equal(read(await store.adoption('bob', 'k1')), null)
+    },
+  },
+  {
+    name: "a key is the tenant's own: given again with another workspace, it answers the first",
+    async run(make) {
+      const store = await make()
+      committed(await store.register(register()))
+      committed(await store.register(second()))
+      const first = committed(
+        await store.adopt(adopt('k1', { kind: 'read', packages: [lamp('v1')] })),
+      )
+      const other = { workspace: 'wsp_2', instance: instance('2') }
+      const again = committed(
+        await store.adopt(adopt('k1', { kind: 'read', packages: [lamp('v2')] }, other)),
+      )
+      assert.deepEqual(again, first)
+      assert.equal(read(await store.adoption('alice', 'k1'))?.adoption.workspace, 'wsp_1')
+      assert.equal(read(await store.sourceRevision('alice', 'wsp_2')), 1)
     },
   },
   {

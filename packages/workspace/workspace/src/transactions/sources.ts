@@ -32,12 +32,13 @@ const sameReading = (
 export function adoptSources(txn: WorkspaceTxn, command: AdoptCommand): AdoptResult {
   const { workspace, tenant, key, instance, read } = command
   if (txn.relation(workspace, tenant) === null) return { kind: 'not-permitted' }
-  const recorded = txn.adoption(workspace, tenant, key)
+  const recorded = txn.adoption(tenant, key)
   if (recorded !== null)
     return {
       kind: 'adopted',
       adoption: recorded,
-      reading: recorded.revision === 0 ? null : txn.reading(workspace, tenant, recorded.revision),
+      reading:
+        recorded.revision === 0 ? null : txn.reading(recorded.workspace, tenant, recorded.revision),
     }
   const reading = readingFor(txn, command)
   const adoption: AdoptionRecord = {

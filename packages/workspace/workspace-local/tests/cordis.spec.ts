@@ -12,9 +12,10 @@ import {
   workspaceCatalogKey,
   workspaceGovernanceKey,
   workspaceInstancesKey,
+  workspaceSourcesKey,
   workspaceTypesKey,
 } from '@omne-harness/workspace-cordis-contract/cordis'
-import { DirectoryType } from '@omne-harness/workspace-filesystem'
+import { DirectoryType, localSourceFiles } from '@omne-harness/workspace-filesystem'
 import { createWorkspaceLocalPlugin } from '@omne-harness/workspace-local/cordis'
 import { fakeAccess, fakeAuthority } from '@omne-harness/workspace/testing'
 import { openSqlWorld } from './storage/world.ts'
@@ -35,7 +36,17 @@ class FixtureStorage extends StorageService {
   }
 }
 
-const KEYS = [workspaceGovernanceKey, workspaceInstancesKey, workspaceCatalogKey, workspaceTypesKey]
+const KEYS = [
+  workspaceGovernanceKey,
+  workspaceInstancesKey,
+  workspaceCatalogKey,
+  workspaceSourcesKey,
+  workspaceTypesKey,
+]
+const sources = {
+  files: localSourceFiles,
+  digests: { file: () => 'f', package: () => 'p' },
+}
 const ALICE = fakeAccess(1)
 
 function project(): string {
@@ -53,6 +64,7 @@ it('starts when the storage is there, binds every face, and a contributed type i
       sql: { bind: world.bind },
       authority: fakeAuthority(),
       node: 'node-1',
+      sources,
     })
     for (const key of KEYS) expect(ctx.get(key)).toBeUndefined()
     await ctx.plugin(FixtureStorage, world.storage).await()
@@ -107,6 +119,7 @@ it('refuses an empty node name', async () => {
       sql: { bind: world.bind },
       authority: fakeAuthority(),
       node: '',
+      sources,
     })
     await expect(local.await()).rejects.toThrow(/node name/)
   } finally {

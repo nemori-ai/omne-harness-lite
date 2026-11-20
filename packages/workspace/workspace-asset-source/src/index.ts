@@ -2,6 +2,7 @@ import {
   capabilityId,
   digestBytes,
   MAX_ASSET_PAGE,
+  packageBody,
   packageDigest,
   type AssetEntry,
   type AssetLayerSource,
@@ -11,7 +12,7 @@ import {
   type PackageReader,
   type PackageSourceFailure,
 } from '@omne-harness/assets'
-import type { Access, WorkspaceId } from '@omne-harness/legal-identity'
+import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   SourceAdoption,
@@ -36,7 +37,6 @@ export function layoutsOf(contracts: readonly BodyContract[]): readonly SourceLa
 export type WorkspaceLayerInput<P> = Readonly<{
   sources: Pick<WorkspaceSources<P>, 'adopted' | 'open'>
   access: Access<P>
-  workspace: WorkspaceId
   key: string
   /** The contract of a category, looked up when it is used: a category taken away reads as none. */
   contractOf(category: string): BodyContract | undefined
@@ -58,15 +58,11 @@ function placedOf(assetRef: string): Placed | null {
 
 type Adopted = Extract<SourceAdoption, { kind: 'adopted' }>
 
-/** This turn's reading: `none` when it adopted none, `unreadable` when nothing can be read now. */
 async function readingOf<P>(
   input: WorkspaceLayerInput<P>,
 ): Promise<Adopted | 'none' | 'unreadable'> {
   try {
-    const adopted = await input.sources.adopted(input.access, {
-      workspace: input.workspace,
-      key: input.key,
-    })
+    const adopted = await input.sources.adopted(input.access, { key: input.key })
     if (adopted.kind === 'adopted') return adopted
     return adopted.kind === 'none' ? 'none' : 'unreadable'
   } catch {
@@ -97,8 +93,7 @@ function readerOf<P>(input: WorkspaceLayerInput<P>, pkg: SourcePackage): Package
     async open(path, expected): Promise<Outcome<Uint8Array, PackageSourceFailure>> {
       const { category, name, root } = pkg
       const at = { category, name, root, path, digest: expected }
-      const workspace = input.workspace
-      const read = await input.sources.open(input.access, { workspace, key: input.key, at })
+      const read = await input.sources.open(input.access, { key: input.key, at })
       return read.kind === 'bytes'
         ? succeed(read.bytes)
         : fail(SOURCE_FAILURE[read.kind] ?? 'unavailable')
@@ -106,16 +101,25 @@ function readerOf<P>(input: WorkspaceLayerInput<P>, pkg: SourcePackage): Package
   }
 }
 
-/** The body by the check its category registered; none for a package that is not one of its name. */
-async function bodyOf<P>(
+/** The body by the check its category registered; `unreadable` when its files are not those read. */
+async function judgedOf<P>(
   input: WorkspaceLayerInput<P>,
   pkg: SourcePackage,
-): Promise<JsonValue | undefined> {
+): Promise<JsonValue | 'invalid' | 'unreadable'> {
   const contract = input.contractOf(pkg.category)
-  if (contract?.layout === undefined) return undefined
+  if (contract?.layout === undefined) return 'invalid'
   const inspected = await contract.layout.inspect(readerOf(input, pkg))
-  if (!('ok' in inspected)) return undefined
-  return contract.judge(inspected.ok, { capabilityName: pkg.name }).ok ? inspected.ok : undefined
+  if (!('ok' in inspected))
+    return inspected.failure.kind === 'source-failed' ? 'unreadable' : 'invalid'
+  const body = packageBody(inspected.ok, { entries: pkg.entries })
+  if (!('ok' in body)) return 'invalid'
+  const judged = contract.judge(body.ok, { capabilityName: pkg.name, definition: pkg.version })
+  return judged.ok ? body.ok : 'invalid'
+}
+
+const bodyOf = async <P>(input: WorkspaceLayerInput<P>, pkg: SourcePackage) => {
+  const judged = await judgedOf(input, pkg)
+  return typeof judged === 'string' ? undefined : judged
 }
 
 const candidateOf = (pkg: SourcePackage): Candidate => ({
@@ -131,12 +135,15 @@ async function validIn<P>(
   adopted: Adopted,
   category: string,
   name?: string,
-): Promise<readonly SourcePackage[]> {
+): Promise<Readonly<{ valid: readonly SourcePackage[]; unreadable: boolean }>> {
   const found = adopted.reading.packages.filter(
     pkg => pkg.category === category && (name === undefined || pkg.name === name),
   )
-  const bodies = await Promise.all(found.map(pkg => bodyOf(input, pkg)))
-  return found.filter((_, at) => bodies[at] !== undefined)
+  const judged = await Promise.all(found.map(pkg => judgedOf(input, pkg)))
+  return {
+    valid: found.filter((_, at) => judged[at] !== 'invalid'),
+    unreadable: judged.includes('unreadable'),
+  }
 }
 
 const entryOf = (pkg: SourcePackage): AssetEntry[] => {
@@ -156,14 +163,22 @@ export function workspaceLayerSource<P>(input: WorkspaceLayerInput<P>): AssetLay
     async candidates(capability) {
       const adopted = await readingFor(input, capability.category)
       if ('state' in adopted) return adopted
-      const valid = await validIn(input, adopted, capability.category, capability.name)
+      const { valid, unreadable } = await validIn(
+        input,
+        adopted,
+        capability.category,
+        capability.name,
+      )
+      // What the turn adopted is there but cannot be read: not read as gone, nor as another layer's.
+      if (unreadable) return { layer: LAYER, state: 'unavailable' }
       return { layer: LAYER, state: 'read', candidates: valid.map(candidateOf) }
     },
     async list(request) {
       if (request.limit < 1 || request.limit > MAX_ASSET_PAGE) return { state: 'invalid' }
       const adopted = await readingFor(input, request.category)
       if ('state' in adopted) return adopted
-      const valid = (await validIn(input, adopted, request.category)).filter(
+      const { valid: found } = await validIn(input, adopted, request.category)
+      const valid = found.filter(
         pkg => request.after === null || workspaceAssetRef(pkg) > request.after,
       )
       const items = valid.slice(0, request.limit).flatMap(entryOf)

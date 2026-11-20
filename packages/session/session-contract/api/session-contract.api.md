@@ -375,6 +375,7 @@
 - `retireOnce` · `authorizations.d.ts`
 - `routeInput` · `judgments.d.ts`
 - `runCancelledBy` · `decision-support.d.ts`
+- `runIdOf` · `decide.d.ts`
 - `runStartInputs` · `intake.d.ts`
 - `sessionInputBytes` · `intake.d.ts`
 - `sessionIntakeLimits` · `intake.d.ts`
@@ -2339,7 +2340,7 @@ export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInter
 export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, ProductionEvidenceCommand, SessionAdoptionPlanAnswer, SessionAdoptionPlanInput, SessionAdoptionRecorded, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionCallControl, SessionCallStates, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionTransactionPort, SessionWorkPrincipals, } from './ports.ts';
 export { sessionModesBlock } from './block.ts';
 export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, judgeWaiting, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
-export { decide, commandDigest } from './decide.ts';
+export { decide, commandDigest, runIdOf } from './decide.ts';
 export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts';
 export { cancellationDriveOf, runCancelledBy } from './decision-support.ts';
 export { batchEvidence } from './batch-evidence.ts';
@@ -3779,8 +3780,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:0c317ea90dc9f987f3b3e0a8c396f15d30dd5b88226047dca6f2e7bd1f776253";
-export declare const SESSION_RELEASE_DIGEST = "sha256:0c317ea90dc9f987f3b3e0a8c396f15d30dd5b88226047dca6f2e7bd1f776253";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:4a5b88a2955ae88266d6e1ed5f17d5237651ce1d80899c06da3ad92da23c72a0";
+export declare const SESSION_RELEASE_DIGEST = "sha256:4a5b88a2955ae88266d6e1ed5f17d5237651ce1d80899c06da3ad92da23c72a0";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

@@ -64,15 +64,8 @@ export function sourceFacts(port: SqlPort): SourceFacts {
         `INSERT INTO ${READINGS_TABLE} (workspace, tenant, revision, instance, packages) VALUES (?, ?, ?, ?, ?)`,
         [workspace, tenant, revision, instance, JSON.stringify(packages)],
       ),
-    adoption: (workspace, tenant, key) =>
-      first(
-        select(port, `${ADOPTION} WHERE workspace = ? AND tenant = ? AND key = ?`, [
-          workspace,
-          tenant,
-          key,
-        ]),
-        adoptionOf,
-      ),
+    adoption: (tenant, key) =>
+      first(select(port, `${ADOPTION} WHERE tenant = ? AND key = ?`, [tenant, key]), adoptionOf),
     insertAdoption: ({ workspace, tenant, key, instance, revision, fresh, reason }) =>
       void port.execute(
         `INSERT INTO ${ADOPTIONS_TABLE} (workspace, tenant, key, instance, revision, fresh, reason) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -82,16 +75,11 @@ export function sourceFacts(port: SqlPort): SourceFacts {
 }
 
 /** An adoption of a key and the reading it points at, for the read handler. */
-export function storedAdoption(
-  port: SqlPort,
-  tenant: string,
-  workspace: string,
-  key: string,
-): StoredAdoption | null {
+export function storedAdoption(port: SqlPort, tenant: string, key: string): StoredAdoption | null {
   const facts = sourceFacts(port)
-  const adoption = facts.adoption(workspace, tenant, key)
+  const adoption = facts.adoption(tenant, key)
   if (adoption === null) return null
-  const reading =
-    adoption.revision === 0 ? null : facts.reading(workspace, tenant, adoption.revision)
+  const { workspace, revision } = adoption
+  const reading = revision === 0 ? null : facts.reading(workspace, tenant, revision)
   return { adoption, reading }
 }

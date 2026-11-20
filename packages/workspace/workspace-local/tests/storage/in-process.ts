@@ -73,6 +73,6 @@ export function createInProcessStore(): InProcessStore {
     memberships: tenant => read('memberships', tenant),
     operation: (tenant, operation) => read('operation', tenant, operation),
     sourceRevision: (tenant, workspace) => read('source-revision', tenant, workspace),
-    adoption: (tenant, workspace, key) => read('adoption', tenant, workspace, key),
+    adoption: (tenant, key) => read('adoption', tenant, key),
   }
 }

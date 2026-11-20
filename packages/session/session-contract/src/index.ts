@@ -191,7 +191,7 @@ export {
   type RouteJudgment,
   type RunStartJudgment,
 } from './judgments.ts'
-export { decide, commandDigest } from './decide.ts'
+export { decide, commandDigest, runIdOf } from './decide.ts'
 export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts'
 export { cancellationDriveOf, runCancelledBy } from './decision-support.ts'
 export { batchEvidence } from './batch-evidence.ts'

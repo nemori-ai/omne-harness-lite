@@ -74,7 +74,7 @@ export interface WorkspaceTxn {
   latestReading(workspace: string, tenant: string): ReadingRecord | null
   reading(workspace: string, tenant: string, revision: number): ReadingRecord | null
   insertReading(record: ReadingRecord): void
-  adoption(workspace: string, tenant: string, key: string): AdoptionRecord | null
+  adoption(tenant: string, key: string): AdoptionRecord | null
   insertAdoption(record: AdoptionRecord): void
 
   instance(instance: string): InstanceRecord | null

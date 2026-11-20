@@ -10,7 +10,7 @@ export default {
       [],
     )
     port.execute(
-      `CREATE TABLE ${ADOPTIONS_TABLE} (workspace TEXT NOT NULL, tenant TEXT NOT NULL, key TEXT NOT NULL, instance TEXT NOT NULL, revision INTEGER NOT NULL, fresh INTEGER NOT NULL, reason TEXT, PRIMARY KEY(workspace, tenant, key))`,
+      `CREATE TABLE ${ADOPTIONS_TABLE} (workspace TEXT NOT NULL, tenant TEXT NOT NULL, key TEXT NOT NULL, instance TEXT NOT NULL, revision INTEGER NOT NULL, fresh INTEGER NOT NULL, reason TEXT, PRIMARY KEY(tenant, key))`,
       [],
     )
   },

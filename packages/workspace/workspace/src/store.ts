@@ -44,9 +44,5 @@ export interface WorkspaceStore {
   memberships(tenant: string): Promise<StoreRead<readonly Membership[]>>
   operation(tenant: string, operation: string): Promise<StoreRead<OperationRecord | null>>
   sourceRevision(tenant: string, workspace: string): Promise<StoreRead<number>>
-  adoption(
-    tenant: string,
-    workspace: string,
-    key: string,
-  ): Promise<StoreRead<StoredAdoption | null>>
+  adoption(tenant: string, key: string): Promise<StoreRead<StoredAdoption | null>>
 }

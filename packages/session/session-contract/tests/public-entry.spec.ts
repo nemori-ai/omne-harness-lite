@@ -97,6 +97,7 @@ it('exports exactly the declared root runtime surface', () => {
     'retireOnce',
     'routeInput',
     'runCancelledBy',
+    'runIdOf',
     'runStartInputs',
     'sessionInputBytes',
     'sessionIntakeLimits',

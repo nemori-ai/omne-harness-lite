@@ -75,10 +75,9 @@ export function memoryTxn(facts: WorkspaceFacts): WorkspaceTxn {
     insertReading(record) {
       facts.readings.set(triple(record.workspace, record.tenant, record.revision), record)
     },
-    adoption: (workspace, tenant, key) =>
-      facts.adoptions.get(triple(workspace, tenant, key)) ?? null,
+    adoption: (tenant, key) => facts.adoptions.get(pair(tenant, key)) ?? null,
     insertAdoption(record) {
-      facts.adoptions.set(triple(record.workspace, record.tenant, record.key), record)
+      facts.adoptions.set(pair(record.tenant, record.key), record)
     },
     instance: instance => facts.instances.get(instance) ?? null,
     occupant: (node, occupancy) =>
@@ -183,11 +182,12 @@ export function createMemoryStore(): MemoryStore {
       read(() => facts.operations.get(pair(tenant, operation)) ?? null),
     sourceRevision: async (tenant, workspace) =>
       read(() => facts.sources.get(pair(workspace, tenant)) ?? 0),
-    adoption: async (tenant, workspace, key) =>
+    adoption: async (tenant, key) =>
       read(() => {
-        const adoption = facts.adoptions.get(triple(workspace, tenant, key))
+        const adoption = facts.adoptions.get(pair(tenant, key))
         if (adoption === undefined) return null
-        const reading = facts.readings.get(triple(workspace, tenant, adoption.revision)) ?? null
+        const { workspace, revision } = adoption
+        const reading = facts.readings.get(triple(workspace, tenant, revision)) ?? null
         return { adoption, reading }
       }),
   }

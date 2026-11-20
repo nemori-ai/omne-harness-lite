@@ -7,9 +7,11 @@ import {
   workspaceCatalogKey,
   workspaceGovernanceKey,
   workspaceInstancesKey,
+  workspaceSourcesKey,
   workspaceTypesKey,
 } from '@omne-harness/workspace-cordis-contract/cordis'
-import { DirectoryType } from '@omne-harness/workspace-filesystem'
+import { assetDigests } from '@omne-harness/workspace-asset-source'
+import { DirectoryType, localSourceFiles } from '@omne-harness/workspace-filesystem'
 import { GitType } from '@omne-harness/workspace-git'
 import {
   createDomainBinding,
@@ -42,6 +44,7 @@ export const workspaceRow = defineRow({
       workspaceGovernanceKey,
       workspaceInstancesKey,
       workspaceCatalogKey,
+      workspaceSourcesKey,
       workspaceTypesKey,
     ],
     injects: [storageKey],
@@ -65,6 +68,7 @@ export const workspaceRow = defineRow({
         verifier: () => ctx.get(principalVerifierKey) as PrincipalVerifier | undefined,
         standing: () => ctx.get(tenantStandingKey) as TenantStandingSource | undefined,
       }),
+      sources: { files: localSourceFiles, digests: assetDigests },
     })
     await provider.await()
     ctx.inject([workspaceTypesKey], child => {

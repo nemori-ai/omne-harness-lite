@@ -26,7 +26,14 @@ import { createBoundSkills } from '../../src/rows/tool-bindings/skills.ts'
 import { productionStorageCatalog } from '../../src/rows/storage/production-catalog.ts'
 import { fixtureEnv, fixtureTenant } from '../entry/support.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
-import { openSkillPublisher, skillCategories, writeSampleSkill } from './support.ts'
+import {
+  openSkillPublisher,
+  readWorkNowhere,
+  skillCategories,
+  writeSampleSkill,
+} from './support.ts'
+
+const NO_WORKSPACE = { sources: () => undefined, contractOf: () => undefined }
 
 /** One tenant's Skills on real sqlite, called through the Skills author and its binding. */
 export type SkillsWorld = Readonly<{
@@ -105,7 +112,9 @@ export async function skillsWorld(): Promise<SkillsWorld> {
   const host = new TenantSkillsHost({
     async open(who, tenantRef) {
       const assets = await tenantAssets.open(tenantRef)
-      return assets === undefined ? undefined : tenantSkills(assets, who, SEARCH_RANKING)
+      return assets === undefined
+        ? undefined
+        : tenantSkills(assets, who, SEARCH_RANKING, NO_WORKSPACE)
     },
   })
 
@@ -119,6 +128,7 @@ export async function skillsWorld(): Promise<SkillsWorld> {
     { principal: issued.ok, tenant, request: {} as FixedToolRequest } as never,
     {
       verifier: () => fixture.root.get('principalVerifier'),
+      readWork: readWorkNowhere,
       catalog: () => routed.catalog,
       access: () => routed.access,
     },

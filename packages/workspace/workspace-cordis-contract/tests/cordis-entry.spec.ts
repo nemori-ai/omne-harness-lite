@@ -6,6 +6,7 @@ const services = [
   [entry.WorkspaceGovernanceService, entry.workspaceGovernanceKey, 'workspaceGovernance'],
   [entry.WorkspaceInstancesService, entry.workspaceInstancesKey, 'workspaceInstances'],
   [entry.WorkspaceCatalogService, entry.workspaceCatalogKey, 'workspaceCatalog'],
+  [entry.WorkspaceSourcesService, entry.workspaceSourcesKey, 'workspaceSources'],
   [entry.WorkspaceTypesService, entry.workspaceTypesKey, 'workspaceTypes'],
 ] as const
 

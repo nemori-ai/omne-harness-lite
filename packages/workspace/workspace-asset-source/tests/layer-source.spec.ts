@@ -41,6 +41,12 @@ const body = (name: string, said: string): JsonValue => ({
     { key: 'text', value: { kind: 'string', value: said } },
   ],
 })
+/** What the layout declared: the body without the manifest the package is recorded with. */
+const declared = (value: unknown) => {
+  const tree = value as JsonValue | undefined
+  if (tree?.kind !== 'object') return value
+  return { ...tree, entries: tree.entries.filter(entry => entry.key !== 'manifest') }
+}
 const nameIn = (value: unknown): string | undefined => {
   const tree = value as JsonValue
   const found =
@@ -106,13 +112,12 @@ async function setup(contracts: readonly BodyContract[] = [gadget]) {
   })
   if (made.kind !== 'done') throw new Error(JSON.stringify(made))
   const { workspace, instance } = made.value
-  const adopt = (key: string) =>
-    sources.adopt(ALICE, { workspace, instance, key, layouts: layoutsOf(contracts) })
+  const adopt = (key: string, access = ALICE) =>
+    sources.adopt(access, { workspace, instance, key, layouts: layoutsOf(contracts) })
   const layer = (key: string, access = ALICE, using: typeof sources = sources) => {
     const input = {
       sources: using,
       access,
-      workspace,
       key,
       contractOf: (category: string) => contracts.find(each => each.category === category),
     }
@@ -125,6 +130,7 @@ async function setup(contracts: readonly BodyContract[] = [gadget]) {
   return { p, adopt, layer, governance, workspace, things, sources }
 }
 
+const op = (name: string) => operationId(name) as OperationId
 const lamp = capabilityId('gadget', 'lamp')
 if (!lamp.ok) throw new Error('capability')
 /** A second directory category whose packages may share a name with the gadgets. */
@@ -146,7 +152,9 @@ describe('a category made up for the test goes through without a line of the wor
     expect(layer.candidates.map(each => each.asset)).toEqual(['workspace/shared/gadget/lamp'])
     const won = evaluate({ layers: [layer], eligible: () => 'yes' })
     if (won.kind !== 'winner') throw new Error(won.kind)
-    expect(await l.body(won.candidate)).toEqual(body('lamp', 'A lamp.'))
+    const read = await l.body(won.candidate)
+    expect(declared(read)).toEqual(body('lamp', 'A lamp.'))
+    expect(JSON.stringify(read)).toContain('"key":"manifest"')
     const reader = l.reader({ assetRef: won.candidate.asset, version: won.candidate.version })
     const manifest = await reader.manifest()
     if (!('ok' in manifest)) throw new Error('manifest')
@@ -183,7 +191,7 @@ describe('a category made up for the test goes through without a line of the wor
     expect(first.kind === 'winner' && first.candidate.asset).toBe('workspace/local/gadget/lamp')
     const local = (candidate: Candidate) => candidate.asset.includes('/local/')
     const shared = evaluate({ layers: [layer], eligible: c => (local(c) ? 'no' : 'yes') })
-    expect(shared.kind === 'winner' && (await l.body(shared.candidate))).toEqual(
+    expect(shared.kind === 'winner' && declared(await l.body(shared.candidate))).toEqual(
       body('lamp', 'shared'),
     )
   })
@@ -204,13 +212,27 @@ describe('a category made up for the test goes through without a line of the wor
     })
   })
 
-  it('reads nothing for a tenant with no relation: the layer is unavailable, not empty', async () => {
+  it('reads nothing once the relation ends: the layer is unavailable, not empty', async () => {
     const s = await setup()
     s.p.write('.omne/gadgets/lamp/GADGET.md', 'name: lamp\nA lamp.')
-    await s.adopt('turn-1')
-    expect(await s.layer('turn-1', BOB).source.candidates(lamp.id)).toEqual({
+    const target = { workspace: s.workspace, target: BOB.tenant }
+    await s.governance.grantParticipation(ALICE, { operation: op('grant'), ...target })
+    await s.adopt('turn-b', BOB)
+    expect((await s.layer('turn-b', BOB).source.candidates(lamp.id)).state).toBe('read')
+    await s.governance.remove(ALICE, { operation: op('remove'), ...target })
+    expect(await s.layer('turn-b', BOB).source.candidates(lamp.id)).toEqual({
       layer: 'workspace',
       state: 'unavailable',
+    })
+    const page = { category: 'gadget', after: null, limit: 2 }
+    expect(await s.layer('turn-b', BOB).source.list(page)).toEqual({
+      layer: 'workspace',
+      state: 'unavailable',
+    })
+    // A key is its tenant's own: another tenant has no adoption under it.
+    expect(await s.layer('turn-b').source.candidates(lamp.id)).toEqual({
+      layer: 'workspace',
+      state: 'not-applicable',
     })
   })
 
@@ -234,6 +256,55 @@ describe('a category made up for the test goes through without a line of the wor
     expect(await l.reader({ assetRef: candidate!.asset, version: 'other' }).manifest()).toEqual({
       failure: 'package-not-found',
     })
+  })
+
+  it('leaves out a package its layout refuses, or that declares no object, and reads the layer', async () => {
+    const odd: BodyContract = {
+      ...gadget,
+      category: 'odd',
+      judge: () => ({ ok: true }),
+      layout: {
+        ...gadgetLayout,
+        namespace: 'odds',
+        inspect: async () => ({ ok: { kind: 'null' } }),
+      },
+    }
+    const s = await setup([gadget, odd])
+    s.p.write('.omne/gadgets/lamp/OTHER.md', 'no GADGET.md here')
+    s.p.write('.omne/odds/lamp/ANY.md', 'anything')
+    await s.adopt('turn-1')
+    const l = s.layer('turn-1')
+    expect(await l.source.candidates(lamp.id)).toEqual({
+      layer: 'workspace',
+      state: 'read',
+      candidates: [],
+    })
+    const oddLamp = capabilityId('odd', 'lamp')
+    if (!oddLamp.ok) throw new Error('capability')
+    expect(await l.source.candidates(oddLamp.id)).toEqual({
+      layer: 'workspace',
+      state: 'read',
+      candidates: [],
+    })
+  })
+
+  it('reads the layer as unavailable for a package the turn adopted that cannot be read now, never as gone', async () => {
+    const s = await setup()
+    s.p.write('.omne/gadgets/lamp/GADGET.md', 'name: lamp\nA lamp.')
+    s.p.write('.omne/gadgets/fan/GADGET.md', 'name: fan\nA fan.')
+    s.p.write('.omne/gadgets/torch/GADGET.md', 'name: other\nNot a torch.')
+    await s.adopt('turn-1')
+    s.p.write('.omne/gadgets/lamp/GADGET.md', 'name: lamp\nChanged.')
+    const source = s.layer('turn-1').source
+    expect(await source.candidates(lamp.id)).toEqual({ layer: 'workspace', state: 'unavailable' })
+    const fan = capabilityId('gadget', 'fan')
+    if (!fan.ok) throw new Error('capability')
+    expect((await source.candidates(fan.id)).state).toBe('read')
+    const page = await source.list({ category: 'gadget', after: null, limit: 10 })
+    expect('page' in page && page.page.items.map(item => item.asset)).toEqual([
+      'workspace/shared/gadget/fan',
+      'workspace/shared/gadget/lamp',
+    ])
   })
 
   it('lists the valid packages of a category by page, after the reference given', async () => {
@@ -306,8 +377,8 @@ describe('finding one package of the reading again', () => {
     const read = await l.source.candidates(lamp.id)
     if (read.state !== 'read') throw new Error(read.state)
     const [local, shared] = read.candidates
-    expect(await l.body(shared!)).toEqual(body('lamp', 'shared'))
-    expect(await l.body(local!)).toEqual(body('lamp', 'local'))
+    expect(declared(await l.body(shared!))).toEqual(body('lamp', 'shared'))
+    expect(declared(await l.body(local!))).toEqual(body('lamp', 'local'))
     const reader = l.reader({ assetRef: local!.asset, version: local!.version })
     const manifest = await reader.manifest()
     if (!('ok' in manifest)) throw new Error('manifest')
@@ -390,7 +461,6 @@ describe('a category taken away, a reading that cannot be had', () => {
     const input = {
       sources: s.sources,
       access: ALICE,
-      workspace: s.workspace,
       key: 'turn-1',
       contractOf: () => undefined,
     }
@@ -482,16 +552,12 @@ describe('listing by page', () => {
     ).toEqual({ state: 'invalid' })
   })
 
-  it('lists nothing for a turn with no adoption, and is unavailable to a tenant with no relation', async () => {
+  it('lists nothing for a turn with no adoption', async () => {
     const s = await names()
     const page = { category: 'gadget', after: null, limit: 2 }
     expect(await s.layer('turn-2').source.list(page)).toEqual({
       layer: 'workspace',
       state: 'not-applicable',
-    })
-    expect(await s.layer('turn-1', BOB).source.list(page)).toEqual({
-      layer: 'workspace',
-      state: 'unavailable',
     })
   })
 })

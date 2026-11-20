@@ -120,7 +120,13 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'composition',
   },
   workspace: {
-    provides: ['workspaceGovernance', 'workspaceInstances', 'workspaceCatalog', 'workspaceTypes'],
+    provides: [
+      'workspaceGovernance',
+      'workspaceInstances',
+      'workspaceCatalog',
+      'workspaceSources',
+      'workspaceTypes',
+    ],
     injects: ['storage'],
     phase: 'composition',
   },
