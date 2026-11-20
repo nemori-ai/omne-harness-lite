@@ -109,6 +109,16 @@ describe('the workspaces page', () => {
     expect(screen.getByText('拥有者')).toBeTruthy()
   })
 
+  it('a list shown is read again after a change, and said to be read meanwhile', async () => {
+    const fake = await shown([BLOG])
+    type('要登记的目录', '/srv/shop')
+    fireEvent.click(screen.getByRole('button', { name: '登记' }))
+    ;(await fake.next('register')).answer({ outcome: 'no-change', body: {} })
+    await settle()
+    expect(screen.getByText('正在读……')).toBeTruthy()
+    expect(screen.queryByText('拥有者')).toBeNull()
+  })
+
   it('each change reads the list and the workspace again', async () => {
     const fake = await shown()
     await opened(fake)
@@ -157,6 +167,7 @@ describe('the workspaces page', () => {
   it('shows the instances of a workspace and whether each can be worked in', async () => {
     const fake = await shown()
     await opened(fake)
+    expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.getByText('可用：/srv/blog')).toBeTruthy()
     expect(screen.getByText('现在不知道能不能用')).toBeTruthy()
   })
@@ -182,6 +193,7 @@ describe('the workspaces page', () => {
     granted.answer({ outcome: 'invalid', body: { reason: 'owner-needs-none' } })
     await settle()
     expect(screen.getByRole('status').textContent).toBe('没有授予：拥有者不需要授予')
+    expect(screen.queryByText('对方的租户读不懂')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '移除' }))
     const removed = await fake.next('remove')
