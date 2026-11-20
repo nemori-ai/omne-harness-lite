@@ -3,6 +3,7 @@ import type {
   CommandRetention,
   Containment,
   FacilityRequest,
+  FilesScope,
   FileSystemFacility,
   TerminalFacility,
   TerminalRetention,
@@ -47,6 +48,8 @@ export type FilesAuthorEnvironment = Readonly<{
 export type ShellAuthorEnvironment = Readonly<{
   /** The working directory of this call: where a command or a new terminal starts by default. */
   directory?: string
+  /** The files this call may read and write, pinned with its directory; checked before a start. */
+  scope?: FilesScope
   command: BoundCommand
   terminal: BoundTerminal
   facts: Readonly<{

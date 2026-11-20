@@ -3,6 +3,7 @@ import { createShellAuthor } from '@omne-harness/tool-definitions'
 import { deriveDefinition, judgeToolDefinition } from '@omne-harness/tool-contract/provider'
 import { shellFixture } from './fixtures/shell.ts'
 import { run, value } from './run-author.ts'
+import { tree } from '../src/protocol.ts'
 
 it('declares all Shell commands and explains platform, background and terminal semantics', async () => {
   const fixture = shellFixture()
@@ -252,4 +253,57 @@ it('runs a background script as given, since admission decided the relation, and
   expect(result).toContain('truncated bytes')
   expect(result).not.toContain('�')
   expect(fixture.drained()).toBe(true)
+})
+
+it('checks a start against the files of the call before it starts, and names the path it stops at', async () => {
+  const fixture = shellFixture()
+  const sh = value(
+    createShellAuthor(
+      tree({
+        resultMaxBytes: 32768,
+        executable: '/bin/sh',
+        argsPrefix: ['-c'],
+        env: { HOME: '/home/a' },
+      }),
+    ),
+  )
+  const scope = { read: '/srv/blog', write: '/srv/blog' }
+  const env = { ...fixture.environment, directory: '/srv/blog', scope }
+  const refusal = (path: string, effect: 'read' | 'write') =>
+    `rejected reason=outsideScope path=${JSON.stringify(path)} effect=${effect} the setting for files outside the workspace keeps this call from ${effect === 'read' ? 'reading' : 'writing'} there; zero starts`
+  expect(await run(sh, 'execute', { script: 'cat /etc/hosts' }, env)).toBe(
+    refusal('/etc/hosts', 'read'),
+  )
+  expect(await run(sh, 'execute', { script: 'echo x > ~/out' }, env)).toBe(
+    refusal('/home/a/out', 'write'),
+  )
+  expect(await run(sh, 'execute', { script: 'pwd', cwd: '/tmp' }, env)).toBe(
+    refusal('/tmp', 'write'),
+  )
+  expect(await run(sh, 'create_session', { cwd: '/tmp' }, env)).toBe(refusal('/tmp', 'write'))
+  expect([fixture.starts, fixture.creates]).toEqual([[], []])
+  // A segment of a retained terminal is checked the same way before it runs.
+  const made = await run(sh, 'create_session', {}, env)
+  const terminal = JSON.parse(made.slice(made.indexOf('terminal=') + 9).split('\n')[0]!)
+  expect(await run(sh, 'execute', { terminal, script: 'cat /etc/hosts' }, env)).toBe(
+    refusal('/etc/hosts', 'read'),
+  )
+  expect(fixture.executions).toEqual([])
+  // Inside the scope, with reads not limited, or with no scope at all, it starts.
+  await run(sh, 'execute', { script: 'cat README.md' }, env)
+  await run(sh, 'execute', { script: 'cat /etc/hosts' }, { ...env, scope: { write: '/srv/blog' } })
+  await run(
+    sh,
+    'execute',
+    { script: 'cat /etc/hosts' },
+    { ...fixture.environment, directory: '/srv/blog' },
+  )
+  expect(fixture.starts).toHaveLength(3)
+  // A program not of the POSIX family is checked only for where it starts.
+  const other = value(createShellAuthor(fixture.config))
+  await run(other, 'execute', { script: 'cat /etc/hosts' }, env)
+  expect(fixture.starts).toHaveLength(4)
+  expect(await run(other, 'execute', { script: 'pwd', cwd: '/tmp' }, env)).toBe(
+    refusal('/tmp', 'write'),
+  )
 })

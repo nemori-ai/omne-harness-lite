@@ -16,7 +16,7 @@ import type {
   FilesScope,
 } from '@omne-harness/execution-environment-contract'
 import type { Outcome } from '@omne-harness/operation-result'
-import { pinnedFiles, type ToolCallDirectory, type ToolFailure } from '@omne-harness/tool-contract'
+import type { ToolCallDirectory, ToolFailure } from '@omne-harness/tool-contract'
 import type { CallAccess } from '@omne-harness/tool-contract/provider'
 
 type BusinessRequest<T> = T extends { readonly entries: readonly (infer E)[] }
@@ -52,7 +52,7 @@ export type ToolEnvironmentValue = Readonly<{
   facts: EnvironmentFacts & Readonly<{ os: string }>
   /** Where the call works by default: the directory pinned in its request. Absent: it has none. */
   directory?: string
-  /** The files it may read and write, pinned with the directory; present exactly when the directory is. */
+  /** The files scope pinned with the directory; absent when none was: a session with no workspace. */
   scope?: FilesScope
 }>
 export interface FileObjectNaming<P> {
@@ -92,7 +92,11 @@ export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): To
   const pinned = input.directory
   return pinned === undefined
     ? value
-    : Object.freeze({ ...value, directory: pinned.path, scope: pinnedFiles(pinned) })
+    : Object.freeze({
+        ...value,
+        directory: pinned.path,
+        ...(pinned.files === undefined ? {} : { scope: pinned.files }),
+      })
 }
 
 function boundFacilities<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue {

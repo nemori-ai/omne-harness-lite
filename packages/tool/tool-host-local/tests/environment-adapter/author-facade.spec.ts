@@ -70,6 +70,17 @@ describe('current file authorization', () => {
     // The default directory of the author is the directory pinned in the request, its files the pinned scope.
     expect(value.directory).toBe('/srv/blog')
     expect(value.scope).toEqual({ write: '/srv/blog' })
+    // A directory pinned with no scope, as in a session with no workspace, carries none.
+    const plain = createAuthorEnvironment({
+      access: { principal: principalA, tenant: tenantA, call: callId('call') },
+      origin: originRef('original'),
+      lease,
+      naming: { name },
+      facts: { system: 'fixture', release: '1', architecture: 'fixture', facilities: ['files'] },
+      directory: { path: '/srv/default', workspace: null },
+    })
+    expect(plain.directory).toBe('/srv/default')
+    expect('scope' in plain).toBe(false)
     expect(Object.isFrozen(value)).toBe(true)
     const request = {
       path: '/authorized/new',

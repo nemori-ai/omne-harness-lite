@@ -153,7 +153,11 @@ describe('where the file and command tools of a session work', () => {
           shell('pwd', shop),
         ])
         const answers = await ran(tree, inBlog, 2, reaching)
-        expect(answers.match(/reason=notAuthorized/gu)).toHaveLength(3)
+        // The two writes meet the fence; the command is stopped before it starts, naming the directory.
+        expect(answers.match(/reason=notAuthorized/gu)).toHaveLength(2)
+        expect(answers).toContain(
+          `rejected reason=outsideScope path=${JSON.stringify(shop)} effect=write`,
+        )
         expect(existsSync(join(shop, 'from-blog.txt'))).toBe(false)
         expect(existsSync(join(fallback, 'from-blog.txt'))).toBe(false)
       })
@@ -484,6 +488,58 @@ describe('a tenant removed from a workspace', () => {
         expect(reminded(after)[0]).toMatch(/reason\\+":\\+"not-permitted/u)
         expect(existsSync(join(blog, 'same-step.txt'))).toBe(false)
         expect(existsSync(join(defaultOf(tree), 'same-step.txt'))).toBe(false)
+      })
+    },
+  )
+})
+
+describe('files outside the workspace of a session', () => {
+  it(
+    'a session with a workspace keeps to it by the setting, Shell is stopped before it starts and names the path; a session with none is as before',
+    { tags: ['slow'], timeout: 360_000 },
+    async () => {
+      const base = realpathSync(mkdtempSync(join(tmpdir(), 'outside-files-')))
+      const blog = project(base, 'blog')
+      const outside = join(base, 'outside')
+      mkdirSync(outside)
+      const secret = join(outside, 'secret.txt')
+      writeFileSync(secret, 'outside-bytes\n')
+      const readFile = (path: string): Call => ({
+        tool: 'Files',
+        command: 'read',
+        params: { path },
+      })
+      await onReleaseTree(bypass, async tree => {
+        const inBlog = await sessionIn(tree, await registered(tree, blog))
+        const none = await ran(tree, inBlog, 1, plan([shell(`cat ${secret}`), readFile(secret)]))
+        expect(none).toContain(
+          `rejected reason=outsideScope path=${JSON.stringify(secret)} effect=read`,
+        )
+        expect(none).not.toContain('outside-bytes')
+        await ok(tree, [
+          'setting',
+          'set',
+          '--independent',
+          'workspace/outside-files',
+          'access',
+          '--value',
+          '"read"',
+        ])
+        const written = join(outside, 'written.txt')
+        const reads = await ran(
+          tree,
+          inBlog,
+          2,
+          plan([shell(`cat ${secret}`), readFile(secret), shell(`echo x > ${written}`)]),
+        )
+        expect(reads.match(/outside-bytes/gu)?.length).toBe(2)
+        expect(reads).toContain(
+          `rejected reason=outsideScope path=${JSON.stringify(written)} effect=write`,
+        )
+        expect(existsSync(written)).toBe(false)
+        // A session with no workspace reads no setting and runs its scripts as before.
+        const plain = await sessionIn(tree, [])
+        expect(await ran(tree, plain, 1, plan([shell(`cat ${secret}`)]))).toContain('outside-bytes')
       })
     },
   )
