@@ -52,9 +52,15 @@ function words(text: string): string[] {
   return text.split(/[\s\p{P}\p{S}]+/u).filter(word => word !== '')
 }
 
+/** Statements whose string is a module path, not text. */
+const MODULE_PATHS = new Set([
+  'ImportDeclaration',
+  'ExportNamedDeclaration',
+  'ExportAllDeclaration',
+])
+
 function texts(node: SyntaxNode, parent: SyntaxNode | undefined): string[] {
-  if (parent?.type === 'ImportDeclaration' || parent?.type === 'ExportNamedDeclaration') return []
-  if (parent?.type === 'ExportAllDeclaration') return []
+  if (MODULE_PATHS.has(parent?.type ?? '')) return []
   if (isString(node)) return [String(node['value'])]
   if (node.type === 'JSXText') return [String(node['value'])]
   if (node.type === 'TemplateLiteral') return templateParts(node)

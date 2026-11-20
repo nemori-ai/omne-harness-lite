@@ -54,10 +54,10 @@ export const SCRIPTS: readonly ScannedFile[] = FILES.filter(
 /** The scanned stylesheets. */
 export const STYLESHEETS: readonly ScannedFile[] = FILES.filter(file => file.kind === 'css')
 
-export function children(node: SyntaxNode): SyntaxNode[] {
+function children(node: SyntaxNode): SyntaxNode[] {
   const found: SyntaxNode[] = []
-  for (const [field, value] of Object.entries(node)) {
-    if (field === 'type' || field === 'start' || field === 'end') continue
+  for (const [key, value] of Object.entries(node)) {
+    if (key === 'type' || key === 'start' || key === 'end') continue
     if (Array.isArray(value)) for (const item of value) if (isNode(item)) found.push(item)
     if (isNode(value)) found.push(value)
   }
@@ -115,12 +115,10 @@ export function attribute(opening: SyntaxNode, name: string): SyntaxNode | undef
 
 /** The string a JSX attribute holds literally (`a="x"` or `a={'x'}`), if it holds one. */
 export function attributeString(opening: SyntaxNode, name: string): string | undefined {
-  const value = field(attribute(opening, name) ?? { type: '', start: 0, end: 0 }, 'value')
-  if (value === undefined) return undefined
-  const literal = value.type === 'JSXExpressionContainer' ? field(value, 'expression') : value
-  return literal !== undefined && typeof literal['value'] === 'string'
-    ? literal['value']
-    : undefined
+  const found = attribute(opening, name)
+  const value = found === undefined ? undefined : field(found, 'value')
+  const literal = value?.type === 'JSXExpressionContainer' ? field(value, 'expression') : value
+  return literal !== undefined && isString(literal) ? String(literal['value']) : undefined
 }
 
 export function isString(node: SyntaxNode): boolean {
@@ -220,7 +218,7 @@ export function selectorClasses(selector: string): string[] {
 }
 
 /** The repository directory of a scanned member: the part of a file's path before its `src/`. */
-export function memberRoot(member: string): string {
+function memberRoot(member: string): string {
   const file = FILES.find(candidate => candidate.member === member)
   if (file === undefined) throw new Error(`no scanned file belongs to ${member}`)
   return file.path.slice(0, file.path.indexOf('/src/'))
