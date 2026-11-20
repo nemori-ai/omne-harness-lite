@@ -1,6 +1,8 @@
 import type { Custody } from '@omne-harness/media-contract'
 import type { IntakeProcessor, IntakeVerdict } from '@omne-harness/session-contract'
 
+export { createModelMediaSource } from './model-source.ts'
+
 export const REFERENCES_PROCESSOR = 'media.references'
 
 type Screening<P> = Parameters<IntakeProcessor<P>['run']>[0]

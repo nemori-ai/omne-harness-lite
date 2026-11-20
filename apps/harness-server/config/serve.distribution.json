@@ -201,6 +201,11 @@
       "config": {}
     },
     {
+      "id": "media-model-source",
+      "plugin": "mediaModelSourceRow",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "workspaceRow",
       "config": {}

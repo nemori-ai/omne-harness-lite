@@ -1,14 +1,20 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { mediaIntakePlugin } from '@omne-harness/media-adapters/cordis'
+import { MediaModelSourcePlugin, mediaIntakePlugin } from '@omne-harness/media-adapters/cordis'
 import type { Custody } from '@omne-harness/media-contract'
 import { MediaService } from '@omne-harness/media-cordis-contract/cordis'
 import { sessionBeforeIntakePlugin } from '@omne-harness/session-cordis-contract/cordis'
 
 const holds: unknown[] = []
+const opens: unknown[] = []
 class Media extends MediaService {
   readonly uploads = {} as MediaService['uploads']
-  readonly variants = {} as MediaService['variants']
+  readonly variants: MediaService['variants'] = {
+    open: async input => {
+      opens.push(input.ref)
+      return { failure: { kind: 'too-large' } }
+    },
+  }
   readonly reads = {} as MediaService['reads']
   readonly custody = {
     hold: async input => {
@@ -20,10 +26,37 @@ class Media extends MediaService {
 const names = (root: Context) => root.sessionBeforeIntake.current().map(each => each.name)
 
 describe('the ./cordis entry', () => {
-  it('exports the plugin of the intake adapter', async () => {
+  it('exports the plugins of the intake adapter and of the media source of Model', async () => {
     const cordis = (await import('@omne-harness/media-adapters/cordis')) as Record<string, unknown>
-    expect(Object.keys(cordis)).toEqual(['mediaIntakePlugin'])
+    expect(Object.keys(cordis).sort()).toEqual(['MediaModelSourcePlugin', 'mediaIntakePlugin'])
     expect(mediaIntakePlugin.name).toBe('media-intake')
+  })
+
+  it('provides modelMediaSource while media is there, and a held read after it left is unavailable', async () => {
+    const root = new Context()
+    root.plugin(MediaModelSourcePlugin)
+    expect(root.get('modelMediaSource')).toBeUndefined()
+    const media = await root.plugin(Media)
+    const source = root.get('modelMediaSource')
+    const ref = { storage: 'memory', key: 'k', mediaType: 'image/png', bytes: '3', digest: 'd' }
+    const read = () =>
+      source?.open(
+        {
+          principal: null,
+          tenant: 't' as never,
+          reference: ref,
+          limits: { mediaTypes: ['image/png'], maxBytes: 9, image: null },
+        },
+        new AbortController().signal,
+      )
+    expect(await read()).toEqual({ failure: { kind: 'too-large' } })
+    expect(opens).toEqual([ref])
+    await media.dispose()
+    expect(root.get('modelMediaSource')).toBeUndefined()
+    expect(await read()).toEqual({
+      failure: { kind: 'unavailable', diagnostic: 'media is not there' },
+    })
+    expect(opens).toEqual([ref])
   })
 
   it('registers media.references while media and the registration point are there', async () => {

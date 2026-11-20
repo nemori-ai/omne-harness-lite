@@ -111,6 +111,11 @@
       "config": {}
     },
     {
+      "id": "media-model-source",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "stubPlugin",
       "config": {}

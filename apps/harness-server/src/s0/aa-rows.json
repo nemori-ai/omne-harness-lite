@@ -23,6 +23,7 @@
     "media-storage-local",
     "media-sweep",
     "media-intake",
+    "media-model-source",
     "workspace",
     "usage",
     "usage-adapters",

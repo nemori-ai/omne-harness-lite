@@ -31,12 +31,21 @@ const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 /** A stand-in image: the PNG signature, then its width, its height and a filler. */
 export const png = (width: number, height: number, filler = 0): Uint8Array =>
   new Uint8Array([...PNG, width, height, filler])
-const image: ImageCodec = {
-  async probe(bytes) {
-    const [widthPixels = 0, heightPixels = 0] = bytes.subarray(8, 10)
-    return succeed({ mediaType: 'image/png', widthPixels, heightPixels })
-  },
-  fit: async () => fail({ kind: 'cannot-fit' }),
+const probe: ImageCodec['probe'] = async bytes => {
+  const [widthPixels = 0, heightPixels = 0] = bytes.subarray(8, 10)
+  return succeed({ mediaType: 'image/png', widthPixels, heightPixels })
+}
+/** A stand-in for fitting: the stand-in image within the target, when a PNG of its size is allowed. */
+export const shrinking: ImageCodec['fit'] = async (bytes, target) => {
+  const [width = 0, height = 0] = bytes.subarray(8, 10)
+  const [widthPixels, heightPixels] = [
+    Math.min(width, target.maxWidth),
+    Math.min(height, target.maxHeight),
+  ]
+  const made = png(widthPixels, heightPixels)
+  if (made.byteLength > target.maxBytes || !target.mediaTypes.includes('image/png'))
+    return fail({ kind: 'cannot-fit' })
+  return succeed({ mediaType: 'image/png', bytes: made, widthPixels, heightPixels })
 }
 
 export function ok<T>(reply: { ok: T } | { failure: unknown }): T {
@@ -45,14 +54,14 @@ export function ok<T>(reply: { ok: T } | { failure: unknown }): T {
 }
 
 /** The custody of media over ports in memory, and what a test needs to bring media into it. */
-export function world() {
+export function world(fit: ImageCodec['fit'] = async () => fail({ kind: 'cannot-fit' })) {
   const index = createMemoryMediaIndex()
   let keys = 0
   const media = createMedia({
     stores: [createMemoryByteStore()],
     writeTo: 'memory',
     index,
-    image,
+    image: { probe, fit },
     clock: { now: () => '2026-10-19T00:00:00.000Z' },
     newKey: () => (keys++).toString(16).padStart(32, '0'),
     config: {

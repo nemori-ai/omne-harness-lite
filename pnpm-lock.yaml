@@ -3534,6 +3534,12 @@ importers:
       '@omne-harness/media-cordis-contract':
         specifier: workspace:*
         version: link:../media-cordis-contract
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/model-cordis-contract':
+        specifier: workspace:*
+        version: link:../../model/model-cordis-contract
       '@omne-harness/session-contract':
         specifier: workspace:*
         version: link:../../session/session-contract
