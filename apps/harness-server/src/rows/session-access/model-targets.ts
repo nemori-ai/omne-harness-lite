@@ -12,7 +12,12 @@ import {
   type NativeRequirement,
 } from '@omne-harness/request-context-contract'
 import type { ModelTargetCheck, ModelTargets } from '@omne-harness/session-access'
-import type { ModelViewBasis, ModelViewRow, SessionId } from '@omne-harness/session-contract'
+import type {
+  ModelViewBasis,
+  ModelViewRow,
+  SessionHistory,
+  SessionId,
+} from '@omne-harness/session-contract'
 import { sessionKey, sessionWorkPrincipalsKey } from '@omne-harness/session-cordis-contract/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 
@@ -46,7 +51,6 @@ export function targetOf(resolution: ProfileResolution): ModelTargetCheck {
 
 type Message = ModelViewRow['message']
 type Located = Readonly<{ tenant: TenantId; session: SessionId }>
-/** The messages a model would read of a session now; null when they cannot be read. */
 export type SessionModelView = (session: Located) => Promise<readonly Message[] | null>
 
 const NOTHING: NativeRequirement = { modalities: [], fileTypes: [], blocks: [] }
@@ -97,7 +101,34 @@ export function modelTargetsOf(
 const PAGE_BYTES = 1_048_576
 const EPOCH_RETRIES = 3
 
-/** Reads the model view as the session's coordinator: a login may not, and was admitted by the caller. */
+type ReadPage = (
+  at: Readonly<{ basis: ModelViewBasis | null; after: string | null; pageBytes: number }>,
+) => ReturnType<SessionHistory<unknown>['readModelView']>
+
+/** One whole view, page after page; 'changed' when the epoch moved under it; null when a page fails. */
+async function wholeView(read: ReadPage): Promise<readonly Message[] | 'changed' | null> {
+  const messages: Message[] = []
+  let basis: ModelViewBasis | null = null
+  let after: string | null = null
+  for (;;) {
+    const page = await read({ basis, after, pageBytes: PAGE_BYTES })
+    if ('failure' in page) return null
+    if (page.ok.kind === 'epoch-changed') return 'changed'
+    messages.push(...page.ok.rows.map(row => row.message))
+    if (page.ok.next === null) return messages
+    ;({ basis, next: after } = page.ok)
+  }
+}
+
+export async function readModelView(read: ReadPage): Promise<readonly Message[] | null> {
+  for (let attempt = 0; attempt < EPOCH_RETRIES; attempt += 1) {
+    const view = await wholeView(read)
+    if (view !== 'changed') return view
+  }
+  return null
+}
+
+/** Reads as the session's coordinator: a login may not, and was admitted by the caller. */
 export function sessionModelView(ctx: Context): SessionModelView {
   return async ({ tenant, session }) => {
     const coordinator = await ctx
@@ -106,20 +137,7 @@ export function sessionModelView(ctx: Context): SessionModelView {
     const history = ctx.intercept(sessionKey, { caller: 'reader' }).get(sessionKey, false)?.history
     if (coordinator === undefined || 'failure' in coordinator || history === undefined) return null
     const access = { principal: coordinator.ok, tenant, session }
-    for (let attempt = 0; attempt < EPOCH_RETRIES; attempt += 1) {
-      const messages: Message[] = []
-      let basis: ModelViewBasis | null = null
-      let after: string | null = null
-      for (;;) {
-        const page = await history.readModelView({ ...access, basis, after, pageBytes: PAGE_BYTES })
-        if ('failure' in page) return null
-        if (page.ok.kind === 'epoch-changed') break
-        messages.push(...page.ok.rows.map(row => row.message))
-        if (page.ok.next === null) return messages
-        ;({ basis, next: after } = page.ok)
-      }
-    }
-    return null
+    return readModelView(at => history.readModelView({ ...access, ...at }))
   }
 }
 

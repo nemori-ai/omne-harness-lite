@@ -89,6 +89,16 @@ describe('default representation policy', () => {
     expect(policy.choose({ block: image, available: ['derived'] })).toBe('none')
     expect(policy.config.preferences.text).toEqual(['original', 'derived', 'transcript'])
   })
+  it('words and a voice follow their own orders too', () => {
+    const policy = createDefaultRepresentationPolicy({
+      preferences: { text: ['transcript', 'original'], voice: ['derived', 'original'] },
+    })
+    const said = { ...pdf, kind: 'voice' as const, ref: { ...pdf.ref, mediaType: 'audio/wav' } }
+    const csv = { ...pdf, ref: { ...pdf.ref, mediaType: 'text/csv' } }
+    expect(policy.choose({ block: said, available: ['original', 'derived'] })).toBe('derived')
+    expect(policy.choose({ block: csv, available: ['original', 'transcript'] })).toBe('transcript')
+    expect(policy.choose({ block: image, available: ['original', 'transcript'] })).toBe('original')
+  })
   it('answers none when the block can take nothing with the model', () => {
     const policy = createDefaultRepresentationPolicy()
     expect(policy.choose({ block: image, available: [] })).toBe('none')

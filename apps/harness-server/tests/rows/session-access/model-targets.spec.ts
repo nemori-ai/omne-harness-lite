@@ -10,6 +10,7 @@ import type { ModelViewRow } from '@omne-harness/session-contract'
 import {
   SELECTION_REQUIREMENT_SOURCE,
   modelTargetsOf,
+  readModelView,
   targetOf,
 } from '../../../src/rows/session-access/model-targets.ts'
 
@@ -230,5 +231,42 @@ describe('a target judged for the history of a session', () => {
       [],
       [{ modalities: ['text'], source: SELECTION_REQUIREMENT_SOURCE }],
     ])
+  })
+})
+
+describe('reading the whole model view of a session', () => {
+  type Read = Parameters<typeof readModelView>[0]
+  type Page = Awaited<ReturnType<Read>>
+  const row = (id: string) => ({ message: { id } }) as never
+  const page = (ids: string[], next: string | null): Page =>
+    ({ ok: { kind: 'page', basis: { epoch: 'e1', upper: '9' }, rows: ids.map(row), next } }) as Page
+  const CHANGED = { ok: { kind: 'epoch-changed', current: { epoch: 'e2', upper: '1' } } } as Page
+  const scripted = (...pages: Page[]) => {
+    const asked: unknown[] = []
+    const read: Read = async at => (asked.push(at), pages.shift() ?? CHANGED)
+    return { asked, read }
+  }
+
+  it('follows the pages on the basis the first one gave, and joins their messages in order', async () => {
+    const { asked, read } = scripted(page(['a', 'b'], 'c1'), page(['c'], null))
+    expect(await readModelView(read)).toEqual([{ id: 'a' }, { id: 'b' }, { id: 'c' }])
+    expect(asked).toEqual([
+      { basis: null, after: null, pageBytes: 1_048_576 },
+      { basis: { epoch: 'e1', upper: '9' }, after: 'c1', pageBytes: 1_048_576 },
+    ])
+  })
+
+  it('starts over when the epoch changes under the read, and keeps nothing of the old epoch', async () => {
+    const { asked, read } = scripted(page(['old'], 'c1'), CHANGED, page(['new'], null))
+    expect(await readModelView(read)).toEqual([{ id: 'new' }])
+    expect(asked.at(-1)).toEqual({ basis: null, after: null, pageBytes: 1_048_576 })
+  })
+
+  it('answers null when a page fails, and when the epoch keeps changing', async () => {
+    const failed = { failure: { kind: 'unavailable', owner: 'storage', diagnostic: 'x' } } as Page
+    expect(await readModelView(scripted(page(['a'], 'c1'), failed).read)).toBeNull()
+    const { asked, read } = scripted()
+    expect(await readModelView(read)).toBeNull()
+    expect(asked).toHaveLength(3)
   })
 })

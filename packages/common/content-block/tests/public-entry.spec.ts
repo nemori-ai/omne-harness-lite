@@ -489,6 +489,7 @@ it.each([
   [null],
   ['converted'],
   [{ outcome: 'pending', ...source }],
+  [{ outcome: 'pending', ...source, text: null, others: [] }],
   [{ outcome: 'converted', ...source, text: null }],
   [{ outcome: 'converted', ...source, others: [] }],
   [{ outcome: 'converted', ...source, text: 'in line', others: [] }],

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { assemble, fixture, rowWith } from './fixtures.js'
 import { judgeMessage, type Message } from '@omne-harness/message'
 import {
   chooseRepresentations,
@@ -212,7 +213,80 @@ describe('the decision table of one block (T5)', () => {
   })
 })
 
+describe('what a chosen request records and asks of its model', () => {
+  const SOURCE_OF_REQUIREMENT = {
+    owner: 'request-context-contract',
+    record: 'representation',
+    revision: '1',
+    digest: policy.identity.digest,
+  }
+
+  it('asks for words when words stand in for a medium, inline or kept in a reference', () => {
+    const inline = medium('b1', 'image/png', { transcript: 'a red circle' })
+    expect(chosen(choose(TEXT, message([inline]))).modality).toEqual({
+      modalities: ['text'],
+      source: SOURCE_OF_REQUIREMENT,
+    })
+    const kept = medium('b1', 'application/pdf', converted([], refTo('k-long', 'text/plain')))
+    expect(chosen(choose(TEXT, message([kept]))).modality?.modalities).toEqual(['text'])
+  })
+
+  it('asks for the file type of an original of no modality, on top of words', () => {
+    const result = chosen(choose(READS_PDF, message([medium('b1', 'application/pdf')])))
+    expect(result.modality).toEqual({
+      modalities: ['text'],
+      fileTypes: ['application/pdf'],
+      source: SOURCE_OF_REQUIREMENT,
+    })
+    expect(
+      Object.hasOwn(chosen(choose(TEXT, message([words('b1')]))).modality ?? {}, 'fileTypes'),
+    ).toBe(false)
+  })
+
+  it('asks nothing when no part of the history is a content block', () => {
+    const marker = { kind: 'tool_result', id: 'marker', visibility, callId: 'c' }
+    const result = chosen(choose(TEXT, message([marker], 4, 'tool')))
+    expect([result.modality, result.choices, result.deferred]).toEqual([null, [], []])
+  })
+
+  it('a tool message asks for what its blocks need and defers their references', () => {
+    const marker = { kind: 'tool_result', id: 'marker', visibility, callId: 'c' }
+    const shot = medium('shot', 'image/png')
+    const result = chosen(choose(VISION, message([marker, shot], 5, 'tool')))
+    expect(result.deferred).toEqual([shot.ref])
+    expect(result.modality?.modalities).toEqual(['image'])
+  })
+
+  it('records the media type of the block the choice was made for, and none for words', () => {
+    const inline = { kind: 'image', id: 'b2', visibility, mediaType: 'image/png', inline: 'AAAA' }
+    const result = chosen(choose(VISION, message([words('b1'), inline])))
+    expect(result.choices.map(choice => choice.mediaType)).toEqual([null, 'image/png'])
+  })
+
+  it('thinking is words: sent as it is, and asked of no model', () => {
+    const thinking = { kind: 'thinking', id: 'b1', visibility, text: 'hm' }
+    const history = message([thinking, words('b2')], 6, 'assistant')
+    const result = chosen(choose(TEXT, history))
+    expect(result.choices.map(choice => choice.choice)).toEqual(['original', 'original'])
+    expect(nativeRequirement([history]).blocks).toEqual([])
+  })
+
+  it('a media type that is none is a file type of its own text: no model takes it unless it lists it', () => {
+    const odd = medium('b1', 'not a media type')
+    expect(choose(VISION, message([odd])).kind).toBe('unavailable')
+    expect(nativeRequirement([message([odd])]).fileTypes).toEqual(['not a media type'])
+  })
+})
+
 describe('what a history needs of a model natively', () => {
+  it('a block of inline bytes has nothing else: it asks for its modality', () => {
+    const inline = { kind: 'image', id: 'b1', visibility, mediaType: 'image/png', inline: 'AAAA' }
+    expect(nativeRequirement([message([inline])])).toMatchObject({
+      modalities: ['image'],
+      blocks: [{ block: 'b1', needs: { modality: 'image' } }],
+    })
+  })
+
   it('names the modality or the file type of each block that has no other representation and no words', () => {
     const history = [
       message([words('b1'), medium('b2', 'image/png')], 1),
@@ -362,5 +436,26 @@ describe('CX-48: the choice is a function of the history and the capability', ()
         : result
     }
     expect(counterexample(skipping, 400)).toMatch(/the table says/u)
+  })
+})
+
+describe('an assembly whose history holds a block the model cannot take', () => {
+  it('is unavailable, names the block, and says the reason is the modality', async () => {
+    const f = fixture()
+    const pictured = message([words('b1'), medium('b2', 'image/png')], 7)
+    const history = {
+      ...f.ports.history,
+      read: async () => ({
+        kind: 'page' as const,
+        page: { rows: [rowWith(0, pictured)], next: null },
+      }),
+    }
+    const result = await assemble(f.input, { ...f.ports, history }, f.policies)
+    expect(result).toEqual({
+      kind: 'unavailable',
+      owner: 'representation',
+      block: { message: pictured.id, block: 'b2' },
+      diagnostic: `modality: the model takes no representation of block b2 of message ${pictured.id}`,
+    })
   })
 })

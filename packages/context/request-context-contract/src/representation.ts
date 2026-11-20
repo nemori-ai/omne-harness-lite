@@ -9,7 +9,7 @@ import { judgeMessage, type Message, type MessageId, type MessagePart } from '@o
 import { judgeMediaType, type Modality } from '@omne-harness/modality'
 import type { RepresentationChoice, RepresentationOption } from './values.js'
 import type { RepresentationPolicyPort } from './ports.js'
-import { digest, textBlock, nonEmpty } from './internal.js'
+import { blockIdentity, textBlock, nonEmpty } from './internal.js'
 
 /** What a model takes as it is: the input modalities of its profile and the file types it lists. */
 export type NativeCapability = Pick<M.ModelProfileDefinition, 'input' | 'fileTypes'>
@@ -44,12 +44,11 @@ function needOfBlock(block: ContentBlock): Need {
   return needOf('ref' in block ? block.ref.mediaType : block.mediaType)
 }
 function takes(capability: NativeCapability, need: Need): boolean {
-  if ('fileType' in need) return (capability.fileTypes ?? []).includes(need.fileType)
+  if ('fileType' in need) return capability.fileTypes?.includes(need.fileType) ?? false
   const input: readonly Modality[] = capability.input
   return input.includes(need.modality)
 }
 
-/** The modality a block's own content belongs to; null for a file of no modality. */
 export function modalityOfBlock(block: ContentBlock): Modality | null {
   const need = needOfBlock(block)
   return 'modality' in need ? need.modality : null
@@ -67,23 +66,54 @@ type Candidate = Readonly<{
   needs: readonly Need[]
 }>
 
-const REFERENCE_KIND = { image: 'image', voice: 'voice' } as const
+type Referring = Extract<ContentBlock, { ref: ContentReference }>
+type Position = Readonly<{ message: MessageId; block: BlockId }>
+
+function fallbacksOf(block: Referring) {
+  const made = block.snapshot?.outcome === 'converted' ? block.snapshot : null
+  const inline = (block.transcript ?? '') === '' ? null : block.transcript
+  return { others: made?.others ?? [], inline, kept: made?.text ?? null }
+}
+
+const REFERENCE_KIND: Partial<Record<Modality, 'image' | 'voice'>> = {
+  image: 'image',
+  voice: 'voice',
+}
 function referenceBlock(ref: ContentReference, identity: unknown): ContentBlock {
   const need = needOf(ref.mediaType)
-  const kind =
-    'modality' in need && need.modality in REFERENCE_KIND
-      ? REFERENCE_KIND[need.modality as keyof typeof REFERENCE_KIND]
-      : 'file'
-  const visibility = { toHuman: true, toModel: true }
-  const judged = judgeContentBlock({
-    kind,
-    id: `rq_${digest(identity)}`,
-    visibility,
-    ref,
-    transcript: null,
-  })
-  if ('rejected' in judged) throw new Error(`A representation is no block: ${judged.rejected}`)
-  return judged.ok
+  const kind = ('modality' in need ? REFERENCE_KIND[need.modality] : undefined) ?? 'file'
+  return { kind, ...blockIdentity(identity), ref, transcript: null }
+}
+
+function original(block: ContentBlock, capability: NativeCapability): Candidate | null {
+  const need = needOfBlock(block)
+  if (!takes(capability, need)) return null
+  return {
+    option: 'original',
+    parts: [block],
+    deferred: 'ref' in block ? [block.ref] : [],
+    needs: [need],
+  }
+}
+/** A representation kept in a content reference stands in as a reference block of its own. */
+function standIn(
+  option: 'derived' | 'transcript',
+  ref: ContentReference | null | undefined,
+  at: Position,
+  capability: NativeCapability,
+): Candidate | null {
+  if (ref === null || ref === undefined) return null
+  const need = needOf(ref.mediaType)
+  if (!takes(capability, need)) return null
+  const part = referenceBlock(ref, { ...at, representation: option })
+  return { option, parts: [part], deferred: [ref], needs: [need] }
+}
+function words(block: Referring, at: Position, capability: NativeCapability): Candidate | null {
+  const { inline, kept } = fallbacksOf(block)
+  if (inline === null) return standIn('transcript', kept, at, capability)
+  if (!takes(capability, WORDS)) return null
+  const part = textBlock(inline, { ...at, representation: 'transcript' })
+  return { option: 'transcript', parts: [part], deferred: [], needs: [WORDS] }
 }
 
 /** The rows of the table one block can take with this model, in the order of the table. */
@@ -92,47 +122,12 @@ function candidatesOf(
   block: ContentBlock,
   capability: NativeCapability,
 ): readonly Candidate[] {
-  const own = needOfBlock(block)
-  const referring = 'ref' in block
-  const found: Candidate[] = []
-  if (takes(capability, own))
-    found.push({
-      option: 'original',
-      parts: [block],
-      deferred: referring ? [block.ref] : [],
-      needs: [own],
-    })
-  if (!referring) return found
-  const identity = (representation: RepresentationOption) => ({
-    message: message.id,
-    block: block.id,
-    representation,
-  })
-  const made = block.snapshot?.outcome === 'converted' ? block.snapshot : null
-  const other = made?.others.find(ref => takes(capability, needOf(ref.mediaType)))
-  if (other !== undefined)
-    found.push({
-      option: 'derived',
-      parts: [referenceBlock(other, identity('derived'))],
-      deferred: [other],
-      needs: [needOf(other.mediaType)],
-    })
-  const kept = made?.text ?? null
-  if ((block.transcript ?? '') !== '' && takes(capability, WORDS))
-    found.push({
-      option: 'transcript',
-      parts: [textBlock(block.transcript ?? '', identity('transcript'))],
-      deferred: [],
-      needs: [WORDS],
-    })
-  else if (kept !== null && takes(capability, needOf(kept.mediaType)))
-    found.push({
-      option: 'transcript',
-      parts: [referenceBlock(kept, identity('transcript'))],
-      deferred: [kept],
-      needs: [needOf(kept.mediaType)],
-    })
-  return found
+  const first = original(block, capability)
+  if (!('ref' in block)) return first === null ? [] : [first]
+  const at = { message: message.id, block: block.id }
+  const other = fallbacksOf(block).others.find(ref => takes(capability, needOf(ref.mediaType)))
+  const rows = [first, standIn('derived', other, at, capability), words(block, at, capability)]
+  return rows.filter(row => row !== null)
 }
 
 type ChosenPart = Readonly<{
@@ -229,9 +224,8 @@ export function chooseRepresentations(input: RepresentationInput): Representatio
 function standsAlone(block: ContentBlock): boolean {
   if (block.kind === 'text' || block.kind === 'thinking' || !block.visibility.toModel) return false
   if (!('ref' in block)) return true
-  const made = block.snapshot?.outcome === 'converted' ? block.snapshot : null
-  const worded = (block.transcript ?? '') !== '' || (made?.text ?? null) !== null
-  return !worded && (made?.others.length ?? 0) === 0
+  const { others, inline, kept } = fallbacksOf(block)
+  return others.length === 0 && inline === null && kept === null
 }
 
 /** What a history asks of a model natively: its blocks that have no other representation and no words. */

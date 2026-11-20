@@ -335,21 +335,26 @@ function referenceOrUndefined(value: unknown): ContentReference | undefined {
   return 'ok' in judged ? judged.ok : undefined
 }
 
+function convertedOf(value: Record<string, unknown>) {
+  if (hasUnknownKey(value, CONVERTED_KEYS) || !Array.isArray(value.others)) return undefined
+  const text = value.text === null ? null : referenceOrUndefined(value.text)
+  const others = value.others.map(referenceOrUndefined)
+  if (text === undefined || others.includes(undefined)) return undefined
+  return { outcome: 'converted' as const, text, others: others as ContentReference[] }
+}
+
 /** The snapshot of a representation: one of its two outcomes, each with where it came from. */
 function snapshotOf(value: unknown): RepresentationSnapshot | undefined {
   if (!isRecord(value)) return undefined
   const [definition, engine] = [provenanceOf(value.definition), provenanceOf(value.engine)]
   if (definition === undefined || engine === undefined) return undefined
-  if (value.outcome === 'inconvertible')
-    return hasUnknownKey(value, ['outcome', ...SOURCE_KEYS])
-      ? undefined
-      : { outcome: 'inconvertible', definition, engine }
-  if (value.outcome !== 'converted' || hasUnknownKey(value, CONVERTED_KEYS)) return undefined
-  if (!Array.isArray(value.others)) return undefined
-  const text = value.text === null ? null : referenceOrUndefined(value.text)
-  const others = value.others.map(referenceOrUndefined)
-  if (text === undefined || others.includes(undefined)) return undefined
-  return { outcome: 'converted', definition, engine, text, others: others as ContentReference[] }
+  const { outcome } = value
+  if (outcome === 'converted') {
+    const converted = convertedOf(value)
+    return converted === undefined ? undefined : { ...converted, definition, engine }
+  }
+  const bare = outcome === 'inconvertible' && !hasUnknownKey(value, ['outcome', ...SOURCE_KEYS])
+  return bare ? { outcome: 'inconvertible', definition, engine } : undefined
 }
 
 function admitReference(

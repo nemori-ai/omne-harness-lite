@@ -505,6 +505,10 @@ export declare function canonical(value: unknown): string;
 export declare function digest(value: unknown): string;
 export declare function adoptionDigest(value: unknown): string;
 export declare function messageId(value: unknown): MessageId;
+export declare function blockIdentity(identity: unknown): {
+    readonly id: import("@omne-harness/content-block").BlockId;
+    readonly visibility: import("@omne-harness/content-block").Visibility;
+};
 export declare function textBlock(text: string, identity: unknown): TextContentBlock;
 export declare function reminder(text: string, identity: unknown): SystemReminderMessage;
 export declare function nonEmpty<T>(xs: readonly T[]): xs is readonly [

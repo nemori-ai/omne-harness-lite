@@ -96,10 +96,10 @@ export function profileCovers(
   required: Pick<ModalityRequirement, 'modalities' | 'fileTypes'>,
 ): boolean {
   const input: readonly string[] = definition.input
-  const files = definition.fileTypes ?? []
+  const natively = (type: string): boolean => definition.fileTypes?.includes(type) ?? false
   return (
     required.modalities.every(modality => input.includes(modality)) &&
-    (required.fileTypes ?? []).every(type => files.includes(type))
+    (required.fileTypes?.every(natively) ?? true)
   )
 }
 export type ProfileResolution =
