@@ -91,16 +91,12 @@ function armBatchTimer(batch: Batch, clock: ModelClock, delayMs: number): void {
   if (from === null) return
   const timer = new AbortController()
   batch.timer = timer
+  // A wait that ends for any reason leaves the batch due: it is cancelled only once the batch is handed over.
   batch.due = new Promise(resolve => {
-    const due = (): void => {
-      batch.flush = true
-      resolve('due')
-    }
+    const due = (): void => resolve('due')
     void clock
       .waitUntil(new Date(Date.parse(from) + delayMs).toISOString(), timer.signal)
-      .then(result => {
-        if (result === 'elapsed') due()
-      }, due)
+      .then(due, due)
   })
 }
 export function newOperation(): ModelOperationId {

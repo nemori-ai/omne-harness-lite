@@ -184,6 +184,45 @@ it('keeps the batch when the window opened ahead of its save is outdated, and op
     await f.dispose()
   }
 })
+it('opens another window on the next drive when the window after a saved batch is outdated', async () => {
+  let refusedOnce = false
+  const f = runtimeFixture({}, commands => ({
+    ...commands,
+    async openReceiveWindow(input) {
+      if (f.openInputs.length === 2 && !refusedOnce) {
+        refusedOnce = true
+        return {
+          failure: {
+            kind: 'conflict' as const,
+            operation: input.operation,
+            revision: input.expected,
+          },
+        }
+      }
+      return commands.openReceiveWindow(input)
+    },
+  }))
+  try {
+    unbox(await f.provider.runtime.calls.admit(f.admit))
+    await f.start(f.admit.call)
+    f.channel(f.admit.call).push([open])
+    await eventually(() => f.results.has(f.admit.call))
+    expect(f.results.get(f.admit.call)).toMatchObject({ failure: { kind: 'conflict' } })
+    expect(f.preserveInputs).toHaveLength(1)
+    const again = f.drive()
+    f.channel(f.admit.call).push([delta('a'), end])
+    unbox(await again)
+    expect(f.openInputs).toHaveLength(4)
+    expect(f.preserveInputs.map(input => input.window)).toEqual([
+      f.openInputs[0]?.window,
+      f.openInputs[2]?.window,
+      f.openInputs[3]?.window,
+    ])
+    expect((await snapshot(f)).blocks).toMatchObject([{ value: 'a' }])
+  } finally {
+    await f.dispose()
+  }
+})
 it('makes the byte threshold change positive-delay batch boundaries and saves terminal batches immediately', async () => {
   const f = runtimeFixture({ outputBatchDelayMs: 100, outputBatchBytes: 1 })
   try {
