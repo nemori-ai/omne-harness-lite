@@ -1151,6 +1151,14 @@
       "domains": ["media"],
       "status": "candidate",
       "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-adapters",
+      "paths": ["packages/media/media-adapters/src/**"],
+      "layer": "unknown",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
     }
   ],
   "rules": [
@@ -1719,7 +1727,8 @@
         "packages/media/media-storage-sql",
         "packages/media/media-image",
         "packages/media/media-protocol",
-        "packages/media/media-access"
+        "packages/media/media-access",
+        "packages/media/media-adapters"
       ],
       "source": "packages/media/SPEC.md"
     },
@@ -1734,7 +1743,8 @@
         "packages/media/media-storage-sql",
         "packages/media/media-image",
         "packages/media/media-protocol",
-        "packages/media/media-access"
+        "packages/media/media-access",
+        "packages/media/media-adapters"
       ],
       "source": "packages/media/SPEC.md"
     },
@@ -1747,7 +1757,8 @@
         "packages/media/media",
         "packages/media/media-cordis-contract",
         "packages/media/media-protocol",
-        "packages/media/media-access"
+        "packages/media/media-access",
+        "packages/media/media-adapters"
       ],
       "source": "packages/media/SPEC.md"
     },
@@ -1762,7 +1773,8 @@
         "packages/media/media-storage-sql",
         "packages/media/media-image",
         "packages/media/media-protocol",
-        "packages/media/media-access"
+        "packages/media/media-access",
+        "packages/media/media-adapters"
       ],
       "source": "packages/media/SPEC.md"
     },
@@ -1776,7 +1788,8 @@
         "packages/media/media-storage-local",
         "packages/media/media-storage-sql",
         "packages/media/media-image",
-        "packages/media/media-access"
+        "packages/media/media-access",
+        "packages/media/media-adapters"
       ],
       "source": "packages/media/SPEC.md"
     },
@@ -1787,7 +1800,29 @@
         "packages/media/media",
         "packages/media/media-storage-local",
         "packages/media/media-storage-sql",
-        "packages/media/media-image"
+        "packages/media/media-image",
+        "packages/media/media-adapters"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-ADAPTERS",
+      "from": ["packages/media/media-adapters"],
+      "to": [
+        "packages/media/media",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image",
+        "packages/media/media-protocol",
+        "packages/media/media-access",
+        "packages/session/session",
+        "packages/session/session-cordis",
+        "packages/session/session-storage-sql",
+        "packages/session/session-adapters",
+        "packages/session/session-observation",
+        "packages/session/session-access",
+        "packages/session/session-search",
+        "packages/session/session-search-sqlite"
       ],
       "source": "packages/media/SPEC.md"
     }
