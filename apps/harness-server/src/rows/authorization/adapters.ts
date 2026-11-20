@@ -432,6 +432,37 @@ function sessionResource(
   }
 }
 
+const SESSION_PART_OPERATIONS = {
+  'session-create': 'create',
+  'session-input': 'accept',
+  'input-fate': 'readInputFate',
+} as const
+
+type PartPurpose = keyof typeof SESSION_PART_OPERATIONS
+const isPartPurpose = (purpose: SystemPurpose): purpose is PartPurpose =>
+  Object.hasOwn(SESSION_PART_OPERATIONS, purpose)
+
+function sessionPartRequest(
+  purpose: PartPurpose,
+  principal: SystemPrincipal,
+  target: SessionAccessRequest<unknown>['target'],
+  tenant: TenantId | null,
+  facts: CommandFacts,
+): SystemActionRequest | null {
+  if (target.kind !== 'session' || tenant === null) return null
+  return {
+    principal,
+    scope: 'system',
+    operation: { owner: 'session', name: SESSION_PART_OPERATIONS[purpose] },
+    arguments: facts.arguments,
+    target: {
+      kind: 'tenant',
+      tenant,
+      resource: { owner: 'session', kind: 'session', key: target.session },
+    },
+  }
+}
+
 function sessionMatrixRequest(
   purpose: SystemPurpose,
   principal: SystemPrincipal,
@@ -439,6 +470,7 @@ function sessionMatrixRequest(
   tenant: TenantId | null,
   facts: CommandFacts,
 ): SystemActionRequest | null {
+  if (isPartPurpose(purpose)) return sessionPartRequest(purpose, principal, target, tenant, facts)
   const base = { principal, scope: 'system', arguments: noArguments() } as const
   switch (purpose) {
     case 'resident-references':

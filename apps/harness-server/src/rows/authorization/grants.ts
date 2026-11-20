@@ -1,18 +1,20 @@
 import type { MaintenanceGrant, MaintenanceGrantSource } from '@omne-harness/authorization'
 import type { SystemPurpose } from './cells.ts'
 
-export const MAINTENANCE_GRANT_REVISION = '6'
+export const MAINTENANCE_GRANT_REVISION = '7'
 
 export const AGENT_HOST_COMPONENT = 'agent-host'
 export const TOOL_RESIDENCY_COMPONENT = 'toolResidencyPrincipal'
 export const TENANT_DOMAIN_SCANNER_COMPONENT = 'tenant-domain-scanner'
 export const SESSION_MAINTAINER_COMPONENT = 'sessionPrincipals.maintainer'
+export const DISPATCH_COMPONENT = 'dispatch'
 
 export type GrantHolder =
   | typeof AGENT_HOST_COMPONENT
   | typeof TOOL_RESIDENCY_COMPONENT
   | typeof TENANT_DOMAIN_SCANNER_COMPONENT
   | typeof SESSION_MAINTAINER_COMPONENT
+  | typeof DISPATCH_COMPONENT
 
 export type ReleaseGrant = MaintenanceGrant & Readonly<{ purposes: readonly SystemPurpose[] }>
 
@@ -31,6 +33,11 @@ export const MAINTENANCE_GRANTS: Readonly<Record<GrantHolder, ReleaseGrant>> = O
   [TENANT_DOMAIN_SCANNER_COMPONENT]: record(TENANT_DOMAIN_SCANNER_COMPONENT, ['enumerate-tenants']),
   [TOOL_RESIDENCY_COMPONENT]: record(TOOL_RESIDENCY_COMPONENT, ['resident-references']),
   [SESSION_MAINTAINER_COMPONENT]: record(SESSION_MAINTAINER_COMPONENT, ['pending-sessions']),
+  [DISPATCH_COMPONENT]: record(DISPATCH_COMPONENT, [
+    'session-create',
+    'session-input',
+    'input-fate',
+  ]),
   [AGENT_HOST_COMPONENT]: record(AGENT_HOST_COMPONENT, [
     'agent-instance-publish',
     'agent-instance-quiesce',

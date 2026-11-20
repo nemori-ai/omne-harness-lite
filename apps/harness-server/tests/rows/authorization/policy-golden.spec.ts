@@ -22,7 +22,11 @@ const BOTH: Golden = [M, M, D]
 const TENANT_READ: Golden = [M, 'member reach tenant', D]
 
 const SESSION_GOLDEN = {
-  accept: ['member [routed ordinary|card-decision]', 'member [routed business]', D],
+  accept: [
+    'member [routed ordinary|card-decision]',
+    'member [routed business]',
+    'matrix session-input [routed ordinary]',
+  ],
   startRun: WORK_ONLY,
   claim: WORK_ONLY,
   reload: WORK_ONLY,
@@ -35,7 +39,7 @@ const SESSION_GOLDEN = {
   release: WORK_ONLY,
   control: BOTH,
   finishRun: WORK_ONLY,
-  create: [M, D, D],
+  create: [M, D, 'matrix session-create'],
   completeInitialization: NOT_MEMBER_ROW,
   change: [
     'member [declaration permission-assignment|permission-mode|collaboration-mode|environment-mode|workspace|model|declaration|context-registration|context-step-commit|recovery-input]',
@@ -61,7 +65,7 @@ const SESSION_GOLDEN = {
   readWaiting: [M, D, D],
   readPending: [M, D, D],
   readWaitingCalls: [M, D, D],
-  readInputFate: [M, D, D],
+  readInputFate: [M, D, 'matrix input-fate'],
   readBackgroundCalls: [M, M, D],
   resolveBackgroundCall: [M, M, D],
   readInput: WORK_ONLY,

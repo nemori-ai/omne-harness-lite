@@ -16,7 +16,7 @@ import {
 } from '../../src/entry/session-modes-principals.ts'
 import { createRuntimeContextTrustModule } from '../../src/entry/runtime-context-trust.ts'
 import { SessionModesInstallation } from '../../src/rows/session-ad03/modes.ts'
-import { verifierOf } from '../../src/entry/principals.ts'
+import { dispatchPrincipalOf, verifierOf } from '../../src/entry/principals.ts'
 import { fixtureEnv, fixtureTenant, got } from './support.ts'
 
 it('mounts one real producer per tenant through the production authority and withdraws with its fiber', async () => {
@@ -132,6 +132,11 @@ it('mounts one real producer per tenant through the production authority and wit
         initial.blocks[0]!.block,
       ),
     ).toHaveProperty('failure')
+    const part = dispatchPrincipalOf(fixture.env)
+    const asPart = (principal: unknown) =>
+      modes.prepareInitial({ ...input, principal }, initial.blocks[0]!.block)
+    expect(await asPart(part)).toHaveProperty('ok')
+    expect(await asPart(structuredClone(part))).toHaveProperty('failure')
     const tampered = {
       ...command,
       input: {

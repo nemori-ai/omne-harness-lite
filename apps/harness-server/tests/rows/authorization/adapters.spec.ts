@@ -51,6 +51,7 @@ import {
   type AccessPorts,
 } from '../../../src/rows/authorization/adapters.ts'
 import { identityClock } from '../../../src/entry/identity-clock.ts'
+import { SESSION_POLICY } from '../../../src/rows/authorization/session-policy.ts'
 import { authorization } from '../../../src/rows/authorization/row.ts'
 import { authorizationConfig } from '../../../src/rows/authorization/action-rules.ts'
 import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../../../src/model/principals.ts'
@@ -1852,5 +1853,64 @@ describe('the row', () => {
     })
     expect(answers['broken']).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify([answers, run.records, run.stderr])).not.toContain('SECRET-TEXT')
+  })
+})
+
+describe('a part of another domain works in a tenant by the three purposes (ID-56)', () => {
+  const OPENED = [
+    ['create', () => mutate, {}],
+    ['accept', () => mutate, ordinaryValue],
+  ] as const
+
+  it('lets the holder create a session, send an ordinary input and read where an input went', async () => {
+    const w = world()
+    const dispatch = w.system('dispatch')
+    for (const [operation, , extra] of OPENED)
+      expect((await w.session.check(mutate(dispatch, operation, extra))).kind, operation).toBe(
+        'allowed',
+      )
+    expect((await w.session.check(read(dispatch, 'readInputFate'))).kind).toBe('allowed')
+    expect(w.seen.admissions).toEqual([])
+    expect(w.seen.matrix.map(request => [request.operation.name, request.target])).toEqual(
+      ['create', 'accept', 'readInputFate'].map(name => [
+        name,
+        { kind: 'tenant', tenant: A, resource: { owner: 'session', kind: 'session', key: OWN } },
+      ]),
+    )
+  })
+
+  it('answers an allowed input of a system part as a system subject, never as a member', async () => {
+    const w = world()
+    const decided = await w.session.check(mutate(w.system('dispatch'), 'accept', ordinaryValue))
+    expect(decided).toMatchObject({
+      kind: 'allowed',
+      subject: { kind: 'system', component: 'dispatch' },
+    })
+  })
+
+  it('opens nothing else to the holder: every other Session operation stays denied', async () => {
+    const w = world()
+    const dispatch = w.system('dispatch')
+    const others = Object.keys(SESSION_POLICY).filter(
+      name => !['create', 'accept', 'readInputFate'].includes(name),
+    )
+    for (const operation of others) {
+      const asked = [mutate(dispatch, operation), read(dispatch, operation)]
+      for (const request of asked)
+        expect((await w.session.check(request)).kind, operation).not.toBe('allowed')
+    }
+    expect(await w.session.check(mutate(dispatch, 'accept', businessValue))).toEqual({
+      kind: 'denied',
+    })
+  })
+
+  it('denies a system part that holds no grant, and one that holds another row', async () => {
+    const w = world()
+    for (const component of ['somebody-else', 'sessionPrincipals.maintainer'])
+      for (const [operation, , extra] of OPENED)
+        expect(
+          (await w.session.check(mutate(w.system(component), operation, extra))).kind,
+          `${component} ${operation}`,
+        ).toBe('denied')
   })
 })
