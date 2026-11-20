@@ -1,0 +1,8 @@
+{
+  "gate": "motion",
+  "entries": {
+    "apps/desktop/src/page/shell/sidebar-motion.ts | waapi duration: 240": 1,
+    "apps/desktop/src/page/shell/sidebar-motion.ts | waapi easing: cubic-bezier(.16,1,.3,1)": 1,
+    "packages/frontend/ui-kit/src/motion/motion.ts | waapi easing: cubic-bezier(.16,1,.3,1)": 1
+  }
+}
