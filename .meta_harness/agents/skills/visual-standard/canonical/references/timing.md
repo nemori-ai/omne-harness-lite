@@ -9,7 +9,7 @@
 
 | token | 值 | 用在哪 |
 | --- | --- | --- |
-| `--omne-motion-feedback` | 120ms | 悬停、按下、颜色的回应；形被打断时墨干掉 |
+| `--omne-motion-feedback` | 120ms | 悬停、按下、颜色的回应；墨框收起时字先走 |
 | `--omne-motion-state` | 180ms | 选中的移动、开关、箭头、悬停离开、落定 |
 | `--omne-motion-enter` | 240ms | 浮层进入、内容到达 |
 | `--omne-motion-exit` | 140ms | 浮层离开 |
@@ -62,7 +62,7 @@
 | 常量 | 数（ms） | 守住什么 | 出处 |
 | --- | --- | --- | --- |
 | `WRITE.dry` | 260；合口那一笔 156 | 状态笔干去，匀速淡 | `spirit/body.ts` |
-| `WRITE.interrupt` | 120，就是 `--omne-motion-feedback` | 被打断时画出去的墨干掉：从不让人等 | `spirit/body.ts` |
+| `WRITE.interrupt` | 120，就是 `--omne-motion-feedback` | 来源里小品与化形被打断时画出去的墨干掉；本产品没有这两样，常量照来源留着，说状态的笔不因按下而干掉 | `spirit/body.ts` |
 | `WRITE.leftDry` | 2200 | 一程出发处留下的圆慢慢干去 | `spirit/body.ts` |
 | 重写的旧圆 | 130 里淡成 0.18 的痕；新圆写完后 260 里干去 | 重写读得出是「在旧迹上再写」 | `spirit/body.ts` |
 
