@@ -49,6 +49,7 @@ export const BASE_FUNCTIONS: ReadonlySet<string> = new Set([
 export type Decision = (action: number, arg1: string | null, arg2: string | null) => boolean
 
 const INTERNAL_TABLES = new Set(['sqlite_master', 'sqlite_schema', 'sqlite_sequence'])
+const QUICK_CHECK = 'pragma_quick_check'
 
 function functionSet(extra: readonly string[]): Set<string> {
   return new Set([...BASE_FUNCTIONS, ...extra.map(name => name.toLowerCase())])
@@ -95,7 +96,7 @@ export function migrationDecision(
       case C.SQLITE_RECURSIVE:
         return true
       case C.SQLITE_READ:
-        return arg1 !== null && (read.has(arg1) || INTERNAL_TABLES.has(arg1))
+        return arg1 !== null && (read.has(arg1) || INTERNAL_TABLES.has(arg1) || arg1 === QUICK_CHECK)
       case C.SQLITE_CREATE_TABLE:
       case C.SQLITE_DROP_TABLE:
       case C.SQLITE_INSERT:
@@ -118,6 +119,9 @@ export function migrationDecision(
         return arg1 !== null && createdIndexes.has(arg1)
       case C.SQLITE_FUNCTION:
         return arg2 !== null && functions.has(arg2.toLowerCase())
+      // ADD COLUMN on a STRICT or checked table runs `pragma_quick_check(<table>)`: only for an owned table.
+      case C.SQLITE_PRAGMA:
+        return arg1 === 'quick_check' && arg2 !== null && write.has(arg2)
       default:
         return false
     }

@@ -115,3 +115,38 @@ describe('REINDEX in a migration', () => {
     }
   })
 })
+
+describe('ADD COLUMN in a migration', () => {
+  function gatewayOf(owned: readonly string[]): { gateway: SqlGateway; db: DatabaseSync } {
+    const db = new DatabaseSync(':memory:')
+    db.exec(
+      'create table t_a(id integer primary key, v text) strict; create table t_b(id integer primary key, v text) strict;' +
+        "insert into t_a(v) values ('kept')",
+    )
+    return { gateway: new SqlGateway(db, migrationDecision(owned, [])), db }
+  }
+
+  it('allows the quick check SQLite runs when a STRICT owned table gains a checked column', () => {
+    const { gateway, db } = gatewayOf(['t_a'])
+    try {
+      gateway.execute("alter table t_a add column w text check(w is null or length(w) > 0)", [])
+      expect(gateway.violated).toBe(false)
+      expect(db.prepare('select v, w from t_a').all()).toEqual([{ v: 'kept', w: null }])
+    } finally {
+      gateway.close()
+      db.close()
+    }
+  })
+
+  it('denies the quick check of a table the owner does not own, and of the whole file', () => {
+    const { gateway, db } = gatewayOf(['t_a'])
+    try {
+      expect(() => gateway.execute('alter table t_b add column w text', [])).toThrow()
+      expect(() => gateway.execute('pragma quick_check', [])).toThrow()
+      expect(() => gateway.execute('select * from pragma_quick_check', [])).toThrow()
+    } finally {
+      gateway.close()
+      db.close()
+    }
+  })
+})
