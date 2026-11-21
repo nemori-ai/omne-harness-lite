@@ -27,6 +27,8 @@ class Index extends MediaIndexService {
   readonly markDeletingIfExpired = this.port.markDeletingIfExpired
   readonly listDeleting = this.port.listDeleting
   readonly dropRow = this.port.dropRow
+  readonly recordRepresentation = this.port.recordRepresentation
+  readonly readRepresentation = this.port.readRepresentation
 }
 class Image extends MediaImageService {
   private readonly port = fakeImage().codec

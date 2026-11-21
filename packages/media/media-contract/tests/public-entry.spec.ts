@@ -16,12 +16,14 @@ it('exports the pure functions of the contract', async () => {
   const root = (await import('@omne-harness/media-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'KNOWN_MEDIA_TYPES',
+    'REPRESENTATION_OWNER',
     'declarationProblem',
     'digestText',
     'engineAccepts',
     'isEngineName',
     'isMediaKey',
     'modalityOf',
+    'representationHolder',
     'sniffMediaType',
     'wavFacts',
   ])

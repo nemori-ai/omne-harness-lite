@@ -1,7 +1,8 @@
 import { isDeepStrictEqual } from 'node:util'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { MediaIndex, MediaRow } from '../ports.ts'
-import type { Holder } from '../values.ts'
+import { REPRESENTATION_OWNER, type Representation } from '../representation.ts'
+import type { Holder, Provenance } from '../values.ts'
 
 type Row = { -readonly [K in keyof MediaRow]: MediaRow[K] }
 
@@ -10,6 +11,44 @@ const live = (row: Row | undefined): row is Row =>
 const over = (row: Row, now: string): boolean =>
   row.expiresAt !== null && Date.parse(row.expiresAt) <= Date.parse(now)
 const copy = (row: Row): MediaRow => structuredClone(row)
+const same = (one: Provenance, other: Provenance): boolean =>
+  one.name === other.name && one.revision === other.revision
+
+/** What rows came to, and the end of what was kept for a row that goes. */
+function keptFor(all: Map<string, Row>, holders: Map<string, Holder[]>) {
+  const kept = new Map<string, Representation[]>()
+  const find = (key: string, definition: Provenance) =>
+    (kept.get(key) ?? []).find(each => same(each.definition, definition))
+  return {
+    record(key: string, representation: Representation): Representation {
+      const first = find(key, representation.definition)
+      if (first !== undefined) return structuredClone(first)
+      kept.set(key, [...(kept.get(key) ?? []), structuredClone(representation)])
+      return representation
+    },
+    read: (key: string, definition: Provenance): Representation | null =>
+      structuredClone(find(key, definition) ?? null),
+    forget: (key: string): void => void kept.delete(key),
+    /** Answers the rows the going of `original` leaves with no holder, marked deleting. */
+    released(original: string): Row[] {
+      kept.delete(original)
+      const orphans: Row[] = []
+      for (const [key, known] of holders) {
+        const rest = known.filter(
+          each => each.owner !== REPRESENTATION_OWNER || each.work !== original,
+        )
+        const row = all.get(key)
+        if (rest.length === known.length || row === undefined) continue
+        holders.set(key, rest)
+        row.holderCount = rest.length
+        if (rest.length > 0 || row.state !== 'held') continue
+        row.state = 'deleting'
+        orphans.push(row)
+      }
+      return orphans
+    },
+  }
+}
 
 /** The metadata of media in memory: a row is seen only through its own tenant, as in the SQL provider. */
 export function createMemoryMediaIndex(): MediaIndex {
@@ -32,6 +71,7 @@ export function createMemoryMediaIndex(): MediaIndex {
     row.expiresAt = null
   }
   const pointer = (tenant: string, upload: string): string => `${tenant}\n${upload}`
+  const representations = keptFor(all, holders)
   return {
     async insertUploading(input) {
       if (all.has(input.key)) return fail({ kind: 'unavailable', diagnostic: 'duplicate key' })
@@ -123,7 +163,7 @@ export function createMemoryMediaIndex(): MediaIndex {
         if (marked.length >= input.limit) break
         if ((row.state !== 'uploading' && row.state !== 'staged') || !over(row, input.now)) continue
         row.state = 'deleting'
-        marked.push(copy(row))
+        marked.push(copy(row), ...representations.released(row.key).map(copy))
       }
       return succeed(marked)
     },
@@ -140,8 +180,16 @@ export function createMemoryMediaIndex(): MediaIndex {
       if (rows.get(tenant, key)?.state !== 'deleting') return succeed(null)
       all.delete(key)
       holders.delete(key)
+      representations.forget(key)
       for (const [name, target] of uploads) if (target === key) uploads.delete(name)
       return succeed(null)
+    },
+    async recordRepresentation({ tenant, key, representation }) {
+      if (!live(rows.get(tenant, key))) return fail({ kind: 'not-live' })
+      return succeed(representations.record(key, representation))
+    },
+    async readRepresentation({ tenant, key, definition }) {
+      return succeed(live(rows.get(tenant, key)) ? representations.read(key, definition) : null)
     },
   }
 }

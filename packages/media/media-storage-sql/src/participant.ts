@@ -1,4 +1,10 @@
-import type { Holder, NewRow, Staging } from '@omne-harness/media-contract'
+import {
+  REPRESENTATION_OWNER,
+  type Holder,
+  type NewRow,
+  type Representation,
+  type Staging,
+} from '@omne-harness/media-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import {
@@ -8,6 +14,8 @@ import {
   keysWhere,
   load,
   pointed,
+  released,
+  representationOf,
   save,
   type Row,
   type Stored,
@@ -110,18 +118,29 @@ const RUN: Record<ScriptName, (port: SqlPort, command: never) => unknown> = {
       [Date.parse(input.now), input.limit],
     )
     return ok(
-      due.map(key => {
+      due.flatMap(key => {
         const marked: Row = { ...(load(port, key) as Row), state: 'deleting' }
         save(port, marked)
-        return marked
+        return [marked, ...released(port, key, REPRESENTATION_OWNER)]
       }),
     )
   },
   dropRow(port, input: { key: string }) {
     if (load(port, input.key)?.state !== 'deleting') return ok(null)
-    for (const table of ['md_objects', 'md_holds', 'md_uploads'])
+    for (const table of ['md_objects', 'md_holds', 'md_uploads', 'md_representations'])
       port.execute(`DELETE FROM ${table} WHERE key = ?`, [input.key])
     return ok(null)
+  },
+  recordRepresentation(port, input: { key: string; representation: Representation }) {
+    if (!isLive(load(port, input.key))) return failure('not-live')
+    const { definition } = input.representation
+    const first = representationOf(port, input.key, definition)
+    if (first !== null) return ok(first)
+    port.execute(
+      'INSERT INTO md_representations (key, definition, revision, record) VALUES (?, ?, ?, ?)',
+      [input.key, definition.name, definition.revision, JSON.stringify(input.representation)],
+    )
+    return ok(input.representation)
   },
 }
 

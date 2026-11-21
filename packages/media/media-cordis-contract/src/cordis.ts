@@ -70,6 +70,8 @@ export abstract class MediaIndexService extends Service implements MediaIndex {
   abstract readonly markDeletingIfExpired: MediaIndex['markDeletingIfExpired']
   abstract readonly listDeleting: MediaIndex['listDeleting']
   abstract readonly dropRow: MediaIndex['dropRow']
+  abstract readonly recordRepresentation: MediaIndex['recordRepresentation']
+  abstract readonly readRepresentation: MediaIndex['readRepresentation']
 }
 export const mediaIndexKey = MediaIndexService.provide
 

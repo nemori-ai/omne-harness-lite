@@ -1,5 +1,6 @@
 import type { Outcome } from '@omne-harness/operation-result'
-import type { Holder, Instant, MediaFacts, RowState, VariantTarget } from './values.ts'
+import type { Representation } from './representation.ts'
+import type { Holder, Instant, MediaFacts, Provenance, RowState, VariantTarget } from './values.ts'
 
 export type PortFailure =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
@@ -97,7 +98,7 @@ export interface MediaIndex {
   }): PortReply<MediaRow, Readonly<{ kind: 'not-live' }>>
   readLive(key: string, tenant: string): PortReply<MediaRow, Readonly<{ kind: 'not-found' }>>
   markDeleting(tenant: string, key: string): PortReply<Readonly<{ marked: boolean }>>
-  /** Marks deleting the uploading and staged rows whose time is over, in the same write. */
+  /** Marks deleting the rows whose time is over; what was kept for their representations goes with them. */
   markDeletingIfExpired(input: {
     tenant: string
     now: Instant
@@ -105,6 +106,16 @@ export interface MediaIndex {
   }): PortReply<readonly MediaRow[]>
   listDeleting(tenant: string, limit: number): PortReply<readonly MediaRow[]>
   dropRow(tenant: string, key: string): PortReply<null>
+  recordRepresentation(input: {
+    tenant: string
+    key: string
+    representation: Representation
+  }): PortReply<Representation, Readonly<{ kind: 'not-live' }>>
+  readRepresentation(input: {
+    tenant: string
+    key: string
+    definition: Provenance
+  }): PortReply<Representation | null>
 }
 
 export type Probe = Readonly<{ mediaType: string; widthPixels: number; heightPixels: number }>

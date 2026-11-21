@@ -25,6 +25,8 @@ class SqlMediaIndex extends MediaIndexService {
   declare readonly markDeletingIfExpired: MediaIndex['markDeletingIfExpired']
   declare readonly listDeleting: MediaIndex['listDeleting']
   declare readonly dropRow: MediaIndex['dropRow']
+  declare readonly recordRepresentation: MediaIndex['recordRepresentation']
+  declare readonly readRepresentation: MediaIndex['readRepresentation']
 
   constructor(ctx: Context) {
     super(ctx)

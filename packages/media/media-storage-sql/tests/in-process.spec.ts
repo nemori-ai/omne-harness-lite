@@ -4,6 +4,7 @@ import type { NewRow } from '@omne-harness/media-contract'
 import { mediaIndexConformanceCases } from '@omne-harness/media-contract/testing'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import migration from '../src/migration.ts'
+import representations from '../src/migration-representations.ts'
 import participant from '../src/participant.ts'
 import reader from '../src/read.ts'
 import { TABLES } from '../src/schema.ts'
@@ -153,10 +154,13 @@ describe('the modules the storage worker loads', () => {
     },
   })
 
-  it('the migration creates every table it declares and verifies them', () => {
+  it('the two migrations create every table this member declares, and each verifies its own', () => {
     const db = new DatabaseSync(':memory:')
     migration.up(port(db))
     expect(migration.verify(port(db))).toEqual({ kind: 'verified' })
+    expect(() => representations.verify(port(db))).toThrow(/md_representations/)
+    representations.up(port(db))
+    expect(representations.verify(port(db))).toEqual({ kind: 'verified' })
     const names = db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
       .all()
