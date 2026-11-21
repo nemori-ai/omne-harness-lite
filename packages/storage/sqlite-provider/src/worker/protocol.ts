@@ -44,7 +44,7 @@ export type RegistrationSpec = Readonly<{
 
 export type WorkerRequest =
   | Readonly<{ kind: 'open'; create: RegistrationSpec | null }>
-  | Readonly<{ kind: 'register'; registration: RegistrationSpec }>
+  | Readonly<{ kind: 'register'; registration: RegistrationSpec; readersPaused: boolean }>
   | Readonly<{ kind: 'commit'; request: CommitRequestV2; inputDigest: string }>
   | Readonly<{ kind: 'query'; identity: SqlIdentity }>
   | Readonly<{ kind: 'close' }>
@@ -64,6 +64,7 @@ export type OpenReply =
 
 export type RegisterReply =
   | Readonly<{ kind: 'registered' }>
+  | Readonly<{ kind: 'migration_pending' }>
   | Readonly<{ kind: 'conflict' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>

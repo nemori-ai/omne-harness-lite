@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readdir, readFile, realpath } from 'node:fs/promises'
 import { dirname, join, relative, sep } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { Adoption, DurableEvidence } from '@omne-harness/tool-contract'
@@ -23,6 +23,9 @@ import {
 
 export const TOOL_RELEASE_FORMAT = 'omne-harness/tool-release/4'
 export const TOOL_RELEASE_FILE = 'tool-release.json'
+export const TOOL_RELEASE_MANIFEST_PATH = fileURLToPath(
+  new URL(`../../config/${TOOL_RELEASE_FILE}`, import.meta.url),
+)
 export const TOOL_RELEASE_OWNER = '@omne-harness/harness-server'
 export const TOOL_DEFINITIONS_PACKAGE = '@omne-harness/tool-definitions' as const
 export const CALENDAR_TOOLS_PACKAGE = '@omne-harness/calendar-tools' as const
@@ -199,7 +202,7 @@ const artifactsSchema = z.strictObject({
   ),
   digest: digestText,
 })
-const manifestSchema = z.strictObject({
+export const manifestSchema = z.strictObject({
   format: z.literal(TOOL_RELEASE_FORMAT),
   generation: digestText,
   artifacts: z.array(artifactsSchema),
@@ -393,6 +396,35 @@ const evidence = (record: string, generation: string, content: unknown): Durable
   digest: canonicalDigest({ generation, record, content }),
 })
 
+type ConsumerStatement = Pick<ToolReleaseManifest['consumer'], 'input' | 'output' | 'attachments'>
+type ReleaseCore = Omit<ToolReleaseEntry, 'holding' | 'publication'>
+
+function releaseGeneration(
+  input: Readonly<{
+    artifacts: ToolReleaseArtifacts
+    consumer: ConsumerStatement
+    entries: readonly ReleaseCore[]
+  }>,
+): string {
+  return canonicalDigest({
+    format: TOOL_RELEASE_FORMAT,
+    artifacts: input.artifacts,
+    consumer: input.consumer,
+    entries: input.entries,
+  })
+}
+
+export function manifestGeneration(manifest: ToolReleaseManifest): string {
+  const { input, output, attachments } = manifest.consumer
+  return releaseGeneration({
+    artifacts: manifest.artifacts,
+    consumer: { input, output, attachments },
+    entries: manifest.entries.map(
+      ({ holding: _holding, publication: _publication, ...core }) => core,
+    ),
+  })
+}
+
 export function composeManifest(input: {
   version: string
   artifacts: ToolReleaseArtifacts
@@ -452,12 +484,7 @@ export function composeManifest(input: {
     output: ['text' as const],
     attachments: false as const,
   }
-  const generation = canonicalDigest({
-    format: TOOL_RELEASE_FORMAT,
-    artifacts,
-    consumer: statement,
-    entries: cores,
-  })
+  const generation = releaseGeneration({ artifacts, consumer: statement, entries: cores })
   return {
     format: TOOL_RELEASE_FORMAT,
     generation,
