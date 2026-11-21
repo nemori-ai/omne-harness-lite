@@ -140,7 +140,11 @@ const ASK_THIRD = JSON.stringify({
     ],
   },
 })
-const SHELL = JSON.stringify({ command: 'execute', params: { script: 'echo visual-walk' } })
+const SHELL = JSON.stringify({
+  command: 'execute',
+  intent: '看看走查的命令能不能跑',
+  params: { script: 'echo visual-walk' },
+})
 /** A one-shot command whose result has some fifty lines (B4-tool-long). */
 const LONG_SHELL = JSON.stringify({
   command: 'execute',
