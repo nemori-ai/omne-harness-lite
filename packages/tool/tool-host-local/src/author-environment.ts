@@ -9,6 +9,7 @@ import type {
   FacilityRequest,
   FacilityResult,
   FileSystemFacility,
+  FilesScope,
   ObjectToken,
   OriginRef,
   ScreenFacility,
@@ -16,7 +17,7 @@ import type {
   TerminalRetention,
 } from '@omne-harness/execution-environment-contract'
 import { fail, type Outcome } from '@omne-harness/operation-result'
-import type { ConsumerRef, ToolFailure } from '@omne-harness/tool-contract'
+import type { ConsumerRef, ToolCallDirectory, ToolFailure } from '@omne-harness/tool-contract'
 import type {
   CallAccess,
   ToolMediaSink,
@@ -58,6 +59,8 @@ export type ToolEnvironmentValue = Readonly<{
   screen: AuthorFacility<ScreenFacility<unknown>>
   /** Where the call works by default: the directory pinned in its request. Absent: it has none. */
   directory?: string
+  /** The files scope pinned with the directory; absent when none was: a session with no workspace. */
+  scope?: FilesScope
 }>
 export interface FileObjectNaming<P> {
   name(
@@ -79,6 +82,7 @@ export type AuthorEnvironmentInput<P> = Readonly<{
   facts: EnvironmentFacts
   /** The provider that stores products, taken anew at each put; absent while none is installed. */
   media: () => ToolMediaStore<P> | undefined
+  directory?: ToolCallDirectory
 }>
 
 function namingFailure(requestId: string, failure: ToolFailure): FacilityResult<never> {
@@ -90,15 +94,21 @@ function namingFailure(requestId: string, failure: ToolFailure): FacilityResult<
   }
 }
 
-/** The default directory of the author is the files root of the placement: one pinned value. */
+/** The default directory of the author is the directory pinned in the request: one pinned value. */
 export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue {
   const value = {
     ...boundFacilities(input),
     media: productSink(input),
     screen: boundScreen(input),
   }
-  const directory = input.lease.placement.filesRoot
-  return Object.freeze(directory === undefined ? value : { ...value, directory })
+  const pinned = input.directory
+  return pinned === undefined
+    ? Object.freeze(value)
+    : Object.freeze({
+        ...value,
+        directory: pinned.path,
+        ...(pinned.files === undefined ? {} : { scope: pinned.files }),
+      })
 }
 
 export const TOOL_PRODUCT_OWNER = '@omne-harness/tool-host-local/products'

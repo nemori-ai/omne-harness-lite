@@ -21,7 +21,7 @@ import { createSession, queryCreateSession } from './create-session.ts'
 import { retryRun } from './retry-run.ts'
 import { backgroundCall, listBackgroundCalls } from './background-calls.ts'
 import { readModelSelection, selectModel } from './select-model.ts'
-import { selectWorkspace } from './select-workspace.ts'
+import { readWorkspaceSelection, selectWorkspace } from './select-workspace.ts'
 import { stopCall } from './stop-call.ts'
 import { archiveSession, unarchiveSession } from './archive.ts'
 import type {
@@ -29,6 +29,7 @@ import type {
   PrincipalFacts,
   ModelTargets,
   WorkspaceTargets,
+  WorkspaceSelections,
   RunFailureCauses,
   SessionAccessFaces,
   SessionAccessSettings,
@@ -52,6 +53,7 @@ export type SessionContributionInput = Readonly<{
   causes: () => RunFailureCauses | undefined
   modelTargets: () => ModelTargets | undefined
   workspaceTargets: () => WorkspaceTargets | undefined
+  workspaceSelections: () => WorkspaceSelections | undefined
   permissionModes: () => SessionPermissionModes | undefined
   principals: TargetTenantPrincipals
   facts: PrincipalFacts
@@ -163,6 +165,7 @@ export function createSessionContribution(
     modes: input.permissionModes,
     targets: input.modelTargets,
     workspaces: input.workspaceTargets,
+    selections: input.workspaceSelections,
   }
   const sending = { target, factOf, faces: input.faces, requests: input.requests }
   const tenant = { principalFor, listing: input.listing, searching: input.searching, settings }
@@ -183,6 +186,8 @@ export function createSessionContribution(
       'select-model': (call, body) => selectModel(held, call.principal, body),
       'read-model-selection': (call, body) => readModelSelection(held, call.principal, body),
       'select-workspace': (call, body) => selectWorkspace(held, call.principal, body),
+      'read-workspace-selection': (call, body) =>
+        readWorkspaceSelection(held, call.principal, body),
       'retry-run': (call, body) => retryRun(held, call.principal, body),
       'background-call': (call, body) => backgroundCall(held, call.principal, body),
       'list-background-calls': (call, body) => listBackgroundCalls(held, call.principal, body),

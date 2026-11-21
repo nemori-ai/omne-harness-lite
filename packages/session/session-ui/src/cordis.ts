@@ -5,6 +5,7 @@ export {
   sessionComposerIntakeKey,
   sessionModelChoicesKey,
   sessionUiModule,
+  sessionWorkspaceChoicesKey,
 } from './module.tsx'
 export type {
   ModelChoice,
@@ -13,6 +14,12 @@ export type {
   ModelChoiceSource,
 } from './model/model-selection.ts'
 export type { ComposerDrafts, DraftOffer } from './model/composer-drafts.ts'
+export type {
+  WorkspaceChoice,
+  WorkspaceChoiceHolder,
+  WorkspaceChoiceListing,
+  WorkspaceChoiceSource,
+} from './model/workspace-selection.ts'
 export {
   SESSION_BLOCK,
   SESSION_CALL_DETAIL,

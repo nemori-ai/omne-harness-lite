@@ -1,4 +1,5 @@
 import type { JsonValue } from '@omne-harness/json-text'
+import type { FilesScope } from './files-scope.ts'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { AuthorityDecision, ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { BindingKind, EnvironmentBinding, EnvironmentContinuity } from './binding.ts'
@@ -183,7 +184,7 @@ export type PlacementInput = Readonly<{
   scope: ScopeRef
   requirement: EnvironmentRequirement
   /** Given by the integrator that resolves the placement; it becomes part of the placement. */
-  filesRoot?: string
+  filesScope?: FilesScope
 }>
 
 export type AcquireInput<P> = Readonly<{

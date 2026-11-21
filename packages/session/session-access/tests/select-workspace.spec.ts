@@ -269,3 +269,85 @@ describe('create-session with a workspace', () => {
     expect(calls(world, 'create')).toEqual([])
   })
 })
+
+describe('read-workspace-selection', () => {
+  const read = (world: World, session: string, who = ALICE) =>
+    ops(world)['read-workspace-selection'](as(loginIdentity(who)), {
+      tenant: who.tenant,
+      session,
+    })
+  const selected = { workspace: WORKSPACE_ID, attachment: WORKSPACE_ATTACHMENT }
+
+  it('answers no workspace and the default directory when the session stands at none', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    expect(await read(world, session)).toEqual({
+      outcome: 'succeeded',
+      body: {
+        workspace: null,
+        state: 'default',
+        directory: '/srv/default',
+        reason: null,
+        revision: '1',
+      },
+    })
+  })
+
+  it('answers the instance the session stands at, with the state and directory of its step', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    const attached = { state: 'attached', directory: WORKSPACE_DIRECTORY } as const
+    world.holdSelection({ kind: 'read', selection: selected, directory: attached, revision: '7' })
+    expect(await read(world, session)).toEqual({
+      outcome: 'succeeded',
+      body: {
+        workspace: TARGET,
+        state: 'attached',
+        directory: WORKSPACE_DIRECTORY,
+        reason: null,
+        revision: '7',
+      },
+    })
+    const unusable = { state: 'unusable', reason: 'not-permitted' } as const
+    world.holdSelection({ kind: 'read', selection: selected, directory: unusable, revision: '8' })
+    expect(await read(world, session)).toMatchObject({
+      body: { workspace: TARGET, state: 'unusable', directory: null, reason: 'not-permitted' },
+    })
+    expect(world.selectionReads().map(({ tenant, session: id }) => [tenant, id])).toEqual([
+      [ALICE.tenant, session],
+      [ALICE.tenant, session],
+    ])
+  })
+
+  it('answers what the session refuses as the session does', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.holdSelection({ kind: 'refused', failure: { kind: 'not-found' } as never })
+    expect(await read(world, session)).toEqual({ outcome: 'not-found', body: {} })
+    world.holdSelection({ kind: 'refused', failure: { kind: 'denied' } as never })
+    expect(await read(world, session)).toEqual({ outcome: 'denied' })
+  })
+
+  it('answers basis-unavailable when the selection cannot be read', async () => {
+    for (const held of [{ kind: 'unavailable' } as const, 'throw' as const]) {
+      const world = createWorld()
+      const session = await created(world)
+      world.holdSelection(held)
+      expect(await read(world, session), JSON.stringify(held)).toEqual({
+        outcome: 'basis-unavailable',
+      })
+    }
+    const world = createWorld()
+    const session = await created(world)
+    world.remove('workspaceSelections')
+    expect(await read(world, session)).toEqual({ outcome: 'basis-unavailable' })
+  })
+
+  it('a login that cannot act for the tenant is refused before the selection is read', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.refuseTargets('denied')
+    expect(await read(world, session)).toEqual({ outcome: 'denied' })
+    expect(world.selectionReads()).toEqual([])
+  })
+})

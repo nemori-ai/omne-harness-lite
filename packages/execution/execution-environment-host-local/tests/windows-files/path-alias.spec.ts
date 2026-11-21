@@ -105,7 +105,9 @@ describe('the root of the Windows files backend in another spelling', () => {
       [short.root, long.file],
       [long.root, short.file],
     ] as const) {
-      const files = createHostFilesEngine({ root }).facilityFor('owner')
+      const files = createHostFilesEngine({ scope: { read: root, write: root } }).facilityFor(
+        'owner',
+      )
       const stat = await files.stat(request(path, named))
       expect(stat).toMatchObject({ kind: 'done', value: { object: named } })
       for (const outside of [long.outside, short.outside]) {

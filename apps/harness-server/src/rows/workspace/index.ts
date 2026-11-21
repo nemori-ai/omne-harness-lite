@@ -18,6 +18,8 @@ import {
   workspacePersistenceParticipant,
   type WorkspaceBinding,
 } from '@omne-harness/workspace-local'
+import { independentSettingsPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import { workspaceOutsideFilesSettings } from '@omne-harness/workspace-local'
 import { createWorkspaceLocalPlugin } from '@omne-harness/workspace-local/cordis'
 import { defineRow } from '../../row.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
@@ -71,6 +73,10 @@ export const workspaceRow = defineRow({
       sources: { files: localSourceFiles, digests: assetDigests },
     })
     await provider.await()
+    // The workspace declares the setting; the assembly hands it to the independent settings point.
+    ctx.plugin(
+      independentSettingsPlugin('workspace-outside-files-settings', workspaceOutsideFilesSettings),
+    )
     ctx.inject([workspaceTypesKey], child => {
       child.workspaceTypes.contribute(new DirectoryType())
       child.workspaceTypes.contribute(new GitType())

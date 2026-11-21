@@ -717,6 +717,25 @@ export const sessionProtocol = defineProtocol({
       },
       countsAsAccess: true,
     },
+    'read-workspace-selection': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({
+            workspace: { rule: nullable(workspaceTarget) },
+            state: { rule: literal('default', 'attached', 'unusable') },
+            directory: { rule: nullable(text) },
+            reason: { rule: nullable(text) },
+            revision: { rule: anyText },
+          }),
+        ),
+        'not-found': empty,
+      },
+      countsAsAccess: true,
+    },
     'read-model-selection': {
       identity: 'login',
       effect: 'read',
