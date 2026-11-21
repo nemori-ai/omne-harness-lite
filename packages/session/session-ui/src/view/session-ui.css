@@ -402,6 +402,14 @@
   margin: 0;
   padding-left: 1.25em;
 }
+/* A failed run's notice stands under its line and is never squeezed by the transcript's scrolling column. */
+.omne-waiting {
+  flex-shrink: 0;
+}
+/* What came of a retry that is not a failure (not known, not sent, refused): neutral ink inside the notice. */
+.omne-waiting-note {
+  color: var(--omne-ink-muted);
+}
 .omne-transcript-row {
   flex-shrink: 0;
   min-width: 0;

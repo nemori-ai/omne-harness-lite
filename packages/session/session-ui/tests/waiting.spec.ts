@@ -258,19 +258,17 @@ describe('重试', () => {
 })
 
 describe('成因的一句话', () => {
-  it('表里有的照表；带诊断的接在后面', () => {
+  it('表里有的照表；诊断不在这句话里，它收进「详情」', () => {
     expect(causeSentence({ kind: 'compaction-failed', detail: null })).toBe(
       '压缩前面的对话时，压缩服务执行失败。',
     )
     expect(causeSentence({ kind: 'cannot-fit', detail: null })).toBe('当前请求装不进模型的上下文。')
-    expect(causeSentence({ kind: 'no-reply', detail: 'http-400' })).toBe(
-      '模型没有给出有效的回复。诊断：http-400',
-    )
+    expect(causeSentence({ kind: 'no-reply', detail: 'http-400' })).toBe('模型没有给出有效的回复。')
   })
 
-  it('表里没有的：通用的一句加诊断；没有成因：只说失败了', () => {
+  it('表里没有的：通用的一句带上种类名；没有成因：只说失败了', () => {
     expect(causeSentence({ kind: 'brand-new', detail: 'x-1' })).toBe(
-      '这一轮失败了，原因是「brand-new」。诊断：x-1',
+      '这一轮失败了，原因是「brand-new」。',
     )
     expect(causeSentence(null)).toBe('这一轮失败了。')
   })
