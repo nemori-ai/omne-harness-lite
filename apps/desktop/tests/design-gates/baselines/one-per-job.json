@@ -5,10 +5,7 @@
     "packages/frontend/ui-kit/src/charts/frame.tsx | native disclosure": 1,
     "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | native disclosure": 1,
     "packages/identity/identity-ui/src/view/account-block.tsx | bare loading text": 1,
-    "packages/session/session-ui/src/view/background-pane.tsx | bare loading text": 1,
-    "packages/session/session-ui/src/view/background-pane.tsx | home-made empty state": 3,
     "packages/session/session-ui/src/view/conversation-page.tsx | home-made empty state": 2,
-    "packages/tool/tool-ui/src/view/call-output.tsx | bare loading text": 1,
     "packages/usage/usage-ui/src/view/panel.tsx | error outside InlineNotice": 1,
     "packages/usage/usage-ui/src/view/widgets.tsx | bare loading text": 1
   }

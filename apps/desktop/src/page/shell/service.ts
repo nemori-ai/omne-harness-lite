@@ -38,6 +38,12 @@ export class DesktopShell extends ShellService implements ShellSlots {
     this.state.page.choose(pageId, subject)
   }
 
+  /** Only which page is on show: choosing one stays with `navigate`. */
+  override get page(): ShellService['page'] {
+    const { get, subscribe } = this.state.page
+    return { get, subscribe }
+  }
+
   attached(anchor: string, subject: string): ReactNode {
     return createElement(Attached, {
       slots: this.state.slots,

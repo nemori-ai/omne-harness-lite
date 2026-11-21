@@ -353,6 +353,88 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+/* 后台: each call a process row that folds open (agent-work-panel.css `.agent-work-item`), inside the side body's
+   scroller with room for the rings; the detail reads under the row's words, past the chevron. */
+.omne-background-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+  padding: var(--omne-ring-room);
+}
+.omne-background-pane .empty-state {
+  padding: 0;
+}
+.omne-background-calls {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.omne-background-call {
+  min-width: 0;
+}
+.omne-background-call-row {
+  display: flex;
+  align-items: center;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+.omne-background-call-trigger {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 0;
+}
+.omne-background-call-id {
+  flex: none;
+  color: var(--omne-ink-muted);
+  font-family: var(--omne-font-mono);
+  font-size: var(--omne-text-caption);
+  font-variant-numeric: tabular-nums;
+}
+.omne-background-call-trigger > .omne-background-call-intent {
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--omne-ink-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.omne-background-call-trigger > [data-state-word] {
+  flex: none;
+  font-size: var(--omne-text-caption);
+}
+.omne-background-call-said,
+.omne-background-call-detail {
+  margin: 0;
+  padding-left: calc(var(--omne-icon-label) + var(--spacing) * 3);
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-reading);
+  overflow-wrap: anywhere;
+}
+.omne-background-call-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+  padding-bottom: var(--omne-space-block);
+}
+.omne-background-call-detail .fact-list {
+  font-size: var(--omne-text-caption);
+}
+.omne-background-call-action,
+.omne-background-call-last {
+  margin: 0;
+  font-family: var(--omne-font-mono);
+}
+/* The hint above the composer is a receipt-weight line: caption size, muted, no frame; pressing it opens 后台. */
+.omne-background-hint {
+  align-self: flex-start;
+  padding-inline: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  font-weight: var(--omne-weight-regular);
+}
 .omne-session-main {
   display: flex;
   flex-direction: column;

@@ -100,6 +100,35 @@ describe('会话列表的行', () => {
     expect(rows.map(row => row.getAttribute('data-selected'))).toEqual(['false', 'true'])
   })
 
+  it('当前会话只在对话页显示着时是选中的底；别的页显示着时没有一行被选中', async () => {
+    const fake = createFakeClient()
+    const { shell } = await mountModule(fake.client, TENANT)
+    ;(await fake.next('list-sessions')).answer(
+      listPage([listed('ses_a', '甲'), listed('ses_b', '乙')]),
+    )
+    await settle()
+    fireEvent.click(screen.getByRole('button', { name: '乙' }))
+    await settle()
+    const marks = () =>
+      within(list())
+        .getAllByRole('button')
+        .map(row => [row.getAttribute('data-selected'), row.getAttribute('aria-current')])
+    expect(marks()).toEqual([
+      ['false', null],
+      ['true', 'true'],
+    ])
+    act(() => shell.navigate('history-search'))
+    expect(marks()).toEqual([
+      ['false', null],
+      ['false', null],
+    ])
+    act(() => shell.navigate('conversation'))
+    expect(marks()).toEqual([
+      ['false', null],
+      ['true', 'true'],
+    ])
+  })
+
   it('状态词只给正在初始化与已冻结，中性；正常的会话什么都不写', async () => {
     const fake = createFakeClient()
     await mountModule(fake.client, TENANT)
@@ -120,6 +149,11 @@ describe('会话列表的行', () => {
       'neutral',
       'neutral',
     ])
+    // Words of the shared table, drawn as state words: no pill around them.
+    expect(
+      [word('在建的'), word('冻住的')].map(node => node?.getAttribute('data-state-word')),
+    ).toEqual(['initializing', 'frozen'])
+    expect(document.querySelector('[data-status-pill]')).toBeNull()
     expect(screen.getByRole('button', { name: /在跑的/u }).textContent).toBe('在跑的')
     expect(screen.getByRole('button', { name: /歇着的/u }).textContent).toBe('歇着的')
   })

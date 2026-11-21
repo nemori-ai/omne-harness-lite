@@ -38,6 +38,9 @@ export const STATE_LABELS = {
   unavailable: '不可用',
   asleep: '休眠',
   released: '已释放',
+  initializing: '正在初始化',
+  frozen: '已冻结',
+  outputOpen: '输出还在写',
 } as const
 
 export type StateLabel = keyof typeof STATE_LABELS
@@ -80,4 +83,7 @@ export const STATE_FACT: Record<StateLabel, Fact> = {
   superseded: 'released',
   expired: 'released',
   closed: 'released',
+  initializing: 'in-progress',
+  frozen: 'released',
+  outputOpen: 'in-progress',
 }

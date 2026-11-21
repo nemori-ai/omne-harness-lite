@@ -6,11 +6,12 @@ import {
   GlideMenu,
   InlineNotice,
   LoadingState,
-  StatusPill,
+  StateWord,
   useAgeClock,
+  type StateLabel,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
-import { useSyncExternalStore } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import type { ModelSelectionStore } from '../model/model-selection.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import {
@@ -30,13 +31,33 @@ export type SessionListPanelProps = Readonly<{
   models: ModelSelectionStore
   scope: string | undefined
   onShow: () => void
+  /** Whether the conversation page is on show; without it, it always is. */
+  conversationShown?: Readonly<{ get(): boolean; subscribe(listener: () => void): () => void }>
 }>
 
-export function SessionListPanel({ workspaces, models, scope, onShow }: SessionListPanelProps) {
+type ConversationShown = NonNullable<SessionListPanelProps['conversationShown']>
+
+const ALWAYS_SHOWN: ConversationShown = { get: () => true, subscribe: () => () => undefined }
+
+export function SessionListPanel({
+  workspaces,
+  models,
+  scope,
+  onShow,
+  conversationShown = ALWAYS_SHOWN,
+}: SessionListPanelProps) {
   const handle = useSession(workspaces, scope)
   if (handle.kind !== 'ready' || scope === undefined)
     return <div className="omne-session-sidebar" />
-  return <Panel driver={handle.driver} models={models} tenant={scope} onShow={onShow} />
+  return (
+    <Panel
+      driver={handle.driver}
+      models={models}
+      tenant={scope}
+      onShow={onShow}
+      shown={conversationShown}
+    />
+  )
 }
 
 function Panel({
@@ -44,15 +65,23 @@ function Panel({
   models,
   tenant,
   onShow,
+  shown,
 }: {
   readonly driver: SessionDriver
   readonly models: ModelSelectionStore
   readonly tenant: string
   readonly onShow: () => void
+  readonly shown: ConversationShown
 }) {
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
   const { model, picker } = useNewSessionModel(models, tenant)
-  const current = state.kind === 'open' || state.kind === 'unavailable' ? state.session : null
+  // The current session is the sidebar's one selection only while its page is on show (DT-31).
+  const conversation = useSyncExternalStore(
+    useCallback((listener: () => void) => shown.subscribe(listener), [shown]),
+    () => shown.get(),
+  )
+  const open = state.kind === 'open' || state.kind === 'unavailable' ? state.session : null
+  const current = conversation ? open : null
   return (
     <div className="omne-session-sidebar">
       <div className="omne-sessions-top">
@@ -85,9 +114,9 @@ function Panel({
 }
 
 // A normal session says nothing: only these two ask for a word, and replying is the figure's to show.
-const LIFECYCLE: Readonly<Partial<Record<ListedSession['lifecycle'], string>>> = {
-  initializing: '正在初始化',
-  frozen: '已冻结',
+const LIFECYCLE: Readonly<Partial<Record<ListedSession['lifecycle'], StateLabel>>> = {
+  initializing: 'initializing',
+  frozen: 'frozen',
 }
 
 function SessionRow({
@@ -121,7 +150,7 @@ function SessionRow({
         {at === null && lifecycle === undefined ? null : (
           <span className="omne-session-item-meta">
             {at === null ? null : <Ago at={encodeInstant(at)} now={now} />}
-            {lifecycle === undefined ? null : <StatusPill tone="neutral">{lifecycle}</StatusPill>}
+            {lifecycle === undefined ? null : <StateWord state={lifecycle} />}
           </span>
         )}
       </button>

@@ -35,7 +35,9 @@ function Titled({ entry }: { readonly entry: SideEntry }) {
 
 export function SidePanel({ entries }: { readonly entries: readonly SideEntry[] }) {
   const frame = useContext(SideFrameContext)
-  const [chosen, setChosen] = useState<string | undefined>(undefined)
+  const [own, setOwn] = useState<string | undefined>(undefined)
+  const chosen = frame === null ? own : frame.chosen
+  const choose = frame === null ? setOwn : frame.choose
   const present = entries.length > 0
   const hold = frame?.hold
   useLayoutEffect(() => {
@@ -53,7 +55,7 @@ export function SidePanel({ entries }: { readonly entries: readonly SideEntry[] 
           <Segmented
             label="侧边区的页签"
             value={active.id}
-            onValueChange={setChosen}
+            onValueChange={choose}
             options={entries.map(entry => ({ value: entry.id, label: <Titled entry={entry} /> }))}
           />
         ) : (

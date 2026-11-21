@@ -63,6 +63,10 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
     const search = new HistorySearchStore(client)
     const focus = new EntryFocus()
     const figure = new SessionFigure(report => shell.figure(report))
+    const conversationShown = {
+      get: () => shell.page.get() === CONVERSATION_PAGE,
+      subscribe: (listener: () => void) => shell.page.subscribe(listener),
+    }
     sessionDock.contribute(shell, {
       id: 'background-calls',
       order: 10,
@@ -80,6 +84,7 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
           models={models}
           scope={scope}
           onShow={() => shell.navigate(CONVERSATION_PAGE)}
+          conversationShown={conversationShown}
         />
       ),
     })

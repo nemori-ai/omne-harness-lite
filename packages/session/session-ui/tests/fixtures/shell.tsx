@@ -35,6 +35,9 @@ export class TestShell extends ShellService implements ShellSlots {
     subscribe: () => () => undefined,
   }
   private readonly store = createSlotStore()
+  /** The page put in front last; before any, the first page, as the desktop shell does. */
+  private chosen: string | undefined = undefined
+  private readonly pageListeners = new Set<(page: string | undefined) => void>()
 
   items<K extends SlotName>(slot: K): readonly ItemOf<K>[] {
     return this.store.items(slot)
@@ -46,6 +49,18 @@ export class TestShell extends ShellService implements ShellSlots {
 
   navigate(pageId: string): void {
     this.navigated.push(pageId)
+    this.chosen = pageId
+    for (const listener of this.pageListeners) listener(pageId)
+  }
+
+  override get page(): ShellService['page'] {
+    return {
+      get: () => this.chosen ?? this.store.items('pages')[0]?.id,
+      subscribe: listener => {
+        this.pageListeners.add(listener)
+        return () => this.pageListeners.delete(listener)
+      },
+    }
   }
 
   attached(anchor: string, subject: string): ReactNode {
