@@ -65,13 +65,13 @@
 
 #### 页的骨架
 
-页的版式只由下面几件搭，规则见[规则与 token 的索引](../../.meta_harness/agents/skills/visual-standard/canonical/references/rules-index.md#s-间距圆角版式断点)的 S6 与 L6。页面不自己画页头下的线、节线与目录栏。文案、记号、时间与动作都由调用者传入。下表的长度是中楷的值，随字号档一起变。
+页的版式只由下面几件搭，规则见[规则与 token 的索引](../../.meta_harness/agents/skills/visual-standard/canonical/references/rules-index.md#s-间距圆角版式断点)的 S6 与 L6。页面不自己画页头下的线、节线与目录栏。文案、记号、时间与动作都由调用者传入。下表的长度是中楷的值，随字号档一起变。容器件与 `ListReadingRow`、`SettingRow` 另收 `className`，`ListReadingRow` 另收 `id`。
 
 | 件 | 职责 | 状态 |
 | --- | --- | --- |
-| `PageHeader({ title, titleId?, description?, actions? })` | 页的标题，标题下至多一句说明，右边是这一页的动作。下面一条细线，只由它画。在 `PageColumn` 里它与下面的内容再隔一节 | 有说明时标题与说明隔 4，说明是弱墨的界面字；没有说明只有标题。768 以下动作靠左 |
+| `PageHeader({ title, titleId?, description?, actions? })` | 页的标题，标题下至多一句说明，右边是这一页的动作。下面一条细线，只由它画。在 `PageColumn` 里它与下面的内容再隔一节 | 有说明时标题与说明隔 4，说明是弱墨的界面字；没有说明只有标题。768 以下动作靠左，页头让开外壳角里的家与抽屉开关 |
 | `Section({ id, title, badge?, children })` | 运营页的一节：上面一条细线，强字的节标题，标题下面是正文 | 紧跟 `PageHeader` 的一节不画上线，也不再留上边距：页头的线就是它的线 |
-| `ListReadingPage({ title, titleId?, description?, actions?, detail, children })` | 列表加阅读的一页：顶上是 `PageHeader`，它的线横跨整个工作区；下面是工作区。外壳的 `main` 已经是地标，这一件是普通的块 | `detail` 为真表示开着一条记录；768 以下开着记录时不画页头 |
+| `ListReadingPage({ title, titleId?, description?, actions?, detail, children })` | 列表加阅读的一页：顶上是 `PageHeader`，它的线横跨整个工作区；下面是工作区。外壳的 `main` 已经是地标，这一件是普通的块 | `detail` 为真表示开着一条记录；768 以下开着记录时不画页头，页头与工具条都让开外壳的角 |
 | `ListReadingWorkspace({ detail, empty?, children })` | 目录栏与阅读面并排 | 1100 以下并成一栏：开着记录时只有阅读面，没有开时只有目录栏，`empty`（列表空）时只有阅读面 |
 | `ListReadingDirectory({ search?, filters?, children })` | 目录栏，宽 252：顶上是搜索，下面是筛选，再下面是只有自己滚动的行列表。搜索、筛选、行与列表里空的文字共用一个内边距 | 1100 以下目录栏单独成页时，内边距等于页的左右边距 40，768 以下是 16 |
 | `DirectorySearch({ value, onChange, label, clearLabel, maxLength? })` | 目录栏的搜索字段：搜索字形在字段里，右边一个清除的图标钮 | 没有字时没有清除钮；按清除钮把字清空 |
