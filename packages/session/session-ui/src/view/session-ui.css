@@ -725,10 +725,10 @@
   padding: var(--spacing) 0 var(--omne-space-inline) calc(var(--spacing) * 5.5);
 }
 /* Reasoning: the reading face at the interface size in weak ink, no bubble, its own measure; headings inside it are
-   not raised (conversation.css `.conversation-run-reasoning`: 62ch in the source's face, which is 31.3em). */
+   not raised (conversation.css `.conversation-run-reasoning`: 62ch in the source's face, which is 33em). */
 .omne-process-reading {
   min-width: 0;
-  max-width: 31.3em;
+  max-width: 33em;
   color: var(--omne-ink-muted);
   font-family: var(--omne-font-reading);
   font-size: var(--omne-text-ui);
