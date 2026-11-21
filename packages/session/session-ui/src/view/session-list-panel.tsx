@@ -68,7 +68,6 @@ function Panel({
   const current = conversation ? open : null
   return (
     <div className="omne-session-sidebar">
-      {/* A new session names no model: it takes the deployment's default. */}
       <Button
         variant="ghost"
         className="omne-sessions-new"
