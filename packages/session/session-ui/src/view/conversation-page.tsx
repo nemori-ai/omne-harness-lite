@@ -35,7 +35,7 @@ import { HeadingFoldContext, useHeadingFold, type HeadingFold } from './heading-
 import { NoticeLine } from './notice.tsx'
 import { ItemView, speakerOf } from './parts.tsx'
 import { useFollowBottom } from './scroll.ts'
-import { FigureControl, SideFrameContext, useSideFrame } from './side-frame.tsx'
+import { AGENT_NAME, FigureControl, SideFrameContext, useSideFrame } from './side-frame.tsx'
 import { TranscriptRow, usePublication } from './transcript-arrivals.tsx'
 import { useSession } from './use-session.ts'
 import { WaitingNotice, waitingAnchor } from './waiting-notice.tsx'
@@ -533,8 +533,8 @@ function InputNote({
   )
 }
 
-const PLACEHOLDER = '输入消息'
-const QUEUED_PLACEHOLDER = '现在发的话会排队，不算回答'
+const placeholderOf = (waiting: number): string =>
+  `发消息给${AGENT_NAME}${waiting > 0 ? '，会排队，不算回答' : ''}`
 
 function Composer({
   state,
@@ -568,8 +568,8 @@ function Composer({
     >
       <Textarea
         aria-label="输入消息"
-        placeholder={waiting > 0 ? QUEUED_PLACEHOLDER : PLACEHOLDER}
-        rows={3}
+        placeholder={placeholderOf(waiting)}
+        rows={1}
         value={text}
         onChange={event => setText(event.target.value)}
         onKeyDown={onKeyDown}

@@ -108,3 +108,20 @@
 ## 抬起的件的余地（R6b）
 
 - 输入框上方放卡的停靠条 `.omne-session-dock` 与侧边区的正文 `.omne-session-side-body` 两个滚动区向外伸出焦点环的余地，再把它作自己的内边距（S15、K1）：卡边上、面板边上的抬起的件不被裁，里面的东西不挪。来源没有这一条。
+
+## 输入框只有一行（R6c）
+
+输入框的纸、字段与字段下面那一行取自同一个来源的提交 `83c1616f`。
+
+| 来源（相对 `desktop/src/renderer/src/`，`scripts/` 相对 `desktop/`） | sha256 | 本成员 |
+| --- | --- | --- |
+| `components/conversation-patterns.css` | `9cf38456486263906c14fbd45f07a3ce822d7e4d2e7a2ee56ee9d432b3417b63` | `src/view/session-ui.css`：`.assistant-composer` 的内边距与间距，字段的最小高度、内边距与占位符的墨 |
+| `conversation/conversation.css` | `4c34c3a3ec0e87daf2d60d46a88f428863d1690a8e92fbcb9496850c27e30a25` | `src/view/session-ui.css`：那一行的右端（`.composer-send-pair`） |
+| `styles.css` | `489f671735b0c91da06e972491c71a1346c6a4d641e1936ce85c9de3844a5565` | `src/view/session-ui.css`：纸的细线是输入框自己的浅线（`--pe-composer-line` 即 `--kami-line`） |
+| `i18n/zh-CN/conversations.ts` | `da1915f0a17da5c5e3b19f2fc42593f9e52a3c62cbb946fc63c5b7e630b59480` | `src/view/conversation-page.tsx`：占位符「发消息给」加名字（`daily.messagePlaceholder`） |
+| `scripts/size-lengths.mjs` | `671f81be63c384e80824f9c86788f5efd190e094e3042a34bcc10769dba3948e` | 来源样式表里大于 1px 的长度乘字号档的系数，所以这里写成 `--spacing` 的倍数 |
+
+- 照来源：纸的内边距 12、16，字段、那一行之间隔 8，字段最小高 38、内边距 2、2、0，都随字号档变，写成 `calc(var(--spacing) * n)`；细线是 `--omne-line-subtle`；占位符是 `--omne-ink-faint`；字段是一行起（`rows` 为 1）。
+- 不同之处：占位符是「发消息给」加对话头上 Agent 的名字（同一个常量），没有来源的「，@ 引用」；有在等人答的调用时后面接「，会排队，不算回答」。来源在一轮生成时换成另一句。
+- 不同之处：那一行左边没有来源的附件、引用、新建资源三个图标钮，也没有「发到新话题」；左边留给 `sessionComposerAttachments` 放进来的图标动作；这个拓展点本成员还没有实现，左边空着。右边是 `sessionStatus` 的状态位与唯一的动作钮，隔一个行内间距，照来源的 `.composer-send-pair`。
+- 不同之处：字段自己的上限 `min(40dvh, 320px)` 没有取，只有纸的上限。
