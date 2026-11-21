@@ -36,12 +36,11 @@ export function decideProducerFact(
       }
       return entries([encodeEntry({ kind: 'run.attempt-exited', advance: fact.advance }, origin)])
     case 'execution':
-    case 'account':
-      if (
-        !snapshot.consumptions.some(
-          item => digestOf(item.binding.producer) === digestOf(fact.producer),
-        )
+    case 'account': {
+      const consumption = snapshot.consumptions.find(
+        item => digestOf(item.binding.producer) === digestOf(fact.producer),
       )
+      if (consumption === undefined)
         return uninterpretedBinding(
           history,
           call => call.producer !== null && digestOf(call.producer) === digestOf(fact.producer),
@@ -50,10 +49,13 @@ export function decideProducerFact(
           : invalid('fact.producer', 'no original binding')
       return entries([
         encodeEntry(
-          { kind: fact.kind === 'account' ? 'account.linked' : 'call.execution-fact', fact },
+          fact.kind === 'account'
+            ? { kind: 'account.linked', fact }
+            : { kind: 'call.execution-fact', fact, delivered: consumption.id },
           origin,
         ),
       ])
+    }
     case 'release': {
       if (fact.result.producer.kind === 'model')
         return rejected({

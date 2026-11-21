@@ -390,7 +390,7 @@ export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionR
     tenant: TENANT_A,
     session: sessionId('session-1'),
     execution: 'exe_1',
-    settles: false,
+    settledBy: null,
     expected: null,
     revision: '1',
     published: '0',
@@ -483,7 +483,7 @@ export function agentPublisher(input: {
     digest: `sha256:fixture-${String(writes)}`,
     blobs: [],
     items: [],
-    settles: false,
+    settledBy: null,
   })
   return {
     async publish(event: AgentEvent): Promise<void> {

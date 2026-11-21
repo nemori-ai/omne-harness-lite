@@ -308,6 +308,16 @@ describe('a backgrounded call: the outcome with no Run', () => {
     return c
   }
 
+  it('the call is no longer open work once its outcome came, though the Agent never processed the placeholder', async () => {
+    const c = await cancelled()
+    const snapshot = await c.s.read()
+    expect(snapshot.run.kind).toBe('terminal')
+    expect(snapshot.consumptions.map(item => item.id)).not.toContain(c.consumption)
+    expect((snapshot.callRegistrations ?? []).map(item => item.consumption)).not.toContain(
+      c.consumption,
+    )
+  })
+
   it('routes the reminder to the next Run', async () => {
     const c = await cancelled()
     const snapshot = await c.s.read()

@@ -190,6 +190,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'storage',
       'tenantDomainLookup',
       'agentJournal',
+      'agentJournalEntries',
     ],
   },
   'session-ad03': {

@@ -119,6 +119,20 @@ export function applyProducerFact(
       )
   }
   if ('source' in entry.fact) evidenceFields(entry.fact.source, 'fact.source')
+  if (entry.delivered !== undefined) {
+    const fact = entry.fact
+    const call = draft.consumptions.find(item => item.id === entry.delivered)
+    if (
+      fact.kind !== 'execution' ||
+      call === undefined ||
+      digestOf(call.binding.producer) !== digestOf(fact.producer)
+    )
+      return 'final delivery without its original binding'
+    draft.consumptions = draft.consumptions.map(item =>
+      item.id === call.id ? { ...item, delivered: fact.source } : item,
+    )
+    return null
+  }
   if (entry.fact.kind !== 'release') return null
   const fact = entry.fact
   const consumption = draft.consumptions.find(item => item.id === fact.consumption)

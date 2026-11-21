@@ -45,7 +45,7 @@ import { backgroundReminder } from './background-reminder.ts'
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
 import { entriesAfter, entriesBatch, progressOf, savedProgress } from './entries-window.ts'
-import { subscribePublished } from './published-queue.ts'
+import { announce, subscribePublished } from './published-queue.ts'
 import { acknowledgeReceived, type ReceivedAllPorts } from './received-all.ts'
 
 const OWNER = 'session-adapters/tool-log'
@@ -445,13 +445,16 @@ function createToolLogConsumption(
   }
 }
 
+// After a commit the journal interpretation reads again: an event may have waited for these deliveries.
 function acknowledgingCommitted(
   consume: (target: ToolLogTarget) => Reply<ToolLogConsumed>,
   ports: ReceivedAllPorts<unknown>,
+  consumed: (target: ToolLogTarget) => void,
 ): (target: ToolLogTarget) => Reply<ToolLogConsumed> {
   return async target => {
     const answer = await consume(target)
     const tenantText = tenantCodec.encode(target.tenant)
+    if ('ok' in answer && answer.ok.committed) consumed(target)
     if ('ok' in answer && answer.ok.committed && tenantText.ok)
       await acknowledgeReceived(
         ports,
@@ -530,6 +533,7 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
             retryBackoffMs: config?.retryBackoffMs ?? RETRY_BACKOFF_MS,
           }),
           ports,
+          target => announce(ctx, ports.warn, 'consumed', target),
         )
         const guarded = async (target: ToolLogTarget): Reply<ToolLogConsumed> => {
           try {
@@ -569,6 +573,7 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
                 logger.error(`trigger: the coordinator threw: ${describe(cause)}`)
               }
             },
+            ['interpreted'],
           )
         ctx.effect(() => {
           current = guarded

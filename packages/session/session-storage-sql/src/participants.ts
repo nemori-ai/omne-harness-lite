@@ -71,7 +71,7 @@ export const EXECUTION_RECORD_HANDLERS = {
   retired: 'execution-record.retired',
 } as const
 
-export type ExecutionRecordRetiredRead = Readonly<{ tenant: string }>
+export type ExecutionRecordRetiredRead = Readonly<{ tenant: string; generation: string }>
 export type ExecutionRecordRetired = Readonly<{
   kind: 'retired'
   settled: boolean
@@ -220,7 +220,7 @@ export type ExecutionRecordWrite = Readonly<{
   discards?: readonly ExecutionItemKeyRecord[]
   boundaries: readonly ExecutionBoundaryRecord[]
   admissions: readonly ExecutionAdmissionRecord[]
-  settles: boolean
+  settledBy: string | null
 }>
 
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
@@ -284,10 +284,10 @@ export function executionRecordBlobFacts(write: ExecutionBlobsWrite): FactComman
   }
 }
 
-export function executionRecordSweepFacts(tenant: TenantId): FactCommandV2 {
+export function executionRecordSweepFacts(tenant: TenantId, generation: string): FactCommandV2 {
   return {
     participant: EXECUTION_RECORD_PARTICIPANT,
-    facts: { intent: 'sweep', write: { tenant: encodeValue(tenant) } },
+    facts: { intent: 'sweep', write: { tenant: encodeValue(tenant), generation } },
   }
 }
 

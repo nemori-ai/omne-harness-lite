@@ -57,6 +57,7 @@ import readExecutionBatches from '../../src/worker/read-execution-batches.ts'
 import readExecutionEvents from '../../src/worker/read-execution-events.ts'
 import readExecutionOpen from '../../src/worker/read-execution-open.ts'
 import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
+import readExecutionRetired from '../../src/worker/read-execution-retired.ts'
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
@@ -122,6 +123,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readExecutionItems,
   readExecutionOpenItems,
   readExecutionSession,
+  readExecutionRetired,
   readPreadmission,
 ]
 

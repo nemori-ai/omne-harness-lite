@@ -74,7 +74,7 @@ type Write = Readonly<{
   discards: readonly ItemKey[]
   boundaries: readonly Boundary[]
   admissions: readonly Admission[]
-  settles: boolean
+  settledBy: string | null
 }>
 
 const INTEGER = /^(0|[1-9][0-9]{0,17})$/
@@ -277,9 +277,9 @@ function parseWrite(raw: JsonValue | undefined): Write | string {
   const keys = items.map(item => JSON.stringify([item.execution, item.family, item.item]))
   const twice = keys.find((key, at) => keys.indexOf(key) !== at)
   if (twice !== undefined) return `the item ${twice} is written twice`
-  const settles = raw['settles'] ?? false
-  if (typeof settles !== 'boolean') return 'the settles flag'
-  return { ...head, facts, blobs, items, contents, discards, boundaries, admissions, settles }
+  const settledBy = raw['settledBy'] ?? null
+  if (settledBy !== null && !isText(settledBy)) return 'the settling writer generation'
+  return { ...head, facts, blobs, items, contents, discards, boundaries, admissions, settledBy }
 }
 
 const json = (value: JsonValue): string => JSON.stringify(value)
@@ -471,34 +471,44 @@ function publish(port: Executor, write: Write): ParticipantReply {
     session,
     next,
   ])
-  if (write.settles) reclaim(port, tenant, execution, next)
+  if (write.settledBy !== null) reclaim(port, tenant, execution, next, write.settledBy)
   return { kind: 'participated', response: { published: String(next), digest: write.digest } }
 }
 
-function reclaim(port: Executor, tenant: string, execution: string, pub: bigint): void {
+function reclaim(
+  port: Executor,
+  tenant: string,
+  execution: string,
+  pub: bigint,
+  generation: string,
+): void {
   const key = [tenant, execution]
   port.execute('DELETE FROM er_fact WHERE tenant = ? AND execution = ?', key)
   port.execute('DELETE FROM er_item WHERE tenant = ? AND execution = ?', key)
   port.execute('DELETE FROM er_item_content WHERE tenant = ? AND execution = ?', key)
   port.execute('DELETE FROM er_preadmission WHERE tenant = ? AND execution = ?', key)
   const marked = port.execute(
-    'UPDATE er_execution SET settled = ? WHERE tenant = ? AND execution = ? AND ended IS NOT NULL',
-    [pub, ...key],
+    'UPDATE er_execution SET settled = ?, settled_by = ? WHERE tenant = ? AND execution = ? AND ended IS NOT NULL',
+    [pub, generation, ...key],
   )
   if (marked.changes !== 1n) throw new Error('a settling publication names no ended execution')
 }
 
+// One writer generation writes at a time, so a generation other than the sweeping one is earlier.
 function sweep(port: Executor, raw: JsonValue | undefined): ParticipantReply {
   const tenant = isJson(raw) ? tenantOf(raw['tenant']) : null
-  if (tenant === null) return unsupported('the sweep is malformed')
+  const generation = isJson(raw) ? raw['generation'] : undefined
+  if (tenant === null || !isText(generation)) return unsupported('the sweep is malformed')
   port.execute(
     `DELETE FROM er_operation WHERE tenant = ? AND execution IN
-      (SELECT execution FROM er_execution WHERE tenant = ? AND settled IS NOT NULL)`,
-    [tenant, tenant],
+      (SELECT execution FROM er_execution
+        WHERE tenant = ? AND settled IS NOT NULL AND settled_by <> ?)`,
+    [tenant, tenant, generation],
   )
-  const swept = port.execute('DELETE FROM er_execution WHERE tenant = ? AND settled IS NOT NULL', [
-    tenant,
-  ])
+  const swept = port.execute(
+    'DELETE FROM er_execution WHERE tenant = ? AND settled IS NOT NULL AND settled_by <> ?',
+    [tenant, generation],
+  )
   return { kind: 'participated', response: { swept: String(swept.changes) } }
 }
 

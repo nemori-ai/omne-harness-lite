@@ -33,7 +33,7 @@ function nth(n: number, items: readonly ExecutionItemRecord[]): ExecutionRecordW
     tenant: TENANT_A,
     session: sessionId(SESSION),
     execution: EXECUTION,
-    settles: false,
+    settledBy: null,
     expected: n === 1 ? null : String(n - 1),
     revision: String(n),
     published: String(n - 1),

@@ -319,7 +319,7 @@ describe('the Agent rows of a decision in its own transaction', () => {
           tenant: TENANT_A,
           session: sessionId(SESSION),
           execution: run.execution,
-          settles: false,
+          settledBy: null,
           expected: null,
           revision: '1',
           published: '0',
