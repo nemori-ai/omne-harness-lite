@@ -2,6 +2,7 @@ import {
   Ago,
   Button,
   Disclosure,
+  DropdownMenuItem,
   EmptyState,
   InlineNotice,
   Input,
@@ -30,25 +31,26 @@ function useReloadList(workspaces: SessionWorkspaces, tenant: string) {
   }
 }
 
-export function ArchiveAction({ store, workspaces, tenant, session }: Props & { session: string }) {
+/** 「归档」 in the heading's `⋯`: it asks nothing and sends at once; what came of it is said once by the heading. */
+export function ArchiveAction({
+  store,
+  workspaces,
+  tenant,
+  session,
+  say,
+}: Props & { session: string; say: (text: string) => void }) {
   const reload = useReloadList(workspaces, tenant)
-  const [said, say] = useState<string | null>(null)
   return (
-    <span className="omne-session-archive">
-      <Button
-        variant="ghost"
-        size="compact"
-        onClick={() =>
-          void store.archive(tenant, session).then(text => {
-            say(text)
-            reload()
-          })
-        }
-      >
-        归档
-      </Button>
-      {said === null ? null : <span role="status">{said}</span>}
-    </span>
+    <DropdownMenuItem
+      onSelect={() =>
+        void store.archive(tenant, session).then(text => {
+          say(text)
+          reload()
+        })
+      }
+    >
+      归档
+    </DropdownMenuItem>
   )
 }
 

@@ -51,6 +51,15 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
     const archive = new ArchiveStore(client)
     const modes = new PermissionModeStore(client)
     const held = new SessionWorkStore(client)
+    // The composer reads how many calls wait for a person from what the session work last read; it asks nothing.
+    const waitingCalls = {
+      subscribe: (tenant: string, session: string, listener: () => void) =>
+        held.subscribe(tenant, session, listener),
+      count: (tenant: string, session: string) => {
+        const calls = held.read(tenant, session).calls
+        return calls.kind === 'read' ? calls.items.length : 0
+      },
+    }
     const search = new HistorySearchStore(client)
     const focus = new EntryFocus()
     const figure = new SessionFigure(report => shell.figure(report))
@@ -108,15 +117,21 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
                 <>
                   <ModelAction store={models} tenant={scope} session={session} />
                   <PermissionModeAction store={modes} tenant={scope} session={session} />
-                  <ArchiveAction
-                    store={archive}
-                    workspaces={workspaces}
-                    tenant={scope}
-                    session={session}
-                  />
                 </>
               )
             }
+            more={(session, say) =>
+              scope === undefined ? null : (
+                <ArchiveAction
+                  store={archive}
+                  workspaces={workspaces}
+                  tenant={scope}
+                  session={session}
+                  say={say}
+                />
+              )
+            }
+            waitingCalls={waitingCalls}
             dock={session =>
               sessionDock.slot(shell, { session }, entries =>
                 entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),

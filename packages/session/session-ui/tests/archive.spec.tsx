@@ -2,6 +2,7 @@
 import './fixtures/dom.ts'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { parseInstant } from '@omne-harness/utc-instant'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@omne-harness/ui-kit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ArchiveStore,
@@ -198,10 +199,24 @@ describe('the archived list (C29)', () => {
   it('the archive action in the heading says what it withdrew and reads the session list again', async () => {
     const { store, archive } = clientWith([])
     const { workspaces, loadList } = workspacesWith()
-    render(<ArchiveAction store={store} workspaces={workspaces} tenant={TENANT} session="s-1" />)
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: '归档' })))
+    const say = vi.fn()
+    render(
+      <DropdownMenu open>
+        <DropdownMenuTrigger>更多</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <ArchiveAction
+            store={store}
+            workspaces={workspaces}
+            tenant={TENANT}
+            session="s-1"
+            say={say}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    )
+    await act(async () => fireEvent.click(screen.getByRole('menuitem', { name: '归档' })))
     expect(archive).toHaveBeenCalledWith(expect.objectContaining({ session: 's-1' }))
-    expect(screen.getByRole('status').textContent).toBe('已归档；收起 1 轮，撤回 2 项后台调用')
+    expect(say).toHaveBeenCalledWith('已归档；收起 1 轮，撤回 2 项后台调用')
     expect(loadList).toHaveBeenCalled()
   })
 })

@@ -5,7 +5,6 @@
     "packages/calendar/calendar-ui/src/view/supply-health.tsx | 失败": 1,
     "packages/schedule/schedule-ui/src/model/words.ts | 已停止": 1,
     "packages/session/session-ui/src/model/background-calls.ts | 已结束": 1,
-    "packages/session/session-ui/src/model/background-calls.ts | 排队中": 1,
-    "packages/session/session-ui/src/view/conversation-page.tsx | 发送中": 1
+    "packages/session/session-ui/src/model/background-calls.ts | 排队中": 1
   }
 }

@@ -29,7 +29,6 @@
     "packages/frontend/ui-kit/src/index.ts | DownloadIcon": 1,
     "packages/frontend/ui-kit/src/index.ts | DropdownMenuCheckboxItem": 1,
     "packages/frontend/ui-kit/src/index.ts | DropdownMenuGroup": 1,
-    "packages/frontend/ui-kit/src/index.ts | DropdownMenuItem": 1,
     "packages/frontend/ui-kit/src/index.ts | DropdownMenuPortal": 1,
     "packages/frontend/ui-kit/src/index.ts | DropdownMenuShortcut": 1,
     "packages/frontend/ui-kit/src/index.ts | DropdownMenuSub": 1,
@@ -52,7 +51,6 @@
     "packages/frontend/ui-kit/src/index.ts | MaterialIcon": 1,
     "packages/frontend/ui-kit/src/index.ts | MatterIcon": 1,
     "packages/frontend/ui-kit/src/index.ts | MentionIcon": 1,
-    "packages/frontend/ui-kit/src/index.ts | MoreIcon": 1,
     "packages/frontend/ui-kit/src/index.ts | OpenIcon": 1,
     "packages/frontend/ui-kit/src/index.ts | OverviewIcon": 1,
     "packages/frontend/ui-kit/src/index.ts | PROSE_TRANSLATIONS": 1,
@@ -117,7 +115,6 @@
     "packages/frontend/ui-kit/src/index.ts | useLoopPause": 1,
     "packages/frontend/ui-kit/src/index.ts | useMotionCue": 1,
     "packages/frontend/ui-kit/src/index.ts | useObjectTransition": 1,
-    "packages/frontend/ui-kit/src/index.ts | usePresenceInert": 1,
-    "packages/frontend/ui-kit/src/index.ts | useSettleCue": 1
+    "packages/frontend/ui-kit/src/index.ts | usePresenceInert": 1
   }
 }

@@ -42,8 +42,7 @@ function heading(): HTMLElement {
   return banner
 }
 
-it('页头：主标题是列表里的名字，会话标识缩短放在副位置，可以复制整串', async () => {
-  const fake = createFakeClient()
+async function openLong(fake: ReturnType<typeof createFakeClient>): Promise<void> {
   await mountModule(fake.client, TENANT)
   ;(await fake.next('list-sessions')).answer(listPage([listed(LONG, 'say hello')]))
   await settle()
@@ -51,12 +50,85 @@ it('页头：主标题是列表里的名字，会话标识缩短放在副位置�
   await settle()
   ;(await fake.next('read-history')).answer({ outcome: 'succeeded', body: page([], '1') })
   await settle()
+}
+
+async function openMore(): Promise<HTMLElement> {
+  fireEvent.pointerDown(within(heading()).getByRole('button', { name: '更多' }), {
+    button: 0,
+    ctrlKey: false,
+  })
+  return screen.findByRole('menu')
+}
+
+it('页头：主标题是列表里的名字；常驻的只有标题与座位，标识与归档收进「更多」', async () => {
+  const fake = createFakeClient()
+  await openLong(fake)
   const banner = heading()
   expect(within(banner).getByRole('heading').textContent).toBe('say hello')
-  expect(banner.textContent).not.toContain(LONG)
-  const id = within(banner).getByTitle(LONG)
+  expect(banner.textContent).not.toContain(LONG.slice(0, 12))
+  expect(within(banner).queryByRole('button', { name: '归档' })).toBeNull()
+  expect(within(banner).queryByRole('button', { name: '复制会话标识' })).toBeNull()
+  const menu = await openMore()
+  const id = within(menu).getByTitle(LONG)
   expect(id.textContent).toBe(`${LONG.slice(0, 12)}…`)
-  expect(within(banner).getByRole('button', { name: '复制会话标识' })).toBeTruthy()
+  expect(id.previousElementSibling?.textContent).toBe('会话标识')
+  expect(
+    within(menu)
+      .getAllByRole('menuitem')
+      .map(item => item.textContent),
+  ).toEqual(['复制会话标识', '归档'])
+})
+
+it('「更多」里复制会话标识：复制整串，菜单不收，回执是这一项自己的字', async () => {
+  const writeText = vi.fn(async (_text: string) => undefined)
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  const fake = createFakeClient()
+  await openLong(fake)
+  const menu = await openMore()
+  await act(async () =>
+    fireEvent.click(within(menu).getByRole('menuitem', { name: '复制会话标识' })),
+  )
+  expect(writeText).toHaveBeenCalledWith(LONG)
+  expect(screen.getByRole('menu')).toBe(menu)
+  expect(within(menu).getByRole('menuitem', { name: '已复制会话标识' })).toBeTruthy()
+})
+
+it('「更多」里归档：不问，按下就发；结果是页头里出现一次的回执，列表重读', async () => {
+  const fake = createFakeClient()
+  await openLong(fake)
+  const menu = await openMore()
+  fireEvent.click(within(menu).getByRole('menuitem', { name: '归档' }))
+  expect(screen.queryByRole('alertdialog')).toBeNull()
+  expect(screen.queryByRole('dialog')).toBeNull()
+  const archive = await fake.next('archive-session')
+  expect(archive.body).toMatchObject({ session: LONG })
+  archive.answer({
+    outcome: 'succeeded',
+    body: { kind: 'archived', controlId: 'c', runs: 1, backgroundCalls: 2 },
+  })
+  await settle()
+  const said = [...heading().querySelectorAll('.omne-session-receipt')]
+  expect(said.map(node => [node.getAttribute('role'), node.textContent])).toEqual([
+    ['status', '已归档；收起 1 轮，撤回 2 项后台调用'],
+  ])
+  expect((await fake.next('list-sessions')).body).toMatchObject({ cursor: null })
+})
+
+it('观察：在连时页头什么都不画；断开重连时页头下面一行中性的字，写第几次', async () => {
+  const fake = createFakeClient()
+  await openLong(fake)
+  const page = screen.getByRole('region', { name: '对话' })
+  expect(page.textContent).not.toContain('正在连接')
+  expect(page.textContent).not.toContain('重连')
+  const observation = fake.observations[0]
+  if (observation === undefined) throw new Error('no observation')
+  act(() => observation.end({ kind: 'uncertain' }))
+  await settle()
+  const line = page.querySelector('.omne-session-connection')
+  expect(line?.textContent).toBe('更新断开了，正在第 1 次重连')
+  expect(line?.getAttribute('role')).toBe('status')
+  expect(heading().contains(line ?? null)).toBe(false)
+  expect(line?.parentElement?.classList.contains('omne-session-main')).toBe(true)
 })
 
 it('页头：会话还不在列表里时，主标题是「新会话」', async () => {

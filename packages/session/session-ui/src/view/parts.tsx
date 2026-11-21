@@ -1,4 +1,4 @@
-import { Disclosure, Prose, Shimmer, StatusPill } from '@omne-harness/ui-kit'
+import { Disclosure, Prose, StatusPill } from '@omne-harness/ui-kit'
 import { memo, type ReactNode } from 'react'
 import type { Item, Part } from '../model/conversation.ts'
 import type { Plain } from '../model/plain.ts'
@@ -132,17 +132,28 @@ function PartList({ parts, live }: { readonly parts: readonly Part[]; readonly l
   )
 }
 
-const ROLE: Readonly<Record<string, string>> = { user: '你', assistant: 'Agent', tool: '工具' }
+/** Who said a message: not drawn, read out to screen readers. */
+const SPEAKER: Readonly<Record<string, string>> = { user: '你', assistant: 'Agent', tool: '工具' }
 
-export const ItemView = memo(function ItemView({ item }: { readonly item: Item }) {
+/** Whose turn a transcript row belongs to; a change of speaker is a wider gap. Markers belong to nobody. */
+export function speakerOf(item: Item): 'user' | 'agent' | undefined {
+  if (item.kind === 'message') return item.role === 'user' ? 'user' : 'agent'
+  return item.kind === 'note' ? 'agent' : undefined
+}
+
+export const ItemView = memo(function ItemView({
+  item,
+  failed = false,
+}: {
+  readonly item: Item
+  /** A marker of a run that failed: its words take the failure colour. */
+  readonly failed?: boolean
+}) {
   switch (item.kind) {
     case 'message':
       return (
         <article className="omne-message" data-role={item.role} data-live={item.live}>
-          <header className="omne-message-head">
-            <span>{ROLE[item.role]}</span>
-            {item.live ? <Shimmer active>正在生成</Shimmer> : null}
-          </header>
+          <span className="omne-message-speaker">{SPEAKER[item.role]}</span>
           <div className="omne-message-body">
             <PartList parts={item.parts} live={item.live} />
           </div>
@@ -157,7 +168,11 @@ export const ItemView = memo(function ItemView({ item }: { readonly item: Item }
         </div>
       )
     case 'marker':
-      return <div className="omne-marker">{item.label}</div>
+      return (
+        <div className="omne-marker" data-tone={failed ? 'danger' : undefined}>
+          {item.label}
+        </div>
+      )
     case 'unknown':
       return <div className="omne-placeholder">不认识的历史条目种类：{item.entryKind}</div>
   }
