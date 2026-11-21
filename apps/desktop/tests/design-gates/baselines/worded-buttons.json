@@ -26,9 +26,6 @@
     "packages/calendar/calendar-ui/src/view/calendar-page.tsx | 查": {
       "commit": 1
     },
-    "packages/calendar/calendar-ui/src/view/drawn.tsx | 重读": {
-      "R8": 1
-    },
     "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | {option.label}": {
       "choice": 1
     },

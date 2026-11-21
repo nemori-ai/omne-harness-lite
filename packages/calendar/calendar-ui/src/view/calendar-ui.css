@@ -1,16 +1,32 @@
-.calendar-page .calendar-effective-mark {
-  margin-inline-start: 0.5rem;
+/* Requests, answers and failures keep the decision measure (source routes/settings/settings.css, .settings-pane-body [data-inline-notice]). */
+.calendar-page [data-inline-notice] {
+  max-width: var(--omne-measure-decision);
+}
+
+/* A shipped calendar's name with its 「生效」 pill, wrapping when the row is narrow. */
+.calendar-name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+
+/* The rows, then the health's loading state or notice under them; the lookup's form, then its answer. */
+.calendar-shipped,
+.calendar-lookup {
+  display: grid;
+  gap: var(--omne-space-block);
+  min-width: 0;
 }
 
 .calendar-lookup-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
   align-items: center;
-  max-width: 44rem;
-  margin-block-end: 0.75rem;
+  gap: var(--omne-space-inline);
+  max-width: var(--omne-measure-decision);
 }
 
 .calendar-lookup-form [data-slot='input'] {
-  flex: 1 1 11rem;
+  flex: 1 1 calc(var(--spacing) * 44);
 }

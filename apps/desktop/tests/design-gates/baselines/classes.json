@@ -12,7 +12,6 @@
     "packages/assets/assets-ui/src/view/create-form.tsx | .assets-create-switch": 1,
     "packages/assets/assets-ui/src/view/setting-row.tsx | .assets-setting-choice-label": 1,
     "packages/assets/assets-ui/src/view/setting-row.tsx | .assets-setting-secret-input": 1,
-    "packages/calendar/calendar-ui/src/view/calendar-page.tsx | .calendar-lookup": 1,
     "packages/frontend/ui-kit/src/charts/series.tsx | .omne-chart-point": 1,
     "packages/frontend/ui-kit/src/charts/simple.tsx | .omne-share": 1,
     "packages/frontend/ui-kit/src/charts/simple.tsx | .omne-share-unknown": 1,
