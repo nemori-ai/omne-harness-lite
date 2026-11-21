@@ -47,7 +47,8 @@ export function createConverterDefinitions(input: {
       return unavailable(`${candidate.asset} no longer holds: ${parsed.failure}`)
     const { engine, parameters, egress } = parsed.ok
     const definition = { name, revision: candidate.version }
-    return succeed({ kind: 'resolved', definition, engine, parameters, egress } as DefinitionAnswer)
+    const answer: DefinitionAnswer = { kind: 'resolved', definition, engine, parameters, egress }
+    return succeed(answer)
   }
 
   return {
