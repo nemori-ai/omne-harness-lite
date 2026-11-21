@@ -103,10 +103,7 @@ export function createUsageReads(client: UsageClient, zone: () => string): Usage
   }
 }
 
-/**
- * The answer to one read, read again whenever the reads are refreshed. A refresh is quiet: the last answer to the
- * same question stays until the new one comes; only a different question starts from loading.
- */
+/** The answer to one read, read again on refresh; the last answer to the same question stays until the new one. */
 export function useLoaded<T>(
   reads: UsageReads,
   key: string,
