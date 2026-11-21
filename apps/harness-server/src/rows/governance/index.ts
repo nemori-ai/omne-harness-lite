@@ -179,6 +179,7 @@ export const governanceRow = defineRow({
           categories,
           tenantAssets: () => ctx.tenantAssets.open(tenantRef),
           independentSettings: () => independent.list(),
+          warn: message => ctx.logger('governance').warn(message),
           permissionOrigins: () => permissionOriginsOf(ctx),
           permissionDeclarations: () => permissionDeclarationsOf(ctx),
           organizationTargets: sources.targets,

@@ -15,8 +15,14 @@ import {
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { TOOL_GOVERNANCE_OWNER } from '../../entry/tool-permission-release.ts'
+import { toolAssetPublication } from './tool-assets.ts'
 import { installToolAsset } from './tool-installation-assets.ts'
 import { installToolOrganizationSource } from './tool-installation-source.ts'
+import {
+  reconcileToolSettings,
+  type GovernedToolSettings,
+  type ReleaseSettingsMaintenance,
+} from './tool-settings-rebase.ts'
 
 type TrustedRelease = Extract<ToolRelease, { kind: 'trusted' }>
 type Service = GovernanceContributions<
@@ -32,6 +38,8 @@ type Options = Readonly<{
   service: Service
   assets: AssetsLocal
   organizationTargets: ReturnType<typeof createStandaloneSettingsOwner>
+  releaseSettings: ReleaseSettingsMaintenance
+  warn(message: string): void
 }>
 export type ToolInstallationResult =
   | Readonly<{ kind: 'installed' }>
@@ -152,7 +160,11 @@ async function installEntry(
   entry: TrustedRelease['manifest']['entries'][number],
   organizationId: string,
 ): Promise<
-  | { kind: 'member'; member: GovernanceCollectionMember }
+  | {
+      kind: 'member'
+      member: GovernanceCollectionMember
+      settings: GovernedToolSettings | undefined
+    }
   | Extract<ToolInstallationResult, { kind: 'unavailable' }>
 > {
   const asset = await installToolAsset({
@@ -197,6 +209,14 @@ async function installEntry(
       definition: declaration.reference,
       selectedTargets: asset.kind === 'ready' && sourceReady ? [asset.target] : [],
     },
+    settings:
+      definition === undefined
+        ? undefined
+        : {
+            name: entry.asset.name,
+            assetRef: toolAssetPublication(entry).assetRef,
+            target: asset.target,
+          },
   }
 }
 
@@ -204,10 +224,14 @@ export async function installToolGovernance(input: Options): Promise<ToolInstall
   const organization = organizationCodec.encode(input.principal.tenant.organization)
   if (!organization.ok) return { kind: 'unavailable', phase: 'identity' }
   const members: GovernanceCollectionMember[] = []
+  const governed: GovernedToolSettings[] = []
   for (const entry of input.release.manifest.entries) {
     const result = await installEntry(input, entry, organization.value)
     if (result.kind !== 'member') return result
     members.push(result.member)
+    if (result.settings !== undefined) governed.push(result.settings)
   }
+  const reconciliation = { ...input, tenantRef: input.scope.tenantRef }
+  for (const tool of governed) await reconcileToolSettings(reconciliation, tool)
   return adopt(input, members)
 }

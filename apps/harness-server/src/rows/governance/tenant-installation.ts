@@ -26,6 +26,7 @@ export type InstalledTenantOptions = Omit<
   categories: Pick<CategoryView, 'list' | 'lookup'>
   tenantAssets(): Promise<AssetsLocal | undefined>
   independentSettings(): readonly SettingDefinitions[]
+  warn(message: string): void
 }
 
 // A catalog that could not be read names the closed reason the store gave, never its diagnostic.
@@ -38,7 +39,7 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
     scope: structuredClone(input.scope),
     domain: structuredClone(input.domain),
   }
-  const assembly = prepareTenantGovernanceWithSettings({
+  const { releaseSettings, ...assembly } = prepareTenantGovernanceWithSettings({
     ...options,
     capture: governedCapture(options.categories),
     permissionRelease: () => options.release,
@@ -84,6 +85,8 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         service: runtime.service,
         assets,
         organizationTargets: options.organizationTargets,
+        releaseSettings,
+        warn: options.warn,
       })
       fault =
         installed.kind === 'installed' ? undefined : faultOf(installed.phase, runtime.readRefusal())

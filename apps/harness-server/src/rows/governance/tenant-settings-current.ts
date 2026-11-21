@@ -38,16 +38,31 @@ export const tenantSettingsCurrentProtocol = (
   `harness-tenant-settings-current/1/${phase}/${createHash('sha256').update(JSON.stringify(configuration)).digest('hex')}`
 
 export const tenantSettingsCurrentRequestSchema = z.strictObject({
-  binding: z.json(),
+  binding: SettingsPreparationCurrentSchema.shape.binding,
   snapshot: GovernanceTargetBindingSchema,
 })
 
-type ValueView = Extract<TargetSnapshot['values'], { presence: 'absent' | 'present' }>
 type Revisioned = Readonly<{ ownerRef: string; subjectRef: string; revision: string }>
+export type SettingsCommandKind = 'change' | 'rebase'
+
+function startingValues(values: TargetSnapshot['values'], commandKind: SettingsCommandKind) {
+  if (commandKind === 'change')
+    return values.presence === 'unavailable'
+      ? undefined
+      : { view: values.view, presence: values.presence, valueRevision: values.view.state.revision }
+  return values.presence === 'unavailable' && values.reason === 'definition_changed'
+    ? {
+        view: values.view,
+        presence: 'present' as const,
+        valueRevision: values.stored.state.revision,
+      }
+    : undefined
+}
 
 /** The current facts of one target and its values, as a settings write sees them in its transaction. */
 export function settingsCurrentMaterial(input: {
   values: TargetSnapshot['values']
+  commandKind: SettingsCommandKind
   tenantRef: string
   transactionDomain: string
   mode: 'management' | 'runtime'
@@ -55,8 +70,9 @@ export function settingsCurrentMaterial(input: {
   authority: Revisioned
   configuration: TenantSettingsCurrentConfiguration
 }): TenantSettingsCurrentMaterial | undefined {
-  if (input.values.presence === 'unavailable') return undefined
-  const { view, presence }: ValueView = input.values
+  const starting = startingValues(input.values, input.commandKind)
+  if (starting === undefined) return undefined
+  const { view, presence, valueRevision } = starting
   const { tenantRef, configuration } = input
   if (
     view.sources.some(
@@ -76,7 +92,7 @@ export function settingsCurrentMaterial(input: {
       definitionRef: view.definitionRef,
       ownerRevision: view.ownerRevision,
       enabled: view.enabled,
-      valueRevision: view.state.revision,
+      valueRevision,
       sources: view.sources,
       declaration: input.declaration,
       selection: {
@@ -91,19 +107,22 @@ export function settingsCurrentMaterial(input: {
           inputs: view.sources.map(source => ({
             source,
             valueOriginRef,
-            valueRevision: String(view.state.revision),
+            valueRevision: String(valueRevision),
             presence,
           })),
           constraints: [],
         },
       ],
     },
-    standing: {
-      kind: 'identity',
-      destination: configuration.destination,
-      scopeRef: tenantRef,
-      required: configuration.required,
-    },
+    standing:
+      input.commandKind === 'change'
+        ? {
+            kind: 'identity',
+            destination: configuration.destination,
+            scopeRef: tenantRef,
+            required: configuration.required,
+          }
+        : { kind: 'maintenance', authority: input.authority },
     sources: { route: configuration.sourceRoute, sources: [] },
     definition: view.definition,
     grants: view.grants,
@@ -115,11 +134,13 @@ export function settingsCurrentMaterial(input: {
 export function tenantSettingsCurrentMaterial(
   snapshot: TargetSnapshot,
   configuration: TenantSettingsCurrentConfiguration,
+  commandKind: SettingsCommandKind,
 ): TenantSettingsCurrentMaterial | undefined {
   const { binding } = snapshot
   const subjectRef = canonicalDigest({ scope: binding.scope, epoch: binding.epoch })
   return settingsCurrentMaterial({
     values: snapshot.values,
+    commandKind,
     tenantRef: binding.scope.tenantRef,
     transactionDomain: binding.transactionDomain,
     mode: binding.mode,

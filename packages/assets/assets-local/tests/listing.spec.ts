@@ -401,3 +401,55 @@ describe('listHeld: the count has no hard ceiling', () => {
     expect(seen).toEqual(names)
   })
 })
+
+describe('listVersions: the versions of one asset, page by page', () => {
+  it('reads every version of the asset across pages, in version order, and none of another asset', async () => {
+    const world = await open()
+    for (const version of ['3', '1', '2']) await publish(world, 'service', 'alpha', version)
+    await publish(world, 'service', 'alphabet', '0')
+    await publish(world, 'gadget', 'alpha', '9')
+    const first = await world.owner.listVersions({
+      assetRef: 'service/alpha',
+      after: null,
+      limit: 2,
+    })
+    expect(first).toEqual({ kind: 'page', versions: ['1', '2'], next: '2' })
+    expect(
+      await world.owner.listVersions({ assetRef: 'service/alpha', after: '2', limit: 2 }),
+    ).toEqual({ kind: 'page', versions: ['3'], next: null })
+    expect(
+      await world.owner.listVersions({ assetRef: 'service/alpha', after: null, limit: 3 }),
+    ).toEqual({ kind: 'page', versions: ['1', '2', '3'], next: null })
+  })
+
+  it('an asset with no version answers an empty last page', async () => {
+    const world = await open()
+    expect(
+      await world.owner.listVersions({ assetRef: 'service/none', after: null, limit: 10 }),
+    ).toEqual({ kind: 'page', versions: [], next: null })
+  })
+
+  it('a storage that cannot be read answers unavailable, not an empty page', async () => {
+    const world = await open({
+      ownerWrap: storage => ({
+        ...storage,
+        read: () => Promise.reject(new Error('named read transport failure')),
+      }),
+    })
+    expect(
+      await world.owner.listVersions({ assetRef: 'service/alpha', after: null, limit: 10 }),
+    ).toEqual({ kind: 'rejected', reason: 'unavailable' })
+  })
+
+  it.each([
+    ['limit 0', { assetRef: 'service/alpha', after: null, limit: 0 }],
+    ['limit 101', { assetRef: 'service/alpha', after: null, limit: 101 }],
+    ['an empty asset', { assetRef: '', after: null, limit: 10 }],
+  ])('%s is invalid input', async (_what, request) => {
+    const world = await open()
+    expect(await world.owner.listVersions(request)).toEqual({
+      kind: 'rejected',
+      reason: 'invalid_input',
+    })
+  })
+})
