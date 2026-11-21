@@ -109,6 +109,10 @@
   line-height: var(--omne-leading-ui);
   pointer-events: none;
 }
+.omne-count-pill[data-tone='neutral'] {
+  background: var(--omne-hover);
+  color: var(--omne-ink-muted);
+}
 [data-count-dots] .omne-count-pill {
   min-width: 0;
   width: var(--omne-space-inline);
@@ -117,4 +121,7 @@
   background: var(--omne-caution-ink);
   color: transparent;
   font-size: 0;
+}
+[data-count-dots] .omne-count-pill[data-tone='neutral'] {
+  background: var(--omne-ink-muted);
 }

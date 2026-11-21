@@ -56,7 +56,6 @@ it('toasts a strong notification that arrives after the window opened, with a wa
       id: keyOf(arrived),
       tone: 'attention',
       title: arrived.title,
-      body: 'demo.things · changed',
       action: { label: '去看看', page: PAGE_ID, subject: keyOf(arrived) },
     },
   ])

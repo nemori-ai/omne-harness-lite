@@ -301,6 +301,17 @@ it('CountPill writes a count in one look, capped at 99+, named when asked', () =
   expect(pills[1]?.getAttribute('aria-label')).toBe('100 张等你回答')
 })
 
+it('CountPill is amber for what waits on an answer and neutral for a count that waits on no one', () => {
+  const { container } = render(
+    <>
+      <CountPill count={2} />
+      <CountPill count={5} tone="neutral" />
+    </>,
+  )
+  const pills = [...container.querySelectorAll('[data-count-pill]')]
+  expect(pills.map(pill => pill.getAttribute('data-tone'))).toEqual(['waiting', 'neutral'])
+})
+
 it('StatusMark draws a different mark for each phase', () => {
   const { container } = render(
     <>
