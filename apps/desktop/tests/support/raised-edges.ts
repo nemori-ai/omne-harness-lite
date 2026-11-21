@@ -38,9 +38,9 @@ export interface Clipper {
   readonly y?: ClipAxis
 }
 
-/** A shown element with `data-control`, as the page computed it. */
+/** A shown candidate (an element with `data-control`, a segmented track or its thumb), as the page computed it. */
 export interface Control {
-  /** The `data-control` value. */
+  /** The `data-control` value, or `segmented` and `segmented-thumb`. */
   readonly control: string
   /** Its accessible name or text, and a class to find it by. */
   readonly label: string
@@ -121,17 +121,34 @@ function layers(boxShadow: string): string[] {
   return out.map(layer => layer.trim()).filter(layer => layer !== '' && layer !== 'none')
 }
 
-/** How far the visible outer shadows reach past the border box on each side: offset, blur and spread. */
-function shadowReach(boxShadow: string): Sides {
+interface Shadow {
+  readonly inset: boolean
+  readonly x: number
+  readonly y: number
+  readonly blur: number
+  readonly spread: number
+}
+
+/** The layers of a computed `box-shadow` whose color shows. */
+function shadowsOf(boxShadow: string): Shadow[] {
+  return layers(boxShadow)
+    .filter(layer => alphaOf(layer) > 0)
+    .map(layer => {
+      const [x = 0, y = 0, blur = 0, spread = 0] = layer
+        .replace(/[a-z-]+\([^)]*\)/gi, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(token => /^-?\d*\.?\d+(?:px)?$/.test(token))
+        .map(Number.parseFloat)
+      return { inset: /\binset\b/.test(layer), x, y, blur, spread }
+    })
+}
+
+/** How far the outer shadows reach past the border box on each side: offset, blur and spread. */
+function shadowReach(shadows: readonly Shadow[]): Sides {
   const reach = { top: 0, right: 0, bottom: 0, left: 0 }
-  for (const layer of layers(boxShadow)) {
-    if (/\binset\b/.test(layer) || alphaOf(layer) === 0) continue
-    const [x = 0, y = 0, blur = 0, spread = 0] = layer
-      .replace(/[a-z-]+\([^)]*\)/gi, ' ')
-      .trim()
-      .split(/\s+/)
-      .filter(token => /^-?\d*\.?\d+(?:px)?$/.test(token))
-      .map(Number.parseFloat)
+  for (const { inset, x, y, blur, spread } of shadows) {
+    if (inset) continue
     reach.top = Math.max(reach.top, spread + blur - y)
     reach.right = Math.max(reach.right, spread + blur + x)
     reach.bottom = Math.max(reach.bottom, spread + blur + y)
@@ -139,6 +156,15 @@ function shadowReach(boxShadow: string): Sides {
   }
   return reach
 }
+
+/**
+ * An inset shadow with no offset and no blur draws a line along the inside of the border box, as a border does: the
+ * edge of a segmented control's track and of its raised segment (ui-kit `.omne-segmented`). It reaches nowhere out.
+ */
+const insetLine = (shadows: readonly Shadow[]): boolean =>
+  shadows.some(
+    ({ inset, x, y, blur, spread }) => inset && x === 0 && y === 0 && blur === 0 && spread > 0,
+  )
 
 /** A border side that draws: a width, a style that is not `none` or `hidden`, and a color that shows. */
 function drawsBorder(border: string): boolean {
@@ -164,9 +190,9 @@ function shownOn(clipper: Clipper, axis: 'x' | 'y', clip: ClipAxis): Interval {
 }
 
 /**
- * Which controls are raised (a border or an outer shadow that draws), and where a clipping ancestor cuts one of them
- * together with its room: on each side the farther of its shadow's reach and the ring room. Per ancestor, nearest
- * first, and per axis it clips:
+ * Which controls are raised (a border, an inset line or an outer shadow that draws), and where a clipping ancestor
+ * cuts one of them together with its room: on each side the farther of its shadow's reach and the ring room. Per
+ * ancestor, nearest first, and per axis it clips:
  *
  * - an axis that does not scroll: the control and its room lie wholly in what the ancestor shows;
  * - an axis that scrolls: crossing the start edge is a cut only when scrolled to the start, crossing the end edge
@@ -179,9 +205,10 @@ export function raisedEdges(controls: readonly Control[]): RaisedEdges {
   const raised: Raised[] = []
   const violations: ClipViolation[] = []
   for (const control of controls) {
-    const reach = shadowReach(control.boxShadow)
+    const shadows = shadowsOf(control.boxShadow)
+    const reach = shadowReach(shadows)
     const shadowed = Object.values(reach).some(px => px > 0)
-    if (!shadowed && !control.borders.some(drawsBorder)) continue
+    if (!shadowed && !insetLine(shadows) && !control.borders.some(drawsBorder)) continue
     raised.push({ control: control.control, label: control.label, box: control.box })
     const room = (side: Side): number => Math.max(control.ringRoom, reach[side])
     const body = { x: interval(control.box, 'x'), y: interval(control.box, 'y') }

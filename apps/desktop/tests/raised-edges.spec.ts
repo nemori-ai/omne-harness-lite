@@ -163,11 +163,12 @@ describe('raised edges', () => {
     ])
   })
 
-  it('counts as raised only a control with a border or an outer shadow that draws', () => {
+  it('counts as raised only a control with a border, an inset line or an outer shadow that draws', () => {
     const found = raisedEdges([
       control({
         label: 'ghost',
-        boxShadow: 'rgba(0, 0, 0, 0) 0px 0px 0px 1px, rgb(0, 0, 0) 0px 0px 0px 1px inset',
+        boxShadow:
+          'rgba(0, 0, 0, 0) 0px 0px 0px 1px, rgba(0, 0, 0, 0) 0px 0px 0px 1px inset, rgb(0, 0, 0) 0px 1px 2px 0px inset',
       }),
       control({
         label: 'invisible border',
@@ -182,5 +183,20 @@ describe('raised edges', () => {
       control({ label: 'outline' }),
     ])
     expect(found.raised.map(({ label }) => label)).toEqual(['field', 'outline'])
+  })
+
+  it('counts the inset line of a segmented thumb as its edge, reaching nowhere out', () => {
+    const found = raisedEdges([
+      control({
+        control: 'segmented-thumb',
+        label: '时间段 7 天 [data-segmented-thumb]',
+        box: { x: 2, y: 20, width: 60, height: 28 },
+        boxShadow: 'rgb(214, 210, 196) 0px 0px 0px 9px inset',
+        clippers: [still({ x: 0, y: 0, width: 300, height: 300 }, 'omne-session-side-body')],
+      }),
+    ])
+    expect(found.violations.map(({ control, side, short }) => ({ control, side, short }))).toEqual([
+      { control: 'segmented-thumb', side: 'left', short: 2 },
+    ])
   })
 })

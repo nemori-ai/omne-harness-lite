@@ -27,12 +27,14 @@ forwarding process and a headless Chromium; it seeds the acceptance data, then s
 window and size asked for, named <scene>-<theme>-<width>[-<size>].png. A scene that means something only in some
 windows says which; in the others it prints SKIP <scene> <width>. Each shot prints how far the page scrolls
 sideways; the specimen scene prints the page policy violations it saw. After every shot the walk checks that no
-raised control (a shown data-control with a border or an outer shadow) is cut, with its shadow and ring room, by an
-ancestor that clips it (FE-I37); raised-edges.json in the shots folder lists, per shot, the cuts and every raised
-control with its box, the last line of the log counts the cuts, and any cut fails the walk. The scenes that end the
-login (A2-expired) or stop the walk's own server (A7-disconnected) run after the other signed-in scenes, the server
-one last. Two scenes start their own conversation: B2-working, where the scripted model holds its reply halfway
-until the scene ends, and B9-background, whose call runs in the background until the walk's server stops.
+raised control is cut, with its shadow and ring room, by an ancestor that clips it (FE-I37). The candidates are the
+shown elements with data-control, and besides them a segmented control's track and its raised segment (the thumb,
+which has no data-control); a candidate is raised when a border, an inset line or an outer shadow draws.
+raised-edges.json in the shots folder lists, per shot, the cuts and every raised control with its box, the last line
+of the log counts the cuts, and any cut fails the walk. The scenes that end the login (A2-expired) or stop the walk's
+own server (A7-disconnected) run after the other signed-in scenes, the server one last. Two scenes start their own
+conversation: B2-working, where the scripted model holds its reply halfway until the scene ends, and B9-background,
+whose call runs in the background until the walk's server stops.
 
   --shots <dir>        where the pictures go (a fresh temporary folder by default)
   --scenes <a,b>       only these scenes (by id); --list prints them, ※ marks the ones the acceptance asks
@@ -763,8 +765,9 @@ function combinations(windows) {
 }
 
 /**
- * FE-I37, run in the page: every shown element with `data-control` (not `display: none`, not hidden, not under
- * `aria-hidden`) with its border box, borders, shadow and ring room, and every ancestor that clips it, the nearest
+ * FE-I37, run in the page: every shown candidate (an element with `data-control`, and a segmented control's track and
+ * thumb, which have none; not `display: none`, not hidden, not under `aria-hidden`, the thumb's own decorative one
+ * aside) with its border box, borders, shadow and ring room, and every ancestor that clips it, the nearest
  * first. Which of them are raised and which are cut is the judge's (tests/support/raised-edges.ts).
  */
 function readControls() {
@@ -791,6 +794,12 @@ function readControls() {
       .join('')}`
   }
   const labelOf = element => {
+    if (element.matches('[data-segmented-thumb]')) {
+      const track = element.closest('[data-slot="segmented"]')
+      const chosen = track?.querySelector('[data-segment][aria-pressed="true"]')
+      const words = `${track?.getAttribute('aria-label') ?? ''} ${chosen?.textContent ?? ''}`
+      return `${words.replace(/\s+/g, ' ').trim()} [data-segmented-thumb]`
+    }
     const labelledBy = (element.getAttribute('aria-labelledby') ?? '')
       .split(/\s+/)
       .map(id => document.getElementById(id)?.textContent ?? '')
@@ -870,12 +879,15 @@ function readControls() {
     }
     return found
   }
-  return [...document.querySelectorAll('[data-control]')]
+  const THUMB = '[data-segmented-thumb]'
+  return [...document.querySelectorAll(`[data-control], [data-slot="segmented"], ${THUMB}`)]
     .filter(
       element =>
         element.getClientRects().length > 0 &&
         element.checkVisibility({ visibilityProperty: true, opacityProperty: true }) &&
-        element.closest('[aria-hidden="true"]') === null,
+        (element.matches(THUMB) ? element.parentElement : element)?.closest(
+          '[aria-hidden="true"]',
+        ) === null,
     )
     .map(element => {
       const style = getComputedStyle(element)
@@ -885,7 +897,8 @@ function readControls() {
         px(style.getPropertyValue('--omne-ring-width')) +
           px(style.getPropertyValue('--omne-ring-offset'))
       return {
-        control: element.dataset.control,
+        control:
+          element.dataset.control ?? (element.matches(THUMB) ? 'segmented-thumb' : 'segmented'),
         label: labelOf(element),
         box: boxOf(box.left, box.top, box.width, box.height),
         borders: ['Top', 'Right', 'Bottom', 'Left'].map(
