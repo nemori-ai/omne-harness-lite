@@ -37,7 +37,7 @@ export type SideFrame = Readonly<{
 
 export const SideFrameContext = createContext<SideFrame | null>(null)
 
-export function useSideFrame(page: RefObject<HTMLElement | null>): SideFrame {
+export function useSideFrame(page: HTMLElement | null): SideFrame {
   const [wide, setWide] = useState(false)
   const [folded, setFolded] = useState(true)
   const [open, setOpen] = useState(false)
@@ -49,16 +49,15 @@ export function useSideFrame(page: RefObject<HTMLElement | null>): SideFrame {
   const header = useRef<HTMLElement>(null)
   const sideId = useId()
   useLayoutEffect(() => {
-    const element = page.current
-    if (element === null) return undefined
+    if (page === null) return undefined
     const measure = (): void => {
-      const docks = dockFits(element.clientWidth, factor)
+      const docks = dockFits(page.clientWidth, factor)
       setWide(docks)
       if (docks) setOpen(false)
     }
     measure()
     const observer = new ResizeObserver(measure)
-    observer.observe(element)
+    observer.observe(page)
     return () => observer.disconnect()
   }, [page, factor])
   const toggle = useCallback(

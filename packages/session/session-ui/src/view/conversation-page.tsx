@@ -148,7 +148,7 @@ function Page({
   readonly more: (session: string, say: (text: string) => void) => ReactNode
 }) {
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
-  const page = useRef<HTMLDivElement>(null)
+  const [page, setPage] = useState<HTMLDivElement | null>(null)
   const frame = useSideFrame(page)
   const title = titleOf(state, list)
   const fold = useHeadingFold(frame.header, title)
@@ -156,13 +156,13 @@ function Page({
   const open = state.kind === 'open' ? state.session : null
   if (state.kind === 'none')
     return (
-      <div className="omne-session-page" data-empty="" ref={page}>
+      <div className="omne-session-page" data-empty="" ref={setPage}>
         <Body state={state} driver={driver} {...parts} />
       </div>
     )
   return (
     <SideFrameContext.Provider value={frame}>
-      <div className="omne-session-page" ref={page}>
+      <div className="omne-session-page" ref={setPage}>
         <header className="omne-session-bar" ref={frame.header}>
           <h2 className="omne-session-title" ref={fold.title}>
             {title}
