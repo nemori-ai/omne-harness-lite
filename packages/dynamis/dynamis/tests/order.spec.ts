@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  deployment,
   ask,
   declare,
   empty,
@@ -141,8 +142,8 @@ describe('DY-4、DY-6：答案与回执也只由现在装着什么决定', () =>
   ]
   const seen = (registry: Registry): string =>
     JSON.stringify({
-      graph: ask(registry, POINT, 'graph'),
-      vector: ask(registry, POINT, 'vector'),
+      graph: ask(registry, POINT, 'graph', deployment),
+      vector: ask(registry, POINT, 'vector', deployment),
       reports: parts().map(([fiber]) => report(registry, inst(fiber))),
     })
 
@@ -150,23 +151,24 @@ describe('DY-4、DY-6：答案与回执也只由现在装着什么决定', () =>
     const views = new Set(permutations(parts()).map(order => seen(registryOf(...order))))
     expect(views.size).toBe(1)
     const registry = registryOf(...parts())
-    expect(ask(registry, POINT, 'graph').kind).toBe('conflict')
-    expect(ask(registry, POINT, 'vector')).toMatchObject({ kind: 'none' })
+    expect(ask(registry, POINT, 'graph', deployment).kind).toBe('conflict')
+    expect(ask(registry, POINT, 'vector', deployment)).toMatchObject({ kind: 'none' })
     expect(report(registry, inst('sloppy'))[0]?.state).toBe('breach')
   })
 
   it('撞了之后任何一份走了，剩下的一份立刻生效，和它单独装上一样', () => {
     for (const order of permutations(parts().slice(0, 3))) {
       const both = registryOf(...order)
-      expect(ask(both, POINT, 'graph').kind).toBe('conflict')
-      expect(ask(remove(both, inst('good')), POINT, 'graph')).toEqual(
+      expect(ask(both, POINT, 'graph', deployment).kind).toBe('conflict')
+      expect(ask(remove(both, inst('good')), POINT, 'graph', deployment)).toEqual(
         ask(
           registryOf(...parts().filter(([fiber]) => fiber === 'host' || fiber === 'rival')),
           POINT,
           'graph',
+          deployment,
         ),
       )
-      expect(ask(remove(both, inst('rival')), POINT, 'graph')).toMatchObject({
+      expect(ask(remove(both, inst('rival')), POINT, 'graph', deployment)).toMatchObject({
         kind: 'one',
         holders: [inst('good')],
       })

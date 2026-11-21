@@ -40,7 +40,7 @@ export type Bound =
 export function resolve<I = unknown>(
   registry: Registry,
   reference: Reference,
-  asker: Scope = [],
+  asker: Scope,
 ): Answer<I> {
   for (const key of reference.anyOf) {
     const answer = ask<I>(registry, reference.point, key, asker)
@@ -63,7 +63,7 @@ function missingOf(slot: string, reference: Reference, answer: Answer): Missing 
 export function adopt(
   registry: Registry,
   requires: Readonly<Record<string, Reference>>,
-  asker: Scope = [],
+  asker: Scope,
 ): Adoption {
   const bindings: Record<string, Binding | null> = {}
   const missing: Missing[] = []

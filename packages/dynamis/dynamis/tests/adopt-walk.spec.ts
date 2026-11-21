@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  deployment,
   adopt,
   bound,
   declare,
@@ -88,9 +89,13 @@ describe('DY-7、DY-8：随机的装卸、换代、采用与调用', () => {
         if (what < 2) registry = change(random, registry, live, minted)
         else if (what === 2) {
           const definition = pick(random, Object.keys(WANTS))
-          const adoption = adopt(registry, {
-            memory: { point: POINT, anyOf: WANTS[definition] ?? [] },
-          })
+          const adoption = adopt(
+            registry,
+            {
+              memory: { point: POINT, anyOf: WANTS[definition] ?? [] },
+            },
+            deployment,
+          )
           const should = expected(live, definition)
           expect(adoption.kind, where).toBe(should === 'unavailable' ? 'unavailable' : 'adopted')
           if (adoption.kind !== 'adopted' || should === 'unavailable') continue
