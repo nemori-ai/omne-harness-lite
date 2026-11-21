@@ -245,14 +245,18 @@ Identity 包组回答两个问题。身份：谁在行事，他现在是不是�
 | 位置 | 一项 | 做什么 |
 | --- | --- | --- |
 | 登录门 `gate` | 标识 `identity.login` | 登录与第一次使用两种方式。注册经身份协议的普通调用 `register-and-activate`，成功后接着登录；登录经 `shell.login.login`，页面只拿到结果 |
-| 侧栏区 `sidebar` | 标识 `identity.account`，次序 1000 | 账号块：登录之后查一次当前租户，查到就 `shell.scope.set(租户的文本)` 并显示组织的短写；查不到显示原因与「重试」；「退出登录」调 `shell.login.logout` |
+| 侧栏区 `sidebar` | 标识 `identity.account`，次序 1000，`utility` 段，带窄条的样子 `rail` | 账号块：登录之后查一次当前租户，查到就 `shell.scope.set(租户的文本)` 并显示组织的短写；查不到显示原因与「重试」；菜单里的「退出登录」调 `shell.login.logout` |
+
+两处的观感照[视觉规范](../../.meta_harness/agents/skills/visual-standard/canonical/SKILL.md)；颜色与语气的规则见[规则与 token 的索引](../../.meta_harness/agents/skills/visual-standard/canonical/references/rules-index.md)的 C3、C4。下面每一句通知都写明语气：失败是 `InlineNotice` 的 `danger`；注意是 `caution`，琥珀；中性是 `neutral`。正常的状态不画字、不画点。
+
+登录门的样子：外壳没有登录时只显示它。它是一张窄的单列，自上而下：`PageHeader`，标题是方式的名字（「登录」或「注册并登录」）；分段控件「登录方式」（登录、第一次使用）；两个字段「登录名」与「密码」；一个大号的主钮，字与标题相同。失败写在表单下面的一行 `InlineNotice` 里，语气见模型的各条。提交中只有主钮显示等待：它的字换成「请稍候……」，字段与分段控件不变灰。
 
 登录门的模型（`createLoginModel`）：
 
 - 交出凭据之后表单立刻清空，不等结果。登录名去掉首尾空白，密码原样交出。
 - 等着答复时再交一次什么都不做。
-- 登录的三种失败各有一句：`auth-failed` 是登录名或密码不对，`unknown` 是不知道成没成功，`unavailable` 是服务暂时不可用。
-- 注册的结果：`not-loginable`、`stage-not-provided`、请求被协议拒绝（`ClientRequestError`）各有一句；`unknown` 与 `uncertain` 同一句，说不知道成没成功、可以直接试着登录；其余一律说暂时不可用。注册没成功就不接着登录。
+- 登录的三种失败各有一句：`auth-failed` 是登录名或密码不对（失败），`unknown` 是不知道成没成功（中性），`unavailable` 是服务暂时不可用（失败）。
+- 注册的结果：`not-loginable`（中性）、`stage-not-provided`（中性）、请求被协议拒绝（`ClientRequestError`，失败）各有一句；`unknown` 与 `uncertain` 同一句，说不知道成没成功、可以直接试着登录（中性）；其余一律说暂时不可用（失败）。注册没成功就不接着登录。
 - 换一种方式时清掉上一句失败。
 
 账号块的模型（`createAccountModel`）是一个小状态机，状态是还没查、查着、查到、查不到：
@@ -268,7 +272,17 @@ Identity 包组回答两个问题。身份：谁在行事，他现在是不是�
 - 「停下」是模型退订登录状态，此后不发请求、不设租户，状态留在原处。租户不随协议客户端撤掉而清空：登录没有变，租户仍然是那个；清空租户归外壳，在登录状态离开已登录时做。
 - 账号块挂上时建模型，卸下时停下。它只在已登录时挂着，所以每一次登录都重新查一次。
 
-依赖：源码只导入客户端装配、`frontend` 组的两个成员、SDK 的客户端核心、公开契约、身份的协议契约、共用纯定义（`legal-identity`）、Cordis 与 React，不导入别的领域与 Node 内置。基础控件与样式取共用界面件；自己的样式 `./identity-ui.css` 只有版式，不用 Tailwind 的工具类。
+账号块的样子：
+
+- 账号块是侧栏底部最后一行左边的一个控件；这一行与它右边的「外观」由外壳排，见[桌面应用的页面](../../apps/desktop/SPEC.md#页面)。控件里是账号的字形 `contact` 与组织的短写：短写超过 14 个字符时取前 8 个、一个「…」与后 4 个，全文在提示里。按下是平样式的菜单（`DropdownMenu`），里面有「退出登录」。
+- 侧栏折成窄条时，账号块是一个圆：只有账号的字形，提示写租户的全文，按下是同一个菜单。
+- 还没查与查着：字形在，短写的位置上是活动标记（`LoadingIndicator`），提示写「正在读取当前租户……」。
+- 查到：字形加短写，不画别的。
+- 查不到：控件里只有字形，控件上面是一行 `InlineNotice`，写原因，带「重试」。`denied` 说登录可能已经失效、正在确认（中性）；`uncertain` 说没有收到可信的答复（中性）；其余说服务暂时不可用（注意）。菜单照样能打开，「退出登录」照样在。
+- 断开时只有一处说话。账号块只在登录状态变成已登录时与人按「重试」时查。外壳说正在重连时，账号块留着上一次查到的租户，什么都不说。<!-- OD-21 -->
+- 反馈：菜单是浮层，从控件那一边出来；退出登录之后外壳只显示登录门，账号块不另写字。
+
+依赖：源码只导入客户端装配、`frontend` 组的两个成员、SDK 的客户端核心、公开契约、身份的协议契约、共用纯定义（`legal-identity`）、Cordis 与 React，不导入别的领域与 Node 内置。基础控件与样式取共用界面件；自己的样式 `./identity-ui.css` 只有版式，不用 Tailwind 的工具类。用到的共用件：`PageHeader`、`Segmented`、`Field`、`Input`、`Button`、`InlineNotice`、`LoadingIndicator`、`IconButton`、`DropdownMenu`。
 
 ### Cordis 装配
 
