@@ -168,7 +168,9 @@ OTel的forceFlush完成不自动表示每条记录导出成功。提供者核对
 
 一个领域想让依赖它的领域拓展自己时，它声明一个[拓展点](../../.meta_harness/design/ubiquitous_language/terms/architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)。声明拓展点的领域是宿主。别的领域往拓展点里放的一项是[拓展贡献](../../.meta_harness/design/ubiquitous_language/terms/architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)，下面简称贡献。一个领域公开的全部拓展点的声明是它的[拓展契约](../../.meta_harness/design/ubiquitous_language/terms/architecture-core-and-extension.md#ul-extension-contract--拓展契约--extension-contract)。
 
-本节规定每个拓展点的声明要回答什么、哪几条对所有拓展点都一样。每个拓展点自己的规则仍归它的宿主：宿主的规格写这十个问题的答案。本节不建立一份共用的实现。
+本节规定每个拓展点的声明要回答什么、哪几条对所有拓展点都一样。每个拓展点自己的规则仍归它的宿主：宿主的规格写这十个问题的答案。本节的规则不依赖任何一份共用的实现。
+
+[Dynamis](../../packages/dynamis/SPEC.md) 是一份可选的纯库：登记表、答案、目录、引用与撤下的算法。下面「已有的拓展点」表里的各个点都还没有用它，仍然各用各的登记表。它对同键多项的答法和下面第一条通则不同，差在哪、谁来裁定，写在它的规格的「原则与约束」里。
 
 ### 每个拓展点要答的十个问题
 
