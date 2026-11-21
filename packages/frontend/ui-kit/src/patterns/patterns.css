@@ -166,26 +166,11 @@
   place-items: center;
   width: calc(var(--spacing) * 4);
   height: calc(var(--spacing) * 4);
-  border-radius: var(--omne-radius-pill);
-  box-shadow: inset 0 0 0 calc(var(--spacing) * 0.375) var(--omne-line);
-  transition:
-    background-color var(--omne-motion-state) var(--omne-motion-ease),
-    box-shadow var(--omne-motion-state) var(--omne-motion-ease);
+  color: var(--omne-ink-primary);
 }
-.omne-choice-dot {
-  width: calc(var(--spacing) * 1.5);
-  height: calc(var(--spacing) * 1.5);
-  border-radius: var(--omne-radius-pill);
-  background: var(--omne-surface-overlay);
-  transform: scale(0);
-  transition: transform var(--omne-motion-state) var(--omne-motion-ease);
-}
-.omne-choice-row[aria-checked='true'] .omne-choice-mark {
-  background: var(--omne-ink-primary);
-  box-shadow: none;
-}
-.omne-choice-row[aria-checked='true'] .omne-choice-dot {
-  transform: scale(1);
+.omne-choice-mark > svg {
+  width: var(--omne-icon-compact);
+  height: var(--omne-icon-compact);
 }
 .omne-choice-label {
   min-width: 0;
@@ -201,11 +186,5 @@
 @media (max-width: 767px) {
   .omne-choice-row {
     min-height: var(--omne-control-height-touch);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .omne-choice-mark,
-  .omne-choice-dot {
-    transition: none;
   }
 }
