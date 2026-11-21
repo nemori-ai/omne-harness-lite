@@ -16,7 +16,7 @@ function Tenant(props: { model: AccountModel }) {
   if (state.kind === 'failed')
     return (
       <InlineNotice
-        tone="caution"
+        tone={state.tone}
         role="status"
         action={{ label: '重试', onClick: () => model.retry() }}
         still

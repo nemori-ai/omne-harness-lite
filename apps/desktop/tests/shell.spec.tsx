@@ -702,6 +702,9 @@ describe('外壳：一项坏了只坏这一项', () => {
       'good',
     ])
     expect(failed().map(node => node.textContent)).toEqual([ITEM_FAILED_TEXT])
+    expect(failed().map(node => node.getAttribute('data-tone')), 'a known failure, not amber').toEqual([
+      'danger',
+    ])
     expect(page.querySelector('[role=tabpanel]:not([hidden]) .shell-item-failed')).not.toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: 'good' }))
     expect(
