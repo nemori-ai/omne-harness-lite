@@ -275,6 +275,8 @@
 - 去掉媒体的六行，发行树照常启动，纯文字的会话照常；`media/v1` 不挂上。
 - `media-model-source` 这一行把媒体接到 Model 的读媒体端口上，提供 `modelMediaSource`；`model-records` 行的发送子插件在物化时按引用读，每次读时现取，不注入。去掉这一行或媒体的各行，带媒体引用的请求答依据不可用，纯文字的请求照常发出。
 - `media-tool-store` 这一行把媒体接到 Tool「存产出」的端口上，提供 `toolMediaStore`；`tool-environments` 行的环境适配在作者每次交出产出时现取，`tool-bindings` 行在判一个命令可不可用时看它在不在，都不注入。去掉这一行或媒体的各行，结果带图片的命令（`Files` 的 `open`）在原位不可用并说明原因，别的命令照常。
+- 屏幕：`execution-host` 行装载时按所在的系统选屏幕后端（`execution-environment-host-local` 的 `hostScreen`），选到且屏幕清单自洽才让宿主提供者提供 `screen`，并记下这一行提供了哪些设施；配置里写 `screen: false` 时不找后端。`execution-command` 行多装 `screen` 的设施声明。发行工具 `Screen` 声明能力 `screen.read`：它在不在看宿主行有没有提供 `screen`。所在的系统没有后端时，`Screen` 是已知不可用（原因 `dependency-unavailable:screen.read`）。
+- 已知不可用的工具留在原位：模型调用它时，受理处答一段带原因的文字（`<工具> is not available now (<原因>). Continue without it.`），不启动、不解析参数，这一轮照常往下走。目录答不出可不可用时仍是依据不可用。
 - 会话换型号时，`session-access` 这一行按这段会话的历史判目标可不可选：它以这个会话的协调者主体读这个会话的模型视图（登录的主体无权读模型视图；前提是会话接入已经核过这次登录可以对这个会话行事），只读这一个会话、只为算出历史的原生要求，再交给档案求值。型号盖不住时以模态不符拒绝并带回它读不了的块；模型视图读不到时答依据不可用，不当成空历史放行。`sessionWorkPrincipals` 因此是这一行按调用读的受信名。建会话没有历史，只按文字判。
 - 受理前处理是两行：`session-before-intake` 提供登记面 `session.before-intake`；`media-intake` 在媒体的服务与登记面都在时登记处理件 `media.references`，任一个不在就撤回。会话提供者每次受理现取来源声明与处理件，不写 `admission`。去掉 `media-intake` 或媒体的各行，登记面上没有媒体的处理件：带内容引用的输入不被受理，纯文字的会话照常。去掉 `session-before-intake`，成员本人的输入都不被受理，直到它回来。
 

@@ -28,6 +28,7 @@ import { workspaceInstancesKey } from '@omne-harness/workspace-cordis-contract/c
 import type { LocalToolAvailabilitySource } from '@omne-harness/tool-host-local'
 import { releaseOf } from '../../entry/tool-release.ts'
 import type { ToolReleaseManifest } from '../../entry/tool-release-manifest.ts'
+import { hostOffers } from '../execution-host/offers.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 
 const unavailable = (diagnostic: string) =>
@@ -172,8 +173,9 @@ function environmentInstalled(ctx: Context): boolean {
   )
 }
 
-/** The domain service each release capability stands for: a capability is there while its service is. */
-const CAPABILITY_SERVICES: Readonly<Record<string, string>> = {
+/** What each release capability stands for: it is there while its service is, or while its test holds. */
+const CAPABILITY_SERVICES: Readonly<Record<string, string | ((ctx: Context) => boolean)>> = {
+  'screen.read': ctx => hostOffers(ctx)?.has('screen') === true,
   'calendar.read': calendarCalculatorKey,
   'schedule.read': scheduleQueriesKey,
   'schedule.write': scheduleCommandsKey,
@@ -186,8 +188,12 @@ const CAPABILITY_SERVICES: Readonly<Record<string, string>> = {
 
 function capabilityFacts(ctx: Context, definition: ToolDefinition) {
   return definition.requiredCapabilities.map(name => {
-    const service = CAPABILITY_SERVICES[name]
-    return { name, available: service !== undefined && ctx.get(service) !== undefined }
+    const stands = CAPABILITY_SERVICES[name]
+    const available =
+      typeof stands === 'function'
+        ? stands(ctx)
+        : stands !== undefined && ctx.get(stands) !== undefined
+    return { name, available }
   })
 }
 

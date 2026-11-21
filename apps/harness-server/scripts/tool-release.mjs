@@ -28,6 +28,14 @@ const PROBES = [
     Notifications: { resultMaxBytes: 64 },
     Sessions: { resultMaxBytes: 1024 },
     SwitchWorkspace: { resultMaxBytes: 16 },
+    Screen: {
+      resultMaxBytes: 1,
+      captureMaxLongSide: 1,
+      imageMaxWidth: 1,
+      imageMaxHeight: 1,
+      imageMaxDecodedBytes: 1,
+      imageConcurrency: 1,
+    },
   },
   {
     Shell: {
@@ -55,6 +63,14 @@ const PROBES = [
     Notifications: { resultMaxBytes: 1048576 },
     Sessions: { resultMaxBytes: 1048576 },
     SwitchWorkspace: { resultMaxBytes: 1048576 },
+    Screen: {
+      resultMaxBytes: 65536,
+      captureMaxLongSide: 2048,
+      imageMaxWidth: 4096,
+      imageMaxHeight: 4096,
+      imageMaxDecodedBytes: 67108864,
+      imageConcurrency: 4,
+    },
   },
 ]
 

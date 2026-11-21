@@ -18,6 +18,7 @@ import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
 import {
   LOCAL_OPEN_LIMITS,
+  LOCAL_SCREEN_LIMITS,
   LOCAL_TOKENIZERS,
   LOCAL_TOOL_RESULT_BYTES,
 } from '../../src/local/operator-defaults.ts'
@@ -295,6 +296,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Notifications: { resultMaxBytes: 65_536 },
       Sessions: { resultMaxBytes: 131_072 },
       SwitchWorkspace: { resultMaxBytes: 65_536 },
+      Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
     },
     web: {
       search: {

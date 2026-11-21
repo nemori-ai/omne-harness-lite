@@ -141,6 +141,20 @@ export const RELEASE_TOOLS = Object.freeze([
     export: 'switchWorkspaceToolModule',
     construction: Object.freeze(['resultMaxBytes']),
   }),
+  Object.freeze({
+    name: 'Screen',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze(['screen.read']),
+    export: 'screenToolModule',
+    construction: Object.freeze([
+      'resultMaxBytes',
+      'captureMaxLongSide',
+      'imageMaxWidth',
+      'imageMaxHeight',
+      'imageMaxDecodedBytes',
+      'imageConcurrency',
+    ]),
+  }),
 ] as const)
 
 export type ReleaseToolName = (typeof RELEASE_TOOLS)[number]['name']

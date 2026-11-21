@@ -333,12 +333,19 @@ export function shellEnvironment(
 }
 
 export const LOCAL_TOOL_RESULT_BYTES = 1_048_576
-export const LOCAL_OPEN_LIMITS = Object.freeze({
-  openMaxBytes: 20 * 1024 * 1024,
+const LOCAL_IMAGE_BUDGET = Object.freeze({
   imageMaxWidth: 16384,
   imageMaxHeight: 16384,
   imageMaxDecodedBytes: 128 * 1024 * 1024,
   imageConcurrency: 2,
+})
+export const LOCAL_OPEN_LIMITS = Object.freeze({
+  openMaxBytes: 20 * 1024 * 1024,
+  ...LOCAL_IMAGE_BUDGET,
+})
+export const LOCAL_SCREEN_LIMITS = Object.freeze({
+  captureMaxLongSide: 2048,
+  ...LOCAL_IMAGE_BUDGET,
 })
 
 function toolRecords(combinationVersion: string) {
@@ -522,6 +529,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Notifications: { resultMaxBytes: 65_536 },
           Sessions: { resultMaxBytes: 131_072 },
           SwitchWorkspace: { resultMaxBytes: 65_536 },
+          Screen: { resultMaxBytes: 65_536, ...LOCAL_SCREEN_LIMITS },
         },
       },
     ],

@@ -13,7 +13,7 @@ import {
   toolBindingsKey,
   toolCatalogKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
-import { filesToolModule, shellToolModule } from '@omne-harness/tool-definitions'
+import { filesToolModule, screenToolModule, shellToolModule } from '@omne-harness/tool-definitions'
 import { notificationsToolModule } from '@omne-harness/notification-tools'
 import { principalIssuer, sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
 import { createToolReleaseEntries } from '../../../src/entry/tool-release.ts'
@@ -29,6 +29,7 @@ import {
   bundleScope,
   bundleSettle,
 } from '../../../src/rows/tool-bindings/index.ts'
+import { recordHostOffers } from '../../../src/rows/execution-host/offers.ts'
 import { toolRuntimeHolder, type ToolRuntimeBundle } from '../../../src/rows/tool-runtime/holder.ts'
 import { StubService } from '../../../src/s0/stub-plugin.ts'
 import { fixtureEnv, fixtureTenant, got, okOf } from '../../entry/support.ts'
@@ -219,6 +220,37 @@ describe('tool-bindings: availability from verified sources only', () => {
     expect(await open()).toMatchObject({ ok: { productsStorable: true } })
     await installed.dispose()
     expect(await open()).toMatchObject({ ok: { productsStorable: false } })
+  })
+
+  it('Screen needs the host to offer the screen: its capability is there only while the host row offers it', async () => {
+    const { fixture, judge } = await judged()
+    const created = okOf(screenToolModule.createAuthor(tree(TEST_CONSTRUCTION.Screen)), 'author')
+    const definition = okOf(
+      judgeToolDefinition(
+        deriveDefinition(governanceOf(entryOf(fixture.manifest, 'Screen')), created.facts),
+      ),
+      'definition',
+    )
+    const capability = async () =>
+      okOf(await judge({ definition }), 'judge').dependencies.find(
+        dependency => dependency.name === 'screen.read',
+      )
+    expect(await capability()).toEqual({ name: 'screen.read', available: false })
+    const without = fixture.root.plugin({
+      name: 'host-without-screen',
+      apply: (ctx: Context) => recordHostOffers(ctx, ['files', 'command', 'terminal']),
+    })
+    await without
+    expect(await capability()).toEqual({ name: 'screen.read', available: false })
+    await without.dispose()
+    const host = fixture.root.plugin({
+      name: 'host-with-screen',
+      apply: (ctx: Context) => recordHostOffers(ctx, ['files', 'command', 'terminal', 'screen']),
+    })
+    await host
+    expect(await capability()).toEqual({ name: 'screen.read', available: true })
+    await host.dispose()
+    expect(await capability()).toEqual({ name: 'screen.read', available: false })
   })
 
   it('answers unavailable for an unverified principal and for another tenant', async () => {

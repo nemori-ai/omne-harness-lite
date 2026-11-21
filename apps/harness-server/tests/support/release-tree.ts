@@ -635,6 +635,8 @@ export type ReleaseTreeOptions = Readonly<{
   withoutRows?: readonly string[] | ((run: number) => readonly string[])
   /** Rows a test adds to the release, each with the row plugin that serves it. */
   addedRows?: readonly AddedRow[]
+  /** The screen backend the host row is given; absent: the one of the machine the test runs on. */
+  hostScreen?: NonNullable<Parameters<typeof runServe>[0]['hostScreen']>
 }>
 
 export type AddedRow = Readonly<{
@@ -762,6 +764,7 @@ async function serveOnce(
       : object,
   )
   const finished = runServe({
+    ...(options.hostScreen === undefined ? {} : { hostScreen: options.hostScreen }),
     distribution: withAddedRows(
       withoutRows(releaseDistribution(options), 'rows', rowsLeftOut(options.withoutRows, 0)),
       options.addedRows,

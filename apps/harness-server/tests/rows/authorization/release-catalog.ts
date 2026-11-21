@@ -31,6 +31,14 @@ const CONSTRUCTION: Readonly<Record<string, unknown>> = {
   Notifications: { resultMaxBytes: 64 },
   Sessions: { resultMaxBytes: 4096 },
   SwitchWorkspace: { resultMaxBytes: 4096 },
+  Screen: {
+    resultMaxBytes: 4096,
+    captureMaxLongSide: 2048,
+    imageMaxWidth: 4096,
+    imageMaxHeight: 4096,
+    imageMaxDecodedBytes: 67_108_864,
+    imageConcurrency: 2,
+  },
 }
 
 function definitionOf(release: Trusted, entry: ToolReleaseManifest['entries'][number]) {

@@ -170,6 +170,7 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
         { capability: { category: 'Tool', name: 'Notifications' }, resident: true },
         { capability: { category: 'Tool', name: 'Sessions' }, resident: true },
         { capability: { category: 'Tool', name: 'SwitchWorkspace' }, resident: true },
+        { capability: { category: 'Tool', name: 'Screen' }, resident: true },
         { capability: { category: 'Tool', name: 'Skills' }, resident: true },
       ],
       attributes: [{ item: 'model' }],

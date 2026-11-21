@@ -24,6 +24,7 @@ const CODING = [
   'Files',
   'Notifications',
   'Schedules',
+  'Screen',
   'Sessions',
   'Shell',
   'Skills',

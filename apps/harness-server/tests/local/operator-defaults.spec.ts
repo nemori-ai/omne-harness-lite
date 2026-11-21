@@ -338,6 +338,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Files',
       'Notifications',
       'Schedules',
+      'Screen',
       'Sessions',
       'Shell',
       'Skills',
@@ -355,6 +356,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Schedules',
       'Notifications',
       'SwitchWorkspace',
+      'Screen',
     ])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeLessThanOrEqual(inline)
   })

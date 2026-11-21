@@ -814,6 +814,32 @@ describe('a command whose result carries more than the tool declares is judged b
     expect(await source.describe(call(OPEN))).toEqual({ ok: { kind: 'answered', text } })
   })
 
+  it('a tool the catalog knows but cannot offer now answers any call with the reason, and never runs (TL: a dummy in place)', async () => {
+    const { ports, principalA, definitions } = await world()
+    const whole = ports.catalog()
+    if (whole === undefined) throw new Error('fixture: no catalog')
+    const inspect: Inspect = async input =>
+      input.name === 'Files'
+        ? succeed({
+            kind: 'known-unavailable' as const,
+            definition: definitions.get('Files')!,
+            reason: 'dependency-unavailable:screen.read',
+          })
+        : whole.inspect(input)
+    const source = createReleaseToolRequests({ ...ports, catalog: () => ({ ...whole, inspect }) })
+    const text =
+      'Files is not available now (dependency-unavailable:screen.read). Continue without it.'
+    for (const args of [READ, OPEN, '{"command":"nope"}', '{}'])
+      expect(await source.describe(actionInput(principalA, TENANT_A, 'Files', args))).toEqual({
+        ok: { kind: 'answered', text },
+      })
+    expect(await source.describe(actionInput(principalA))).toMatchObject({ ok: { kind: 'tool' } })
+    const input = actionInput(principalA, TENANT_A, 'Files', READ)
+    expect(
+      await source.prepare({ ...input, definition: definitions.get('Files')!.adoption, admission }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
   it('answers unavailable, not a run, when the catalog cannot say whether the command is available', async () => {
     const { source, call } = await hosted(() =>
       fail({ kind: 'unavailable', dependency: 'tool-availability', diagnostic: 'unreadable' }),

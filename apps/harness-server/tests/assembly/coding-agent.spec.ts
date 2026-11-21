@@ -57,6 +57,7 @@ describe('the coding entry of the release mapping', () => {
       { capability: { category: 'Tool', name: 'Notifications' }, resident: true },
       { capability: { category: 'Tool', name: 'Sessions' }, resident: true },
       { capability: { category: 'Tool', name: 'SwitchWorkspace' }, resident: true },
+      { capability: { category: 'Tool', name: 'Screen' }, resident: true },
       { capability: { category: 'Tool', name: 'Skills' }, resident: true },
     ])
     expect(configured.attributes).toEqual([{ item: 'model' }])

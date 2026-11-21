@@ -198,8 +198,12 @@ async function availabilityOf(
       ? denied('tool-request')
       : unavailable(`tool catalog answered ${answer.failure.kind}`)
   const availability = answer.ok
-  if (availability.kind !== 'available' || availability.layer.kind !== 'official')
-    return unavailable(`${name} is not available`)
+  if (availability.kind === 'known-unavailable')
+    return succeed({
+      kind: 'answered',
+      text: `${name} is not available now (${availability.reason}). Continue without it.`,
+    })
+  if (availability.layer.kind !== 'official') return unavailable(`${name} is not available`)
   const selected = callOf(availability.definition, input.effectiveArguments)
   if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
   const asked = { catalog, release, input, definition: availability.definition }

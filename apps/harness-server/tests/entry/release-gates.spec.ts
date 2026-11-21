@@ -45,6 +45,10 @@ const EXPECTED: Readonly<
   ],
   Sessions: [['invoke', 'auto', ['help', 'list', 'search', 'show', 'read']]],
   SwitchWorkspace: [['invoke', 'ask', []]],
+  Screen: [
+    ['read', 'auto', ['help']],
+    ['observe', 'ask', ['screens', 'capture']],
+  ],
 }
 const sorted = (names: readonly string[]) => [...names].sort()
 

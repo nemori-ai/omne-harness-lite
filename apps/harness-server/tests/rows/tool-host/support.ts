@@ -94,6 +94,14 @@ export const TEST_CONSTRUCTION = Object.freeze({
   Notifications: { resultMaxBytes: 4096 },
   Sessions: { resultMaxBytes: 4096 },
   SwitchWorkspace: { resultMaxBytes: 4096 },
+  Screen: {
+    resultMaxBytes: 4096,
+    captureMaxLongSide: 2048,
+    imageMaxWidth: 4096,
+    imageMaxHeight: 4096,
+    imageMaxDecodedBytes: 67_108_864,
+    imageConcurrency: 2,
+  },
 })
 
 export function tree(value: unknown): JsonValue {

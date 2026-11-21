@@ -54,6 +54,16 @@ export const toolHostConfig = z
             imageConcurrency: positive,
           })
           .optional(),
+        Screen: z
+          .strictObject({
+            resultMaxBytes: positive,
+            captureMaxLongSide: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
+          .optional(),
       })
       .optional(),
     /** The operator's values for the settings a release tool declares, by tool name and item id. */
