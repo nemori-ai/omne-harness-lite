@@ -35,13 +35,24 @@ import {
 
 export type ToolAvailabilityVerdict = Pick<
   AvailabilityFacts,
-  'qualification' | 'dependencies' | 'inputCompatible' | 'outputCompatible' | 'attachmentsReadable'
+  | 'qualification'
+  | 'dependencies'
+  | 'inputCompatible'
+  | 'outputCompatible'
+  | 'attachmentsReadable'
+  | 'productsStorable'
 >
 
 export interface LocalToolAvailabilitySource<P> {
+  /** `command` is the command the facts are asked about; null asks about the tool as a whole. */
   judge(
     input: Access<P> &
-      Readonly<{ definition: ToolDefinition; layer: SourceLayer; consumer: ToolConsumerProfile }>,
+      Readonly<{
+        definition: ToolDefinition
+        command: string | null
+        layer: SourceLayer
+        consumer: ToolConsumerProfile
+      }>,
   ): Promise<Outcome<ToolAvailabilityVerdict, ToolFailure>>
 }
 
@@ -53,6 +64,22 @@ export type LocalToolCatalogInput<P> = Readonly<{
 }>
 
 const DEPENDENCY = 'toolBindings'
+
+function asked<P>(
+  access: Access<P>,
+  candidate: Pick<CatalogCandidate, 'definition' | 'key'>,
+  consumer: ToolConsumerProfile,
+  command: string | null,
+): Parameters<LocalToolAvailabilitySource<P>['judge']>[0] {
+  return {
+    principal: access.principal,
+    tenant: access.tenant,
+    definition: candidate.definition,
+    command,
+    layer: candidate.key.layer,
+    consumer,
+  }
+}
 
 const unknownTool = fail({ kind: 'invalid', field: 'name', reason: 'unknown-tool' } as const)
 
@@ -200,14 +227,9 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
     access: Access<P>,
     candidate: CatalogCandidate,
     consumer: ToolConsumerProfile,
+    command: string | null,
   ): Promise<Outcome<ToolAvailability, ToolFailure>> => {
-    const verdict = await availability.judge({
-      principal: access.principal,
-      tenant: access.tenant,
-      definition: candidate.definition,
-      layer: candidate.key.layer,
-      consumer,
-    })
+    const verdict = await availability.judge(asked(access, candidate, consumer, command))
     if ('failure' in verdict) return verdict
     if (candidate.kind === 'known')
       return succeed({
@@ -247,7 +269,7 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
         (candidate.kind === 'known' || candidate.definition.programmable !== true)
       )
         continue
-      const one = await judged(request, candidate, request.consumer)
+      const one = await judged(request, candidate, request.consumer, null)
       if ('failure' in one) return one
       if (request.invocation === 'programmatic' && one.ok.kind !== 'available') continue
       entries.push({ ...one.ok, resident: candidate.resident })
@@ -268,7 +290,7 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
           !definition.commands.some(command => command.name === request.command))
       )
         return fail({ kind: 'invalid', field: 'command', reason: 'unknown-command' })
-      const answer = await judged(request, candidate, request.consumer)
+      const answer = await judged(request, candidate, request.consumer, request.command)
       const current = await readCatalogView(input.view, request)
       const checked = stable(current, live.ok, request)
       return 'failure' in checked ? checked : answer
@@ -281,13 +303,9 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
       if (candidate === undefined || !same(candidate.definition.adoption, request.adoption))
         return unknownTool
       const { definition } = candidate
-      const verdict = await availability.judge({
-        principal: request.principal,
-        tenant: request.tenant,
-        definition,
-        layer: candidate.key.layer,
-        consumer: request.consumer,
-      })
+      const verdict = await availability.judge(
+        asked(request, candidate, request.consumer, request.command),
+      )
       const current = await readCatalogView(input.view, request)
       const checked = stable(current, live.ok, request)
       if ('failure' in checked) return checked

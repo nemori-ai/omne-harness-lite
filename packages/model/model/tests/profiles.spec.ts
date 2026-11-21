@@ -274,6 +274,16 @@ it('adds the modality reason when the winner does not cover the requirement', as
   expect(resolution.selectable).toBe(false)
 })
 
+it('judges the file types a history needs the same way: a type the winner does not take natively is the modality reason', async () => {
+  const winner = profileOf()
+  const pdf = { ...winner, definition: { ...winner.definition, fileTypes: ['application/pdf'] } }
+  const needs = { ...requirement(['text']), fileTypes: ['application/pdf'] }
+  const plain = resolvedOf(await resolveOf(snapshotOf([candidateOf(winner)]), 'alpha', needs))
+  expect([plain.reasons, plain.selectable]).toEqual([['modality'], false])
+  const taken = resolvedOf(await resolveOf(snapshotOf([candidateOf(pdf)]), 'alpha', needs))
+  expect([taken.reasons, taken.selectable]).toEqual([[], true])
+})
+
 it('does not let a video requirement through, since no profile can declare it', async () => {
   const snapshot = snapshotOf([candidateOf(profileOf({ input: ['text', 'image'] }))])
   expect(

@@ -13,14 +13,19 @@ type TransportFailure = Extract<
   Awaited<ReturnType<ModelTransport['prepare']>>,
   { failure: unknown }
 >['failure']
-async function refusal(phase: Phase, kind: 'denied' | 'invalid' | 'unsupported') {
+const PICTURE = { storage: 's', key: 'k', mediaType: 'image/png', bytes: '9', digest: 'd' }
+type Kind = 'denied' | 'invalid' | 'unsupported' | 'material-unavailable' | 'over-limit'
+async function refusal(phase: Phase, kind: Kind) {
   const f = await sendFixture()
-  const failure: TransportFailure =
-    kind === 'denied'
-      ? { kind, action: 'synthetic-transport' }
-      : kind === 'invalid'
-        ? { kind, field: 'synthetic', reason: 'rejected' }
-        : { kind, field: 'synthetic', adapter: f.request.representation }
+  const media = { kind: 'media', reference: PICTURE } as const
+  const failures = {
+    denied: { kind: 'denied', action: 'synthetic-transport' },
+    invalid: { kind: 'invalid', field: 'synthetic', reason: 'rejected' },
+    unsupported: { kind: 'unsupported', field: 'synthetic', adapter: f.request.representation },
+    'material-unavailable': { ...media, reason: 'material-unavailable' },
+    'over-limit': { ...media, reason: 'over-limit', limit: '4194304' },
+  } as const
+  const failure = failures[kind] as TransportFailure
   let prepares = 0,
     materializes = 0
   const resources: typeof f.resources = {
@@ -108,6 +113,49 @@ for (const phase of ['prepare', 'materialize'] as const)
       expect(f.attempts()).toEqual({ prepares: 1, materializes: phase === 'materialize' ? 1 : 0 })
       expect(f.events).toEqual(phase === 'materialize' ? ['prepared', 'resource'] : ['resource'])
     })
+
+it.each([
+  [
+    'material-unavailable',
+    { cause: 'input-rejected', diagnostic: 'material-unavailable', upstreamStatus: null },
+  ],
+  [
+    'over-limit',
+    {
+      cause: 'input-over-limit',
+      diagnostic: 'media-over-limit',
+      upstreamStatus: null,
+      reported: { metric: 'image-bytes', limit: '4194304', actual: null },
+    },
+  ],
+] as const)(
+  'a medium that is %s at materialization ends the call with its own cause, never as a modality',
+  async (kind, fault) => {
+    const f = await refusal('materialize', kind)
+    const assembly = createTestModelDependencies({
+      ...f.options,
+      start: '2026-10-19T00:00:00Z',
+      maxWaiters: 2,
+      maxQueued: 10,
+      sends: [],
+      sending: { credentials: f.credentials, sources: [f.source], maxRetainedAttempts: 4 },
+    })
+    const send = assembly.controls.send.createSender({ resources: f.resources })
+    const provider = createModelRuntime({ ...assembly.dependencies, send }, configuration)
+    unbox(await provider.runtime.calls.admit(f.admit))
+    const result = await provider.driver.drive(
+      { ...f.admit, operation: op('claim'), instance: instance(), continuity: proof(f.admit.call) },
+      signal(),
+    )
+    expect(result).toEqual({ ok: undefined })
+    const { state } = unbox(await assembly.dependencies.commands.loadRecovery(f.admit))
+    expect(state).toMatchObject({
+      phase: 'settled',
+      settlement: { termination: { kind: 'failed', fault } },
+    })
+    expect(f.counts()).toMatchObject({ starts: 0 })
+  },
+)
 
 for (const method of ['openReceiveWindow', 'recordSend', 'preserve'] as const)
   it(`recovers the original ${method} after a committed write throws without preparing again`, async () => {

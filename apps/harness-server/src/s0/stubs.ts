@@ -31,6 +31,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
   'session-input-sources': { provides: ['sessionInputSources'] },
+  'session-before-intake': { provides: ['sessionBeforeIntake'] },
   'session-history-index': { provides: ['sessionHistoryIndex'], phase: 'composition' },
   'session-search': {
     provides: ['sessionSearch'],
@@ -473,6 +474,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'model-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'schedule-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'notification-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'media-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'media-storage-sql': { provides: ['mediaIndex'], injects: ['storage', 'tenantDomainLookup'] },
+  'media-image': { provides: ['mediaImage'], injects: [] },
+  media: { provides: ['mediaStores', 'media'], injects: ['mediaIndex', 'mediaImage'] },
+  'media-storage-local': { injects: ['mediaStores'] },
+  'media-sweep': { injects: ['media', 'tenantDomains', 'tenantDomainScannerPrincipal'] },
+  'media-intake': { injects: ['media', 'sessionBeforeIntake'] },
+  'media-model-source': { provides: ['modelMediaSource'], injects: ['media'] },
+  'media-tool-store': { provides: ['toolMediaStore'], injects: ['media'] },
   'workspace-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }

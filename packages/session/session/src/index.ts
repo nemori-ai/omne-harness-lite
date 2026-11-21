@@ -1,4 +1,4 @@
-export type { BeforeAdmitSlot, Current, SessionDependencies } from './dependencies.ts'
+export type { Current, SessionDependencies } from './dependencies.ts'
 export {
   defaultSchedulingPolicy,
   type SchedulingPolicy,

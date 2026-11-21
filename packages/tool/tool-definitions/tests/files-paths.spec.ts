@@ -1,16 +1,18 @@
 import type { FacilityResult } from '@omne-harness/execution-environment-contract'
 import { expect, it } from 'vitest'
 import { createFilesAuthor, type FilesAuthorEnvironment } from '@omne-harness/tool-definitions'
-import { filesFixture } from './fixtures/files.ts'
+import { filesConstruction, filesFixture } from './fixtures/files.ts'
 import { run, value } from './run-author.ts'
 
 type Path = { readonly path: string }
 
 function construction(cwd?: string) {
+  const limits = filesConstruction()
+  if (limits.kind !== 'object') throw new Error('object')
   return {
     kind: 'object',
     entries: [
-      { key: 'resultMaxBytes', value: { kind: 'number', lexeme: '32768' } },
+      ...limits.entries,
       ...(cwd === undefined
         ? []
         : ([{ key: 'cwd', value: { kind: 'string', value: cwd } }] as const)),
@@ -44,6 +46,7 @@ function hostLike(
   const files = fixture.environment.files
   const environment: FilesAuthorEnvironment = {
     ...(directory === null ? {} : { directory }),
+    media: fixture.environment.media,
     files: {
       ...files,
       read: request => gate(request.path, () => files.read(request)),

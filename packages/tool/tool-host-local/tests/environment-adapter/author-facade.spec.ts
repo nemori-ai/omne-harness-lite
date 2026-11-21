@@ -63,6 +63,7 @@ describe('current file authorization', () => {
       lease,
       naming: { name },
       facts: { system: 'fixture', release: '1', architecture: 'fixture', facilities: ['files'] },
+      media: () => undefined,
     })
     expect(value.facts.os).toBe('fixture')
     expect(value.facts.system).toBe('fixture')
@@ -146,6 +147,7 @@ function fixture(
     lease,
     naming: { name },
     facts: { system: 'fixture', release: '1', architecture: 'fixture', facilities: ['files'] },
+    media: () => undefined,
   })
   // A placement that names no files root gives the author no directory: absent, not empty.
   expect('directory' in value).toBe(false)

@@ -589,6 +589,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
             inputCompatible: true,
             outputCompatible: true,
             attachmentsReadable: true,
+            productsStorable: true,
           })
         },
       },

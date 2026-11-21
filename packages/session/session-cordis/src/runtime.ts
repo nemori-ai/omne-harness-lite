@@ -40,8 +40,10 @@ export function startProvider(
     principals: ctx.sessionPrincipals,
     workPrincipals: ctx.sessionWorkPrincipals,
     admission: {
-      current: () => (config.admission === 'none' ? [] : null),
+      current: () =>
+        config.admission === 'none' ? [] : (ctx.get('sessionBeforeIntake')?.current() ?? null),
     },
+    sources: { current: () => ctx.get('sessionInputSources') ?? null },
   }
   const instance = createSessionInstance(dependencies, { policy: config.policy }, observers)
   const scanners = createScanners({ instance, removing: () => removing, diagnose })

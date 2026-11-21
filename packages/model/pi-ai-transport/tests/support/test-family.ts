@@ -9,7 +9,11 @@ import {
   type Supplier,
   type TransportFailure,
 } from '@omne-harness/model-contract'
-import type { ProviderDiagnostic, TransportFact } from '@omne-harness/model-contract/provider'
+import type {
+  ModelMediaLimits,
+  ProviderDiagnostic,
+  TransportFact,
+} from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   PiFamilyBinding,
@@ -85,6 +89,8 @@ export type FamilyProbe = {
   encodeFailure: TransportFailure | undefined
   replayFormat: string | null
   replayCarried: boolean
+  /** What this model takes of a referenced medium; null: it takes none. */
+  mediaLimits: ModelMediaLimits | null
 }
 
 export function createTestFamily(): Readonly<{
@@ -102,6 +108,7 @@ export function createTestFamily(): Readonly<{
     encodeFailure: undefined,
     replayFormat: null,
     replayCarried: false,
+    mediaLimits: null,
   }
   const families: PiFamilyContributions = {
     async acquire(supplier, signal) {
@@ -137,6 +144,7 @@ function binding(supplier: Supplier, probe: FamilyProbe): PiFamilyBinding {
     supplier,
     endpoint: 'chat-completions',
     adoption: adoption('family'),
+    mediaLimits: () => probe.mediaLimits,
     counting,
     rules: { plan: () => ({ failure: refused }) },
     meter: {

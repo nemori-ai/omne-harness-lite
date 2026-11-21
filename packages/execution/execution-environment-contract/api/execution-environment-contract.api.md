@@ -117,6 +117,13 @@
 - `RetainedTerminalLedger` · `ports.d.ts`
 - `Retirement` · `environment.d.ts`
 - `ScopeTerminalRetention` · `ports.d.ts`
+- `ScreenFacility` · `facilities/screen.d.ts`
+- `ScreenFrame` · `facilities/screen.d.ts`
+- `ScreenId` · `facilities/screen.d.ts`
+- `ScreenInfo` · `facilities/screen.d.ts`
+- `ScreenPoint` · `facilities/screen.d.ts`
+- `ScreenRegion` · `facilities/screen.d.ts`
+- `ScreenSize` · `facilities/screen.d.ts`
 - `TerminalFacility` · `facilities/terminal.d.ts`
 - `TerminalInformation` · `facilities/terminal.d.ts`
 - `TerminalRef` · `facilities/terminal.d.ts`
@@ -140,6 +147,7 @@
 - `executionHostFactsBlock` · `blocks.d.ts`
 - `executionPlacementBlock` · `blocks.d.ts`
 - `filesFacility` · `facilities/files.d.ts`
+- `imagePointOnScreen` · `facilities/screen.d.ts`
 - `inspectAcquisitionParamsSchema` · `operation-schemas.d.ts`
 - `inspectAcquisitionResultSchema` · `operation-schemas.d.ts`
 - `inspectRecoveryAcquisitionParamsSchema` · `operation-schemas.d.ts`
@@ -163,6 +171,8 @@
 - `releaseScopeResultSchema` · `operation-schemas.d.ts`
 - `resolvePlacementParamsSchema` · `operation-schemas.d.ts`
 - `resolvePlacementResultSchema` · `operation-schemas.d.ts`
+- `screenFacility` · `facilities/screen.d.ts`
+- `screenPointOnDesktop` · `facilities/screen.d.ts`
 - `terminalFacility` · `facilities/terminal.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
@@ -185,6 +195,9 @@
 - `ProviderConformanceOptions` · `testing/provider-conformance.d.ts`
 - `ProviderConformanceSubject` · `testing/provider-conformance.d.ts`
 - `ProviderScript` · `testing/doubles.d.ts`
+- `ScreenConformanceOptions` · `testing/screen-conformance.d.ts`
+- `ScreenConformanceSubject` · `testing/screen-conformance.d.ts`
+- `ScreenScript` · `testing/scripted-screen.d.ts`
 - `ScriptedCommandAnswer` · `testing/scripted-command.d.ts`
 - `ScriptedCommandFacility` · `testing/scripted-command.d.ts`
 - `ScriptedCommandOptions` · `testing/scripted-command.d.ts`
@@ -194,6 +207,7 @@
 - `ScriptedRecoveryAuthority` · `testing/doubles.d.ts`
 - `ScriptedRetentionStore` · `testing/scripted-command.d.ts`
 - `ScriptedScopeBindings` · `testing/doubles.d.ts`
+- `ScriptedScreenFacility` · `testing/scripted-screen.d.ts`
 - `ScriptedTerminalAnswer` · `testing/scripted-terminal.d.ts`
 - `ScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
 - `TerminalConformanceAcquisition` · `testing/terminal-conformance.d.ts`
@@ -210,10 +224,13 @@
 - `createScriptedRecoveryAuthority` · `testing/doubles.d.ts`
 - `createScriptedRetentionStore` · `testing/scripted-command.d.ts`
 - `createScriptedScopeBindings` · `testing/doubles.d.ts`
+- `createScriptedScreenFacility` · `testing/scripted-screen.d.ts`
 - `createScriptedTerminalFacility` · `testing/scripted-terminal.d.ts`
 - `environmentProviderConformance` · `testing/provider-conformance.d.ts`
 - `executionEnvironmentConformance` · `testing/environment-conformance.d.ts`
 - `runConformanceCase` · `testing/case.d.ts`
+- `screenFacilityConformance` · `testing/screen-conformance.d.ts`
+- `scriptedScreenPng` · `testing/scripted-screen.d.ts`
 - `terminalFacilityConformance` · `testing/terminal-conformance.d.ts`
 
 ## 声明文件 `binding.d.ts`
@@ -866,6 +883,59 @@ declare module '../facility.ts' {
 export declare const filesFacility: FacilityDescriptor<'files'>;
 ```
 
+## 声明文件 `facilities/screen.d.ts`
+
+```ts
+import { type FacilityDescriptor, type FacilityRequest, type FacilityResult } from '../facility.ts';
+export type ScreenId = string;
+export type ScreenPoint = {
+    readonly x: number;
+    readonly y: number;
+};
+export type ScreenSize = {
+    readonly width: number;
+    readonly height: number;
+};
+export type ScreenRegion = ScreenPoint & ScreenSize;
+export type ScreenInfo = {
+    readonly id: ScreenId;
+    readonly name: string;
+    readonly primary: boolean;
+    readonly pixels: ScreenSize;
+    readonly scale: number;
+    readonly origin: ScreenPoint;
+};
+export type ScreenFrame = {
+    readonly screen: ScreenInfo;
+    readonly region: ScreenRegion;
+    readonly image: ScreenSize & {
+        readonly mediaType: 'image/png';
+        readonly bytes: Uint8Array;
+    };
+    readonly takenAt: string;
+};
+export interface ScreenFacility<P> {
+    list(request: FacilityRequest<P>): Promise<FacilityResult<readonly ScreenInfo[]>>;
+    capture(request: FacilityRequest<P> & {
+        readonly screen: ScreenId | null;
+        readonly region: ScreenRegion | null;
+    }): Promise<FacilityResult<ScreenFrame>>;
+}
+declare module '../facility.ts' {
+    interface EnvironmentFacilities {
+        screen: ScreenFacility<unknown>;
+    }
+}
+export declare const screenFacility: FacilityDescriptor<'screen'>;
+type FrameGeometry = Readonly<{
+    image: ScreenSize;
+    region: ScreenRegion;
+}>;
+export declare function imagePointOnScreen(frame: FrameGeometry, point: ScreenPoint): ScreenPoint;
+export declare function screenPointOnDesktop(screen: Pick<ScreenInfo, 'scale' | 'origin'>, point: ScreenPoint): ScreenPoint;
+export {};
+```
+
 ## 声明文件 `facilities/terminal.d.ts`
 
 ```ts
@@ -999,6 +1069,8 @@ export { commandFacility } from './facilities/command.ts';
 export type { BetweenSegments, CommandFacility, CommandOutcome, CommandRetention, CommandRetentionOperation, Containment, OutputChunk, OutputCount, OutputPolicy, OutputSummary, ProcessHandle, ResidueReport, ResidueStopReason, RetainedOutput, RetainedOutputFrom, RetainedProcessInformation, RetainedProcessRef, RetainedStreamTail, } from './facilities/command.ts';
 export { terminalFacility } from './facilities/terminal.ts';
 export type { TerminalFacility, TerminalInformation, TerminalRef, TerminalRetention, TerminalRetentionOperation, } from './facilities/terminal.ts';
+export { imagePointOnScreen, screenFacility, screenPointOnDesktop } from './facilities/screen.ts';
+export type { ScreenFacility, ScreenFrame, ScreenId, ScreenInfo, ScreenPoint, ScreenRegion, ScreenSize, } from './facilities/screen.ts';
 export { createRecoveryAccess } from './ports.ts';
 export type { FacilityGuard, ManagedResource, RecoveryAccess, RecoveryAuthority, ResourceLedger, RetainedProcessLedger, RetainedTerminalLedger, ScopeTerminalRetention, } from './ports.ts';
 export type { AcquisitionInspection, AcquisitionQuery, AcquisitionState, Acquired, AllocationCleanup, AllocationFailed, LookupUnknown, OriginalAcquisition, OriginalInspection, RecoveryInspection, UnknownAcquisition, EnvironmentAdoption, EnvironmentLease, FacilitySet, InstanceIdentity, LeaseInvalidation, LeaseRelease, Pending, Placement, ProviderIdentity, RegistryInvalidationReason, RejectReason, Rejected, } from './lease.ts';
@@ -1612,6 +1684,8 @@ export { createMemoryFileSystem, type MemoryFileSystem, type MemoryFileSystemOpt
 export { createScriptedCommandFacility, createScriptedRetentionStore, type CommandScript, type ScriptedCommandAnswer, type ScriptedCommandFacility, type ScriptedCommandOptions, type ScriptedRetentionStore, } from './scripted-command.ts';
 export { createScriptedTerminalFacility, type TerminalScript, type ScriptedTerminalAnswer, type ScriptedTerminalFacility, } from './scripted-terminal.ts';
 export { terminalFacilityConformance, type TerminalConformanceAcquisition, type TerminalConformanceSubject, type TerminalConformanceOptions, } from './terminal-conformance.ts';
+export { createScriptedScreenFacility, scriptedScreenPng, type ScreenScript, type ScriptedScreenFacility, } from './scripted-screen.ts';
+export { screenFacilityConformance, type ScreenConformanceSubject, type ScreenConformanceOptions, } from './screen-conformance.ts';
 export { commandRetentionConformance, type CommandRetentionAcquisition, type CommandRetentionBody, type CommandRetentionOptions, type CommandRetentionSubject, } from './command-retention-conformance.ts';
 ```
 
@@ -1669,6 +1743,26 @@ export type ProviderConformanceOptions = Readonly<{
     waitMs?: number;
 }>;
 export declare function environmentProviderConformance(options: ProviderConformanceOptions): readonly ConformanceCase[];
+```
+
+## 声明文件 `testing/screen-conformance.d.ts`
+
+```ts
+import type { FacilityRequest, ScreenFacility } from '../index.ts';
+import { type ConformanceCase } from './case.ts';
+export type ScreenConformanceSubject = Readonly<{
+    facility: ScreenFacility<unknown>;
+    request(): FacilityRequest<unknown>;
+    control?: {
+        revoke(): void | Promise<void>;
+    };
+    dispose?(): Promise<void>;
+}>;
+export type ScreenConformanceOptions = Readonly<{
+    subject(): ScreenConformanceSubject | Promise<ScreenConformanceSubject>;
+    waitMs?: number;
+}>;
+export declare function screenFacilityConformance(options: ScreenConformanceOptions): readonly ConformanceCase[];
 ```
 
 ## 声明文件 `testing/scripted-command.d.ts`
@@ -1753,6 +1847,22 @@ export declare function createScriptedProcess({ mode, answer, identity, onStop, 
     onStop(record: ScriptedStopRecord): void;
 }): ScriptedProcess;
 export {};
+```
+
+## 声明文件 `testing/scripted-screen.d.ts`
+
+```ts
+import type { ScreenFacility, ScreenInfo } from '../index.ts';
+export type ScreenScript = Readonly<{
+    screens: readonly ScreenInfo[];
+    takenAt?: string;
+}>;
+export type ScriptedScreenFacility = Readonly<{
+    facility: ScreenFacility<unknown>;
+    revoke(): void;
+}>;
+export declare function scriptedScreenPng(width: number, height: number): Uint8Array;
+export declare function createScriptedScreenFacility(script: ScreenScript): ScriptedScreenFacility;
 ```
 
 ## 声明文件 `testing/scripted-terminal.d.ts`

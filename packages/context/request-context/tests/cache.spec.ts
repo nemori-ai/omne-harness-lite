@@ -10,7 +10,6 @@ import {
   createAssemblyFixture,
   createAssemblyGroups,
   createMemoryContextSources,
-  createMemoryConversionResults,
   createMemoryHistorySource,
   createScriptedInputMeter,
   createTestingPrincipalBinding,
@@ -89,7 +88,6 @@ function otherSession(f: AssemblyFixture): AssemblyFixture {
       history: { evidence: { ...history.evidence() }, inputs: base.inputs, transition: null },
     }),
     history,
-    conversions: createMemoryConversionResults<string>(),
     preparation: f.preparation,
   })
   return { ...f, target, history, sources }

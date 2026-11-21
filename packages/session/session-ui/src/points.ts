@@ -44,3 +44,43 @@ export const sessionCallDetail: Point<SessionCallSubject> = definePoint({
   name: SESSION_CALL_DETAIL,
   subject: sessionCallSubject,
 })
+
+function jsonSubject<S>(holds: (value: Record<string, unknown>) => boolean): PointCodec<S> {
+  return {
+    encode: value => JSON.stringify(value),
+    decode: text => {
+      try {
+        const value: unknown = JSON.parse(text)
+        const read = typeof value === 'object' && value !== null && !Array.isArray(value)
+        return read && holds(value as Record<string, unknown>) ? (value as S) : undefined
+      } catch {
+        return undefined
+      }
+    },
+  }
+}
+const texts = (value: Record<string, unknown>, names: readonly string[]): boolean =>
+  names.every(name => typeof value[name] === 'string')
+
+/** The message being written in a session: `draft` changes when it is sent or dropped. */
+export type SessionDraftSubject = Readonly<{ session: string; draft: string }>
+/** One block of a message that is not words, with the block as the history holds it. */
+export type SessionBlockSubject = Readonly<{
+  session: string
+  message: string
+  block: string
+  content: unknown
+}>
+
+export const SESSION_COMPOSER_ATTACHMENTS = 'session.composer-attachments'
+export const SESSION_BLOCK = 'session.block'
+
+export const sessionComposerAttachments: Point<SessionDraftSubject> = definePoint({
+  name: SESSION_COMPOSER_ATTACHMENTS,
+  subject: jsonSubject(value => texts(value, ['session', 'draft'])),
+})
+
+export const sessionBlock: Point<SessionBlockSubject> = definePoint({
+  name: SESSION_BLOCK,
+  subject: jsonSubject(value => texts(value, ['session', 'message', 'block'])),
+})

@@ -56,7 +56,15 @@ export const RELEASE_TOOLS = Object.freeze([
     package: TOOL_DEFINITIONS_PACKAGE,
     capabilities: Object.freeze([] as string[]),
     export: 'filesToolModule',
-    construction: Object.freeze(['resultMaxBytes', 'cwd']),
+    construction: Object.freeze([
+      'resultMaxBytes',
+      'cwd',
+      'openMaxBytes',
+      'imageMaxWidth',
+      'imageMaxHeight',
+      'imageMaxDecodedBytes',
+      'imageConcurrency',
+    ]),
   }),
   Object.freeze({
     name: 'Tools',
@@ -141,6 +149,20 @@ export const RELEASE_TOOLS = Object.freeze([
     capabilities: Object.freeze(['workspace.switch']),
     export: 'switchWorkspaceToolModule',
     construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Screen',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze(['screen.read']),
+    export: 'screenToolModule',
+    construction: Object.freeze([
+      'resultMaxBytes',
+      'captureMaxLongSide',
+      'imageMaxWidth',
+      'imageMaxHeight',
+      'imageMaxDecodedBytes',
+      'imageConcurrency',
+    ]),
   }),
 ] as const)
 

@@ -4,6 +4,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import type { Access, SourceLayer, ToolDefinition } from '@omne-harness/tool-contract'
 import {
   sameSourceLayer,
+  shapeOf,
   type ToolAuthority,
   type ToolLoadedRegistration,
 } from '@omne-harness/tool-contract/provider'
@@ -49,17 +50,38 @@ export function authorityFor(
   }
 }
 
+type LoadedOptions = Readonly<{ programmable?: boolean; commands?: readonly string[] }>
+
+function commanded(definition: ToolDefinition, names?: readonly string[]): ToolDefinition {
+  if (names === undefined || definition.kind !== 'function') return definition
+  const { kind: _, parameters, returns, ...metadata } = definition
+  return {
+    ...metadata,
+    kind: 'commands',
+    encoding: 'wrapped',
+    commands: names.map(name => ({
+      name,
+      summary: `Run ${name}.`,
+      parameters: { kind: 'declared', value: parameters },
+      returns,
+    })),
+  }
+}
+
 export function loadedFor(
   authority: ToolAuthority,
   digest = 'digest-1',
-  options: Readonly<{ programmable?: boolean }> = {},
+  options: LoadedOptions = {},
 ): ToolLoadedRegistration<unknown, ContentBlock> {
   const loaded = base.loaded(authority, digest)
   const definition: ToolDefinition = {
-    ...loaded.definition,
+    ...commanded(loaded.definition, options.commands),
     ...(options.programmable === undefined ? {} : { programmable: options.programmable }),
   }
-  return { ...loaded, definition } as unknown as ToolLoadedRegistration<unknown, ContentBlock>
+  return { ...loaded, definition, shape: shapeOf(definition) } as unknown as ToolLoadedRegistration<
+    unknown,
+    ContentBlock
+  >
 }
 
 export function scriptedVerifier(
@@ -102,7 +124,7 @@ export function register(
   access: Access<string>,
   authority: ToolAuthority,
   digest = 'digest-1',
-  options: Readonly<{ programmable?: boolean }> = {},
+  options: LoadedOptions = {},
 ) {
   return registry.register({
     ...access,

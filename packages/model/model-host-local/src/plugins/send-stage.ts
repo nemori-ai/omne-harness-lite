@@ -7,6 +7,7 @@ import {
   ModelSendBoundaryService,
   modelCommandsKey,
   modelCredentialKey,
+  modelMediaSourceKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { assembleLocalModel, type LocalModel, type LocalModelConfig } from '../assembly.ts'
 import { fieldOf, isIntegerAtLeast } from '../fields.ts'
@@ -16,7 +17,7 @@ import type { ModelReceiveEvidenceReader } from '../receive-evidence.ts'
 export type ModelSendStagePluginOptions<P = unknown> = Readonly<
   Omit<
     LocalModelConfig<P>,
-    'credentials' | 'commands' | 'maxRetainedAttempts' | 'onConnectRetry'
+    'credentials' | 'commands' | 'maxRetainedAttempts' | 'onConnectRetry' | 'media'
   > & {
     executionChannel?(): ReturnType<ModelInitialExecution<P>['openHost']>
     installMaterialization?(reader: ModelMaterializationEvidenceReader): () => void
@@ -123,6 +124,8 @@ export function sendStagePluginOver<P>(
           execution: channel?.qualifyExecution ?? options.materialization.execution,
         },
         maxRetainedAttempts: settings.maxRetainedAttempts,
+        // Asked at every read: the source may come and go while the send stage lives.
+        media: () => ctx.get(modelMediaSourceKey) ?? null,
         onConnectRetry: retry =>
           ctx.logger.warn(
             `model send: connect retry (call ${retry.call}, dispatch ${retry.dispatch}, retry ${retry.attempt}, delay ${retry.delayMs} ms, reason ${retry.reason})`,

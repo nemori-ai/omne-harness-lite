@@ -1,9 +1,10 @@
 import { organizationEquals, tenantEquals } from '@omne-harness/legal-identity'
-import type {
-  ModalityRequirement,
-  ModelFailure,
-  ProfileResolution,
-  ProfileScope,
+import {
+  profileCovers,
+  type ModalityRequirement,
+  type ModelFailure,
+  type ProfileResolution,
+  type ProfileScope,
 } from '@omne-harness/model-contract'
 import type { ModelChoices, ModelProfileSnapshot } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -52,11 +53,6 @@ function checkSnapshot(snapshot: ModelProfileSnapshot): ModelFailure | null {
   return null
 }
 
-function covers(candidate: Candidate, required: ModalityRequirement): boolean {
-  const input: readonly string[] = candidate.profile.definition.input
-  return required.modalities.every(modality => input.includes(modality))
-}
-
 function alive(
   snapshot: ModelProfileSnapshot,
   route: string,
@@ -89,7 +85,7 @@ function mostSpecific(
 
 function reasonsOf(winner: Candidate, required: ModalityRequirement): readonly Reason[] {
   const reasons: Reason[] = []
-  if (!covers(winner, required)) reasons.push('modality')
+  if (!profileCovers(winner.profile.definition, required)) reasons.push('modality')
   if (winner.locked) reasons.push('locked')
   return reasons
 }

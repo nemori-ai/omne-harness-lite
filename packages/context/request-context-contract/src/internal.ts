@@ -22,13 +22,16 @@ export function messageId(value: unknown): MessageId {
   if (!parsed.ok) throw new Error('Deterministic message identity is invalid')
   return parsed.value
 }
-export function textBlock(text: string, identity: unknown): TextContentBlock {
+export function blockIdentity(identity: unknown) {
   const parsed = judgeBlockIdentity({
     id: `rq_${digest(identity)}`,
     visibility: { toHuman: true, toModel: true },
   })
   if ('rejected' in parsed) throw new Error('Deterministic block identity is invalid')
-  return { kind: 'text', ...parsed.ok, text }
+  return parsed.ok
+}
+export function textBlock(text: string, identity: unknown): TextContentBlock {
+  return { kind: 'text', ...blockIdentity(identity), text }
 }
 export function reminder(text: string, identity: unknown): SystemReminderMessage {
   return { role: 'system_reminder', id: messageId(identity), blocks: [textBlock(text, identity)] }

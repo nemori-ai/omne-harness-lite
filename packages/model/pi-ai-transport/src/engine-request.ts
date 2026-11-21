@@ -1,3 +1,4 @@
+import type { MediaView } from './media.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
@@ -97,25 +98,43 @@ export function wiredParams(
   return { ok: params }
 }
 
-/** The body with the representation the meter makes of the same request. */
-export function materialize(
+type Represented<R> = Outcome<Readonly<{ body: JsonValue; representation: R }>, TransportFailure>
+type RepresentInput = Readonly<{
+  body: JsonValue
+  view: ProjectedRequest
+  representation: Adoption
+  media: MediaView
+}>
+
+/** The body with the representation the meter makes of the same request; pending while media are unread. */
+export function represented(
   binding: EngineBinding,
-  input: Readonly<{ body: JsonValue; view: ProjectedRequest; representation: Adoption }>,
-): Outcome<Readonly<{ body: JsonValue; representation: Materialized }>, TransportFailure> {
+  input: RepresentInput,
+): Represented<MeterRepresentation> {
   const shown = binding.meter.represent(input.view)
   if (!sameAdoption(shown.adoption, input.representation))
     return { failure: { kind: 'unsupported', field: 'representation', adapter: binding.adapter } }
-  return {
-    ok: {
-      body: input.body,
-      representation: {
-        kind: 'materialized',
-        adoption: shown.adoption,
-        tokenInput: shown.tokenInput,
-        units: shown.units,
-        media: [],
-        requestBytes: String(serializeBody(input.body).byteLength),
-      },
-    },
-  }
+  const { adoption, tokenInput, units } = shown
+  const common = { adoption, tokenInput, units, media: [...input.media.facts] }
+  const [first, ...rest] = input.media.pending
+  const representation: MeterRepresentation =
+    first === undefined
+      ? {
+          ...common,
+          kind: 'materialized',
+          requestBytes: String(serializeBody(input.body).byteLength),
+        }
+      : { ...common, kind: 'pending-media', references: [first, ...rest] }
+  return { ok: { body: input.body, representation } }
+}
+
+export function materialize(
+  binding: EngineBinding,
+  input: RepresentInput,
+): Represented<Materialized> {
+  const outcome = represented(binding, input)
+  if (!('ok' in outcome)) return outcome
+  const { body, representation } = outcome.ok
+  if (representation.kind === 'materialized') return { ok: { body, representation } }
+  return { failure: { kind: 'unsupported', field: 'media', adapter: binding.adapter } }
 }

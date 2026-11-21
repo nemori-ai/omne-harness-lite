@@ -269,6 +269,7 @@ export async function fixture(
           inputCompatible: true,
           outputCompatible: true,
           attachmentsReadable: true,
+          productsStorable: true,
         }),
     },
   })

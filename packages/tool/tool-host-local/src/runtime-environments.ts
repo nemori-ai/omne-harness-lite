@@ -1,6 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import '@omne-harness/execution-environment-cordis-contract/cordis'
-import { ToolEnvironmentService } from '@omne-harness/tool-cordis-contract/cordis'
+import {
+  ToolEnvironmentService,
+  toolMediaStoreKey,
+} from '@omne-harness/tool-cordis-contract/cordis'
 import {
   createLocalExecutionEnvironment,
   createLocalEnvironmentPlanResolver,
@@ -43,6 +46,7 @@ export function publishRuntimeEnvironment(
     store: input.store,
     plans,
     naming: input.environment.naming,
+    media: () => ctx.get(toolMediaStoreKey),
     cleanup: input.environment.cleanup,
     storage: {
       mode: 'production',

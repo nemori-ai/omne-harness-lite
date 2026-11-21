@@ -5,7 +5,6 @@ it('the root entry exports the factories and the initial values of the default s
   expect(Object.keys(root).sort()).toEqual([
     'DEFAULT_COMPACTION_POLICY',
     'DEFAULT_REPRESENTATION_CONFIG',
-    'createAbsentConversionResults',
     'createContextSourceRegistry',
     'createDefaultCompactionPolicy',
     'createDefaultRepresentationPolicy',
