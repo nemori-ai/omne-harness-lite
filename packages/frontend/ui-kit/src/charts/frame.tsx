@@ -1,4 +1,5 @@
 import { cn } from '../lib/utils.ts'
+import { Disclosure } from '../patterns/disclosure.tsx'
 import { UNKNOWN_TEXT } from './format.ts'
 
 export type ChartSeries = Readonly<{ key: string; label: string }>
@@ -63,10 +64,9 @@ export function ChartFrame({
         </p>
       )}
       {state !== 'empty' && (
-        <details className="omne-chart-table">
-          <summary>{copy.table}</summary>
+        <Disclosure className="omne-chart-table" label={copy.table}>
           {table}
-        </details>
+        </Disclosure>
       )}
     </figure>
   )

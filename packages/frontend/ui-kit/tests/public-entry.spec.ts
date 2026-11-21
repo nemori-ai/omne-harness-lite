@@ -70,7 +70,6 @@ const REST = [
   'formatNumber',
   'formatPercent',
   'LineChart',
-  'ReadingMeter',
   'ShareBar',
   'Sparkline',
   'StackedBarChart',

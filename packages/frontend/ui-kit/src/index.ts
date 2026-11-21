@@ -168,7 +168,7 @@ export {
 } from './charts/frame.tsx'
 export { formatAmount, formatNumber, formatPercent, UNKNOWN_TEXT } from './charts/format.ts'
 export { AreaChart, LineChart, StackedBarChart, type SeriesChartProps } from './charts/series.tsx'
-export { ReadingMeter, ShareBar, Sparkline, StatBlock, type SharePart } from './charts/simple.tsx'
+export { ShareBar, Sparkline, StatBlock, type SharePart } from './charts/simple.tsx'
 export { type Doing, type FigureMoment } from './ink/body.ts'
 export { InkBubble } from './ink/ink-bubble.tsx'
 export { type BubbleInk } from './ink/note-ink.ts'

@@ -51,10 +51,6 @@
   border-radius: var(--omne-radius-mark);
   background: currentColor;
 }
-.omne-chart-table summary {
-  color: var(--omne-ink-muted);
-  cursor: pointer;
-}
 .omne-chart-table table {
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
@@ -82,33 +78,6 @@
   padding: 0;
   list-style: none;
   color: var(--omne-ink-muted);
-}
-.omne-meter {
-  display: grid;
-  grid-template-columns: max-content minmax(4em, 1fr) max-content;
-  align-items: center;
-  gap: var(--omne-space-inline);
-  font-size: var(--omne-text-caption);
-}
-.omne-meter-label,
-.omne-meter-caption {
-  color: var(--omne-ink-muted);
-}
-.omne-meter-caption {
-  grid-column: 1 / -1;
-}
-.omne-meter-track {
-  width: 100%;
-  height: var(--omne-meter-track-height);
-}
-.omne-meter-rail {
-  color: var(--omne-chart-unknown);
-}
-.omne-meter-mark {
-  color: var(--omne-chart-axis);
-}
-.omne-meter[data-state='over'] .omne-meter-value {
-  color: var(--omne-danger-ink);
 }
 .omne-spark {
   display: inline-block;

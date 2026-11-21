@@ -96,65 +96,6 @@ export function ShareBar({
   )
 }
 
-export function ReadingMeter({
-  label,
-  percent,
-  mark = null,
-  caption,
-  unknownReason,
-  copy = CHART_COPY,
-}: {
-  readonly label: string
-  readonly percent: number | null
-  readonly mark?: number | null
-  readonly caption?: string
-  readonly unknownReason?: string
-  readonly copy?: ChartCopy
-}): React.JSX.Element {
-  if (percent === null)
-    return (
-      <div className="omne-meter" role="group" aria-label={label} data-state="unknown">
-        <span className="omne-meter-label">{label}</span>
-        <span className="omne-meter-value">
-          <Unknown copy={copy} />
-        </span>
-        {unknownReason !== undefined && <span className="omne-meter-caption">{unknownReason}</span>}
-      </div>
-    )
-  const filled = Math.min(Math.max(percent, 0), 100)
-  return (
-    <div className="omne-meter" data-state={percent > 100 ? 'over' : 'drawn'}>
-      <span className="omne-meter-label">{label}</span>
-      <svg
-        className="omne-meter-track"
-        viewBox="0 0 100 6"
-        preserveAspectRatio="none"
-        role="meter"
-        aria-label={label}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent}
-        aria-valuetext={`${formatNumber(percent)}%`}
-      >
-        <rect className="omne-meter-rail" fill="currentColor" x={0} y={0} width={100} height={6} />
-        <rect className={markClass(0)} fill="currentColor" x={0} y={0} width={filled} height={6} />
-        {mark !== null && (
-          <rect
-            className="omne-meter-mark"
-            fill="currentColor"
-            x={Math.min(mark, 100) - 0.5}
-            y={0}
-            width={1}
-            height={6}
-          />
-        )}
-      </svg>
-      <span className="omne-meter-value">{formatNumber(percent)}%</span>
-      {caption !== undefined && <span className="omne-meter-caption">{caption}</span>}
-    </div>
-  )
-}
-
 function runsOf(values: readonly (number | null)[], low: number, span: number): string[] {
   const step = values.length > 1 ? 100 / (values.length - 1) : 0
   const runs: string[] = []

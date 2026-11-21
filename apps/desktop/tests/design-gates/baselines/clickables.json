@@ -1,8 +1,6 @@
 {
   "gate": "clickables",
   "entries": {
-    "packages/frontend/ui-kit/src/charts/frame.tsx | native <details>": 1,
-    "packages/frontend/ui-kit/src/charts/frame.tsx | unmarked <summary>": 1,
     "packages/frontend/ui-kit/src/prose/prose.tsx | unmarked <a>": 1,
     "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | native <details>": 1,
     "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | unmarked <summary>": 1,

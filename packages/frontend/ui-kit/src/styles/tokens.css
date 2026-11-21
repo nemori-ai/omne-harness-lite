@@ -150,7 +150,6 @@
   --omne-scrollbar-gap: 3px;
   --omne-scrollbar-gap-hover: 2px;
   --omne-share-bar-height: 8px;
-  --omne-meter-track-height: 6px;
   --omne-page-column-width: 1200px;
   --omne-page-column-padding: 32px 40px 48px;
   --omne-dialog-width: 480px;
@@ -214,7 +213,6 @@
   --omne-scrollbar-gap: 2px;
   --omne-scrollbar-gap-hover: 2px;
   --omne-share-bar-height: 6px;
-  --omne-meter-track-height: 5px;
   --omne-page-column-width: 900px;
   --omne-page-column-padding: 24px 30px 36px;
   --omne-dialog-width: 360px;
@@ -274,7 +272,6 @@
   --omne-scrollbar-gap: 4px;
   --omne-scrollbar-gap-hover: 2px;
   --omne-share-bar-height: 10px;
-  --omne-meter-track-height: 7px;
   --omne-page-column-width: 1500px;
   --omne-page-column-padding: 40px 50px 60px;
   --omne-dialog-width: 600px;
@@ -335,7 +332,6 @@
   --omne-scrollbar-gap: 4px;
   --omne-scrollbar-gap-hover: 3px;
   --omne-share-bar-height: 12px;
-  --omne-meter-track-height: 9px;
   --omne-page-column-width: 1800px;
   --omne-page-column-padding: 48px 60px 72px;
   --omne-dialog-width: 720px;
