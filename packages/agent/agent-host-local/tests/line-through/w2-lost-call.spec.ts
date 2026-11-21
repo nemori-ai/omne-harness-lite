@@ -8,12 +8,17 @@ const LOCK = { owner: 'test-host', record: 'state-lock', revision: '1', digest: 
 
 it('closes a main call the Model lost in the Session log Journal, and a new call completes the Run', async () => {
   const hold = Promise.withResolvers<void>()
+  const second = Promise.withResolvers<void>()
   let lost: ModelInvocationRef | 'next' | null = null
   const w = await openW2World({
     model: a =>
       a.index === 0
         ? { parts: [replyText('late', 'the late reply')], reason: 'stop', hold: hold.promise }
-        : { parts: [replyText(`reply-${a.index}`, 'the second reply')], reason: 'stop' },
+        : {
+            parts: [replyText(`reply-${a.index}`, 'the second reply')],
+            reason: 'stop',
+            hold: second.promise,
+          },
     wrapAgentDependencies: dependencies => ({
       ...dependencies,
       models: {
@@ -47,12 +52,8 @@ it('closes a main call the Model lost in the Session log Journal, and a new call
     w.clock.advanceTo(due)
     await w.until(() => w.modelCalls.length === 2, 10_000)
     expect(w.modelCalls[1]).not.toBe(w.modelCalls[0])
-
-    await w.until(async () => (await w.lastOutcome()) !== null, 20_000)
-    expect(await w.lastOutcome()).toBe('completed')
-    const ended = ok(await w.fresh().load(access))
-    expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
-    expect(ended.checkpoint.voided).toEqual([
+    const asking = ok(await w.probeLog.load(access))
+    expect(asking.checkpoint.voided).toEqual([
       expect.objectContaining({
         kind: 'model',
         step: 'step-1',
@@ -61,11 +62,20 @@ it('closes a main call the Model lost in the Session log Journal, and a new call
         basis: LOCK,
       }),
     ])
-    expect(Object.hasOwn(ended.checkpoint, 'modelRetry')).toBe(false)
+    expect(Object.hasOwn(asking.checkpoint, 'modelRetry')).toBe(false)
+
+    second.resolve()
+    await w.until(async () => (await w.lastOutcome()) !== null, 20_000)
+    expect(await w.lastOutcome()).toBe('completed')
     expect(w.modelCalls).toHaveLength(2)
     expect(w.endedRuns()).toHaveLength(1)
+    const [ended] = w.endedRuns()
+    expect(ended?.execution).toBe(first)
+    expect(await w.runEnd(ended!.run)).toEqual({ conclusion: 'complete', failure: null })
+    await w.until(() => w.settled(first), 10_000)
   } finally {
     hold.resolve()
+    second.resolve()
     await w.close()
   }
 })

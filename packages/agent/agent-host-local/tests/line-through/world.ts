@@ -684,12 +684,14 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   }
   const receivedProvider = options.reception === 'routed' ? routedProvider() : sessionLog
 
-  const probeLog = createSessionLogJournal<unknown>({
+  const probeView = createSessionLogJournal<unknown>({
     storage: seeing,
     tenantDomainLookup: lookup,
     sessionAccessCheck: sessionChecks as never,
     combination,
-  }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId }).journal
+  }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId })
+  const probeLog = probeView.journal
+  const probeEntries = probeView.entries
 
   const access = createScriptedAccessCheck<unknown>()
   const adoptions = createTableAdoptions<unknown>()
@@ -1127,6 +1129,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     transactions: pair.transactions,
     probe: probe.transactions,
     probeLog,
+    probeEntries,
     intake,
     bindings,
     journal,
