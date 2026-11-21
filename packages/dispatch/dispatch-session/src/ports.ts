@@ -1,10 +1,10 @@
 import type { PortRead } from '@omne-harness/dispatch'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
+  ForkPoint,
   HistoryPage,
   InputFate,
   InputId,
-  ModelViewRow,
   Modes,
   RoutedInput,
   RunId,
@@ -25,15 +25,11 @@ type Write = At & Readonly<{ operation: SessionOperationId }>
 /** What a dispatch fixes of the session it creates. The assembly adds what the definition and the release fix. */
 export type CreationOfDispatch = Readonly<{
   agent: string
-  standing: Required<Pick<SessionCreation, 'relation' | 'attendance' | 'initial'>>
+  standing: Required<Pick<SessionCreation, 'relation' | 'attendance' | 'initial'>> &
+    Pick<SessionCreation, 'fork'>
   workspace: WorkspaceSelection | null
   /** The whole modes of a child session. Null: the session takes the defaults of its tenant. */
   modes: Modes | null
-}>
-
-export type ModelView = Readonly<{
-  epoch: string
-  rows: readonly Pick<ModelViewRow, 'seq' | 'bytes' | 'message'>[]
 }>
 
 /** The calls of Session a dispatch makes. The first three are made as the system principal of dispatch;
@@ -48,6 +44,6 @@ export type SessionCalls = Readonly<{
   history(
     input: At & Readonly<{ kinds: readonly string[]; cursor: string | null; pageBytes: number }>,
   ): Promise<Called<HistoryPage>>
-  /** The view up to a moment, or all of it for null. `gone`: the view of that moment was replaced since. */
-  view(input: At & Readonly<{ moment: string | null }>): Promise<PortRead<ModelView | 'gone'>>
+  /** The point the session can be forked at now, read as the session itself; null when it has none. */
+  forkPoint(input: At): Promise<PortRead<ForkPoint | null>>
 }>

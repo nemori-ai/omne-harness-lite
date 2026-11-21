@@ -98,7 +98,7 @@ const lateDispatch = (body: string) =>
 
 describe('the Agents tool on the release tree', () => {
   it(
-    'spawns an agent that starts from the conversation as it was when the work was dispatched, and from nothing said after',
+    'spawns an agent whose session is forked from the conversation as it was when the work was dispatched',
     { tags: ['slow'], timeout: 300_000 },
     async () => {
       const seen = { child: '' }
@@ -107,14 +107,18 @@ describe('the Agents tool on the release tree', () => {
       const script = toolCallsByRequest(body => {
         if (body.includes(DISPATCHED)) {
           seen.child ||= body
-          return answered(body) ? [] : [call('c_report', 'report', { text: 'I know the word' })]
+          return answered(body.slice(body.indexOf(DISPATCHED)))
+            ? []
+            : [call('c_report', 'report', { text: 'I know the word' })]
         }
         if (body.includes('agents: spawn now') && !answered(body))
           return [spawn('c_spawn', 'Tell me the code word.')]
         return []
       })
+      // More than the two hundred thousand bytes a copied conversation was once held to.
+      const long = `Remember: the code word is HERON. ${'filler words. '.repeat(20_000)}`
       const exitCode = await onReleaseTree({ ...OPTIONS, script }, async tree => {
-        const parent = await tree.startSession('Remember: the code word is HERON.')
+        const parent = await tree.startSession(long)
         await settled(tree, parent)
         const sent = await tree.cli([
           'send-input',
@@ -129,28 +133,38 @@ describe('the Agents tool on the release tree', () => {
         const [dispatch] = await (await registryAs(tree, parent)).made()
         if (dispatch === undefined) throw new Error('no dispatch')
         expect(dispatch).toMatchObject({ mode: 'spawn', state: 'reported' })
-        expect(dispatch.context).toMatch(/^\["[^"]+","\d+"\]$/u)
+        expect(dispatch.context).toMatch(/^\["[^"]+","\d+","\d+"\]$/u)
 
+        // The input of the dispatched session holds the work alone; the conversation is not in it.
         const child = await historyOf(tree, dispatch.session)
-        const [starting] = reminders(child)
-        expect(child[0]?.kind).toBe('message.system_reminder')
-        expect(starting).toContain(
-          'It starts from a copy of the conversation of the dispatching session',
-        )
-        expect(starting).toContain('User:\\nRemember: the code word is HERON.')
-        expect(starting).toContain('User:\\nagents: spawn now')
+        const told = reminders(child)
+        const starting = told.find(text => text.includes(DISPATCHED))
+        expect(starting).toContain('This session is forked from the dispatching session')
         expect(starting).toContain('Work:\\nTell me the code word.')
-        expect(starting).not.toContain('called the tool Agents')
-        expect(seen.child).toContain('the code word is HERON')
+        expect(JSON.stringify(child)).not.toContain('the code word is HERON')
+        // Its first runtime context reminder is the whole snapshot: it is told in a scope of its own.
+        const context = told.filter(text => text.includes('Runtime context: '))
+        expect(context[0]).toContain('Runtime context: the current values')
 
-        const said = await tree.cli([
+        // Its first model request is given the conversation of the dispatcher, then its own rows.
+        expect(Buffer.byteLength(seen.child)).toBeGreaterThan(200_000)
+        const said = seen.child.indexOf('the code word is HERON')
+        const asked = seen.child.indexOf('agents: spawn now')
+        const work = seen.child.indexOf(DISPATCHED)
+        expect(said).toBeGreaterThan(-1)
+        expect(asked).toBeGreaterThan(said)
+        expect(work).toBeGreaterThan(asked)
+        expect(seen.child).not.toContain('c_spawn')
+        expect(seen.child).not.toContain('It starts from a copy of the conversation')
+
+        const later = await tree.cli([
           'send-input',
           '--session',
           parent,
           '--text',
           'The word changed to EGRET.',
         ])
-        expect(said.status, said.stderr).toBe(0)
+        expect(later.status, later.stderr).toBe(0)
         await settled(tree, parent, 3)
         expect(JSON.stringify(await historyOf(tree, dispatch.session))).not.toContain('EGRET')
         expect(JSON.stringify(await historyOf(tree, parent))).not.toContain(dispatch.session + '/')

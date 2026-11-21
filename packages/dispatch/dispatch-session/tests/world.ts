@@ -77,7 +77,7 @@ export function world() {
     modes: input => answer('modes', input, script.modes),
     cancelRun: input => answer('cancelRun', input, script.cancel),
     history: input => answer('history', input, script.pages.shift() ?? denied),
-    view: input => answer('view', input, { kind: 'unavailable' } as const),
+    forkPoint: input => answer('forkPoint', input, { kind: 'unavailable' } as const),
   }
   const sessions = createDispatchSessions(port)
   const made = (name: string) => calls.filter(call => call.name === name).map(call => call.input)

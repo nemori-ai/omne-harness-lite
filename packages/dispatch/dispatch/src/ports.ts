@@ -27,10 +27,9 @@ export type PortRead<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kind
 export type ContextMoment =
   | Readonly<{ kind: 'moment'; moment: string }>
   | Readonly<{ kind: 'none' }>
-  | Readonly<{ kind: 'too-large' }>
 
 export interface ContextCopies {
-  /** Fixes the moment of the dispatcher's conversation the dispatching call was made in: the copy read later by it is the same. */
+  /** Fixes the moment of the dispatcher's conversation its session of a spawn is forked at: a text only stored and handed on. */
   moment(tenant: TenantId, dispatcher: SessionRef, call: string): Promise<PortRead<ContextMoment>>
 }
 

@@ -7,6 +7,7 @@ import {
   count,
   DOMAIN,
   epochOf,
+  messageText,
   remind,
   rowsOf,
   seedRows,
@@ -330,6 +331,40 @@ describe('a create with a source is judged against what the source shows', () =>
     expect((await rowsOf(a, 'child-1')).rows).toEqual(
       (await rowsOf(a, 'session-1')).rows.slice(0, 2),
     )
+  })
+
+  it('forks from the epoch of the point after the source left it for a new one', async () => {
+    const a = await source(2)
+    seedRows(a, 'session-1', 1, 'assistant')
+    const point = { ...(await wholeOf(a, 'session-1')), upper: '2' }
+    const prefix = (await rowsOf(a, 'session-1')).rows.slice(0, 2)
+    // The source compacts between the moment and the create: its journal names a new epoch.
+    a.provider.seed(
+      DOMAIN,
+      "UPDATE sl_journal SET epoch = 'epoch:900' WHERE tenant = ? AND session = 'session-1'",
+      [T],
+    )
+    a.provider.seed(
+      DOMAIN,
+      'INSERT INTO sl_model_view (tenant, session, epoch, seq, entry, bytes, prefix_digest, message) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        T,
+        'session-1',
+        'epoch:900',
+        1n,
+        '900',
+        1n,
+        'd',
+        messageText('user', 'what the new epoch kept'),
+      ],
+    )
+    expect((await rowsOf(a, 'session-1')).basis.epoch).toBe(epochOf('session-1', 'epoch:900'))
+    ok(
+      await a.create(TENANT_A, 'child-1', childOf('session-1', point)),
+      'fork of the epoch it left',
+    )
+    expect((await rowsOf(a, 'child-1')).rows).toEqual(prefix)
+    expect(segments(a, 'child-1')).toEqual([['epoch:0', 2n, 'session-1', 'epoch:0']])
   })
 
   it('recalls the same create and keeps one source row', async () => {

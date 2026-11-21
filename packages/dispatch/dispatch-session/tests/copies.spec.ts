@@ -1,56 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionRef } from '@omne-harness/dispatch-contract'
-import { sourceRequestIdentities } from '@omne-harness/session-contract'
 import {
-  CONTEXT_COPY_MAX_BYTES,
-  DISPATCH_SOURCES,
-  createContextCopies,
-  type ModelView,
-} from '../src/index.ts'
-import { transcriptOf } from '../src/transcript.ts'
+  forkPointText,
+  sourceRequestIdentities,
+  type ForkPoint,
+} from '@omne-harness/session-contract'
+import { DISPATCH_SOURCES, createContextCopies } from '../src/index.ts'
 import { LEGAL_TENANT, OTHER_TENANT, PARENT, TENANT, dispatchOf, world } from './world.ts'
 
-const seen = { toHuman: true, toModel: true }
-const text = (value: string, visibility = seen) => ({
-  kind: 'text',
-  id: 'b',
-  visibility,
-  text: value,
-})
-const row = (seq: number, role: string, blocks: unknown[], bytes = 100) => ({
-  seq: String(seq),
-  bytes,
-  message: { id: `m${String(seq)}`, role, blocks },
-})
-const called = (name: string, args: unknown) => ({
-  kind: 'tool_call',
-  id: 'c',
-  visibility: seen,
-  callId: 'call',
-  name,
-  arguments: args,
-})
-const object = (members: Record<string, string>) => ({
-  kind: 'object',
-  entries: Object.entries(members).map(([key, value]) => ({
-    key,
-    value: { kind: 'string', value },
-  })),
-})
-const CONVERSATION = [
-  row(1, 'user', [text('The code word is HERON.')]),
-  row(2, 'assistant', [text('Noted.')]),
-  row(3, 'user', [text('Now hand it on.')]),
-  row(4, 'assistant', [called('Agents', object({ command: 'dispatch' }))]),
-]
-const view = (rows: unknown[], epoch = 'epoch-1'): ModelView => ({ epoch, rows }) as never
-const moment = (epoch: string, upper: string) => JSON.stringify([epoch, upper])
+const POINT: ForkPoint = { epoch: 'key/epoch:0', upper: '3', position: '44' }
+const read = (value: unknown) => ({ kind: 'read', value })
 
 function copies(answer: unknown) {
   const w = world()
   const asked: unknown[] = []
   Object.assign(w.port, {
-    view: async (input: unknown) => {
+    forkPoint: async (input: unknown) => {
       asked.push(input)
       if (answer instanceof Error) throw answer
       return answer
@@ -58,129 +23,42 @@ function copies(answer: unknown) {
   })
   return { ...w, asked, copies: createContextCopies(w.port) }
 }
-const read = (value: unknown) => ({ kind: 'read', value })
 
-describe('the moment a spawn copies', () => {
-  it('is the row before the last assistant message: the input of the model request the call was made in', async () => {
-    const c = copies(read(view(CONVERSATION)))
+describe('the moment of a spawn', () => {
+  it('is the point Session names for the dispatching session, handed on as one text', async () => {
+    const c = copies(read(POINT))
     expect(await c.copies.moment(TENANT, PARENT, 'call-1')).toEqual(
-      read({ kind: 'moment', moment: moment('epoch-1', '3') }),
+      read({ kind: 'moment', moment: forkPointText(POINT) }),
     )
-    expect(c.asked).toEqual([{ tenant: LEGAL_TENANT, session: PARENT, moment: null }])
+    expect(c.asked).toEqual([{ tenant: LEGAL_TENANT, session: PARENT }])
   })
 
-  it('does not take a later tool result for the end of the conversation', async () => {
-    const later = [...CONVERSATION, row(5, 'tool', [text('a sibling call returned')])]
-    expect(await copies(read(view(later))).copies.moment(TENANT, PARENT, 'call-1')).toEqual(
-      read({ kind: 'moment', moment: moment('epoch-1', '3') }),
-    )
-  })
-
-  it.each([
-    ['there is no assistant message', [row(1, 'user', [text('hi')])]],
-    ['nothing was said before the assistant message', [row(1, 'assistant', [text('hi')])]],
-    ['the view is empty', []],
-  ])('gives none when %s', async (_name, rows) => {
-    expect(await copies(read(view(rows))).copies.moment(TENANT, PARENT, 'call-1')).toEqual(
+  it('is none when the session names no point, and for a tenant text that is no tenant without asking', async () => {
+    expect(await copies(read(null)).copies.moment(TENANT, PARENT, 'call-1')).toEqual(
       read({ kind: 'none' }),
     )
-  })
-
-  it('is too large when the rows it would copy pass the limit, and counts no row after the moment', async () => {
-    const half = CONTEXT_COPY_MAX_BYTES / 2
-    const fits = [
-      row(1, 'user', [text('a')], half),
-      row(2, 'user', [text('b')], half),
-      row(3, 'assistant', [text('c')], half),
-    ]
-    expect(await copies(read(view(fits))).copies.moment(TENANT, PARENT, 'call-1')).toEqual(
-      read({ kind: 'moment', moment: moment('epoch-1', '2') }),
+    const stranger = copies(read(POINT))
+    expect(await stranger.copies.moment(OTHER_TENANT, PARENT, 'call-1')).toEqual(
+      read({ kind: 'none' }),
     )
-    const over = [row(1, 'user', [text('a')], half), row(2, 'user', [text('b')], half + 1), fits[2]]
-    expect(await copies(read(view(over))).copies.moment(TENANT, PARENT, 'call-1')).toEqual(
-      read({ kind: 'too-large' }),
-    )
+    expect(stranger.asked).toEqual([])
   })
 
   it.each([
-    ['the view cannot be read', { kind: 'unavailable' }],
+    ['the point cannot be read', { kind: 'unavailable' }],
     ['the read is thrown', new Error('down')],
   ])('is unreadable when %s', async (_name, answer) => {
     expect(await copies(answer).copies.moment(TENANT, PARENT, 'call-1')).toEqual({
       kind: 'unavailable',
     })
   })
-
-  it('gives none for a view that is gone, and for a tenant text that is no tenant without asking', async () => {
-    expect(await copies(read('gone')).copies.moment(TENANT, PARENT, 'call-1')).toEqual(
-      read({ kind: 'none' }),
-    )
-    const stranger = copies(read(view(CONVERSATION)))
-    expect(await stranger.copies.moment(OTHER_TENANT, PARENT, 'call-1')).toEqual(
-      read({ kind: 'none' }),
-    )
-    expect(stranger.asked).toEqual([])
-  })
-})
-
-describe('the conversation as the starting input words it', () => {
-  it('writes each message the model saw under who said it, and a tool call as text', () => {
-    const hidden = text('not for the model', { toHuman: true, toModel: false })
-    const rows = [
-      row(1, 'system_reminder', [text('A reminder.')]),
-      row(2, 'user', [text('First.'), text('Second.'), hidden]),
-      row(3, 'assistant', [
-        text('I will look.'),
-        called('Files', object({ command: 'read', path: 'a.txt' })),
-        { kind: 'reasoning_state', id: 'r', visibility: { toHuman: false, toModel: true } },
-      ]),
-      row(4, 'tool', [
-        { kind: 'tool_result', id: 't', visibility: seen, callId: 'call' },
-        text('contents'),
-      ]),
-      row(5, 'assistant', [{ kind: 'reasoning_state', id: 'r', visibility: seen }]),
-      row(6, 'compaction', [text('Earlier, in short.')]),
-      row(8, 'tool_internal', [text('kept by the tool')]),
-      row(9, 'assistant', [
-        {
-          kind: 'tool_call_incomplete',
-          id: 'p',
-          visibility: seen,
-          callId: 'c',
-          name: 'Shell',
-          partial: '{',
-        },
-        {
-          kind: 'tool_call_unparsed',
-          id: 'u',
-          visibility: seen,
-          callId: 'c',
-          name: 'Web',
-          raw: 'x',
-        },
-      ]),
-      row(7, 'user', [{ kind: 'image', id: 'i', visibility: seen }]),
-    ]
-    expect(transcriptOf(rows.map(item => item.message) as never)).toBe(
-      [
-        'System reminder:\nA reminder.',
-        'User:\nFirst.\nSecond.',
-        'Assistant:\nI will look.\n[called the tool Files with {"command":"read","path":"a.txt"}]',
-        'Tool result:\ncontents',
-        'Summary of the earlier conversation:\nEarlier, in short.',
-        'Tool result:\nkept by the tool',
-        'Assistant:\n[called the tool Shell]\n[called the tool Web]',
-        'User:\n[image]',
-      ].join('\n\n'),
-    )
-  })
 })
 
 describe('the session of a spawn', () => {
-  const spawned = (context: string | null = moment('epoch-1', '3')) =>
+  const spawned = (context: string | null = forkPointText(POINT)) =>
     dispatchOf({ mode: 'spawn', context, instruction: 'Check the word.', expectation: null })
-  const create = async (answer: unknown, dispatch = spawned()) => {
-    const c = copies(answer)
+  const create = async (dispatch = spawned()) => {
+    const c = copies(read(POINT))
     const identities = sourceRequestIdentities({
       tenant: LEGAL_TENANT,
       source: DISPATCH_SOURCES.instruction,
@@ -191,54 +69,74 @@ describe('the session of a spawn', () => {
       dispatch,
       permission: 'never',
     })
-    const [call] = c.made('create') as [
-      { creation: { standing: { initial: { message: { blocks: [{ text: string }] } } } } }?,
-    ]
-    return { ...c, created, input: call?.creation.standing.initial.message.blocks[0].text }
+    type Made = {
+      creation: {
+        standing: { fork?: unknown; initial: { message: { blocks: [{ text: string }] } } }
+      }
+    }
+    const [call] = c.made('create') as [Made?]
+    return {
+      ...c,
+      created,
+      standing: call?.creation.standing,
+      input: call?.creation.standing.initial.message.blocks[0].text,
+    }
   }
 
-  it('starts from the copy of the conversation read by the moment of the dispatch, then the work', async () => {
-    const { created, input, asked } = await create(read(view(CONVERSATION.slice(0, 3))))
+  it('is forked from the dispatching session at the moment of the dispatch, and reads no view to be made', async () => {
+    const { created, standing, asked, calls } = await create()
     expect(created).toEqual({ kind: 'created' })
-    expect(asked).toEqual([
-      { tenant: LEGAL_TENANT, session: PARENT, moment: moment('epoch-1', '3') },
-    ])
-    expect(input).toContain('It starts from a copy of the conversation of the dispatching session')
-    expect(input).toContain(
-      'User:\nThe code word is HERON.\n\nAssistant:\nNoted.\n\nUser:\nNow hand it on.',
-    )
-    expect(input?.endsWith('Now hand it on.\n\nEnd of the copy.\n\nWork:\nCheck the word.')).toBe(
-      true,
-    )
-    expect(input?.indexOf('HERON')).toBeLessThan(input?.indexOf('Work:') ?? 0)
+    expect(standing?.fork).toEqual({ source: PARENT, point: POINT })
+    expect(asked).toEqual([])
+    expect(calls.map(call => call.name)).toEqual(['work', 'modes', 'create'])
+  })
+
+  it('starts from the work alone: the conversation is in its prefix, not in its input', async () => {
+    const { input } = await create()
+    expect(input).toContain('This session is forked from the dispatching session')
+    expect(input?.endsWith('Work:\nCheck the word.')).toBe(true)
+    expect(input).not.toContain('copy of the conversation')
+    expect(Buffer.byteLength(input ?? '')).toBeLessThan(2000)
   })
 
   it.each([
-    ['the view cannot be read now', { kind: 'unavailable' }, { kind: 'unknown' }],
-    ['the read is thrown', new Error('down'), { kind: 'unknown' }],
-    [
-      'the conversation was replaced since',
-      read('gone'),
-      {
-        kind: 'failed',
-        detail: 'the conversation of the dispatching session was compacted since the dispatch',
-      },
-    ],
-  ])('creates nothing when %s', async (_name, answer, expected) => {
-    const { created, made } = await create(answer)
-    expect(created).toEqual(expected)
+    ['holds no moment', null],
+    ['holds a moment that does not read back', '["key/epoch:0","3"]'],
+    ['holds a moment that is no such text', 'moment-1'],
+  ])('creates nothing for a spawn that %s', async (_name, context) => {
+    const { created, made } = await create(spawned(context))
+    expect(created).toEqual({
+      kind: 'failed',
+      detail: 'the spawn has no moment to fork its session at',
+    })
     expect(made('create')).toEqual([])
   })
 
-  it('creates nothing for a spawn that has no moment, and reads no view for a delegate', async () => {
-    const lost = await create(read(view(CONVERSATION)), spawned(null))
-    expect(lost.created).toEqual({ kind: 'failed', detail: 'the spawn has no moment to copy' })
-    const plain = await create(
-      read(view(CONVERSATION)),
-      dispatchOf({ mode: 'delegate', context: null }),
-    )
-    expect(plain.created).toEqual({ kind: 'created' })
-    expect(plain.asked).toEqual([])
-    expect(plain.input).not.toContain('copy of the conversation')
+  it('gives the session of a delegate and of a handoff no source and no word of a fork', async () => {
+    for (const mode of ['delegate', 'handoff'] as const) {
+      const plain = await create(dispatchOf({ mode, context: forkPointText(POINT) }))
+      expect(plain.created).toEqual({ kind: 'created' })
+      expect(plain.standing).not.toHaveProperty('fork')
+      expect(plain.input).not.toContain('forked')
+    }
+  })
+
+  it('answers what Session says of a point that does not hold, and does not know while Session cannot say', async () => {
+    const refused = copies(read(POINT))
+    refused.script.create = {
+      failure: { kind: 'invalid', field: 'creation.fork.point', reason: 'not-a-boundary' },
+    }
+    const session = sourceRequestIdentities({
+      tenant: LEGAL_TENANT,
+      source: DISPATCH_SOURCES.instruction,
+      request: spawned().id,
+    }).session as unknown as SessionRef
+    const toCreate = { session, dispatch: spawned(), permission: 'never' } as const
+    expect(await refused.sessions.create(TENANT, toCreate)).toEqual({
+      kind: 'failed',
+      detail: 'invalid: creation.fork.point: not-a-boundary',
+    })
+    refused.script.create = { failure: { kind: 'unavailable', owner: 'o', diagnostic: 'd' } }
+    expect(await refused.sessions.create(TENANT, toCreate)).toEqual({ kind: 'unknown' })
   })
 })
