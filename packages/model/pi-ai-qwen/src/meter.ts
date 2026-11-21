@@ -1,5 +1,5 @@
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
-import type { MediaMeasurementFact, TransportFailure } from '@omne-harness/model-contract'
+import type { TransportFailure } from '@omne-harness/model-contract'
 import type { ModelTextTokenizer } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
@@ -34,13 +34,12 @@ function arr(items: readonly JsonValue[]): JsonValue {
   return { kind: 'array', items }
 }
 
-// Speech is not counted: the o200k proxy has no rule for it, as the OpenAI meter has none.
+// Speech is not counted: the o200k proxy has no rule for it, as the OpenAI meter has none. The
+// projection refuses an image for this record before the meter sees the request.
 function partJson(part: ProjectedPart): JsonValue | null {
   switch (part.kind) {
     case 'text':
       return obj({ type: str('text'), text: str(part.text) })
-    case 'image':
-      return obj({ type: str('image') })
     case 'tool_call':
       return obj({
         type: str('tool_call'),
@@ -57,15 +56,8 @@ function partJson(part: ProjectedPart): JsonValue | null {
       })
     case 'tool_result':
       return obj({ type: str('tool_result'), id: str(part.callId) })
-    case 'thinking':
-    case 'tool_call_incomplete':
-    case 'voice':
-    case 'file':
+    default:
       return null
-    default: {
-      const _exhaustive: never = part
-      return _exhaustive
-    }
   }
 }
 
@@ -136,7 +128,7 @@ export function representationOf(
   return { tokenInput, units: units.map(unit => unit.message) }
 }
 
-type UnitContent = Readonly<{ images: number; reasoning: boolean }>
+type UnitContent = Readonly<{ reasoning: boolean }>
 
 function memberOf(value: JsonValue, key: string): JsonValue | undefined {
   return value.kind === 'object' ? value.entries.find(entry => entry.key === key)?.value : undefined
@@ -149,32 +141,13 @@ function contentOf(tokenInput: JsonValue): readonly UnitContent[] | null {
   for (const message of messages.items) {
     const content = memberOf(message, 'content')
     if (content?.kind !== 'array') return null
-    let images = 0
-    for (const part of content.items) {
-      const type = memberOf(part, 'type')
-      if (type?.kind !== 'string') return null
-      if (type.value === 'image') images += 1
-    }
-    units.push({ images, reasoning: memberOf(message, 'reasoning_details') !== undefined })
+    units.push({ reasoning: memberOf(message, 'reasoning_details') !== undefined })
   }
   return units
 }
 
-/** This record takes no image, so no image has a token rule here. */
-function imageTokens(
-  record: QwenRecord,
-  units: readonly UnitContent[],
-  media: readonly MediaMeasurementFact[],
-): Outcome<readonly bigint[], TransportFailure> {
-  const images = units.reduce((sum, unit) => sum + unit.images, 0)
-  if (images > 0 || media.some(fact => fact.kind === 'image'))
-    return {
-      failure: {
-        kind: 'unsupported',
-        field: 'image 0',
-        adapter: componentAdoption(record, 'media'),
-      },
-    }
+/** No part of a request to this record costs tokens beyond its text. */
+function noExtras(units: readonly UnitContent[]): Outcome<readonly bigint[], TransportFailure> {
   return { ok: units.map(() => 0n) }
 }
 
@@ -198,7 +171,7 @@ export function createQwenMeter(
     uncountable: 'reasoning-not-countable',
     tokens: { tokenizer, form: 'as-written' },
     contentOf,
-    imageTokens: ({ units, media }) => imageTokens(record, units, media),
+    imageTokens: ({ units }) => noExtras(units),
   })
   return Object.freeze({
     instance,

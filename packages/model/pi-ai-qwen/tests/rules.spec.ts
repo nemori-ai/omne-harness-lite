@@ -24,7 +24,7 @@ describe('the reasoning rule qwen-reasoning-text/1', () => {
     const other: ReasoningDetail = {
       type: 'reasoning.encrypted',
       format: 'unknown',
-      raw: { type: str('reasoning.encrypted'), data: str('x') },
+      raw: { type: str('reasoning.encrypted'), text: str('sealed upstream'), data: str('x') },
     }
     expect(
       codec.seal([textDetail('first'), other, textDetail(''), textDetail('[REDACTED]')]),
@@ -120,6 +120,14 @@ describe('the usage rule qwen-usage/1', () => {
       input: { name: 'input', state: 'unknown', unit: 'token' },
       diagnostics: [{ kind: 'usage-inconsistent', field: 'input' }],
     })
+    const odd = HOOKS.usage(usage(reported('1.5')))
+    if (!('ok' in odd)) throw new Error('usage refused')
+    expect(odd.ok.items.slice(0, 4).map(item => [item.name, item.state])).toEqual([
+      ['input', 'unknown'],
+      ['output', 'known'],
+      ['cache-read', 'known'],
+      ['cache-write', 'unknown'],
+    ])
   })
 })
 

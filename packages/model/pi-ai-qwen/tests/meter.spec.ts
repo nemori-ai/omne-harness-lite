@@ -12,8 +12,10 @@ import {
   officialProfile,
   RECORD,
   speechBlock,
+  stateBlock,
   supplierOf,
   textBlock,
+  thinkingBlock,
   TOKENIZER,
   type RequestParts,
 } from './support/qwen.ts'
@@ -103,30 +105,57 @@ describe('measure', () => {
     )
   })
 
-  it('refuses to estimate an image, which this record has no rule for', async () => {
-    const image: JsonValue = {
-      kind: 'object',
-      entries: [{ key: 'type', value: { kind: 'string', value: 'image' } }],
-    }
-    const withImage = (value: JsonValue): JsonValue => {
-      if (value.kind === 'array') return { kind: 'array', items: value.items.map(withImage) }
-      if (value.kind !== 'object') return value
-      return {
-        kind: 'object',
-        entries: value.entries.map(entry =>
-          entry.key === 'content' && entry.value.kind === 'array'
-            ? { key: 'content', value: { kind: 'array', items: [...entry.value.items, image] } }
-            : { key: entry.key, value: withImage(entry.value) },
+  it('a reply whose reasoning is carried back is not estimated: without its recorded output it is uncountable', async () => {
+    const payload =
+      '{"format":"unknown","index":0,"text":"Oslo is at 59.9 N.","type":"reasoning.text"}'
+    const scope = 'openrouter/qwen/qwen3.8-omni-flash'
+    const { measured } = await planAndMeasure({
+      messages: [
+        message('u1', 'user', [textBlock('b1', 'which is further north?')]),
+        message(
+          'a1',
+          'assistant',
+          [
+            thinkingBlock('k1', 'Oslo is at 59.9 N.'),
+            textBlock('t1', 'Oslo'),
+            stateBlock('s1', payload, ['k1']),
+          ],
+          { replay: { scope, format: 'qwen-reasoning-text-v1', at: [2] } },
         ),
-      }
-    }
-    const { measured } = await planAndMeasure({}, withImage)
-    expect(measured).toEqual({
-      failure: {
-        kind: 'unsupported',
-        field: 'image 0',
-        adapter: componentAdoption(RECORD, 'media'),
-      },
+        message('u2', 'user', [textBlock('b2', 'ok')]),
+      ],
     })
+    expect(measured).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'reasoning-not-countable' },
+    })
+  })
+
+  it('counts a tool call and its result with the words around them', async () => {
+    const shown = { toHuman: true, toModel: true }
+    const call = {
+      kind: 'tool_call',
+      id: 'c1',
+      visibility: shown,
+      callId: 'call_a',
+      name: 'lookup',
+      arguments: {
+        kind: 'object',
+        entries: [{ key: 'q', value: { kind: 'string', value: 'giraffe' } }],
+      },
+    }
+    const result = { kind: 'tool_result', id: 'r1', visibility: shown, callId: 'call_a' }
+    const { measured, tokenInput } = await planAndMeasure({
+      messages: [
+        message('u1', 'user', [textBlock('b1', 'look it up')]),
+        message('a1', 'assistant', [call]),
+        message('t1', 'tool', [result, textBlock('b2', 'found')]),
+      ],
+    })
+    if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
+    const text = sortedJsonText(tokenInput)
+    expect(text).toContain('look it up')
+    expect(text).toContain('"name":"lookup"')
+    expect(text).toContain('giraffe')
+    expect(text).toContain('"type":"tool_result"')
   })
 })
