@@ -472,6 +472,31 @@ describe('encode: tool calls and results', () => {
       })
     })
 
+    it('is written with the format of the version that was read, not of the original', () => {
+      const mpeg = { ...SPEECH, mediaType: 'audio/mpeg' }
+      const outcome = encodeWith({ messages: [message('u1', 'user', [speechBlock('b1', mpeg)])] }, [
+        speechRead(mpeg, 'audio/wav'),
+      ])
+      expect(messagesOf(outcome)).toEqual([{ role: 'user', content: [heard] }])
+    })
+
+    it('is unsupported when nothing was read for it, and an inline voice is unsupported', () => {
+      const field = '/messages/0/blocks/0'
+      expect(
+        encodeWith({ messages: [message('u1', 'user', [speechBlock('b1')])] }, []),
+      ).toMatchObject({ failure: { kind: 'unsupported', field } })
+      const inline = {
+        kind: 'voice',
+        id: 'b1',
+        visibility: { toHuman: true, toModel: true },
+        mediaType: 'audio/wav',
+        inline: 'UklGRg==',
+      }
+      expect(
+        encodeWith({ messages: [message('u1', 'user', [inline])] }, [speechRead()]),
+      ).toMatchObject({ failure: { kind: 'unsupported', field } })
+    })
+
     it('is unsupported when the record takes no voice, when what was read has no format there, and in a tool result', () => {
       const messages = [message('u1', 'user', [speechBlock('b1')])]
       const field = '/messages/0/blocks/0'
@@ -506,6 +531,40 @@ describe('encode: tool calls and results', () => {
     expect(body(encode(testRecord(), { tools, toolChoice: 'required' }))['tool_choice']).toBe(
       'required',
     )
+  })
+
+  it('a binding gives each referenced medium the types and the byte limit of its kind', () => {
+    const plain = testRecord()
+    const reference = (mediaType: string) => ({ ...PICTURE, mediaType })
+    const limitsOf = (record: ChatCompletionsRecord) =>
+      bindChatCompletions({
+        record,
+        supplier: supplierOf(record),
+        hooks: testHooks(engineProbe()),
+        meter: testMeter(record, engineProbe()),
+        limits: LIMITS,
+        imageBytes: 100,
+        voiceBytes: 200,
+        release: async () => undefined,
+      }).mediaLimits
+    const both = limitsOf(
+      testRecord({ wire: { ...plain.wire, voice: { formats: { 'audio/wav': 'wav' } } } }),
+    )
+    expect(both(reference('image/png'))).toEqual({
+      mediaTypes: ['image/png'],
+      maxBytes: 100,
+      image: null,
+    })
+    expect(both(reference('audio/mpeg'))).toEqual({
+      mediaTypes: ['audio/wav'],
+      maxBytes: 200,
+      image: null,
+    })
+    expect(both(reference('application/pdf'))).toBeNull()
+    expect(limitsOf(plain)(reference('audio/wav'))).toBeNull()
+    expect(
+      limitsOf(testRecord({ wire: { ...plain.wire, image: null } }))(reference('image/png')),
+    ).toBeNull()
   })
 
   it('refuses a call without a result, and a result without a call, as invalid', () => {

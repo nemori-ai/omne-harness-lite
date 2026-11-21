@@ -202,13 +202,13 @@ export function sentImage(
   return { mime: block.mediaType, data: block.inline }
 }
 
-/** The speech a voice block sends by reference, with the wire's name for its format; null when it cannot. */
+/** The speech of a voice block, sent by reference with the wire's name for its format; null when it cannot. */
 export function sentVoice(
   block: ContentBlock,
   formats: Readonly<Record<string, string>> | undefined,
   view: MediaView,
 ): Readonly<{ format: string; data: string }> | null {
-  if (block.kind !== 'voice' || !('ref' in block) || formats === undefined) return null
+  if (!('ref' in block) || formats === undefined) return null
   const found = view.read(block)
   if (found === null) return null
   const format = formats[found.mime ?? block.ref.mediaType]

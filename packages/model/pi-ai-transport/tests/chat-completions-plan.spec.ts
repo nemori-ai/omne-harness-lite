@@ -20,6 +20,8 @@ import {
   fixedRequest,
   message,
   profileOf,
+  speechBlock,
+  speechRead,
   stateBlock,
   supplierOf,
   testHooks,
@@ -69,6 +71,24 @@ function adoptionsOf(outcome: ReturnType<typeof plan>): readonly ParameterAdopti
 function applied(outcome: ReturnType<typeof plan>): readonly Parameter[] {
   return adoptionsOf(outcome).map(item => item.applied)
 }
+
+describe('rules.plan: a request that refers to a voice', () => {
+  it('is pending on its reference, measured by the duration, rate and channels the block carries', () => {
+    const plain = testRecord()
+    const record = testRecord({
+      wire: { ...plain.wire, voice: { formats: { 'audio/wav': 'wav' } } },
+    })
+    const outcome = plan(bind(record), record, {
+      messages: [message('u1', 'user', [textBlock('b1', 'hear'), speechBlock('b2')])],
+    })
+    if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
+    expect(outcome.ok.representation).toMatchObject({
+      kind: 'pending-media',
+      references: [speechRead().reference],
+      media: [speechRead().measurement],
+    })
+  })
+})
 
 describe('rules.plan: the replay declaration', () => {
   const other = message('a1', 'assistant', [stateBlock('s1', 'sealed'), textBlock('b1', 'hi')], {

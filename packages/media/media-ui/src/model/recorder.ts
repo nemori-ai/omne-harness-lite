@@ -55,9 +55,11 @@ export class Recorder {
   }
 
   async release(): Promise<void> {
-    if (this.#state.kind === 'opening') this.#released = true
     const capture = this.#capture
-    if (capture === null) return
+    if (capture === null) {
+      this.#released = true
+      return
+    }
     this.#capture = null
     this.#set({ kind: 'encoding' })
     const samples = await capture.finish().catch(() => null)

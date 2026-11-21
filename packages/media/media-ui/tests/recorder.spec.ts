@@ -108,6 +108,21 @@ describe('the recorder of the attachment tray', () => {
     expect([...delivered, ...silent.delivered]).toEqual([])
   })
 
+  it('a press while recording opens nothing more; a listener taken off hears nothing', async () => {
+    const { microphone, opened } = microphoneOf(async () => SPEECH)
+    const { recorder, delivered } = recorderOver(microphone)
+    let told = 0
+    const off = recorder.subscribe(() => (told += 1))
+    await recorder.press()
+    await recorder.press()
+    expect(opened).toHaveLength(1)
+    expect(told).toBe(2)
+    off()
+    await recorder.release()
+    expect(told).toBe(2)
+    expect(delivered).toHaveLength(1)
+  })
+
   it('a new recording clears the problem of the last; releasing while idle does nothing', async () => {
     let refuse = true
     const microphone: Microphone = {
