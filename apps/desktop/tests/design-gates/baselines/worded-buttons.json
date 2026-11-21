@@ -29,15 +29,6 @@
     "packages/calendar/calendar-ui/src/view/drawn.tsx | 重读": {
       "R8": 1
     },
-    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | {at + 1} {mark.text}": {
-      "R7": 1
-    },
-    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | ‹": {
-      "R7": 1
-    },
-    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | ›": {
-      "R7": 1
-    },
     "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 另有 ${…} 张放行卡没答，可以先提交已答的": {
       "name": 1
     },
@@ -46,15 +37,6 @@
     },
     "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 还差 ${…} 题": {
       "name": 1
-    },
-    "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | 不回答这一题": {
-      "choice": 1
-    },
-    "packages/human-intervention/human-intervention-ui/src/view/decisions-page.tsx | 刷新": {
-      "R7": 1
-    },
-    "packages/human-intervention/human-intervention-ui/src/view/release-detail.tsx | 看工具的画法/看条目": {
-      "R7": 1
     },
     "packages/identity/identity-ui/src/view/login-card.tsx | 请稍候……/{TITLE[form.mode]}": {
       "commit": 1

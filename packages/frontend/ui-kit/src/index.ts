@@ -76,6 +76,7 @@ export {
   type TraceStatus,
 } from './patterns/ai/trace.tsx'
 export { ValuePill } from './patterns/ai/value-pill.tsx'
+export { ChoiceList, ChoiceRow } from './patterns/choice-list.tsx'
 export { CodeSurface } from './patterns/code-surface.tsx'
 export { CountPill } from './patterns/count-pill.tsx'
 export { ImpactPanel } from './patterns/confirm/impact-panel.tsx'

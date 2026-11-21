@@ -1,20 +1,10 @@
-import { Button, LoadingState } from '@omne-harness/ui-kit'
-import { useState, type JSX, type KeyboardEvent, type ReactNode } from 'react'
+import { Button, DoneIcon, LoadingIndicator, WarningIcon } from '@omne-harness/ui-kit'
+import { useId, useRef, type JSX } from 'react'
 import type { CardsDriver } from '../model/cards-driver.ts'
-import {
-  EMPTY_DRAFT,
-  busy,
-  replyOf,
-  sheetOf,
-  type Draft,
-  type Sheet,
-  type State,
-} from '../model/cards-machine.ts'
-import { CardView, draftOfShown, itemOf, type Shown } from './card-view.tsx'
+import { EMPTY_DRAFT, busy, sheetOf, type Sheet, type State } from '../model/cards-machine.ts'
+import { CardView, lastingChosen, type Shown } from './card-view.tsx'
 
 type Props = Readonly<{ driver: CardsDriver; state: State; group: string }>
-
-const SHORT = 8
 
 function shownOf(state: State, sheet: Sheet): Shown[] {
   return [
@@ -28,179 +18,120 @@ function shownOf(state: State, sheet: Sheet): Shown[] {
   ]
 }
 
-function answerText(card: Shown): string {
-  const draft = draftOfShown(card)
-  if (draft.choice.kind === 'decline') return '不回答'
-  if (draft.choice.kind === 'option') {
-    const id = draft.choice.optionId
-    return itemOf(card).card.question.options.find(option => option.id === id)?.label ?? id
-  }
-  const text = draft.text.trim()
-  return text.length > SHORT ? `${text.slice(0, SHORT)}…` : text
+/** A section keeps the place it had on the paper (a closed one stays where it stood); new ones come last. */
+function inPlace(shown: readonly Shown[], before: readonly string[]): Shown[] {
+  const at = new Map(before.map((key, index) => [key, index]))
+  return shown
+    .map((card, index) => ({ card, rank: at.get(card.key) ?? before.length + index }))
+    .sort((a, b) => a.rank - b.rank)
+    .map(({ card }) => card)
 }
 
-export function markOf(card: Shown): Readonly<{ state: string; text: string }> {
-  if (card.kind === 'closed') return { state: 'closed', text: '被关掉' }
-  const submit = card.entry.submit
-  if (submit.kind === 'submitting') return { state: 'busy', text: '提交中' }
-  if (submit.kind === 'unknown') return { state: 'busy', text: '结果不知道' }
-  if (submit.kind === 'refused') return { state: 'refused', text: '没记上' }
-  return replyOf(card.draft) === null
-    ? { state: 'open', text: '未答' }
-    : { state: 'answered', text: `已答：${answerText(card)}` }
-}
-
-const switchesCards = (event: KeyboardEvent<HTMLElement>): boolean => {
-  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return false
-  const target = event.target as HTMLElement
-  return (
-    target.closest('textarea, input, [role="radiogroup"]') === null && !target.isContentEditable
-  )
-}
-
-function nextMissing(
-  shown: readonly Shown[],
-  index: number,
-  missing: ReadonlySet<string>,
-): string | undefined {
-  return [...shown.slice(index + 1), ...shown.slice(0, index)].find(card => missing.has(card.key))
-    ?.key
-}
-
-type Choose = (key: string) => void
-
-function Strip({
-  shown,
-  index,
-  choose,
-}: {
-  readonly shown: readonly Shown[]
-  readonly index: number
-  readonly choose: Choose
-}): JSX.Element {
-  return (
-    <div className="hitl-strip" role="tablist" aria-label="题号">
-      {shown.map((card, at) => {
-        const mark = markOf(card)
-        return (
-          <Button
-            key={card.key}
-            variant="ghost"
-            size="compact"
-            role="tab"
-            className="hitl-strip-item"
-            data-mark={mark.state}
-            aria-selected={at === index}
-            onClick={() => choose(card.key)}
-          >
-            <span className="hitl-strip-number">{at + 1}</span>
-            <span className="hitl-strip-mark">{mark.text}</span>
-          </Button>
-        )
-      })}
-    </div>
-  )
-}
-
-function Stage({
-  many,
-  index,
-  go,
-  children,
-}: {
-  readonly many: boolean
-  readonly index: number
-  readonly go: (to: number) => void
-  readonly children: ReactNode
-}): JSX.Element {
-  return (
-    <div className="hitl-area-stage">
-      {many ? (
-        <Button variant="ghost" size="icon" aria-label="上一题" onClick={() => go(index - 1)}>
-          ‹
-        </Button>
-      ) : null}
-      {children}
-      {many ? (
-        <Button variant="ghost" size="icon" aria-label="下一题" onClick={() => go(index + 1)}>
-          ›
-        </Button>
-      ) : null}
-    </div>
-  )
+/** A lasting release option is chosen somewhere on the paper: its one submit arms (D8). */
+function armedOf(state: State, sheet: Sheet): boolean {
+  return sheet.entries.some(entry => {
+    const question = entry.item.card.question
+    const draft = state.drafts[entry.key]
+    return (
+      question.kind === 'release' &&
+      draft !== undefined &&
+      lastingChosen(question.options, draft.choice)
+    )
+  })
 }
 
 function Foot({
   sheet,
-  choose,
+  armed,
+  go,
   submit,
 }: {
   readonly sheet: Sheet
-  readonly choose: Choose
+  readonly armed: boolean
+  readonly go: (key: string) => void
   readonly submit: () => void
 }): JSX.Element {
+  const quiet = useId()
   const firstMissing = sheet.missing[0]
   const firstOpen = sheet.open[0]
+  const said = sheet.running || armed
   return (
-    <div className="hitl-area-foot">
-      {sheet.running ? (
-        <LoadingState label="正在提交……" />
-      ) : firstMissing !== undefined ? (
-        <Button variant="link" onClick={() => choose(firstMissing)}>
+    <div className="hitl-foot">
+      {sheet.running ? null : firstMissing !== undefined ? (
+        <Button variant="link" className="hitl-missing" onClick={() => go(firstMissing)}>
           {`还差 ${sheet.missing.length} 题`}
         </Button>
       ) : firstOpen === undefined ? null : (
-        <Button variant="link" onClick={() => choose(firstOpen)}>
+        <Button variant="link" className="hitl-missing" onClick={() => go(firstOpen)}>
           {`另有 ${sheet.open.length} 张放行卡没答，可以先提交已答的`}
         </Button>
       )}
-      <Button className="hitl-area-submit" disabled={!sheet.ready} onClick={submit}>
-        提交
-      </Button>
+      <div className="hitl-actions">
+        <Button
+          variant={armed ? 'destructive' : 'default'}
+          disabled={!sheet.ready}
+          aria-busy={sheet.running || undefined}
+          {...(said && { 'aria-describedby': quiet })}
+          onClick={submit}
+        >
+          {sheet.running ? <LoadingIndicator /> : <DoneIcon aria-hidden="true" />}
+          提交
+        </Button>
+      </div>
+      {sheet.running ? (
+        <p id={quiet} className="hitl-quiet" role="status">
+          正在提交……
+        </p>
+      ) : armed ? (
+        <p id={quiet} className="hitl-quiet" role="status">
+          <span className="hitl-arming">
+            <WarningIcon aria-hidden="true" />
+            <strong>选了有持续效果的一档：以后同一类动作照它处理。</strong>
+          </span>
+        </p>
+      ) : null}
     </div>
   )
 }
 
+/** One group of cards is one paper: its questions stacked as sections, one hairline apart, and one submit at its foot. */
 export function CardArea({ driver, state, group }: Props): JSX.Element | null {
-  const [viewing, setViewing] = useState<string | null>(null)
+  const paper = useRef<HTMLDivElement>(null)
+  const order = useRef<readonly string[]>([])
   const sheet = sheetOf(state, group)
-  const shown = shownOf(state, sheet)
+  const shown = inPlace(shownOf(state, sheet), order.current)
+  order.current = shown.map(card => card.key)
   if (shown.length === 0) return null
-  const found = shown.findIndex(card => card.key === viewing)
-  const index = found === -1 ? 0 : found
-  const current = shown[index]!
-  const many = shown.length > 1
-  const go = (to: number) => setViewing(shown[(to + shown.length) % shown.length]!.key)
-  const draft = (key: string, value: Draft, advance: boolean) => {
-    driver.draft(key, value)
-    if (!advance) return
-    const next = nextMissing(shown, index, new Set(sheetOf(driver.getState(), group).missing))
-    if (next !== undefined) setViewing(next)
+  // "还差 n 题" brings the first unanswered section into view and puts focus on its first answer row.
+  const go = (key: string) => {
+    const section = [...(paper.current?.querySelectorAll<HTMLElement>('[data-card]') ?? [])].find(
+      candidate => candidate.dataset['card'] === key,
+    )
+    section?.scrollIntoView({ block: 'nearest' })
+    section
+      ?.querySelector<HTMLElement>('textarea:not(:disabled), [role="radio"]:not(:disabled)')
+      ?.focus({ preventScroll: true })
   }
-  const disabled = sheet.running || (current.kind === 'pending' && busy(current.entry.submit))
   return (
-    <div
-      className="hitl-area"
-      onKeyDown={event => {
-        if (!many || !switchesCards(event)) return
-        event.preventDefault()
-        go(event.key === 'ArrowLeft' ? index - 1 : index + 1)
-      }}
-    >
-      {many ? <Strip shown={shown} index={index} choose={setViewing} /> : null}
-      <Stage many={many} index={index} go={go}>
+    <div className="hitl-paper" ref={paper}>
+      {shown.map((card, at) => (
         <CardView
-          key={current.key}
-          card={current}
-          at={index + 1}
+          key={card.key}
+          card={card}
+          at={at + 1}
           of={shown.length}
-          disabled={disabled}
+          disabled={card.kind === 'closed' || sheet.running || busy(card.entry.submit)}
           driver={driver}
-          onDraft={(value, advance) => draft(current.key, value, advance)}
+          onDraft={value => driver.draft(card.key, value)}
         />
-      </Stage>
+      ))}
       {sheet.entries.length === 0 ? null : (
-        <Foot sheet={sheet} choose={setViewing} submit={() => driver.submitGroup(group)} />
+        <Foot
+          sheet={sheet}
+          armed={armedOf(state, sheet)}
+          go={go}
+          submit={() => driver.submitGroup(group)}
+        />
       )}
     </div>
   )

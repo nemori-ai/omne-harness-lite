@@ -1,6 +1,6 @@
 import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
 import { defineKeyedPoint, type KeyedPointSink, type PointHost } from '@omne-harness/shell-contract'
-import { Button } from '@omne-harness/ui-kit'
+import { FactList, FactRow, Segmented } from '@omne-harness/ui-kit'
 import { Component, createContext, useContext, useState, type JSX, type ReactNode } from 'react'
 
 type Question = HumanInterventionCardItem['card']['question']
@@ -52,35 +52,37 @@ export const DetailHost = createContext<PointHost | undefined>(undefined)
 
 function Rows({ rows }: Readonly<{ rows: GivenDetail['rows'] }>): JSX.Element {
   return (
-    <dl className="hitl-release-rows">
+    <FactList className="hitl-detail-rows">
       {rows.map((row, index) => (
-        <div key={index} className="hitl-release-row">
-          <dt>{row.label}</dt>
-          <dd>
-            {typeof row.value === 'string' ? (
-              row.value
-            ) : (
-              <ul>
-                {row.value.map((entry, at) => (
-                  <li key={at}>{entry}</li>
-                ))}
-              </ul>
-            )}
-          </dd>
-        </div>
+        <FactRow key={index} term={row.label}>
+          {typeof row.value === 'string' ? (
+            row.value
+          ) : (
+            <ul className="hitl-detail-list">
+              {row.value.map((entry, at) => (
+                <li key={at}>{entry}</li>
+              ))}
+            </ul>
+          )}
+        </FactRow>
       ))}
-    </dl>
+    </FactList>
   )
 }
 
+type Face = 'view' | 'rows'
+
+const FACES = [
+  { value: 'view', label: '工具的画法' },
+  { value: 'rows', label: '条目' },
+] as const
+
 function Switchable({ view, rows }: Readonly<{ view: ReactNode; rows: ReactNode }>): JSX.Element {
-  const [plain, setPlain] = useState(false)
+  const [face, setFace] = useState<Face>('view')
   return (
-    <div className="hitl-release-detail">
-      {plain ? rows : view}
-      <Button variant="ghost" size="compact" onClick={() => setPlain(!plain)}>
-        {plain ? '看工具的画法' : '看条目'}
-      </Button>
+    <div className="hitl-detail">
+      <Segmented label="详情的画法" value={face} onValueChange={setFace} options={FACES} />
+      {face === 'rows' ? rows : view}
     </div>
   )
 }
@@ -88,12 +90,13 @@ function Switchable({ view, rows }: Readonly<{ view: ReactNode; rows: ReactNode 
 export function ReleaseDetailView({ detail }: Readonly<{ detail: GivenDetail }>): JSX.Element {
   const host = useContext(DetailHost)
   const rows = <Rows rows={detail.rows} />
-  if (detail.typed === undefined || host === undefined) return rows
+  const plain = <div className="hitl-detail">{rows}</div>
+  if (detail.typed === undefined || host === undefined) return plain
   return (
-    <Fallback.Provider value={rows}>
+    <Fallback.Provider value={plain}>
       {point.slot(host, detail.typed.kind, detail.typed.value, entries => {
         const first = entries[0]
-        return first === undefined ? rows : <Switchable view={first.node} rows={rows} />
+        return first === undefined ? plain : <Switchable view={first.node} rows={rows} />
       })}
     </Fallback.Provider>
   )

@@ -89,6 +89,8 @@ const REST = [
   'Arrive',
   'Button',
   'Checkbox',
+  'ChoiceList',
+  'ChoiceRow',
   'CodeSurface',
   'CountPill',
   'Disclosure',

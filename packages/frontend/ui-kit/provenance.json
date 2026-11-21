@@ -388,6 +388,10 @@
       "sha256": "4c34c3a3ec0e87daf2d60d46a88f428863d1690a8e92fbcb9496850c27e30a25"
     },
     {
+      "path": "desktop/src/renderer/src/conversation/decision-card.css",
+      "sha256": "96da44ced8684828dfedb3682ce1a5fe0a2c5dd469bf2dafb5b1f0c30cf85e52"
+    },
+    {
       "path": "desktop/src/renderer/src/theme/controller.ts",
       "sha256": "255ff32dda2b2b4e05add11142ebc702210986168468ce0ada652c883c0774bd"
     },

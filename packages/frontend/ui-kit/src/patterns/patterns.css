@@ -125,3 +125,87 @@
 [data-count-dots] .omne-count-pill[data-tone='neutral'] {
   background: var(--omne-ink-muted);
 }
+.omne-choice-list {
+  min-width: 0;
+}
+.omne-choice-rows {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing) * 0.5);
+}
+.omne-choice,
+.omne-choice-held {
+  min-width: 0;
+}
+.omne-choice-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  align-items: center;
+  column-gap: calc(var(--spacing) * 2.25);
+  width: 100%;
+  min-height: var(--omne-control-height);
+  padding: var(--spacing) calc(var(--spacing) * 2) var(--spacing) calc(var(--spacing) * 1.5);
+  border-radius: var(--omne-radius-control);
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-wrapped);
+  text-align: left;
+  cursor: pointer;
+}
+.omne-choice-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.omne-choice-row[aria-checked='true'] {
+  color: var(--omne-ink-primary);
+  font-weight: var(--omne-weight-strong);
+}
+.omne-choice-mark {
+  display: grid;
+  place-items: center;
+  width: calc(var(--spacing) * 4);
+  height: calc(var(--spacing) * 4);
+  border-radius: var(--omne-radius-pill);
+  box-shadow: inset 0 0 0 calc(var(--spacing) * 0.375) var(--omne-line);
+  transition:
+    background-color var(--omne-motion-state) var(--omne-motion-ease),
+    box-shadow var(--omne-motion-state) var(--omne-motion-ease);
+}
+.omne-choice-dot {
+  width: calc(var(--spacing) * 1.5);
+  height: calc(var(--spacing) * 1.5);
+  border-radius: var(--omne-radius-pill);
+  background: var(--omne-surface-overlay);
+  transform: scale(0);
+  transition: transform var(--omne-motion-state) var(--omne-motion-ease);
+}
+.omne-choice-row[aria-checked='true'] .omne-choice-mark {
+  background: var(--omne-ink-primary);
+  box-shadow: none;
+}
+.omne-choice-row[aria-checked='true'] .omne-choice-dot {
+  transform: scale(1);
+}
+.omne-choice-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.omne-choice-description {
+  grid-column: 2;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  font-weight: var(--omne-weight-regular);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  .omne-choice-row {
+    min-height: var(--omne-control-height-touch);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .omne-choice-mark,
+  .omne-choice-dot {
+    transition: none;
+  }
+}

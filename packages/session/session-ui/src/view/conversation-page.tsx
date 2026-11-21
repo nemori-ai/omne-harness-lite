@@ -367,9 +367,9 @@ function OpenSession({
         inputs={state.inputs}
         waiting={state.waiting}
         driver={driver}
+        dock={dock(state.session)}
       />
       {work(state.session, state.revision)}
-      <div className="omne-session-dock">{dock(state.session)}</div>
       <Composer state={state} driver={driver} status={status(state.session)} waiting={waiting} />
     </>
   )
@@ -419,6 +419,7 @@ function Conversation({
   inputs,
   waiting,
   driver,
+  dock,
 }: {
   readonly epoch: string
   readonly content: Open['content']
@@ -426,6 +427,7 @@ function Conversation({
   readonly inputs: readonly PendingInput[]
   readonly waiting: Waiting | null
   readonly driver: SessionDriver
+  readonly dock?: ReactNode
 }) {
   const weights = useMemo(() => markerWeights(content.entries), [content.entries])
   const committed = useMemo(
@@ -444,7 +446,7 @@ function Conversation({
           ),
     [content.live, runActive],
   )
-  const { scroller, onScroll } = useFollowBottom(committed, live, inputs, waiting)
+  const { scroller, onScroll, end } = useFollowBottom(committed, live, inputs, waiting)
   const keys = [
     ...committed.map(item => item.key),
     ...inputs.map(input => `input:${input.acceptId}`),
@@ -491,6 +493,11 @@ function Conversation({
           {`回复的内容丢了一段（${content.liveStatus.reason === 'buffer' ? '缓冲放不下' : '来源的历史不够'}），正在重新取……`}
         </p>
       ) : null}
+      {dock === undefined ? null : (
+        <div className="omne-session-dock" ref={end}>
+          {dock}
+        </div>
+      )}
     </div>
   )
 }
