@@ -27,7 +27,10 @@ export type SideFrame = Readonly<{
   sideId: string
   control: RefObject<HTMLButtonElement | null>
   header: RefObject<HTMLElement | null>
+  chosen: string | undefined
+  choose: (id: string) => void
   toggle: (keyboard: boolean) => void
+  reveal: (id: string, keyboard: boolean) => void
   close: (returnFocus: boolean) => void
   hold: (present: boolean) => void
 }>
@@ -40,6 +43,7 @@ export function useSideFrame(page: RefObject<HTMLElement | null>): SideFrame {
   const [open, setOpen] = useState(false)
   const [openedByKeyboard, setOpenedByKeyboard] = useState(false)
   const [present, setPresent] = useState(false)
+  const [chosen, setChosen] = useState<string | undefined>(undefined)
   const factor = useSizeFactor()
   const control = useRef<HTMLButtonElement>(null)
   const header = useRef<HTMLElement>(null)
@@ -67,6 +71,17 @@ export function useSideFrame(page: RefObject<HTMLElement | null>): SideFrame {
     },
     [wide],
   )
+  const reveal = useCallback(
+    (id: string, fromKeyboard: boolean) => {
+      setChosen(id)
+      if (wide) setFolded(false)
+      else {
+        setOpen(true)
+        setOpenedByKeyboard(fromKeyboard)
+      }
+    },
+    [wide],
+  )
   const close = useCallback((returnFocus: boolean) => {
     setOpen(false)
     if (returnFocus) control.current?.focus()
@@ -80,11 +95,14 @@ export function useSideFrame(page: RefObject<HTMLElement | null>): SideFrame {
       sideId,
       control,
       header,
+      chosen,
+      choose: setChosen,
       toggle,
+      reveal,
       close,
       hold: setPresent,
     }),
-    [wide, folded, open, openedByKeyboard, present, sideId, toggle, close],
+    [wide, folded, open, openedByKeyboard, present, sideId, chosen, toggle, reveal, close],
   )
 }
 
