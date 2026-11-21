@@ -62,11 +62,11 @@ export function parseConverterBody(
 ): Outcome<ConverterBody, ConverterBodyRejection> {
   const fields = fieldsOf(body)
   if (fields === undefined) return fail('not-an-object')
-  const kind = textOf(fields.get('kind'))
-  if (kind === undefined || !isDefinitionName(kind)) return fail('invalid-kind')
+  const kind = nameAt(fields, 'kind', isDefinitionName)
+  if (kind === undefined) return fail('invalid-kind')
   if (capabilityName !== undefined && kind !== capabilityName) return fail('kind-mismatch')
-  const engine = textOf(fields.get('engine'))
-  if (engine === undefined || !isEngineName(engine)) return fail('invalid-engine')
+  const engine = nameAt(fields, 'engine', isEngineName)
+  if (engine === undefined) return fail('invalid-engine')
   const parameters = fields.get('parameters')
   if (parameters?.kind !== 'object') return fail('invalid-parameters')
   const egress = egressOf(fieldsOf(fields.get('egress')))
@@ -110,6 +110,11 @@ function egressOf(fields: Fields | undefined): EngineEgress | undefined {
   if (kind !== 'remote') return undefined
   const destination = textOf(fields?.get('destination'))
   return destination === undefined || destination === '' ? undefined : { kind, destination }
+}
+
+function nameAt(fields: Fields, key: string, valid: (name: string) => boolean): string | undefined {
+  const text = textOf(fields.get(key))
+  return text !== undefined && valid(text) ? text : undefined
 }
 
 function fieldsOf(value: JsonValue | undefined): Fields | undefined {

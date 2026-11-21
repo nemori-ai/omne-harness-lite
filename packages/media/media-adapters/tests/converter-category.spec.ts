@@ -75,6 +75,11 @@ describe('the body of a converter definition', () => {
       'invalid-egress',
     ],
     ['no destination', { ...SOUND, egress: undefined }, 'invalid-egress'],
+    [
+      'a destination of no kind, named',
+      { ...SOUND, egress: { kind: 'cloud', destination: 'x' } },
+      'invalid-egress',
+    ],
   ])('refuses %s', (_, body, reason) => {
     expect(parseConverterBody(read(body), 'voice')).toEqual({ failure: reason })
     expect(converterBodyContract().judge(read(body), { capabilityName: 'voice' })).toEqual({
@@ -87,21 +92,33 @@ describe('the body of a converter definition', () => {
     expect(parseConverterBody(read(SOUND), 'image')).toEqual({ failure: 'kind-mismatch' })
   })
 
-  it('judges only a body the assets read: an object literal is refused', () => {
-    const literal = { kind: 'object', entries: [] }
+  it('judges only a body the assets read: an object literal is refused, however sound', () => {
+    const literal = JSON.parse(JSON.stringify(read(SOUND))) as unknown
+    expect(parseConverterBody(literal as never, 'voice')).toMatchObject({ ok: { kind: 'voice' } })
     expect(converterBodyContract().judge(literal, { capabilityName: 'voice' })).toEqual({
       ok: false,
       rejected: 'not-an-object',
     })
   })
 
-  it('judges a sound body and declares nothing else', () => {
+  it('judges a sound body, with or without the name of the asset, and declares nothing else', () => {
     const contract = converterBodyContract()
     expect(contract.category).toBe(CONVERTER_CATEGORY)
     expect(contract.judge(read(SOUND), { capabilityName: 'voice' })).toEqual({ ok: true })
+    expect(contract.judge(read(SOUND))).toEqual({ ok: true })
     expect(contract.deriveDeclarations(read(SOUND) as never)).toEqual({ entries: [] })
     expect(contract.references(read(SOUND) as never)).toEqual([])
     expect(contract.layout).toBeUndefined()
+  })
+
+  it('refuses to declare anything of a body that does not hold', () => {
+    const contract = converterBodyContract()
+    const broken = read({ ...SOUND, engine: 'Bad Name' })
+    expect(() => contract.deriveDeclarations(broken)).toThrow(/invalid-engine/u)
+    expect(() => contract.references(broken)).toThrow(/invalid-engine/u)
+    expect(() => contract.deriveDeclarations(read(SOUND), { capabilityName: 'image' })).toThrow(
+      /kind-mismatch/u,
+    )
   })
 })
 

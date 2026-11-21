@@ -19,6 +19,7 @@ it.each(['audio/wav; codecs=1', 'image/', 'application/x_y', ''])(
 )
 
 it('names a kind of medium: a modality, or a media type written as a name', () => {
+  expect(isDefinitionName(`a-${'b'.repeat(62)}`)).toBe(true)
   for (const name of ['image', 'voice', 'file', 'application-pdf', 'audio-x-wav'])
     expect(isDefinitionName(name), name).toBe(true)
   for (const name of [
@@ -29,7 +30,7 @@ it('names a kind of medium: a modality, or a media type written as a name', () =
     'audio--wav',
     '-wav',
     'wav-',
-    'a'.repeat(65),
+    `a-${'b'.repeat(63)}`,
   ])
     expect(isDefinitionName(name), name).toBe(false)
 })

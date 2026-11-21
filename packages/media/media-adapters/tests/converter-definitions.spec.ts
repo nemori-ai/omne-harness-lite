@@ -127,12 +127,16 @@ describe('which converter definition is in force', () => {
 
   it('a layer that cannot be read is the basis unavailable, not skipped', async () => {
     const answer = await resolve(definitions(OFFICIAL, 'unreadable').port)
-    expect(answer).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(answer).toEqual({
+      failure: { kind: 'unavailable', diagnostic: 'the tenant layer of audio-wav cannot be read' },
+    })
   })
 
   it('a tenant whose assets cannot be had, or a lookup that throws, is the basis unavailable', async () => {
     const none = createConverterDefinitions({ layersOf: async () => undefined })
-    expect(await resolve(none)).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(await resolve(none)).toEqual({
+      failure: { kind: 'unavailable', diagnostic: 'the assets of the tenant cannot be had' },
+    })
     const throwing = createConverterDefinitions({
       layersOf: () => Promise.reject(new Error('boom')),
     })
@@ -141,7 +145,12 @@ describe('which converter definition is in force', () => {
 
   it('a winner whose body cannot be read, or no longer holds, is the basis unavailable: no other layer is tried', async () => {
     const unread = definitions(OFFICIAL, { voice: MINE }, ['tenant/converter/voice'])
-    expect(await resolve(unread.port)).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(await resolve(unread.port)).toEqual({
+      failure: {
+        kind: 'unavailable',
+        diagnostic: 'the body of tenant/converter/voice cannot be read',
+      },
+    })
     const broken = { voice: { version: 't3', body: read({ kind: 'voice', engine: 'Bad Name' }) } }
     const answer = await resolve(definitions(OFFICIAL, broken).port)
     expect(answer).toMatchObject({ failure: { kind: 'unavailable' } })

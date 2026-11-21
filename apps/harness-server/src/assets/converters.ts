@@ -1,6 +1,12 @@
 import { createHash } from 'node:crypto'
 import { readBodyText, type AssetLayerSource, type JsonValue } from '@omne-harness/assets'
-import { CONVERTER_CATEGORY, parseConverterBody } from '@omne-harness/media-adapters'
+import { tenantLayerSource, type AssetsLocal } from '@omne-harness/assets-local'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import {
+  CONVERTER_CATEGORY,
+  parseConverterBody,
+  type ConverterLayers,
+} from '@omne-harness/media-adapters'
 import { officialAssetRef } from './official-holdings.ts'
 
 const RELEASE_CONVERTER_TEXTS: readonly string[] = [
@@ -65,4 +71,28 @@ export function officialConverterSource(): AssetLayerSource {
       return { layer: 'official', state: 'read', candidates: [candidate] }
     },
   } satisfies AssetLayerSource)
+}
+
+type TenantAssets = Pick<AssetsLocal, 'listHeld' | 'readHeldCapability' | 'readVersion'>
+
+/** The layers a tenant's converter definitions are evaluated over: the release's, then its own. */
+export function converterLayersOf(open: (tenantRef: string) => Promise<TenantAssets | undefined>) {
+  const official = officialConverterSource()
+  return async (tenant: TenantId): Promise<ConverterLayers | undefined> => {
+    const ref = tenantCodec.encode(tenant)
+    const assets = ref.ok ? await open(ref.value) : undefined
+    if (assets === undefined) return undefined
+    return {
+      sources: [official, tenantLayerSource(assets)],
+      async body(candidate) {
+        const shipped = officialConverterBody(candidate.asset)
+        if (shipped !== undefined) return shipped
+        const read = await assets.readVersion({
+          assetRef: candidate.asset,
+          version: candidate.version,
+        })
+        return read.kind === 'version' ? read.version.body : undefined
+      },
+    }
+  }
 }
