@@ -210,7 +210,7 @@ async function installEntry(
       selectedTargets: asset.kind === 'ready' && sourceReady ? [asset.target] : [],
     },
     settings:
-      definition === undefined
+      definition === undefined || asset.kind === 'inactive'
         ? undefined
         : {
             name: entry.asset.name,

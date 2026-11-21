@@ -195,7 +195,7 @@
       },
       "packages/assets/settings-local/src/catalog.ts": {
         "count": 1,
-        "longest": 234
+        "longest": 179
       },
       "packages/assets/settings/src/tenant-settings.ts": {
         "count": 1,
@@ -379,7 +379,7 @@
       },
       "packages/identity/identity-sql/src/provider.ts": {
         "count": 1,
-        "longest": 286
+        "longest": 280
       },
       "packages/identity/identity/src/testing/governance-double.ts": {
         "count": 1,

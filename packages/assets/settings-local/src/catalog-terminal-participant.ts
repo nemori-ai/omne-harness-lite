@@ -30,6 +30,10 @@ export default {
       basis: { kind: 'rejected', reason },
     })
     if (current && !equal(current.binding, binding)) return reject('operation_conflict')
+    if (kind === 'release') {
+      port.execute('DELETE FROM st_catalog_terminals WHERE operation_key = ?', [key])
+      return { kind: 'participated', response: json({ binding, state: 'released' }) }
+    }
     if (kind === 'consume' && current)
       return reject(current.state === 'aborted' ? 'basis_changed' : 'operation_conflict')
     const terminal = current ?? { binding, state: kind === 'consume' ? 'committed' : 'aborted' }

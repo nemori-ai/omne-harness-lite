@@ -22,6 +22,7 @@ class ReservationsImpl extends StandingReservationsService {
   readonly observe = async () => ({ kind: 'unavailable' as const, diagnostic: 'fixture' })
   readonly reserve = this.observe
   readonly settle = this.observe
+  readonly release = this.observe
   readonly recover = this.observe
 }
 

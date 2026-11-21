@@ -1,3 +1,4 @@
+import { DatabaseSync } from 'node:sqlite'
 import { mutantBuild, type MutantBuild } from './fixtures/mutants.ts'
 import type { IdentitySqlBuild } from './fixtures/governance.ts'
 import { afterEach, expect, it } from 'vitest'
@@ -12,7 +13,7 @@ import {
 } from '@omne-harness/identity'
 import { tenant, tenantCodec } from '@omne-harness/legal-identity'
 import type { SqlStorage } from '@omne-harness/sql-contract'
-import { openSqliteStorage } from './fixtures/storage.ts'
+import { identityDomainFile, openSqliteStorage } from './fixtures/storage.ts'
 import { identitySqlMaterials, identitySqlRegistration } from '@omne-harness/identity-sql'
 import { openProvider, instant, type OpenedProvider } from './fixtures/provider.ts'
 
@@ -1523,4 +1524,50 @@ it('recognizes an accepted hold after the original reserve reply and receipt que
       required: [],
     }),
   ).toMatchObject({ kind: 'held', reservation: { binding: fixture.binding, required: [] } })
+})
+
+function storedStanding(deployment: OpenedProvider) {
+  const db = new DatabaseSync(identityDomainFile(deployment.storage.storageRoot), {
+    readOnly: true,
+  })
+  try {
+    const count = (sql: string) => Number((db.prepare(sql).get() as { n: number }).n)
+    return {
+      reservations: count('SELECT count(*) AS n FROM id_standing_reservation'),
+      receipts: count(
+        "SELECT count(*) AS n FROM _sql_receipt WHERE operation = 'identity.coordination'",
+      ),
+    }
+  } finally {
+    db.close()
+  }
+}
+
+it('releases a settled reservation with its receipts, refuses a held one, and answers released again', async () => {
+  const fixture = await setup({
+    async seal(reservation) {
+      return { kind: 'terminal', reservation, outcome: 'committed' }
+    },
+  })
+  const { reservations } = fixture.deployment.provider
+  const request = { binding: fixture.binding, required: [] }
+  const before = storedStanding(fixture.deployment)
+  expect((await fixture.reserve()).kind).toBe('held')
+  expect(storedStanding(fixture.deployment)).toEqual({ ...before, reservations: 1 })
+  expect(await reservations.release(request)).toEqual({ kind: 'held' })
+  expect(
+    await reservations.release({
+      ...request,
+      binding: { ...request.binding, inputDigest: 'other' },
+    }),
+  ).toEqual({ kind: 'operation-conflict' })
+  expect(storedStanding(fixture.deployment)).toEqual({ ...before, reservations: 1 })
+  expect(await reservations.settle(request)).toMatchObject({
+    kind: 'terminal',
+    outcome: 'committed',
+  })
+  expect(await reservations.release(request)).toEqual({ kind: 'released' })
+  expect(storedStanding(fixture.deployment)).toEqual(before)
+  expect(await reservations.release(request)).toEqual({ kind: 'released' })
+  expect(await reservations.observe(request)).toEqual({ kind: 'not_found' })
 })

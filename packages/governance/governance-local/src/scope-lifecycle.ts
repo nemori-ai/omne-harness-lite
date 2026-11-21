@@ -142,7 +142,8 @@ export class GovernanceScopeLifecycle {
     const pages = await this.releasable()
     if (pages === undefined) return unavailable()
     const input = { scope: this.options.scope, epoch: this.options.epoch }
-    for (const page of pages) {
+    for (const listed of pages) {
+      const page = await this.releaseStanding(listed)
       const released = page.map(item => item.key)
       const releases = page.flatMap(item =>
         operationReceipts(item.sqlIdentity.transactionDomain, { scope: input.scope, ...item.key }),
@@ -163,6 +164,13 @@ export class GovernanceScopeLifecycle {
         return unavailable()
     }
     return { kind: 'isolated' as const }
+  }
+  private async releaseStanding(page: z.infer<typeof releasePageSchema>['items']) {
+    const kept: typeof page = []
+    for (const item of page)
+      if (item.standing === null || (await this.options.standing.release(item.standing)))
+        kept.push(item)
+    return kept
   }
   private async releasable() {
     const { scope, storage, domain, epoch } = this.options

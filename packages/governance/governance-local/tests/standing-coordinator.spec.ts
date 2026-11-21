@@ -131,6 +131,7 @@ function overridden(
     observe: input => source.observe(input),
     reserve: input => source.reserve(input),
     settle: input => source.settle(input),
+    release: input => source.release(input),
     recover: input => source.recover(input),
     ...overrides,
   }

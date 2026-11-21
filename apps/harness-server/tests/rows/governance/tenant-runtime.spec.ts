@@ -375,6 +375,7 @@ it('settles an original Settings catalog hold after SQL restart before opening t
       ...w.options.identity,
       reservations: {
         observe: w.options.identity.reservations.observe,
+        release: w.options.identity.reservations.release,
         recover: w.options.identity.reservations.recover,
         async reserve(request: Parameters<typeof w.options.identity.reservations.reserve>[0]) {
           const result = await w.options.identity.reservations.reserve(request)

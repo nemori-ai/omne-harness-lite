@@ -106,6 +106,7 @@ export type {
   StandingReserveOutcome,
   StandingObservation,
   StandingSettleOutcome,
+  StandingReleaseOutcome,
   StandingRecoveryPage,
   StandingReservations,
 } from './reservations.ts'

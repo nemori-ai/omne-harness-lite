@@ -157,7 +157,7 @@ it.each([
     const storage: SqlStorage = {
       ...w.activation.storage,
       commit: request => {
-        commits.push(request)
+        if (request.identity.operation !== 'session.lookup') commits.push(request)
         return w.activation.storage.commit(request)
       },
     }
