@@ -86,6 +86,10 @@
 - `ExecutionRef` · 包 `@omne-harness/session-contract`
 - `ExecutionStatus` · 包 `@omne-harness/session-contract`
 - `ExternalCompletion` · 包 `@omne-harness/session-contract`
+- `ForkFacts` · 包 `@omne-harness/session-contract`
+- `ForkPoint` · 包 `@omne-harness/session-contract`
+- `ForkPointJudgment` · 包 `@omne-harness/session-contract`
+- `ForkPointRead` · 包 `@omne-harness/session-contract`
 - `FreezeVerdict` · 包 `@omne-harness/session-contract`
 - `GuardCommand` · 包 `@omne-harness/session-contract`
 - `HistoryEntry` · 包 `@omne-harness/session-contract`
@@ -244,6 +248,7 @@
 - `SessionFactBoundary` · 包 `@omne-harness/session-contract`
 - `SessionFactKind` · 包 `@omne-harness/session-contract`
 - `SessionFailure` · 包 `@omne-harness/session-contract`
+- `SessionFork` · 包 `@omne-harness/session-contract`
 - `SessionFrozen` · 包 `@omne-harness/session-contract`
 - `SessionHistory` · 包 `@omne-harness/session-contract`
 - `SessionHistoryIndex` · 包 `@omne-harness/session-contract`
@@ -362,6 +367,8 @@
 - `expectedHolds` · 包 `@omne-harness/session-contract`
 - `expectedRevision` · 包 `@omne-harness/session-contract`
 - `foldInputFate` · 包 `@omne-harness/session-contract`
+- `forkPointAfterRows` · 包 `@omne-harness/session-contract`
+- `forkPointText` · 包 `@omne-harness/session-contract`
 - `incompleteAuthorization` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
 - `inputFateOfRows` · 包 `@omne-harness/session-contract`
@@ -373,6 +380,7 @@
 - `judgeAdvance` · 包 `@omne-harness/session-contract`
 - `judgeBackgroundOutcome` · 包 `@omne-harness/session-contract`
 - `judgeCompletion` · 包 `@omne-harness/session-contract`
+- `judgeForkPoint` · 包 `@omne-harness/session-contract`
 - `judgeIdle` · 包 `@omne-harness/session-contract`
 - `judgeIntakeBlocks` · 包 `@omne-harness/session-contract`
 - `judgeRunStart` · 包 `@omne-harness/session-contract`
@@ -384,6 +392,8 @@
 - `onceAuthorizationOf` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
 - `originalContent` · 包 `@omne-harness/session-contract`
+- `ownPositionAfter` · 包 `@omne-harness/session-contract`
+- `parseForkPoint` · 包 `@omne-harness/session-contract`
 - `parseInputSourceName` · 包 `@omne-harness/session-contract`
 - `pendingAcceptances` · 包 `@omne-harness/session-contract`
 - `pendingInputOf` · 包 `@omne-harness/session-contract`

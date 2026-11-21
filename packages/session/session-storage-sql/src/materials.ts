@@ -275,6 +275,12 @@ export const HANDLERS: readonly Handler[] = [
     migrations: factMigrations,
   },
   {
+    handler: 'session.fork-point',
+    file: 'read-fork-point',
+    tables: ['sl_journal', 'sl_model_view', 'sl_entry'],
+    maxRowsRead: 128,
+  },
+  {
     handler: 'session.model-view',
     file: 'read-model-view',
     tables: ['sl_journal', 'sl_model_view', 'sl_blob'],

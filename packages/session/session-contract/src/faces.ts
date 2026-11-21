@@ -421,7 +421,11 @@ export type ModelViewRead =
 export type CompactionContextRead =
   | Readonly<{ kind: 'context'; value: CompactionContext; basis: ModelViewBasis }>
   | Readonly<{ kind: 'epoch-changed'; current: ModelViewBasis }>
+export type ForkPointRead =
+  | Readonly<{ kind: 'point'; point: import('./fork.ts').ForkPoint }>
+  | Readonly<{ kind: 'none' }>
 export interface SessionHistory<P> {
+  readForkPoint(input: SessionAccess<P>): Reply<ForkPointRead>
   readCompactionContext(
     input: SessionAccess<P> & Readonly<{ basis: ModelViewBasis; coverTo: RecordEntryRef | null }>,
   ): Reply<CompactionContextRead>

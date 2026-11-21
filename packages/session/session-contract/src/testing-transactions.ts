@@ -73,8 +73,9 @@ import { consumptionIdOf } from './decide-results.ts'
 import type { SessionCall } from './call-settlement.ts'
 import * as gone from './testing-calls-left.ts'
 import { controlAnswer } from './call-control.ts'
-import { materializeModelView, compactionReads, type MaterializedModelView } from './model-view.ts'
+import { materializeModelView, type MaterializedModelView } from './model-view.ts'
 import { memoryCompactionContext, memoryModelViewPage } from './testing-model-view-reads.ts'
+import * as forks from './testing-fork.ts'
 import { SESSION_INTERPRETER, decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
@@ -127,6 +128,7 @@ type Store = {
   readonly left: gone.CallsLeft
   modelView: MaterializedModelView
   readonly entries: HistoryEntry[]
+  readonly fork?: forks.MemoryFork
   readonly operations: Map<
     SessionOperationId,
     Readonly<{
@@ -180,6 +182,7 @@ export interface MemorySessionLogTransactions<P> extends MemorySessionTransactio
         operation: SessionOperationId,
       ): Promise<Outcome<CommitReceipt, SessionFailure>>
       directoryAvailable(available: boolean): void
+      forkSourceAvailable(available: boolean): void
       recordCallTerminal(tenant: TenantId, session: SessionId, terminal: SessionCallTerminal): void
     }>
 }
@@ -362,7 +365,7 @@ function publishedLog(
     snapshot,
     entries: committedEntries,
     operations,
-    modelView: materializeModelView(store.modelView, entries, committedEntries),
+    modelView: materializeModelView(store.modelView, entries),
   }
 }
 
@@ -539,6 +542,7 @@ export function createMemorySessionTransactionPair<P>(
   const stores = new Map<string, Store>()
   let directoryAvailable = true
   let failInitialization = false
+  let forkSourceAvailable = true
   let loseInitializationReply = false
   const issuedCursors = new Set<string>()
   const callTerminals = new Map<string, SessionCallTerminal>()
@@ -668,8 +672,10 @@ export function createMemorySessionTransactionPair<P>(
               ...(material === undefined ? {} : { historyIndex: material.index }),
             }
       const lent = gone.lentFor(store, prepared, command)
+      const started = forks.startOf(stores, keyOf, command, forkSourceAvailable)
       const decision = decide(lent, command, guards, held?.record ?? null, {
         ...relatedReads(stores, keyOf, command),
+        ...forks.reads(started),
         ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
         intakeLimits,
         ...(material === undefined ? {} : { history: material.reads }),
@@ -677,7 +683,7 @@ export function createMemorySessionTransactionPair<P>(
           command.kind === 'commitDerived' &&
           command.input.value.kind === 'compaction' &&
           store !== undefined
-            ? compactionReads(store.entries, store.snapshot, command.input.value.message.covers.to)
+            ? forks.compactionOf(store, command.input.value.message.covers.to)
             : null,
         ...(frozen === undefined ? {} : { frozenReceipt: frozen.record.receipt }),
         ...(command.kind === 'cancelRun' && store !== undefined
@@ -744,12 +750,7 @@ export function createMemorySessionTransactionPair<P>(
       const revision = String(
         previous === null ? 1n : BigInt(previous.revision) + 1n,
       ) as SessionRevision
-      const offset = store?.entries.length ?? 0
-      const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
-        ...entry,
-        id: String(offset + index + 1) as EntryId,
-        revision,
-      }))
+      const entries = forks.numbered(store, started, revision, decision.entries)
       const reduced = reduce(previous, { revision, entries }, material?.reads, gone.lookupOf(store))
       if (reduced.kind === 'quarantined')
         return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
@@ -781,11 +782,11 @@ export function createMemorySessionTransactionPair<P>(
       const target: Store = {
         snapshot: committedSnapshot,
         modelView: materializeModelView(
-          store?.modelView ?? { epoch: 'epoch:0', rows: [] },
+          store?.modelView ?? started?.modelView ?? { epoch: 'epoch:0', rows: [] },
           entries,
-          [...(store?.entries ?? []), ...entries],
         ),
         entries: [...(store?.entries ?? []), ...entries],
+        ...forks.kept(store, started),
         operations,
         answers: store?.answers ?? new Map(),
         inputs,
@@ -831,11 +832,7 @@ export function createMemorySessionTransactionPair<P>(
       if (decision.progress === undefined)
         return fail(unavailable('an entries decision without its progress'))
       const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
-      const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
-        ...entry,
-        id: String(store.entries.length + index + 1) as EntryId,
-        revision,
-      }))
+      const entries = forks.numbered(store, undefined, revision, decision.entries)
       const reduced = reduce(store.snapshot, { revision, entries }, undefined, gone.lookupOf(store))
       if (reduced.kind === 'quarantined')
         return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
@@ -869,7 +866,7 @@ export function createMemorySessionTransactionPair<P>(
         ...store,
         snapshot,
         left: gone.leftAfter(store, reduced),
-        modelView: materializeModelView(store.modelView, entries, committedEntries),
+        modelView: materializeModelView(store.modelView, entries),
         entries: committedEntries,
         operations,
         inputs: withInputs(store.inputs, decision.admitted ?? []),
@@ -893,11 +890,7 @@ export function createMemorySessionTransactionPair<P>(
         return fail(unavailable('a log projection that is not a batch of entries'))
       if (decision.entries.length === 0) return interpretedWithoutRows(store, prepared, observation)
       const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
-      const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
-        ...entry,
-        id: String(store.entries.length + index + 1) as EntryId,
-        revision,
-      }))
+      const entries = forks.numbered(store, undefined, revision, decision.entries)
       const reduced = reduce(prepared, { revision, entries }, material?.reads, gone.lookupOf(store))
       if (reduced.kind === 'quarantined')
         return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
@@ -975,7 +968,8 @@ export function createMemorySessionTransactionPair<P>(
       readCompactionContext: async input => {
         const store = await storeOf(input, 'history.readCompactionContext')
         if ('failure' in store) return store
-        return memoryCompactionContext(store.ok, keyOf(input.tenant, input.session), input)
+        const key = keyOf(input.tenant, input.session)
+        return memoryCompactionContext(forks.chained(store.ok), key, input)
       },
       begin: async input => {
         const store = await storeOf(input, 'history.begin')
@@ -1044,6 +1038,10 @@ export function createMemorySessionTransactionPair<P>(
         const store = await storeOf(input, 'history.readModelView')
         if ('failure' in store) return store
         return memoryModelViewPage(store.ok.modelView, keyOf(input.tenant, input.session), input)
+      },
+      readForkPoint: async input => {
+        const store = await storeOf(input, 'history.readModelView')
+        return forks.pointRead(store, keyOf(input.tenant, input.session))
       },
     }
 
@@ -1307,11 +1305,7 @@ export function createMemorySessionTransactionPair<P>(
             reason: 'replay must retain the original projection operation',
           })
         const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
-        const entries = decision.entries.map((entry, index) => ({
-          ...entry,
-          id: String(store.entries.length + index + 1) as EntryId,
-          revision,
-        }))
+        const entries = forks.numbered(store, undefined, revision, decision.entries)
         const lookup = gone.lookupOf(store)
         const reduced = reduce(prepared, { revision, entries }, material?.reads, lookup)
         if (reduced.kind === 'quarantined')
@@ -1329,10 +1323,11 @@ export function createMemorySessionTransactionPair<P>(
           left: gone.leftAfter(store, reduced),
           entries: [...store.entries, ...entries],
           operations,
-          modelView: materializeModelView(store.modelView, entries, [...store.entries, ...entries]),
+          modelView: materializeModelView(store.modelView, entries),
         })
         return succeed(receipt)
       },
+      forkSourceAvailable: (available: boolean) => void (forkSourceAvailable = available),
       directoryAvailable: (available: boolean) => {
         directoryAvailable = available
       },

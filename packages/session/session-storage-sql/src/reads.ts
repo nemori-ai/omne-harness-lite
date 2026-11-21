@@ -5,6 +5,7 @@ import {
   boundCall,
   type CompactionContextRead,
   type ContextScopeBinding,
+  type ForkPoint,
   type HistoryPage,
   type InputId,
   type ModelViewBasis,
@@ -308,6 +309,14 @@ export function historyFace<P>(context: Context<P>): SessionHistory<P> {
         state.ok.direction,
         state.ok.pageBytes,
       )
+    },
+    readForkPoint: async input => {
+      const read = await sessionRead(context, input, 'history.readModelView', 'session.fork-point')
+      if ('failure' in read) return read
+      const point = read.ok.out['point'] as ForkPoint | undefined
+      if (read.ok.out['kind'] !== 'point' || point === undefined) return succeed({ kind: 'none' })
+      const epoch = `${modelViewPrefix(read.ok.tenant, input.session)}${point.epoch}`
+      return succeed({ kind: 'point', point: { ...point, epoch } })
     },
     readModelView: async input => {
       const decided = await qualify(context, readAccessRequest(input, 'history.readModelView'))
