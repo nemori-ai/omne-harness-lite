@@ -77,7 +77,6 @@ export type Consumption = Readonly<{
   id: ConsumptionId
   binding: CallBinding
   results: readonly ResultConsumption[]
-  /** The final delivery of the call is in the log: the source of its execution fact. */
   delivered?: DurableEvidence
 }>
 export type InputBatch = Readonly<{
