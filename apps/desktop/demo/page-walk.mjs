@@ -316,8 +316,13 @@ const HELPERS = `
     throw new Error('timed out waiting for ' + what + ' on any asset tab')
   }
   const dock = () => document.querySelector('section[data-page=conversation] .hitl-session-cards')
-  const marks = area => [...area.querySelectorAll('.hitl-strip-item')].map(item => item.dataset.mark)
-  const shownCard = area => area.querySelector('.hitl-card')
+  const sections = area => [...area.querySelectorAll('.hitl-section')]
+  const sectionTitled = (area, title) => sections(area).find(item => item.querySelector('.hitl-title')?.textContent === title)
+  const answered = section =>
+    section.querySelector('[role=radio][aria-checked=true]') !== null
+  const submitOf = area => [...area.querySelectorAll('.hitl-actions button')].find(button => button.textContent.trim().startsWith('提交'))
+  const footLink = area => area.querySelector('.hitl-missing')?.textContent.trim()
+  const answerRow = (section, label) => [...section.querySelectorAll('[role=radio]')].find(item => item.textContent.includes(label))
 `
 
 async function walk(browser, origin, proofs, elsewhere) {
@@ -654,11 +659,11 @@ async function walk(browser, origin, proofs, elsewhere) {
     const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
     const settled = await wait('the list to settle', () => {
       if ([...page.querySelectorAll('button')].some(button => button.textContent.trim() === '重试')) return 'failed'
-      if (page.querySelector('.hitl-cards') !== null) return 'cards'
-      return page.textContent.includes('现在没有要你决定的事') ? 'empty' : undefined
+      if (page.querySelector('.hitl-paper') !== null) return 'cards'
+      return page.textContent.includes('待答的问题会在这里等你。') ? 'empty' : undefined
     })
     if (settled === 'failed') throw new Error('the pending decisions did not read: ' + page.innerText)
-    return { state: settled, cards: page.querySelectorAll('.hitl-cards > li').length }`,
+    return { state: settled, cards: page.querySelectorAll('.hitl-section').length }`,
   )
   await step(
     '切回对话，退出登录',
@@ -762,7 +767,7 @@ async function walk(browser, origin, proofs, elsewhere) {
   )
   phase = 'ask'
   await step(
-    '一轮里并行的两次 Ask：对话页出现三张问询卡，题号、等待提示与导航上的张数',
+    '一轮里并行的两次 Ask：对话页的一张纸上叠着三节问询，纸底的链接与导航上的张数',
     `
     // The row of this session is selected only while its conversation shows; remember which row it is.
     window.walkAskRow = document.querySelector('.omne-session-item[aria-current=true] .omne-session-item-title')?.textContent
@@ -770,37 +775,26 @@ async function walk(browser, origin, proofs, elsewhere) {
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'ask me')
     await pressNamed('button[type=submit]', '发送')
     const area = await wait('the cards of this session', () => dock())
-    await wait('three numbers above the cards', () => marks(area).length === 3)
-    const seen = []
-    for (let at = 1; at <= 3; at += 1) {
-      const card = await wait('card ' + at, () => {
-        const found = shownCard(area)
-        return found && found.getAttribute('aria-label') === '第 ' + at + ' 题' ? found : undefined
-      })
-      seen.push({
-        kind: card.dataset.kind,
-        title: card.querySelector('.hitl-card-title').textContent,
-        head: card.querySelector('.hitl-card-head').innerText,
-        source: card.querySelector('.hitl-card-source').textContent,
-      })
-      if (at < 3) area.querySelector('button[aria-label="下一题"]').click()
-    }
+    await wait('three sections on one sheet', () => sections(area).length === 3 && area.querySelectorAll('.hitl-paper').length === 1)
+    const seen = sections(area).map(section => ({
+      kind: section.dataset.kind,
+      title: section.querySelector('.hitl-title').textContent,
+      head: section.querySelector('.hitl-kind').innerText,
+      who: section.querySelector('.hitl-who').textContent,
+    }))
     const titles = seen.map(card => card.title).sort()
     const expected = ${JSON.stringify([ASK_TITLE, ASK_SECOND_TITLE, THIRD_TITLE].sort())}
     if (JSON.stringify(titles) !== JSON.stringify(expected)) throw new Error('the cards ask something else: ' + JSON.stringify(seen))
     if (!seen.every(card => card.kind === 'question')) throw new Error('a card is not a question: ' + JSON.stringify(seen))
-    if (!seen.every(card => card.source.endsWith(' · Ask'))) throw new Error('a card source does not name the tool: ' + JSON.stringify(seen))
-    const hint = await wait('the waiting hint', () => document.querySelector('section[data-page=conversation] .hitl-wait-hint')?.textContent)
-    if (!hint.includes('Agent 在等你回答 3 个问题')) throw new Error('the hint says ' + hint)
-    const submit = area.querySelector('.hitl-area-submit')
-    if (!submit.disabled) throw new Error('the submit is open before any answer')
-    const missing = [...area.querySelectorAll('.hitl-area-foot button')].map(button => button.textContent.trim())
-    if (!missing.includes('还差 3 题')) throw new Error('the foot says ' + JSON.stringify(missing))
+    if (!seen.every(card => card.head.startsWith('需要你回答'))) throw new Error('a kind line does not say whose move it is: ' + JSON.stringify(seen))
+    if (area.querySelector('[role=tablist], button[aria-label="下一题"]')) throw new Error('the sheet still pages its questions')
+    if (!submitOf(area).disabled) throw new Error('the submit is open before any answer')
+    if (footLink(area) !== '还差 3 题') throw new Error('the foot says ' + footLink(area))
     const badge = await wait('the count in the navigation', () => {
       const found = document.querySelector('.shell-nav-link[data-page=decisions] .shell-nav-badge')
       return found && found.textContent.trim() === '3' ? found : undefined
     })
-    return { cards: seen, hint, badge: badge.textContent.trim() }`,
+    return { cards: seen, badge: badge.textContent.trim() }`,
   )
   await step(
     '「待你决定」页按会话分组，是同一组卡',
@@ -809,13 +803,13 @@ async function walk(browser, origin, proofs, elsewhere) {
     const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
     const groups = await wait('the group of this session', () => {
       const found = [...page.querySelectorAll('.hitl-group')]
-      return found.length > 0 && marks(found[0]).length === 3 ? found : undefined
+      return found.length > 0 && sections(found[0]).length === 3 ? found : undefined
     })
     if (groups.length !== 1) throw new Error('the pool has ' + groups.length + ' groups')
-    return { groups: groups.length, title: groups[0].querySelector('.hitl-group-title').innerText, marks: marks(groups[0]) }`,
+    return { groups: groups.length, title: groups[0].querySelector('.hitl-group-title').innerText, sections: sections(groups[0]).length }`,
   )
   await step(
-    '左右切换、答齐、一次提交：三张卡都收起，两次 Ask 各自走完，这一轮接着走完',
+    '照纸底的链接逐节答齐、一次提交：纸收走，两次 Ask 各自走完，这一轮接着走完',
     () => {
       phase = 'asked'
     },
@@ -828,36 +822,28 @@ async function walk(browser, origin, proofs, elsewhere) {
     await wait('its row selected again', () => document.querySelector('.omne-session-item[aria-current=true] .omne-session-item-title')?.textContent === window.walkAskRow)
     await wait('the conversation page', () => shown('conversation'))
     const area = await wait('the cards of this session', () => dock())
-    const showing = () => shownCard(area)?.getAttribute('aria-label')
-    const stage = area.querySelector('.hitl-area')
-    const key = name => stage.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true }))
-    const first = showing()
-    key('ArrowRight')
-    await wait('the right arrow to move on', () => showing() !== first)
-    key('ArrowLeft')
-    await wait('the left arrow to come back', () => showing() === first)
     const steps = []
     for (let left = 3; left > 0; left -= 1) {
-      const link = await wait('the link to the first unanswered', () =>
-        [...area.querySelectorAll('.hitl-area-foot button')].find(button => button.textContent.trim() === '还差 ' + left + ' 题'))
-      if (!area.querySelector('.hitl-area-submit').disabled) throw new Error('the submit is open with ' + left + ' left')
-      link.click()
+      await wait('the link to the first unanswered', () => footLink(area) === '还差 ' + left + ' 题')
+      if (!submitOf(area).disabled) throw new Error('the submit is open with ' + left + ' left')
+      area.querySelector('.hitl-missing').click()
       await sleep(50)
-      const card = shownCard(area)
-      const title = card.querySelector('.hitl-card-title').textContent
+      const section = document.activeElement?.closest('.hitl-section')
+      if (!section) throw new Error('the link did not bring focus to an unanswered section')
+      const title = section.querySelector('.hitl-title').textContent
       if (title === ${JSON.stringify(ASK_SECOND_TITLE)}) {
-        fill(card.querySelector('textarea.hitl-card-words'), ${JSON.stringify(ASK_OWN_WORDS)})
+        answerRow(section, '用自己的话回答').click()
+        const field = await wait('the field under 用自己的话回答', () => section.querySelector('.hitl-field textarea'))
+        fill(field, ${JSON.stringify(ASK_OWN_WORDS)})
       } else {
         const label = title === ${JSON.stringify(ASK_TITLE)} ? ${JSON.stringify(ASK_PICK)} : ${JSON.stringify(THIRD_PICK)}
-        const choice = [...card.querySelectorAll('.hitl-card-choice')].find(item =>
-          item.querySelector('.hitl-card-choice-label').textContent === label)
-        choice.querySelector('[role=radio]').click()
+        answerRow(section, label).click()
       }
-      await wait('the card counted as answered', () => marks(area).filter(mark => mark === 'answered').length === 4 - left)
+      await wait('the section counted as answered', () => sections(area).filter(answered).length === 4 - left)
       steps.push(title)
     }
     const submit = await wait('the submit button', () => {
-      const found = area.querySelector('.hitl-area-submit')
+      const found = submitOf(area)
       return found && !found.disabled ? found : undefined
     })
     submit.click()
@@ -868,7 +854,7 @@ async function walk(browser, origin, proofs, elsewhere) {
       document.querySelector('.shell-nav-link[data-page=decisions] .shell-nav-badge').textContent.trim() === '')
     await press('.shell-nav-link', '待你决定')
     const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
-    await wait('the pool empty', () => page.textContent.includes('现在没有要你决定的事'))
+    await wait('the pool empty', () => page.textContent.includes('待答的问题会在这里等你。'))
     await goHome()
     await wait('the home to go to the conversation once nothing waits', () => shown('conversation'))
     return { answered: steps, transcript: transcript().slice(-160) }`,
@@ -879,7 +865,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'ask once more')
     await pressNamed('button[type=submit]', '发送')
-    await wait('the card in the conversation', () => dock()?.querySelector('.hitl-card'))
+    await wait('the card in the conversation', () => dock()?.querySelector('.hitl-section'))
     return 'asked'`,
     () => {
       phase = 'pooled'
@@ -887,17 +873,14 @@ async function walk(browser, origin, proofs, elsewhere) {
     `
     document.querySelector('.shell-nav-link[data-page=decisions]').click()
     const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
-    const card = await wait('the card in the pool', () =>
-      [...page.querySelectorAll('.hitl-card')].find(item => item.querySelector('.hitl-card-title').textContent === ${JSON.stringify(POOL_TITLE)}))
-    const choice = [...card.querySelectorAll('.hitl-card-choice')].find(item =>
-      item.querySelector('.hitl-card-choice-label').textContent === ${JSON.stringify(POOL_PICK)})
-    choice.querySelector('[role=radio]').click()
+    const card = await wait('the card in the pool', () => sectionTitled(page, ${JSON.stringify(POOL_TITLE)}))
+    answerRow(card, ${JSON.stringify(POOL_PICK)}).click()
     const submit = await wait('the submit in the pool', () => {
-      const found = page.querySelector('.hitl-area-submit')
+      const found = submitOf(page)
       return found && !found.disabled ? found : undefined
     })
     submit.click()
-    await wait('the pool empty', () => page.textContent.includes('现在没有要你决定的事'))
+    await wait('the pool empty', () => page.textContent.includes('待答的问题会在这里等你。'))
     await goHome()
     await wait('the reply after the answer', () => transcript().includes(${JSON.stringify(AFTER_POOL)}))
     if (dock() !== null) throw new Error('the conversation still shows the card')
