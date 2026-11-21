@@ -157,5 +157,6 @@ function relatedReads(
   if (fork?.source !== other) return { related: relatedOf(journal.work) }
   const running = journal.work.run.kind === 'active'
   const source = { session: other, epoch: journal.epoch, running }
-  return { related: relatedOf(journal.work), fork: forkFacts(port, tenant, source, fork.point) }
+  const facts = forkFacts(port, tenant, source, fork.point)
+  return { related: relatedOf(journal.work), ...(facts === null ? {} : { fork: facts }) }
 }

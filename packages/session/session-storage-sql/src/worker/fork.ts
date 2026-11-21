@@ -191,12 +191,32 @@ function floorOf(last: Row | undefined, epoch: string, fork: Fork | undefined): 
   return most([BigInt(text(last?.['entry'] ?? '0')), anchor, fork?.position ?? 0n])
 }
 
+const originOfSource = (port: Executor, source: Scope): string => {
+  const head = oneRow(
+    port,
+    'SELECT origin FROM sl_compaction_head WHERE tenant = ? AND session = ? LIMIT 1',
+    [source.tenant, source.session],
+  )
+  if (head === undefined) throw new SegmentUnreadable('the source of a fork has no compaction head')
+  return text(head['origin'])
+}
+
 export function forkFacts(
   port: Executor,
   tenant: string,
   source: Source,
   point: ForkPoint,
-): ForkFacts {
+): ForkFacts | null {
+  try {
+    originOfSource(port, { tenant, session: source.session })
+    return factsOf(port, tenant, source, point)
+  } catch (error) {
+    if (error instanceof SegmentUnreadable) return null
+    throw error
+  }
+}
+
+function factsOf(port: Executor, tenant: string, source: Source, point: ForkPoint): ForkFacts {
   const scope = { tenant, session: source.session }
   const fork = forkOf(port, scope)
   const tail = String(tailOf(port, scope, fork))
@@ -246,23 +266,10 @@ export function startFork(port: Executor, scope: Scope, command: SessionCommand)
   const source = { tenant: scope.tenant, session: fork.source }
   const epoch = fork.point.epoch.slice(modelViewPrefix(scope.tenant, fork.source).length)
   const upper = BigInt(fork.point.upper)
-  const head = oneRow(
-    port,
-    'SELECT origin FROM sl_compaction_head WHERE tenant = ? AND session = ? LIMIT 1',
-    [source.tenant, source.session],
-  )
-  if (head === undefined) throw new SegmentUnreadable('the source of a fork has no compaction head')
+  const origin = originOfSource(port, source)
   port.execute(
     'INSERT INTO sl_fork (tenant, session, src_session, src_epoch, upper, position, origin) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [
-      scope.tenant,
-      scope.session,
-      fork.source,
-      epoch,
-      upper,
-      BigInt(fork.point.position),
-      text(head['origin']),
-    ],
+    [scope.tenant, scope.session, fork.source, epoch, upper, BigInt(fork.point.position), origin],
   )
   for (const piece of flattened(port, source, epoch, upper))
     port.execute(

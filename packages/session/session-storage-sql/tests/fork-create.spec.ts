@@ -260,6 +260,42 @@ describe('the prefix stays as it was, and is all there or not read at all (SF-1,
   })
 })
 
+describe('a source that cannot be read gives no fork', () => {
+  it('has no basis for a fork whose source lost its compaction head, and creates nothing', async () => {
+    const a = await source(2)
+    const point = await wholeOf(a, 'session-1')
+    a.provider.seed(
+      DOMAIN,
+      "DELETE FROM sl_compaction_head WHERE tenant = ? AND session = 'session-1'",
+      [T],
+    )
+    const answer = await a.create(TENANT_A, 'child-1', childOf('session-1', point))
+    expect(failureOf(answer)).toMatchObject({ kind: 'unavailable' })
+    expect(count(a, 'sl_fork', 'child-1')).toBe(0n)
+    expect(count(a, 'sl_entry', 'child-1')).toBe(0n)
+  })
+
+  it('has no basis for a fork of a forked session whose own prefix lost a row', async () => {
+    const a = await source(3)
+    ok(
+      await a.create(TENANT_A, 'child-1', childOf('session-1', await wholeOf(a, 'session-1'))),
+      'fork',
+    )
+    const point = await wholeOf(a, 'child-1')
+    a.provider.seed(
+      DOMAIN,
+      "DELETE FROM sl_model_view WHERE tenant = ? AND session = 'session-1' AND seq = ?",
+      [T, BigInt(point.upper)],
+    )
+    const answer = await a.create(TENANT_A, 'grand-1', childOf('child-1', point))
+    expect(failureOf(answer)).toMatchObject({
+      kind: 'unavailable',
+      diagnostic: 'the source of the fork was not read',
+    })
+    expect(count(a, 'sl_fork', 'grand-1')).toBe(0n)
+  })
+})
+
 describe('a create with a source is judged against what the source shows', () => {
   it.each([
     [

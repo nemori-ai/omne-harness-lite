@@ -56,6 +56,12 @@ const REFUSED: readonly Cell[] = [
     failure: invalid('creation.fork.source', 'not the parent of the session'),
   },
   {
+    name: 'a child whose source is another session than its parent',
+    creation: (parent, point) =>
+      childOf(parent, null, { fork: { source: sessionId('elsewhere'), point } }),
+    failure: invalid('creation.fork.source', 'not the parent of the session'),
+  },
+  {
     name: 'an epoch the source never had',
     creation: (parent, point) => childOf(parent, { ...point, epoch: `${point.epoch}x` }),
     failure: invalid('creation.fork.point', 'unknown-epoch'),
@@ -118,7 +124,11 @@ describe('a create with a source answers for every state of the source', () => {
     const child = parent.peer('child-1')
     parent.port.controls.forkSourceAvailable(false)
     const answer = refused(await createWith(child, childOf(parent, point)), 'unreadable')
-    expect(answer).toMatchObject({ kind: 'unavailable' })
+    expect(answer).toMatchObject({
+      kind: 'unavailable',
+      owner: '@omne-harness/session-contract',
+      diagnostic: 'the source of the fork was not read',
+    })
     expect('failure' in (await child.port.readWork(child.access))).toBe(true)
     parent.port.controls.forkSourceAvailable(true)
     succeeded(await createWith(child, childOf(parent, point)), 'readable again')

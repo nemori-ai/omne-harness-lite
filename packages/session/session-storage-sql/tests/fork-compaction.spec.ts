@@ -5,8 +5,9 @@ import { modelViewPrefix } from '../src/model-view-identity.ts'
 import checkCompactionInput from '../src/worker/check-compaction-input.ts'
 import { maintainModelView, writeEntries } from '../src/worker/commit-write.ts'
 import { readCompactionWindow } from '../src/worker/compaction-window.ts'
-import { viewOf } from '../src/worker/fork.ts'
+import { forkFacts, viewOf } from '../src/worker/fork.ts'
 import readEntryMessage from '../src/worker/read-entry-message.ts'
+import readModelView from '../src/worker/read-model-view.ts'
 import { tree } from './fixtures/session-scenario.ts'
 import { migratedPort } from './fixtures/sqlite-storage.ts'
 
@@ -179,6 +180,30 @@ describe('the compaction window of a forked session reaches into its prefix (SF-
     try {
       s.port.execute("DELETE FROM sl_model_view WHERE session = 'r' AND seq = 2", [])
       expect(window(s.port, 'c', null)).toEqual({ kind: 'behind' })
+    } finally {
+      s.db.close()
+    }
+  })
+
+  it('hands on any other failure of the storage as it is, not as a prefix that is not there', () => {
+    const s = scene()
+    try {
+      const failing = {
+        ...s.port,
+        execute: (sql: string, params?: readonly never[]) => {
+          if (sql.includes('seq > ? AND seq <= ?')) throw new Error('the disk is gone')
+          return s.port.execute(sql, params)
+        },
+      } as typeof s.port
+      const whole = { tenant: 't', session: 'c', epoch: null, upper: null, after: null }
+      expect(() => window(failing, 'c', null)).toThrow('the disk is gone')
+      expect(() =>
+        readModelView.read({ ...whole, pageBytes: 1_000_000 }, failing as never),
+      ).toThrow('the disk is gone')
+      const point = { epoch: `${modelViewPrefix('t', 'c')}epoch:0`, upper: '4', position: '70' }
+      const source = { session: 'c', epoch: 'epoch:0', running: false }
+      expect(() => forkFacts(failing, 't', source, point)).toThrow('the disk is gone')
+      expect(forkFacts(s.port, 't', source, point)).toMatchObject({ rows: '6', next: 'assistant' })
     } finally {
       s.db.close()
     }

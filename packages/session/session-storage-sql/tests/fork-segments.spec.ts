@@ -65,14 +65,15 @@ function scene() {
   row('r', 'epoch:30', 2, 25, 'user')
   row('r', 'epoch:30', 3, 35, 'assistant')
   row('r', 'epoch:30', 4, 40, 'tool')
-  port.execute('INSERT INTO sl_compaction_head VALUES (?, ?, ?, ?, ?, ?)', [
-    't',
-    'r',
-    9n,
-    '10',
-    '[]',
-    null,
-  ])
+  for (const session of ['r', 'c', 'g'])
+    port.execute('INSERT INTO sl_compaction_head VALUES (?, ?, ?, ?, ?, ?)', [
+      't',
+      session,
+      9n,
+      '10',
+      '[]',
+      null,
+    ])
   journal('c', 'epoch:0')
   port.execute('INSERT INTO sl_fork VALUES (?, ?, ?, ?, ?, ?, ?)', [
     't',
@@ -283,9 +284,9 @@ describe('what a source shows at a point', () => {
       expect(
         forkFacts(s.port, 't', source('r', 'epoch:30', false), point('r', 'epoch:0', '1')),
       ).toMatchObject({ rows: '3', next: 'assistant', current: false, running: false, floor: '10' })
-      expect(forkFacts(s.port, 't', source('r', 'epoch:30'), point('r', 'epoch:0', '3')).next).toBe(
-        null,
-      )
+      expect(
+        forkFacts(s.port, 't', source('r', 'epoch:30'), point('r', 'epoch:0', '3')),
+      ).toMatchObject({ next: null })
     } finally {
       s.db.close()
     }
@@ -335,8 +336,8 @@ describe('what a source shows at a point', () => {
           forkFacts(s.port, 't', source('r', 'epoch:30'), point('r', 'epoch:30', upper)),
         ).toMatchObject({ rows: '4', next: null, floor: '0' })
       expect(
-        forkFacts(s.port, 't', source('r', 'epoch:30'), point('r', 'epoch:7', '1')).rows,
-      ).toBeNull()
+        forkFacts(s.port, 't', source('r', 'epoch:30'), point('r', 'epoch:7', '1')),
+      ).toMatchObject({ rows: null })
       const unnumbered = forkFacts(
         s.port,
         't',
