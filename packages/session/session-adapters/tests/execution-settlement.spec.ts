@@ -2,18 +2,26 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   AgentJournal,
   AgentOperationId,
+  AgentReceivedCommits,
   FailureCandidate,
   FinishIntent,
+  Material,
+  ReceivedEntry,
 } from '@omne-harness/agent-contract'
+import { agentReceivedCommitsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { Consumption, ConsumptionId, WorkSnapshot } from '@omne-harness/session-contract'
 import { evidence } from '@omne-harness/session-contract/testing'
 import { unpackText } from '@omne-harness/sql-contract/worker'
+import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
 import { receivedAll } from '../src/cordis/received-all.ts'
+import { createSessionToolLogConsumptionPlugin } from '../src/cordis/tool-log-consumption.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
 import {
   cannotFit,
+  endOpened,
   endWithFailure,
   nodeFailed,
   noReplyWithFault,
@@ -26,6 +34,14 @@ import {
   type CordisSceneOptions,
   type SqlScene,
 } from './fixtures/sql-scene.ts'
+import { toolCall } from './fixtures/tool-call.ts'
+import {
+  outcomeMaterial,
+  placeholderEntry,
+  placeholderMaterial,
+  reader,
+  resultEntry,
+} from './fixtures/tool-delivery.ts'
 
 const scenes: SqlScene[] = []
 const disposers: (() => Promise<unknown>)[] = []
@@ -129,6 +145,98 @@ function gate() {
         : Promise.resolve(fail({ kind: 'unavailable', owner: 'test', diagnostic: 'held' }))
     }
   return { state, acknowledge }
+}
+
+const kindsOf = (s: SqlScene): string[] =>
+  (s.controls?.select('SELECT kind FROM sl_entry ORDER BY position').rows ?? []).map(row =>
+    String(row[0]),
+  )
+
+// A Tool call goes to the background and the execution ends; the outcome comes after the end.
+// The Agent may process the placeholder before the end or end without it (a cancelled Run).
+async function backgroundedThenEnded(
+  s: SqlScene,
+  c: Awaited<ReturnType<typeof cordisScene>>,
+  processed: boolean,
+) {
+  const journal = c.journal()
+  const received = c.ctx.get(agentReceivedCommitsKey) as AgentReceivedCommits<string, ContentBlock>
+  const opened = ok(await journal.open(s.openInput))
+  ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+  const { authority } = opened
+  const load = async () => ok(await journal.load({ ...s.access, execution: s.execution }))
+  const commit = async (step: string, change: object) => {
+    const loaded = await load()
+    ok(
+      await journal.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation(step),
+        authority,
+        expected: loaded.revision,
+        checkpoint: loaded.checkpoint,
+        state: { kind: 'advancing' },
+        events: [],
+        effects: [],
+        caller: { kind: 'none' },
+        replyAdmission: null,
+        handoff: null,
+        finish: null,
+        ...change,
+      }),
+    )
+  }
+  const receive = async (step: string, entry: ReceivedEntry, material: Material<ContentBlock>) => {
+    const { material: _material, ...draft } = entry
+    const answer = ok(
+      await received.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation(step),
+        entry: draft,
+        material,
+      }),
+    )
+    if (answer.kind !== 'committed') throw new Error(`received ${answer.kind}`)
+  }
+  const tool = toolCall(s.access.tenant, 'background')
+  if (tool.entry.delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
+  // The call waits in this execution: its consumer is this execution's work.
+  const consumer = { ...tool.entry.consumer, work: s.execution }
+  const account = { ...tool.entry, consumer }
+  const pending = { ...tool.pending, position: consumer }
+  const waits = [{ kind: 'producer' as const, pending }]
+  await commit('wait', {
+    checkpoint: { ...(await load()).checkpoint, calls: [pending] },
+    state: { kind: 'waiting', waits },
+    events: [{ kind: 'waiting', waits }],
+    effects: [{ action: pending.action, pending, authority }],
+  })
+  const placeholder = placeholderEntry(account)
+  await receive('placeholder', placeholder, placeholderMaterial(s.access.tenant, placeholder))
+  if (processed)
+    await commit('placeholder-processed', {
+      checkpoint: { ...(await load()).checkpoint, calls: [] },
+      events: [
+        {
+          kind: 'producer',
+          result: {
+            producer: {
+              kind: 'tool',
+              call: ok(resolveToolInvocationRef(tool.entry.delivery.key.reference, s.access.tenant))
+                .call,
+            },
+            version: 'placeholder',
+            delivery: 'tdel_0',
+            source: evidence('placeholder'),
+          },
+          consumption: pending.consumption,
+        },
+      ],
+    })
+  await endOpened(s, journal, opened, refusedByModel())
+  const outcome = resultEntry(account)
+  await receive('outcome', outcome, outcomeMaterial(s.access.tenant, outcome))
 }
 
 async function settled(s: SqlScene): Promise<Head> {
@@ -407,6 +515,45 @@ describe('the Session acknowledges an execution once it has received all of it',
       fail({ kind: 'terminal' }),
     )
   })
+
+  it.each([
+    ['keeps up', 'processed', true, true],
+    ['keeps up', 'did not process', true, false],
+    ['lags', 'processed', false, true],
+    ['lags', 'did not process', false, false],
+  ] as const)(
+    'a backgrounded call whose outcome comes after the end: the interpretation %s, the Agent %s the placeholder; the outcome reaches the session log and the execution settles',
+    async (_pace, _processing, early, processed) => {
+      const s = await scene(`settle-outcome-${early ? 'early' : 'late'}-${String(processed)}`)
+      const c = await cordisScene(s)
+      disposers.push(() => c.dispose())
+      const coordinator = async () => succeed(s.access.principal)
+      await c.mount(
+        createSessionToolLogConsumptionPlugin({ toolDeliveries: reader, coordinator }).plugin,
+        {},
+      )
+      const interpretation = createSessionJournalInterpretationPlugin<string>({ coordinator })
+      if (early) await c.mount(interpretation.plugin)
+      await backgroundedThenEnded(s, c, processed)
+      if (!early) {
+        // The consumption answered every write before the interpretation starts: it found no binding.
+        await new Promise(resolve => setTimeout(resolve, 200))
+        expect(kindsOf(s)).not.toContain('call.bound')
+        await c.mount(interpretation.plugin)
+        ok(
+          await interpretation.interpret({
+            tenant: s.access.tenant,
+            session: s.access.session,
+            execution: s.execution,
+          }),
+        )
+      }
+      const head = await settled(s)
+      expect(head.acknowledged).toBe(head.emitted)
+      expect(kindsOf(s)).toContain('call.background-settled')
+      expect(rowsOf(s, 'er_fact')).toBe(0)
+    },
+  )
 
   it('a sweep the first opening could not finish runs again in the same generation and keeps what this generation settled: the settling operation is still recognized', async () => {
     const s = await scene('sweep-again')

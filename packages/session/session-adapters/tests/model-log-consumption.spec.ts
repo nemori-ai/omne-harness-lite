@@ -163,6 +163,7 @@ function entriesKinds(s: ModelScene): string[] {
 
 type Wraps = Partial<{
   load: AgentJournal<string>['load']
+  acknowledge: AgentJournal<string>['acknowledge']
   entries: AgentJournalEntries<string>['read']
   read: AgentMaterials<string, ContentBlock>['read']
   commitEntries: SessionTransactionPort<string>['commitEntries']
@@ -215,6 +216,8 @@ async function assembled(
       reads.load += 1
       return (wraps.load ?? s.view.journal.load)(input)
     }
+    readonly acknowledge: AgentJournal<string>['acknowledge'] = input =>
+      (wraps.acknowledge ?? s.view.journal.acknowledge)(input)
   }
   class Entries extends Service {
     constructor(scope: Context) {
@@ -344,6 +347,51 @@ describe('a Model received entry becomes one entries-channel Session batch', () 
     expect(f.commits[1]?.observation).toMatchObject({ after: '1', through: '2' })
     expect(f.commits[1]?.start).toMatchObject({ kind: 'saved', progress: { through: '1' } })
     expect(entriesKinds(s).slice(3)).toEqual(['account.linked', 'entries.interpreted'])
+  })
+})
+
+describe('after a commit', () => {
+  // The Session as it reads once the Run ended and no call is held: it has received all.
+  const receivedEverything = (snapshot: WorkSnapshot): WorkSnapshot => {
+    if (snapshot.run.kind !== 'active') return snapshot
+    const { run, execution } = snapshot.run
+    return {
+      ...snapshot,
+      run: { kind: 'none' } as WorkSnapshot['run'],
+      executions: [{ run, execution, terminal: {} as never }],
+      consumptions: [],
+    }
+  }
+
+  it('acknowledges the execution through the consumption position once the Session received all of it', async () => {
+    const s = await modelScene('acknowledge')
+    await receive(s, s.result, 'result')
+    const acknowledged: string[] = []
+    let through = ''
+    const f = await assembled(s, {
+      work: snapshot => {
+        if (snapshot.run.kind === 'active') through = snapshot.run.execution.readThrough
+        return receivedEverything(snapshot)
+      },
+      load: async input => {
+        const loaded = await s.view.journal.load(input)
+        return 'ok' in loaded
+          ? succeed({
+              ...loaded.ok,
+              output: { emittedThrough: through, acknowledgedThrough: null },
+            })
+          : loaded
+      },
+      acknowledge: async input => {
+        acknowledged.push(input.through)
+        return fail({ kind: 'unavailable', owner: 'test', diagnostic: 'recorded only' })
+      },
+    })
+
+    expect(ok(await f.consume()).committed).toBe(true)
+    expect(acknowledged).toEqual([through])
+    expect(ok(await f.consume()).committed).toBe(false)
+    expect(acknowledged).toEqual([through])
   })
 })
 
@@ -499,7 +547,8 @@ describe('reading again', () => {
     const answer = ok(await f.consume())
 
     expect(answer).toMatchObject({ committed: true, progress: { through: '1' } })
-    expect(f.reads.work).toBe(2)
+    // Two rounds, and the read of acknowledgeReceived after the commit.
+    expect(f.reads.work).toBe(3)
   })
 })
 

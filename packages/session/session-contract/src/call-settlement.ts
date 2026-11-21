@@ -106,9 +106,15 @@ function referenced(snapshot: WorkSnapshot, call: SessionCall): boolean {
   )
 }
 
-/** The open rule: a call is open work while a control or the background refers to it, or it is still out. */
+const settledInBackground = (snapshot: WorkSnapshot, call: SessionCall): boolean =>
+  (snapshot.backgroundCalls ?? []).some(
+    item => item.consumption === call.record.consumption && item.settled !== undefined,
+  )
+
+/** The open rule: a call is open work while a control or the background refers to it, or it is still out. A backgrounded call whose outcome came is no longer out. */
 export function callOpen(snapshot: WorkSnapshot, call: SessionCall): boolean {
   if (referenced(snapshot, call)) return true
+  if (settledInBackground(snapshot, call)) return false
   const active = snapshot.run.kind === 'active'
   if (call.record.registration.kind === 'tool-intent') return active
   const results = call.consumed?.results ?? []

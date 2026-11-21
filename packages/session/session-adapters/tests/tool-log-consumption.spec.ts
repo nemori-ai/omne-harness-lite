@@ -14,7 +14,6 @@ import {
   agentMaterialsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { SessionFaces, SessionTransactionPort } from '@omne-harness/session-contract'
@@ -24,120 +23,28 @@ import {
   SessionService,
   sessionTransactionsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
-import type { ToolDelivery } from '@omne-harness/tool-contract'
 import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import {
   createSessionToolLogConsumptionPlugin,
   type SessionToolLogConsumptionInput,
   type ToolDeliveryReader,
 } from '../src/cordis/tool-log-consumption.ts'
-import { evidence, ok, operation, operationId, scene } from './fixtures/common-journal.ts'
+import { ok, operation, operationId, scene } from './fixtures/common-journal.ts'
 import { cancel } from './fixtures/progression.ts'
 import { toolCall } from './fixtures/tool-call.ts'
-
-const SCHEMA = { owner: 'test', name: 'tool-delivery', revision: '1', digest: 'test:tool-delivery' }
-type Json = Extract<Material<ContentBlock>, { kind: 'facts' }>['value']
-type Draft = Omit<ReceivedEntry, 'material'>
-
-function json(value: unknown): Json {
-  if (value === null) return { kind: 'null' }
-  if (typeof value === 'string') return { kind: 'string', value }
-  if (typeof value === 'boolean') return { kind: 'boolean', value }
-  if (typeof value === 'number') return { kind: 'number', lexeme: String(value) }
-  if (Array.isArray(value)) return { kind: 'array', items: value.map(json) }
-  if (typeof value === 'object')
-    return {
-      kind: 'object',
-      entries: Object.entries(value)
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([key, member]) => ({ key, value: json(member) })),
-    }
-  throw new Error(`fixture: no JSON for ${typeof value}`)
-}
-
-function plain(value: Json): unknown {
-  switch (value.kind) {
-    case 'null':
-      return null
-    case 'string':
-    case 'boolean':
-      return value.value
-    case 'number':
-      return value.lexeme
-    case 'array':
-      return value.items.map(plain)
-    case 'object':
-      return Object.fromEntries(value.entries.map(entry => [entry.key, plain(entry.value)]))
-  }
-}
-
-function textOf(tenant: TenantId): string {
-  const encoded = tenantCodec.encode(tenant)
-  if (!encoded.ok) throw new Error('fixture: tenant')
-  return encoded.value
-}
-
-function deliveryOf(draft: Draft): Record<string, unknown> {
-  const { delivery } = draft
-  if (delivery.producer !== 'tool' || !('account' in delivery))
-    throw new Error('fixture: a Tool entry with an account')
-  return delivery.key.kind === 'result'
-    ? {
-        kind: 'result',
-        key: delivery.key,
-        consumer: draft.consumer,
-        delivery: 'tdel_1',
-        relation: 'original',
-        terminal: { kind: 'completed' },
-        actualTerminal: { kind: 'completed' },
-        effect: { kind: 'occurred', evidence: evidence('tool-effect') },
-        source: evidence('tool-result'),
-        value: { kind: 'test-result' },
-        account: delivery.account,
-      }
-    : { kind: 'account', key: delivery.key, consumer: draft.consumer, account: delivery.account }
-}
-
-function materialOf(
-  tenant: TenantId,
-  draft: Draft,
-  change: (value: Record<string, unknown>) => Record<string, unknown> = value => value,
-): Material<ContentBlock> {
-  return {
-    kind: 'facts',
-    schema: SCHEMA,
-    value: json(change({ tenant: textOf(tenant), delivery: deliveryOf(draft) })),
-  }
-}
-
-const reader: ToolDeliveryReader = material => {
-  if (material.kind !== 'facts' || material.schema.digest !== SCHEMA.digest) return null
-  const value = plain(material.value) as { tenant?: unknown; delivery?: unknown }
-  if (typeof value.tenant !== 'string' || typeof value.delivery !== 'object') return null
-  return { tenant: value.tenant, delivery: value.delivery as ToolDelivery<ContentBlock> }
-}
-
-function resultEntry(account: ReceivedEntry, reported = true): ReceivedEntry {
-  if (
-    account.delivery.producer !== 'tool' ||
-    account.delivery.key.kind !== 'account' ||
-    !('account' in account.delivery)
-  )
-    throw new Error('fixture: a Tool account entry')
-  return {
-    ...account,
-    delivery: {
-      producer: 'tool',
-      key: {
-        kind: 'result',
-        producer: 'tool',
-        reference: account.delivery.key.reference,
-        result: ok(decodeToolResultVersion('tres_1')),
-      },
-      account: reported ? account.delivery.account : null,
-    },
-  }
-}
+import {
+  OUTCOME_CONTENT,
+  SCHEMA,
+  deliveryOf,
+  json,
+  materialOf,
+  outcomeMaterial,
+  placeholderEntry,
+  placeholderMaterial,
+  reader,
+  resultEntry,
+  textOf,
+} from './fixtures/tool-delivery.ts'
 
 async function toolScene(name: string, bind = true) {
   const s = await scene(name)
@@ -1197,50 +1104,7 @@ describe('a round reads only the entries after the saved position', () => {
 })
 
 describe('a backgrounded call: the placeholder and the outcome', () => {
-  const VISIBLE = { toHuman: true, toModel: true }
-  const CONTENT = { kind: 'text', id: 'blk_bg_out', visibility: VISIBLE, text: 'done' }
-
-  function placeholderEntry(s: ToolScene): ReceivedEntry {
-    if (s.account.delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
-    const { reference } = s.account.delivery.key
-    return {
-      ...s.account,
-      delivery: { producer: 'tool', key: { kind: 'placeholder', producer: 'tool', reference } },
-    }
-  }
-
-  function placeholderMaterial(s: ToolScene, entry: ReceivedEntry): Material<ContentBlock> {
-    return {
-      kind: 'facts',
-      schema: SCHEMA,
-      value: json({
-        tenant: textOf(s.access.tenant),
-        delivery: {
-          kind: 'placeholder',
-          key: entry.delivery.key,
-          consumer: entry.consumer,
-          delivery: 'tdel_0',
-          source: { kind: 'control', operation: 'top_background' },
-          label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
-          evidence: evidence('tool-placeholder'),
-        },
-      }),
-    }
-  }
-
-  const resultMaterial = (s: ToolScene) =>
-    materialOf(s.access.tenant, s.result, value => ({
-      ...value,
-      delivery: {
-        ...(value.delivery as Record<string, unknown>),
-        value: {
-          content: [CONTENT],
-          data: { kind: 'none' },
-          original: { kind: 'none' },
-          attachments: [],
-        },
-      },
-    }))
+  const resultMaterial = (s: ToolScene) => outcomeMaterial(s.access.tenant, s.result)
 
   const producerOf = (s: ToolScene) => ({
     kind: 'tool' as const,
@@ -1249,8 +1113,8 @@ describe('a backgrounded call: the placeholder and the outcome', () => {
 
   async function placed(name: string) {
     const s = await toolScene(name)
-    const entry = placeholderEntry(s)
-    await receive(s, entry, 'placeholder', placeholderMaterial(s, entry))
+    const entry = placeholderEntry(s.account)
+    await receive(s, entry, 'placeholder', placeholderMaterial(s.access.tenant, entry))
     return s
   }
 
@@ -1298,7 +1162,7 @@ describe('a backgrounded call: the placeholder and the outcome', () => {
     const [head, ...rest] = stored.message.blocks
     expect(head).toMatchObject({ kind: 'text' })
     expect((head as { text: string }).text).toContain(`The background call ${s.call} completed`)
-    expect(rest).toEqual([CONTENT])
+    expect(rest).toEqual([OUTCOME_CONTENT])
 
     expect(ok(await f.consume())).toMatchObject({ committed: false })
     const again = ok(await s.backend.transactions.readWork(s.access))
