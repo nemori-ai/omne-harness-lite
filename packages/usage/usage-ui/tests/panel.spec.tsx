@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import type { Context } from '@deepseek-ai/cordis'
-import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { ShellAssemblyError } from '@omne-harness/shell-contract'
 import { encodeInstant, type Instant } from '@omne-harness/utc-instant'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -53,6 +53,29 @@ const click = async (name: string, within?: HTMLElement | null) => {
   fireEvent.click(button)
   await settle()
 }
+const bar = () => {
+  const header = document.querySelector<HTMLElement>('.usage-panel-bar')
+  if (header === null) throw new Error('no panel bar')
+  return header
+}
+/** Opens the panel's `⋯` and gives its menu. */
+const openMenu = async () => {
+  fireEvent.pointerDown(within(bar()).getByRole('button', { name: '更多操作' }), {
+    button: 0,
+    ctrlKey: false,
+  })
+  await settle()
+  return screen.getByRole('menu')
+}
+const menuItems = (menu: HTMLElement) =>
+  within(menu)
+    .getAllByRole('menuitem')
+    .map(item => item.textContent)
+/** Chooses an item of the panel's `⋯`. */
+const fromMenu = async (name: string) => {
+  fireEvent.click(within(await openMenu()).getByRole('menuitem', { name }))
+  await settle()
+}
 const choose = async (label: string, value: string, within?: HTMLElement | null) => {
   const scope = within ?? document.body
   const field = [...scope.querySelectorAll('label')].find(node =>
@@ -94,7 +117,7 @@ describe('the panel is the charts-first set of widgets in the order of its layou
 
   it('edits: moves, removes, adds, resizes and changes the presentation, each saved; resets to the default', async () => {
     const { store } = await page()
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     await click('下移', card('usage.summary'))
     expect(widgets().slice(0, 2)).toEqual(['usage.tokens', 'usage.summary'])
     await click('上移', card('usage.summary'))
@@ -121,7 +144,7 @@ describe('the panel is the charts-first set of widgets in the order of its layou
 
   it('keeps the first and last widget where they are when moved past the end', async () => {
     await page()
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     const first = [...(card('usage.summary')?.querySelectorAll('button') ?? [])].find(
       node => node.textContent === '上移',
     )
@@ -222,8 +245,30 @@ describe('a read that is refused', () => {
   it('reads again on refresh', async () => {
     const { fake } = await page()
     const before = fake.calls.length
-    await click('刷新')
+    await fromMenu('刷新')
     expect(fake.calls.length).toBeGreaterThan(before)
+  })
+
+  it('the top of the panel is the range and one ⋯ (A2): 编辑面板, 完成 while editing, and 刷新', async () => {
+    await page()
+    const more = within(bar()).getByRole('button', { name: '更多操作' })
+    expect(more.textContent?.trim()).toBe('')
+    expect(more.querySelector('svg[data-icon="more"][aria-hidden="true"]')).not.toBeNull()
+    expect(
+      within(bar())
+        .getAllByRole('button')
+        .filter(button => !button.hasAttribute('data-segment'))
+        .map(button => button.getAttribute('aria-label')),
+    ).toEqual(['更多操作'])
+    expect(bar().textContent).not.toMatch(/刷新|编辑面板|完成/u)
+    expect(menuItems(await openMenu())).toEqual(['编辑面板', '刷新'])
+    fireEvent.click(screen.getByRole('menuitem', { name: '编辑面板' }))
+    await settle()
+    expect(document.querySelector('.usage-panel')?.getAttribute('data-editing')).toBe('true')
+    expect(menuItems(await openMenu())).toEqual(['完成', '刷新'])
+    fireEvent.click(screen.getByRole('menuitem', { name: '完成' }))
+    await settle()
+    expect(document.querySelector('.usage-panel')?.getAttribute('data-editing')).toBe('false')
   })
 })
 
@@ -245,8 +290,11 @@ describe('the details of editing (C28)', () => {
     expect(card('gone.widget')?.querySelector('.usage-edit')?.getAttribute('aria-label')).toBe(
       '编辑「gone.widget」',
     )
-    await click('编辑面板')
-    expect(document.body.textContent).toContain('完成')
+    await fromMenu('编辑面板')
+    const menu = await openMenu()
+    expect(menuItems(menu)).toEqual(['完成', '刷新'])
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    await settle()
     expect(card('usage.summary')?.querySelector('.usage-edit')?.getAttribute('aria-label')).toBe(
       '编辑「概览」',
     )
@@ -257,7 +305,7 @@ describe('the details of editing (C28)', () => {
 
   it('offers no presentation for a widget that draws itself, and the default first for one that does not', async () => {
     const { store } = await page()
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     expect(fieldOf('画法', card('usage.summary'))).toBeNull()
     const drawing = fieldOf('画法', card('usage.tokens'))
     expect(drawing?.value).toBe('')
@@ -285,7 +333,7 @@ describe('the details of editing (C28)', () => {
         render: () => null,
       }),
     )
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     const adding = fieldOf('加一张卡片')
     expect([...(adding?.options ?? [])].map(option => option.text)).toEqual([
       '选一张',
@@ -306,7 +354,7 @@ describe('the details of editing (C28)', () => {
       session: [{ widget: 'usage.tokens', width: 3, presentation: null }],
     })
     await page({ store })
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     await click('恢复缺省')
     expect(Object.keys(store.read())).toEqual(['session'])
   })
@@ -405,7 +453,7 @@ describe('what the panel leaves alone', () => {
     await page({ store })
     expect(card('usage.tokens')?.textContent).not.toContain('所选的画法不在了')
     expect(card('usage.tokens')?.querySelector('.recharts-line')).not.toBeNull()
-    await click('编辑面板')
+    await fromMenu('编辑面板')
     const adding = [...document.querySelectorAll('label')].find(node =>
       node.textContent?.startsWith('加一张卡片'),
     )

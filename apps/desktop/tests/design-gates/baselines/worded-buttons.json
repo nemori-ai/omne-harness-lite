@@ -101,14 +101,8 @@
     "packages/usage/usage-ui/src/view/panel.tsx | 下移": {
       "R10": 1
     },
-    "packages/usage/usage-ui/src/view/panel.tsx | 刷新": {
-      "R6b": 1
-    },
     "packages/usage/usage-ui/src/view/panel.tsx | 去掉": {
       "R10": 1
-    },
-    "packages/usage/usage-ui/src/view/panel.tsx | 完成/编辑面板": {
-      "R6b": 1
     },
     "packages/usage/usage-ui/src/view/panel.tsx | 恢复缺省": {
       "R10": 1
