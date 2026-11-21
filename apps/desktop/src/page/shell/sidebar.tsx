@@ -323,7 +323,7 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
       <Reconnecting connectivity={props.connectivity} />
       <div className="shell-navigation-main">
         {rows('页面', primary)}
-        {entries('primary')}
+        <div className="shell-sidebar-primary">{entries('primary')}</div>
       </div>
       <div className="shell-secondary">
         {utility.length === 0 ? null : rows('次要页面', utility)}

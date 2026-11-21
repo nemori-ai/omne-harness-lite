@@ -166,6 +166,15 @@ body,
   flex: 1;
   flex-direction: column;
   gap: var(--omne-space-inline);
+}
+
+/* The sidebar slot's primary items scroll on their own and the nav rows above them stay (SPEC 页面). When not even one
+   row of them fits, the whole column scrolls instead, so every row stays reachable. */
+.shell-sidebar-primary {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
   min-height: var(--omne-nav-row-height);
   overflow-y: auto;
   overscroll-behavior: contain;

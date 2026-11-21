@@ -157,6 +157,17 @@ describe('外壳：放不下时滚', () => {
     ])
   })
 
+  it('侧栏区 primary 段的项在自己的一段里滚，导航的行不在那一段里', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [PAGES, sideOf({ id: 'list', order: 0, text: '会话列表' })],
+    })
+    const segment = document.querySelector<HTMLElement>('.shell-sidebar-primary')!
+    expect(segment.querySelector('[data-side-text="list"]')).not.toBeNull()
+    expect(segment.querySelector('.shell-nav')).toBeNull()
+    expect(segment.closest('.shell-navigation-main')?.querySelector('.shell-nav')).not.toBeNull()
+  })
+
   it('窗口或字号档变了，选中的一行回到视野里', async () => {
     const watched = new Map<Element, () => void>()
     vi.stubGlobal(
