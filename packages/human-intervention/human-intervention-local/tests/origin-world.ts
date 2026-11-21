@@ -48,6 +48,7 @@ export async function openOriginWorld(
       reservations: w.identity.reservations,
     },
     guards,
+    clock: { now: () => '2026-11-21T08:30:00.000Z' },
   })
   applications.push(app)
   return { ...w, app }

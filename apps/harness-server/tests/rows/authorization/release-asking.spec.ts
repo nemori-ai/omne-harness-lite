@@ -226,6 +226,17 @@ describe('the card for an action a person must release', () => {
     expect((await questionOf({ kind: 'detail', rows })).detail).toEqual({ state: 'given', rows })
   })
 
+  it('hands every option the role the card maker gave it, so the card keeps it', async () => {
+    const question = await questionOf({ kind: 'none' })
+    expect(QuestionSchema.parse(question).options.map(option => [option.id, option.role])).toEqual([
+      ['deny-once', 'reject'],
+      ['allow-once', 'approve'],
+      ['allow-session', 'approve'],
+      ['allow-always', 'approve'],
+      ['deny-always', 'reject'],
+    ])
+  })
+
   it('keeps a detail within what one card holds, and asks with the largest the default policy of Tool lets through as one the tool could not give', async () => {
     const policy = DEFAULT_RELEASE_DETAIL_POLICY
     const rowsOf = (each: number) =>
