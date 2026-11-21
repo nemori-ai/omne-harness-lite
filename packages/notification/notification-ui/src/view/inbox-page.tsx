@@ -61,19 +61,16 @@ function Inbox({ hub, tenant, sections, focus }: InboxProps): JSX.Element {
   const { driver, state } = useInbox(hub, tenant)
   return (
     <PageColumn className="notification-page">
-      <PageHeader
-        title="通知"
-        description="来源发给你的事件。"
-        actions={
+      <PageHeader title="通知" description="来源发给你的事件。" />
+      <div className="notification-column">
+        <div className="notification-scope">
           <Segmented
             label="显示哪些通知"
             value={state.filter}
             options={FILTERS}
             onValueChange={filter => driver.filter(filter)}
           />
-        }
-      />
-      <div className="notification-column">
+        </div>
         <LiveLine state={state} />
         <Body state={state} driver={driver} focus={focus} />
         {sections}

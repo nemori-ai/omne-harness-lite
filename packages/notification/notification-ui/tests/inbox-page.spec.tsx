@@ -152,6 +152,9 @@ describe('the inbox page', () => {
     expect(column.contains(header)).toBe(false)
     expect(column.contains(region('未了结').getByRole('list'))).toBe(true)
     expect(header.nextElementSibling).toBe(column)
+    const scope = screen.getByRole('group', { name: '显示哪些通知' })
+    expect(header.contains(scope)).toBe(false)
+    expect(column.firstElementChild?.contains(scope)).toBe(true)
   })
 
   it('settles the row it was brought to once, scrolls it near, and draws no standing mark on it', async () => {
