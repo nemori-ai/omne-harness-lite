@@ -313,20 +313,6 @@
   min-width: 0;
 }
 
-.hitl-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--omne-chip-height);
-  height: var(--omne-chip-height);
-  padding-inline: var(--omne-space-inline);
-  border-radius: var(--omne-radius-pill);
-  background: var(--omne-accent);
-  color: var(--omne-accent-ink);
-  font-size: var(--omne-text-caption);
-  font-variant-numeric: tabular-nums;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .hitl-card-choice {
     transition: none;

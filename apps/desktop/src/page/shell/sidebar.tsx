@@ -1,4 +1,7 @@
 import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
   useState,
   useSyncExternalStore,
   type MouseEvent,
@@ -113,6 +116,7 @@ function Home(props: {
   selected: boolean
   page: string | undefined
   choose: (id: string) => void
+  seat?: boolean
 }) {
   return (
     <ActionTooltip label={props.appName} side="right">
@@ -126,10 +130,24 @@ function Home(props: {
         draggable={false}
         onClick={follow(props.choose, props.page)}
       >
-        <FigureSeat name="home" className="shell-home-seat" />
+        {props.seat === false ? (
+          <span className="shell-home-seat" />
+        ) : (
+          <FigureSeat name="home" className="shell-home-seat" />
+        )}
       </a>
     </ActionTooltip>
   )
+}
+
+function keepInView(row: HTMLElement): () => void {
+  const reveal = (): void => row.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  reveal()
+  const resized = new ResizeObserver(reveal)
+  resized.observe(row)
+  const column = row.closest('.shell-navigation-content')
+  if (column !== null) resized.observe(column)
+  return () => resized.disconnect()
 }
 
 function PageRow(props: {
@@ -139,12 +157,19 @@ function PageRow(props: {
   expanded: boolean
   choose: (id: string) => void
 }) {
-  const { page, scope } = props
+  const { page, scope, selected } = props
   const Icon = ICONS[page.icon] ?? UnknownIcon
   const { badge } = page
+  const row = useRef<HTMLAnchorElement>(null)
+  useLayoutEffect(() => {
+    const element = row.current
+    if (!selected || element === null) return undefined
+    return keepInView(element)
+  }, [selected])
   return (
     <RowHint expanded={props.expanded} label={page.title}>
       <a
+        ref={row}
         href={hrefOf(page.id)}
         className={props.selected ? 'shell-nav-link active' : 'shell-nav-link'}
         data-glide-row=""
@@ -290,7 +315,11 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
     />
   )
   return (
-    <div className="shell-navigation-content" data-expanded={expanded ? 'true' : 'false'}>
+    <div
+      className="shell-navigation-content"
+      data-expanded={expanded ? 'true' : 'false'}
+      data-count-dots={expanded ? undefined : ''}
+    >
       <Reconnecting connectivity={props.connectivity} />
       <div className="shell-navigation-main">
         {rows('页面', primary)}
@@ -356,13 +385,61 @@ export function Sidebar(
 
 export const SHEET_LABEL = '展开或收起导航'
 
-/** Below 768 a sheet from the right; choosing any page, or the window growing past 768, closes it. */
-export function NarrowNavigation(props: SidebarProps) {
+function useArrived(open: boolean): [RefObject<HTMLDivElement | null>, boolean] {
+  const inside = useRef<HTMLDivElement>(null)
+  const [arrived, setArrived] = useState(false)
+  useLayoutEffect(() => {
+    setArrived(false)
+    const sheet = inside.current?.closest<HTMLElement>('[data-slot="sheet-content"]')
+    if (!open || sheet == null) return undefined
+    if (!sheet.getAnimations().some(animation => animation.playState === 'running')) {
+      setArrived(true)
+      return undefined
+    }
+    const landed = (event: AnimationEvent): void => {
+      if (event.target === sheet) setArrived(true)
+    }
+    sheet.addEventListener('animationend', landed)
+    sheet.addEventListener('animationcancel', landed)
+    return () => {
+      sheet.removeEventListener('animationend', landed)
+      sheet.removeEventListener('animationcancel', landed)
+    }
+  }, [open])
+  return [inside, open && arrived]
+}
+
+function SheetNavigation(props: SidebarProps & { open: boolean; choose: (id: string) => void }) {
+  const [inside, arrived] = useArrived(props.open)
+  return (
+    <div ref={inside} className="shell-sheet-navigation">
+      <div className="shell-brand-row">
+        <Home
+          appName={props.appName}
+          selected={homeSelected(props)}
+          page={props.homePage}
+          choose={props.choose}
+          seat={arrived}
+        />
+      </div>
+      <SidebarBody {...props} expanded choose={props.choose} />
+    </div>
+  )
+}
+
+/** Below 768 a sheet from the right; the page behind it is inert, and its home is a seat once it has come in. */
+export function NarrowNavigation(props: SidebarProps & { covering: (open: boolean) => void }) {
   const [openedOn, setOpenedOn] = useState<{ readonly page: string | undefined } | null>(null)
   if (openedOn !== null && openedOn.page !== props.shown) setOpenedOn(null)
+  const open = openedOn !== null
+  const { covering, ...navigation } = props
+  useEffect(() => {
+    covering(open)
+    return () => covering(false)
+  }, [covering, open])
   const close = (): void => setOpenedOn(null)
   const choose = (id: string): void => {
-    props.state.page.choose(id)
+    navigation.state.page.choose(id)
     close()
   }
   return (
@@ -373,8 +450,8 @@ export function NarrowNavigation(props: SidebarProps) {
       data-width="sheet"
     >
       <Sheet
-        open={openedOn !== null}
-        onOpenChange={open => setOpenedOn(open ? { page: props.shown } : null)}
+        open={open}
+        onOpenChange={opening => setOpenedOn(opening ? { page: navigation.shown } : null)}
       >
         <SheetTrigger asChild>
           <IconButton label={SHEET_LABEL} tooltipSide="bottom" className="shell-menu">
@@ -387,18 +464,8 @@ export function NarrowNavigation(props: SidebarProps) {
           closeLabel={SHEET_LABEL}
           aria-describedby={undefined}
         >
-          <SheetTitle className="sr-only">{props.appName}</SheetTitle>
-          <div className="shell-sheet-navigation">
-            <div className="shell-brand-row">
-              <Home
-                appName={props.appName}
-                selected={homeSelected(props)}
-                page={props.homePage}
-                choose={choose}
-              />
-            </div>
-            <SidebarBody {...props} expanded choose={choose} />
-          </div>
+          <SheetTitle className="sr-only">{navigation.appName}</SheetTitle>
+          <SheetNavigation {...navigation} open={open} choose={choose} />
         </SheetContent>
       </Sheet>
     </aside>

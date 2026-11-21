@@ -92,3 +92,29 @@
   line-height: var(--omne-leading-title);
   letter-spacing: var(--omne-reading-tracking);
 }
+.omne-count-pill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(var(--omne-text-caption) * var(--omne-leading-wrapped));
+  height: calc(var(--omne-text-caption) * var(--omne-leading-wrapped));
+  padding-inline: calc(var(--spacing) * 1.25);
+  border-radius: var(--omne-radius-pill);
+  background: var(--omne-caution-fill);
+  color: var(--omne-caution-ink);
+  font-size: var(--omne-text-caption);
+  font-weight: var(--omne-weight-strong);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--omne-leading-ui);
+  pointer-events: none;
+}
+[data-count-dots] .omne-count-pill {
+  min-width: 0;
+  width: var(--omne-space-inline);
+  height: var(--omne-space-inline);
+  padding: 0;
+  background: var(--omne-caution-ink);
+  color: transparent;
+  font-size: 0;
+}

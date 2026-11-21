@@ -202,6 +202,7 @@ function Workspace(props: SidebarProps & { missing: readonly string[] }) {
   const scope = useWatched(state.scope)
   const wide = useWide()
   const [width, setWidth] = useState<SidebarWidth>('expanded')
+  const [covered, setCovered] = useState(false)
   const sidebar = useRef<HTMLElement>(null)
   const home = useSeatedHome()
   const room = wide && width === 'expanded' && home
@@ -218,13 +219,14 @@ function Workspace(props: SidebarProps & { missing: readonly string[] }) {
           told={<ToldAtHome state={state} sidebar={sidebar} />}
         />
       ) : (
-        <NarrowNavigation {...props} />
+        <NarrowNavigation {...props} covering={setCovered} />
       )}
       <main
         id="shell-content"
         className="shell-workspace"
         data-keyboard-region="main"
         tabIndex={-1}
+        inert={!wide && covered}
       >
         <div className="shell-drag-strip" aria-hidden="true" />
         <StaleApp missing={props.missing} />

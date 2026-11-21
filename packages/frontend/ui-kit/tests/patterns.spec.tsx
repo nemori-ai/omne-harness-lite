@@ -6,6 +6,7 @@ import {
   Ago,
   CodeSurface,
   CopyButton,
+  CountPill,
   Disclosure,
   DoneIcon,
   EmptyState,
@@ -285,6 +286,19 @@ it('StatusPill carries its fact and tone and the word', () => {
   expect(pill?.getAttribute('data-fact')).toBe('waiting')
   expect(pill?.textContent).toContain('等待中')
   expect(pill?.textContent).toContain('待批')
+})
+
+it('CountPill writes a count in one look, capped at 99+, named when asked', () => {
+  const { container } = render(
+    <>
+      <CountPill count={3} />
+      <CountPill count={100} label="100 张等你回答" />
+    </>,
+  )
+  const pills = [...container.querySelectorAll('[data-count-pill]')]
+  expect(pills.map(pill => pill.textContent)).toEqual(['3', '99+'])
+  expect(pills[0]?.hasAttribute('aria-label')).toBe(false)
+  expect(pills[1]?.getAttribute('aria-label')).toBe('100 张等你回答')
 })
 
 it('StatusMark draws a different mark for each phase', () => {

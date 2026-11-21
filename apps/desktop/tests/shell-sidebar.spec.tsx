@@ -133,6 +133,55 @@ describe('外壳：家与一处选中', () => {
   })
 })
 
+describe('外壳：放不下时滚', () => {
+  const revealed = () => {
+    const reveal = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => undefined)
+    return () =>
+      reveal.mock.contexts.flatMap((row, at) =>
+        row instanceof HTMLElement && row.matches('.shell-nav-link')
+          ? [[row.textContent, reveal.mock.calls[at]![0]]]
+          : [],
+      )
+  }
+
+  it('换页时选中的一行进到视野里，只在它的那一段里上下挪', async () => {
+    const seen = revealed()
+    await setup({ login: 'signed-in', modules: [PAGES] })
+    expect(seen()).toEqual([])
+    fireEvent.click(screen.getByRole('link', { name: '日程' }))
+    fireEvent.click(screen.getByRole('link', { name: '用量' }))
+    fireEvent.click(home()!)
+    expect(seen()).toEqual([
+      ['日程', { block: 'nearest', inline: 'nearest' }],
+      ['用量', { block: 'nearest', inline: 'nearest' }],
+    ])
+  })
+
+  it('窗口或字号档变了，选中的一行回到视野里', async () => {
+    const watched = new Map<Element, () => void>()
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        readonly changed: () => void
+        constructor(changed: () => void) {
+          this.changed = changed
+        }
+        observe(target: Element) {
+          watched.set(target, this.changed)
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+    const seen = revealed()
+    await setup({ login: 'signed-in', modules: [PAGES] })
+    fireEvent.click(screen.getByRole('link', { name: '日程' }))
+    const before = seen().length
+    act(() => watched.get(document.querySelector('.shell-navigation-content')!)?.())
+    expect(seen().slice(before)).toEqual([['日程', { block: 'nearest', inline: 'nearest' }]])
+  })
+})
+
 describe('外壳：侧栏的两段', () => {
   it('utility 段的页、「外观」与侧栏区的 utility 项在底部；primary 段在上面', async () => {
     await setup({
@@ -182,11 +231,15 @@ describe('外壳：窄条', () => {
         ),
       ],
     })
+    const counts = () =>
+      document.querySelector('.shell-navigation-content')!.hasAttribute('data-count-dots')
+    expect(counts()).toBe(false)
     fireEvent.click(screen.getByRole('button', { name: '收起侧栏' }))
     await nextFrame()
     const sidebar = document.querySelector<HTMLElement>('.shell-sidebar')!
     expect(sidebar.dataset['width']).toBe('rail')
     expect(sidebar.dataset['labels']).toBe('hidden')
+    expect(counts()).toBe(true)
     expect(document.querySelector('[data-side-rail="account"]')?.textContent).toBe('账号的圆')
     expect(document.querySelector('[data-side-text]')).toBeNull()
     expect(document.querySelector('[data-item="list"]')).toBeNull()
@@ -195,6 +248,7 @@ describe('外壳：窄条', () => {
     expect(document.querySelector('[data-side-text="list"]')?.textContent).toBe('会话列表')
     expect(document.querySelector('[data-side-text="account"]')?.textContent).toBe('账号块')
     expect(document.querySelector('[data-side-rail]')).toBeNull()
+    expect(counts()).toBe(false)
   })
 })
 
@@ -230,6 +284,52 @@ describe('外壳：窄窗口的抽屉', () => {
     expect(current()).toBeUndefined()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(section('notes')!.hidden).toBe(false)
+  })
+
+  it('抽屉打开时，选中的一行进到视野里', async () => {
+    windowWidth(false)
+    await setup({ login: 'signed-in', modules: [PAGES] })
+    fireEvent.click(screen.getByRole('button', { name: SHEET_LABEL }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('link', { name: '用量' }))
+    const reveal = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => undefined)
+    fireEvent.click(screen.getByRole('button', { name: SHEET_LABEL }))
+    const row = within(await screen.findByRole('dialog')).getByRole('link', { name: '用量' })
+    expect(reveal.mock.contexts).toEqual([row])
+    expect(reveal).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
+  })
+
+  it('抽屉开着时，后面的页面不可用，形只能坐抽屉里的家；关上就还原', async () => {
+    windowWidth(false)
+    await setup({ login: 'signed-in', modules: [PAGES] })
+    const main = screen.getByRole('main')
+    expect(main.inert).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: SHEET_LABEL }))
+    await screen.findByRole('dialog')
+    expect(main.inert).toBe(true)
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    await act(async () => {
+      await settle()
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(main.inert).toBe(false)
+  })
+
+  it('抽屉里的家等抽屉进来停稳了才是形的座位', async () => {
+    windowWidth(false)
+    vi.spyOn(Element.prototype, 'getAnimations').mockImplementation(function (this: Element) {
+      return this.matches('[data-slot="sheet-content"]')
+        ? [{ playState: 'running' } as unknown as Animation]
+        : []
+    })
+    await setup({ login: 'signed-in', modules: [PAGES] })
+    fireEvent.click(screen.getByRole('button', { name: SHEET_LABEL }))
+    const sheet = await screen.findByRole('dialog')
+    const place = within(sheet).getByRole('link', { name: 'omne' })
+    expect(place.querySelector('[data-figure-seat]')).toBeNull()
+    fireEvent.animationEnd(place)
+    expect(place.querySelector('[data-figure-seat]')).toBeNull()
+    fireEvent.animationEnd(sheet)
+    expect(place.querySelector('[data-figure-seat="home"]')).not.toBeNull()
   })
 
   it('抽屉里点当前的那一页也关上', async () => {
