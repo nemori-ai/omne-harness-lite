@@ -1,16 +1,26 @@
 // pnpm run start:test [--packaged | --app <executable>] [--user-data-dir=<dir>] [Electron arguments]
 // Starts the test profile, unpackaged by default, on a fresh user data directory unless one is named.
+//
+// Signals (POSIX): the app runs in its own session and process group, so a signal meant for this
+// launcher (Ctrl+C, which the terminal sends to its foreground group) never reaches the app's helpers
+// directly. Killed with them, Chromium's GPU process dies under a main process that is still quitting.
+// And Electron answers only the first SIGINT or SIGTERM with its own quit, so the same signal arriving
+// twice at once would cut that quit short. Instead every SIGINT, SIGTERM and SIGHUP is passed on to the
+// app's main process alone, which then quits the way it does when asked. A second signal while the app
+// still runs is passed on too; a third kills the app's whole group, as does a second once the main
+// process has exited while a helper still holds its output open. Windows has no such signals: each one
+// ends the app's whole tree.
 import { spawn } from 'node:child_process'
+import { readdirSync } from 'node:fs'
+import { monitorTestChild } from './child-run.ts'
 import {
   checkLaunchInputs,
   freshUserDataDir,
   launchEnvironment,
   launchSpec,
   removeUserDataDir,
-  verifyBuildProfile,
 } from './launch.ts'
-import { listProcesses, type LaunchOwner, reapHelpers } from './release-launch.ts'
-import { forwardSignals } from './signals.ts'
+import { listProcesses } from './release-launch.ts'
 
 const note = (line: string) => process.stderr.write(`start:test: ${line}\n`)
 const fail = (failure: unknown): never => {
@@ -55,47 +65,78 @@ const child = spawn(spec!.command, [...spec!.args, ...args], {
   stdio: ['inherit', 'pipe', 'inherit'],
   detached: process.platform !== 'win32',
 })
-let wrongBuild = false
-verifyBuildProfile(child.stdout, 'test').catch((failure: unknown) => {
-  wrongBuild = true
-  note(failure instanceof Error ? failure.message : String(failure))
-  child.kill('SIGKILL')
+const monitor = monitorTestChild(child, spec!, spawnedAt, {
+  // Only a directory this launcher created marks the app's processes as its own.
+  ...(temporary ? { userDataDir } : {}),
+  preexisting,
 })
 child.stdout.pipe(process.stdout)
-forwardSignals(() => child, note)
 
+const running = () => child.exitCode === null && child.signalCode === null
+let received = 0
+let closed = false
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const)
+  process.on(signal, () => {
+    if (closed) return
+    received += 1
+    if (process.platform === 'win32') {
+      monitor.abort(new Error(`the test launch was interrupted by ${signal}`))
+      return
+    }
+    const pid = child.pid!
+    if (!running()) {
+      // The main process has exited, but a process of its group still holds the output open.
+      if (received >= 2) {
+        note(`${signal} again: the app has exited but its process group ${pid} lingers: killing it`)
+        monitor.abort(new Error('the test launch was force-stopped'))
+      } else
+        note(`${signal}: the app has exited; waiting for its helpers, a second signal kills them`)
+      return
+    }
+    if (received >= 3) {
+      note(`${signal} again: killing the app's process group ${pid}`)
+      monitor.abort(new Error('the test launch was force-stopped'))
+      return
+    }
+    if (received === 2)
+      note(`${signal} again: passing it on; the app (pid ${pid}) has not quit, a third kills it`)
+    try {
+      process.kill(pid, signal)
+    } catch {}
+  })
+
+// Never leave quietly while the app still runs (this launcher failing): say so, and ask it to quit.
 process.once('exit', () => {
-  if (child.exitCode !== null || child.signalCode !== null) return
-  note(`exiting while the app (pid ${child.pid}) runs: sent it SIGTERM`)
+  if (!running() || child.pid === undefined) return
+  note(
+    `exiting while the app (pid ${child.pid}) runs: sent it SIGTERM; its user data stays in ${userDataDir}`,
+  )
+  // Its main process only, as for any signal: it takes its helpers with it.
   child.kill('SIGTERM')
 })
-child.once('error', failure => {
-  // No process ever ran on the directory: it can go at once.
-  if (temporary) removeUserDataDir(userDataDir)
-  fail(failure)
-})
-child.once('close', (code, signal) => {
-  if (signal !== null) note(`the app was ended by ${signal}`)
-  process.exitCode = wrongBuild ? 1 : (code ?? 1)
-  if (child.pid === undefined) return
-  const owner: LaunchOwner = {
-    // Only a directory this launcher created marks the app's processes as its own.
-    root: { pid: child.pid, spawnedAt, ...(temporary ? { userDataDir } : {}) },
-    preexisting,
-    location: { command: spec!.command, processDir: spec!.processDir },
+
+let cleaned = false
+try {
+  const code = await monitor.finished
+  if (child.signalCode !== null) note(`the app was ended by ${child.signalCode}`)
+  process.exitCode = code ?? 1
+  if (code === 0 && readdirSync(userDataDir).length === 0)
+    throw new Error(`the app left nothing in its user data directory ${userDataDir}`)
+} catch (failure) {
+  note(failure instanceof Error ? failure.message : String(failure))
+  process.exitCode = 1
+} finally {
+  closed = true
+  try {
+    const killed = await monitor.reap()
+    if (killed.length > 0) note(`stopped lingering helpers: ${killed.join(', ')}`)
+    cleaned = true
+  } catch (failure) {
+    note(
+      `cleanup failed: ${failure instanceof Error ? failure.message : String(failure)}; user data kept in ${userDataDir}`,
+    )
+    process.exitCode = 1
   }
   // Its helpers may still use the directory: it goes only once they are confirmed gone.
-  void reapHelpers(owner, [], 3_000).then(
-    killed => {
-      if (killed.length > 0)
-        note(`stopped lingering helpers: ${killed.map(entry => entry.pid).join(', ')}`)
-      if (temporary) removeUserDataDir(userDataDir)
-    },
-    (failure: unknown) => {
-      note(
-        `cleanup failed: ${failure instanceof Error ? failure.message : String(failure)}; user data kept in ${userDataDir}`,
-      )
-      process.exitCode = 1
-    },
-  )
-})
+  if (cleaned && temporary) removeUserDataDir(userDataDir)
+}

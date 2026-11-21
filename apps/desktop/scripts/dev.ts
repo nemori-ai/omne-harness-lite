@@ -1,6 +1,6 @@
 // pnpm run dev: the dev profile in watch mode. A rebuilt page reloads the window inside the app;
 // a rebuilt main or utility bundle restarts the app. Either way the login stays: it is a cookie.
-import { type ChildProcess, spawn } from 'node:child_process'
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
 import { rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { build } from 'vite'
@@ -8,7 +8,6 @@ import { BUNDLES, bundleDir } from './build-profile.ts'
 import { writeManifest } from './build.ts'
 import { bundleConfig, desktopDir, pageConfig } from './bundle-build.ts'
 import { launchEnvironment, launchSpec, verifyBuildProfile } from './launch.ts'
-import { forwardSignals } from './signals.ts'
 
 type Watcher = Readonly<{
   on(
@@ -46,12 +45,24 @@ let exiting = false
 let restartTimer: ReturnType<typeof setTimeout> | undefined
 const watchers: Watcher[] = []
 
+/** Ends the app with its helpers: its process group (POSIX) or tree (Windows). */
+function kill(child: ChildProcess, signal: NodeJS.Signals = 'SIGTERM'): void {
+  if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) return
+  try {
+    if (process.platform === 'win32')
+      execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    else process.kill(-child.pid, signal)
+  } catch {
+    child.kill(signal)
+  }
+}
+
 function stop(code: number): void {
   if (exiting) return
   exiting = stopping = true
   clearTimeout(restartTimer)
   // The app leads its own process group: an exit of this script would not end it.
-  if (app !== undefined && app.exitCode === null && app.signalCode === null) app.kill('SIGTERM')
+  if (app !== undefined) kill(app)
   void Promise.allSettled(watchers.map(watcher => watcher.close())).finally(() =>
     process.exit(code),
   )
@@ -71,7 +82,7 @@ function startApp(): void {
     // A restart ends the old app on purpose, often before it reports its profile.
     if (app !== started) return
     say(failure instanceof Error ? failure.message : String(failure))
-    started.kill('SIGKILL')
+    stop(1)
   })
   started.stdout!.pipe(process.stdout)
   started.once('exit', (code, signal) => {
@@ -89,13 +100,13 @@ function restartApp(): void {
   app = undefined
   say('the main side was rebuilt; restarting the app')
   // The single-instance lock: the new process starts after the old one is gone, killed if it lingers.
-  const lingering = setTimeout(() => old.kill('SIGKILL'), 3000)
+  const lingering = setTimeout(() => kill(old, 'SIGKILL'), 3000)
   lingering.unref()
   old.once('exit', () => {
     clearTimeout(lingering)
     if (!stopping) startApp()
   })
-  old.kill('SIGTERM')
+  kill(old)
 }
 
 const restartSoon = () => {
@@ -116,11 +127,5 @@ try {
   stop(1)
 }
 if (built) startApp()
-forwardSignals(
-  () => app,
-  say,
-  () => {
-    stopping = true
-    if (app === undefined) stop(0)
-  },
-)
+process.on('SIGINT', () => stop(0))
+process.on('SIGTERM', () => stop(0))

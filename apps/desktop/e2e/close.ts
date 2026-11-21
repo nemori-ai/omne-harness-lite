@@ -35,16 +35,16 @@ export async function closeApplication(
   const groupRunning = () =>
     forcedGroup !== undefined &&
     listProcesses().some(entry => entry.zombie !== true && entry.pgid === forcedGroup)
-  const waitForExit = async (budgetMs: number) => {
-    for (
-      let waited = 0;
-      launcherRunning() || mainRunning(Math.max(1, budgetMs - waited)) || groupRunning();
-      waited += 50
-    ) {
-      if (waited >= budgetMs) throw new Error('the owned process did not exit in time')
+  const now = () =>
+    /* wall-clock: operation-timing -- bounds the wait for an exit */ performance.now()
+  // One budget per phase: the polite close and its wait share theirs, as do the kill and its wait.
+  const waitForExit = async (until: number) => {
+    while (launcherRunning() || mainRunning(Math.max(1, until - now())) || groupRunning()) {
+      if (now() >= until) throw new Error('the owned process did not exit before the deadline')
       await pause(50)
     }
   }
+  const until = now() + 10_000
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     if (!launcherRunning() && !mainRunning(10_000)) return
@@ -57,8 +57,9 @@ export async function closeApplication(
         )
       }),
     ])
-    await waitForExit(10_000)
+    await waitForExit(until)
   } catch (failure) {
+    const killUntil = now() + 5_000
     try {
       try {
         if (separateMain) windowsProcess(separateMain, 'kill', 5_000)
@@ -82,7 +83,7 @@ export async function closeApplication(
       process.stderr.write(`e2e: could not stop the owned process: ${String(killFailure)}\n`)
     }
     try {
-      await waitForExit(5_000)
+      await waitForExit(killUntil)
     } catch (waitFailure) {
       process.stderr.write(`e2e: could not confirm the exit: ${String(waitFailure)}\n`)
       onExitUnconfirmed?.()

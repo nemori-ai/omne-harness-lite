@@ -22,6 +22,7 @@ import {
   checkLaunchInputs,
   freshUserDataDir,
   launchEnvironment,
+  launchLocation,
   type LaunchTarget,
   launchSpec,
   removeUserDataDir,
@@ -31,14 +32,10 @@ import { closeApplication, type MainProcess } from './close.ts'
 export type Target = LaunchTarget
 export const REPLY = 'hello from the e2e gateway'
 
-/** The processes of a target still running, helpers included. */
+/** The processes of a target still running, helpers included; a failed listing throws. */
 export function targetProcesses(target: Target): number[] {
-  try {
-    const { command, processDir } = launchSpec(target, 'test', { userDataDir: 'unused' })
-    return appProcesses(command, processDir)
-  } catch {
-    return []
-  }
+  const { command, processDir } = launchLocation(target)
+  return appProcesses(command, processDir)
 }
 
 export type Launched = Readonly<{

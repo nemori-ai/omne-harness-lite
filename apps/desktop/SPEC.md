@@ -223,12 +223,12 @@
 
 - 仓库的构建与测试跑的是 `pnpm run build`，慢层用例因此测发行档的包。e2e、`start:test` 与 `package:test` 要先跑 `pnpm run build:test`；缺哪一样，命令说要先跑哪一条。分步走一遍的次序：`build`、`build:test`、`verify:build --no-build`、`package:test`、`package`，最后 `verify:release --no-build`，两档各构建一次，打包的就是验过的那份。
 - `pnpm run start [Electron 参数]` 起 `out/release` 里打好的应用，像人双击那样：不加任何测试开关，不另给用户数据目录，用安装的应用的用户数据目录与系统的钥匙串或密钥库，受单实例锁约束，同名的应用已在跑就只是把它叫到前面。参数照原样传给应用。没打包就说先跑 `pnpm run package`，不退回没打包的 Electron。Linux 上沙箱起不来就说原因并以 1 退出，带了 `--no-sandbox` 也不起。应用的退出码原样传出，被信号结束时返回 128 加信号号；终端的 Ctrl+C 同时到应用与启动器，启动器等应用自己退出，单独发给启动器的 SIGTERM 与 SIGHUP 转给应用。只想看一眼又不碰自己的数据，就自己给 `--user-data-dir=<空目录>`，macOS 上再给 `--use-mock-keychain`。
-- `pnpm run start:test [--packaged | --app <可执行文件>] [--user-data-dir=<目录>]` 起测试档，缺省没打包；缺省用一个一次性的用户数据目录，应用与它的辅助进程都确认退出后删掉，确认不了就留下并以 1 退出；要留登录就给 `--user-data-dir=`。服务端地址取环境变量 `OMNE_SERVER`，缺省是 `http://127.0.0.1:8787`。
+- `pnpm run start:test [--packaged | --app <可执行文件>] [--user-data-dir=<目录>]` 起测试档，缺省没打包；缺省用一个一次性的用户数据目录，应用与它的辅助进程都确认退出后删掉，确认不了就留下并以 1 退出；要留登录就给 `--user-data-dir=`。应用以 0 退出却没在用户数据目录里写下任何东西，判失败。主进程退出后，辅助进程还占着输出，3 秒后不再等，收掉它们并以 1 退出。服务端地址取环境变量 `OMNE_SERVER`，缺省是 `http://127.0.0.1:8787`。
 - `pnpm run dev` 以监视方式构建 dev 档。页面重新构建后，应用里的开发宿主重载窗口；主进程或 utility 进程的包重新构建后应用重启。两种情形登录都还在，因为它在 cookie 里。关掉窗口，监视随之结束；应用崩溃或被信号结束时，`pnpm run dev` 以非零的状态退出。
 - dev 档的用户数据目录是应用数据目录下的 `<应用名>-dev`，不和安装的应用共用，也不顺带建出安装的应用的目录。测试启动每次都用自己的 `--user-data-dir`。
 - 所有启动经 `scripts/launch.ts`：它定可执行文件、参数、工作目录与环境，从继承的环境里去掉 `ELECTRON_RUN_AS_NODE`、`ELECTRON_NO_ATTACH_CONSOLE` 与 `NODE_OPTIONS`。测试启动另加隔离开关：假钥匙串或固定密钥（见登录 cookie），macOS 上 `-ApplePersistenceIgnoreState YES`，免得应用启动途中崩过之后，下一次停在「要重新打开窗口吗」的系统询问上。打包的应用先读回 fuses，不是测试档那一列就不起。
 - Linux 上先真的试建一个无特权的用户命名空间，判断 Chromium 的沙箱起不起得来：以 root 运行、建不出用户命名空间、AppArmor 限制，并且 `chrome-sandbox` 不是 root 所有的 4755，就起不来。起不来时测试与开发启动加 `--no-sandbox` 并在 stderr 说一次原因；`pnpm run start` 与 `verify:release` 不加，见各自一节。
-- `pnpm run start:test` 与 `pnpm run dev` 把应用放进它自己的进程组。在终端按 Ctrl+C 时信号只到启动器，启动器把它转给应用一次，应用自己退出；第二次再转一次，第三次杀掉应用的进程组。Windows 上没有进程组，直接结束应用。`pnpm run dev` 因重新构建重启应用时，旧进程 3 秒内不退就杀掉，新进程在它退出之后才起。
+- `pnpm run start:test` 与 `pnpm run dev` 把应用放进它自己的进程组。`start:test` 在终端按 Ctrl+C 时信号只到启动器，启动器只把它转给应用的主进程，应用自己退出：同时杀掉辅助进程会让 GPU 进程在主进程还没退完时死掉；第二次再转一次，第三次杀掉应用的进程组，主进程已退出而辅助进程还占着输出时，第二次就杀。Windows 上没有这些信号，每一次都结束应用的整棵进程树。`pnpm run dev` 收到 Ctrl+C 或 SIGTERM 就结束应用的进程组（Windows 上整棵进程树）并退出；构建档不对时同样结束并以 1 退出。因重新构建重启应用时，旧应用的进程组 3 秒内不退就杀掉，新进程在它退出之后才起。
 - `electron` 包没有安装脚本，装依赖时不下载二进制。第一次 `pnpm run start:test` 或第一次跑 `electron-window` 用例时，包自己把二进制下载到 `node_modules/electron/dist`，本机缓存里有同版本的压缩包就不联网。要提前备好，在 `apps/desktop` 下跑 `pnpm exec install-electron`。
 - 主进程入口不在顶层等 `app` 就绪：Electron 在入口模块的顶层 `await` 完成之前不发就绪事件。
 - 独立转发进程：`omne-desktop-host [--server <origin>] [--port <port>]`，地址与端口也可以取环境变量 `OMNE_SERVER` 与 `OMNE_DESKTOP_PORT`。它发 `pnpm run build` 出的页面；页面不分档，各档的页面是同一份。

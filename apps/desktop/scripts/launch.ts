@@ -185,6 +185,15 @@ export function removeUserDataDir(
   }
 }
 
+/** Which executable a target runs, and the directory every process of it runs from. */
+export function launchLocation(
+  target: LaunchTarget,
+  executable?: string,
+): Pick<LaunchSpec, 'command' | 'processDir'> {
+  const command = target === 'packaged' ? resolve(executable ?? packagedBinary()) : electronBinary()
+  return { command, processDir: processDirOf(command) }
+}
+
 /** How to start one target of one profile. A test launch runs on the user data directory it names. */
 export function launchSpec(
   target: LaunchTarget,
@@ -198,7 +207,7 @@ export function launchSpec(
     throw new Error('only the test profile is packaged for launching')
   if (target === 'unpackaged' && executable !== undefined)
     throw new Error("an unpackaged launch runs this checkout's Electron")
-  const command = target === 'packaged' ? resolve(executable ?? packagedBinary()) : electronBinary()
+  const { command, processDir } = launchLocation(target, executable)
   const switches = sandboxSwitches(process.platform, command)
   if (profile === 'test') {
     if (userDataDir === undefined || userDataDir.trim() === '')
@@ -209,7 +218,6 @@ export function launchSpec(
       ...windowStateSwitches(process.platform),
     )
   } else if (userDataDir !== undefined) throw new Error('the dev profile keeps its own user data')
-  const processDir = processDirOf(command)
   if (target === 'packaged')
     return { target, profile, command, processDir, args: switches, cwd: dirname(command) }
   const app = join(desktopDir, bundleDir(profile))

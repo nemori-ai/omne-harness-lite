@@ -24,6 +24,7 @@ import {
   askOverPipe,
   cleanUpEverything,
   createdBy,
+  deadline,
   devtoolsBrowser,
   dropTempDir,
   finish,
@@ -33,6 +34,7 @@ import {
   killRunningTree,
   launch,
   listening,
+  OUTPUT_GRACE_MS,
   releaseEnv,
   type Running,
   sleep,
@@ -56,6 +58,7 @@ import {
   ALLOW_NO_SANDBOX_FLAG,
   checkAsarContents,
   checkManifest,
+  controlSandboxArgs,
   type CheckResult,
   type CheckStatus,
   describeExit,
@@ -264,13 +267,9 @@ async function refusedLaunch(
     let [listened, answered] = [false, false]
     if (port === undefined) answered = (await askOverPipe(app, REFUSAL_TIMEOUT_MS)) !== undefined
     else {
-      const deadline =
-        /* wall-clock: operation-timing -- bound for polling the port */ performance.now() +
-        REFUSAL_TIMEOUT_MS
-      const open = () =>
-        /* wall-clock: operation-timing -- bound for polling the port */ performance.now() <
-        deadline
-      while (app.isRunning() && !listened && open()) listened = await listening(port)
+      // Polled for the whole life of the process, and once more after it.
+      const expired = deadline(REFUSAL_TIMEOUT_MS + OUTPUT_GRACE_MS)
+      while (app.isRunning() && !listened && !expired()) listened = await listening(port)
       if (listened) app.expire()
     }
     const outcome = await app.exited
@@ -295,11 +294,16 @@ async function stopControl(app: Running): Promise<void> {
 }
 
 /** The positive control: the test package, started the same way, does answer on the endpoint. */
-async function testPackageAnswers(remote: RemoteSwitch): Promise<{ ok: boolean; reason: string }> {
+async function testPackageAnswers(
+  gate: LaunchGate,
+  remote: RemoteSwitch,
+): Promise<{ ok: boolean; reason: string }> {
   const userDataDir = tempDir('verify-release-control')
   try {
-    const spec = launchSpec('packaged', 'test', { userDataDir })
+    let spec: ReturnType<typeof launchSpec>
     try {
+      const plain = launchSpec('packaged', 'test', { userDataDir })
+      spec = { ...plain, args: controlSandboxArgs(plain.args, gate) }
       await checkLaunchInputs(spec)
     } catch (failure) {
       return { ok: false, reason: `the test package cannot be launched: ${describe(failure)}` }
@@ -320,15 +324,13 @@ async function testPackageAnswers(remote: RemoteSwitch): Promise<{ ok: boolean; 
     if (port === undefined) {
       const product = (await askOverPipe(app, READY_TIMEOUT_MS))?.['product']
       answer = typeof product === 'string' ? product : undefined
-    } else
-      for (
-        let waited = 0;
-        app.isRunning() && answer === undefined && waited < READY_TIMEOUT_MS;
-        waited += 50
-      ) {
+    } else {
+      const expired = deadline(READY_TIMEOUT_MS)
+      while (app.isRunning() && answer === undefined && !expired()) {
         answer = await devtoolsBrowser(port)
         if (answer === undefined) await sleep(50)
       }
+    }
     await stopControl(app)
     const outcome = await app.exited
     await finish(started)
@@ -354,7 +356,7 @@ async function checkRefusal(pkg: Package, gate: LaunchGate): Promise<CheckResult
   for (const remote of ['remote-debugging-port', 'remote-debugging-pipe'] as const) {
     const verdict = await refusedLaunch(pkg, gate, remote)
     ;(verdict.ok ? passes : failures).push(`--${remote}: ${verdict.reason}`)
-    const control = await testPackageAnswers(remote)
+    const control = await testPackageAnswers(gate, remote)
     if (control.ok) passes.push(`--${remote} control: ${control.reason}`)
     else
       failures.push(`--${remote} control failed, so the refusal proves nothing: ${control.reason}`)

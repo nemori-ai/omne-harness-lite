@@ -12,7 +12,13 @@ export type ProcessInfo = Readonly<{
 }>
 
 export type ProcessLocation = Readonly<{ command: string; processDir: string }>
-export type LaunchRoot = Readonly<{ pid: number; spawnedAt: number; userDataDir?: string }>
+/** `exitedAt` is set once the main process has exited: its PID may then be another's. */
+export type LaunchRoot = {
+  readonly pid: number
+  readonly spawnedAt: number
+  readonly userDataDir?: string
+  exitedAt?: number
+}
 
 const PS_LINE =
   /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\w{3} \w{3}\s+\d{1,2} \d{2}:\d{2}:\d{2} \d{4})\s+(.*)$/
@@ -89,8 +95,12 @@ function createdByLaunch(
 ): boolean {
   if (process.pid <= 0 || process.zombie === true || preexisting.has(process.pid)) return false
   if (process.startedAt === undefined) return platform !== 'win32'
-  // ps reports whole seconds; Linux may round the start a second down.
-  const earliest = Math.floor(root.spawnedAt / 1000) * 1000 - (platform === 'linux' ? 1000 : 0)
+  // ps reports whole seconds, and Linux may round the start a second down; CIM is exact, and Windows
+  // reuses PIDs quickly.
+  const earliest =
+    platform === 'win32'
+      ? root.spawnedAt
+      : Math.floor(root.spawnedAt / 1000) * 1000 - (platform === 'linux' ? 1000 : 0)
   return process.startedAt >= earliest
 }
 
@@ -123,17 +133,25 @@ export function launchProcesses(
   platform: NodeJS.Platform,
 ): ProcessInfo[] {
   const created = listing.filter(process => createdByLaunch(process, root, preexisting, platform))
+  // A process with the root's PID is a later one when its start is clearly after the spawn.
   const impostor = created.find(
     process =>
       process.pid === root.pid &&
       process.startedAt !== undefined &&
-      process.startedAt > root.spawnedAt + 5_000,
+      process.startedAt > Math.min(root.exitedAt ?? Infinity, root.spawnedAt + 5_000),
   )
   const ours = new Set<number>([root.pid])
   for (let grew = true; grew;) {
     grew = false
     for (const process of created) {
       if (ours.has(process.pid) || !ours.has(process.ppid)) continue
+      // Started under the root's PID after the root exited: another process's child.
+      const afterExit =
+        process.ppid === root.pid &&
+        root.exitedAt !== undefined &&
+        process.startedAt !== undefined &&
+        process.startedAt > root.exitedAt
+      if (afterExit) continue
       const reusedParent =
         impostor?.startedAt !== undefined &&
         process.ppid === root.pid &&
@@ -147,7 +165,7 @@ export function launchProcesses(
     process =>
       process !== impostor &&
       (ours.has(process.pid) ||
-        (process.pgid !== undefined && process.pgid === root.pid) ||
+        (impostor === undefined && process.pgid !== undefined && process.pgid === root.pid) ||
         (runsFrom(process, location, platform) &&
           usesLaunchProfile(process.command, root.userDataDir, platform))),
   )

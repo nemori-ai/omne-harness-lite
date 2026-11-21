@@ -19,8 +19,13 @@ import { type LaunchOutcome, pipeReply } from './release-verdicts.ts'
 
 export const isWindows = process.platform === 'win32'
 export const sleep = (ms: number) => new Promise(done => setTimeout(done, ms))
+/** A moment `ms` from now, for waits whose limit is elapsed time, not the number of tries. */
+export const deadline = (ms: number): (() => boolean) => {
+  const until = /* wall-clock: operation-timing -- bounds a wait */ performance.now() + ms
+  return () => /* wall-clock: operation-timing -- bounds a wait */ performance.now() >= until
+}
 const LEFTOVER_GRACE_MS = 5_000
-const OUTPUT_GRACE_MS = 2_000
+export const OUTPUT_GRACE_MS = 2_000
 const TASKKILL_TIMEOUT_MS = 15_000
 const PIPE_COMMAND = { id: 1, method: 'Browser.getVersion' }
 
@@ -105,36 +110,35 @@ export const createdBy = (started: Launch): ProcessInfo[] =>
     process.platform,
   )
 
-/** Who started what: enough to tell a launch's processes from everything else on the machine. */
-export type LaunchOwner = Pick<Launch, 'root' | 'preexisting' | 'location'>
-
-/** Kills the launch's processes other than its main one; helpers seen earlier are rechecked first. */
-function killHelpers(owner: LaunchOwner, known: readonly ProcessInfo[]): void {
+/** Kills what the launch created and nothing else; helpers seen earlier are rechecked first. */
+function terminate(started: Launch, known: readonly ProcessInfo[] = []): void {
+  // Listed before the tree is killed: afterwards a helper may no longer be told apart.
   let owned: ProcessInfo[] = []
   try {
     owned = leftoverProcesses(
       listProcesses(),
       known,
-      owner.root,
-      owner.preexisting,
-      owner.location,
+      started.root,
+      started.preexisting,
+      started.location,
       process.platform,
     )
-  } catch {}
+  } catch {
+    // Listing can fail during shutdown; the live main process still owns its group or tree.
+  }
+  killRunningTree(started.app)
   for (const entry of owned) {
-    if (entry.pid === owner.root.pid) continue
+    if (entry.pid === started.root.pid) continue
     if (!isWindows) kill(entry.pid)
     else
       try {
         windowsProcess(entry, 'kill')
-      } catch {}
+      } catch (failure) {
+        process.stdout.write(
+          `verify:release: could not stop helper ${entry.pid}: ${failure instanceof Error ? failure.message : String(failure)}\n`,
+        )
+      }
   }
-}
-
-/** Kills what the launch created and nothing else. */
-function terminate(started: Launch, known: readonly ProcessInfo[] = []): void {
-  killRunningTree(started.app)
-  killHelpers(started, known)
 }
 
 const stillThere = (entry: ProcessInfo): boolean => !isWindows || windowsProcess(entry, 'check')
@@ -143,7 +147,8 @@ const stillThere = (entry: ProcessInfo): boolean => !isWindows || windowsProcess
 function confirmGone(started: Launch): void {
   const before = createdBy(started)
   terminate(started, before)
-  for (let waited = 0; ; waited += 50) {
+  const expired = deadline(OUTPUT_GRACE_MS)
+  for (;;) {
     const left = leftoverProcesses(
       listProcesses(),
       before,
@@ -156,7 +161,7 @@ function confirmGone(started: Launch): void {
       launches.delete(started)
       return
     }
-    if (waited >= OUTPUT_GRACE_MS) return
+    if (expired()) return
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
   }
 }
@@ -210,6 +215,10 @@ export async function launch(
   const { pid, stdout: out, stderr: err } = child
   if (pid === undefined || out === null || err === null)
     throw new Error(`could not start ${command}`)
+  const userDataDir = args
+    .find(arg => arg.startsWith('--user-data-dir='))
+    ?.slice('--user-data-dir='.length)
+  const root: LaunchRoot = { pid, spawnedAt, ...(userDataDir === undefined ? {} : { userDataDir }) }
   let [stdout, stderr, pending] = ['', '', '']
   out.setEncoding('utf8').on('data', (chunk: string) => {
     stdout += chunk
@@ -258,16 +267,14 @@ export async function launch(
     })
     child.once('exit', (code, signal) => {
       running = false
+      root.exitedAt =
+        /* wall-clock: observation-time -- compared with process start times the OS reports */ Date.now()
       exit = { code, signal }
       setTimeout(settle, OUTPUT_GRACE_MS).unref()
     })
     child.once('close', () => exit !== undefined && settle())
   })
   for (const stream of app.extra) stream?.on('error', () => {})
-  const userDataDir = args
-    .find(arg => arg.startsWith('--user-data-dir='))
-    ?.slice('--user-data-dir='.length)
-  const root = { pid, spawnedAt, ...(userDataDir === undefined ? {} : { userDataDir }) }
   const started: Launch = { app, root, preexisting, location }
   launches.add(started)
   return started
@@ -275,41 +282,8 @@ export async function launch(
 
 /**
  * After a launch's main process exited: waits for its helpers, kills and rechecks those that linger,
- * and returns them. Throws when it cannot confirm they are gone.
+ * and returns them. One whose exit it cannot confirm stays tracked, and keeps its directory.
  */
-export async function reapHelpers(
-  owner: LaunchOwner,
-  launched: readonly ProcessInfo[] = [],
-  graceMs = LEFTOVER_GRACE_MS,
-): Promise<ProcessInfo[]> {
-  const seen = new Map(launched.map(entry => [entry.pid, entry]))
-  const waitForHelpers = async (): Promise<ProcessInfo[]> => {
-    for (let waited = 0; ; waited += 100) {
-      const left = leftoverProcesses(
-        listProcesses(),
-        [...seen.values()],
-        owner.root,
-        owner.preexisting,
-        owner.location,
-        process.platform,
-      ).filter(entry => entry.pid !== owner.root.pid)
-      for (const entry of left) seen.set(entry.pid, entry)
-      if (left.length === 0 || waited >= graceMs) return left
-      await sleep(100)
-    }
-  }
-  const lingering = await waitForHelpers()
-  if (lingering.length === 0) return []
-  killHelpers(owner, lingering)
-  const remaining = (await waitForHelpers()).filter(stillThere)
-  if (remaining.length > 0)
-    throw new Error(
-      `could not confirm the exit of helpers after killing them: ${remaining.map(entry => entry.pid).join(', ')}`,
-    )
-  return lingering
-}
-
-/** `reapHelpers` for a tracked launch; one whose exit it cannot confirm stays tracked, and keeps its directory. */
 export async function finish(
   started: Launch,
   launched: readonly ProcessInfo[] = [],
@@ -317,7 +291,32 @@ export async function finish(
 ): Promise<ProcessInfo[]> {
   if (started.app.isRunning())
     throw new Error(`could not confirm the exit of process ${started.app.pid} after it was stopped`)
-  const lingering = await reapHelpers(started, launched, graceMs)
+  const seen = new Map(launched.map(entry => [entry.pid, entry]))
+  const waitForHelpers = async (): Promise<ProcessInfo[]> => {
+    const expired = deadline(graceMs)
+    for (;;) {
+      const left = leftoverProcesses(
+        listProcesses(),
+        [...seen.values()],
+        started.root,
+        started.preexisting,
+        started.location,
+        process.platform,
+      ).filter(entry => entry.pid !== started.root.pid)
+      for (const entry of left) seen.set(entry.pid, entry)
+      if (left.length === 0 || expired()) return left
+      await sleep(100)
+    }
+  }
+  const lingering = await waitForHelpers()
+  if (lingering.length > 0) {
+    terminate(started, lingering)
+    const remaining = (await waitForHelpers()).filter(stillThere)
+    if (remaining.length > 0)
+      throw new Error(
+        `could not confirm the exit of helpers after killing them: ${remaining.map(entry => entry.pid).join(', ')}`,
+      )
+  }
   launches.delete(started)
   return lingering
 }
@@ -375,11 +374,8 @@ export async function askOverPipe(
     replies.setEncoding('utf8').on('data', (chunk: string) => (received += chunk))
   if (commands !== undefined && commands !== null && 'write' in commands)
     commands.write(`${JSON.stringify(PIPE_COMMAND)}\0`)
-  for (
-    let waited = 0;
-    app.isRunning() && waited < waitMs && pipeReply(received, PIPE_COMMAND.id) === undefined;
-    waited += 20
-  )
+  const expired = deadline(waitMs)
+  while (app.isRunning() && !expired() && pipeReply(received, PIPE_COMMAND.id) === undefined)
     await sleep(20)
   if (commands !== undefined && commands !== null && 'end' in commands) commands.end()
   await sleep(50)

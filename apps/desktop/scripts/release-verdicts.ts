@@ -62,6 +62,17 @@ export function summarize(
 
 export type LaunchGate = Readonly<{ run: boolean; switches: string[]; note?: string }>
 
+/** The test control runs in the same Chromium sandbox mode as its release launch, or not at all. */
+export function controlSandboxArgs(args: readonly string[], gate: LaunchGate): string[] {
+  if (args.includes('--no-sandbox') && !gate.switches.includes('--no-sandbox'))
+    throw new Error(
+      'the test package requires --no-sandbox but the release package runs with its sandbox',
+    )
+  return gate.switches.includes('--no-sandbox') && !args.includes('--no-sandbox')
+    ? [...args, '--no-sandbox']
+    : [...args]
+}
+
 /** Whether checks 3 and 4 may launch the release app here, and with which sandbox switch. */
 export function launchGate(
   platform: NodeJS.Platform,

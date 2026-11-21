@@ -20,6 +20,7 @@ import {
   checkManifest,
   type CheckResult,
   judgeRefusal,
+  controlSandboxArgs,
   launchGate,
   pipeReply,
   summarize,
@@ -58,6 +59,15 @@ describe('结论', () => {
     ).toContain('apparmor')
     expect(launchGate('linux', 'x', true)).toMatchObject({ run: true, switches: ['--no-sandbox'] })
     expect(launchGate('linux', 'x', false, true).note).toContain('replaced a chrome-sandbox')
+    // The test control runs in the release launch's sandbox mode, or not at all.
+    expect(controlSandboxArgs(['--other'], { run: true, switches: ['--no-sandbox'] })).toEqual([
+      '--other',
+      '--no-sandbox',
+    ])
+    expect(() => controlSandboxArgs(['--no-sandbox'], { run: true, switches: [] })).toThrow(
+      'requires --no-sandbox',
+    )
+    expect(controlSandboxArgs([], { run: true, switches: [] })).toEqual([])
   })
 })
 
@@ -240,6 +250,38 @@ describe('进程归属', () => {
       'darwin',
     )
     expect(left.map(process => process.pid)).toEqual([101])
+  })
+
+  it('主进程退出之后，它的 PID 与进程组都可能已是别人的', () => {
+    const root = { ...ROOT, exitedAt: at(3) }
+    const listing = [
+      proc(101, 100, 'helper before the exit', at(1)),
+      proc(102, 100, 'child of a later process with the same PID', at(4)),
+    ]
+    expect(launchProcesses(listing, root, new Set(), LOCATION, 'darwin').map(p => p.pid)).toEqual([
+      101,
+    ])
+    // A process with the root's PID started after the exit: neither it nor its group is ours.
+    const reused = [
+      proc(100, 1, 'later process', at(4), 100),
+      proc(103, 1, 'its group', at(4), 100),
+    ]
+    expect(launchProcesses(reused, root, new Set(), LOCATION, 'darwin')).toEqual([])
+  })
+
+  it('Windows 上开始时间按毫秒比，不取整到秒', () => {
+    const root = { pid: 100, spawnedAt: ROOT.spawnedAt + 500 }
+    const winLocation = { command: 'C:\\o\\omne.exe', processDir: 'C:\\o' }
+    const listing = [
+      { pid: 100, ppid: 1, command: 'omne', startedAt: root.spawnedAt + 1 },
+      { pid: 101, ppid: 100, command: 'reused', startedAt: root.spawnedAt - 100 },
+    ]
+    expect(launchProcesses(listing, root, new Set(), winLocation, 'win32').map(p => p.pid)).toEqual(
+      [100],
+    )
+    expect(
+      launchProcesses(listing, root, new Set(), winLocation, 'darwin').map(p => p.pid),
+    ).toEqual([100, 101])
   })
 
   it('读 ps 与 Windows 的进程清单', () => {

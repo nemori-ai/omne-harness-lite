@@ -1,3 +1,4 @@
+import { deadline } from '../scripts/release-launch.ts'
 import { SCREEN_LOCKED_REASON, screenLock } from '../scripts/session-state.ts'
 import { type Target, targetProcesses } from './desktop.ts'
 
@@ -16,7 +17,8 @@ export default function globalSetup(): () => Promise<void> {
   // An instance matched by path may be one started by hand: each fixture stops what it launched.
   return async () => {
     let left = TARGETS.flatMap(target => targetProcesses(target))
-    for (let waited = 0; left.length > 0 && waited < 5_000; waited += 100) {
+    const expired = deadline(5_000)
+    while (left.length > 0 && !expired()) {
       await new Promise(done => setTimeout(done, 100))
       left = TARGETS.flatMap(target => targetProcesses(target))
     }
