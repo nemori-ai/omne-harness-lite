@@ -48,7 +48,7 @@ whose call runs in the background until the walk's server stops.
   --reduced            emulate prefers-reduced-motion: reduce for everything shot or recorded
 
 Needs \`pnpm run build\` in apps/desktop and apps/harness-server first. The specimen page (demo/specimen/) is built
-with vite into a temporary folder for the walk and served under /specimen/; it never goes into dist/page. Chromium:
+with vite into a temporary folder for the walk and served under /specimen/; it never goes into dist/release/page. Chromium:
 OMNE_WALK_CHROME, a Playwright chrome-headless-shell, or Google Chrome on macOS, always on a fresh profile.`
 
 const args = process.argv.slice(2)
@@ -1860,7 +1860,7 @@ async function main() {
   const specimenRoot = specimenWanted ? await buildSpecimen() : undefined
   const stack = await startStack({
     answer,
-    pageRoot: new URL('../dist/page/', import.meta.url).pathname,
+    pageRoot: new URL('../dist/release/page/', import.meta.url).pathname,
     specimenRoot,
   })
   const profile = mkdtempSync(join(tmpdir(), 'visual-walk-chrome-'))
