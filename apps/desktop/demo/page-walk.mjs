@@ -889,6 +889,7 @@ async function walk(browser, origin, proofs, elsewhere) {
 }
 
 const CATEGORIES = [
+  ['converter', '转换件'],
   ['model-provider', '模型供应商'],
   ['skill', '技能'],
   ['tool', '工具'],
