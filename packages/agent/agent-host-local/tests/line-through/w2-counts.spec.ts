@@ -75,7 +75,11 @@ function sessionCommitsOffBound(rounds: readonly RoundCount[]): string[] {
   })
 }
 
-const SHIFTING_READS: readonly string[] = ['session.calls-left', 'execution-record.items']
+const SHIFTING_READS: readonly string[] = [
+  'session.calls-left',
+  'execution-record.items',
+  'execution-record.blob',
+]
 
 type Shifting = Readonly<{ name: string; of: (count: RoundCount) => number }>
 

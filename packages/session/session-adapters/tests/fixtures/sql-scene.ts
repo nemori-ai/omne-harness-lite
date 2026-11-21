@@ -351,7 +351,7 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   const commits: string[][] = []
   const inner = storage
   const rewriteReads: {
-    current: ((request: ReadRequest, answer: ReadResult) => ReadResult) | null
+    current: ((request: ReadRequest, answer: ReadResult) => ReadResult | Promise<ReadResult>) | null
   } = { current: null }
   storage = {
     database: inner.database,
@@ -662,22 +662,22 @@ export async function takeInputs(
 
 export async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
   const snapshot = ok(await s.port.readWork(s.sessionAccess))
-  if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
-  ok(
-    await s.port.commit({
-      access: s.sessionAccess,
-      command: {
-        kind: 'control',
-        input: {
-          tenant: s.access.tenant,
-          session: s.access.session,
-          operation: operationId(`cancel-${n}`),
-          intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
+  if (snapshot.run.kind === 'active')
+    ok(
+      await s.port.commit({
+        access: s.sessionAccess,
+        command: {
+          kind: 'control',
+          input: {
+            tenant: s.access.tenant,
+            session: s.access.session,
+            operation: operationId(`cancel-${n}`),
+            intent: { kind: 'cancel-run', run: snapshot.run.run, urgency: 'force' },
+          },
         },
-      },
-      guards: [],
-    }),
-  )
+        guards: [],
+      }),
+    )
   const value = ordinaryInput(`input-${n}`)
   ok(
     await s.port.commit({

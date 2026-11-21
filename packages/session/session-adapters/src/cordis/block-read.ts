@@ -51,16 +51,11 @@ async function fetchExecution(
   return fetchBlobClosure(read, scope, items, into)
 }
 
-export async function fetchNamed(
+export function fetchNamed(
   read: Reader,
   tenant: string,
-  executions: Iterable<ExecutionView>,
+  execution: ExecutionView,
   into: Map<string, string>,
 ): Promise<string | null> {
-  for (const execution of executions) {
-    const scope = { tenant, execution: execution.execution }
-    const missing = await fetchExecution(read, scope, execution, into)
-    if (missing !== null) return missing
-  }
-  return null
+  return fetchExecution(read, { tenant, execution: execution.execution }, execution, into)
 }

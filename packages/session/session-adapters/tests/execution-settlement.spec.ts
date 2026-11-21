@@ -949,6 +949,70 @@ describe('a delivery pushed to the consumption position of a settled execution',
   })
 })
 
+function settlingOnItsFirstBlock(s: SqlScene, settle: () => Promise<unknown>): void {
+  let armed = true
+  s.rewriteReads.current = async (request, answer) => {
+    const execution = (request.input as { execution?: unknown }).execution
+    if (!armed || request.handler !== 'execution-record.blob' || execution !== s.execution)
+      return answer
+    armed = false
+    await settle()
+    return s.storage.read(request)
+  }
+}
+
+async function heldUnsettled(s: SqlScene, beforeEnd: () => Promise<unknown> = async () => null) {
+  const held = gate()
+  const f = await interpreting(s, { acknowledge: held.acknowledge })
+  const journal = f.c.journal()
+  const opened = ok(await journal.open(s.openInput))
+  ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+  await beforeEnd()
+  await endOpened(s, journal, opened, refusedByModel())
+  await f.interpret()
+  expect(headOf(s)).toMatchObject({ settled: null })
+  const settle = async () => {
+    held.state.open = true
+    await f.interpret()
+    await settled(s)
+  }
+  return { f, settle }
+}
+
+describe('a reader whose book holds the open view of an execution that settles before it reads the blocks of that view', () => {
+  it('a read of another execution forgets the settled one and answers', async () => {
+    const s = await scene('settles-beside-read')
+    const reader = s.fresh().journal
+    const { f, settle } = await heldUnsettled(s, async () =>
+      ok(await reader.load({ ...s.access, execution: s.execution })),
+    )
+    const sibling = await nextRun(s, 2)
+    ok(await f.c.journal().open(sibling.openInput))
+    settlingOnItsFirstBlock(s, settle)
+    const access = { ...s.access, execution: sibling.execution }
+    const loaded = await reader.load(access)
+    expect(headOf(s)?.settled ?? null).not.toBeNull()
+    expect(loaded).toEqual(await f.c.journal().load(access))
+  })
+
+  it('a read of the settled execution answers terminal, and the next read of it asks for no block', async () => {
+    const s = await scene('settles-while-read')
+    const { settle } = await heldUnsettled(s)
+    settlingOnItsFirstBlock(s, settle)
+    const reader = s.fresh().journal
+    const access = { ...s.access, execution: s.execution }
+    expect(await reader.load(access)).toEqual(fail({ kind: 'terminal' }))
+    expect(headOf(s)?.settled ?? null).not.toBeNull()
+    const reads: string[] = []
+    s.rewriteReads.current = (request, answer) => {
+      reads.push(request.handler)
+      return answer
+    }
+    expect(await reader.load(access)).toEqual(fail({ kind: 'terminal' }))
+    expect(reads).not.toContain('execution-record.blob')
+  })
+})
+
 describe('an Agent event that registers a call and processes its result kept before that event', () => {
   it.each(['tool', 'model'] as const)(
     'a %s call: the interpretation commits the binding first without moving its position, the entries consumption writes the delivery, then the rest of the event commits; the execution settles',

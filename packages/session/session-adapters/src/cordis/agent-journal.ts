@@ -97,7 +97,6 @@ import {
 } from '../testing/root.ts'
 import { blobRowDigest, factDigestOf } from './journal-batch.ts'
 import { ContentRefs, keepNamed, settleBlocks } from './content-refs.ts'
-import { fetchNamed } from './block-read.ts'
 import {
   ANSWER_FAMILY,
   NeedItems,
@@ -137,11 +136,16 @@ import {
   readOutput,
   readerOf,
   recordedStanding,
-  type Reader,
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
 import { createModelTelling, type StepOpening } from './model-telling.ts'
-import { createTenantSweep, evict, forget, reclaimedCommit } from './settled-executions.ts'
+import {
+  createTenantSweep,
+  evict,
+  fetchBlobs,
+  forget,
+  reclaimedCommit,
+} from './settled-executions.ts'
 import { resolveDomain } from './journal-state.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
@@ -350,14 +354,6 @@ function adopt<P>(
   book.published = Math.max(book.published ?? 0, published)
   book.copy = null
   turn(book.turns)
-}
-
-async function fetchBlobs<P>(book: Book<P>, read: Reader): Promise<Failure | null> {
-  const views = recordsView(book.view, book.full).executions.values()
-  const missing = await fetchNamed(read, book.tenantText, views, book.blobs)
-  return missing === null
-    ? null
-    : unavailable(`the content block ${missing} of the Agent records is not readable`)
 }
 
 function projectionContext(
@@ -989,7 +985,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     book.loaded.add(execution)
     if (found.views.length > 0) adopt(book, found, found.published)
     if (book.copy !== null) return succeed(book.copy)
-    const missing = await fetchBlobs(book, read)
+    const missing = await fetchBlobs(book, read, execution)
     if (missing !== null) return fail(missing)
     try {
       book.copy = build(book)
@@ -1030,7 +1026,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
       adopt(book, found, Math.min(found.published, touched.published))
     }
-    // Every execution that finishes is held in full.
     const owed = unsettled(book.view.executions.values(), book.full)
     if (!excluded && book.copy !== null && owed.length === 0) return succeed(book.copy)
     if (owed.length > 0) {
@@ -1038,7 +1033,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
       adopt(book, found, Math.min(found.published, book.published ?? 0))
     }
-    const missing = await fetchBlobs(book, read)
+    const missing = await fetchBlobs(book, read, null)
     if (missing !== null) return fail(missing)
     try {
       book.copy = build(book)
