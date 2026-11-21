@@ -27,6 +27,7 @@ it('exports exactly the declared root runtime surface', () => {
     'batchEvidence',
     'bindingOf',
     'boundCall',
+    'boundConsumptions',
     'budgetTermsOf',
     'callKeysIn',
     'callKeysOutside',
@@ -36,6 +37,7 @@ it('exports exactly the declared root runtime surface', () => {
     'commandDigest',
     'commandInput',
     'commitWithinBudget',
+    'committedBindings',
     'compactionCallChangeOf',
     'compactionContextForView',
     'consumptionIdOf',
@@ -125,6 +127,7 @@ it('exports exactly the declared root runtime surface', () => {
     'waitingCalls',
     'wakingInputs',
     'withIntakeTerms',
+    'withoutCommitted',
     'workspaceSelection',
   ])
 })

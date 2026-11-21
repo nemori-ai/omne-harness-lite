@@ -8,8 +8,10 @@ import type {
   AgentReceivedCommits,
   AgentReceivedRecords,
   CompactionInputStore,
+  DurableEvidence,
   Failure,
   ModelReceptionTargets,
+  ReceptionSettled,
   ToolReceptionTargets,
 } from '@omne-harness/agent-contract'
 import {
@@ -38,8 +40,10 @@ import {
   sessionAccessCheckKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import {
+  EXECUTION_RECORD_HANDLERS,
   SESSION_EXECUTION_HANDLER,
   SESSION_READ_PROTOCOL,
+  decodeExecutionRecordEvents,
   decodeSessionExecution,
 } from '@omne-harness/session-storage-sql/participants'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
@@ -49,6 +53,10 @@ import {
   type SessionLogJournalOptions,
   type SessionLogJournalProvider,
 } from './agent-journal.ts'
+import { EXEC_FAMILY } from '../journal/items.ts'
+import { readOpenItems } from './item-read.ts'
+import { readerOf } from './journal-read.ts'
+import { resolveDomain } from './journal-state.ts'
 import { announcePublished } from './published-queue.ts'
 import { createSqlCompactionInputs } from './compaction-inputs-sql.ts'
 import { createModelReminders } from './model-reminders.ts'
@@ -79,6 +87,9 @@ const unavailable = (diagnostic: string): Failure => ({
   owner: OWNER,
   diagnostic,
 })
+
+const isSettled = (value: unknown): value is ReceptionSettled =>
+  typeof value === 'object' && value !== null && 'kind' in value
 
 // An optional read the routed Journal does not hold answers unavailable, never an empty value.
 const unread = <T>(answer: Outcome<T, Failure> | undefined, what: string): Outcome<T, Failure> =>
@@ -119,6 +130,45 @@ async function indexedSession<P>(
   if (indexed === 'malformed') return fail(unavailable('the execution index row is malformed'))
   if (indexed === null) return fail({ kind: 'denied', action })
   return succeed(indexed.session as SessionId)
+}
+
+async function settledAt<P>(
+  options: ExecutionRoutedJournalOptions<P>,
+  scope: Scope,
+  session: SessionId,
+): Promise<ReceptionSettled | null> {
+  const tenant = tenantCodec.encode(scope.tenant)
+  if (!tenant.ok) return null
+  const domain = await resolveDomain(options.tenantDomainLookup, tenant.value)
+  if (domain.kind !== 'ready') return null
+  const read = readerOf(options.storage, domain.domain)
+  const at = { tenant: tenant.value, session, execution: scope.execution }
+  const items = await readOpenItems(read, at, [EXEC_FAMILY])
+  if (items.kind !== 'settled') return null
+  const output = await read(EXECUTION_RECORD_HANDLERS.events, { ...at, after: '0' })
+  const head = output.kind === 'read' ? decodeExecutionRecordEvents(output.output) : null
+  if (head?.kind !== 'events' || head.receipt === null) return null
+  return { kind: 'settled', evidence: head.receipt as unknown as DurableEvidence }
+}
+
+type ResolveTarget<P, T> = (view: SessionView<P>) => Promise<Outcome<T | ReceptionSettled, Failure>>
+
+async function resolvedOn<P, T extends Readonly<{ execution: AgentExecutionId }> | null>(
+  options: ExecutionRoutedJournalOptions<P>,
+  found: Outcome<Route<P>, Failure>,
+  scope: Scope,
+  call: ResolveTarget<P, T>,
+): Promise<Outcome<T | ReceptionSettled, Failure>> {
+  if ('failure' in found) return fail<Failure>(found.failure)
+  const answered = await call(found.ok.view)
+  if ('failure' in answered) {
+    const settled = await settledAt(options, scope, found.ok.session)
+    return settled === null ? answered : succeed(settled)
+  }
+  const target = answered.ok
+  return isSettled(target) || target === null || target.execution === scope.execution
+    ? answered
+    : fail<Failure>({ kind: 'denied', action: 'resolve' })
 }
 
 export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalOptions<P>) {
@@ -282,6 +332,12 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     query: input => routedView('received.query', input, view => view.received.query(input)),
   }
 
+  const resolvedAt = async <T extends Readonly<{ execution: AgentExecutionId }> | null>(
+    action: string,
+    scope: Scope,
+    call: ResolveTarget<P, T>,
+  ) => resolvedOn(options, await routeOf(scope, action), scope, call)
+
   const targets: ModelReceptionTargets<P> = {
     forExecution: input =>
       routedView(
@@ -292,12 +348,9 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     async resolve(input) {
       const { execution } = input
       if (execution === undefined) return fail<Failure>({ kind: 'denied', action: 'resolve' })
-      const found = await routedView('resolve', { tenant: input.access.tenant, execution }, view =>
+      return resolvedAt('resolve', { tenant: input.access.tenant, execution }, view =>
         view.targets.resolve(input),
       )
-      if ('ok' in found && found.ok.execution !== execution)
-        return fail<Failure>({ kind: 'denied', action: 'resolve' })
-      return found
     },
   }
 
@@ -311,14 +364,9 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     async resolve(input) {
       const { execution } = input
       if (execution === undefined) return fail<Failure>({ kind: 'denied', action: 'resolve' })
-      const found = await routedView(
-        'toolTargets.resolve',
-        { tenant: input.access.tenant, execution },
-        view => view.toolTargets.resolve(input),
+      return resolvedAt('toolTargets.resolve', { tenant: input.access.tenant, execution }, view =>
+        view.toolTargets.resolve(input),
       )
-      if ('ok' in found && found.ok !== null && found.ok.execution !== execution)
-        return fail<Failure>({ kind: 'denied', action: 'resolve' })
-      return found
     },
   }
 

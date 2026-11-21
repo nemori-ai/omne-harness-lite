@@ -4,6 +4,7 @@ import type {
   AgentJournal,
   DurableEvidence,
   ExecutionRevision,
+  Failure,
 } from '@omne-harness/agent-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
@@ -17,8 +18,13 @@ import {
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import { commitJournal, type GenerationMemory, type JournalCombination } from '../journal-commit.ts'
 import type { SessionJournalView } from '../journal/index.ts'
+import { EXEC_FAMILY } from '../journal/items.ts'
 import { SharedMap } from '../journal/shared-map.ts'
-import { readerOf, type OperationRead } from './journal-read.ts'
+import { fetchNamed } from './block-read.ts'
+import { turn, type Turns } from './event-stream.ts'
+import { readOpenItems, recordsView, type FullViews } from './item-read.ts'
+import { unavailable } from './journal-publication.ts'
+import { readerOf, type OperationRead, type Reader } from './journal-read.ts'
 
 export type TenantSweepOptions = Readonly<{
   storage: SqlStorage
@@ -103,6 +109,33 @@ export function evict(book: SettledBook, execution: AgentExecutionId): void {
   executions.delete(execution)
   book.view = { ...book.view, executions }
   forget(book, execution)
+}
+
+export type BlockBook = SettledBook &
+  Readonly<{
+    tenantText: string
+    session: string
+    blobs: Map<string, string>
+    full: FullViews
+    turns: Turns
+  }>
+
+export async function fetchBlobs(
+  book: BlockBook,
+  read: Reader,
+  served: string | null,
+): Promise<Failure | null> {
+  for (const view of recordsView(book.view, book.full).executions.values()) {
+    const missing = await fetchNamed(read, book.tenantText, view, book.blobs)
+    if (missing === null) continue
+    const scope = { tenant: book.tenantText, session: book.session, execution: view.execution }
+    if ((await readOpenItems(read, scope, [EXEC_FAMILY])).kind !== 'settled')
+      return unavailable(`the content block ${missing} of the Agent records is not readable`)
+    evict(book, view.execution)
+    turn(book.turns)
+    if (view.execution === served) return { kind: 'terminal' }
+  }
+  return null
 }
 
 type Query<P> = AgentJournal<P>['query']

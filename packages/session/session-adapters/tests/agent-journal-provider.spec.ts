@@ -803,9 +803,9 @@ describe('agentReceivedCommits and agentModelReceptionTargets: the result receiv
       consumer: draft.consumer,
       reference: draft.delivery.key.reference,
     }
-    expect(ok(await targets().resolve({ ...query, execution: s.execution })).execution).toBe(
-      s.execution,
-    )
+    expect(ok(await targets().resolve({ ...query, execution: s.execution }))).toMatchObject({
+      execution: s.execution,
+    })
     expect(await targets().resolve({ ...query, execution: sibling.execution })).toHaveProperty(
       'failure.kind',
       'denied',
@@ -927,9 +927,9 @@ describe('agentToolReceptionTargets: the Tool result receiver face', () => {
       consumer: tool.pending.position,
       reference: tool.pending.reference,
     }
-    expect(ok(await toolTargets().resolve({ ...query, execution: s.execution }))?.execution).toBe(
-      s.execution,
-    )
+    expect(ok(await toolTargets().resolve({ ...query, execution: s.execution }))).toMatchObject({
+      execution: s.execution,
+    })
     expect(await toolTargets().resolve({ ...query, execution: sibling.execution })).toHaveProperty(
       'failure.kind',
       'denied',

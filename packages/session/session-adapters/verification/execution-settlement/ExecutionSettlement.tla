@@ -19,7 +19,10 @@
 
    Two executions: one in Callers intends a call, which goes to the background with a
    placeholder (a Tool call) or delivers its final result first (a Model call, a
-   foreground Tool call); the other emits only its ended event. At most MaxCrashes crashes and MaxSweepFails
+   foreground Tool call); the other emits only its ended event. The intent is an event of
+   its own, or the call is issued with no event and the event that processes its first
+   kept delivery also registers it; then the interpretation commits the binding first,
+   without moving its position, and the rest of the event once the delivery is written. At most MaxCrashes crashes and MaxSweepFails
    unfinished sweeps. Each negative control turns on one wrong switch. *)
 EXTENDS Naturals
 
@@ -38,7 +41,8 @@ CONSTANTS Execs,                 \* the executions of one tenant
           NoAd06Ack,             \* the tool log consumption does not acknowledge
           InterpretOvertakes,    \* negative control: AD-02 interprets a processing before AD-06 wrote the delivery
           Ad06AgentWakeOnly,     \* negative control: only a write of the Agent records wakes AD-06
-          OpenAwaitsProcessing   \* negative control: a backgrounded call stays open until its placeholder was processed
+          OpenAwaitsProcessing,  \* negative control: a backgrounded call stays open until its placeholder was processed
+          AtomicEventAwaits      \* negative control: an event that registers the call it processes waits whole for the delivery
 
 ASSUME /\ Callers \subseteq Execs
        /\ MaxEvents \in Nat /\ MaxEvents >= 2
@@ -158,21 +162,31 @@ AgentCall(e) ==
   /\ Published(e)
   /\ Commit(e)
 
+(* The Agent issues the call with no event: the call is named first by the event that
+   processes its first kept delivery. *)
+AgentIssue(e) ==
+  /\ Live(e) /\ ~ended[e] /\ e \in Callers /\ call[e] = "none"
+  /\ call' = [call EXCEPT ![e] = "running"]
+  /\ UNCHANGED <<agentVars, callAt, sessionVars, storeVars, wakeVars, procVars>>
+
 (* The Agent processes the placeholder it kept: the placeholder becomes the call's result
-   in the history of the Run. *)
+   in the history of the Run. An event that processes a call no event named yet also
+   registers it. *)
 Process(e) ==
   /\ Live(e) /\ ~ended[e] /\ call[e] \in {"background", "done"} /\ procAt[e] = 0 /\ Room(e)
   /\ emitted' = [emitted EXCEPT ![e] = @ + 1]
   /\ procAt' = [procAt EXCEPT ![e] = emitted[e] + 1]
-  /\ UNCHANGED <<ended, acked, outputAt, toolVars, sessionVars, procVars>>
+  /\ callAt' = IF callAt[e] = 0 THEN [callAt EXCEPT ![e] = emitted[e] + 1] ELSE callAt
+  /\ UNCHANGED <<ended, acked, outputAt, call, sessionVars, procVars>>
   /\ Published(e)
   /\ Commit(e)
 
 (* The finish list is issued before the ended event: its output obligation covers the
    events emitted so far. The end appends the ended event. The Agent may end without
-   processing the placeholder (a cancelled Run). *)
+   processing the placeholder (a cancelled Run); a call it issued is named by an event
+   before the end. *)
 AgentEnd(e) ==
-  /\ Live(e) /\ ~ended[e]
+  /\ Live(e) /\ ~ended[e] /\ (call[e] = "none" \/ callAt[e] # 0)
   /\ outputAt' = [outputAt EXCEPT ![e] = emitted[e]]
   /\ emitted' = [emitted EXCEPT ![e] = @ + 1]
   /\ ended' = [ended EXCEPT ![e] = TRUE]
@@ -232,14 +246,15 @@ Interpretable(e) ==
    the terminal with the end summary in the same commit, unless the Session already wrote
    a terminal. A stopped interpretation goes on only once woken. After the commit AD-02
    wakes AD-06, and acknowledgeReceived runs. *)
+Registered(e) ==
+  IF Next1(e) = callAt[e] /\ consumption[e] = "none" THEN "bound" ELSE consumption[e]
+
 Interpret(e) ==
   /\ Interpretable(e) /\ (stalled[e] => iwake[e])
   /\ consumed' = [consumed EXCEPT ![e] = @ + 1]
   /\ consumption' =
-       IF Next1(e) = callAt[e] THEN [consumption EXCEPT ![e] = "bound"]
-       ELSE IF Next1(e) = procAt[e] /\ consumption[e] = "bound"
-         THEN [consumption EXCEPT ![e] = "answered"]
-       ELSE consumption
+       [consumption EXCEPT ![e] =
+          IF Next1(e) = procAt[e] /\ Registered(e) = "bound" THEN "answered" ELSE Registered(e)]
   /\ processed' = IF Next1(e) = procAt[e] THEN [processed EXCEPT ![e] = TRUE] ELSE processed
   /\ run' = IF ended[e] /\ Next1(e) = emitted[e] /\ run[e] = "active"
               THEN [run EXCEPT ![e] = "end"] ELSE run
@@ -249,15 +264,34 @@ Interpret(e) ==
   /\ pendingAck' = [pendingAck EXCEPT ![e] = TRUE]
   /\ UNCHANGED <<agentVars, toolVars, storeVars, procVars>>
 
+(* The processing of a delivery the Session has not received, in the event that also
+   registers the call, while the binding is not in the session. *)
+Unbound(e) ==
+  /\ Live(e) /\ consumed[e] < emitted[e] /\ Next1(e) = procAt[e] /\ ~Delivered(e)
+  /\ Next1(e) = callAt[e] /\ consumption[e] = "none"
+
 (* AD-02 reaches the processing of a delivery the Session has not received: it stops
    there and answers; acknowledgeReceived runs. *)
 Stall(e) ==
   /\ Live(e) /\ consumed[e] < emitted[e] /\ Next1(e) = procAt[e] /\ ~Delivered(e)
+  /\ (AtomicEventAwaits \/ ~Unbound(e))
   /\ ~stalled[e]
   /\ stalled' = [stalled EXCEPT ![e] = TRUE]
   /\ iwake' = [iwake EXCEPT ![e] = FALSE]
   /\ pendingAck' = [pendingAck EXCEPT ![e] = TRUE]
   /\ UNCHANGED <<agentVars, toolVars, sessionVars, storeVars, twake, procVars>>
+
+(* AD-02 reaches such a processing with the binding of its call not in the session: it
+   commits the binding alone, the position stays, and stops before the event as Stall
+   does. The commit wakes AD-06 and acknowledgeReceived runs. *)
+Bind(e) ==
+  /\ ~AtomicEventAwaits /\ Unbound(e) /\ (stalled[e] => iwake[e])
+  /\ consumption' = [consumption EXCEPT ![e] = "bound"]
+  /\ twake' = IF Ad06AgentWakeOnly THEN twake ELSE [twake EXCEPT ![e] = TRUE]
+  /\ iwake' = [iwake EXCEPT ![e] = FALSE]
+  /\ stalled' = [stalled EXCEPT ![e] = TRUE]
+  /\ pendingAck' = [pendingAck EXCEPT ![e] = TRUE]
+  /\ UNCHANGED <<agentVars, toolVars, consumed, run, processed, storeVars, procVars>>
 
 (* A wake of AD-02 with nothing it can interpret: the round answers, acknowledgeReceived runs. *)
 Woke(e) ==
@@ -370,14 +404,16 @@ SweepAgain ==
 Next ==
   \/ OpenTenant \/ SweepAgain \/ Crash
   \/ \E e \in Execs :
-       \/ AgentCall(e) \/ Process(e) \/ AgentEnd(e)
+       \/ AgentCall(e) \/ AgentIssue(e) \/ Process(e) \/ AgentEnd(e)
        \/ Placeholder(e) \/ Final(e)
-       \/ SessionCancel(e) \/ Interpret(e) \/ Stall(e) \/ Woke(e) \/ Ad06(e) \/ Ack(e)
+       \/ SessionCancel(e) \/ Interpret(e) \/ Stall(e) \/ Bind(e) \/ Woke(e) \/ Ad06(e)
+       \/ Ack(e)
 
 Fairness ==
   /\ WF_vars(OpenTenant) /\ WF_vars(SweepAgain)
-  /\ \A e \in Execs : /\ WF_vars(Interpret(e)) /\ WF_vars(Woke(e)) /\ WF_vars(Ad06(e))
-                      /\ WF_vars(Ack(e)) /\ WF_vars(Placeholder(e)) /\ WF_vars(Final(e))
+  /\ \A e \in Execs : /\ WF_vars(Interpret(e)) /\ WF_vars(Bind(e)) /\ WF_vars(Woke(e))
+                      /\ WF_vars(Ad06(e)) /\ WF_vars(Ack(e)) /\ WF_vars(Placeholder(e))
+                      /\ WF_vars(Final(e))
 
 Spec == Init /\ [][Next]_vars /\ Fairness
 

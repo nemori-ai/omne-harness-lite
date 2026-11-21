@@ -92,7 +92,9 @@ it('keeps a cancelled producer callback away from the next Run', async () => {
     const secondExecution = await w.execution()
     expect(secondExecution).not.toBe(firstExecution)
     const secondAccess = { ...w.agentAccess, execution: secondExecution }
-    expect(await replay()).toEqual({ failure: { kind: 'denied' } })
+    expect(await replay()).toEqual({
+      ok: { key: expect.any(Object), evidence: expect.any(Object) },
+    })
     expect(w.tools.invoke.calls).toHaveLength(0)
     expect(await w.settled(firstExecution)).toBe(true)
     const secondEntries = ok(
@@ -193,7 +195,7 @@ it('retains a failed execution and hands its untaken input to the Run a new inpu
 })
 
 it.each([false, true])(
-  'refuses a duplicate Model result of settled Run A and keeps it out of Run B, failed A = %s',
+  'answers saved to a duplicate Model result of settled Run A and keeps it out of Run B, failed A = %s',
   async failFirst => {
     const release = Promise.withResolvers<void>()
     const replays: Array<() => Promise<unknown>> = []
@@ -246,7 +248,9 @@ it.each([false, true])(
       await w.until(() => w.modelCalls.length === 2, 10_000)
       const secondExecution = await w.execution()
       expect(secondExecution).not.toBe(firstExecution)
-      expect(await replay()).toEqual({ failure: { kind: 'denied' } })
+      expect(await replay()).toEqual({
+        ok: { key: expect.any(Object), evidence: expect.any(Object) },
+      })
       expect(await w.settled(firstExecution)).toBe(true)
       const secondAccess = { ...w.agentAccess, execution: secondExecution }
       const beforeSecondResult = ok(

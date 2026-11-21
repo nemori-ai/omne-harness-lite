@@ -81,7 +81,7 @@
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
       "packages/model/model-storage-sql/src/commit.ts": 1097,
       "packages/model/model/src/commands/commands.ts": 1054,
-      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1700,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1695,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1109,
       "packages/session/session-adapters/src/testing/factory.ts": 1239,
@@ -171,7 +171,7 @@
       },
       "packages/agent/agent/src/receiving.ts": {
         "count": 1,
-        "longest": 318
+        "longest": 312
       },
       "packages/agent/agent/src/testing/journal-finishing.ts": {
         "count": 1,
@@ -191,7 +191,7 @@
       },
       "packages/agent/agent/src/tool-receiving.ts": {
         "count": 1,
-        "longest": 374
+        "longest": 370
       },
       "packages/assets/settings-local/src/catalog.ts": {
         "count": 1,
@@ -503,11 +503,11 @@
       },
       "packages/session/session-adapters/src/cordis/agent-journal-provider.ts": {
         "count": 1,
-        "longest": 261
+        "longest": 259
       },
       "packages/session/session-adapters/src/cordis/agent-journal.ts": {
         "count": 1,
-        "longest": 1126
+        "longest": 1125
       },
       "packages/session/session-adapters/src/cordis/context-holder.ts": {
         "count": 1,

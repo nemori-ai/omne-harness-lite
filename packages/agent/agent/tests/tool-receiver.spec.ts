@@ -598,6 +598,59 @@ it('treats a second push of a key that is still being written as unknown without
   ).toHaveLength(1)
 })
 
+it('answers saved with the pushed key and the settlement evidence when the consuming execution has settled, without reading or writing, and still refuses an execution it never knew', async () => {
+  const s = await setup()
+  const settlement = evidence('settled')
+  const settledCall = reference(access, 'call-1')
+  const touched: string[] = []
+  const received = s.dependencies.provider.received
+  if (!received) throw new Error('joint provider expected')
+  const receiver = ok(
+    createAgentToolReceiver(
+      {
+        ...s.dependencies,
+        provider: {
+          ...s.dependencies.provider,
+          materials: {
+            ...s.dependencies.provider.materials,
+            read: input => {
+              touched.push('materials.read')
+              return s.dependencies.provider.materials.read(input)
+            },
+          },
+          received: {
+            ...received,
+            commit: input => {
+              touched.push('received.commit')
+              return received.commit(input)
+            },
+            query: input => {
+              touched.push('received.query')
+              return received.query(input)
+            },
+          },
+        },
+        targets: {
+          ...s.dependencies.targets,
+          resolve: async input =>
+            input.reference === settledCall
+              ? { ok: { kind: 'settled', evidence: settlement } }
+              : { failure: { kind: 'denied', action: 'resolve' } },
+        },
+      },
+      createToolReceiverState<string>(),
+    ),
+  )
+  expect(await receiver.push({ access, delivery: s.delivery, signal: signal() })).toEqual({
+    ok: { key: s.delivery.key, evidence: settlement },
+  })
+  const never = { ...s.delivery.key, reference: reference(access, 'call-0') }
+  expect(
+    await receiver.push({ access, delivery: { ...s.delivery, key: never }, signal: signal() }),
+  ).toEqual({ failure: { kind: 'denied' } })
+  expect(touched).toEqual([])
+})
+
 it('does not report saved when the provider receipt names another execution', async () => {
   const s = await setup()
   const received = s.dependencies.provider.received

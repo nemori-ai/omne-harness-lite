@@ -261,6 +261,7 @@
 - `ReceivedCommitValue` · `receiving.d.ts`
 - `ReceivedDelivery` · `receiving.d.ts`
 - `ReceivedEntry` · `receiving.d.ts`
+- `ReceptionSettled` · `receiving.d.ts`
 - `RecoveryAction` · `finishing.d.ts`
 - `RecoveryContinuation` · `finishing.d.ts`
 - `RefusalReason` · `judgment.d.ts`
@@ -3629,6 +3630,10 @@ export type ModelReceptionTarget = Readonly<{
         kind: 'model';
     }>;
 }>;
+export type ReceptionSettled = Readonly<{
+    kind: 'settled';
+    evidence: DurableEvidence;
+}>;
 export interface ModelReceptionTargets<P> {
     forExecution(input: Readonly<{
         access: Access<P>;
@@ -3639,7 +3644,7 @@ export interface ModelReceptionTargets<P> {
         consumer: ConsumerRef;
         reference: M.ModelInvocationRef;
         execution?: AgentExecutionId;
-    }>): Reply<ModelReceptionTarget>;
+    }>): Reply<ModelReceptionTarget | ReceptionSettled>;
 }
 export type ToolReceptionTarget = Readonly<{
     execution: AgentExecutionId;
@@ -3656,7 +3661,7 @@ export interface ToolReceptionTargets<P> {
         consumer: ConsumerRef;
         reference: T.ToolInvocationRef;
         execution?: AgentExecutionId;
-    }>): Reply<ToolReceptionTarget | null>;
+    }>): Reply<ToolReceptionTarget | ReceptionSettled | null>;
     forExecution(input: Readonly<{
         access: Access<P>;
         execution: AgentExecutionId;

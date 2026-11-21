@@ -45,6 +45,7 @@
 - `ClockSample` · 包 `@omne-harness/session-contract`
 - `CommitReceipt` · 包 `@omne-harness/session-contract`
 - `CommittedBatch` · 包 `@omne-harness/session-contract`
+- `CommittedBinding` · 包 `@omne-harness/session-contract`
 - `CompactionCommitState` · 包 `@omne-harness/session-contract`
 - `CompactionContextRead` · 包 `@omne-harness/session-contract`
 - `Completion` · 包 `@omne-harness/session-contract`
@@ -340,6 +341,7 @@
 - `batchEvidence` · 包 `@omne-harness/session-contract`
 - `bindingOf` · 包 `@omne-harness/session-contract`
 - `boundCall` · 包 `@omne-harness/session-contract`
+- `boundConsumptions` · 包 `@omne-harness/session-contract`
 - `budgetTermsOf` · 包 `@omne-harness/session-contract`
 - `callKeysIn` · 包 `@omne-harness/session-contract`
 - `callKeysOutside` · 包 `@omne-harness/session-contract`
@@ -349,6 +351,7 @@
 - `commandDigest` · 包 `@omne-harness/session-contract`
 - `commandInput` · 包 `@omne-harness/session-contract`
 - `commitWithinBudget` · 包 `@omne-harness/session-contract`
+- `committedBindings` · 包 `@omne-harness/session-contract`
 - `compactionCallChangeOf` · 包 `@omne-harness/session-contract`
 - `compactionContextForView` · 包 `@omne-harness/session-contract`
 - `consumptionIdOf` · 包 `@omne-harness/session-contract`
@@ -438,6 +441,7 @@
 - `waitingCalls` · 包 `@omne-harness/session-contract`
 - `wakingInputs` · 包 `@omne-harness/session-contract`
 - `withIntakeTerms` · 包 `@omne-harness/session-contract`
+- `withoutCommitted` · 包 `@omne-harness/session-contract`
 - `workspaceSelection` · 包 `@omne-harness/session-contract`
 
 ## 入口 `./cordis` · `cordis.d.ts`
