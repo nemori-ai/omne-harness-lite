@@ -368,9 +368,13 @@
 .omne-session-side-number {
   font-variant-numeric: tabular-nums;
 }
+/* The side body's scroller reaches out by the ring room and takes it back as its padding (S15, K1): a raised control
+   at a pane's edge keeps its edge and ring, and nothing in the panes moves. */
 .omne-session-side-body {
   flex: 1 1 0;
   min-height: 0;
+  margin: calc(-1 * var(--omne-ring-room));
+  padding: var(--omne-ring-room);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
