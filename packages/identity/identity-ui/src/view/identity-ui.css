@@ -1,6 +1,6 @@
 .identity-login {
   width: 100%;
-  max-width: 400px;
+  max-width: var(--omne-measure-decision);
   display: flex;
   flex-direction: column;
   gap: var(--omne-space-block);
