@@ -2,7 +2,7 @@
 
 ## 总体架构
 
-Tool 回答一件事：一次工具调用怎样被受理、执行、等待、控制和收场，它的结果、效果与费用怎样保管并交给原消费者。包组有八个成员：
+Tool 回答一件事：一次工具调用怎样被受理、执行、等待、控制和收场，它的结果、效果与费用怎样保管并交给原消费者。包组有九个成员：
 
 | 成员                   | 回答的问题                                                                                                         |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -14,6 +14,7 @@ Tool 回答一件事：一次工具调用怎样被受理、执行、等待、控
 | `tool-definitions`     | 发行自带的几个工具作者（Tools、Files、Shell、Screen、TodoItems、Ask、Web、Skills、BkgToolCalls）：参数、操作映射与结果文本 |
 | `tool-protocol`        | 一个登录的人按调用引用读一次调用时，有哪些操作与观察：协议契约 `tool/v1`，纯数据                                   |
 | `tool-access`          | `tool/v1` 的接入插件：把三个读口接到 `ToolRuntime` 的查询、内容与观察上                                            |
+| `tool-ui`              | 界面模块：一次调用写到哪了，放在装配指定的位置上给人看 |
 
 依赖只朝内：`tool-host-local` 依赖 `tool` 与 `tool-cordis-contract`，它们依赖 `tool-contract`；`tool-storage-sql` 依赖 `tool`、`tool-contract` 与 SQL 存储契约。别的领域的生产代码只依赖 `tool-contract`，写 Cordis 插件时另加 `tool-cordis-contract`。`tool-protocol` 不依赖任何 Tool 成员以外的领域；`tool-access` 依赖 `tool-protocol`、`tool-contract` 与 `tool-cordis-contract`，按 `packages/access/SPEC.md` 的规则装配。
 
@@ -265,6 +266,19 @@ Tool 为别人实现的端口（它提供的）：
 - 控制的进度原样给出：受理、停止已证实、已结束、被拒、未知各自可辨，受理不显示成停止。
 - 每个读口每次都按同一套资格守卫核主体；别的租户的引用、没有资格的引用与不存在的调用，答复逐字节相同。
 - 协议里没有控制。停不停一次会话里的调用是那个会话的业务决定，要同时改它自己的事实（见 `packages/session/SPEC.md`「终态、控制与取消」），由会话的协议开放。
+
+### 界面模块
+
+- `tool-ui` 是客户端的界面模块，回答一件事：一次调用写到哪了，放在装配指定的位置上给人看。`./cordis` 入口导出工厂 `createToolUiModule(options?)` 与选项类型 `ToolUiOptions`；根入口另导出输出的存放 `CallOutputStore`、视图 `CallOutput` 与上限 `KEPT_CHARS`。模块注入 `tool/v1` 的协议客户端：协议没挂着时不加载，撤了就卸载，放进去的项随作用域撤掉。它只依赖 `tool-protocol`、外壳契约、客户端装配、SDK 的客户端核心、公开契约与共用界面件，不依赖别的 Tool 成员与别的领域。
+- 选项给了 `callDetail` 时，模块往这个[拓展点](../../.meta_harness/design/ubiquitous_language/terms/architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)里放一项：标识 `tool-call-output`，次序 0，收到的对象是 `{ session, call }`。桌面应用把会话的 `sessionCallDetail` 交给它，于是每项后台调用的输出出现在会话「后台」页签里那一项的下面。本成员只写自己要的对象形状，不导入会话的界面模块。外壳还没给租户时什么都不画。
+- 输出按调用引用经 `read-call-output` 读：视图挂着时从上一次读到的位置接着读，每 2 秒一次；同一个调用的几处视图共用一份存放，最后一处卸下时停下。屏幕上至多留最新的 `KEPT_CHARS`（8000）个字符，更早的不显示。
+- 观感照[视觉规范](../../.meta_harness/agents/skills/visual-standard/canonical/SKILL.md)；颜色与语气的规则见[规则与 token 的索引](../../.meta_harness/agents/skills/visual-standard/canonical/references/rules-index.md)的 C3、C4。输出是会话后台调用那一行原地展开的内容，不是单独的一块；那一行的其余部分（命令与预览、停止的三段进度、最后一行输出）归会话的界面模块，输出排在最后。下面每一句通知都写明语气：注意是 `InlineNotice` 的 `caution`，琥珀；中性是 `neutral`。正常的状态不画字。
+  - 有输出：`CodeSurface`，等宽，自己滚；顶上的字滚走时出现一条细线。可访问名称是「调用的输出」。新读到的字接在后面，不逐字动。
+  - 输出还在写：`CodeSurface` 下面一个中性的状态词「输出还在写」，不是动画。写完了不画字。
+  - 还没读到第一次：活动标记（`LoadingIndicator`）加「正在读输出…」。
+  - 空：一行弱墨的说明字「还没有可读的输出」（中性）。
+  - 读不到：一行 `InlineNotice`「输出现在读不到。」，结果的原名收在「详情」里，不直接给人看。`denied` 与结果不知道（`uncertain`）是中性，别的结果是注意。视图挂着时照样接着读，读到了这一行就换成输出。
+- 反馈：本成员只读，没有动作，也不弹提示。用到的共用件：`CodeSurface`、`StateWord`、`InlineNotice`、`LoadingIndicator`。
 
 ### 装载、登记与换代
 
