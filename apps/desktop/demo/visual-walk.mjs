@@ -275,8 +275,10 @@ const HELPERS = `
     }
     throw new Error('timed out waiting for ' + what)
   }
+  // The element whose text is \`text\`, or whose accessible name is when it draws only a glyph (an icon button).
   const byText = (selector, text) =>
-    [...document.querySelectorAll(selector)].find(element => element.textContent.trim() === text)
+    [...document.querySelectorAll(selector)].find(element =>
+      element.textContent.trim() === text || element.getAttribute('aria-label') === text)
   const fill = (element, text) => {
     const prototype = element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
     Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, text)
@@ -508,6 +510,75 @@ const WIDE_ONLY = ['1440', '1100']
  * run outside the page. `widths` names the windows the scene means something in; `breaks` says it ends the login
  * or stops the server, so it runs after the others.
  */
+/** The side open on 「后台」, its call unfolded with output: B9 and the tooltip of the call's stop. */
+const ON_BACKGROUND = `
+      if (bubble() !== null) await closeSide()
+      await rest()
+      await openSide()
+      const side = conversation().querySelector('.omne-session-side')
+      const tab = await wait('the side’s 后台 tab', () =>
+        [...side.querySelectorAll('[data-segment]')].find(item => item.textContent.trim().startsWith('后台')))
+      if (tab.getAttribute('aria-pressed') !== 'true') tab.click()
+      const intent = ${JSON.stringify(BACKGROUND_INTENT)}
+      await wait('the background call', () => side.innerText.includes(intent))
+      // Unfold the call where its line folds; a pane that shows every call unfolded has nothing to press.
+      const line = [...side.querySelectorAll('[aria-expanded]')].find(item => item.textContent.includes(intent))
+      if (line !== undefined && line.getAttribute('aria-expanded') !== 'true') line.click()
+      await wait('the call’s output', () => side.innerText.includes('waiting for the next change'))
+      await settle()`
+
+const pointerAt = (x, y) => walk =>
+  walk.browser.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
+const shiftKey = type => walk =>
+  walk.browser.send('Input.dispatchKeyEvent', {
+    type,
+    key: 'Shift',
+    code: 'ShiftLeft',
+    windowsVirtualKeyCode: 16,
+  })
+
+/** An icon button's name shows on a pointer resting on it and on keyboard focus (A1); `find` is in-page code. */
+function tipScenes(id, title, { act, ready = 'await rest()', find, leave = [] }) {
+  const target = `await wait('the icon button', () => ${find})`
+  const tooltip = `await wait('the tooltip', () => document.querySelector('[role=tooltip]'))\n await settle()`
+  const away = [pointerAt(1, 1), 'document.activeElement?.blur()']
+  return [
+    {
+      id: `${id}-hover`,
+      title: `${title}：指针停在上面`,
+      widths: ['1440'],
+      act,
+      each: [
+        ...away,
+        `${ready}\n ;(${target}).scrollIntoView({ block: 'nearest' })\n await settle()`,
+        async walk => {
+          const at = await run(
+            walk.browser,
+            `const box = (${target}).getBoundingClientRect()\n return { x: box.x + box.width / 2, y: box.y + box.height / 2 }`,
+          )
+          await pointerAt(at.x, at.y)(walk)
+        },
+        tooltip,
+      ],
+      leave: [...away, ...[leave].flat()],
+    },
+    {
+      id: `${id}-focus`,
+      title: `${title}：键盘聚焦`,
+      widths: ['1440'],
+      act,
+      each: [
+        ...away,
+        ready,
+        shiftKey('keyDown'),
+        shiftKey('keyUp'),
+        `;(${target}).focus()\n ${tooltip}`,
+      ],
+      leave: [...away, ...[leave].flat()],
+    },
+  ]
+}
+
 const SCENES = [
   {
     id: 'A1-gate',
@@ -659,21 +730,7 @@ const SCENES = [
     id: 'B9-background',
     title: '后台调用：「后台」页签里展开着，有输出与停止的进度',
     act: `await fresh(); await say(${JSON.stringify(BACKGROUND_ASK)}, '构建在后台跑着')`,
-    each: `
-      if (bubble() !== null) await closeSide()
-      await rest()
-      await openSide()
-      const side = conversation().querySelector('.omne-session-side')
-      const tab = await wait('the side’s 后台 tab', () =>
-        [...side.querySelectorAll('[data-segment]')].find(item => item.textContent.trim().startsWith('后台')))
-      if (tab.getAttribute('aria-pressed') !== 'true') tab.click()
-      const intent = ${JSON.stringify(BACKGROUND_INTENT)}
-      await wait('the background call', () => side.innerText.includes(intent))
-      // Unfold the call where its line folds; a pane that shows every call unfolded has nothing to press.
-      const line = [...side.querySelectorAll('[aria-expanded]')].find(item => item.textContent.includes(intent))
-      if (line !== undefined && line.getAttribute('aria-expanded') !== 'true') line.click()
-      await wait('the call’s output', () => side.innerText.includes('waiting for the next change'))
-      await settle()`,
+    each: ON_BACKGROUND,
     leave: `if (bubble() !== null) await closeSide()`,
   },
   {
@@ -700,6 +757,22 @@ const SCENES = [
   { id: 'D4-assets', title: '资产', act: `await goTo('资产')` },
   { id: 'D6-settings', title: '设置', tiers: true, act: `await goTo('设置')` },
   { id: 'D9-usage', title: '用量', act: `await goTo('用量')` },
+  ...tipScenes('T2-tip-side-fold', '侧边区的收起钮的提示', {
+    act: `await openSession('请总结')`,
+    ready: `await rest(); await openSide()`,
+    find: `document.querySelector('section[data-page=conversation]:not([hidden]) .omne-session-side [aria-label="收起侧边区"]')`,
+  }),
+  ...tipScenes('T3-tip-usage-more', '用量面板顶上 ⋯ 的提示', {
+    act: `await openSession('请总结')`,
+    ready: `await rest(); await openSide()`,
+    find: `document.querySelector('section[data-page=conversation]:not([hidden]) .omne-session-side [aria-label="更多操作"]')`,
+  }),
+  ...tipScenes('T4-tip-background-stop', '后台调用的停止钮的提示', {
+    act: `await fresh(); await say(${JSON.stringify(BACKGROUND_ASK)}, '构建在后台跑着')`,
+    ready: ON_BACKGROUND,
+    find: `document.querySelector('section[data-page=conversation]:not([hidden]) .omne-session-side [aria-label="停止"]')`,
+    leave: `if (bubble() !== null) await closeSide()`,
+  }),
   {
     id: 'K1-specimen',
     title: '共用件的样张',
