@@ -32,20 +32,9 @@
     "packages/schedule/schedule-ui/src/view/schedule-detail.tsx | .schedule-detail": 1,
     "packages/schedule/schedule-ui/src/view/schedule-page.tsx | .schedule-page": 1,
     "packages/schedule/schedule-ui/src/view/schedule-page.tsx | .schedule-row": 1,
-    "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-call": 1,
-    "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-call-action": 1,
-    "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-call-head": 1,
-    "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-call-last": 1,
-    "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-call-stop": 1,
-    "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-empty": 3,
-    "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-hint": 1,
-    "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-notice": 1,
-    "packages/session/session-ui/src/view/background-pane.tsx | .omne-background-pane": 1,
     "packages/session/session-ui/src/view/parts.tsx | .omne-card": 1,
     "packages/session/session-ui/src/view/parts.tsx | .omne-note": 1,
     "packages/session/session-ui/src/view/session-work.tsx | .omne-session-work-part": 1,
-    "packages/session/session-ui/src/view/waiting-notice.tsx | .omne-waiting": 1,
-    "packages/tool/tool-ui/src/view/call-output.tsx | .omne-call-output": 1,
-    "packages/tool/tool-ui/src/view/call-output.tsx | .omne-call-output-note": 3
+    "packages/session/session-ui/src/view/waiting-notice.tsx | .omne-waiting": 1
   }
 }
