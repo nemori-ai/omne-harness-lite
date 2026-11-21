@@ -63,6 +63,8 @@
     "@omne-harness/ui-kit": "workspace:*",
     "@omne-harness/usage-protocol": "workspace:*",
     "@omne-harness/usage-ui": "workspace:*",
+    "@omne-harness/workspace-protocol": "workspace:*",
+    "@omne-harness/workspace-ui": "workspace:*",
     "eventsource-parser": "catalog:",
     "hono": "catalog:",
     "react": "catalog:",

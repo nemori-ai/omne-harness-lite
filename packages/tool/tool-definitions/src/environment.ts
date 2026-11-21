@@ -3,6 +3,7 @@ import type {
   CommandRetention,
   Containment,
   FacilityRequest,
+  FilesScope,
   FileSystemFacility,
   ScreenFacility,
   TerminalFacility,
@@ -35,6 +36,8 @@ export type FilesAuthorEnvironment = Readonly<{
   directory?: string
   /** Where a command hands over a product for the model to perceive. */
   media: ToolMediaSink
+  /** The files this call may read and write, pinned with its directory; names a refusal outside it. */
+  scope?: FilesScope
   files: FileOperations & {
     move(
       request: Omit<Transfer, 'target'> & { readonly target: { readonly path: string } },
@@ -51,6 +54,8 @@ export type FilesAuthorEnvironment = Readonly<{
 export type ShellAuthorEnvironment = Readonly<{
   /** The working directory of this call: where a command or a new terminal starts by default. */
   directory?: string
+  /** The files this call may read and write, pinned with its directory; checked before a start. */
+  scope?: FilesScope
   command: BoundCommand
   terminal: BoundTerminal
   facts: Readonly<{

@@ -51,6 +51,11 @@ it('a login principal lists the independent settings with their defaults apart f
           '输入排队',
           { value: { kind: 'set', value: 64 }, source: 'default' },
         ],
+        [
+          'workspace/outside-files/access',
+          '工作区之外的文件',
+          { value: { kind: 'set', value: 'none' }, source: 'default' },
+        ],
       ])
       for (const value of listed.items)
         expect(value).toMatchObject({
@@ -108,4 +113,50 @@ it('a login principal lists the independent settings with their defaults apart f
     },
   ])
   expect(exits).toEqual([0, 0])
+})
+
+const OUTSIDE_FILES = {
+  kind: 'independent',
+  providerId: 'workspace',
+  definitionId: 'outside-files',
+} as const
+
+it('the tenant sets each value of the setting for files outside the workspace and reads it back; another value is refused', async () => {
+  const exits = await onReleaseTreeRuns({ script: toolCallsThenText(() => []) }, [
+    async tree => {
+      const face = faceOf(tree)
+      await settledSession(tree, 'hello')
+      const { principal, tenant } = await loginAccess(tree)
+      const item = { principal, tenant, owner: OUTSIDE_FILES, item: 'access' }
+      const before = await face.describe(item)
+      if (before.kind !== 'described') throw new Error(JSON.stringify(before))
+      expect(before.item).toMatchObject({
+        own: { kind: 'unset' },
+        effective: { value: { kind: 'set', value: 'none' }, source: 'default' },
+      })
+      let revision = before.item.revision
+      for (const value of ['read', 'read-write', 'none']) {
+        const written = await face.set({
+          ...item,
+          operation: `set-${value}`,
+          expectedRevision: revision,
+          value: { kind: 'ordinary', value },
+        })
+        if (written.kind !== 'written') throw new Error(JSON.stringify(written))
+        revision = written.revision
+        expect(await face.describe(item), value).toMatchObject({
+          item: { effective: { value: { kind: 'set', value }, source: 'tenant' } },
+        })
+      }
+      expect(
+        await face.set({
+          ...item,
+          operation: 'set-all',
+          expectedRevision: revision,
+          value: { kind: 'ordinary', value: 'all' },
+        }),
+      ).toMatchObject({ kind: 'invalid' })
+    },
+  ])
+  expect(exits).toEqual([0])
 })

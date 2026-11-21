@@ -101,6 +101,8 @@ export function createFakeClient(): FakeClient {
     'search-history',
     'read-model-selection',
     'select-model',
+    'read-workspace-selection',
+    'select-workspace',
   ]
   const client = Object.fromEntries(names.map(name => [name, operation(name)])) as Record<
     string,

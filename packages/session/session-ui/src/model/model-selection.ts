@@ -1,6 +1,7 @@
 import { readTenantText } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
+import { Cells, OfferedChoices, type ChoicesView, type Listing } from './offered-choices.ts'
 import { notSent } from './session-driver.ts'
 
 type Client = Pick<ClientOf<SessionProtocol>, 'read-model-selection' | 'select-model'>
@@ -10,9 +11,7 @@ type Answer<K extends keyof Client> =
 type Refusal = Extract<Answer<'select-model'>, { outcome: 'invalid' }>['body']['reason']
 
 export type ModelChoice = Readonly<{ route: string; selectable: boolean; note: string | null }>
-export type ModelChoiceListing =
-  | Readonly<{ kind: 'listed'; choices: readonly ModelChoice[] }>
-  | Readonly<{ kind: 'unavailable'; reason: string }>
+export type ModelChoiceListing = Listing<ModelChoice>
 
 /** What the session interface needs from whoever lists models. It does not know who that is. */
 export interface ModelChoiceSource {
@@ -28,14 +27,7 @@ export type SelectionView =
   | Readonly<{ kind: 'read'; model: string; revision: string }>
   | Readonly<{ kind: 'unreadable'; reason: string }>
 
-/** The models of a tenant: `absent` while nobody lists them. */
-export type ChoicesView =
-  | Readonly<{ kind: 'absent' }>
-  | Readonly<{ kind: 'unread' }>
-  | ModelChoiceListing
-
 const UNREAD = { kind: 'unread' } as const
-const ABSENT = { kind: 'absent' } as const
 
 const REFUSALS: Readonly<Record<Refusal, string>> = {
   'unknown-name': '没有这个模型',
@@ -67,46 +59,10 @@ export function selectText(answer: Answer<'select-model'>): string {
   }
 }
 
-class Cells<V> {
-  private readonly entries = new Map<string, { value: V; listeners: Set<() => void> }>()
-  private readonly initial: V
-
-  constructor(initial: V) {
-    this.initial = initial
-  }
-
-  read(key: string): V {
-    return this.entries.get(key)?.value ?? this.initial
-  }
-
-  subscribe(key: string, listener: () => void): () => void {
-    const entry = this.entryOf(key)
-    entry.listeners.add(listener)
-    return () => entry.listeners.delete(listener)
-  }
-
-  show(key: string, value: V): void {
-    const entry = this.entryOf(key)
-    entry.value = value
-    for (const listener of entry.listeners) listener()
-  }
-
-  keys(): readonly string[] {
-    return [...this.entries.keys()]
-  }
-
-  private entryOf(key: string) {
-    const entry = this.entries.get(key) ?? { value: this.initial, listeners: new Set() }
-    this.entries.set(key, entry)
-    return entry
-  }
-}
-
 // Session is the authority on a session's model, the attached source on what can be picked.
 export class ModelSelectionStore implements ModelChoiceHolder {
   private readonly selections = new Cells<SelectionView>(UNREAD)
-  private readonly lists = new Cells<Exclude<ChoicesView, { kind: 'absent' }>>(UNREAD)
-  private source: ModelChoiceSource | null = null
+  private readonly offered = new OfferedChoices<ModelChoice>()
   private readonly client: Client
   private readonly newId: () => string
 
@@ -147,37 +103,20 @@ export class ModelSelectionStore implements ModelChoiceHolder {
     return selectText(answer)
   }
 
-  choices(tenant: string): ChoicesView {
-    return this.source === null ? ABSENT : this.lists.read(tenant)
+  choices(tenant: string): ChoicesView<ModelChoice> {
+    return this.offered.choices(tenant)
   }
 
   subscribeChoices(tenant: string, listener: () => void): () => void {
-    return this.lists.subscribe(tenant, listener)
+    return this.offered.subscribe(tenant, listener)
   }
 
-  async loadChoices(tenant: string): Promise<void> {
-    const source = this.source
-    if (source === null) return
-    const listing = await source
-      .list(tenant)
-      .catch((): ModelChoiceListing => ({ kind: 'unavailable', reason: '没有送达' }))
-    if (this.source === source) this.lists.show(tenant, listing)
+  loadChoices(tenant: string): Promise<void> {
+    return this.offered.load(tenant)
   }
 
   attach(source: ModelChoiceSource): () => void {
-    this.replace(source)
-    return () => {
-      if (this.source === source) this.replace(null)
-    }
-  }
-
-  // What an earlier source listed is not shown as the list of the next one.
-  private replace(source: ModelChoiceSource | null): void {
-    this.source = source
-    for (const tenant of this.lists.keys()) {
-      this.lists.show(tenant, UNREAD)
-      void this.loadChoices(tenant)
-    }
+    return this.offered.attach(source)
   }
 }
 

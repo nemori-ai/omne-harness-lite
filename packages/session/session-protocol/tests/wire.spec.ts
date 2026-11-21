@@ -29,6 +29,7 @@ type Name = Exclude<
   | 'select-model'
   | 'read-model-selection'
   | 'select-workspace'
+  | 'read-workspace-selection'
   | 'read-permission-mode'
   | 'change-permission-mode'
 >

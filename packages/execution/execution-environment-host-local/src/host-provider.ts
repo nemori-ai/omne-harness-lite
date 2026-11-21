@@ -9,6 +9,7 @@ import type {
   EnvironmentLease,
   EnvironmentProvider,
   FacilityKey,
+  FilesScope,
   LeaseInvalidation,
   ManagedResource,
   OriginalAcquisition,
@@ -172,25 +173,26 @@ function temporaryFileRemains(
 
 type Joined = ReturnType<DomainInternals['joinEngine']>
 
-/** One engine for each files root a placement names; a root keeps the identity it was first seen with. */
-function enginesByRoot(
+/** One engine for each files scope a placement names; in it a root keeps the identity it was first seen with. */
+function enginesByScope(
   internals: DomainInternals,
   options: Pick<HostFilesProviderOptions, 'stateDirectory' | 'limits'>,
   diagnose: Parameters<DomainInternals['joinEngine']>[1],
 ) {
-  const joined = new Map<string | undefined, Joined>()
-  const join = (root: string | undefined): Joined['engine'] => {
-    const known = joined.get(root) ?? internals.joinEngine({ ...options, root }, diagnose)
-    joined.set(root, known)
+  const joined = new Map<string, Joined>()
+  const join = (scope: FilesScope = {}): Joined['engine'] => {
+    const key = JSON.stringify([scope.read ?? null, scope.write ?? null])
+    const known = joined.get(key) ?? internals.joinEngine({ ...options, scope }, diagnose)
+    joined.set(key, known)
     return known.engine
   }
-  // The engine without a root is made now, so a bad state directory or bound fails the construction.
-  join(undefined)
+  // The engine without a scope is made now, so a bad state directory or bound fails the construction.
+  join()
   return {
-    /** Undefined: the root is not an absolute path, so it names no directory to keep the files in. */
-    under(root: string | undefined): Joined['engine'] | undefined {
+    /** Undefined: a root is not an absolute path, so it names no directory to keep the files in. */
+    under(scope: FilesScope | undefined): Joined['engine'] | undefined {
       try {
-        return join(root)
+        return join(scope)
       } catch {
         return undefined
       }
@@ -233,7 +235,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       options.diagnose?.(Object.freeze(diagnostic))
     } catch {}
   }
-  const engines = enginesByRoot(internals, options, fact =>
+  const engines = enginesByScope(internals, options, fact =>
     report(temporaryFileRemains(name, generation, fact)),
   )
   internals.registerGeneration(generation)
@@ -416,7 +418,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         ...(input.retention === undefined ? {} : { retentionScope: input.retention.scope }),
         placement: input.placement,
       }
-      const engine = engines.under(input.placement.filesRoot)
+      const engine = engines.under(input.placement.filesScope)
       if (engine === undefined) return { kind: 'rejected', reason: 'invalidInput' }
       const admitted = internals.admit(
         original,

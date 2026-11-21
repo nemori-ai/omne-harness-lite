@@ -19,6 +19,7 @@ import {
   type Field,
 } from './protocol.ts'
 import { collectProcess } from './shell-output.ts'
+import { isPosixShell, precheck } from './shell-precheck.ts'
 import {
   OutputStage,
   STAGING_BATCH_MS,
@@ -177,8 +178,44 @@ const NO_DIRECTORY =
 /** Where a command or a new terminal starts: the directory the call names, else that of the call. */
 const startDirectory = (args: Arguments, environment: ShellAuthorEnvironment): string | undefined =>
   args.optionalText('cwd') ?? environment.directory
+
+/** The answer when a start would leave the files of the call; undefined: it may start. */
+function outsideScope(
+  environment: ShellAuthorEnvironment,
+  start: Readonly<{
+    cwd: string
+    script: string
+    posix: boolean
+    env: Readonly<Record<string, string>>
+  }>,
+): string | undefined {
+  if (environment.scope === undefined) return undefined
+  const verdict = precheck({ ...start, scope: environment.scope, home: start.env['HOME'] })
+  return verdict.kind === 'start'
+    ? undefined
+    : `rejected reason=outsideScope path=${JSON.stringify(verdict.path)} effect=${verdict.effect} the setting for files outside the workspace keeps this call from ${verdict.effect === 'read' ? 'reading' : 'writing'} there; zero starts`
+}
 const shownDirectory = (environment: ShellAuthorEnvironment): string =>
   JSON.stringify(environment.directory ?? null)
+
+function scriptOutsideScope(
+  args: Arguments,
+  environment: ShellAuthorEnvironment,
+  config: Arguments,
+  inTerminal: boolean,
+): string | undefined {
+  const cwd = startDirectory(args, environment)
+  if (cwd === undefined) return undefined
+  return outsideScope(environment, {
+    cwd,
+    script: args.text('script'),
+    // A retained terminal runs the shell of its host; a one-shot command the configured one.
+    posix: inTerminal
+      ? !/^win/iu.test(environment.facts.os)
+      : isPosixShell(config.text('executable')),
+    env: { ...config.env('env'), ...args.env('env') },
+  })
+}
 
 async function createTerminal(
   args: Arguments,
@@ -191,11 +228,14 @@ async function createTerminal(
     return 'rejected reason=invalidInput columns and rows must be supplied together'
   const cwd = startDirectory(args, environment)
   if (cwd === undefined) return NO_DIRECTORY
+  const env = { ...config.env('env'), ...args.env('env') }
+  const refused = outsideScope(environment, { cwd, script: '', posix: false, env })
+  if (refused !== undefined) return refused
   return confirmation(
     await environment.terminal.create({
       retain: 'scope',
       cwd,
-      env: { ...config.env('env'), ...args.env('env') },
+      env,
       ...(args.has('columns')
         ? { geometry: { columns: args.number('columns', 0), rows: args.number('rows', 0) } }
         : {}),
@@ -293,6 +333,8 @@ async function executeScript(
     if (denied !== undefined) return denied
     if (execution.signal.aborted) return 'rejected reason=cancelled zero starts'
   }
+  const refused = scriptOutsideScope(args, environment, config, terminal !== undefined)
+  if (refused !== undefined) return refused
   const input = args.optionalText('stdin')
   const stdin = input === undefined ? {} : { stdin: new TextEncoder().encode(input) }
   const started =

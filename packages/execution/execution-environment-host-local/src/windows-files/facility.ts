@@ -2,18 +2,22 @@ import { randomUUID } from 'node:crypto'
 import { access, lstat, mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { win32 } from 'node:path'
-import type {
-  FileIdentity,
-  FileInformation,
-  FileRequest,
-  FileSystemFacility,
-  HandleGeneration,
-  ObjectToken,
-  ProviderFacts,
+import {
+  fileEffects,
+  windowsPathSegments,
+  type FileEffect,
+  type FileIdentity,
+  type FilesScope,
+  type FileInformation,
+  type FileRequest,
+  type FileSystemFacility,
+  type HandleGeneration,
+  type ObjectToken,
+  type ProviderFacts,
 } from '@omne-harness/execution-environment-contract'
 import type { HostFilesLimits } from '../host-file-tree.ts'
 import { fail, failed, ok, reject, unknown, type Outcome } from '../host-paths.ts'
-import { windowsPathSegments, windowsSegmentsBelow } from '../root-segments.ts'
+import { windowsSegmentsBelow } from '../root-segments.ts'
 import { frameworkAssembly } from '../windows-native/compile.ts'
 import { getWindowsFilesHelper } from './helper.ts'
 import type { ChangeInput, Final, Metadata, NativeInput, RunInput, Start } from './protocol.ts'
@@ -137,6 +141,7 @@ async function probeWindowsDirectory(
     targetRoot: root,
     expectedTargetRoot: expectedRoot,
     targetSegments: [],
+    targetRooted: true,
     targetNamed: '',
     replace: false,
   })
@@ -173,10 +178,22 @@ export function createWindowsRootIdentity(root: string): () => Promise<string | 
   }
 }
 
+type WindowsIdentity = () => Promise<string | undefined>
+
+/** The recorded identity of the root of each effect; one when both sides name the same root. */
+function scopedIdentities(
+  scope: FilesScope,
+): Readonly<Record<FileEffect, WindowsIdentity | undefined>> {
+  const of = (root: string | undefined) =>
+    root === undefined ? undefined : createWindowsRootIdentity(root)
+  const read = of(scope.read)
+  return { read, write: scope.write === scope.read ? read : of(scope.write) }
+}
+
 export function createWindowsFiles(
   options: Readonly<{
-    root?: string
-    rootIdentity?: () => Promise<string | undefined>
+    scope?: FilesScope
+    rootIdentity?: Readonly<Record<FileEffect, WindowsIdentity | undefined>>
     limits: HostFilesLimits
     issue(object: ObjectToken): HandleGeneration
   }>,
@@ -184,10 +201,8 @@ export function createWindowsFiles(
   FileSystemFacility<unknown>,
   'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
 > {
-  const configured = options.root
-  const rootIdentity =
-    options.rootIdentity ??
-    (configured === undefined ? undefined : createWindowsRootIdentity(configured))
+  const scope = options.scope ?? {}
+  const rootIdentity = options.rootIdentity ?? scopedIdentities(scope)
   const identity = (info: Metadata): FileIdentity => {
     const object = { token: info.token }
     return { object, version: info.version, handle: options.issue(object) }
@@ -198,17 +213,17 @@ export function createWindowsFiles(
     sizeBytes: info.size,
     modifiedMs: info.modified,
   })
-  const locate = async (path: string): Promise<Outcome<Start>> => {
-    if (configured === undefined) return driveStart(path)
+  /** Where a request starts: below the root of its effect, checked against the recorded root. */
+  const startOf = async (path: string, effect: FileEffect): Promise<Outcome<Start>> => {
+    const root = scope[effect]
+    if (root === undefined) return driveStart(path)
     if (!carried(path)) return fail('unsupported')
-    const segments = await windowsSegmentsBelow(configured, path)
+    const segments = await windowsSegmentsBelow(root, path)
     if (segments === undefined) return fail('notAuthorized')
-    return ok({ root: configured, expectedRoot: '', segments, rooted: true })
-  }
-  const bound = async (located: Start): Promise<Outcome<Start>> => {
-    if (!located.rooted || rootIdentity === undefined) return ok(located)
-    const token = await rootIdentity()
-    return token === undefined ? fail('unavailable') : ok({ ...located, expectedRoot: token })
+    const token = await rootIdentity[effect]?.()
+    return token === undefined
+      ? fail('unavailable')
+      : ok({ root, expectedRoot: token, segments, rooted: true })
   }
   const change = async (
     request: Parameters<FileSystemFacility<unknown>['remove']>[0],
@@ -225,12 +240,11 @@ export function createWindowsFiles(
       return reject(request.requestId, 'invalidInput')
     if (!request.named?.token || (target !== undefined && !target.named?.token))
       return reject(request.requestId, 'notAuthorized')
-    const located = await locate(request.path)
-    if (!located.ok) return failed(request.requestId, located.failure, 'notFound')
-    const destination = target === undefined ? located : await locate(target.path)
-    if (!destination.ok) return failed(request.requestId, destination.failure, 'notFound')
-    const source = await bound(located.value)
+    const source = await startOf(request.path, fileEffects[operation].path)
     if (!source.ok) return failed(request.requestId, source.failure, 'notFound')
+    const destination =
+      target === undefined ? source : await startOf(target.path, fileEffects.move.target)
+    if (!destination.ok) return failed(request.requestId, destination.failure, 'notFound')
     const result = await invoke({
       ...source.value,
       named: request.named.token,
@@ -238,8 +252,9 @@ export function createWindowsFiles(
       recursive: request.recursive,
       version: request.expectedVersion ?? null,
       targetRoot: destination.value.root,
-      expectedTargetRoot: source.value.expectedRoot,
+      expectedTargetRoot: destination.value.expectedRoot,
       targetSegments: destination.value.segments,
+      targetRooted: destination.value.rooted,
       targetNamed: target?.named?.token ?? '',
       replace,
     })
@@ -257,9 +272,7 @@ export function createWindowsFiles(
       return reject(request.requestId, 'invalidInput')
     if (!request.named?.token) return reject(request.requestId, 'notAuthorized')
     const missing = operation === 'search' ? 'notFound' : 'unresolved'
-    const located = await locate(request.path)
-    if (!located.ok) return failed(request.requestId, located.failure, missing)
-    const start = await bound(located.value)
+    const start = await startOf(request.path, 'read')
     if (!start.ok) return failed(request.requestId, start.failure, missing)
     const result = await invoke({
       ...start.value,
@@ -301,13 +314,11 @@ export function createWindowsFiles(
         return reject(requestId, 'invalidInput')
       if (!request.named?.token || !request.target.named?.token)
         return reject(requestId, 'notAuthorized')
-      const located = await locate(request.path)
-      if (!located.ok) return failed(requestId, located.failure, 'notFound')
-      const destination = await locate(request.target.path)
-      if (!destination.ok) return failed(requestId, destination.failure, 'notFound')
-      const source = await bound(located.value)
+      const source = await startOf(request.path, 'read')
       if (!source.ok) return failed(requestId, source.failure, 'notFound')
-      const target: Start = { ...destination.value, expectedRoot: source.value.expectedRoot }
+      const destination = await startOf(request.target.path, fileEffects.copy.target)
+      if (!destination.ok) return failed(requestId, destination.failure, 'notFound')
+      const target = destination.value
       const temporary = `.omne-copy-${randomUUID()}`
       const staged = await invoke({
         ...source.value,
@@ -318,6 +329,7 @@ export function createWindowsFiles(
         targetRoot: target.root,
         expectedTargetRoot: target.expectedRoot,
         targetSegments: target.segments,
+        targetRooted: target.rooted,
         targetNamed: request.target.named.token,
         replace: request.replace,
         temporary,
@@ -359,9 +371,7 @@ export function createWindowsFiles(
         return reject(request.requestId, 'invalidInput')
       if (!request.named?.token) return reject(request.requestId, 'notAuthorized')
       const missing = request.mode === 'create' ? 'notFound' : 'unresolved'
-      const located = await locate(request.path)
-      if (!located.ok) return failed(request.requestId, located.failure, missing)
-      const source = await bound(located.value)
+      const source = await startOf(request.path, 'write')
       if (!source.ok) return failed(request.requestId, source.failure, missing)
       const result = await invoke({
         ...source.value,

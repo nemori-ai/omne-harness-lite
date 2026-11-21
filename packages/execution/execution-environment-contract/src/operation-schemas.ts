@@ -96,6 +96,7 @@ function variants<const F extends Fields>(field: string, choices: F): Decoder<Ou
   }
 }
 const literal = <const T extends string>(value: T) => decodeLiteral([value])
+const decodeFilesScope = record({}, { read: decodeNonEmpty, write: decodeNonEmpty })
 const providerIdentity = record({
   name: decodeString,
   generation: decodeString,
@@ -110,7 +111,7 @@ const placement = record(
     continuity: decodeContinuity,
     quotaDomain: decodeNonEmpty,
   },
-  { filesRoot: decodeNonEmpty },
+  { filesScope: decodeFilesScope },
 )
 const rejectReason = decodeLiteral([
   'notAuthorized',
@@ -463,7 +464,10 @@ export const resolvePlacementParamsSchema: OperationSchema<
 > = standardSchema(
   pair(
     decodeAccess,
-    record({ scope: decodeScope, requirement: decodeRequirement }, { filesRoot: decodeNonEmpty }),
+    record(
+      { scope: decodeScope, requirement: decodeRequirement },
+      { filesScope: decodeFilesScope },
+    ),
   ),
 )
 export const acquireParamsSchema: OperationSchema<

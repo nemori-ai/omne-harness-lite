@@ -14,6 +14,7 @@ import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 
+import type { ToolCallDirectory } from '@omne-harness/tool-contract'
 import type { PreparationRecord, ReleaseRecord } from '@omne-harness/tool-contract/provider'
 import { toolEnvironmentConformance } from '@omne-harness/tool-contract/testing'
 import {
@@ -39,7 +40,10 @@ import {
   type Principal,
 } from '../coordinator-values.ts'
 
-function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => memory) {
+function fixture(
+  wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => memory,
+  directory?: ToolCallDirectory,
+) {
   const store = createMemoryToolLedgerStore()
   const ledgerStore = wrap(store)
   const state = createEnvironmentStateStore({ store: ledgerStore, mode: 'test' })
@@ -51,7 +55,7 @@ function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => 
     inputDigest: 'input-1',
     purpose: 'initial',
   }
-  const fixed = request()
+  const fixed = directory === undefined ? request() : { ...request(), directory }
   const access = { tenant: tenantA, principal: principalA, call: preparation.call }
   const prepare = { ...access, preparation, request: fixed }
   const placement: Placement = {
@@ -522,4 +526,18 @@ it('the plan resolver refuses a binding whose scope is not the scope of the requ
     failure: { kind: 'denied', action: 'environment-scope' },
   })
   expect(requirement).not.toHaveBeenCalled()
+})
+
+it('gives the author the directory pinned in the request and the files pinned with it, or neither', async () => {
+  const pinned = { path: '/srv/blog', workspace: null, files: { write: '/srv/blog' } }
+  const f = fixture(undefined, pinned)
+  const result = await f.build().prepare(f.prepare)
+  if ('failure' in result || result.ok.kind !== 'prepared') throw new Error(JSON.stringify(result))
+  expect(result.ok.environment.value.directory).toBe('/srv/blog')
+  expect(result.ok.environment.value.scope).toEqual({ write: '/srv/blog' })
+  const plain = fixture()
+  const bare = await plain.build().prepare(plain.prepare)
+  if ('failure' in bare || bare.ok.kind !== 'prepared') throw new Error(JSON.stringify(bare))
+  expect('directory' in bare.ok.environment.value).toBe(false)
+  expect('scope' in bare.ok.environment.value).toBe(false)
 })

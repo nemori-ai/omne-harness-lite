@@ -26,11 +26,11 @@ import {
   versionOf,
   type CloseHandle,
   type FileStats,
-  type HostPaths,
+  type ScopedPaths,
 } from './host-paths.ts'
 
 export type FileBatchEnvironment = Readonly<{
-  paths: HostPaths
+  paths: ScopedPaths
   stateDirectory: string | undefined
   generation: string
   running: Set<string>
@@ -290,7 +290,7 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     temp: string,
     held: FileHandle[],
   ): Promise<Staged | FacilityResult<never>> {
-    const located = await env.paths.locate(entry.path)
+    const located = await env.paths('write').locate(entry.path)
     if (!located.ok) return failed(requestId, located.failure, 'notFound')
     const { parent, name, isRoot } = located.value
     held.push(parent)
@@ -335,7 +335,7 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     const refusal = await gate(
       env.paths,
       requestId,
-      entries.map(entry => entry.path),
+      entries.map(entry => ({ path: entry.path, effect: 'write' as const })),
     )
     if (refusal !== undefined) return refusal
     const tenant = tenantCodec.encode(request.access.tenant)
@@ -507,8 +507,8 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
     const unsound = recoverRefusalOf(request, env.stateDirectory)
     if (unsound !== undefined) return reject(requestId, unsound)
     await env.drain()
-    const refusal = await gate(env.paths, requestId, [])
-    if (refusal !== undefined) return refusal
+    // Recovery finds the entries of the batch below the write root it wrote them under.
+    if (!(await env.paths('write').available())) return reject(requestId, 'unavailable')
     const tenant = tenantCodec.encode(request.access.tenant)
     if (!tenant.ok) return reject(requestId, 'notAuthorized')
 
@@ -559,7 +559,7 @@ export function createHostFileBatch(env: FileBatchEnvironment): FileBatch {
   async function observe(
     entry: ManifestEntry,
   ): Promise<'absent' | Readonly<{ version: string; matches: boolean }> | undefined> {
-    const located = await env.paths.locate(entry.path)
+    const located = await env.paths('write').locate(entry.path)
     if (!located.ok) return located.failure === 'unresolved' ? 'absent' : undefined
     const { parent, name } = located.value
     try {

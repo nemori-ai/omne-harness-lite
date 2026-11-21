@@ -55,7 +55,7 @@ const ofKind = (entries: readonly { kind: string }[], kind: string) =>
 
 describe('a session and the workspace it works in', () => {
   it(
-    'is created in a verified instance, refuses one that is not, and changes its selection by command',
+    'is created in a verified instance, refuses one that is not, changes its selection by command and reads it back',
     { tags: ['slow'], timeout: 360_000 },
     async () => {
       const base = realpathSync(mkdtempSync(join(tmpdir(), 'session-workspace-')))
@@ -71,6 +71,17 @@ describe('a session and the workspace it works in', () => {
         expect(JSON.stringify(ofKind(first, 'session.created'))).toContain(blog.workspace)
         expect(JSON.stringify(ofKind(first, 'session.created'))).toContain(blog.instance)
         expect(ofKind(first, 'session.workspace-changed')).toEqual([])
+        const read = async () =>
+          replyOf((await tree.cli(['read-workspace-selection', '--session', session])).stdout)
+        expect(await read()).toMatchObject({
+          outcome: 'succeeded',
+          body: {
+            workspace: { workspace: blog.workspace, instance: blog.instance },
+            state: 'attached',
+            directory: join(base, 'blog'),
+            reason: null,
+          },
+        })
 
         // An instance that is not one, an instance of another workspace, and another tenant: no session.
         const bogus = [
@@ -87,6 +98,8 @@ describe('a session and the workspace it works in', () => {
         const frank = await stranger(tree)
         const foreign = await frank(['create-session', '--definition', 'coding', ...blog.at])
         expect([foreign.status, replyOf(foreign.stdout).outcome]).toEqual([3, 'invalid'])
+        const peek = await frank(['read-workspace-selection', '--session', session])
+        expect([peek.status === 0, peek.stdout.includes(blog.instance)]).toEqual([false, false])
 
         const select = (target: readonly string[]) =>
           tree.cli(['select-workspace', '--session', session, ...target])
@@ -104,12 +117,26 @@ describe('a session and the workspace it works in', () => {
         expect(changed).toHaveLength(2)
         expect(JSON.stringify(changed)).toContain(shop.instance)
         expect(JSON.stringify(changed)).not.toContain(blog.instance)
+        expect(await read()).toMatchObject({
+          outcome: 'succeeded',
+          body: {
+            workspace: { workspace: shop.workspace, instance: shop.instance },
+            state: 'attached',
+            directory: join(base, 'shop'),
+          },
+        })
 
         expect(replyOf((await select(['--none'])).stdout)).toMatchObject({
           outcome: 'succeeded',
           body: { directory: null },
         })
         expect(ofKind(await historyOf(tree, session), 'session.workspace-changed')).toHaveLength(3)
+        const none = await read()
+        expect(none).toMatchObject({
+          outcome: 'succeeded',
+          body: { workspace: null, state: 'default' },
+        })
+        expect(none.body['directory']).toEqual(expect.any(String))
       })
       expect(exitCode).toBe(0)
     },

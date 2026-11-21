@@ -100,8 +100,14 @@ export type State =
   | Open
   | Readonly<{ kind: 'unavailable'; session: string; notice: Notice; content: Content }>
 
+/** What a new session is created with; a part left out is the definition's own. */
+export type CreateChoice = Readonly<{
+  model?: string
+  workspace?: Readonly<{ workspace: string; instance: string }>
+}>
+
 export type Event =
-  | Readonly<{ kind: 'create'; createCallId: string; model?: string }>
+  | (Readonly<{ kind: 'create'; createCallId: string }> & CreateChoice)
   | Readonly<{ kind: 'create-answered'; createCallId: string; answer: CreateAnswer }>
   | Readonly<{ kind: 'create-confirm' }>
   | Readonly<{ kind: 'create-confirmed'; createCallId: string; answer: CreateQueryAnswer }>
@@ -135,7 +141,7 @@ export type Event =
 export type HistoryRequest = Readonly<{ cursor: null }> | Readonly<{ cursor: string }>
 
 export type Effect =
-  | Readonly<{ kind: 'create-session'; createCallId: string; model?: string }>
+  | (Readonly<{ kind: 'create-session'; createCallId: string }> & CreateChoice)
   | Readonly<{ kind: 'query-create-session'; createCallId: string }>
   | Readonly<{
       kind: 'send-input'
@@ -286,14 +292,12 @@ function onOpenSession(state: State, session: string): Step {
   return { state: next.state, effects: [...leave(state), ...next.effects] }
 }
 
-// No model named: the session starts with the model of its definition.
 function onCreate(state: State, event: Extract<Event, { kind: 'create' }>): Step {
   if (state.kind === 'creating') return same(state)
-  const { createCallId, model } = event
-  const create = { kind: 'create-session', createCallId, ...(model === undefined ? {} : { model }) }
+  const create: Effect = { ...event, kind: 'create-session' }
   return {
-    state: { kind: 'creating', createCallId, confirm: 'no', notice: null },
-    effects: [...leave(state), create as Effect],
+    state: { kind: 'creating', createCallId: event.createCallId, confirm: 'no', notice: null },
+    effects: [...leave(state), create],
   }
 }
 

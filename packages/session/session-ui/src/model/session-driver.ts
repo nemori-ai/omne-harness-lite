@@ -13,6 +13,7 @@ import {
   type WorkspaceEffect,
   type WorkspaceEvent,
 } from './workspace.ts'
+import type { CreateChoice } from './session-machine.ts'
 
 export type SessionDriverDeps = Readonly<{
   client: ClientOf<SessionProtocol>
@@ -69,12 +70,13 @@ const CALLS: Calls = {
       token,
       answer,
     })),
-  'create-session': ({ createCallId, model }, { client }) =>
+  'create-session': ({ createCallId, model, workspace }, { client }) =>
     notSent(() =>
       client['create-session']({
         createCallId,
         purpose: '',
         ...(model === undefined ? {} : { model }),
+        ...(workspace === undefined ? {} : { workspace }),
       }),
     ).then(answer => ({
       kind: 'create-answered',
@@ -169,9 +171,9 @@ export class SessionDriver {
     this.dispatch({ kind: 'open-session', session })
   }
 
-  createSession(model?: string): void {
+  createSession(choice: CreateChoice = {}): void {
     const createCallId = this.#deps.newId()
-    this.dispatch({ kind: 'create', createCallId, ...(model === undefined ? {} : { model }) })
+    this.dispatch({ kind: 'create', createCallId, ...choice })
   }
 
   confirmCreate(): void {

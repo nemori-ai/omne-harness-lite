@@ -143,7 +143,9 @@ it('answers unavailable to every operation when a root is configured, and does n
   const path = join(root, 'notes.txt')
   await writeFile(path, 'kept')
   const named = await hostObjectToken(path)
-  const files = createHostFilesEngine({ root }).facilityFor('platform')
+  const files = createHostFilesEngine({ scope: { read: root, write: root } }).facilityFor(
+    'platform',
+  )
   expect(await files.read({ ...request('read'), path, named })).toEqual(unavailable('read'))
   expect(await files.stat({ ...request('stat'), path, named })).toEqual(unavailable('stat'))
   expect(

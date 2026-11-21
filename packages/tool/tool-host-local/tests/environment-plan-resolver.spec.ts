@@ -3,6 +3,7 @@ import {
   originRef,
   type EnvironmentRequirement,
   type ExecutionEnvironment,
+  type FilesScope,
   type Placement,
 } from '@omne-harness/execution-environment-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -66,10 +67,12 @@ function resolver(
   const asked: unknown[] = []
   const built = createLocalEnvironmentPlanResolver<Principal>({
     execution: {
-      resolvePlacement: async (_access: unknown, wanted: { filesRoot?: string }) => {
+      resolvePlacement: async (_access: unknown, wanted: { filesScope?: FilesScope }) => {
         asked.push(wanted)
-        const { filesRoot } = wanted
-        return changes.placed ?? (filesRoot === undefined ? placement : { ...placement, filesRoot })
+        const { filesScope } = wanted
+        return (
+          changes.placed ?? (filesScope === undefined ? placement : { ...placement, filesScope })
+        )
       },
     } as unknown as ExecutionEnvironment<Principal>,
     access: {
@@ -115,16 +118,19 @@ describe('the plan of a preparation', () => {
     expect(r.ledgers()).toBe(1)
   })
 
-  it('asks for a placement whose files root is the directory pinned in the request, or for none', async () => {
+  it('asks for a placement that reads and writes below the directory pinned in the request, or for none', async () => {
     const r = resolver()
     const bare = { scope: fixed.requesterScope, requirement }
     expect(await r.resolve()).toMatchObject({ ok: { acquire: { placement } } })
     expect(r.asked).toEqual([bare])
     const rooted = await r.resolve({ path: '/srv/blog', workspace: null })
-    expect(r.asked.at(-1)).toEqual({ ...bare, filesRoot: '/srv/blog' })
-    expect(rooted).toMatchObject({
-      ok: { acquire: { placement: { ...placement, filesRoot: '/srv/blog' } } },
-    })
+    const filesScope = { read: '/srv/blog', write: '/srv/blog' }
+    expect(r.asked.at(-1)).toEqual({ ...bare, filesScope })
+    expect(rooted).toMatchObject({ ok: { acquire: { placement: { ...placement, filesScope } } } })
+
+    // A scope pinned with the directory is asked for as it is; the setting is not read again here.
+    await r.resolve({ path: '/srv/blog', workspace: null, files: { write: '/srv/blog' } })
+    expect(r.asked.at(-1)).toEqual({ ...bare, filesScope: { write: '/srv/blog' } })
   })
 
   it('denies a caller the Tool qualification denies, and is unavailable when it cannot tell', async () => {

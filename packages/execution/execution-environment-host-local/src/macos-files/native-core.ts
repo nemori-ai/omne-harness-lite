@@ -42,8 +42,9 @@ static root open_root(document *d, int target) {
   const char *expected = string_field(d, target ? "expectedTargetRoot" : "expectedRoot", 0);
   field *segments = segments_field(d, target ? "targetSegments" : "segments");
   if (*path != '/') refuse("invalidInput");
+  int below = target ? bool_field(d, "targetRooted") : rooted;
   int fd = hold(open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC));
-  if (fd < 0) refuse(rooted ? "notAuthorized" : open_failure(errno));
+  if (fd < 0) refuse(below ? "notAuthorized" : open_failure(errno));
   struct stat s = descriptor_stat(fd);
   match_identity(&s, expected, "notAuthorized");
   return (root){fd, s.st_dev, segments};

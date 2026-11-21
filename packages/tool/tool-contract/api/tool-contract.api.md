@@ -189,6 +189,7 @@
 - `encodeToolOperationRef` · `reference.d.ts`
 - `judgeToolDelivery` · `result-delivery.d.ts`
 - `offeredDefinition` · `conditions.d.ts`
+- `pinnedFiles` · `call-directory.d.ts`
 - `projectResidentReferences` · `resident-key.d.ts`
 - `readToolOperationRef` · `reference.d.ts`
 - `residentToolFacts` · `resident-key.d.ts`
@@ -1391,6 +1392,14 @@ export interface ToolBodyWrites<P> {
 }
 ```
 
+## 声明文件 `call-directory.d.ts`
+
+```ts
+import type { FilesScope } from '@omne-harness/execution-environment-contract';
+import type { ToolCallDirectory } from './definitions.ts';
+export declare function pinnedFiles(directory: ToolCallDirectory): FilesScope;
+```
+
 ## 声明文件 `call-label.d.ts`
 
 ```ts
@@ -1720,6 +1729,7 @@ export interface ToolOffloader<P, B extends ContentBlock> {
 ## 声明文件 `definitions.d.ts`
 
 ```ts
+import type { FilesScope } from '@omne-harness/execution-environment-contract';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity';
 import type { Modality } from '@omne-harness/modality';
@@ -1927,6 +1937,7 @@ export type ToolCallDirectory = Readonly<{
         id: WorkspaceId;
         instance: string;
     }> | null;
+    files?: FilesScope;
 }>;
 export type FixedToolRequest = Readonly<{
     availability: ToolAvailability;
@@ -2467,6 +2478,7 @@ export type { CallOutput, ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyR
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolBodyId, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
 export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
+export { pinnedFiles } from './call-directory.ts';
 export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolBodyDeclaration, ToolCommandBackground, ToolCommandDeclaration, ToolCallConditions, ToolCommandRelease, ToolCommandReleaseDetail, ToolDefinition, ToolCallDirectory, ToolEnvironmentDeclaration, ToolGate, ToolGateDefault, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
 export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolRenderedResult, ToolOffloadedBody, ToolBodyRetention, ToolBodyRepresentation, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';

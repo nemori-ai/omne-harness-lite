@@ -62,13 +62,14 @@ const down = (dependency: string, diagnostic: string) => ({
 describe('the directory a call is admitted into before its placement', () => {
   it('is the pinned directory, asked of nobody, when the call belongs to no workspace', async () => {
     const w = asking('absent')
-    expect(await w.admitted({ path: BLOG, workspace: null })).toEqual({ ok: BLOG })
+    const plain = { path: BLOG, workspace: null }
+    expect(await w.admitted(plain)).toEqual({ ok: plain })
     expect(w.asked).toEqual([])
   })
 
   it('is the pinned directory when the workspace owner says the tenant can still work there', async () => {
     const w = asking(attachable(BLOG))
-    expect(await w.admitted(attachedTo(BLOG))).toEqual({ ok: BLOG })
+    expect(await w.admitted(attachedTo(BLOG))).toEqual({ ok: attachedTo(BLOG) })
     expect(w.asked).toEqual([
       [
         { principal: 'work', tenant: TENANT },

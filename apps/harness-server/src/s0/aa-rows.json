@@ -486,6 +486,7 @@
         "tenantStanding",
         "definitionMappings",
         "sessionModesInstallation",
+        "sessionWorkingDirectory",
         "sessionWorkPrincipals"
       ]
     },

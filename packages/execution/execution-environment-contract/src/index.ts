@@ -17,6 +17,14 @@ export type {
   FacilityResult,
 } from './facility.ts'
 
+export { fileEffects, segmentsBelow, windowsPathSegments, withinScope } from './files-scope.ts'
+export type {
+  FileEffect,
+  FilesScope,
+  ScopedFileOperation,
+  WindowsPathRefusal,
+} from './files-scope.ts'
+
 export { filesFacility } from './facilities/files.ts'
 export type {
   FileBatchOutcome,
