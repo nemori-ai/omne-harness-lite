@@ -480,11 +480,15 @@
   scrollbar-gutter: stable both-edges;
   padding: 8px 0 24px;
 }
-/* The cards above the composer give way before the composer does, and scroll inside themselves. */
+/* The cards above the composer give way before the composer does, and scroll inside themselves. The scroller reaches
+   out past the column by the ring room and takes it back as its padding, so a raised control at a card's edge keeps
+   its edge and ring (S15) and the cards stay on the column's edges. */
 .omne-session-dock {
   flex: 0 1 auto;
   min-height: 0;
   max-height: 70%;
+  margin-inline: calc(-1 * var(--omne-ring-room));
+  padding-inline: var(--omne-ring-room);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
