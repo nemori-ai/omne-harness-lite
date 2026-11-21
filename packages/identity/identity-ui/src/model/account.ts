@@ -48,7 +48,8 @@ const shorten = (text: string): string =>
 /** A known fact (the service is unavailable) is said in the attention tone; a result not known yet is neutral. */
 function failed(outcome: string): AccountState {
   if (outcome === 'denied') return { kind: 'failed', text: FAILED_TEXT.denied, tone: 'neutral' }
-  if (outcome === 'uncertain') return { kind: 'failed', text: FAILED_TEXT.uncertain, tone: 'neutral' }
+  if (outcome === 'uncertain')
+    return { kind: 'failed', text: FAILED_TEXT.uncertain, tone: 'neutral' }
   return { kind: 'failed', text: FAILED_TEXT.unavailable, tone: 'caution' }
 }
 
@@ -67,8 +68,7 @@ export function createAccountModel(ports: AccountPorts): AccountModel {
     enter(READING)
     const answer = await ports.query['query-current-tenant']({})
     if (disposed || mine !== generation) return
-    if (answer.outcome !== 'succeeded')
-      return enter(failed(answer.outcome))
+    if (answer.outcome !== 'succeeded') return enter(failed(answer.outcome))
     const tenant = tenantText(answer.body.tenantId)
     ports.scope.set(tenant)
     enter({ kind: 'read', tenant, short: shorten(answer.body.tenantId.organization.text) })
