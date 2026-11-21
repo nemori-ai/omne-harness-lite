@@ -29,14 +29,20 @@ export type TenantSweepOptions = Readonly<{
     | undefined
 }>
 
-export function createTenantSweep(
-  options: TenantSweepOptions,
-): (tenant: TenantId, tenantText: string, domain: DomainRef) => Promise<void> {
+export type TenantSweep = Readonly<{
+  // The writer generation: a settling commit records it, and the sweep keeps what it settled.
+  generation: string
+  open: (tenant: TenantId, tenantText: string, domain: DomainRef) => Promise<void>
+}>
+
+export function createTenantSweep(options: TenantSweepOptions): TenantSweep {
+  const generation = randomUUID()
   const opened = new Map<string, Promise<void>>()
 
   async function sweep(tenant: TenantId, tenantText: string, domain: DomainRef): Promise<boolean> {
     const output = await readerOf(options.storage, domain)(EXECUTION_RECORD_HANDLERS.retired, {
       tenant: tenantText,
+      generation,
     })
     const retired = output.kind === 'read' ? decodeExecutionRecordRetired(output.output) : null
     if (retired === null) return false
@@ -51,7 +57,7 @@ export function createTenantSweep(
       combination: options.combination,
       operation: `sweep_${randomUUID()}`,
       recall: 'never',
-      commands: [executionRecordSweepFacts(tenant)],
+      commands: [executionRecordSweepFacts(tenant, generation)],
       generations: options.generations,
     })
     if (outcome.kind !== 'committed') return false
@@ -59,15 +65,18 @@ export function createTenantSweep(
     return entry !== undefined && decodeExecutionSweepReply(entry.reply).kind === 'swept'
   }
 
-  return async (tenant, tenantText, domain) => {
-    let open = opened.get(tenantText)
-    if (open === undefined) {
-      open = sweep(tenant, tenantText, domain).then(done => {
-        if (!done) opened.delete(tenantText)
-      })
-      opened.set(tenantText, open)
-    }
-    await open
+  return {
+    generation,
+    open: async (tenant, tenantText, domain) => {
+      let open = opened.get(tenantText)
+      if (open === undefined) {
+        open = sweep(tenant, tenantText, domain).then(done => {
+          if (!done) opened.delete(tenantText)
+        })
+        opened.set(tenantText, open)
+      }
+      await open
+    },
   }
 }
 

@@ -12,7 +12,7 @@ export const EXECUTION_RECORD_SCHEMA: readonly string[] = [
   `CREATE TABLE er_execution (
     tenant TEXT NOT NULL, execution TEXT NOT NULL, session TEXT NOT NULL, revision INTEGER NOT NULL,
     receipt TEXT NOT NULL, emitted_through INTEGER NOT NULL, ended TEXT,
-    acknowledged INTEGER NOT NULL DEFAULT 0, settled INTEGER,
+    acknowledged INTEGER NOT NULL DEFAULT 0, settled INTEGER, settled_by TEXT,
     PRIMARY KEY (tenant, execution)) STRICT`,
   `CREATE INDEX er_execution_session_idx ON er_execution (tenant, session, execution)`,
   `CREATE TABLE er_fact_idx (

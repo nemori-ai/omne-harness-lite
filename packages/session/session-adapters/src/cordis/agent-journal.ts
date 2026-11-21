@@ -653,12 +653,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return run
   }
 
-  const sweepOnOpen = createTenantSweep({ ...options, generations })
+  const sweep = createTenantSweep({ ...options, generations })
 
   async function domainOf(book: Book<P>): Promise<Outcome<DomainRef, Failure>> {
     const resolved = await resolveDomain(options.tenantDomainLookup, book.tenantText)
     if (resolved.kind !== 'ready') return fail(unavailable(resolved.diagnostic))
-    await sweepOnOpen(book.tenant, book.tenantText, resolved.domain)
+    await sweep.open(book.tenant, book.tenantText, resolved.domain)
     return succeed(resolved.domain)
   }
 
@@ -1296,7 +1296,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         ...prepared.itemRows,
         boundaries: boundariesOf(changed, heads),
         admissions: admissionsOf(written, own, own && heads.get(own.id), scratch),
-        settles,
+        settledBy: settles ? sweep.generation : null,
       }),
       ...scratch.checks.map(check => sessionCheckFacts(check)),
       ...scratch.commands.map(command => sessionCommandFacts(command, [])),

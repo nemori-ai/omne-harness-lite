@@ -407,4 +407,42 @@ describe('the Session acknowledges an execution once it has received all of it',
       fail({ kind: 'terminal' }),
     )
   })
+
+  it('a sweep the first opening could not finish runs again in the same generation and keeps what this generation settled: the settling operation is still recognized', async () => {
+    const s = await scene('sweep-again')
+    const unreadable = { retired: true }
+    s.rewriteReads.current = (request, answer) =>
+      unreadable.retired && request.handler === 'execution-record.retired'
+        ? {
+            kind: 'unavailable',
+            requestKey: request.requestKey,
+            reason: 'queue_full',
+            diagnostic: null,
+          }
+        : answer
+    const lost: AgentOperationId[] = []
+    const f = await interpreting(s, {
+      acknowledge: inner => input => {
+        lost.push(input.operation)
+        s.controls?.loseNextReply()
+        return inner(input)
+      },
+    })
+    await endWithFailure(s, f.c.journal(), refusedByModel())
+    await f.interpret()
+    await settled(s)
+
+    unreadable.retired = false
+    const journal = f.c.journal()
+    expect(await journal.load({ ...s.access, execution: s.execution })).toEqual(
+      fail({ kind: 'terminal' }),
+    )
+    expect(headOf(s)?.settled ?? null).not.toBeNull()
+    expect(rowsOf(s, 'er_operation')).toBeGreaterThan(0)
+    expect(
+      await journal.query({ ...s.access, execution: s.execution, operation: lost[0]! }),
+    ).toMatchObject({
+      ok: { kind: 'committed', receipt: { operation: lost[0], state: 'applied' } },
+    })
+  })
 })

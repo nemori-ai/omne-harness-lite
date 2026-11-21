@@ -13,10 +13,13 @@ import {
   decodeExecutionRecordOpen,
   decodeExecutionRecordOperation,
   decodeExecutionRecordReply,
+  decodeExecutionRecordRetired,
+  decodeExecutionSweepReply,
   EXECUTION_BATCH_MAX_FACTS,
   EXECUTION_FACT_MAX_BYTES,
   executionRecordBlobFacts,
   executionRecordFacts,
+  executionRecordSweepFacts,
   type ExecutionBlobRecord,
   type ExecutionFactRecord,
   type ExecutionRecordWrite,
@@ -98,7 +101,7 @@ function nth(n: number, over: Partial<ExecutionRecordWrite> = {}): ExecutionReco
     tenant: TENANT_A,
     session: sessionId(SESSION),
     execution,
-    settles: false,
+    settledBy: null,
     expected: n === 1 ? null : String(n - 1),
     revision: String(n),
     published: String(n - 1),
@@ -1024,5 +1027,68 @@ describe('another tenant in the same tables', () => {
         [textOf(TENANT_B), 2n],
       ]),
     )
+  })
+})
+
+describe('the two phases of the reclaim', () => {
+  // A publication that ends the execution and settles it, by the writer generation it names.
+  const settling = (n: number, execution: string, generation: string) =>
+    nth(n, {
+      execution,
+      expected: null,
+      revision: '1',
+      operation: `aop_${execution}`,
+      facts: factsOf(1, execution),
+      boundaries: [
+        {
+          execution,
+          revision: '1',
+          receipt: evidence(`agent/${execution}/1`),
+          emittedThrough: '1',
+          acknowledged: '1',
+          ended: { sequence: '1', source: evidence(`agent/${execution}/ended`) },
+        },
+      ],
+      settledBy: generation,
+    })
+
+  async function sweep(a: App, generation: string) {
+    const result = await a.provider.storage.commit({
+      identity: identity(`sweep-${generation}`),
+      combinationVersion: 'c1',
+      manifestDigest: 'a'.repeat(64),
+      commands: [executionRecordSweepFacts(TENANT_A, generation)],
+    })
+    if (result.kind !== 'committed') throw new Error(`the sweep did not commit: ${result.kind}`)
+    return decodeExecutionSweepReply(result.responses[0]!.reply)
+  }
+
+  const rows = (a: App, table: string) =>
+    a.provider
+      .select('dom_0', `SELECT execution FROM ${table} ORDER BY execution`)
+      .rows.map(row => String(row[0]))
+
+  it('a sweep deletes the tombstones and operation records an earlier writer generation settled, and keeps those of its own generation', async () => {
+    const a = await session()
+    expect((await commit(a, settling(1, 'exe_old', 'gen_old'))).reply.kind).toBe('published')
+    expect((await commit(a, settling(2, 'exe_now', 'gen_now'))).reply.kind).toBe('published')
+    expect(rows(a, 'er_execution')).toEqual(['exe_now', 'exe_old'])
+    expect(rows(a, 'er_fact')).toEqual([])
+
+    expect(await sweep(a, 'gen_now')).toEqual({ kind: 'swept', swept: '1' })
+    expect(rows(a, 'er_execution')).toEqual(['exe_now'])
+    expect(rows(a, 'er_operation')).toEqual(['exe_now'])
+    expect(
+      decodeExecutionRecordRetired(
+        await read(a, 'execution-record.retired', {
+          tenant: textOf(TENANT_A),
+          generation: 'gen_now',
+        }),
+      ),
+    ).toEqual({ kind: 'retired', settled: false, waiting: [] })
+
+    expect(await sweep(a, 'gen_next')).toEqual({ kind: 'swept', swept: '1' })
+    expect(rows(a, 'er_execution')).toEqual([])
+    expect(rows(a, 'er_operation')).toEqual([])
   })
 })

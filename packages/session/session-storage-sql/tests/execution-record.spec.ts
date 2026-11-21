@@ -62,7 +62,7 @@ function write(over: Partial<ExecutionRecordWrite> = {}): ExecutionRecordWrite {
     tenant: TENANT_A,
     session: SESSION,
     execution,
-    settles: false,
+    settledBy: null,
     expected: null,
     revision: '1',
     published: '0',
