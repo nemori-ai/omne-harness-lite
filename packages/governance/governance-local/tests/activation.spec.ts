@@ -222,7 +222,9 @@ it('closes only its exact epoch, seals pending operations and retains committed 
   const committed = found.parse(await w.apply('mutation', prepared.request)).record
   const pending = command('pending-before-close')
   await w.control({ kind: 'accept', input: pending })
-  expect(await w.control({ kind: 'close-scope', input: { scope, epoch: 'first' } })).toEqual({
+  expect(
+    await w.control({ kind: 'close-scope', input: { scope, epoch: 'first' }, released: [] }),
+  ).toEqual({
     kind: 'closed',
     scope,
     epoch: 'first',
@@ -237,7 +239,9 @@ it('closes only its exact epoch, seals pending operations and retains committed 
     reason: 'basis',
   })
   await w.control({ kind: 'bootstrap', input: { scope, epoch: 'second', previousEpoch: 'first' } })
-  expect(await w.control({ kind: 'close-scope', input: { scope, epoch: 'first' } })).toEqual({
+  expect(
+    await w.control({ kind: 'close-scope', input: { scope, epoch: 'first' }, released: [] }),
+  ).toEqual({
     kind: 'obsolete',
     scope,
     epoch: 'first',

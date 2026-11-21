@@ -36,6 +36,7 @@ export type CommitRequestV2 = Readonly<{
   combinationVersion: string
   manifestDigest: string
   commands: readonly FactCommandV2[]
+  releases?: readonly SqlIdentity[]
 }>
 
 export type CommitOptions = Readonly<{ signal?: AbortSignal }>
@@ -109,6 +110,7 @@ export type CommitRejectReason =
   | 'cancelled'
   | 'field_missing'
   | 'unsupported_protocol'
+  | 'release_outside_domain'
   | 'participant_repeated'
   | 'facts_not_json'
   | 'command_limit'

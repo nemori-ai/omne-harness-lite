@@ -13,6 +13,7 @@ const temporary: CommitRejectReason[] = [
 const definite: CommitRejectReason[] = [
   'field_missing',
   'unsupported_protocol',
+  'release_outside_domain',
   'participant_repeated',
   'facts_not_json',
   'command_limit',
