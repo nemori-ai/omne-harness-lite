@@ -27,9 +27,10 @@ export type HeadingFold =
     }>
   | Readonly<{ place: 'menu'; folded: number; say: (text: string) => void }>
 
-/** Short of room, permissions fold into the `⋯` first, then the model. */
-export const FOLD_RANK = { mode: 1, model: 2 } as const
+/** Short of room, the workspace folds into the `⋯` first, then permissions, then the model. */
+export const FOLD_RANK = { workspace: 1, mode: 2, model: 3 } as const
 type FoldRank = (typeof FOLD_RANK)[keyof typeof FOLD_RANK]
+const ALL_FOLDED = Math.max(...Object.values(FOLD_RANK))
 
 export const HeadingFoldContext = createContext<HeadingFold>({
   place: 'bar',
@@ -144,7 +145,7 @@ function foldFor(
   const endStyle = getComputedStyle(end)
   const held = new Set<Element>(choices.values())
   const rest = [...end.children].filter(child => !held.has(child))
-  for (let folded = 0; folded < 2; folded += 1) {
+  for (let folded = 0; folded < ALL_FOLDED; folded += 1) {
     const inline = [...choices].filter(([rank]) => rank > folded).map(([, element]) => element)
     const right =
       lengthOf(endStyle.marginInlineEnd) +
@@ -153,7 +154,7 @@ function foldFor(
       lengthOf(endStyle.columnGap) * Math.max(0, rest.length + inline.length - 1)
     if (right <= column) return folded
   }
-  return 2
+  return ALL_FOLDED
 }
 
 export function useHeadingFold(bar: RefObject<HTMLElement | null>, words: string) {

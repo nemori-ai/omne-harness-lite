@@ -189,8 +189,9 @@
     );
   }
 }
-/* Short of room, the choices fold into the `⋯`, permissions first: the end has only its own column. A folded choice
-   keeps its box out of the flow and unseen, so its width is known for when the room comes back. */
+/* Short of room, the choices fold into the `⋯`, the workspace first, then permissions: the end has only its own
+   column. A folded choice keeps its box out of the flow and unseen, so its width is known for when the room comes
+   back. */
 .omne-session-choice {
   display: inline-flex;
   min-width: 0;
@@ -210,7 +211,8 @@
   white-space: nowrap;
 }
 .omne-session-model,
-.omne-session-mode {
+.omne-session-mode,
+.omne-session-workspace {
   display: inline-flex;
   align-items: center;
   gap: var(--omne-space-inline);
@@ -240,13 +242,13 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
-.omne-session-workspace {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing) var(--omne-space-inline);
+/* The directory is the longest thing the end could hold: cut short, the whole of it in the title. */
+.omne-session-workspace-place {
   min-width: 0;
-  font-size: var(--omne-text-caption);
+  max-width: 20em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .omne-session-workspace-note {
   color: var(--omne-ink-muted);

@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import type { ComponentProps } from 'react'
+import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, expect, it, vi } from 'vitest'
+import { sessionWorkspaceChoicesKey, type WorkspaceChoiceHolder } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, page } from './fixtures/frames.ts'
 import { mountModule } from './fixtures/shell.tsx'
@@ -42,14 +44,15 @@ function heading(): HTMLElement {
   return banner
 }
 
-async function openLong(fake: ReturnType<typeof createFakeClient>): Promise<void> {
-  await mountModule(fake.client, TENANT)
+async function openLong(fake: ReturnType<typeof createFakeClient>): Promise<Context> {
+  const { root } = await mountModule(fake.client, TENANT)
   ;(await fake.next('list-sessions')).answer(listPage([listed(LONG, 'say hello')]))
   await settle()
   fireEvent.click(screen.getByRole('button', { name: /say hello/ }))
   await settle()
   ;(await fake.next('read-history')).answer({ outcome: 'succeeded', body: page([], '1') })
   await settle()
+  return root
 }
 
 async function openMore(): Promise<HTMLElement> {
@@ -183,10 +186,15 @@ it('对话头：页头里放形的座位，名字 header、优先级 2，在正�
 
 /**
  * The layout a browser would give the heading, which happy-dom does not: the figure and its name 120, the model 200,
- * the permissions 150, the `⋯` 32; the bar's gap 16, the right end's 8, and `corner` kept clear at the end's far
+ * the workspace 180, the permissions 150, the `⋯` 32; the bar's gap 16, the right end's 8, and `corner` kept clear at the end's far
  * side. The title and the end each have a side column, (row − 120 − 2 × 16) / 2: the end wants 398, 240 with the
  * permissions folded, 32 with both.
  */
+const CHOICE_WIDTHS = [
+  ['.omne-session-model', 200],
+  ['.omne-session-workspace', 180],
+] as const
+
 function layOut(row: number, corner = 0): void {
   const isMore = (element: Element) =>
     element.matches('[aria-label="更多"]') ||
@@ -195,7 +203,7 @@ function layOut(row: number, corner = 0): void {
   const width = (element: HTMLElement): number => {
     if (element.classList.contains('omne-session-figure')) return 120
     if (element.classList.contains('omne-session-choice'))
-      return element.querySelector('.omne-session-model') === null ? 150 : 200
+      return CHOICE_WIDTHS.find(([name]) => element.querySelector(name) !== null)?.[1] ?? 150
     return isMore(element) ? 32 : 0
   }
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
@@ -242,13 +250,19 @@ async function openWithChoices(fake: ReturnType<typeof createFakeClient>): Promi
 const shownInBar = () =>
   [...heading().querySelectorAll('.omne-session-choice')]
     .filter(choice => !choice.hasAttribute('data-folded'))
-    .map(choice => (choice.querySelector('.omne-session-model') === null ? '权限处理' : '模型'))
+    .map(choice =>
+      choice.querySelector('.omne-session-model') !== null
+        ? '模型'
+        : choice.querySelector('.omne-session-workspace') !== null
+          ? '工作区'
+          : '权限处理',
+    )
 
 const foldedItems = (menu: HTMLElement) =>
   within(menu)
     .getAllByRole('menuitem')
     .map(item => item.textContent)
-    .filter(text => text?.startsWith('模型') === true || text?.startsWith('权限处理') === true)
+    .filter(text => ['模型', '工作区', '权限处理'].some(name => text?.startsWith(name) === true))
 
 it('头部三栏放不下：右端只用自己那一栏，留出远端让开的宽，先把权限处理、再把模型收进「更多」，菜单里写当前的值', async () => {
   const cases: readonly (readonly [number, number, readonly string[], readonly string[]])[] = [
@@ -300,4 +314,67 @@ it('收进「更多」的权限处理照样能改：选一个值就发；改成�
     '权限处理跳过询问',
   )
   vi.restoreAllMocks()
+})
+
+const BLOG = { workspace: 'wsp_blog', instance: 'wsi_blog' }
+const SHOP = { workspace: 'wsp_shop', instance: 'wsi_shop' }
+
+it('头部放不下：工作区最先收进「更多」，菜单里写当前的工作区与工作目录，照样能换', async () => {
+  layOut(1000)
+  const fake = createFakeClient()
+  const root = await openLong(fake)
+  const holder = (root as unknown as { get(name: string): unknown }).get(
+    sessionWorkspaceChoicesKey,
+  ) as WorkspaceChoiceHolder
+  await act(async () => {
+    holder.attach({
+      list: async () => ({
+        kind: 'listed',
+        choices: [
+          { ...BLOG, label: 'blog', selectable: true, note: null },
+          { ...SHOP, label: 'shop', selectable: true, note: null },
+        ],
+      }),
+    })
+  })
+  const attached = (workspace: typeof BLOG, revision: string) => ({
+    outcome: 'succeeded' as const,
+    body: {
+      workspace,
+      state: 'attached',
+      directory: `/srv/${workspace.instance.slice(4)}`,
+      reason: null,
+      revision,
+    },
+  })
+  ;(await fake.next('read-workspace-selection')).answer(attached(BLOG, '1'))
+  ;(await fake.next('read-model-selection')).answer({
+    outcome: 'succeeded',
+    body: { model: 'openai/gpt-x', revision: '1' },
+  })
+  ;(await fake.next('read-permission-mode')).answer({
+    outcome: 'succeeded',
+    body: { mode: 'auto_permission', revision: '4' },
+  })
+  await settle()
+  expect(shownInBar()).toEqual(['模型', '权限处理'])
+  const menu = await openMore()
+  expect(foldedItems(menu)).toEqual(['工作区blog'])
+  expect(within(menu).getByTitle('工作目录：/srv/blog').textContent).toBe('工作目录：/srv/blog')
+  fireEvent.keyDown(within(menu).getByRole('menuitem', { name: /^工作区/ }), { key: 'ArrowRight' })
+  const choices = await screen.findByRole('menu', { name: /^工作区/ })
+  expect(
+    within(choices)
+      .getAllByRole('menuitemradio')
+      .map(item => item.textContent),
+  ).toEqual(['不选工作区', 'blog', 'shop'])
+  fireEvent.click(within(choices).getByRole('menuitemradio', { name: 'shop' }))
+  const moved = await fake.next('select-workspace')
+  expect(moved.body).toMatchObject({ session: LONG, workspace: SHOP })
+  moved.answer({ outcome: 'succeeded', body: { controlId: 'c', directory: '/srv/shop' } })
+  await settle()
+  ;(await fake.next('read-workspace-selection')).answer(attached(SHOP, '2'))
+  await settle()
+  expect(heading().querySelector('.omne-session-receipt')?.textContent).toBe('已换到 /srv/shop')
+  expect(foldedItems(await openMore())).toEqual(['工作区shop'])
 })
