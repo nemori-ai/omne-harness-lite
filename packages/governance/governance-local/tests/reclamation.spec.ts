@@ -3,8 +3,9 @@ import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { unpackText } from '@omne-harness/sql-contract/worker'
 import { createGovernanceLocal } from '../src/provider.ts'
-import { definitionKey } from '../src/encoding.ts'
+import { definitionKey, json } from '../src/encoding.ts'
 import { selectionDigest } from '../src/adoption-plan.ts'
+import { GovernanceScopeLifecycle } from '../src/scope-lifecycle.ts'
 import { GOVERNANCE_TABLES } from '../src/migration.ts'
 import { openProviderWorld } from './provider-world.ts'
 import { openRegistrarWorld } from './registrar-world.ts'
@@ -153,4 +154,79 @@ it('stops reading the contributions of a closed epoch and reads the current ones
   })
   expect(query(w, 'SELECT DISTINCT epoch FROM gc_contribution')).toEqual([{ epoch: second.epoch }])
   expect(await second.close()).toEqual({ kind: 'closed' })
+})
+
+it('drops the leases and members a crashed epoch left once the next epoch closes, except one with unsettled custody', async () => {
+  const w = await openRegistrarWorld()
+  worlds.push(w)
+  const { scope } = w
+  const declaration = w.command('settled').declaration
+  const current: NonNullable<Parameters<typeof w.services>[0]>['current'] = input =>
+    json({
+      binding: input.binding,
+      epoch: input.epoch,
+      transactionDomain: w.activation.domain.transactionDomain,
+      targets: [],
+      enforcementBindings: declaration.enforcementBindings,
+    })
+  const { registrar } = w.services({ current })
+  const source = w.identity.reservations
+  const offline = w.services({
+    current,
+    reservations: {
+      observe: input => source.observe(input),
+      reserve: input => source.reserve(input),
+      settle: () => Promise.reject(new Error('Identity offline')),
+      recover: input => source.recover(input),
+    },
+  }).registrar
+  const settled = await registrar.contribute(w.context, w.command('settled'))
+  const held = await offline.contribute(w.context, w.command('held'))
+  if (settled.kind !== 'registered' || held.kind !== 'registered')
+    throw new Error(JSON.stringify([settled, held]))
+  expect(await w.services().sql.observe(w.binding('held'))).toMatchObject({
+    standing: { kind: 'held' },
+  })
+  const revision = held.declarationRevision
+  const leases = [settled.contribution, held.contribution]
+  const members = leases.map(contribution => ({
+    candidate: { contribution, declaration, definitionKey: definitionKey(declaration.reference) },
+    targets: [],
+  }))
+  expect(
+    await registrar.adopt(w.context, {
+      scope,
+      operationId: 'adopt',
+      expectedAdoptionRevision: 0,
+      expectedDeclarationRevision: revision,
+      collection: {
+        scope,
+        declarationRevision: revision,
+        digest: selectionDigest({ scope, expectedDeclarationRevision: revision }, members),
+      },
+      complete: leases.map(contribution => ({ contribution, selectedTargets: [] })),
+    }),
+  ).toMatchObject({ kind: 'adopted' })
+  expect(query(w, "SELECT count(*) n FROM gc_member WHERE epoch='first'")).toEqual([{ n: 2 }])
+  await w.activation.control({
+    kind: 'bootstrap',
+    input: { scope, epoch: 'second', previousEpoch: 'first' },
+  })
+  const lifecycle = new GovernanceScopeLifecycle({
+    ...w.services(),
+    scope,
+    epoch: 'second',
+    domain: w.activation.domain,
+    storage: w.activation.storage,
+    metadata: {
+      combinationVersion: w.activation.combination('metadata').combinationVersion,
+      manifestDigest: w.activation.combination('metadata').manifestDigest,
+    },
+  })
+  expect(await lifecycle.isolate()).toEqual({ kind: 'isolated' })
+  const kept = held.contribution.registrationId
+  expect(query(w, 'SELECT registration_id id, epoch, state FROM gc_contribution')).toEqual([
+    { id: kept, epoch: 'first', state: 'active' },
+  ])
+  expect(query(w, 'SELECT registration_id id FROM gc_member')).toEqual([{ id: kept }])
 })

@@ -27,16 +27,23 @@ function setup() {
   }
   bootstrapScope(port, { scope, epoch: 'first', previousEpoch: null })
   definition(db)
-  const lease = (id: string, epoch: string) =>
+  const lease = (id: string, epoch: string, state = 'released') =>
     db
       .prepare(
-        "INSERT INTO gc_contribution VALUES (?,?,'contributor','generation',?,'alice','definition','released',?)",
+        "INSERT INTO gc_contribution VALUES (?,?,'contributor','generation',?,'alice','definition',?,?)",
       )
-      .run(key, id, epoch, `op-${id}`)
+      .run(key, id, epoch, state, `op-${id}`)
   lease('free', 'first')
   lease('kept', 'first')
+  lease('crashed', 'first', 'active')
+  db.prepare("INSERT INTO gc_member VALUES (?, 'crashed', 'definition', 'first')").run(key)
+  db.prepare(
+    "INSERT INTO gc_member_target VALUES (?, 'crashed', 'definition', 'first', 'target', '{}')",
+  ).run(key)
   bootstrapScope(port, { scope, epoch: 'second', previousEpoch: 'first' })
   lease('current', 'second')
+  lease('open', 'second', 'active')
+  db.prepare("INSERT INTO gc_member VALUES (?, 'open', 'definition', 'second')").run(key)
   function operation(owner: 'contribute' | 'withdraw', id: string, request: unknown) {
     db.prepare(`INSERT INTO gc_operation
       (scope_key,command_owner,principal_ref,operation_id,request_digest,request_json,accepted_epoch,sql_identity_json,execution_json,held_json,state,result_json)
@@ -58,16 +65,19 @@ function setup() {
   return { db, operation, remaining }
 }
 
-it('keeps a released lease of a closed epoch that a member row still references', () => {
+it('drops every lease of an earlier epoch with its member rows and keeps the open epoch', () => {
   const { db, remaining } = setup()
-  db.prepare("INSERT INTO gc_member VALUES (?, 'kept', 'definition', 'first')").run(key)
-  expect(remaining()).toEqual(['current', 'kept'])
+  expect(remaining()).toEqual(['current', 'open'])
+  expect(db.prepare('SELECT registration_id id, epoch FROM gc_member').all()).toEqual([
+    { id: 'open', epoch: 'second' },
+  ])
+  expect(db.prepare('SELECT count(*) n FROM gc_member_target').all()).toEqual([{ n: 0 }])
 })
 
 it('keeps a released lease of a closed epoch whose registering operation is still kept', () => {
   const { operation, remaining } = setup()
   operation('contribute', 'op-kept', {})
-  expect(remaining()).toEqual(['current', 'kept'])
+  expect(remaining()).toEqual(['current', 'kept', 'open'])
 })
 
 it('keeps a released lease of a closed epoch that a kept withdrawal names', () => {
@@ -84,5 +94,5 @@ it('keeps a released lease of a closed epoch that a kept withdrawal names', () =
       },
     },
   })
-  expect(remaining()).toEqual(['current', 'kept'])
+  expect(remaining()).toEqual(['current', 'kept', 'open'])
 })

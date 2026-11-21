@@ -113,18 +113,18 @@ export function reclaimContributions(port: ParticipantPort, scope: GovernanceSco
         request.owner === 'withdraw' ? request.command.contribution.registrationId : '',
       ),
   )
-  const released = port.execute(
-    `SELECT c.registration_id FROM gc_contribution c WHERE c.scope_key=? AND c.state='released' AND c.epoch IS NOT ?
-    AND NOT EXISTS (SELECT 1 FROM gc_member m WHERE m.scope_key=c.scope_key AND m.registration_id=c.registration_id)
+  const exited = port.execute(
+    `SELECT c.registration_id FROM gc_contribution c WHERE c.scope_key=? AND c.epoch IS NOT ?
     AND NOT EXISTS (SELECT 1 FROM gc_operation o WHERE o.scope_key=c.scope_key AND o.command_owner='contribute' AND o.principal_ref=c.registrar_ref AND o.operation_id=c.registration_operation_id)`,
     [key, current.state === 'open' ? current.epoch : null],
   ).rows
-  for (const registrationId of released.map(row => String(row[0])))
+  for (const registrationId of exited.map(row => String(row[0])))
     if (!withdrawn.has(registrationId))
-      port.execute('DELETE FROM gc_contribution WHERE scope_key=? AND registration_id=?', [
-        key,
-        registrationId,
-      ])
+      for (const table of ['gc_member_target', 'gc_member', 'gc_contribution'])
+        port.execute(`DELETE FROM ${table} WHERE scope_key=? AND registration_id=?`, [
+          key,
+          registrationId,
+        ])
 }
 export function adoptionDigest(port: ParticipantPort, key: string, epoch: string) {
   const members = port.execute(

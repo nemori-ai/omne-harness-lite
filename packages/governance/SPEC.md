@@ -102,7 +102,7 @@ Governance 包组回答一个问题：一个功能或一份资产怎样在运行
 - 选中目标等于剩余支撑关系的投影：还有支撑的目标留下，没有支撑的消失，别的租约的支撑不变。外键不能单独保证两者相等，由单事务写者保证。
 - 每个 scope 的有效租约有上限。新增贡献与采用要求两项修订都严格低于「修订上界减租约上限」，给全部有效租约各留一次退出；每次真实退出消耗一次修订。
 - 受信的生命周期撤除只处理它持有的原操作：先点查原操作与摘要，未终结的封口，已提交的从原命令导出精确租约再撤除；不重新申请资格，不重新查来源，不改原回执，不撤兄弟租约。
-- 已关闭代次里已释放的贡献随关闭回收。关闭的每一次提交删掉这样的租约行，前提是它不再被留着的原操作（注册它的贡献、点名它的撤除）或成员关系引用。删掉之后，读它的状态与撤除它都答 `denied`，不再答 `released` 或 `already-released`。声明副本留着：同版本异摘要仍要冲突，而且它不随重启增长。
+- 不是当前开放代次的租约已经由关闭或代次隔离退出，随关闭回收。关闭的每一次提交删掉这样的租约行与它的成员行，不论租约停在 `released` 还是 `active`：上一代次崩溃、没走关闭时，它的租约停在 `active`，继任者开放就把它隔离了。前提是它不再被留着的原操作引用，即注册它的贡献原操作、点名它的撤除原操作；Identity 保留没结算的贡献原操作留着，它的租约与成员行也留着。删掉之后，读它的状态与撤除它都答 `denied`，不再答 `released` 或 `already-released`。声明副本留着：同版本异摘要仍要冲突，而且它不随重启增长。
 
 ### Identity 资格保留
 
@@ -164,7 +164,7 @@ Governance 包组回答一个问题：一个功能或一份资产怎样在运行
 | GL-21 | 全部有效租约总能各退出一次，不被修订上界挡住                                                               | 合法租约无法退出，只能关闭整个 scope             | `GovernanceExitCapacity` 模型 `ExitCapacity`；`exit-capacity.spec.ts`                                                                                                                                                                  |
 | GL-23 | 显式卸载或依赖失效之后不发布晚到的服务                                                                     | 已卸载的提供者仍接受新工作                       | `cordis-entry.spec.ts`                                                                                                                                                                                                                 |
 | GL-31 | 当前注册声明的事实成立当且仅当 scope 开放、epoch 相同且存在该精确定义的有效贡献                            | 已撤下的声明被当成当前                           | `governance-local/verification/proofs/current-declaration-read.md` 的论证；`definition-projection.spec.ts`                                                                                                                             |
-| GL-32 | 原操作终结的那次提交删掉它的五个业务阶段；已终结且保留已结算的原操作，记录、阶段请求与存储回执在同一次关闭提交里删；没终结或保留没结算的不删；已关闭代次里已释放、没有被留着的行引用的贡献在同一次关闭提交里删 | 治理记录随重启线性增长；删掉还要重送或结算的请求 | `reclamation.spec.ts`；`scope-lifecycle.spec.ts`、`standing-coordinator.spec.ts` |
+| GL-32 | 原操作终结的那次提交删掉它的五个业务阶段；已终结且保留已结算的原操作，记录、阶段请求与存储回执在同一次关闭提交里删；没终结或保留没结算的不删；不是当前开放代次、没有被留着的原操作引用的租约与它的成员行在同一次关闭提交里删 | 治理记录随重启线性增长；删掉还要重送或结算的请求 | `reclamation.spec.ts`；`scope-lifecycle.spec.ts`、`standing-coordinator.spec.ts` |
 | GV-1  | 成功的执行判断对应请求的精确实现、本次实际执行的解释器、排序点有效的贡献与原动作的租户；历史回执不当作当前 | 换了实现或撤了贡献之后旧判断仍生效               | `GovernanceEnforcementExecution` 模型 `ExactImplementation`、`ActualInterpreter`、`CurrentContribution`、`ReceiptIsNotCurrent`、`TenantIsolation`                                                                                      |
 | GV-2  | 成功的动作对应请求指定的原发布、提交时的修订与提交时仍装载的实现                                           | 同形正文的另一个发布被当成原发布                 | `GovernanceTargetPublication` 模型 `ExactPublication`、`CurrentAtCommit`、`ImplementationPresent`                                                                                                                                      |
 | GV-3  | 卸载与重装配不丢配值与回执，不复活已撤回或已消费的许可，不跨 scope 转移                                    | 重启后许可额度重置或越范围                       | `GovernanceLifecycle` 模型 `DurableCustody`、`ReceiptPreserved`、`NoRevival`、`ConsumptionPreserved`、`ScopeBound`、`NoTransfer`、`OnceOnly`                                                                                           |
