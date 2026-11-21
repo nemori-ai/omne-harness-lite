@@ -385,6 +385,27 @@ describe('one figure, one size (FE-I18)', () => {
       store.dispose()
     },
   )
+
+  it('a seat that shifts a hair while the figure flies to it keeps the stroke, and the figure lands where the seat is', () => {
+    const time = frameClock()
+    placeSeats()
+    const store = new FigureStore()
+    store.seatAt(HOME.name, { element: seatElement(HOME), priority: 1, beside: () => undefined })
+    time.wait(800)
+    store.seatAt(HEAD.name, { element: seatElement(HEAD), priority: 2, beside: () => undefined })
+    time.wait(50)
+    expect(store.journeys.travelling).toBe(true)
+    moved.set(HEAD.name, [HEAD.at[0] + 1, HEAD.at[1]])
+    store.hostChanged()
+    expect(store.journeys.travelling, 'the journey is not cut short at its start').toBe(true)
+    time.wait(3000)
+    expect(store.getSnapshot()).toMatchObject({
+      seat: HEAD.name,
+      phase: 'seated',
+      point: { x: HEAD.at[0] + 1, y: HEAD.at[1] },
+    })
+    store.dispose()
+  })
 })
 
 describe('the ink bubble', () => {

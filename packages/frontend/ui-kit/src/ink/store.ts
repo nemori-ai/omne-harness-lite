@@ -9,6 +9,7 @@ export const FIGURE_SIZE = 56
 const BODY_REACH = FIGURE_SIZE * 0.4
 
 export const SEATLESS_HOLD = 500
+const NEAR = 1.5
 
 export type Phase = 'seated' | 'flying'
 
@@ -266,7 +267,10 @@ export class FigureStore {
       }
     } else {
       const going = this.going
-      if (going === null || Math.hypot(going.x - home.x, going.y - home.y) > 0.5) this.fly()
+      const shift = going === null ? Infinity : Math.hypot(going.x - home.x, going.y - home.y)
+      if (shift <= 0.5) return
+      if (shift < NEAR && this.journeys.travelling) return
+      this.fly()
     }
   }
 
@@ -289,6 +293,7 @@ export class FigureStore {
     this.go(home, () => {
       if (this.snapshot.phase !== 'flying') return
       this.set({ phase: 'seated' })
+      this.keepSeat()
     })
   }
 
@@ -302,7 +307,7 @@ export class FigureStore {
 
   private go(to: Placement, arrive: () => void): void {
     const from = this.placement
-    const near = Math.hypot(to.x - from.x, to.y - from.y) < 1.5
+    const near = Math.hypot(to.x - from.x, to.y - from.y) < NEAR
     if (this.reduced || !this.snapshot.present || near) {
       this.going = null
       this.journeys.end(false)
