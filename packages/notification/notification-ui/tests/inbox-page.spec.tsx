@@ -227,6 +227,15 @@ describe('the inbox page', () => {
     expect(labelOf('Title done')).toMatch(/ · 已办完$/)
     expect(labelOf('Title dismissed')).toMatch(/ · 已划掉$/)
     expect(labelOf('Title old')).toMatch(/ · 已被顶替$/)
+    const wordOf = (title: string) =>
+      screen
+        .getByRole('button', { name: title })
+        .closest('li')!
+        .querySelector('.notification-meta [data-state-word]')
+    expect(wordOf('Title done')?.getAttribute('data-state-word')).toBe('handled')
+    expect(wordOf('Title dismissed')?.getAttribute('data-state-word')).toBe('dismissed')
+    expect(wordOf('Title old')?.getAttribute('data-state-word')).toBe('displaced')
+    expect(wordOf('Title done')?.getAttribute('data-tone')).toBe('neutral')
     expect(screen.queryByText(/没有未了结的通知|收件箱是空的/)).toBeNull()
   })
 

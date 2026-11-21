@@ -10,9 +10,11 @@ import {
   LoadingIndicator,
   LoadingState,
   RetryIcon,
+  StateWord,
   UndoIcon,
   useSettleCue,
   type Icon,
+  type StateLabel,
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useEffect, useRef, useState, type JSX } from 'react'
@@ -49,10 +51,10 @@ function actionsOf(entry: Entry): readonly Action[] {
 }
 
 /** The settled state a row names after its source and time; an open one names none. */
-function stateOf(entry: Entry): string | null {
-  if (entry.marks.supersededBy !== null) return '已被顶替'
+function stateOf(entry: Entry): StateLabel | null {
+  if (entry.marks.supersededBy !== null) return 'displaced'
   if (entry.marks.resolved !== null)
-    return entry.marks.resolved.how === 'done' ? '已办完' : '已划掉'
+    return entry.marks.resolved.how === 'done' ? 'handled' : 'dismissed'
   return null
 }
 
@@ -183,7 +185,12 @@ export function EntryRow({
           <p className="notification-meta">
             {source === undefined ? null : `${source} · `}
             <Ago at={encodeInstant(entry.acceptedAt)} />
-            {label === null ? null : ` · ${label}`}
+            {label === null ? null : (
+              <>
+                {' · '}
+                <StateWord state={label} />
+              </>
+            )}
           </p>
         </div>
         <span className="notification-actions">
