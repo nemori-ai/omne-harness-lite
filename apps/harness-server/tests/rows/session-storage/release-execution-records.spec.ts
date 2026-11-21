@@ -193,6 +193,12 @@ it(
         )
         expect(sessionEntries(tree, 'call.background-settled')).toBe(1)
         expect(entries.filter(entry => entry.kind === 'run.terminal').length).toBeGreaterThan(0)
+        const woken = await pollUntil(
+          'the Run the late outcome wakes to end',
+          () => historyOf(tree, session),
+          found => found.filter(entry => entry.kind === 'run.terminal').length >= 2,
+        )
+        expect(woken.filter(entry => entry.kind === 'run.terminal')).toHaveLength(2)
         const reading = await pollUntil(
           'every execution to settle',
           async () => records(tree),
