@@ -226,6 +226,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
       manifestDigest: request.manifestDigest,
     }
     const key = keyOf(request.identity)
+    const keeps = request.identity.recall !== 'never'
     db.exec('BEGIN IMMEDIATE')
     const port = {
       execute: (sql: string, params: readonly SqlValue[]) => rowsOf(db, sql, params),
@@ -242,7 +243,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
     const entry = { participant: command.participant, protocol: '1' }
     if (kind === 'participated') {
       const receipt = { kind: 'committed', ...head, responses: [{ ...entry, reply }] } as Receipt
-      saveReceipt(key, receipt)
+      if (keeps) saveReceipt(key, receipt)
       db.exec('COMMIT')
       return receipt
     }
@@ -260,7 +261,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
       ...head,
       responses: [{ ...entry, reply: stopping }],
     } as Receipt
-    saveReceipt(key, receipt)
+    if (keeps) saveReceipt(key, receipt)
     return receipt
   }
   const storage: Storage = {
@@ -268,7 +269,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     commit(request) {
       const key = keyOf(request.identity)
-      const existing = receiptOf(key)
+      const existing = request.identity.recall === 'never' ? undefined : receiptOf(key)
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === digestOf(request.commands)
@@ -289,6 +290,8 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
       return Promise.resolve({ ...executeCommit(request), recalled: false })
     },
     query(identity) {
+      if (identity.recall === 'never')
+        return Promise.resolve({ kind: 'settled', identity, proofs: NOT_COMMITTED_PROOFS })
       const found = receiptOf(keyOf(identity))
       return Promise.resolve(
         found ?? { kind: 'not_committed', identity, proofs: NOT_COMMITTED_PROOFS },
