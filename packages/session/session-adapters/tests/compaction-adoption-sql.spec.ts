@@ -12,10 +12,13 @@ it.each([
   ['compaction-adoption-narrow', 'double', null],
   ['compaction-adoption-unknown-applied', 'real', 'applied'],
   ['compaction-adoption-unknown-dropped', 'real', 'dropped'],
+  ['compaction-adoption-forked', 'real', null],
+  ['compaction-adoption-forked-narrow', 'double', null],
 ] as const)(
   'adopts and cold-recovers one result and consumption for %s',
   async (name, storage, fault) => {
-    const s = await sqlScene(name, { storage })
+    const forked = name.includes('forked')
+    const s = await sqlScene(name, { storage, ...(forked ? { forked: true as const } : {}) })
     try {
       const began = ok(await s.view.journal.open(s.openInput))
       const opened = { ...began, receipt: await takeInputs(s, s.view.journal) }
@@ -48,7 +51,7 @@ it.each([
             visibility: { toModel: true, toHuman: true },
           },
         ],
-        covers: { from: history.entries[0]!.id, to: page.rows.at(-1)!.entry },
+        covers: { from: s.source?.origin ?? history.entries[0]!.id, to: page.rows.at(-1)!.entry },
         retained: page.rows.map(row => row.entry),
         derivation: compactionFixtureGeneration,
       })
@@ -178,6 +181,15 @@ it.each([
         ...page.rows.map(row => row.message),
         message.ok,
       ])
+      if (s.source !== null) {
+        // The prefix was covered and retained: the new epoch holds it under the forked session,
+        // and the source shows the same rows of the same epoch as before.
+        expect(page.rows.slice(0, s.source.rows.length)).toEqual(s.source.rows)
+        expect(after.rows[0]?.message).toEqual(s.source.rows[0]?.message)
+        const source = await s.source.view()
+        expect(source.rows).toEqual(s.source.rows)
+        expect(source.basis.epoch).toBe(s.source.standing.fork.point.epoch)
+      }
       if (name === 'compaction-adoption-sql') {
         const entries = ok(
           await s

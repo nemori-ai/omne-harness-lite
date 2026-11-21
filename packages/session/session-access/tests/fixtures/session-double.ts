@@ -445,12 +445,20 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
 
   const history: Pick<SessionHistory<P>, 'begin' | 'next'> = {
     async begin(input) {
-      record('history.begin', input, { kinds: input.kinds, pageBytes: input.pageBytes })
+      const asked = { kinds: input.kinds, pageBytes: input.pageBytes }
+      record(
+        'history.begin',
+        input,
+        input.inherited === true ? { ...asked, inherited: true } : asked,
+      )
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'history.begin' })
       const session = existing(input)
       if (session === undefined) return fail({ kind: 'denied', action: 'history.begin' })
       if (forcedFailure !== undefined) return fail(forcedFailure)
-      return succeed(page(session, 0, input.pageBytes))
+      const first = page(session, 0, input.pageBytes)
+      return succeed(
+        input.inherited === true ? { ...first, from: 'source-session' as SessionId } : first,
+      )
     },
     async next(input) {
       record('history.next', input, { cursor: input.cursor })

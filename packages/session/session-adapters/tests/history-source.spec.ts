@@ -85,6 +85,7 @@ async function world(
       calls.push({ method, caller, principal: input.principal })
     const history = port.history as unknown as SessionFaces<unknown>['history']
     return {
+      readForkPoint: input => history.readForkPoint(input),
       readCompactionContext: async input => {
         record('history.readCompactionContext', input)
         if (faults.compactionEpochChanged)

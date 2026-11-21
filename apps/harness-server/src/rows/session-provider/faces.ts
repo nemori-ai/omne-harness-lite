@@ -62,6 +62,7 @@ const unimplemented = (): Promise<Result<never>> => Promise.resolve(fail(UNAVAIL
 const UNIMPLEMENTED_HISTORY = {
   since: unimplemented,
   readModelView: unimplemented,
+  readForkPoint: unimplemented,
   readCompactionContext: unimplemented,
 } as const
 

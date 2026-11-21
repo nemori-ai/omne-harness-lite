@@ -156,6 +156,7 @@ export type DecideReads = Readonly<{
   children?: readonly SessionId[]
   /** The other end of the relation of a create: null when the tenant has no such session. */
   related?: import('./standing.ts').RelatedSession | null
+  fork?: import('./fork.ts').ForkFacts
   idleObservation?: IdleObservation
   idleCoverage?: IdleCoverage
   frozenReceipt?: CommitReceipt

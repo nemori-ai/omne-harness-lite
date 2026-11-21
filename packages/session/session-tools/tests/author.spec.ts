@@ -286,6 +286,37 @@ describe('the Sessions reads', () => {
     )
   })
 
+  it('reads the conversation a forked session started from under the session each item is of', async () => {
+    const page = {
+      entries: [
+        { position: '22', kind: 'message.user', payload: { text: 'said before the fork' } },
+      ],
+      next: 'c-2',
+      exhausted: false,
+      from: 'ses_parent',
+    }
+    const read = vi.fn(async () => ({ ok: page }))
+    const { sessions } = reads({ read })
+    const text = await fixture(8192).run('read', { session: 'ses_b', inherited: true }, sessions)
+    expect(read).toHaveBeenCalledWith({
+      session: 'ses_b',
+      cursor: null,
+      direction: 'forward',
+      pageBytes: 2048,
+      inherited: true,
+    })
+    const [head, body] = text.split('\n')
+    expect(head).toBe('done Sessions read session=ses_b entries=1 exhausted=false next=c-2')
+    expect(JSON.parse(body!)).toEqual([
+      {
+        session: 'ses_parent',
+        position: '22',
+        kind: 'message.user',
+        material: { text: 'said before the fork' },
+      },
+    ])
+  })
+
   it('reads a page and puts what the other session recorded under material, never as its own lines', async () => {
     const { sessions, calls } = reads()
     const text = await fixture(8192).run('read', { session: 'ses_b', backward: true }, sessions)

@@ -50,7 +50,13 @@ export type SessionsArguments =
   | Readonly<{ kind: 'help'; name?: string }>
   | Readonly<{ kind: 'list'; input: SessionsListInput }>
   | Readonly<{ kind: 'show'; session: string }>
-  | Readonly<{ kind: 'read'; session: string; cursor: string | null; backward: boolean }>
+  | Readonly<{
+      kind: 'read'
+      session: string
+      cursor: string | null
+      backward: boolean
+      inherited: boolean
+    }>
   | Readonly<{ kind: 'search'; input: SessionsSearchInput }>
 
 const PAGE = 20
@@ -71,7 +77,12 @@ const PARSERS = {
     limit,
   }),
   show: z.strictObject({ session }),
-  read: z.strictObject({ session, cursor, backward: z.boolean().optional() }),
+  read: z.strictObject({
+    session,
+    cursor,
+    backward: z.boolean().optional(),
+    inherited: z.boolean().optional(),
+  }),
   search: z
     .strictObject({
       text: z.union([z.string().min(1), z.array(z.string().min(1)).min(1).max(8)]).optional(),
@@ -121,6 +132,7 @@ const BUILD: { readonly [N in SessionsCommandName]: (params: Params<N>) => Sessi
     session: params.session,
     cursor: params.cursor ?? null,
     backward: params.backward ?? false,
+    inherited: params.inherited ?? false,
   }),
   search: params => ({
     kind: 'search',
@@ -209,13 +221,20 @@ export const sessionsCommands: readonly Command[] = [
   {
     name: 'read',
     summary: 'Read the messages of one session, a page at a time.',
-    properties: { session: text, cursor: text, backward: { type: 'boolean' } },
+    properties: {
+      session: text,
+      cursor: text,
+      backward: { type: 'boolean' },
+      inherited: { type: 'boolean' },
+    },
     required: ['session'],
     descriptions: {
       session: SESSION,
       cursor: CURSOR,
       backward:
         'true starts at the newest message and goes back; false or omitted starts at the first.',
+      inherited:
+        'true, for a session forked from another (a spawned agent): first the conversation it started from, each item under the session it is of; not with backward.',
     },
   },
 ]

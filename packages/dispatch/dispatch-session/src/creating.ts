@@ -2,17 +2,26 @@ import type { CreateAnswer, DispatchSessions, SessionToCreate } from '@omne-harn
 import type { DispatchId, SessionRef, TenantId } from '@omne-harness/dispatch-contract'
 import type { TenantId as LegalTenant } from '@omne-harness/legal-identity'
 import {
+  parseForkPoint,
   workspaceSelection,
   type InputId,
+  type SessionCreation,
   type SessionFailure,
 } from '@omne-harness/session-contract'
 import { instructionText, reminderInput } from './inputs.ts'
 import type { CreationOfDispatch, SessionCalls } from './ports.ts'
 import { identitiesOf, legalTenantOf } from './sources.ts'
-import { UNAVAILABLE, UNSETTLED, called, modesOf, sessionId, workOf } from './support.ts'
-import { transcriptOf } from './transcript.ts'
+import { UNSETTLED, called, modesOf, sessionId, workOf } from './support.ts'
 
-const GONE = 'the conversation of the dispatching session was compacted since the dispatch'
+const NO_MOMENT = 'the spawn has no moment to fork its session at'
+
+/** Where the session of a spawn starts from: the dispatching session at the moment its dispatch fixed.
+ * Null: the dispatch is a spawn and holds no such moment. The other modes start from nothing. */
+function forkOf(dispatch: SessionToCreate['dispatch']): Pick<SessionCreation, 'fork'> | null {
+  if (dispatch.mode !== 'spawn') return {}
+  const point = dispatch.context === null ? null : parseForkPoint(dispatch.context)
+  return point === null ? null : { fork: { source: sessionId(dispatch.dispatcher), point } }
+}
 
 const BASIS = (dispatch: string) => ({
   owner: '@omne-harness/dispatch-session',
@@ -38,13 +47,13 @@ export function createCreating(
     tenant: LegalTenant,
     { dispatch, permission }: SessionToCreate,
     input: InputId,
-    copy: string | null,
+    fork: Pick<SessionCreation, 'fork'>,
   ): Promise<CreationOfDispatch | undefined> {
     const parent = sessionId(dispatch.dispatcher)
     const from = await workOf(calls, tenant, dispatch.dispatcher)
     if (from.kind !== 'read') return undefined
     const workspace = from.value === null ? null : workspaceSelection(from.value)
-    const initial = reminderInput('instruction', input, instructionText(dispatch, copy))
+    const initial = reminderInput('instruction', input, instructionText(dispatch))
     const basis = BASIS(dispatch.id)
     const { agent } = dispatch
     if (dispatch.mode === 'handoff') {
@@ -63,23 +72,8 @@ export function createCreating(
       agent,
       workspace,
       modes: { ...now.value, permission: permission as typeof now.value.permission },
-      standing: { relation, attendance: 'unattended', initial },
+      standing: { relation, attendance: 'unattended', initial, ...fork },
     }
-  }
-
-  /** The copy a spawn starts from, read by the moment its dispatch fixed. Null: this mode starts from no copy. */
-  async function copyOf(
-    tenant: LegalTenant,
-    { mode, context, dispatcher }: SessionToCreate['dispatch'],
-  ): Promise<string | null | CreateAnswer> {
-    if (mode !== 'spawn') return null
-    if (context === null) return { kind: 'failed', detail: 'the spawn has no moment to copy' }
-    const view = await calls
-      .view({ tenant, session: sessionId(dispatcher), moment: context })
-      .catch(() => UNAVAILABLE)
-    if (view.kind !== 'read') return { kind: 'unknown' }
-    if (view.value === 'gone') return { kind: 'failed', detail: GONE }
-    return transcriptOf(view.value.rows.map(row => row.message))
   }
 
   return {
@@ -89,9 +83,9 @@ export function createCreating(
       const legal = legalTenantOf(tenant)
       if (legal === undefined) return { kind: 'failed', detail: 'not-a-tenant' }
       const identities = identitiesOf(legal, 'instruction', creation.dispatch.id)
-      const copy = await copyOf(legal, creation.dispatch)
-      if (copy !== null && typeof copy !== 'string') return copy
-      const built = await creationOf(legal, creation, identities.input, copy)
+      const fork = forkOf(creation.dispatch)
+      if (fork === null) return { kind: 'failed', detail: NO_MOMENT }
+      const built = await creationOf(legal, creation, identities.input, fork)
       if (built === undefined) return { kind: 'unknown' }
       const answer = await called(() =>
         calls.create({
