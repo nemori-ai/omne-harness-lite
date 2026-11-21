@@ -18,7 +18,6 @@ export const FORK_STATEMENTS: readonly string[] = [
     PRIMARY KEY (tenant, session, epoch, upto)) STRICT, WITHOUT ROWID`,
 ]
 
-/** The epoch a forked session starts in: the only one whose rows may stand elsewhere. */
 export const FIRST_EPOCH = 'epoch:0'
 const VIEW_COLUMNS = 'seq, entry, bytes, prefix_digest, message'
 
@@ -176,8 +175,7 @@ const COUNT = /^[1-9][0-9]*$/u
 const most = (values: readonly bigint[]): bigint =>
   values.reduce((left, right) => (right > left ? right : left))
 
-/** No entry of the rows up to the one at the point lies above this: its own entry, the summary the
- * epoch is named after, the position the source forked at. */
+/** No entry of the rows up to the point lies above: its last entry, the summary of the epoch, the fork. */
 function floorOf(last: Row | undefined, epoch: string, fork: Fork | undefined): bigint {
   const anchor = COUNT.test(epoch.slice('epoch:'.length))
     ? BigInt(epoch.slice('epoch:'.length))
@@ -221,16 +219,18 @@ export function forkFacts(
 }
 
 type Flat = Readonly<{ upto: bigint; session: string; epoch: string }>
+const least = (left: bigint, right: bigint): bigint => (left < right ? left : right)
 
-/** The segments of the first `upper` rows of an epoch of a source: its own cut there, then the source itself. */
 function flattened(port: Executor, source: Scope, epoch: string, upper: bigint): Flat[] {
-  const flat: Flat[] = []
-  for (const piece of segmentsOf(port, source, epoch)) {
-    if (piece.upto === null || (flat.at(-1)?.upto ?? 0n) >= upper) continue
-    flat.push({ ...piece, upto: piece.upto < upper ? piece.upto : upper })
-  }
-  if ((flat.at(-1)?.upto ?? 0n) < upper) flat.push({ upto: upper, session: source.session, epoch })
-  return flat
+  const flat = segmentsOf(port, source, epoch)
+    .filter(piece => piece.above < upper)
+    .map(({ session, epoch: from, upto }) => ({
+      session,
+      epoch: from,
+      upto: least(upto ?? upper, upper),
+    }))
+  const covered = flat.at(-1)?.upto ?? 0n
+  return covered < upper ? [...flat, { upto: upper, session: source.session, epoch }] : flat
 }
 
 /** Writes what a create with a source starts its session from: nothing for any other command. */
