@@ -378,9 +378,9 @@ async function walk(browser, origin, proofs, elsewhere) {
     return { nav: nav(), sidebar: sidebar(), tenant: short }`,
   )
   await step(
-    '空的会话列表',
+    '没有会话时主区的一句',
     `
-    return await wait('the empty list', () => byText('.omne-sessions .empty-state-title', '新的会话会出现在这里。')?.textContent)`,
+    return await wait('the empty line', () => document.querySelector('.omne-empty[data-empty="none"]')?.textContent.trim())`,
   )
   await step(
     '新建会话',
