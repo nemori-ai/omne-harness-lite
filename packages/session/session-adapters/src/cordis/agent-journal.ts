@@ -426,7 +426,7 @@ function publicationOf<P>(
     closedBefore: before.agent.closed,
     view: book.view,
     published: book.published ?? 0,
-    held: row => book.refs.held(book, row),
+    held: row => book.refs.held(book, row, appended[0]!.execution),
     after,
     own,
     appended,
@@ -654,11 +654,16 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   const sweep = createTenantSweep({ ...options, generations })
+  type TenantAt = Pick<Book<P>, 'tenant' | 'tenantText'>
+  const unreadOf = (failure: Failure): AdoptedRead => ({
+    kind: 'unavailable',
+    diagnostic: failure.kind === 'unavailable' ? failure.diagnostic : failure.kind,
+  })
 
-  async function domainOf(book: Book<P>): Promise<Outcome<DomainRef, Failure>> {
-    const resolved = await resolveDomain(options.tenantDomainLookup, book.tenantText)
+  async function domainOf(at: TenantAt): Promise<Outcome<DomainRef, Failure>> {
+    const resolved = await resolveDomain(options.tenantDomainLookup, at.tenantText)
     if (resolved.kind !== 'ready') return fail(unavailable(resolved.diagnostic))
-    await sweep.open(book.tenant, book.tenantText, resolved.domain)
+    await sweep.open(at.tenant, at.tenantText, resolved.domain)
     return succeed(resolved.domain)
   }
 
@@ -1051,19 +1056,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     if (book === null) return { kind: 'unavailable', diagnostic: 'the tenant is not minted' }
     return serial(book, async () => {
       const domain = await domainOf(book)
-      if ('failure' in domain)
-        return {
-          kind: 'unavailable',
-          diagnostic:
-            domain.failure.kind === 'unavailable' ? domain.failure.diagnostic : domain.failure.kind,
-        }
+      if ('failure' in domain) return unreadOf(domain.failure)
       const synced = await sync(book, domain.ok)
-      if ('failure' in synced)
-        return {
-          kind: 'unavailable',
-          diagnostic:
-            synced.failure.kind === 'unavailable' ? synced.failure.diagnostic : synced.failure.kind,
-        }
+      if ('failure' in synced) return unreadOf(synced.failure)
       let latest: Readonly<{ execution: string; request: RequestView }> | null = null
       for (const execution of book.view.executions.values())
         if (
@@ -1075,7 +1070,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       const digest = blobRowDigest(latest.request.record.digest)
       let payload = book.blobs.get(digest)
       if (payload === undefined) {
-        const read = await readBlob(readerOf(options.storage, domain.ok), book.tenantText, digest)
+        const read = await readBlob(
+          readerOf(options.storage, domain.ok),
+          book.tenantText,
+          latest.execution,
+          digest,
+        )
         if (typeof read !== 'string')
           return { kind: 'unavailable', diagnostic: `the record block ${digest} is not readable` }
         book.blobs.set(digest, read)
@@ -1191,7 +1191,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         combination: options.combination,
         operation,
         recall: 'never',
-        commands: [executionRecordBlobFacts({ tenant: book.tenant, blobs: chunk })],
+        commands: [executionRecordBlobFacts({ tenant: book.tenant, execution, blobs: chunk })],
         generations,
       })
       chunk = []
@@ -1408,7 +1408,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     book.view = { ...prepared.view, head: Math.max(prepared.view.head, pub) }
     const execution = job.written.execution as AgentExecutionId
     const { dropped } = foldFull(book.full, execution, prepared, pub)
-    const released = settleBlocks(book.refs, prepared, book)
+    const released = settleBlocks(book.refs, prepared, book, job.execution)
     book.published = pub
     counts.confirm(book.key, pub)
     job.copy.cell.mutate(() => {
@@ -1696,5 +1696,5 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  return { forSession, readAdopted, durability: 'storage' as const }
+  return { forSession, readAdopted, openTenant: domainOf, durability: 'storage' as const }
 }

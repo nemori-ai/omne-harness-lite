@@ -44,6 +44,7 @@ import recordMigration from '../../src/worker/execution-record-migration.ts'
 import executionRecord from '../../src/worker/execution-record.ts'
 import factBlobMigration from '../../src/worker/fact-blob-migration.ts'
 import itemMigration from '../../src/worker/item-migration.ts'
+import blockMigration from '../../src/worker/block-migration.ts'
 import factBodyMigration from '../../src/worker/fact-body-migration.ts'
 import migration from '../../src/worker/migration.ts'
 import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
@@ -156,6 +157,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   factBodyMigration,
   factBlobMigration,
   itemMigration,
+  blockMigration,
   compactionIndexMigration,
   callLeftMigration,
   forkMigration,

@@ -13,8 +13,11 @@ import {
 import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
 import { agentReceivedCommitsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
+import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { Consumption, ConsumptionId, WorkSnapshot } from '@omne-harness/session-contract'
+import type { SessionExecutionLog } from '@omne-harness/session-cordis-contract'
+import { sessionExecutionLogKey } from '@omne-harness/session-cordis-contract/cordis'
 import { evidence } from '@omne-harness/session-contract/testing'
 import { unpackText } from '@omne-harness/sql-contract/worker'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
@@ -35,10 +38,13 @@ import {
 import {
   cordisScene,
   handed,
+  nextRun,
   sqlScene,
   type CordisSceneOptions,
   type SqlScene,
 } from './fixtures/sql-scene.ts'
+import { refsIn } from '../src/cordis/content-refs.ts'
+import { blobRowDigest } from '../src/cordis/journal-batch.ts'
 import { materialOf as modelMaterialOf } from './fixtures/model-delivery.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 import {
@@ -525,6 +531,94 @@ describe('the Session acknowledges an execution once it has received all of it',
     ok(await next.c.journal().load({ ...s.access, execution: s.execution }))
     const head = await settled(s)
     expect(head.acknowledged).toBe(head.emitted)
+  })
+
+  it('a block two executions of one session both name is stored for each: every block the open items of the second name is its own or shared', async () => {
+    const s = await scene('blocks-per-execution')
+    ok(await s.view.journal.open(s.openInput))
+    const sibling = await nextRun(s, 2)
+    ok(await s.view.journal.open(sibling.openInput))
+    const select = (sql: string) => s.controls?.select(sql).rows ?? []
+    const own = (execution: string) =>
+      new Set(
+        select(`SELECT digest FROM er_block WHERE execution = '${execution}'`).map(row =>
+          String(row[0]),
+        ),
+      )
+    const first = own(s.execution)
+    const second = own(sibling.execution)
+    expect([...second].some(digest => first.has(digest))).toBe(true)
+    const shared = new Set(select('SELECT digest FROM sl_blob').map(row => String(row[0])))
+    const named = new Set<string>()
+    for (const [body] of select(
+      `SELECT body FROM er_item WHERE execution = '${sibling.execution}' AND open = 1`,
+    ))
+      refsIn(JSON.parse(unpackText(body as Uint8Array)) as unknown, named)
+    expect(named.size).toBeGreaterThan(0)
+    for (const digest of named)
+      expect(second.has(blobRowDigest(digest)) || shared.has(blobRowDigest(digest)), digest).toBe(
+        true,
+      )
+  })
+
+  it('opening the tenant alone, with no read or write of an execution, makes up an acknowledgement cut off in the last writer generation', async () => {
+    const s = await scene('open-tenant-wakes')
+    const first = await interpreting(s, { acknowledge: gate().acknowledge })
+    await endWithFailure(s, first.c.journal(), refusedByModel())
+    await first.interpret()
+    expect(headOf(s)).toMatchObject({ acknowledged: '0', settled: null })
+    await first.c.dispose()
+
+    const next = await interpreting(s)
+    const reads: string[] = []
+    s.rewriteReads.current = (request, answer) => {
+      reads.push(request.handler)
+      return answer
+    }
+    const log = next.c.ctx.get(sessionExecutionLogKey) as SessionExecutionLog | undefined
+    expect(await log?.openTenant(s.access.tenant)).toEqual({ kind: 'opened' })
+    expect(reads).toEqual(['execution-record.retired'])
+    const head = await settled(s)
+    expect(head.acknowledged).toBe(head.emitted)
+  })
+
+  it('opening the tenant alone, with no read or write of an execution, removes the tombstones and operation records the last writer generation settled', async () => {
+    const s = await scene('open-tenant-sweeps')
+    const f = await interpreting(s)
+    await endWithFailure(s, f.c.journal(), refusedByModel())
+    await f.interpret()
+    await settled(s)
+    expect(rowsOf(s, 'er_operation')).toBeGreaterThan(0)
+    await f.c.dispose()
+
+    const next = await interpreting(s)
+    const reads: string[] = []
+    s.rewriteReads.current = (request, answer) => {
+      reads.push(request.handler)
+      return answer
+    }
+    const log = next.c.ctx.get(sessionExecutionLogKey) as SessionExecutionLog | undefined
+    expect(await log?.openTenant(s.access.tenant)).toEqual({ kind: 'opened' })
+    expect(reads).toEqual(['execution-record.retired'])
+    expect(headOf(s)).toBeNull()
+    expect(rowsOf(s, 'er_operation')).toBe(0)
+  })
+
+  it('opening a tenant without a transaction domain answers unavailable', async () => {
+    const s = await scene('open-tenant-unregistered')
+    const f = await interpreting(s)
+    const log = f.c.ctx.get(sessionExecutionLogKey) as SessionExecutionLog | undefined
+    const other = tenantCodec.parse(
+      JSON.stringify({
+        organization: 'org_zzzzzzzzzzzzzzzzzzzzzzzzzz',
+        account: 'acc_zzzzzzzzzzzzzzzzzzzzzzzzzz',
+      }),
+    )
+    if (!other.ok) throw new Error('fixture: another tenant')
+    expect(await log?.openTenant(other.value)).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the tenant has no transaction domain',
+    })
   })
 
   it('the next writer generation removes the tombstone and the operation records, and a write then gets the refusal of an execution no Run started', async () => {

@@ -26,10 +26,10 @@ type RequestRead =
 const isRef = (ref: unknown): ref is Readonly<{ digest: string }> =>
   typeof (ref as { digest?: unknown } | null)?.digest === 'string'
 
-async function requestOf(read: Reader, tenant: string, item: HandoffView): Promise<RequestRead> {
+async function requestOf(read: Reader, scope: ItemScope, item: HandoffView): Promise<RequestRead> {
   const digests = handoffRefs(item).flatMap(ref => (isRef(ref) ? [ref.digest] : []))
   const payloads = new Map<string, string>()
-  const missing = await fetchBlobClosure(read, tenant, digests.map(blobRowDigest), payloads)
+  const missing = await fetchBlobClosure(read, scope, digests.map(blobRowDigest), payloads)
   if (missing !== null)
     return { kind: 'unavailable', diagnostic: `the content block ${missing} is not readable` }
   try {
@@ -78,7 +78,7 @@ export async function readExecutionRecords(
     const request =
       item === undefined
         ? ({ kind: 'read', request: null } as const)
-        : await requestOf(resolved.read, resolved.tenant, item)
+        : await requestOf(resolved.read, scope, item)
     if (request.kind === 'unavailable') return request
     return {
       kind: 'read',

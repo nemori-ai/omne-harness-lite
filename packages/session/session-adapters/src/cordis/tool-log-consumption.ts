@@ -377,9 +377,9 @@ function createToolLogConsumption(
     const again = await bounded('agentJournal.load', () => ports.load(reading))
     if ('failure' in again) return again
     if ('failure' in again.ok) return agentFailure('load', again.ok.failure)
-    if (again.ok.ok.revision !== revision)
-      return unavailable('the execution changed while its entries were read')
     const window = read.ok.ok.filter(isToolItem)
+    if (again.ok.ok.revision !== revision)
+      return succeed({ progress: progressOf(saved), committed: false, waiting: window.length })
     const after = BigInt(saved?.through ?? '0')
     const items: SessionEntriesItem[] = []
     for (const [at, { entry }] of window.entries()) {

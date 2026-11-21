@@ -180,7 +180,20 @@ export type ExecutionFactRecord = Readonly<{
   body: JsonValue
 }>
 
-export type ExecutionBlobRecord = Readonly<{ digest: string; media: string; payload: string }>
+export type ExecutionBlobRecord = Readonly<{
+  digest: string
+  media: string
+  payload: string
+  shared?: boolean
+}>
+
+const blobFacts = (blobs: readonly ExecutionBlobRecord[]): JsonValue[] =>
+  blobs.map(({ digest, media, payload, shared }) => ({
+    digest,
+    media,
+    payload,
+    ...(shared === true ? { shared } : {}),
+  }))
 
 // One item of an execution view a publication opens or changes; `open` is its state after it.
 export type ExecutionItemRecord = Readonly<{
@@ -251,7 +264,7 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
                 },
               }),
         })),
-        blobs: blobs.map(({ digest, media, payload }) => ({ digest, media, payload })),
+        blobs: blobFacts(blobs),
         items: items.map(({ execution, family, item, change, open, body }) => ({
           ...(execution === undefined ? {} : { execution }),
           family,
@@ -268,6 +281,7 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
 
 export type ExecutionBlobsWrite = Readonly<{
   tenant: TenantId
+  execution?: string
   blobs: readonly ExecutionBlobRecord[]
 }>
 
@@ -278,7 +292,8 @@ export function executionRecordBlobFacts(write: ExecutionBlobsWrite): FactComman
       intent: 'blobs',
       write: {
         tenant: encodeValue(write.tenant),
-        blobs: write.blobs.map(({ digest, media, payload }) => ({ digest, media, payload })),
+        ...(write.execution === undefined ? {} : { execution: write.execution }),
+        blobs: blobFacts(write.blobs),
       },
     },
   }
@@ -761,7 +776,11 @@ export function decodeExecutionRecordItems(output: JsonValue): ExecutionRecordIt
     : null
 }
 
-export type ExecutionRecordBlobsRead = Readonly<{ tenant: string; digests: readonly string[] }>
+export type ExecutionRecordBlobsRead = Readonly<{
+  tenant: string
+  execution?: string
+  digests: readonly string[]
+}>
 export type ExecutionRecordBlobs = Readonly<{
   kind: 'blobs'
   blobs: readonly Readonly<{ digest: string; media: string; size: string; payload: string }>[]
@@ -791,7 +810,11 @@ export function decodeExecutionRecordBlobs(output: JsonValue): ExecutionRecordBl
     : null
 }
 
-export type ExecutionRecordBlobRead = Readonly<{ tenant: string; digest: string }>
+export type ExecutionRecordBlobRead = Readonly<{
+  tenant: string
+  execution?: string
+  digest: string
+}>
 export type ExecutionRecordBlob =
   | Readonly<{ kind: 'blob'; digest: string; media: string; size: string; payload: string }>
   | ExecutionRecordDenied

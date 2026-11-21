@@ -13,6 +13,7 @@ import { findPreadmission, preadmissionRecord } from './read-preadmission.ts'
 import { packText } from '@omne-harness/sql-contract/worker'
 import { big, oneRow, text, type Executor, type Row } from './support.ts'
 import { storeSharedBlob } from './shared-blobs.ts'
+import { storeExecutionBlock } from './execution-blocks.ts'
 
 const PROTOCOL = '1'
 
@@ -37,7 +38,7 @@ type Boundary = Readonly<{
 }>
 type Event = Readonly<{ sequence: string; kinds: readonly string[]; projection: Json }>
 type Fact = Readonly<{ execution: string; kind: string; event: Event | null; body: string }>
-type Blob = Readonly<{ digest: string; media: string; payload: string }>
+type Blob = Readonly<{ digest: string; media: string; payload: string; shared: boolean }>
 // One item of an execution view this publication opens or changes; `open` is its state after it.
 type Item = Readonly<{
   execution: string
@@ -148,12 +149,13 @@ function parseFact(execution: string): (item: Json) => Fact | null {
 }
 
 function parseBlob(item: Json): Blob | null {
-  const { digest, media, payload } = item
+  const { digest, media, payload, shared } = item
   return isText(digest) &&
     isText(media) &&
     typeof payload === 'string' &&
+    (shared === undefined || typeof shared === 'boolean') &&
     blobDigest(payload) === digest
-    ? { digest, media, payload }
+    ? { digest, media, payload, shared: shared === true }
     : null
 }
 
@@ -353,8 +355,15 @@ function writeItems(port: Executor, write: Write, pub: bigint): void {
   }
 }
 
-function storeBlobs(port: Executor, tenant: string, blobs: readonly Blob[]): void {
-  for (const blob of blobs) storeSharedBlob(port, tenant, blob)
+function storeBlobs(
+  port: Executor,
+  tenant: string,
+  execution: string | null,
+  blobs: readonly Blob[],
+): void {
+  for (const { shared, ...blob } of blobs)
+    if (shared || execution === null) storeSharedBlob(port, tenant, blob)
+    else storeExecutionBlock(port, tenant, execution, blob)
 }
 
 function writeContents(port: Executor, write: Write): void {
@@ -460,7 +469,7 @@ function publish(port: Executor, write: Write): ParticipantReply {
   appendBatch(port, write, next)
   writeItems(port, write, next)
   writeContents(port, write)
-  storeBlobs(port, tenant, write.blobs)
+  storeBlobs(port, tenant, execution, write.blobs)
   port.execute(
     'INSERT INTO er_operation (tenant, operation, session, execution, digest, published) VALUES (?, ?, ?, ?, ?, ?)',
     [tenant, write.operation, session, execution, write.digest, next],
@@ -487,6 +496,7 @@ function reclaim(
   port.execute('DELETE FROM er_item WHERE tenant = ? AND execution = ?', key)
   port.execute('DELETE FROM er_item_content WHERE tenant = ? AND execution = ?', key)
   port.execute('DELETE FROM er_preadmission WHERE tenant = ? AND execution = ?', key)
+  port.execute('DELETE FROM er_block WHERE tenant = ? AND execution = ?', key)
   const marked = port.execute(
     'UPDATE er_execution SET settled = ?, settled_by = ? WHERE tenant = ? AND execution = ? AND ended IS NOT NULL',
     [pub, generation, ...key],
@@ -515,9 +525,10 @@ function sweep(port: Executor, raw: JsonValue | undefined): ParticipantReply {
 function blobs(port: Executor, raw: JsonValue | undefined): ParticipantReply {
   const tenant = isJson(raw) ? tenantOf(raw['tenant']) : null
   const list = isJson(raw) ? listOf(raw['blobs'], parseBlob) : null
-  if (tenant === null || list === null || list.length === 0)
+  const execution = isJson(raw) ? (raw['execution'] ?? null) : null
+  if (tenant === null || list === null || list.length === 0 || !optionalText(execution))
     return unsupported('the blocks are malformed')
-  storeBlobs(port, tenant, list)
+  storeBlobs(port, tenant, execution, list)
   return { kind: 'participated', response: { stored: list.map(blob => blob.digest) } }
 }
 

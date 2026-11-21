@@ -245,6 +245,8 @@
 - `SessionEntriesReceipt` · 包 `@omne-harness/session-contract`
 - `SessionEntriesStart` · 包 `@omne-harness/session-contract`
 - `SessionEvidenceBridge` · 包 `@omne-harness/session-contract`
+- `SessionExecutionLog` · `execution-log.d.ts`
+- `SessionExecutionLogOpened` · `execution-log.d.ts`
 - `SessionExecutionPrefix` · 包 `@omne-harness/session-contract`
 - `SessionFaces` · 包 `@omne-harness/session-contract`
 - `SessionFactBoundary` · 包 `@omne-harness/session-contract`
@@ -455,6 +457,7 @@
 - `SessionDelegatedTransactionsService` · `cordis.d.ts`
 - `SessionDerivedInputsService` · `cordis.d.ts`
 - `SessionEvidenceBridgeService` · `cordis.d.ts`
+- `SessionExecutionLogService` · `cordis.d.ts`
 - `SessionHistoryIndexService` · `history-search.d.ts`
 - `SessionHistoryLogService` · `history-search.d.ts`
 - `SessionIdentityBridgeService` · `cordis.d.ts`
@@ -490,6 +493,7 @@
 - `sessionDelegatedTransactionsKey` · `cordis.d.ts`
 - `sessionDerivedInputsKey` · `cordis.d.ts`
 - `sessionEvidenceKey` · `cordis.d.ts`
+- `sessionExecutionLogKey` · `cordis.d.ts`
 - `sessionHistoryIndexKey` · `history-search.d.ts`
 - `sessionHistoryLogKey` · `history-search.d.ts`
 - `sessionIdentityKey` · `cordis.d.ts`
@@ -599,6 +603,7 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import { type BeforeIntakeRegistry, type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSources, type IntakeProcessor, type SessionDerivedInputs } from '@omne-harness/session-contract';
 import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallControl, SessionCallStates, SessionCallerClass, SessionClock, SessionContextInput, SessionDirectory, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 import type { SessionAdoptedRequests } from './adopted-request.ts';
+import type { SessionExecutionLog } from './execution-log.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts';
 export * from './history-search.ts';
@@ -802,6 +807,12 @@ export declare abstract class SessionAdoptedRequestsService<P = unknown> extends
     abstract readonly readAdoptedRequest: SessionAdoptedRequests<P>['readAdoptedRequest'];
 }
 export declare const sessionAdoptedRequestsKey = "sessionAdoptedRequests";
+export declare abstract class SessionExecutionLogService extends Service implements SessionExecutionLog {
+    static readonly provide = "sessionExecutionLog";
+    constructor(ctx: Context);
+    abstract readonly openTenant: SessionExecutionLog['openTenant'];
+}
+export declare const sessionExecutionLogKey = "sessionExecutionLog";
 export declare class SessionInputSourcesService extends Service implements InputSources {
     static readonly provide = "sessionInputSources";
     private readonly registry;
@@ -857,6 +868,7 @@ declare module '@deepseek-ai/cordis' {
         sessionReplayFacts: SessionReplayFactsService;
         sessionScopeLookup: SessionScopeLookupService;
         sessionAdoptedRequests: SessionAdoptedRequestsService<unknown>;
+        sessionExecutionLog: SessionExecutionLogService;
     }
     interface Events {
         'session-cordis-contract/committed'(tenant: TenantId, session: SessionId, revision: SessionRevision, source: DurableEvidence, kinds: readonly string[]): void;
@@ -890,6 +902,21 @@ export interface SessionCursorSigning {
         payload: Uint8Array;
         signature: SessionCursorSignature;
     }>): Promise<SessionCursorVerifyResult>;
+}
+```
+
+## 声明文件 `execution-log.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+export type SessionExecutionLogOpened = Readonly<{
+    kind: 'opened';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export interface SessionExecutionLog {
+    openTenant(tenant: TenantId): Promise<SessionExecutionLogOpened>;
 }
 ```
 
@@ -939,6 +966,7 @@ export type * from '@omne-harness/session-contract';
 export type * from './cursor-signing.ts';
 export type * from './context-facts.ts';
 export type * from './adopted-request.ts';
+export type * from './execution-log.ts';
 ```
 
 ## 声明文件 `testing.d.ts`

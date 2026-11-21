@@ -29,9 +29,12 @@ import type { SessionId } from '@omne-harness/session-contract'
 import type {
   SessionAdoptedRequestRead,
   SessionAdoptedRequests,
+  SessionExecutionLog,
+  SessionExecutionLogOpened,
 } from '@omne-harness/session-cordis-contract'
 import {
   SessionAdoptedRequestsService,
+  SessionExecutionLogService,
   sessionAccessCheckKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import {
@@ -141,7 +144,6 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     const key = JSON.stringify([tenant.value, scope.execution])
     const cached = routes.get(key)
     if (cached !== undefined) return succeed(cached)
-
     const indexed = await indexedSession(options, tenant.value, scope.execution, action)
     if ('failure' in indexed) return indexed
     const session = indexed.ok
@@ -372,6 +374,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     targets,
     toolTargets,
     adoptedRequests,
+    openTenant: journals.openTenant,
     compactionInputs,
     close(): void {
       closed = true
@@ -526,6 +529,36 @@ class SessionLogToolReceptionTargets extends ToolReceptionTargetsService<unknown
   }
 }
 
+type TenantOpening = (
+  at: Readonly<{ tenant: TenantId; tenantText: string }>,
+) => Promise<Outcome<unknown, Failure>>
+
+const unopened = (diagnostic: string): SessionExecutionLogOpened => ({
+  kind: 'unavailable',
+  diagnostic,
+})
+
+class SessionLogExecutionLog extends SessionExecutionLogService {
+  readonly openTenant: SessionExecutionLog['openTenant']
+
+  constructor(ctx: Context, open: TenantOpening) {
+    super(ctx)
+    let active = true
+    ctx.effect(() => () => {
+      active = false
+    })
+    this.openTenant = async tenant => {
+      const text = tenantCodec.encode(tenant)
+      if (!active) return unopened('the agentJournal plugin has stopped')
+      if (!text.ok) return unopened('the tenant does not encode')
+      const opened = await open({ tenant, tenantText: text.value })
+      if ('ok' in opened) return { kind: 'opened' }
+      const { failure } = opened
+      return unopened(failure.kind === 'unavailable' ? failure.diagnostic : failure.kind)
+    }
+  }
+}
+
 class SessionLogAdoptedRequests extends SessionAdoptedRequestsService<unknown> {
   readonly readAdoptedRequest: SessionAdoptedRequests<unknown>['readAdoptedRequest']
 
@@ -653,6 +686,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     new SessionLogReceptionTargets(ctx, routed.targets)
     new SessionLogToolReceptionTargets(ctx, routed.toolTargets)
     new SessionLogAdoptedRequests(ctx, routed.adoptedRequests)
+    new SessionLogExecutionLog(ctx, routed.openTenant)
     ctx.effect(() => () => routed.close())
   }
 }

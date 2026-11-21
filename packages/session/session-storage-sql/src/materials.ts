@@ -27,6 +27,8 @@ import {
 import {
   ADMISSION_ATTEMPT_MIGRATION,
   ADMISSION_ATTEMPT_TABLES,
+  BLOCK_MIGRATION,
+  BLOCK_TABLES,
   FACT_BLOB_MIGRATION,
   FACT_BLOB_TABLES,
   FACT_BODY_MIGRATION,
@@ -138,6 +140,7 @@ const factBlobMigrationRef = Object.freeze({
   id: FACT_BLOB_MIGRATION.id,
 })
 const itemMigrationRef = Object.freeze({ owner: ITEM_MIGRATION.owner, id: ITEM_MIGRATION.id })
+const blockMigrationRef = Object.freeze({ owner: BLOCK_MIGRATION.owner, id: BLOCK_MIGRATION.id })
 const indexMigrations = [
   migrationRef,
   attemptGrantMigrationRef,
@@ -387,16 +390,16 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'execution-record.blob',
     file: 'read-blob',
-    tables: ['sl_blob'],
+    tables: ['sl_blob', ...BLOCK_TABLES],
     protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [factBlobMigrationRef],
+    migrations: [factBlobMigrationRef, blockMigrationRef],
   },
   {
     handler: 'execution-record.blobs',
     file: 'read-blobs',
-    tables: ['sl_blob'],
+    tables: ['sl_blob', ...BLOCK_TABLES],
     protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [factBlobMigrationRef],
+    migrations: [factBlobMigrationRef, blockMigrationRef],
     maxRowsRead: 20_000,
   },
   {
@@ -497,6 +500,7 @@ export function sessionStorageMaterials(
           ...FACT_BODY_TABLES,
           ...FACT_BLOB_TABLES,
           ...ITEM_TABLES,
+          ...BLOCK_TABLES,
         ],
         readTables: [],
         requiresFacts: [],
@@ -580,6 +584,7 @@ export function sessionStorageMaterials(
         factBodyMigrationRef,
       ]),
       migrationOf(itemMigrationRef, 'item-migration', [factBlobMigrationRef]),
+      migrationOf(blockMigrationRef, 'block-migration', [itemMigrationRef]),
     ],
     readHandlers: HANDLERS.map(item => {
       const file = module(item.file)

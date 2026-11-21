@@ -174,3 +174,17 @@ export const ITEM_MIGRATION = Object.freeze({
   owner: 'execution-record',
   id: '007-item',
 })
+
+export const BLOCK_SCHEMA: readonly string[] = [
+  `CREATE TABLE er_block (
+    tenant TEXT NOT NULL, execution TEXT NOT NULL, digest TEXT NOT NULL, media TEXT NOT NULL,
+    size INTEGER NOT NULL, payload BLOB NOT NULL,
+    PRIMARY KEY (tenant, execution, digest)) STRICT, WITHOUT ROWID`,
+]
+
+export const BLOCK_TABLES: readonly string[] = ['er_block']
+
+export const BLOCK_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '008-block',
+})

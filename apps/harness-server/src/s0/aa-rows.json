@@ -310,7 +310,8 @@
         "storage",
         "tenantDomainLookup",
         "agentReceivedRecords",
-        "sessionWorkingDirectory"
+        "sessionWorkingDirectory",
+        "tenantDomainScannerPrincipal"
       ]
     },
     {

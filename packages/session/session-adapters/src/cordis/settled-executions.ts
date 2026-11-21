@@ -86,12 +86,14 @@ export type SettledBook = {
   readonly loaded: Set<string>
   readonly settled: Set<string>
   readonly origins: Readonly<{ keys(): Iterable<string>; delete(key: string): unknown }>
+  readonly refs: Readonly<{ settled(execution: string): void }>
 }
 
 export function forget(book: SettledBook, execution: string): void {
   book.full.delete(execution)
   book.loaded.delete(execution)
   book.settled.add(execution)
+  book.refs.settled(execution)
   for (const key of book.origins.keys())
     if (key.startsWith(`${execution}\0`)) book.origins.delete(key)
 }

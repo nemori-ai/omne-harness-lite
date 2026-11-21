@@ -30,7 +30,9 @@ const TABLES = [
   'er_item',
   'er_item_content',
   'er_preadmission',
+  'er_block',
 ] as const
+const CONTENTS = ['er_fact', 'er_item', 'er_item_content', 'er_preadmission', 'er_block'] as const
 type Table = (typeof TABLES)[number]
 type Reading = Readonly<Record<Table, Readonly<{ rows: number; bytes: number }>>> &
   Readonly<{ unsettled: number }>
@@ -85,7 +87,7 @@ const settledAll = (tree: ReleaseTree, executions: number) =>
   )
 
 it(
-  'three Runs with a tool call leave only tombstones and operation records, and the next generation keeps only the current execution',
+  'three Runs with a tool call leave only tombstones and operation records, a restart with no request removes those, and the next generation keeps only the current execution',
   { timeout: 300_000 },
   async () => {
     let session = ''
@@ -104,6 +106,13 @@ it(
         expect(toolResults(entries).join('\n')).toContain('three-done')
       },
       async tree => {
+        readings['after the restart, no request'] = await pollUntil(
+          'the tombstones and operation records to go with no request',
+          async () => records(tree),
+          reading => reading.er_execution.rows === 0 && reading.er_operation.rows === 0,
+        )
+      },
+      async tree => {
         await sendInput(tree, session, 'start: echo four')
         const entries = await endedRuns(tree, session, 4)
         readings['after the restart, Run 4'] = await settledAll(tree, 1)
@@ -113,10 +122,11 @@ it(
     console.log(`EXECUTION-RECORDS ${JSON.stringify(readings)}`)
     const one = readings['1 Run']!
     const three = readings['3 Runs']!
+    const idle = readings['after the restart, no request']!
     const restarted = readings['after the restart, Run 4']!
-    for (const reading of [one, three, restarted])
-      for (const table of ['er_fact', 'er_item', 'er_item_content', 'er_preadmission'] as const)
-        expect(reading[table].rows, table).toBe(0)
+    for (const reading of [one, three, idle, restarted])
+      for (const table of CONTENTS) expect(reading[table].rows, table).toBe(0)
+    expect(total(idle)).toBe(0)
     expect(three.er_execution.rows).toBe(3)
     expect(total(three)).toBeLessThanOrEqual(3 * total(one) + 1024)
     expect(restarted.er_execution.rows).toBe(1)
@@ -178,6 +188,7 @@ it(
         const held = records(tree)
         expect(held.unsettled).toBe(1)
         expect(held.er_fact.rows).toBeGreaterThan(0)
+        expect(held.er_block.rows).toBeGreaterThan(0)
         expect(sessionEntries(tree, 'call.background-settled')).toBe(0)
 
         writeFileSync(join(dirname(tree.storageRoot), 'workspace', 'go-late'), '')
@@ -204,8 +215,7 @@ it(
           async () => records(tree),
           value => value.unsettled === 0 && value.er_execution.rows >= 1,
         )
-        for (const table of ['er_fact', 'er_item', 'er_item_content', 'er_preadmission'] as const)
-          expect(reading[table].rows, table).toBe(0)
+        for (const table of CONTENTS) expect(reading[table].rows, table).toBe(0)
         expect(asked.ownReply).toBe(0)
       },
     )

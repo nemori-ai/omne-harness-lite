@@ -125,6 +125,16 @@ function answersOf(
 const ownedBy = (fact: FactBody): fact is FactOf<'material.preserved'> =>
   fact.kind === 'material.preserved' && fact.readers === 'until-release'
 
+function readMaterials(facts: readonly FactBody[]): ReadonlySet<string> {
+  const out = new Set<string>()
+  for (const fact of facts)
+    if (fact.kind === 'material.preserved' && fact.readers !== 'until-release')
+      out.add(blobRowDigest(fact.value.digest))
+    else if (fact.kind === 'result.received' && fact.material !== null)
+      out.add(blobRowDigest(fact.material.digest))
+  return out
+}
+
 function ownedContents(
   execution: string,
   facts: readonly FactBody[],
@@ -175,7 +185,7 @@ export function preparePublication(input: PublicationInput): Outcome<Prepared, F
   const blobs = new Map<string, ExecutionBlobRecord>()
   const written = [
     ...[...after.agent.blobs.written()].filter(digest => !only.has(digest)),
-    ...[...shared].filter(digest => input.held(blobRowDigest(digest)) === 'owned'),
+    ...[...shared].filter(digest => input.held(blobRowDigest(digest)) !== 'shared'),
   ]
   coreBlobRows(after.agent.blobs, written, row => input.held(row) === 'shared', blobs)
   const envelope: BatchEnvelope = { ...appended.at(-1)!.envelope, kinds: [...kinds] }
@@ -242,11 +252,14 @@ export function preparePublication(input: PublicationInput): Outcome<Prepared, F
     )
   const answers = answersOf(input.closedBefore, after, execution as AgentExecutionId)
   if ('failure' in answers) return answers
+  const materials = readMaterials(facts)
   return succeed({
     envelope,
     derived,
     records,
-    blobs: [...blobs.values()],
+    blobs: [...blobs.values()].map(blob =>
+      materials.has(blob.digest) ? { ...blob, shared: true } : blob,
+    ),
     pub,
     view: landed.view,
     itemRows: {

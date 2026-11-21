@@ -197,7 +197,8 @@ export async function fetchClosed(
     const rows = items
       .filter(item => !released(item))
       .flatMap(item => [...refsIn(item.body)].map(blobRowDigest))
-    const missing = await fetchBlobClosure(read, lender.tenantText, rows, lender.lentBlocks)
+    const scope = { tenant: lender.tenantText, execution }
+    const missing = await fetchBlobClosure(read, scope, rows, lender.lentBlocks)
     if (missing !== null) return `the content block ${missing} of a closed item is not readable`
   }
   return null

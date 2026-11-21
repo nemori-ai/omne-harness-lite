@@ -319,9 +319,10 @@ export async function recordedStanding(
 export async function readBlob(
   read: Reader,
   tenant: string,
+  execution: string,
   digest: string,
 ): Promise<string | null> {
-  const output = await read(EXECUTION_RECORD_HANDLERS.blob, { tenant, digest })
+  const output = await read(EXECUTION_RECORD_HANDLERS.blob, { tenant, execution, digest })
   if (output.kind === 'unread') return null
   const decoded = decodeExecutionRecordBlob(output.output)
   return decoded?.kind === 'blob' ? decoded.payload : null

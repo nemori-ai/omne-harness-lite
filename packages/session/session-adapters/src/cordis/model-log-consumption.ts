@@ -278,9 +278,9 @@ function createModelLogConsumption<P>(
     if ('failure' in read) return agentFailure('load', read.failure)
     const again = await ports.load(reading)
     if ('failure' in again) return agentFailure('load', again.failure)
-    if (again.ok.revision !== revision)
-      return unavailable('the execution changed while its entries were read')
     const window = read.ok.filter(isModelItem)
+    if (again.ok.revision !== revision)
+      return succeed({ progress: progressOf(saved), committed: false, waiting: window.length })
     const after = BigInt(saved?.through ?? '0')
     const items: SessionEntriesItem[] = []
     for (const [at, { entry }] of window.entries()) {

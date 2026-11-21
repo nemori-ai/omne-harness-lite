@@ -26,7 +26,7 @@ import {
 } from '@omne-harness/sql-contract/cordis'
 import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
 import { TENANT_DOMAIN_REGISTERED } from '../../entry/tenant-domain-registered.ts'
-import { warmRegisteredTenants } from './warm-tenants.ts'
+import { openRegisteredTenants } from '../registered-tenants.ts'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
 import { classify } from '../authorization/principals.ts'
@@ -239,9 +239,9 @@ export const governanceRow = defineRow({
     const scanner: unknown = ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY)
     ctx.effect(() => {
       const first = setTimeout(() => {
-        void warmRegisteredTenants({
+        void openRegisteredTenants('governance warm-up', {
           listing: () => directory.enumerate({ principal: scanner }),
-          warm: tenant => host.warm(tenant),
+          open: tenant => host.warm(tenant),
           warn: message => ctx.logger('governance').warn(message),
         })
       }, 0)

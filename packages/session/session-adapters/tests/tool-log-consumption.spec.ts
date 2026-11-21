@@ -903,6 +903,36 @@ describe('AD-06 trigger: the event of the Journal plugin wakes the consumption',
     expect(entriesKinds(s)).toHaveLength(3)
   })
 
+  it('the execution changes while its entries are read: that round commits nothing and warns nothing, and the round the change wakes commits the entries', async () => {
+    const s = await toolScene('trigger-moved')
+    let loads = 0
+    const f = await assembled(s, {
+      coordinator: coordinator(s),
+      wraps: {
+        load: async input => {
+          loads += 1
+          const loaded = await s.view.journal.load(input)
+          return 'ok' in loaded && loads === 2
+            ? succeed({ ...loaded.ok, revision: `${loaded.ok.revision}-moved` as never })
+            : loaded
+        },
+      },
+    })
+    const warned = () => f.logged.filter(line => line.type === 'warn').map(line => line.text)
+    await receive(s, s.result, 'trigger-moved')
+    await published(f, s)
+    await settle()
+    expect(loads).toBe(2)
+    expect(f.commits).toHaveLength(0)
+    expect(warned()).toEqual([])
+
+    await published(f, s)
+    await settle()
+    expect(f.commits).toHaveLength(1)
+    expect(await progressOf(s)).toMatchObject({ through: '1', execution: s.execution })
+    expect(warned()).toEqual([])
+  })
+
   it('a stopped plugin does not consume after the event', async () => {
     const s = await toolScene('trigger-stopped')
     const f = await assembled(s, { coordinator: coordinator(s) })

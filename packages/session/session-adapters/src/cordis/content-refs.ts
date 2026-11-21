@@ -69,20 +69,28 @@ function itemRefs(
 export class ContentRefs {
   readonly #count = new Map<string, number>()
   readonly #owned = new Set<string>()
+  readonly #stored = new Map<string, Set<string>>()
 
   has(digest: string): boolean {
     return this.#count.has(digest)
   }
 
-  held(caches: BlockCaches, row: string): 'shared' | 'owned' | null {
-    if (!caches.blobs.has(row)) return null
-    return this.#owned.has(row) ? 'owned' : 'shared'
+  held(caches: BlockCaches, row: string, execution: string): 'shared' | 'owned' | null {
+    if (this.#stored.get(execution)?.has(row) === true) return 'shared'
+    return caches.blobs.has(row) && this.#owned.has(row) ? 'owned' : null
   }
 
-  keep(caches: BlockCaches, blobs: readonly CoreBlob[], contents: Iterable<string>): void {
+  keep(
+    caches: BlockCaches,
+    blobs: readonly CoreBlob[],
+    contents: Iterable<string>,
+    execution: string | null = null,
+  ): void {
+    const stored = execution === null ? null : this.#storedOf(execution)
     for (const blob of blobs) {
       caches.blobs.set(blob.digest, blob.payload)
       this.#owned.delete(blob.digest)
+      stored?.add(blob.digest)
     }
     for (const payload of contents) {
       const row = blobRef(payload).digest
@@ -95,6 +103,19 @@ export class ContentRefs {
   forget(caches: BlockCaches, row: string): void {
     caches.blobs.delete(row)
     this.#owned.delete(row)
+  }
+
+  settled(execution: string): void {
+    this.#stored.delete(execution)
+  }
+
+  #storedOf(execution: string): Set<string> {
+    let stored = this.#stored.get(execution)
+    if (stored === undefined) {
+      stored = new Set()
+      this.#stored.set(execution, stored)
+    }
+    return stored
   }
 
   reset(view: SessionJournalView, payloadOf: (digest: string) => string | undefined): void {
@@ -140,11 +161,13 @@ export function settleBlocks(
   refs: ContentRefs,
   prepared: Pick<Prepared, 'blobs' | 'changes' | 'itemRows'>,
   caches: BlockCaches,
+  execution: string,
 ): string[] {
   refs.keep(
     caches,
     prepared.blobs,
     prepared.itemRows.contents.map(item => item.payload),
+    execution,
   )
   const released = refs.apply(prepared.changes, digest => caches.blobs.get(blobRowDigest(digest)))
   for (const digest of released) {
