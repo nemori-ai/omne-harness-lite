@@ -409,11 +409,10 @@ it('V16 一组三题一次提交：每题各交一次、依次发出；结局逐
   expect(kind.dataset['waiting']).toBe('false')
   expect(closed.getByText('已在别处答了，这次的答复没有采用。')).toBeTruthy()
   expect(
-    closed
-      .getByText('已在别处答了，这次的答复没有采用。')
-      .closest('[data-inline-notice]')
-      ?.getAttribute('data-tone'),
-  ).toBe('neutral')
+    closed.getByText('已在别处答了，这次的答复没有采用。').closest('[data-inline-notice]'),
+  ).toBeNull()
+  expect(closed.getByText('已在别处答了，这次的答复没有采用。').className).toBe('hitl-closed-line')
+  expect(closed.getByRole('button', { name: '知道了' }).textContent).toBe('')
   expect(closed.queryByRole('radio')).toBeNull()
   expect(closed.getByRole('radio', { checked: true, hidden: true })).toBeTruthy()
   expect(screen.queryByRole('button', { name: '提交' })).toBeNull()

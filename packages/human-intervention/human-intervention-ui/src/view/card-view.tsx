@@ -2,11 +2,13 @@ import type { HumanInterventionCardItem } from '@omne-harness/human-intervention
 import {
   ChoiceList,
   ChoiceRow,
+  CloseIcon,
   CodeSurface,
   Disclosure,
   DisclosureContent,
   FactList,
   FactRow,
+  IconButton,
   LoadingState,
   PermissionIcon,
   QuestionIcon,
@@ -254,8 +256,12 @@ function ReleaseCall({ question }: Readonly<{ question: ReleaseQuestion }>): JSX
           <code className="hitl-call">{call}</code>
         </FactRow>
         <FactRow term="动作类别">{`${target.tool}：${question.gateTitle}`}</FactRow>
-        <FactRow term="会话">{origin.session}</FactRow>
-        <FactRow term="Agent">{origin.agent}</FactRow>
+        <FactRow term="会话">
+          <Reference value={origin.session} />
+        </FactRow>
+        <FactRow term="Agent">
+          <Reference value={origin.agent} />
+        </FactRow>
       </FactList>
       {detail?.state === 'given' ? <ReleaseDetailView detail={detail} /> : null}
       {detail?.state === 'unavailable' ? (
@@ -273,14 +279,22 @@ function ReleaseCall({ question }: Readonly<{ question: ReleaseQuestion }>): JSX
   )
 }
 
+const SHOWN_REFERENCE = 12
+
+/** A reference as its first 12 characters, the whole of it in the hint: the same cut as a group's head. */
+function Reference({ value }: Readonly<{ value: string }>) {
+  if (value.length <= SHOWN_REFERENCE) return <>{value}</>
+  return <span title={value}>{`${value.slice(0, SHOWN_REFERENCE)}…`}</span>
+}
+
 function Outcome({ card, driver }: Readonly<{ card: Shown; driver: CardsDriver }>) {
   if (card.kind === 'closed')
     return (
-      <div className="hitl-outcome">
-        <NoticeLine
-          notice={card.closed.notice}
-          action={{ label: '知道了', onClick: () => driver.dismiss(card.key) }}
-        />
+      <div className="hitl-outcome hitl-closed">
+        <p className="hitl-closed-line">{card.closed.notice.text}</p>
+        <IconButton label="知道了" size="icon-compact" onClick={() => driver.dismiss(card.key)}>
+          <CloseIcon aria-hidden="true" />
+        </IconButton>
       </div>
     )
   const submit = card.entry.submit

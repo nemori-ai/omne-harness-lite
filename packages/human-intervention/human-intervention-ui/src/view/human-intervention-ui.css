@@ -248,6 +248,21 @@
 .hitl-outcome {
   margin: calc(var(--spacing) * 2.5) calc(var(--spacing) * 5) 0;
 }
+/* A closed section says why in one quiet line, not a box on the sheet; its dismiss is the line's icon button. */
+.hitl-closed {
+  display: flex;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+.hitl-closed-line {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-reading);
+  overflow-wrap: anywhere;
+}
 
 /* `.decision-foot`: what is still missing on the left, the one submit on the right, one quiet line under both. */
 .hitl-foot {

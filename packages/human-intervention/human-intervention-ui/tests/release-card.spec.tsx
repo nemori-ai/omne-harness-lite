@@ -58,9 +58,10 @@ describe('the release card body', () => {
     expect(facts(card)).toEqual([
       ['工具', 'Shell run ls -la'],
       ['动作类别', 'Shell：执行'],
-      ['会话', 'ses_0123456789abcdef'],
+      ['会话', 'ses_01234567…'],
       ['Agent', 'exe-1'],
     ])
+    expect(card.getByText('ses_01234567…').getAttribute('title')).toBe('ses_0123456789abcdef')
     expect(card.getByText('Shell run ls -la').tagName).toBe('CODE')
     expect(card.getByText('工具').closest('dl')!.classList.contains('hitl-facts')).toBe(true)
   })
