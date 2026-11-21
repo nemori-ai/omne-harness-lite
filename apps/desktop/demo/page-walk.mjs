@@ -873,13 +873,13 @@ async function walk(browser, origin, proofs, elsewhere) {
     `
     document.querySelector('.shell-nav-link[data-page=decisions]').click()
     const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
-    const card = await wait('the card in the pool', () => sectionTitled(page, ${JSON.stringify(POOL_TITLE)}))
-    answerRow(card, ${JSON.stringify(POOL_PICK)}).click()
-    const submit = await wait('the submit in the pool', () => {
-      const found = submitOf(page)
-      return found && !found.disabled ? found : undefined
-    })
-    submit.click()
+    await wait('the card in the pool', () => sectionTitled(page, ${JSON.stringify(POOL_TITLE)}))
+    const pick = await wait('the option button in the pool', () =>
+      [...page.querySelectorAll('.hitl-actions button')].find(
+        button => button.textContent.trim() === ${JSON.stringify(POOL_PICK)} && !button.disabled,
+      ),
+    )
+    pick.click()
     await wait('the pool empty', () => page.textContent.includes('待答的问题会在这里等你。'))
     await goHome()
     await wait('the reply after the answer', () => transcript().includes(${JSON.stringify(AFTER_POOL)}))
