@@ -63,7 +63,8 @@ async function readAll(
   firstMessageId: string,
 ): Promise<Reading> {
   const { tenant, session, pageBytes } = request
-  const first = { tenant, session, cursor: null, direction: 'forward', pageBytes } as const
+  const plain = { tenant, session, cursor: null, direction: 'forward', pageBytes } as const
+  const first = request.inherited ? { ...plain, inherited: true } : plain
   const entries: RawEntry[] = []
   let cursor: string | null = null
   for (let page = 1; ; page += 1) {
@@ -72,11 +73,7 @@ async function readAll(
     const result = await link.call(
       sessionProtocol,
       'read-history',
-      cursor !== null
-        ? { tenant, session, cursor }
-        : request.inherited
-          ? { ...first, inherited: true }
-          : first,
+      cursor === null ? first : { tenant, session, cursor },
       messageId,
     )
     if (result === undefined) return { kind: 'refused' }
