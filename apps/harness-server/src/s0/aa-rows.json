@@ -7,6 +7,7 @@
     "authorization",
     "session-storage",
     "session-input-sources",
+    "session-before-intake",
     "session-history-index",
     "session-search",
     "asset-categories",
@@ -16,6 +17,17 @@
     "schedule",
     "notification",
     "calendar-notification",
+    "media-storage-sql",
+    "media-image",
+    "media",
+    "media-storage-local",
+    "media-sweep",
+    "media-intake",
+    "media-model-source",
+    "media-tool-store",
+    "media-converters",
+    "media-engine-transcribe",
+    "media-engine-pdf",
     "workspace",
     "usage",
     "usage-adapters",
@@ -43,7 +55,6 @@
     "agent-instances",
     "model-host",
     "model-instances",
-    "model-converters",
     "model-tokenizers",
     "model-profiles",
     "model-request-preparation",
@@ -72,6 +83,9 @@
     "runtime-context-tenant-scope",
     "session-intake-budget",
     "session-observation",
+    "dispatch",
+    "dispatch-session",
+    "dispatch-tool",
     "server-entry",
     "identity-access",
     "session-access",
@@ -81,6 +95,7 @@
     "calendar-access",
     "schedule-access",
     "notification-access",
+    "media-access",
     "workspace-access",
     "tool-access",
     "model-access",
@@ -157,6 +172,20 @@
         "tenantDomainRegistration",
         "tenantDomainScannerPrincipal",
         "tenantScopePrincipals"
+      ]
+    },
+    {
+      "row": "media-storage-sql",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration"
+      ]
+    },
+    {
+      "row": "media-sweep",
+      "names": [
+        "tenantDomainScannerPrincipal"
       ]
     },
     {
@@ -272,6 +301,12 @@
       ]
     },
     {
+      "row": "agent-context",
+      "names": [
+        "sessionModesInstallation"
+      ]
+    },
+    {
       "row": "agent-journal",
       "names": [
         "storage",
@@ -307,6 +342,12 @@
     },
     {
       "row": "model-credential",
+      "names": [
+        "settingsSecretCustody"
+      ]
+    },
+    {
+      "row": "media-engine-transcribe",
       "names": [
         "settingsSecretCustody"
       ]
@@ -402,6 +443,30 @@
       ]
     },
     {
+      "row": "dispatch",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration",
+        "tenantDomainScannerPrincipal",
+        "dispatchPrincipal"
+      ]
+    },
+    {
+      "row": "dispatch-session",
+      "names": [
+        "definitionMappings",
+        "sessionModesInstallation",
+        "dispatchPrincipal"
+      ]
+    },
+    {
+      "row": "dispatch-tool",
+      "names": [
+        "dispatchPrincipal"
+      ]
+    },
+    {
       "row": "server-entry",
       "names": [
         "principalIssuer",
@@ -420,7 +485,9 @@
         "principalIssuer",
         "tenantStanding",
         "definitionMappings",
-        "sessionModesInstallation"
+        "sessionModesInstallation",
+        "sessionWorkingDirectory",
+        "sessionWorkPrincipals"
       ]
     },
     {
@@ -461,6 +528,13 @@
     },
     {
       "row": "notification-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "media-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

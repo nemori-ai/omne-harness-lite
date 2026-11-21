@@ -1,0 +1,241 @@
+import { afterAll } from 'vitest'
+import { testExecutor } from './executor.ts'
+import {
+  decodeRevision,
+  type Adoption,
+  type AssembledModelInput,
+  type FixedModelRequest,
+  type ModelProfile,
+  type Supplier,
+} from '@omne-harness/model-contract'
+import {
+  judgeFixedModelRequest,
+  judgeReplayDeclaration,
+  type TransportDispatch,
+} from '@omne-harness/model-contract/provider'
+import {
+  composeFamilies,
+  recordAdoption,
+  recordProvider,
+  type PiFamilyBinding,
+  type PiMaterializedMedia,
+} from '@omne-harness/pi-ai-transport'
+import { openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
+import {
+  createQwenFamily,
+  officialQwenProfiles,
+  QWEN_OWNER,
+  QWEN_RECORDS,
+  type QwenFamilyConfig,
+  type QwenRecord,
+} from '@omne-harness/pi-ai-qwen'
+import { componentAdoption } from '../../src/adoptions.ts'
+
+export function adoption(name: string): Adoption {
+  return { owner: 'pi-ai-qwen-tests', name, revision: '1', digest: 'a'.repeat(64) }
+}
+
+export const SOURCE = adoption('source')
+export const PROFILE = adoption('profile')
+export const RETRY = adoption('retry')
+export const MARGIN_SOURCE = adoption('margin-policy')
+
+export const EXECUTOR = await testExecutor([openAiTokenizerResources()])
+const tokenLease = EXECUTOR.acquire(
+  openAiTokenizerResources().definition,
+  new AbortController().signal,
+)
+if ('failure' in tokenLease) throw new Error(JSON.stringify(tokenLease.failure))
+export const TOKENIZER = tokenLease.ok.tokenizer
+afterAll(async () => {
+  const released = await tokenLease.ok.release()
+  if ('failure' in released) throw new Error(JSON.stringify(released.failure))
+})
+
+export const CONFIG: QwenFamilyConfig = {
+  tokenizer: openAiTokenizerResources(),
+  executor: EXECUTOR,
+  limits: {
+    toolArguments: {
+      maxBytes: 65_536,
+      maxDepth: 32,
+      maxItems: 1_024,
+      maxMembers: 256,
+      maxStringLength: 65_536,
+      maxNumberLength: 64,
+    },
+    maxReasoningText: 65_536,
+  },
+  margin: { percent: '10', source: MARGIN_SOURCE },
+}
+
+export const FAMILY = createQwenFamily(CONFIG)
+
+const [ONLY] = QWEN_RECORDS
+export const RECORD: QwenRecord = ONLY
+
+export function supplierOf(record: QwenRecord = RECORD): Supplier {
+  return {
+    adoption: recordAdoption(QWEN_OWNER, record),
+    provider: recordProvider(record),
+    model: record.route.model,
+    credential: { layer: 'official' },
+  }
+}
+
+export async function bindingOf(record: QwenRecord = RECORD): Promise<PiFamilyBinding> {
+  const acquired = await composeFamilies([FAMILY]).acquire(
+    supplierOf(record),
+    new AbortController().signal,
+  )
+  if (!('ok' in acquired)) throw new Error(`acquire: ${JSON.stringify(acquired.failure)}`)
+  return acquired.ok
+}
+
+const SHOWN = { toHuman: true, toModel: true }
+
+export function textBlock(id: string, text: string): unknown {
+  return { kind: 'text', id, visibility: SHOWN, text }
+}
+
+export function thinkingBlock(id: string, text: string): unknown {
+  return { kind: 'thinking', id, visibility: SHOWN, text }
+}
+
+export function stateBlock(id: string, payload: string, pairs: readonly string[] = []): unknown {
+  return {
+    kind: 'reasoning_state',
+    id,
+    visibility: { toHuman: false, toModel: true },
+    payload,
+    pairs,
+  }
+}
+
+export const SPEECH = {
+  storage: 'tests',
+  key: 'speech-1',
+  mediaType: 'audio/wav',
+  bytes: '4',
+  digest: 'e'.repeat(64),
+}
+export const SPEECH_BYTES = new Uint8Array([0x52, 0x49, 0x46, 0x46])
+
+export function speechBlock(id: string): unknown {
+  const facts = { kind: 'voice', durationMs: 1500, sampleRate: 16000, channels: 1 }
+  return { kind: 'voice', id, visibility: SHOWN, ref: SPEECH, transcript: null, facts }
+}
+
+export function speechRead(): PiMaterializedMedia {
+  const measurement = {
+    reference: SPEECH,
+    bytes: String(SPEECH_BYTES.byteLength),
+    mediaType: SPEECH.mediaType,
+    kind: 'voice' as const,
+    durationMs: '1500',
+    sampleRate: '16000',
+    channels: '1',
+  }
+  return { reference: SPEECH, mime: SPEECH.mediaType, bytes: SPEECH_BYTES, measurement }
+}
+
+export function message(
+  id: string,
+  role: string,
+  blocks: readonly unknown[],
+  extra: object = {},
+): unknown {
+  return { id: `msg_${id.padEnd(22, '0')}`, role, blocks, ...extra }
+}
+
+export function tool(name: string): unknown {
+  return {
+    name,
+    description: `${name} tool`,
+    argumentsSchema: {
+      kind: 'object',
+      entries: [{ key: 'type', value: { kind: 'string', value: 'object' } }],
+    },
+  }
+}
+
+export type RequestParts = Readonly<{
+  system?: readonly unknown[]
+  messages?: readonly unknown[]
+  tools?: readonly unknown[]
+  toolChoice?: unknown
+  parameters?: readonly unknown[]
+}>
+
+export function requestJson(record: QwenRecord, parts: RequestParts = {}): unknown {
+  const supplier = supplierOf(record)
+  const parameters = parts.parameters ?? []
+  const declared = judgeReplayDeclaration(
+    { provider: supplier.provider, model: supplier.model, replay: record.replay.declaration },
+    0,
+  )
+  if (!('ok' in declared)) throw new Error(`declaration of ${record.name}`)
+  return {
+    profile: PROFILE,
+    suppliers: [supplier],
+    fallback: false,
+    retryPolicy: RETRY,
+    parameters,
+    system: parts.system ?? [],
+    messages: parts.messages ?? [message('u1', 'user', [textBlock('b1', 'hello')])],
+    tools: parts.tools ?? [],
+    toolChoice: parts.toolChoice ?? 'auto',
+    declarations: [declared.ok],
+    representation: componentAdoption(record, 'representation'),
+    parameterAdoptions: parameters.map(requested => ({
+      supplier: supplier.adoption,
+      applied: requested,
+      origin: { kind: 'explicit', requested, source: SOURCE },
+    })),
+    source: SOURCE,
+  }
+}
+
+export function fixedRequest(parts: RequestParts = {}, record = RECORD): FixedModelRequest {
+  const judged = judgeFixedModelRequest(requestJson(record, parts))
+  if (!('ok' in judged)) throw new Error(`test request refused: ${JSON.stringify(judged.failure)}`)
+  return judged.ok
+}
+
+export function encodeInput(
+  request: FixedModelRequest,
+  media: readonly PiMaterializedMedia[] = [],
+  resent: TransportDispatch['resent'] = [],
+): Parameters<PiFamilyBinding['encode']>[0] {
+  return { request, media, declaration: request.declarations[0], resent }
+}
+
+export function assembledOf(request: FixedModelRequest): AssembledModelInput {
+  return {
+    system: request.system,
+    messages: request.messages,
+    tools: request.tools,
+    toolChoice: request.toolChoice,
+    parameters: request.parameters,
+    representation: request.representation,
+    source: request.source,
+  }
+}
+
+export function officialProfile(record: QwenRecord = RECORD): ModelProfile {
+  const revision = decodeRevision('1')
+  if (!('ok' in revision)) throw new Error('revision')
+  const definition = officialQwenProfiles({
+    retryPolicy: RETRY,
+    compactionTriggerPercent: '80',
+  }).find(item => item.suppliers[0].model === record.route.model)
+  if (definition === undefined) throw new Error(`no official profile of ${record.name}`)
+  return {
+    identity: { scope: { kind: 'factory' }, route: record.name },
+    adoption: PROFILE,
+    revision: revision.ok,
+    updatedAt: '2026-11-21T00:00:00Z',
+    availability: 'active',
+    definition,
+  }
+}

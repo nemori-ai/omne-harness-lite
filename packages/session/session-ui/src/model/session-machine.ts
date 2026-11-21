@@ -1,3 +1,4 @@
+import type { UserAttachment } from '@omne-harness/session-protocol'
 import type { ClientOf, ObservationEnd as ClientObservationEnd } from '@omne-harness/sdk/core'
 import type { ObserveSessionFrame, SessionProtocol } from '@omne-harness/session-protocol'
 import {
@@ -53,6 +54,7 @@ export type PendingInput = Readonly<{
   inputId: string
   messageId: string
   text: string
+  attachments: readonly UserAttachment[]
   status: InputStatus
   notice: Notice | null
 }>
@@ -98,12 +100,25 @@ export type State =
   | Open
   | Readonly<{ kind: 'unavailable'; session: string; notice: Notice; content: Content }>
 
+/** What a new session is created with; a part left out is the definition's own. */
+export type CreateChoice = Readonly<{
+  model?: string
+  workspace?: Readonly<{ workspace: string; instance: string }>
+}>
+
 export type Event =
-  | Readonly<{ kind: 'create'; createCallId: string; model?: string }>
+  | (Readonly<{ kind: 'create'; createCallId: string }> & CreateChoice)
   | Readonly<{ kind: 'create-answered'; createCallId: string; answer: CreateAnswer }>
   | Readonly<{ kind: 'create-confirm' }>
   | Readonly<{ kind: 'create-confirmed'; createCallId: string; answer: CreateQueryAnswer }>
-  | Readonly<{ kind: 'send'; text: string; acceptId: string; inputId: string; messageId: string }>
+  | Readonly<{
+      kind: 'send'
+      text: string
+      attachments?: readonly UserAttachment[]
+      acceptId: string
+      inputId: string
+      messageId: string
+    }>
   | Readonly<{ kind: 'send-answered'; session: string; acceptId: string; answer: SendAnswer }>
   | Readonly<{ kind: 'send-confirm'; acceptId: string }>
   | Readonly<{ kind: 'send-confirmed'; session: string; acceptId: string; answer: SendQueryAnswer }>
@@ -126,7 +141,7 @@ export type Event =
 export type HistoryRequest = Readonly<{ cursor: null }> | Readonly<{ cursor: string }>
 
 export type Effect =
-  | Readonly<{ kind: 'create-session'; createCallId: string; model?: string }>
+  | (Readonly<{ kind: 'create-session'; createCallId: string }> & CreateChoice)
   | Readonly<{ kind: 'query-create-session'; createCallId: string }>
   | Readonly<{
       kind: 'send-input'
@@ -134,6 +149,7 @@ export type Effect =
       acceptId: string
       inputId: string
       text: string
+      attachments: readonly UserAttachment[]
     }>
   | Readonly<{ kind: 'query-send-input'; session: string; acceptId: string }>
   | Readonly<{ kind: 'cancel-run'; session: string; run: string; controlId: string }>
@@ -276,14 +292,12 @@ function onOpenSession(state: State, session: string): Step {
   return { state: next.state, effects: [...leave(state), ...next.effects] }
 }
 
-// No model named: the session starts with the model of its definition.
 function onCreate(state: State, event: Extract<Event, { kind: 'create' }>): Step {
   if (state.kind === 'creating') return same(state)
-  const { createCallId, model } = event
-  const create = { kind: 'create-session', createCallId, ...(model === undefined ? {} : { model }) }
+  const create: Effect = { ...event, kind: 'create-session' }
   return {
-    state: { kind: 'creating', createCallId, confirm: 'no', notice: null },
-    effects: [...leave(state), create as Effect],
+    state: { kind: 'creating', createCallId: event.createCallId, confirm: 'no', notice: null },
+    effects: [...leave(state), create],
   }
 }
 
@@ -337,12 +351,15 @@ function onCreateConfirmed(
 }
 
 function onSend(state: State, event: Extract<Event, { kind: 'send' }>): Step {
-  if (state.kind !== 'open' || event.text.trim().length === 0) return same(state)
+  const attachments = event.attachments ?? []
+  const empty = event.text.trim().length === 0 && attachments.length === 0
+  if (state.kind !== 'open' || empty) return same(state)
   const input: PendingInput = {
     acceptId: event.acceptId,
     inputId: event.inputId,
     messageId: event.messageId,
     text: event.text,
+    attachments,
     status: 'sending',
     notice: null,
   }
@@ -355,6 +372,7 @@ function onSend(state: State, event: Extract<Event, { kind: 'send' }>): Step {
         acceptId: event.acceptId,
         inputId: event.inputId,
         text: event.text,
+        attachments,
       },
     ],
   }

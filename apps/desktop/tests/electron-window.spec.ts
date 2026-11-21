@@ -20,7 +20,7 @@ import { serveFakeHttp } from './support/http-fake.ts'
 
 const electron = createRequire(import.meta.url)('electron') as string
 const probeMain = fileURLToPath(new URL('./support/probe-main.mjs', import.meta.url))
-const builtMain = fileURLToPath(new URL('../dist/main/main.js', import.meta.url))
+const builtMain = fileURLToPath(new URL('../dist/release/main/main.js', import.meta.url))
 // Linux needs a virtual display; macOS and Windows start the window directly.
 const needsXvfb = process.platform === 'linux'
 const hasDisplay = !needsXvfb || spawnSync('xvfb-run', ['--help']).error === undefined
@@ -109,6 +109,9 @@ const PROBE = `(async () => {
   await new Promise(resolve => setTimeout(resolve, 500))
   const stayed = location.origin === origin
   const geolocation = (await navigator.permissions.query({ name: 'geolocation' })).state
+  const microphone = (await navigator.permissions.query({ name: 'microphone' })).state
+  const camera = (await navigator.permissions.query({ name: 'camera' })).state
+  const notifications = (await navigator.permissions.query({ name: 'notifications' })).state
   const mail = window.open('mailto:someone@example.invalid')
   const local = window.open('file:///etc/hosts')
   const foreign = await fetch('/bridge/logout', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: '{}' })
@@ -120,7 +123,7 @@ const PROBE = `(async () => {
   const observation = await ${openObservation}
   window.__abortObservation()
   const cookie = document.cookie
-  return { sawGate, environment, theme, searchWorks, opened, mail, local, notJson: foreign.status, stayed, geolocation, origin, login, cookie, observation, proofInPage: holds() }
+  return { sawGate, environment, theme, searchWorks, opened, mail, local, notJson: foreign.status, stayed, geolocation, microphone, camera, notifications, origin, login, cookie, observation, proofInPage: holds() }
 })()`
 
 it(
@@ -223,6 +226,9 @@ it(
           opened: null,
           stayed: true,
           geolocation: 'denied',
+          microphone: 'granted',
+          camera: 'denied',
+          notifications: 'denied',
           origin: 'omne-app://app',
           login: '{"result":"signed-in"}',
           cookie: '',

@@ -9,6 +9,7 @@
 - `ACTION_ADMISSION_DECLARATION` · `extensions.d.ts`
 - `ACTION_ADMISSION_IMPLEMENTATION` · `extensions.d.ts`
 - `AGENT_IDENTITY_MAX_LENGTH` · `identity.d.ts`
+- `AGENT_TYPES` · `definition.d.ts`
 - `ATTRIBUTE_ITEMS` · `definition.d.ts`
 - `AcceptedInput` · `execution.d.ts`
 - `Access` · 包 `@omne-harness/legal-identity`
@@ -38,6 +39,7 @@
 - `AgentClock` · `execution.d.ts`
 - `AgentConclusion` · `evaluation.d.ts`
 - `AgentDefinition` · `definition.d.ts`
+- `AgentDefinitionListing` · `definition.d.ts`
 - `AgentDirectory` · `execution.d.ts`
 - `AgentEvaluator` · `evaluation.d.ts`
 - `AgentEvent` · `execution.d.ts`
@@ -73,6 +75,7 @@
 - `AgentRuntimeControl` · `execution.d.ts`
 - `AgentState` · `execution.d.ts`
 - `AgentToolQualification` · `tool-qualification.d.ts`
+- `AgentType` · `definition.d.ts`
 - `AssetReference` · `definition.d.ts`
 - `AttributeDeclaration` · `definition.d.ts`
 - `AttributeItem` · `definition.d.ts`
@@ -279,6 +282,7 @@
 - `ResponsibilityCoverage` · `finishing.d.ts`
 - `ResultResponsibility` · `execution.d.ts`
 - `RuntimeConditions` · `evaluation.d.ts`
+- `SUMMARY_LIMITS` · `definition.d.ts`
 - `SavedPreparation` · `request.d.ts`
 - `SelectedModel` · `request.d.ts`
 - `SettlementRequest` · `finishing.d.ts`
@@ -336,6 +340,7 @@
 - `decodeReplyAdmissionPageCursor` · `identity.d.ts`
 - `decodeReplyAdmissionSequence` · `identity.d.ts`
 - `decodeStepId` · `identity.d.ts`
+- `definitionListing` · `definition.d.ts`
 - `encodeCompactionInput` · `compaction-codec.d.ts`
 - `encodeCompactionRequest` · `compaction-codec.d.ts`
 - `encodeCompactionTaskRef` · `compaction-codec.d.ts`
@@ -730,14 +735,30 @@ export declare const INSTRUCTION_LIMITS: Readonly<{
     maxSectionBytes: 10000;
     idPattern: RegExp;
 }>;
+export declare const AGENT_TYPES: readonly [
+    'master',
+    'non-master'
+];
+export type AgentType = (typeof AGENT_TYPES)[number];
+export declare const SUMMARY_LIMITS: Readonly<{
+    maxBytes: 1000;
+}>;
 export type AgentDefinition = {
     readonly category: 'AgentDefinition';
     readonly name: string;
+    readonly type: AgentType;
+    readonly summary: string;
     readonly references: readonly AssetReference[];
     readonly attributes: readonly AttributeDeclaration[];
     readonly instructions?: readonly InstructionSection[];
     readonly permissionBounds?: readonly PermissionUpperBound[];
 };
+export type AgentDefinitionListing = Readonly<{
+    name: string;
+    type: AgentType;
+    summary: string;
+}>;
+export declare function definitionListing(definition: AgentDefinition): AgentDefinitionListing;
 export declare function attributeItem(text: string | undefined): AttributeItem | undefined;
 ```
 
@@ -2559,14 +2580,14 @@ export declare function judgeAuthority(value: unknown): Outcome<Authority, Struc
 ```ts
 export { agentBodyContract, agentDefinitionCategoryDisplay } from './body-contract.ts';
 export { obligationCategoryOf } from './finishing.ts';
-export { ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS } from './definition.ts';
+export { AGENT_TYPES, ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS, SUMMARY_LIMITS, definitionListing, } from './definition.ts';
 export { ACTION_ADMISSION_DECLARATION, ACTION_ADMISSION_IMPLEMENTATION, POSITIONS, POWERS, } from './extensions.ts';
 export { judgeAgentDefinition } from './judge-definition.ts';
 export { judgeLoopExtensions } from './judge-extensions.ts';
 export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts';
 export { DECISION_CARD_DRAFT_SCHEMA, POSITION_OUTPUTS, cardDraftOf, cardRequestOf, judgeExtensionOutput, } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
-export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, InstructionSection, } from './definition.ts';
+export type { AgentDefinition, AgentDefinitionListing, AgentType, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, InstructionSection, } from './definition.ts';
 export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, admissionPassageOf, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeCompactionOperationId, decodeCompactionTaskId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
 export type * from './evaluation.ts';
 export type * from './compaction.ts';
@@ -2862,6 +2883,7 @@ export declare function instructionsProblem(sections: readonly Readonly<{
     id: string;
     text: string;
 }>[]): string | undefined;
+export declare function summaryProblem(summary: string): string | undefined;
 export declare function judgeAgentDefinition(value: unknown): Promise<Judgment<AgentDefinition>>;
 ```
 

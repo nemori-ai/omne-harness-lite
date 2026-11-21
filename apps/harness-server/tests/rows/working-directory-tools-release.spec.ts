@@ -153,7 +153,13 @@ describe('where the file and command tools of a session work', () => {
           shell('pwd', shop),
         ])
         const answers = await ran(tree, inBlog, 2, reaching)
-        expect(answers.match(/reason=notAuthorized/gu)).toHaveLength(3)
+        // The fence refuses the two writes and their answers name the path; the command does not start.
+        for (const path of [join(shop, 'from-blog.txt'), join(fallback, 'from-blog.txt')])
+          expect(answers).toContain(`reason=outsideScope path=${JSON.stringify(path)} effect=write`)
+        expect(answers).not.toContain('reason=notAuthorized')
+        expect(answers).toContain(
+          `rejected reason=outsideScope path=${JSON.stringify(shop)} effect=write`,
+        )
         expect(existsSync(join(shop, 'from-blog.txt'))).toBe(false)
         expect(existsSync(join(fallback, 'from-blog.txt'))).toBe(false)
       })
@@ -308,7 +314,7 @@ describe('the working directory of a call over a restart of the server', () => {
   )
 
   it(
-    'a call accepted after the restart and before the next step is answered unavailable and runs nothing; the next step runs it',
+    'a card open over a restart is answered and its call runs once, in the directory of the step that made it',
     { tags: ['slow'], timeout: 360_000 },
     async () => {
       const base = realpathSync(mkdtempSync(join(tmpdir(), 'directory-rebuilt-')))
@@ -318,23 +324,48 @@ describe('the working directory of a call over a restart of the server', () => {
       await onReleaseTreeRuns(asking, [
         async tree => {
           session = await sessionIn(tree, await registered(tree, blog))
-          const twice = [shell('echo ran >> twice.txt')]
-          await send(tree, session, plan(twice, twice))
+          const once = [shell('echo ran >> once.txt')]
+          await send(tree, session, plan(once))
           await pendingCard(tree, session, 'the command, before the restart')
         },
         async tree => {
-          // No step has begun in this process: the working directory has no value yet.
-          const first = await pendingCard(tree, session, 'the command, after the restart')
-          await answerCard(tree, first, ['--option', 'allow-once'], 'reply-rebuilt-1')
-          const retried = await pendingCard(tree, session, 'the command again, in the next step')
-          expect(retried.ref.request.requestId).not.toBe(first.ref.request.requestId)
-          expect(existsSync(join(blog, 'twice.txt'))).toBe(false)
-          await answerCard(tree, retried, ['--option', 'allow-once'], 'reply-rebuilt-2')
+          // The block is recovered from the session log: the step's directory is in force at once.
+          const card = await pendingCard(tree, session, 'the command, after the restart')
+          await answerCard(tree, card, ['--option', 'allow-once'], 'reply-rebuilt')
           const answers = toolResults(await runsEnded(tree, session, 1)).join('\n')
-          expect(
-            answers.match(/unavailable: this session has no working directory in force now/gu),
-          ).toHaveLength(1)
-          expect(read(join(blog, 'twice.txt'))).toBe('ran')
+          expect(answers).not.toMatch(/no working directory/u)
+          expect(read(join(blog, 'once.txt'))).toBe('ran')
+          expect(existsSync(join(defaultOf(tree), 'once.txt'))).toBe(false)
+        },
+      ])
+    },
+  )
+
+  it(
+    'a workspace selected after the restart and before the next step does not move the call the open card holds',
+    { tags: ['slow'], timeout: 360_000 },
+    async () => {
+      const base = realpathSync(mkdtempSync(join(tmpdir(), 'directory-recovered-')))
+      const [blog, shop] = [project(base, 'blog'), project(base, 'shop')]
+      const asking = { script: planned, permission: 'auto_permission' }
+      let session = ''
+      let inShop: readonly string[] = []
+      await onReleaseTreeRuns(asking, [
+        async tree => {
+          inShop = await registered(tree, shop)
+          session = await sessionIn(tree, await registered(tree, blog))
+          const where = [shell('pwd > where.txt')]
+          await send(tree, session, plan(where))
+          await pendingCard(tree, session, 'the command, before the restart')
+        },
+        async tree => {
+          // Recovery puts back the last step's value, not the newest selection.
+          await ok(tree, ['select-workspace', '--session', session, ...inShop])
+          const card = await pendingCard(tree, session, 'the command, after the selection')
+          await answerCard(tree, card, ['--option', 'allow-once'], 'reply-recovered')
+          await runsEnded(tree, session, 1)
+          expect(realpathSync(read(join(blog, 'where.txt')))).toBe(blog)
+          expect(existsSync(join(shop, 'where.txt'))).toBe(false)
         },
       ])
     },
@@ -459,6 +490,58 @@ describe('a tenant removed from a workspace', () => {
         expect(reminded(after)[0]).toMatch(/reason\\+":\\+"not-permitted/u)
         expect(existsSync(join(blog, 'same-step.txt'))).toBe(false)
         expect(existsSync(join(defaultOf(tree), 'same-step.txt'))).toBe(false)
+      })
+    },
+  )
+})
+
+describe('files outside the workspace of a session', () => {
+  it(
+    'a session with a workspace keeps to it by the setting, Shell is stopped before it starts and names the path; a session with none is as before',
+    { tags: ['slow'], timeout: 360_000 },
+    async () => {
+      const base = realpathSync(mkdtempSync(join(tmpdir(), 'outside-files-')))
+      const blog = project(base, 'blog')
+      const outside = join(base, 'outside')
+      mkdirSync(outside)
+      const secret = join(outside, 'secret.txt')
+      writeFileSync(secret, 'outside-bytes\n')
+      const readFile = (path: string): Call => ({
+        tool: 'Files',
+        command: 'read',
+        params: { path },
+      })
+      await onReleaseTree(bypass, async tree => {
+        const inBlog = await sessionIn(tree, await registered(tree, blog))
+        const none = await ran(tree, inBlog, 1, plan([shell(`cat ${secret}`), readFile(secret)]))
+        expect(none).toContain(
+          `rejected reason=outsideScope path=${JSON.stringify(secret)} effect=read`,
+        )
+        expect(none).not.toContain('outside-bytes')
+        await ok(tree, [
+          'setting',
+          'set',
+          '--independent',
+          'workspace/outside-files',
+          'access',
+          '--value',
+          '"read"',
+        ])
+        const written = join(outside, 'written.txt')
+        const reads = await ran(
+          tree,
+          inBlog,
+          2,
+          plan([shell(`cat ${secret}`), readFile(secret), shell(`echo x > ${written}`)]),
+        )
+        expect(reads.match(/outside-bytes/gu)?.length).toBe(2)
+        expect(reads).toContain(
+          `rejected reason=outsideScope path=${JSON.stringify(written)} effect=write`,
+        )
+        expect(existsSync(written)).toBe(false)
+        // A session with no workspace reads no setting and runs its scripts as before.
+        const plain = await sessionIn(tree, [])
+        expect(await ran(tree, plain, 1, plan([shell(`cat ${secret}`)]))).toContain('outside-bytes')
       })
     },
   )

@@ -17,7 +17,14 @@ import { tenantEquals } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { canonicalDigest, type ToolAccessGuard, type ToolLedgerStore } from '@omne-harness/tool'
-import type { Adoption, DurableEvidence, Reply, ToolFailure } from '@omne-harness/tool-contract'
+import {
+  pinnedFiles,
+  type Adoption,
+  type DurableEvidence,
+  type Reply,
+  type ToolCallDirectory,
+  type ToolFailure,
+} from '@omne-harness/tool-contract'
 import type {
   CallAccess,
   PreparationProgress,
@@ -25,6 +32,7 @@ import type {
   ToolEnvironment,
 } from '@omne-harness/tool-contract/provider'
 import {
+  type AuthorEnvironmentInput,
   createAuthorEnvironment,
   type EnvironmentFacts,
   type FileObjectNaming,
@@ -76,15 +84,33 @@ export type LocalEnvironmentPlanInput<P> = Readonly<{
   facts(placement: Placement): Reply<EnvironmentFacts>
 }>
 
-/** What is asked of the placement: its files root is the directory pinned in the request, if any. */
+/** What is asked of the placement: the files the pinned directory lets the call read and write, if any. */
 function wantedPlacement(
   scope: ScopeRef,
   requirement: EnvironmentRequirement,
-  pinned: Readonly<{ path: string }> | undefined,
+  pinned: ToolCallDirectory | undefined,
 ) {
   return pinned === undefined
     ? { scope, requirement }
-    : { scope, requirement, filesRoot: pinned.path }
+    : { scope, requirement, filesScope: pinnedFiles(pinned) }
+}
+
+/** The author of a prepared call: its lease, and the directory pinned in the request as its own. */
+function authorOf<P>(
+  request: EnvPreparationInput<P>,
+  plan: EnvironmentPlan<P>,
+  lease: EnvironmentLease,
+  ports: Pick<AuthorEnvironmentInput<P>, 'naming' | 'media'>,
+) {
+  const directory = request.request.directory
+  return createAuthorEnvironment({
+    access: request,
+    origin: plan.acquire.origin,
+    lease,
+    ...ports,
+    facts: plan.facts,
+    ...(directory === undefined ? {} : { directory }),
+  })
 }
 
 export function createLocalEnvironmentPlanResolver<P>(
@@ -148,9 +174,14 @@ export type LocalExecutionEnvironmentInput<P> = Readonly<{
   store: ToolLedgerStore
   plans: EnvironmentPlanResolver<P>
   naming: FileObjectNaming<P>
+  media?: AuthorEnvironmentInput<P>['media']
   cleanup: OriginalCleanup<P>
   storage?: Omit<EnvironmentStorageOptions, 'store'>
 }>
+const authorPorts = <P>(input: LocalExecutionEnvironmentInput<P>) => ({
+  naming: input.naming,
+  media: input.media ?? (() => undefined),
+})
 type Live<P> = {
   readonly plan: EnvironmentPlan<P>
   lease: EnvironmentLease | null
@@ -311,13 +342,7 @@ export function createLocalExecutionEnvironment<P>(
     )
       return environmentFailure('original live environment unavailable')
     if (!current.value || !Object.is(current.principal, request.principal)) {
-      current.value = createAuthorEnvironment({
-        access: request,
-        origin: current.plan.acquire.origin,
-        lease: current.lease,
-        naming: input.naming,
-        facts: current.plan.facts,
-      })
+      current.value = authorOf(request, current.plan, current.lease, authorPorts(input))
       current.principal = request.principal
     }
     return succeed({

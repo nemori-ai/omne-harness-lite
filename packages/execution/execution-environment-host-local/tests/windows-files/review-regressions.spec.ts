@@ -107,9 +107,14 @@ it('stops publication when the owner seals during the final target stat', async 
       files.move = move
       return files
     })
-    const engine = createHostFilesEngine({ root, stateDirectory: join(root, 'state') })
+    const engine = createHostFilesEngine({
+      scope: { read: root, write: root },
+      stateDirectory: join(root, 'state'),
+    })
     const files = engine.facilityFor('batch-owner')
-    const initial = await createHostFilesEngine({ root }).facilityFor('observer').stat(input)
+    const initial = await createHostFilesEngine({ scope: { read: root, write: root } })
+      .facilityFor('observer')
+      .stat(input)
     if (initial.kind !== 'done') throw new Error('initial stat')
     const pending = files.commitBatch({
       ...input,
@@ -139,7 +144,9 @@ it.each([true, false])(
   'rejects create with a missing parent (rooted=%s)',
   async rooted => {
     await withFiles(async ({ root, bytes }) => {
-      const files = createHostFilesEngine(rooted ? { root } : {}).facilityFor('creator')
+      const files = createHostFilesEngine(
+        rooted ? { scope: { read: root, write: root } } : {},
+      ).facilityFor('creator')
       const missing = request(join(root, 'missing-parent', 'new.txt'), await hostObjectToken(root))
       expect(await files.write({ ...missing, mode: 'create', bytes })).toMatchObject({
         kind: 'rejected',
@@ -177,7 +184,9 @@ it('rejects copy when its existing target disappears before replacement', async 
     const targetPath = join(root, 'copy.txt')
     await writeFile(targetPath, 'original target')
     const target = { path: targetPath, named: await hostObjectToken(targetPath) }
-    const files = createHostFilesEngine({ root }).facilityFor('copier')
+    const files = createHostFilesEngine({ scope: { read: root, write: root } }).facilityFor(
+      'copier',
+    )
     const entered = Promise.withResolvers<void>()
     const released = Promise.withResolvers<void>()
     Object.assign(hold, {
@@ -203,7 +212,7 @@ it.each(['replace', 'create'] as const)(
   async mode => {
     await withFiles(async ({ root, input, path, bytes }) => {
       const files = createHostFilesEngine({
-        root,
+        scope: { read: root, write: root },
         stateDirectory: join(root, 'state'),
       }).facilityFor('batch')
       const absent = join(

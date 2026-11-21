@@ -2,7 +2,7 @@ import type { MessageId } from '@omne-harness/message'
 import type { Access, ModelCallId } from './root.ts'
 import type { DurableEvidence, ModelFailure, Reply } from './result.ts'
 import type { Supplier } from './root.ts'
-import type { ConversionReply, ModelMessageConversion } from './conversion.ts'
+import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   AssembledModelInput,
   MeterRepresentation,
@@ -63,9 +63,18 @@ export interface ModelPreparationResources<P> {
   ): Reply<ModelPreparationLease>
 }
 export interface ModelContentAuthority<P> {
-  check(input: Parameters<ModelMessageConversion<P>['prepare']>[0]): ConversionReply<
-    Readonly<{
-      treatment: 'human-only' | 'text' | 'tool-ref' | 'convertible'
-    }>
+  check(
+    input: Access<P> &
+      Readonly<{
+        original: ContentBlock
+        source: DurableEvidence
+        origin: 'inbound' | 'model-output' | 'tool-output'
+        signal: AbortSignal
+      }>,
+  ): Promise<
+    Outcome<
+      Readonly<{ treatment: 'human-only' | 'text' | 'tool-ref' | 'convertible' }>,
+      ModelFailure | Readonly<{ kind: 'cancelled' }>
+    >
   >
 }

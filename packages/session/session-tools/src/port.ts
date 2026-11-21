@@ -9,6 +9,8 @@ export type SessionsFailure =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 export type SessionsReply<T> = Promise<Readonly<{ ok: T }> | Readonly<{ failure: SessionsFailure }>>
 
+export type SessionRelation = 'main' | 'child' | 'handoff'
+export type SessionAttendance = 'attended' | 'unattended'
 export type SessionSummary = Readonly<{
   session: string
   title: string | null
@@ -17,6 +19,13 @@ export type SessionSummary = Readonly<{
   lastActivityAt: string | null
   archivedAt: string | null
   archivedBy: string | null
+  relation: SessionRelation
+  /** The parent of a child session, and the session a handed-over one came from. */
+  parent: string | null
+  origin: string | null
+  depth: number
+  attendance: SessionAttendance
+  definition: string
 }>
 export type SessionsListPage = Readonly<{
   items: readonly SessionSummary[]
@@ -28,6 +37,8 @@ export type SessionsHistoryPage = Readonly<{
   entries: readonly SessionsEntry[]
   next: string | null
   exhausted: boolean
+  /** On a page of the conversation a forked session started from: the session those entries are of. */
+  from?: string
 }>
 export type SessionsHit = Readonly<{
   session: string
@@ -46,6 +57,10 @@ export type SessionsSearchPage = Readonly<{
 export type SessionsListInput = Readonly<{
   archived: boolean
   title: string | null
+  relation: SessionRelation | null
+  parent: string | null
+  attendance: SessionAttendance | null
+  definition: string | null
   cursor: string | null
   limit: number
 }>
@@ -54,6 +69,8 @@ export type SessionsReadInput = Readonly<{
   cursor: string | null
   direction: 'forward' | 'backward'
   pageBytes: number
+  /** First the conversation a forked session started from. */
+  inherited?: true
 }>
 export type SessionsSearchInput = Readonly<{
   content:

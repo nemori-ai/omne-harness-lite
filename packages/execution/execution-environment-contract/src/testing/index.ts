@@ -59,6 +59,17 @@ export {
   type TerminalConformanceOptions,
 } from './terminal-conformance.ts'
 export {
+  createScriptedScreenFacility,
+  scriptedScreenPng,
+  type ScreenScript,
+  type ScriptedScreenFacility,
+} from './scripted-screen.ts'
+export {
+  screenFacilityConformance,
+  type ScreenConformanceSubject,
+  type ScreenConformanceOptions,
+} from './screen-conformance.ts'
+export {
   commandRetentionConformance,
   type CommandRetentionAcquisition,
   type CommandRetentionBody,

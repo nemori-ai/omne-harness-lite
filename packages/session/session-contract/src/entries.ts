@@ -29,7 +29,7 @@ import type {
   ResidentAdoption,
   ResidentTool,
   DeclarationChange,
-  Relation,
+  SessionTree,
   AutoArchivePolicy,
   IdleObservation,
   ControlProgress,
@@ -94,6 +94,8 @@ export type SessionEntry =
       session: SessionId
       operation: SessionOperationId
       creation: SessionCreation
+      /** Present on a child only: what the parent stood at when the child was created. */
+      tree?: SessionTree
       items: readonly InitializationItem[]
       initializationProtocol: 1
       initialAdoption: InitialAdoption
@@ -210,7 +212,8 @@ export type SessionEntry =
       basis: DurableEvidence
     }>
   | Readonly<{ kind: 'session.declaration-adopted'; policy: AutoArchivePolicy }>
-  | Readonly<{ kind: 'session.relation' | 'session.resident'; relation: Relation }>
+  | Readonly<{ kind: 'session.resident'; resident: boolean }>
+  | Readonly<{ kind: 'session.child-recorded'; child: SessionId; basis: DurableEvidence }>
   | Readonly<{ kind: 'session.idle-evidence'; observation: IdleObservation | null }>
   | Readonly<{ kind: 'session.frozen'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'intake.released'; inputs: readonly InputId[] }>
@@ -544,8 +547,8 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'session.context-registration-changed',
   'session.recovery-input-adopted',
   'session.workspace-changed',
-  'session.relation',
   'session.resident',
+  'session.child-recorded',
   'session.idle-evidence',
   'session.frozen',
   'intake.released',

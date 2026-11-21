@@ -18,7 +18,6 @@ import {
   type AssemblyCall,
   type AssemblyPolicies,
   type ContextReadEligibility,
-  type ConversionResultSource,
   type HistoryRow,
   type HistorySequence,
   type HistorySource,
@@ -104,7 +103,6 @@ export type Snapshot = Readonly<{
 }>
 export type Ports = {
   history: HistorySource<string>
-  conversions: ConversionResultSource<string>
   meter: M.ModelInputMeter
   plan?: PreparationScript['plan']
   release?: PreparationScript['release']
@@ -208,11 +206,6 @@ export function fixture() {
         }
       },
     },
-    conversions: {
-      async read() {
-        return { kind: 'index', entries: new Map() }
-      },
-    },
     meter: {
       basis,
       async measure() {
@@ -259,7 +252,6 @@ export function sourcesFor(input: Snapshot, ports: Ports): MemoryContextSources<
       },
       values: groups,
       history: ports.history,
-      conversions: ports.conversions,
       preparation: createScriptedPreparationResources<string>({
         meter: ports.meter,
         ...(ports.plan === undefined ? {} : { plan: ports.plan }),

@@ -6,6 +6,7 @@ import type {
   SessionFailure,
   SessionHistory,
   SessionId,
+  SessionListFilter,
   SessionListItem,
   SessionListPage,
 } from '@omne-harness/session-contract'
@@ -15,6 +16,7 @@ import {
   attachSessions,
   type BoundSessions,
   type SessionsFailure,
+  type SessionsListInput,
   type SessionSummary,
 } from '@omne-harness/session-tools'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
@@ -63,7 +65,23 @@ const summaryOf = (item: SessionListItem): SessionSummary => ({
   lastActivityAt: item.lastActivityAt,
   archivedAt: item.archivedAt,
   archivedBy: item.archivedBy,
+  relation: item.relation.kind,
+  parent: item.relation.kind === 'child' ? item.relation.parent : null,
+  origin: item.relation.kind === 'handoff' ? item.relation.origin : null,
+  depth: item.depth,
+  attendance: item.attendance,
+  definition: item.definition,
 })
+/** What the list narrows by, as the directory reads it: what was not given narrows nothing. */
+function filterOf(input: SessionsListInput): SessionListFilter {
+  const { relation, parent, attendance, definition } = input
+  return {
+    ...(relation === null ? {} : { kind: relation }),
+    ...(parent === null ? {} : { parent: parent as SessionId }),
+    ...(attendance === null ? {} : { attendance }),
+    ...(definition === null ? {} : { definition }),
+  }
+}
 const pageOf = (page: SessionListPage) => ({
   items: page.items.map(summaryOf),
   next: page.next,
@@ -104,11 +122,12 @@ export function createBoundSessions(parent: Parent, ports: SessionsBindingPorts)
     (await domainCallerOf(ports.verifier(), principal, tenant)) !== undefined
   const access = { principal, tenant }
   return {
-    async list({ archived, title, cursor, limit }) {
+    async list(input) {
+      const { archived, title, cursor, limit } = input
       const directory = ports.directory()
       if (directory === undefined) return absent('the session directory')
       if (!(await admitted())) return { failure: { kind: 'denied' } }
-      const asked = { ...access, after: cursor, limit }
+      const asked = { ...access, after: cursor, limit, filter: filterOf(input) }
       const page = archived
         ? await directory.listArchived({
             ...asked,
@@ -144,7 +163,7 @@ export function createBoundSessions(parent: Parent, ports: SessionsBindingPorts)
       }
       return { failure: { kind: 'not-found' } }
     },
-    async read({ session, cursor, direction, pageBytes }) {
+    async read({ session, cursor, direction, pageBytes, inherited }) {
       const history = ports.history()
       if (history === undefined) return absent('the session history')
       if (!(await admitted())) return { failure: { kind: 'denied' } }
@@ -157,6 +176,7 @@ export function createBoundSessions(parent: Parent, ports: SessionsBindingPorts)
               from: null,
               direction,
               pageBytes,
+              ...(inherited === true ? { inherited: true as const } : {}),
             })
           : await history.next({ ...target, cursor })
       if ('failure' in page) return { failure: failureOf(page.failure) }
@@ -165,7 +185,8 @@ export function createBoundSessions(parent: Parent, ports: SessionsBindingPorts)
         kind: entry.kind,
         payload: JSON.parse(writeJsonText(entry.payload)) as unknown,
       }))
-      return { ok: { entries, next: page.ok.next, exhausted: page.ok.exhausted } }
+      const { next, exhausted, from } = page.ok
+      return { ok: { entries, next, exhausted, ...(from === undefined ? {} : { from }) } }
     },
     async search(input) {
       const search = ports.search()

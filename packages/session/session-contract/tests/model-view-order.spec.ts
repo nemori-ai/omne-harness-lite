@@ -53,7 +53,7 @@ it('retains legal log order when the prior summary precedes an older tail in mod
     }),
   )
   const history = [original, tail, first]
-  const view = materializeModelView({ epoch: 'initial', rows: [] }, history, history)
+  const view = materializeModelView({ epoch: 'initial', rows: [] }, history)
   expect(view.rows.map(row => row.entry)).toEqual(['3', '2'])
   const second = entry(
     '4',
@@ -66,7 +66,5 @@ it('retains legal log order when the prior summary precedes an older tail in mod
       derivation: evidence('second'),
     }),
   )
-  expect(
-    materializeModelView(view, [second], [...history, second]).rows.map(row => row.entry),
-  ).toEqual(['2', '3', '4'])
+  expect(materializeModelView(view, [second]).rows.map(row => row.entry)).toEqual(['2', '3', '4'])
 })

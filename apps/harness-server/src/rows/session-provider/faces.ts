@@ -62,6 +62,7 @@ const unimplemented = (): Promise<Result<never>> => Promise.resolve(fail(UNAVAIL
 const UNIMPLEMENTED_HISTORY = {
   since: unimplemented,
   readModelView: unimplemented,
+  readForkPoint: unimplemented,
   readCompactionContext: unimplemented,
 } as const
 
@@ -433,7 +434,7 @@ export function createSessionProviderFaces(
     recordIdle: unimplemented,
     completeInitialization: unimplemented,
     change: unimplemented,
-    setRelation: unimplemented,
+    setResident: unimplemented,
     configureAutoArchive: unimplemented,
     considerAutoArchive: unimplemented,
     interrupt: unimplemented,

@@ -2,8 +2,10 @@ import { PermissionUpperBoundsSchema, definePermissionUpperBounds } from '@omne-
 import { z } from 'zod'
 import { checkJson, copyPlain } from './check.ts'
 import {
+  AGENT_TYPES,
   ATTRIBUTE_ITEMS,
   INSTRUCTION_LIMITS,
+  SUMMARY_LIMITS,
   attributeItem,
   type AgentDefinition,
   type AssetReference,
@@ -32,6 +34,8 @@ const instruction = z.strictObject({
 const definition = z.strictObject({
   category: z.literal('AgentDefinition'),
   name: z.string().min(1),
+  type: z.enum(AGENT_TYPES),
+  summary: z.string().min(1),
   references: z.array(reference),
   attributes: z.array(attribute),
   instructions: z.array(instruction).min(1).max(INSTRUCTION_LIMITS.maxSections).optional(),
@@ -101,6 +105,14 @@ export function instructionsProblem(
   return undefined
 }
 
+export function summaryProblem(summary: string): string | undefined {
+  if (summary.trim() === '') return 'summary: says nothing'
+  const bytes = utf8Length(summary)
+  return bytes > SUMMARY_LIMITS.maxBytes
+    ? `summary: ${bytes} UTF-8 bytes exceed ${SUMMARY_LIMITS.maxBytes}`
+    : undefined
+}
+
 function copyInstructions(
   sections: Parsed['instructions'],
 ): Readonly<{ instructions?: readonly InstructionSection[] }> {
@@ -124,10 +136,10 @@ function acceptDefinition(parsed: Parsed): Judgment<AgentDefinition> {
     if (items.has(declaration.item)) return refused('malformed')
     items.add(declaration.item)
   }
-  if (parsed.instructions !== undefined) {
-    const problem = instructionsProblem(parsed.instructions)
-    if (problem !== undefined) return refused('malformed', problem)
-  }
+  const problem =
+    summaryProblem(parsed.summary) ??
+    (parsed.instructions === undefined ? undefined : instructionsProblem(parsed.instructions))
+  if (problem !== undefined) return refused('malformed', problem)
   const bounds =
     parsed.permissionBounds === undefined
       ? undefined
@@ -139,6 +151,8 @@ function acceptDefinition(parsed: Parsed): Judgment<AgentDefinition> {
     value: Object.freeze({
       category: 'AgentDefinition',
       name: parsed.name,
+      type: parsed.type,
+      summary: parsed.summary,
       references: Object.freeze(parsed.references.map(copyReference)),
       attributes: Object.freeze(
         parsed.attributes.map(declaration => Object.freeze({ item: declaration.item })),

@@ -1,0 +1,155 @@
+{
+  "scope": "finite safety and liveness models of the dynamis laws: registration as a set (Points), withdrawal of an effectful contribution (Withdraw), the boot floor (SelfHost), references resolved at adoption (Adopt); each is a small world with the bounds written in its MC module; no proof of the implementation",
+  "cases": [
+    {
+      "name": "adopt-bad-any-fallback",
+      "model": "models/MCAdopt.tla",
+      "config": "models/adopt-bad-any-fallback.cfg",
+      "expected": "OnlyNamed"
+    },
+    {
+      "name": "adopt-bad-bind-at-call",
+      "model": "models/MCAdopt.tla",
+      "config": "models/adopt-bad-bind-at-call.cfg",
+      "expected": "Pinned"
+    },
+    {
+      "name": "adopt-bad-single-slot",
+      "model": "models/MCAdopt.tla",
+      "config": "models/adopt-bad-single-slot.cfg",
+      "expected": "OnlyNamed"
+    },
+    {
+      "name": "adopt-pin",
+      "model": "models/MCAdopt.tla",
+      "config": "models/adopt-pin.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "adopt-single-slot-never-coexist",
+      "model": "models/MCAdopt.tla",
+      "config": "models/adopt-single-slot-never-coexist.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "adopt-witness-coexist",
+      "model": "models/MCAdopt.tla",
+      "config": "models/adopt-witness-coexist.cfg",
+      "expected": "NeverCoexist"
+    },
+    {
+      "name": "points-bad-arrival",
+      "model": "models/MCPoints.tla",
+      "config": "models/points-bad-arrival.cfg",
+      "expected": "Functional"
+    },
+    {
+      "name": "points-bad-first-wins-granted",
+      "model": "models/MCPoints.tla",
+      "config": "models/points-bad-first-wins-granted.cfg",
+      "expected": "Granted"
+    },
+    {
+      "name": "points-bad-first-wins",
+      "model": "models/MCPoints.tla",
+      "config": "models/points-bad-first-wins.cfg",
+      "expected": "Functional"
+    },
+    {
+      "name": "points-bad-release-by-key",
+      "model": "models/MCPoints.tla",
+      "config": "models/points-bad-release-by-key.cfg",
+      "expected": "Exact"
+    },
+    {
+      "name": "points-cyclic-never",
+      "model": "models/MCPoints.tla",
+      "config": "models/points-cyclic-never.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "points-set-conflict",
+      "model": "models/MCPoints.tla",
+      "config": "models/points-set-conflict.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "points-set-rank",
+      "model": "models/MCPoints.tla",
+      "config": "models/points-set-rank.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "points-witness-all-live",
+      "model": "models/MCPoints.tla",
+      "config": "models/points-witness-all-live.cfg",
+      "expected": "NotAllLive"
+    },
+    {
+      "name": "selfhost-bad-all-at-once",
+      "model": "models/MCSelfHost.tla",
+      "config": "models/selfhost-bad-all-at-once.cfg",
+      "expected": "temporal:FloorHolds"
+    },
+    {
+      "name": "selfhost-bad-manager-in-assets-stuck",
+      "model": "models/MCSelfHost.tla",
+      "config": "models/selfhost-bad-manager-in-assets-stuck.cfg",
+      "expected": "NotStuck"
+    },
+    {
+      "name": "selfhost-bad-manager-in-assets",
+      "model": "models/MCSelfHost.tla",
+      "config": "models/selfhost-bad-manager-in-assets.cfg",
+      "expected": "temporal:FloorHolds"
+    },
+    {
+      "name": "selfhost-floor-kernel",
+      "model": "models/MCSelfHost.tla",
+      "config": "models/selfhost-floor-kernel.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "withdraw-bad-admit-draining",
+      "model": "models/MCWithdraw.tla",
+      "config": "models/withdraw-bad-admit-draining.cfg",
+      "expected": "NoLateAdmit"
+    },
+    {
+      "name": "withdraw-bad-drop",
+      "model": "models/MCWithdraw.tla",
+      "config": "models/withdraw-bad-drop.cfg",
+      "expected": "NoOrphan"
+    },
+    {
+      "name": "withdraw-bad-redo",
+      "model": "models/MCWithdraw.tla",
+      "config": "models/withdraw-bad-redo.cfg",
+      "expected": "Pinned"
+    },
+    {
+      "name": "withdraw-bad-reroute",
+      "model": "models/MCWithdraw.tla",
+      "config": "models/withdraw-bad-reroute.cfg",
+      "expected": "Pinned"
+    },
+    {
+      "name": "withdraw-live",
+      "model": "models/MCWithdraw.tla",
+      "config": "models/withdraw-live.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "withdraw-ok",
+      "model": "models/MCWithdraw.tla",
+      "config": "models/withdraw-ok.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "withdraw-witness-overlap",
+      "model": "models/MCWithdraw.tla",
+      "config": "models/withdraw-witness-overlap.cfg",
+      "expected": "NoOverlap"
+    }
+  ]
+}

@@ -6,11 +6,13 @@ import type {
   WorkspaceCatalog,
   WorkspaceGovernance,
   WorkspaceInstances,
+  WorkspaceSources,
 } from '@omne-harness/workspace-contract'
 import {
   WorkspaceCatalogService,
   WorkspaceGovernanceService,
   WorkspaceInstancesService,
+  WorkspaceSourcesService,
   WorkspaceTypesService,
 } from '@omne-harness/workspace-cordis-contract/cordis'
 import { createWorkspaceLocalApplication, type WorkspaceLocalOptions } from './application.ts'
@@ -65,6 +67,18 @@ class LocalCatalog extends WorkspaceCatalogService {
   }
 }
 
+class LocalSources extends WorkspaceSourcesService {
+  readonly adopt: WorkspaceSources<unknown>['adopt']
+  readonly adopted: WorkspaceSources<unknown>['adopted']
+  readonly open: WorkspaceSources<unknown>['open']
+  constructor(ctx: Context, face: WorkspaceSources<unknown>) {
+    super(ctx)
+    this.adopt = face.adopt
+    this.adopted = face.adopted
+    this.open = face.open
+  }
+}
+
 class LocalTypes extends WorkspaceTypesService {
   private readonly registry: ManagementTypes
   constructor(ctx: Context, registry: ManagementTypes) {
@@ -90,6 +104,7 @@ export function createWorkspaceLocalPlugin() {
         ctx.plugin(LocalGovernance, application.governance),
         ctx.plugin(LocalInstances, application.instances),
         ctx.plugin(LocalCatalog, application.catalog),
+        ctx.plugin(LocalSources, application.sources),
         ctx.plugin(LocalTypes, application.types),
       ]
       await Promise.all(bound.map(fiber => fiber.await()))

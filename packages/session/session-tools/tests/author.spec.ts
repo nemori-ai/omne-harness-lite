@@ -93,6 +93,12 @@ const summary = {
   lastActivityAt: '2026-11-18T10:00:00.000Z',
   archivedAt: null,
   archivedBy: null,
+  relation: 'child',
+  parent: 'ses_a',
+  origin: null,
+  depth: 1,
+  attendance: 'unattended',
+  definition: 'coding',
 }
 const failing = (failure: SessionsFailure) => async () => ({ failure })
 function reads(overrides: Partial<Record<keyof BoundSessions, unknown>> = {}) {
@@ -156,6 +162,8 @@ describe('the Sessions declaration', () => {
   it.each([
     ['list', { tenant: 'other' }],
     ['list', { limit: 51 }],
+    ['list', { relation: 'sibling' }],
+    ['list', { attendance: 'nobody' }],
     ['show', {}],
     ['read', { session: '' }],
     ['search', {}],
@@ -183,6 +191,10 @@ describe('the Sessions reads', () => {
     expect(calls.list).toHaveBeenCalledWith({
       archived: false,
       title: null,
+      relation: null,
+      parent: null,
+      attendance: null,
+      definition: null,
       cursor: null,
       limit: 20,
     })
@@ -196,16 +208,29 @@ describe('the Sessions reads', () => {
         last_activity_at: '2026-11-18T10:00:00.000Z',
         archived_at: null,
         archived_by: null,
+        relation: 'child',
+        parent: 'ses_a',
+        handed_from: null,
+        depth: 1,
+        attendance: 'unattended',
+        definition: 'coding',
       },
     ])
+    const narrowed = {
+      relation: 'child',
+      parent: 'ses_a',
+      attendance: 'unattended',
+      definition: 'coding',
+    }
     await fixture().run(
       'list',
-      { archived: true, title: 'Trip', cursor: 'c-2', limit: 5 },
+      { archived: true, title: 'Trip', cursor: 'c-2', limit: 5, ...narrowed },
       sessions,
     )
     expect(calls.list).toHaveBeenLastCalledWith({
       archived: true,
       title: 'Trip',
+      ...narrowed,
       cursor: 'c-2',
       limit: 5,
     })
@@ -259,6 +284,37 @@ describe('the Sessions reads', () => {
     expect(await fixture().run('search', { text: ['x'] }, sessions)).toMatch(
       /^done Sessions search hits=0 complete=false incomplete=budget next=n-1\n\[\]$/,
     )
+  })
+
+  it('reads the conversation a forked session started from under the session each item is of', async () => {
+    const page = {
+      entries: [
+        { position: '22', kind: 'message.user', payload: { text: 'said before the fork' } },
+      ],
+      next: 'c-2',
+      exhausted: false,
+      from: 'ses_parent',
+    }
+    const read = vi.fn(async () => ({ ok: page }))
+    const { sessions } = reads({ read })
+    const text = await fixture(8192).run('read', { session: 'ses_b', inherited: true }, sessions)
+    expect(read).toHaveBeenCalledWith({
+      session: 'ses_b',
+      cursor: null,
+      direction: 'forward',
+      pageBytes: 2048,
+      inherited: true,
+    })
+    const [head, body] = text.split('\n')
+    expect(head).toBe('done Sessions read session=ses_b entries=1 exhausted=false next=c-2')
+    expect(JSON.parse(body!)).toEqual([
+      {
+        session: 'ses_parent',
+        position: '22',
+        kind: 'message.user',
+        material: { text: 'said before the fork' },
+      },
+    ])
   })
 
   it('reads a page and puts what the other session recorded under material, never as its own lines', async () => {

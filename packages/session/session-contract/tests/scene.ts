@@ -4,6 +4,7 @@ import type {
   SessionCommand,
   MutationName,
   Participation,
+  SessionAccess,
   SessionLogObservation,
   SessionOperationId,
 } from '@omne-harness/session-contract'
@@ -23,20 +24,33 @@ import {
 } from '@omne-harness/session-contract/testing'
 import { initializationGuards } from './initialization-fixture.ts'
 
-export function scene(extra: Partial<MemorySessionTransactionOptions<string>> = {}) {
-  const access = memoryAccess('tester')
-  const initialization = createMemoryInitializationSource()
-  const history = createMemorySessionHistorySource()
+type Shared = Readonly<{
+  access: SessionAccess<string>
+  initialization: ReturnType<typeof createMemoryInitializationSource>
+  history: ReturnType<typeof createMemorySessionHistorySource>
+  port: ReturnType<typeof createMemorySessionTransactions<string>>
+}>
+
+/** One session of a provider; `shared` puts a second session on the provider of another scene. */
+export function scene(
+  extra: Partial<MemorySessionTransactionOptions<string>> = {},
+  shared?: Shared,
+) {
+  const access = shared?.access ?? memoryAccess('tester')
+  const initialization = shared?.initialization ?? createMemoryInitializationSource()
+  const history = shared?.history ?? createMemorySessionHistorySource()
   const accessCheck = createPolicySessionAccessCheck<string>(() => ({
     kind: 'allowed',
     evidence: evidence('access'),
   }))
-  const port = createMemorySessionTransactions<string>({
-    initialization,
-    history,
-    accessCheck,
-    ...extra,
-  })
+  const port =
+    shared?.port ??
+    createMemorySessionTransactions<string>({
+      initialization,
+      history,
+      accessCheck,
+      ...extra,
+    })
   const base = { tenant: access.tenant, session: access.session }
   const commit = async <K extends MutationName>(
     command: Extract<SessionCommand, { kind: K }> & { kind: K },
@@ -165,6 +179,9 @@ export function scene(extra: Partial<MemorySessionTransactionOptions<string>> = 
       kind,
     )
   return {
+    /** Another session on the same provider, in the same tenant unless an access is given. */
+    peer: (session: string, other: SessionAccess<string> = memoryAccess('tester', session)) =>
+      scene({}, { access: other, initialization, history, port }),
     access,
     base,
     port,

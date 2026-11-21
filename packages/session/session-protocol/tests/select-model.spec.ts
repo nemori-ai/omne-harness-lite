@@ -45,6 +45,23 @@ describe('select-model', () => {
       expectRoundTrip(select.outcomes.invalid, { reason })
     expect(readSample(select.outcomes.invalid, { reason: 'other' })).toEqual({ ok: false })
   })
+
+  it('may name the blocks of the history the target cannot read', () => {
+    const blocks = [
+      { message: 'msg_one', block: 'blk_picture' },
+      { message: 'msg_two', block: 'blk_scan' },
+    ]
+    expectRoundTrip(select.outcomes.invalid, { reason: 'modality', blocks })
+    expectRoundTrip(select.outcomes.invalid, { reason: 'modality', blocks: [] })
+    for (const bad of [
+      { reason: 'modality', blocks: [{ message: 'msg_one' }] },
+      { reason: 'modality', blocks: [{ message: 'msg_one', block: '' }] },
+      { reason: 'modality', blocks: [{ message: 'msg_one', block: 'b', more: 1 }] },
+      { reason: 'modality', blocks: 'blk_picture' },
+      { reason: 'modality', blocks: Array.from({ length: 17 }, () => blocks[0]) },
+    ])
+      expect(readSample(select.outcomes.invalid, bad)).toEqual({ ok: false })
+  })
 })
 
 describe('read-model-selection', () => {

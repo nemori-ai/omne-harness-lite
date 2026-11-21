@@ -12,7 +12,12 @@ import { writesCall } from './run-closure.ts'
 import { digestOf } from './operations.ts'
 import type { WorkSnapshot } from './values.ts'
 
-export type MaterializedModelView = Readonly<{ epoch: string; rows: readonly ModelViewRow[] }>
+export type MaterializedModelView = Readonly<{
+  epoch: string
+  rows: readonly ModelViewRow[]
+  /** The rows of the epochs the view left: a compaction writes a new epoch, the old rows stay. */
+  past?: ReadonlyMap<string, readonly ModelViewRow[]>
+}>
 function messageOf(row: HistoryEntry): Message | null {
   const decoded = decodeEntry(row)
   return 'ok' in decoded && 'message' in decoded.ok ? decoded.ok.message : null
@@ -32,13 +37,27 @@ export function viewMessageOf(entries: readonly HistoryEntry[], index: number): 
   if (entry === undefined || isAcceptedInputRecord(entries, index)) return null
   return messageOf(entry)
 }
+
+function numbered(rows: readonly ModelViewRow[]): ModelViewRow[] {
+  let prefix = ''
+  return rows.map((row, index) => {
+    prefix = digestOf({ prefix, entry: row.entry, message: row.message })
+    return {
+      ...row,
+      seq: String(index + 1),
+      bytes: Buffer.byteLength(JSON.stringify(row.message)),
+      prefixDigest: prefix,
+    }
+  })
+}
+
 export function materializeModelView(
   previous: MaterializedModelView,
   committed: readonly HistoryEntry[],
-  history: readonly HistoryEntry[],
 ): MaterializedModelView {
   let epoch = previous.epoch
   let rows = [...previous.rows]
+  let past = previous.past
   for (const [index, entry] of committed.entries()) {
     const message = viewMessageOf(committed, index)
     if (
@@ -48,15 +67,14 @@ export function materializeModelView(
     )
       continue
     if (message.role === 'compaction') {
-      const boundary = history.findIndex(row => row.id === String(message.covers.to))
+      const covers = BigInt(String(message.covers.to))
       const byEntry = new Map(rows.map(row => [row.entry, row]))
       const retained = message.retained.flatMap(ref => {
         const row = byEntry.get(String(ref) as HistoryEntry['id'])
         return row === undefined ? [] : [row]
       })
-      const after = rows.filter(
-        row => history.findIndex(entry => entry.id === row.entry) > boundary,
-      )
+      const after = rows.filter(row => BigInt(row.entry) > covers)
+      past = new Map(past).set(epoch, numbered(rows))
       rows = [
         ...retained,
         { seq: '', entry: entry.id, bytes: 0, prefixDigest: '', message },
@@ -65,23 +83,15 @@ export function materializeModelView(
       epoch = `epoch:${entry.id}`
     } else rows.push({ seq: '', entry: entry.id, bytes: 0, prefixDigest: '', message })
   }
-  let prefix = ''
-  rows = rows.map((row, index) => {
-    prefix = digestOf({ prefix, entry: row.entry, message: row.message })
-    return {
-      ...row,
-      seq: String(index + 1),
-      bytes: Buffer.byteLength(JSON.stringify(row.message)),
-      prefixDigest: prefix,
-    }
-  })
-  return { epoch, rows }
+  return { epoch, rows: numbered(rows), ...(past === undefined ? {} : { past }) }
 }
 
+/** `inherited` leading entries stand behind a forked prefix: they are referred to, never reduced. */
 export function compactionReads(
   entries: readonly HistoryEntry[],
   snapshot: WorkSnapshot,
   through: string,
+  inherited = 0,
 ): CompactionContext | null {
   const end = entries.findIndex(entry => entry.id === through)
   const first = entries[0]
@@ -129,7 +139,7 @@ export function compactionReads(
     throw error
   }
   if (required.some(ref => !entries.some(entry => entry.id === ref))) return null
-  const open = entries.flatMap(entry => {
+  const open = entries.slice(inherited).flatMap(entry => {
     const decoded = decodeEntry(entry)
     if (!('ok' in decoded)) return []
     const value = decoded.ok
@@ -165,11 +175,12 @@ export function compactionContextForView(
   rows: readonly ModelViewRow[],
   upper: number,
   through: string | null,
+  inherited = 0,
 ): CompactionContext | null {
   const selected = new Set(rows.slice(0, upper).map(row => String(row.entry)))
   through ??= entries.findLast(row => selected.has(row.id))?.id ?? null
   if (through === null) return null
-  const value = compactionReads(entries, snapshot, through)
+  const value = compactionReads(entries, snapshot, through, inherited)
   if (value === null) return null
   const keep = (row: CoveredEntry) =>
     selected.has(row.ref) ||

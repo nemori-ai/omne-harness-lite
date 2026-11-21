@@ -122,7 +122,14 @@ describe('localServeInputs', () => {
     const construction = (config('tool-host') as { construction: Record<string, object> })
       .construction
     expect(Object.keys(construction['Shell']!)).not.toContain('cwd')
-    expect(Object.keys(construction['Files']!)).toEqual(['resultMaxBytes'])
+    expect(Object.keys(construction['Files']!)).toEqual([
+      'resultMaxBytes',
+      'openMaxBytes',
+      'imageMaxWidth',
+      'imageMaxHeight',
+      'imageMaxDecodedBytes',
+      'imageConcurrency',
+    ])
     expect(result.settings?.workspace).toBe(link)
     const written = JSON.parse(readFileSync(join(h.home, 'config', 'server.json'), 'utf8')) as {
       workspace: string

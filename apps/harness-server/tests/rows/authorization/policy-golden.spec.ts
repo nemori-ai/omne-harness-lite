@@ -22,7 +22,11 @@ const BOTH: Golden = [M, M, D]
 const TENANT_READ: Golden = [M, 'member reach tenant', D]
 
 const SESSION_GOLDEN = {
-  accept: ['member [routed ordinary|card-decision]', 'member [routed business]', D],
+  accept: [
+    'member [routed ordinary|card-decision]',
+    'member [routed business]',
+    'matrix session-input [routed ordinary]',
+  ],
   startRun: WORK_ONLY,
   claim: WORK_ONLY,
   reload: WORK_ONLY,
@@ -35,14 +39,14 @@ const SESSION_GOLDEN = {
   release: WORK_ONLY,
   control: BOTH,
   finishRun: WORK_ONLY,
-  create: [M, D, D],
+  create: [M, D, 'matrix session-create'],
   completeInitialization: NOT_MEMBER_ROW,
   change: [
     'member [declaration permission-assignment|permission-mode|collaboration-mode|environment-mode|workspace|model|declaration|context-registration|context-step-commit|recovery-input]',
     'member [declaration authorization-expression|workspace]',
     D,
   ],
-  setRelation: [M, D, D],
+  setResident: [M, D, D],
   configureAutoArchive: [M, D, D],
   considerAutoArchive: WORK_ONLY,
   recordIdle: WORK_ONLY,
@@ -61,7 +65,7 @@ const SESSION_GOLDEN = {
   readWaiting: [M, D, D],
   readPending: [M, D, D],
   readWaitingCalls: [M, D, D],
-  readInputFate: [M, D, D],
+  readInputFate: [M, D, 'matrix input-fate'],
   readBackgroundCalls: [M, M, D],
   resolveBackgroundCall: [M, M, D],
   readInput: WORK_ONLY,
@@ -75,6 +79,7 @@ const SESSION_GOLDEN = {
   'history.since': BOTH,
   'history.readModelView': WORK_ONLY,
   'history.readCompactionContext': WORK_ONLY,
+  'history.readAdoptedRequest': BOTH,
   pending: [D, M, 'matrix pending-sessions'],
   'directory.list': BOTH,
   references: [D, D, 'matrix resident-references'],
@@ -158,8 +163,8 @@ compare('Session', SESSION_POLICY, SESSION_GOLDEN)
 compare('Agent', AGENT_POLICY, AGENT_GOLDEN)
 
 describe('the golden itself', () => {
-  it('has the 53 Session rows and 30 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(53)
+  it('has the 54 Session rows and 30 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(54)
     expect(Object.keys(AGENT_GOLDEN)).toHaveLength(30)
   })
 })

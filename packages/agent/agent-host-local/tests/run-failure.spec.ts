@@ -97,7 +97,14 @@ async function failing() {
   })
   opened.push(host)
   host.controls.adoptions.define(definitions.first, {
-    definition: { category: 'AgentDefinition', name: 'failing', references: [], attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'failing',
+      references: [],
+      attributes: [],
+    },
     evaluator: agentEvaluator,
     extensions: [],
   })

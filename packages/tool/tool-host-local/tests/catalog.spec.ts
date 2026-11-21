@@ -40,6 +40,7 @@ const ALLOWED: ToolAvailabilityVerdict = {
   inputCompatible: true,
   outputCompatible: true,
   attachmentsReadable: true,
+  productsStorable: true,
 }
 const allowing = (): LocalToolAvailabilitySource<string> => ({
   judge: () => Promise.resolve(succeed(ALLOWED)),
@@ -56,18 +57,16 @@ function world(
     authority: ToolAuthority
     by: Registrant
     programmable?: boolean
+    commands?: readonly string[]
   }>[],
   availability: LocalToolAvailabilitySource<string> = allowing(),
 ) {
   const { registry } = fiberedRegistry(scriptedVerifier(tools.map(tool => tool.authority)))
   for (const tool of tools) {
-    const outcome = register(
-      registry,
-      tool.by,
-      tool.authority,
-      'digest-1',
-      tool.programmable === undefined ? {} : { programmable: tool.programmable },
-    )
+    const outcome = register(registry, tool.by, tool.authority, 'digest-1', {
+      ...(tool.programmable === undefined ? {} : { programmable: tool.programmable }),
+      ...(tool.commands === undefined ? {} : { commands: tool.commands }),
+    })
     if (!('ok' in outcome)) throw new Error(`setup: ${tool.authority.asset.name}`)
   }
   return {
@@ -202,6 +201,35 @@ describe('Catalog: inspect and usage', () => {
     expect(
       await catalog.usage({ ...inspectOf('alpha', asA), adoption: alpha.asset.adoption }),
     ).toEqual({ failure: { kind: 'denied', action: 'usage' } })
+  })
+
+  it('T-CAT the facts are asked about the command that inspect names, and about no command otherwise', async () => {
+    const asked: (string | null)[] = []
+    const perCommand: LocalToolAvailabilitySource<string> = {
+      judge: input => {
+        asked.push(input.command)
+        return Promise.resolve(succeed({ ...ALLOWED, productsStorable: input.command !== 'open' }))
+      },
+    }
+    const files = official('files')
+    const { catalog } = world(
+      [{ authority: files, by: asA, commands: ['read', 'open'] }],
+      perCommand,
+    )
+    expect(await catalog.inspect(inspectOf('files', asA, 'open'))).toMatchObject({
+      ok: { kind: 'known-unavailable', reason: 'products-unstorable' },
+    })
+    expect(await catalog.inspect(inspectOf('files', asA, 'read'))).toMatchObject({
+      ok: { kind: 'available' },
+    })
+    expect(await catalog.inspect(inspectOf('files', asA))).toMatchObject({
+      ok: { kind: 'available' },
+    })
+    expect(await catalog.search(searchOf(asA))).toMatchObject({
+      ok: { entries: [{ kind: 'available' }] },
+    })
+    await catalog.usage({ ...inspectOf('files', asA, 'open'), adoption: files.asset.adoption })
+    expect(asked).toEqual(['open', 'read', null, null, 'open'])
   })
 
   it('T-CAT a facts source that cannot answer is unavailable on inspect and on search, not allowed', async () => {

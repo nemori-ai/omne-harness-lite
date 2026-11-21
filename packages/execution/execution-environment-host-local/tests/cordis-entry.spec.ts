@@ -601,7 +601,7 @@ it('accepts the command bounds and the state directory on the host files plugin,
   }
   expect(validate(full)).toEqual({ value: full })
   for (const refused of [
-    { filesRoot: '/srv/files' },
+    { filesScope: { write: '/srv/files' } },
     { stateDirectory: '' },
     { maxBufferedBytes: 0 },
     { maxChunkBytes: 1.5 },

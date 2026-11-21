@@ -1,7 +1,9 @@
+import { isDeepStrictEqual } from 'node:util'
 import type {
   Adoption,
   FixedModelRequest,
   MaterializationReceipt,
+  MaterializedMedium,
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type {
@@ -13,6 +15,9 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { sameAdoption } from './adoption.ts'
+import { mediaRefusal } from './send/attempt.ts'
+
+type Sendable = Outcome<MaterializedTransport, TransportFailure>
 
 type Terminal = Extract<IndependentModelFact, { kind: 'ended' | 'not-started' }>
 
@@ -25,12 +30,21 @@ function copyAdoption(adoption: Adoption): Adoption {
   }
 }
 
+function copyMedia(media: readonly MaterializedMedium[]): MaterializedMedium[] {
+  return Array.from(media, ({ reference, mediaType, bytes }) => ({
+    reference: { ...reference },
+    mediaType,
+    bytes,
+  }))
+}
+
 function copyReceipt(receipt: MaterializationReceipt): MaterializationReceipt {
-  const { replayFormat, replayPrefix, replayCarried } = receipt
+  const { media, replayFormat, replayPrefix, replayCarried } = receipt
   return {
     supplier: copyAdoption(receipt.supplier),
     representation: copyAdoption(receipt.representation),
     payloadDigest: receipt.payloadDigest,
+    ...(media === undefined ? {} : { media: copyMedia(media) }),
     ...(replayFormat === undefined ? {} : { replayFormat }),
     ...(replayPrefix === undefined ? {} : { replayPrefix }),
     ...(replayCarried === undefined ? {} : { replayCarried }),
@@ -49,6 +63,7 @@ function receiptMatches(
     first.replayFormat === second.replayFormat &&
     first.replayPrefix === second.replayPrefix &&
     first.replayCarried === second.replayCarried &&
+    isDeepStrictEqual(first.media, second.media) &&
     sameAdoption(first.supplier, expected.supplier) &&
     sameAdoption(first.representation, expected.representation) &&
     sameAdoption(first.supplier, second.supplier) &&
@@ -161,10 +176,12 @@ async function* execute(
       })
     }
 
-    const materialization = await preparation(
-      () => preparationResult.ok.materialize(signal),
-      'materialize',
-    )
+    const materialization = await preparation(async (): Promise<Sendable> => {
+      const outcome = await preparationResult.ok.materialize(signal)
+      if ('ok' in outcome) return outcome
+      const { failure } = outcome
+      return fail(failure.kind === 'media' ? mediaRefusal(failure).failure : failure)
+    }, 'materialize')
     if ('ok' in materialization) materialized = materialization.ok
     if (signal.aborted) {
       return fail({ kind: 'not-started', reason: 'cancelled' })

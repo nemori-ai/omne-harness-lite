@@ -19,10 +19,11 @@ const ALLOWED = new Set([
   '@omne-harness/sdk/core',
   '@omne-harness/public-contract',
   '@omne-harness/session-protocol',
+  '@omne-harness/session-diagnostics-protocol',
   '@omne-harness/utc-instant',
 ])
 
-it('只导入客户端装配、外壳契约、共用界面件、SDK 的客户端核心、公开契约、会话的协议契约与共用纯定义', () => {
+it('只导入客户端装配、外壳契约、共用界面件、SDK 的客户端核心、公开契约、会话的两份协议契约与共用纯定义', () => {
   const outside = sources()
     .flatMap(({ text }) => [...text.matchAll(/from '([^']+)'/g)].map(match => match[1] ?? ''))
     .filter(name => !name.startsWith('.'))

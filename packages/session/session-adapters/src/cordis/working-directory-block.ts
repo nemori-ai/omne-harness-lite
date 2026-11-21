@@ -1,4 +1,4 @@
-import type { NeedBinding, SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract'
+import type { NeedBinding, StatefulBlockDescriptor } from '@omne-harness/runtime-context-contract'
 import { workingDirectorySchema, type WorkingDirectory } from '../working-directory-schema.ts'
 
 declare module '@omne-harness/runtime-context-contract' {
@@ -7,11 +7,7 @@ declare module '@omne-harness/runtime-context-contract' {
   }
 }
 
-export const workingDirectoryProducer = Object.freeze({
-  producer: '@omne-harness/session-adapters/session.working-directory',
-})
-
-// It changes only in the action before a step, and a rebuilt process has no value until then.
+// Committed into the session log at a step boundary; a rebuilt process recovers the last commit.
 export const workingDirectoryDescriptor = Object.freeze({
   key: 'session.working-directory',
   schema: workingDirectorySchema,
@@ -20,9 +16,13 @@ export const workingDirectoryDescriptor = Object.freeze({
   disclosure: 'eligibility-checked',
   carriesPrevious: true,
   volatility: 'per-step',
-  kind: 'supplied',
-  recovery: 'recompute',
-} satisfies SuppliedBlockDescriptor<'session.working-directory', WorkingDirectory>)
+  kind: 'stateful',
+  writers: Object.freeze(['coordinator'] as const),
+  // The one writer commits the whole value; the update replaces it.
+  reduce: (_current: unknown, update: unknown) => workingDirectorySchema.parse(update),
+  persistence: 'checkpointed',
+  singleWriterPerStep: true,
+} satisfies StatefulBlockDescriptor<'session.working-directory', WorkingDirectory>)
 
 export const workingDirectoryModelBinding = Object.freeze({
   key: 'session.working-directory',

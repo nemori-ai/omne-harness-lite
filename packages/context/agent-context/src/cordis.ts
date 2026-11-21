@@ -7,7 +7,6 @@ import {
 import type { ModelPreparationResources } from '@omne-harness/model-contract'
 import { modelRequestPreparationKey } from '@omne-harness/model-cordis-contract/cordis'
 import { fail } from '@omne-harness/operation-result'
-import { createAbsentConversionResults } from '@omne-harness/request-context'
 import { standardSchema, type Adoption, type Decoder } from '@omne-harness/request-context-contract'
 import {
   contextHolderSourcesKey,
@@ -88,7 +87,6 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
         parts,
         requestContext: ctx.requestContext,
         preparation,
-        conversions: createAbsentConversionResults(),
         model: ctx.modelRequestPreparation,
         tools: toolsSourceOf(toolLookup),
         compactionInputs: ctx.agentCompactionInputs,

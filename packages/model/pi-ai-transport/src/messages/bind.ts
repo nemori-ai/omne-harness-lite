@@ -1,3 +1,4 @@
+import { wireLimits } from '../media.ts'
 import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
 import type { RouteAccounting } from '../config.ts'
 import type { PiFamilyBinding } from '../family.ts'
@@ -22,6 +23,8 @@ export type MessagesBindingInput = Readonly<{
   supplier: Supplier
   meter: FamilyMeter
   limits: MessagesLimits
+  /** The byte limit of one image of this profile; absent, images have none. */
+  imageBytes?: number
   release(): Promise<void>
 }>
 
@@ -99,6 +102,7 @@ export function bindMessages(input: MessagesBindingInput): PiFamilyBinding {
   return Object.freeze({
     supplier,
     adoption,
+    mediaLimits: wireLimits(record.wire, { image: input.imageBytes }),
     counting: meter.instance.basis,
     rules: Object.freeze({
       plan: (planInput: Parameters<typeof planMessages>[1]) => planMessages(context, planInput),

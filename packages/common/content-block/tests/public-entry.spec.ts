@@ -408,3 +408,117 @@ it('gives a reference block a fresh visibility instead of the caller object', ()
   given.toHuman = false
   expect(judged.ok.visibility).toEqual({ toHuman: true, toModel: false })
 })
+
+const withFacts = (extra: Record<string, unknown>) => ({
+  kind: 'image',
+  id: 'r9',
+  visibility,
+  ref,
+  transcript: null,
+  ...extra,
+})
+
+it.each([
+  [{ kind: 'image', widthPixels: 640, heightPixels: 480 }],
+  [{ kind: 'voice', durationMs: 1200, sampleRate: 16000, channels: 1 }],
+  [{ kind: 'file' }],
+])('a reference block may carry the facts of its medium: %j', facts => {
+  expect(judgeContentBlock(withFacts({ facts }))).toEqual({ ok: withFacts({ facts }) })
+})
+
+it('a reference block without facts stays without the key', () => {
+  const judged = judgeContentBlock(withFacts({}))
+  expect(judged).toEqual({ ok: withFacts({}) })
+  expect('ok' in judged && Object.hasOwn(judged.ok, 'facts')).toBe(false)
+})
+
+it.each([
+  [null],
+  ['image'],
+  [{ kind: 'video' }],
+  [{ kind: 'image', widthPixels: 640 }],
+  [{ kind: 'image', widthPixels: 640, heightPixels: -1 }],
+  [{ kind: 'image', widthPixels: 6.5, heightPixels: 4 }],
+  [{ kind: 'image', widthPixels: 640, heightPixels: 480, extra: 1 }],
+  [{ kind: 'voice', durationMs: 1200, sampleRate: '16000', channels: 1 }],
+  [{ kind: 'file', widthPixels: 1 }],
+])('refuses facts that are not the facts of a medium: %j', facts => {
+  expect(judgeContentBlock(withFacts({ facts }))).toEqual({ rejected: 'facts' })
+})
+
+it('still refuses a key of a reference block it does not know', () => {
+  expect(judgeContentBlock(withFacts({ caption: 'a cat' }))).toEqual({ rejected: 'extra' })
+})
+
+const source = {
+  definition: { name: 'voice-to-text', revision: '3' },
+  engine: { name: 'whisper', revision: '2026-10' },
+}
+const other = { ...ref, key: 'k-other', mediaType: 'image/webp' }
+const SNAPSHOTS = [
+  { outcome: 'converted', ...source, text: null, others: [] },
+  {
+    outcome: 'converted',
+    ...source,
+    text: { ...ref, key: 'k-text', mediaType: 'text/plain' },
+    others: [],
+  },
+  { outcome: 'converted', ...source, text: null, others: [other, { ...other, key: 'k-third' }] },
+  { outcome: 'inconvertible', ...source },
+]
+
+it.each(SNAPSHOTS)(
+  'a reference block may carry the snapshot of its representations: %j',
+  snapshot => {
+    const block = withFacts({ snapshot, facts: { kind: 'file' }, transcript: 'said inline' })
+    expect(judgeContentBlock(block)).toEqual({ ok: block })
+    expect(judgeContentBlock(withFacts({ snapshot }))).toEqual({ ok: withFacts({ snapshot }) })
+  },
+)
+
+it('a snapshot is a property of its block: with it or without, identity, visibility and reference are the same (CM-22)', () => {
+  const [snapshot] = SNAPSHOTS
+  const judged = judgeContentBlock(withFacts({ snapshot }))
+  if (!('ok' in judged)) throw new Error('expected ok')
+  const { snapshot: _snapshot, ...bare } = judged.ok as Record<string, unknown>
+  expect(judgeContentBlock(bare)).toEqual({ ok: withFacts({}) })
+  expect(Object.hasOwn(bare, 'snapshot')).toBe(false)
+})
+
+it.each([
+  [null],
+  ['converted'],
+  [{ outcome: 'pending', ...source }],
+  [{ outcome: 'pending', ...source, text: null, others: [] }],
+  [{ outcome: 'converted', ...source, text: null }],
+  [{ outcome: 'converted', ...source, others: [] }],
+  [{ outcome: 'converted', ...source, text: 'in line', others: [] }],
+  [{ outcome: 'converted', ...source, text: null, others: [{ ...other, digest: '' }] }],
+  [{ outcome: 'converted', ...source, text: { ...ref, bytes: 'many' }, others: [] }],
+  [{ outcome: 'converted', ...source, text: null, others: 'none' }],
+  [{ outcome: 'converted', ...source, text: null, others: [], more: 1 }],
+  [{ outcome: 'converted', engine: source.engine, text: null, others: [] }],
+  [{ outcome: 'converted', ...source, definition: { name: 'x' }, text: null, others: [] }],
+  [
+    {
+      outcome: 'converted',
+      ...source,
+      engine: { name: '', revision: '1' },
+      text: null,
+      others: [],
+    },
+  ],
+  [
+    {
+      outcome: 'converted',
+      ...source,
+      engine: { ...source.engine, at: 1 },
+      text: null,
+      others: [],
+    },
+  ],
+  [{ outcome: 'inconvertible', ...source, text: null, others: [] }],
+  [{ outcome: 'inconvertible', definition: source.definition }],
+])('refuses a snapshot that is not the snapshot of a representation: %j', snapshot => {
+  expect(judgeContentBlock(withFacts({ snapshot }))).toEqual({ rejected: 'snapshot' })
+})

@@ -1,0 +1,246 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "I'm counting the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " integers from"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 1 to 99 that"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " are divisible by 3 "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "or 7 but"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " not by"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " both. That gives 33 "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "multiples of 3,"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " 14 multiples of "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "7, and 4 multi"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ples of 21, so 39"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " q"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ualify. Since "
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "39 is odd,"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Lima wins."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " Only one tool call is needed"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ", so I'll ke"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ep the"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " answer br"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ief."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n\n"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "{\"city\": \"Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "I'm counting the integers from 1 to 99 that are divisible by 3 or 7 but not by both. That gives 33 multiples of 3, 14 multiples of 7, and 4 multiples of 21, so 39 qualify. Since 39 is odd, Lima wins. Only one tool call is needed, so I'll keep the answer brief.\n\n"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "tool_call",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "toolu_011tsE8oGQqy67zqTbN9VNkk",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b2",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"signature\":\"CAQSgwcKEAgUGAI4AUIIdGhpbmtpbmcSDET/dxxf1/d9TIINgRoMuSTrZynTbfBDOkinIjDfK8JdKE2PkAiSaZC9tjW/7/Oe+GiG6FPOoSoHbaKRzJEF66uAoHvTtRE5CSvExHkqoAb8uNCbqtHih113dNV+CMMunn9EaD7D3oOdKfftQRW6vZXKSA48V+M5hJdhUrgDZSUci+CoE6s0/3agglY71U8BKe9lOFC+VoOINzXonEgSOOjsvp45XrTa22c1RgNW6/oWNSXX9hz+fCmrWjUDZS8vbrTiM9+Kl0NuRa7IkwJDczByWd6AR6zYLj0sd9PRhghsV7f+qrH8XoQo7DvsWOgKy6iLwmK72N6HdxaJUTDMMBv2N9kTI5H0YmbyUzXgiyd6f6WkT3Ae2XwgWblmaiakllXmljE3J2JENC0v+H8bj2WibJWK00XXXQJU2QC6JdFfw5QOoHGy2T6/ZdOz/cMl3kZ7JOextHp/pL4OzvpuIOsr8zp3ZzJRNfGLwCBlBEut1UEKwXCyAfSJqEFgdM9D3IcRQYzXm/7mVVs/gXPq5hMs1f0jT6XbWV+Gx9aay48vJzEXU/+Yym7t1uL/zv1RVotpuA+b6WA/GYzPUt9ie0833PW5PBLYyzKrWvP9Jvy+hYy93X9NPofxEegEmX9RwraKZspsjh5ZaPqx/ATJ7xtEK69pDU0DAm6FbgbpyWvEuU0NNV9PGvm1/6niDZ0ZUNtwkiT1sPsh7GHLsaZ2WHTe1ZmCWy9tjAR5FRcyVJWOJuTpQJeyE0246ROD+LiBtLiH3VfRcBpwwa2+MCbMRn44krLJO+KFaiq8uRg6PDR85bsPI2Lka9FbHx8AX1cnhfbcqk2ka01qJHlgjQUJrAIAMAd8EHbPijBqgNEbs1qJfiYbbLfNGDukOelkqDlgGa/cxxtVMDqKt3YjgboePC/zhXtN1p/WYZHq85QOBMCykvTuEskc5KZW60AkcmXHMkRCo6Zga9e/RjCE9+8Y4YX3BEa8yQMrgopLZmmlwx3tY0JrjujSGzLCESDfGX4B3rQvbPy67Lns0JtOI7R9M1AWlhfrvhDG2yyyP/+sEkVTEc8JFOdN7TUs1cHC4FLA8FdyBsGDv2y2ZARwvQFvecx00It5p3Y6LcHdJr1vdqLBQvzTuyztZ2ehlFTt9xrLstqFUkIsySO1Vyllj1qVNBgB.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1oYWlrdS01LjUtMjAyNjEwMDd8YW50aHJvcGljIn0\",\"thinking\":\"I'm counting the integers from 1 to 99 that are divisible by 3 or 7 but not by both. That gives 33 multiples of 3, 14 multiples of 7, and 4 multiples of 21, so 39 qualify. Since 39 is odd, Lima wins. Only one tool call is needed, so I'll keep the answer brief.\\n\\n\",\"type\":\"thinking\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "445",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "176",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "125",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.0001325",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Anthropic",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

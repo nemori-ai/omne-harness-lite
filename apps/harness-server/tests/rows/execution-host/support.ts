@@ -15,7 +15,7 @@ import { createExecutionHostBinding } from '../../../src/rows/execution-host/ind
 import { rowDeclarationOf } from '../../../src/row.ts'
 import type { LoadedRow } from '../../../src/readiness.ts'
 
-/** An acquisition on the host; with `filesRoot` its placement keeps every file request in that directory. */
+/** An acquisition on the host; with `filesRoot` its placement reads and writes only in that directory. */
 export function providerInput(
   provider: EnvironmentProvider,
   key: string,
@@ -49,7 +49,7 @@ export function providerInput(
       provider: { name: provider.name, generation: provider.generation, version: provider.version },
       continuity: { kind: 'not_guaranteed' },
       quotaDomain: provider.quotaDomain,
-      ...(filesRoot === undefined ? {} : { filesRoot }),
+      ...(filesRoot === undefined ? {} : { filesScope: { read: filesRoot, write: filesRoot } }),
     },
     ledger: {
       closed: new AbortController().signal,

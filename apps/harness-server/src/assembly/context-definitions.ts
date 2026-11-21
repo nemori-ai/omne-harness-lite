@@ -85,18 +85,18 @@ const ADOPTED: readonly DeclaredContextBlocks[] = [
   {
     definition: SESSION_WORKING_DIRECTORY,
     bindings: workingDirectoryBindings,
-    declarations: [],
+    declarations: [workingDirectoryDescriptor],
   },
 ]
 
 export const adoptedContextDefinitions: SessionContextDefinitions =
   createContextDefinitions(ADOPTED)
 
-// The supplied blocks of this release; the journal tells the model the ones it may read.
-const SUPPLIED = new Map<string, ReturnType<DescriptorCatalog['get']>>([
+// The blocks a session of this release holds; the journal tells the model the ones it may read.
+const SESSION_BLOCKS = new Map<string, ReturnType<DescriptorCatalog['get']>>([
   [sessionModesDescriptor.key, sessionModesDescriptor],
   [workingDirectoryDescriptor.key, workingDirectoryDescriptor],
 ])
-export const suppliedContextBlocks: DescriptorCatalog = Object.freeze({
-  get: (key: ContextBlockKey) => SUPPLIED.get(key),
+export const sessionContextBlocks: DescriptorCatalog = Object.freeze({
+  get: (key: ContextBlockKey) => SESSION_BLOCKS.get(key),
 })

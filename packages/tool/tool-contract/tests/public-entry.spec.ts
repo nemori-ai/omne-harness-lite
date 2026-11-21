@@ -27,6 +27,8 @@ it('exports on the root only the names members outside the Tool group import, an
     'encodeToolInvocationRef',
     'encodeToolOperationRef',
     'judgeToolDelivery',
+    'offeredDefinition',
+    'pinnedFiles',
     'projectResidentReferences',
     'readToolOperationRef',
     'residentToolFacts',
@@ -39,6 +41,7 @@ it('exports on the root only the names members outside the Tool group import, an
     'toolCategoryDisplay',
     'toolGatesOf',
     'toolsCapabilityOf',
+    'unmetConditions',
   ])
 })
 
@@ -59,6 +62,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'actionPreview',
     'attachToolsCapability',
     'authorDecision',
+    'commandAddedModalities',
     'commandArguments',
     'commandExample',
     'commandGuide',

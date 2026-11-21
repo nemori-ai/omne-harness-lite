@@ -4,9 +4,9 @@ import { dirname, join } from 'node:path'
 import {
   capabilityId,
   digestBytes,
+  packageBody,
   packageDigest,
   pinBody,
-  readBodyText,
   type CapabilityId,
   type CategoryView,
   type JsonValue,
@@ -17,7 +17,6 @@ import {
   type PackageRejection,
   type PackageSourceFailure,
 } from '@omne-harness/assets'
-import { writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { digest } from './encoding.ts'
 import type { AssetsMutationResult, AssetsPublishAndHold } from './types.ts'
@@ -114,14 +113,6 @@ const CATEGORY_FILE = '.category'
 
 const STAGING = '.staging'
 const SOURCE = 'published-package'
-const BODY_LIMITS = Object.freeze({
-  maxBytes: 1024 * 1024,
-  maxDepth: 32,
-  maxItems: 50_000,
-  maxMembers: 1024,
-  maxStringLength: 65_536,
-  maxNumberLength: 32,
-})
 
 const rejected = (rejection: PackageRejection): PackagePublishResult => ({
   kind: 'rejected',
@@ -169,30 +160,6 @@ export function declarationRejection(
   limits: PackageLayout['limits'],
 ): PackageRejection | undefined {
   return pathRejection(declared) ?? limitRejection(declared, limits)
-}
-
-const text = (value: string): JsonValue => ({ kind: 'string', value })
-
-function manifestTree(manifest: PackageManifest): JsonValue {
-  return {
-    kind: 'object',
-    entries: [
-      {
-        key: 'entries',
-        value: {
-          kind: 'array',
-          items: manifest.entries.map(entry => ({
-            kind: 'object',
-            entries: [
-              { key: 'path', value: text(entry.path) },
-              { key: 'bytes', value: { kind: 'number', lexeme: String(entry.bytes) } },
-              { key: 'digest', value: text(entry.digest) },
-            ],
-          })),
-        },
-      },
-    ],
-  }
 }
 
 function field(value: JsonValue | undefined, key: string): JsonValue | undefined {
@@ -259,24 +226,6 @@ type PackageDisk = Readonly<{
   ): Promise<PackageSourceFailure | undefined>
   swap(staging: string, final: string, category: string): Promise<void>
 }>
-
-function recordBody(
-  declaration: JsonValue,
-  manifest: PackageManifest,
-): Outcome<JsonValue, PackageRejection> {
-  if (declaration.kind !== 'object' || field(declaration, 'manifest') !== undefined)
-    return fail({ kind: 'invalid-package', reason: 'declaration-shape' })
-  const body = readBodyText(
-    writeJsonText({
-      kind: 'object',
-      entries: [...declaration.entries, { key: 'manifest', value: manifestTree(manifest) }],
-    }),
-    BODY_LIMITS,
-  )
-  return body.kind === 'ok'
-    ? succeed(body.value)
-    : fail({ kind: 'record-rejected', reason: 'limit_exceeded' })
-}
 
 function finalOf(root: string, layout: PackageLayout, name: string, version: string): string {
   return join(root, layout.namespace, name, versionDirectoryName(version))
@@ -359,7 +308,7 @@ function packagePublisher(
     if (invalid !== undefined) return fail(invalid)
     const inspected = await layout.inspect(from)
     if (!('ok' in inspected)) return inspected
-    const body = recordBody(inspected.ok, manifest)
+    const body = packageBody(inspected.ok, manifest)
     if (!('ok' in body)) return body
     const version = packageDigest(manifest.entries)
     const judged = contract.judge(body.ok, { capabilityName: capability.name, definition: version })

@@ -1,6 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { agentEvaluator } from '@omne-harness/agent'
-import { judgeAdoption, type AgentAdoptions } from '@omne-harness/agent-contract'
+import {
+  judgeAdoption,
+  type AgentAdoptions,
+  type AgentDefinitionListing,
+} from '@omne-harness/agent-contract'
 import { AgentAdoptionsService } from '@omne-harness/agent-cordis-contract/cordis'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -9,7 +13,20 @@ import {
   type DefinitionMappings,
 } from './definition-mappings.ts'
 import type { Adoption } from '@omne-harness/session-contract'
+import { AgentDefinitionCatalogService } from './definition-catalog.ts'
 import type { MappingTable } from './table.ts'
+
+/** Every definition of the release is the product's own, so every tenant sees the whole table. */
+export class AgentDefinitionCatalogImpl extends AgentDefinitionCatalogService {
+  private readonly listings: readonly AgentDefinitionListing[]
+  constructor(ctx: Context, table: MappingTable) {
+    super(ctx)
+    this.listings = table.listings
+  }
+  visibleTo(): readonly AgentDefinitionListing[] {
+    return this.listings
+  }
+}
 
 export class DefinitionMappingsImpl extends DefinitionMappingsService {
   readonly identity: string

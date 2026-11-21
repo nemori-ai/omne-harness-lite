@@ -3,12 +3,14 @@ import { expect, it } from 'vitest'
 it('the public entry exports the service factories, the type registry and the scripts', async () => {
   const root = (await import('@omne-harness/workspace')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
+    'adoptSources',
     'associateInstance',
     'changeRelation',
     'createCatalog',
     'createGovernance',
     'createInstances',
     'createManagementTypes',
+    'createSources',
     'destroyWorkspace',
     'dissociateInstance',
     'once',

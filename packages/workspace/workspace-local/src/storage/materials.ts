@@ -13,6 +13,7 @@ import {
   PROTOCOL,
   ROW_LIMIT,
   SOURCES_MIGRATION,
+  ADOPTIONS_MIGRATION,
 } from './schema.ts'
 
 export type WorkspaceSqlMaterials = Readonly<{
@@ -33,6 +34,7 @@ export function workspaceSqlMaterials(): WorkspaceSqlMaterials {
   const participant = file('participant')
   const migration = file('migration')
   const sources = file('migration-sources')
+  const adoptions = file('migration-adoptions')
   const reader = file('read')
   return {
     participants: [
@@ -57,6 +59,12 @@ export function workspaceSqlMaterials(): WorkspaceSqlMaterials {
         checksum: sources.digest,
         requires: [MIGRATION],
       },
+      {
+        ...ADOPTIONS_MIGRATION,
+        moduleUrl: adoptions.moduleUrl,
+        checksum: adoptions.digest,
+        requires: [SOURCES_MIGRATION],
+      },
     ],
     readHandlers: [
       {
@@ -66,7 +74,7 @@ export function workspaceSqlMaterials(): WorkspaceSqlMaterials {
         codeDigest: reader.digest,
         ordering: 'snapshot',
         readTables: ALL_TABLES,
-        requiresMigrations: [MIGRATION, SOURCES_MIGRATION],
+        requiresMigrations: [MIGRATION, SOURCES_MIGRATION, ADOPTIONS_MIGRATION],
         maxRowsRead: 4 * ROW_LIMIT,
         maxOutputBytes: 8 * 1024 * 1024,
       },

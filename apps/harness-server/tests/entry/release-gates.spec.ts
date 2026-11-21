@@ -44,7 +44,17 @@ const EXPECTED: Readonly<
     ['subscribe', 'auto', ['subscribe']],
   ],
   Sessions: [['invoke', 'auto', ['help', 'list', 'search', 'show', 'read']]],
+  Agents: [
+    ['read', 'auto', ['help', 'targets', 'show', 'list']],
+    ['dispatch', 'auto', ['dispatch', 'withdraw']],
+    ['message', 'auto', ['message']],
+    ['report', 'auto', ['report']],
+  ],
   SwitchWorkspace: [['invoke', 'ask', []]],
+  Screen: [
+    ['read', 'auto', ['help']],
+    ['observe', 'ask', ['screens', 'capture']],
+  ],
 }
 const sorted = (names: readonly string[]) => [...names].sort()
 

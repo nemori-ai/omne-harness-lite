@@ -3,6 +3,9 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   CommitReceipt,
   GuardCommand,
+  InputSourceDeclaration,
+  InputSourceLookup,
+  IntakeProcessor,
   SessionAccess,
   SessionAccessRequest,
   SessionCallerClass,
@@ -32,6 +35,7 @@ import {
   sessionId,
   succeeded,
   type MemoryAgentDrive,
+  TESTING_SOURCES,
   type SessionAccessScript,
 } from '@omne-harness/session-contract/testing'
 import {
@@ -41,7 +45,6 @@ import {
 import {
   createSessionInstance,
   defaultSchedulingPolicy,
-  type BeforeAdmitSlot,
   type SchedulingPolicy,
   type SessionDependencies,
   type SessionDiagnostic,
@@ -82,11 +85,20 @@ type CommitAnswer = Promise<Outcome<unknown, SessionFailure>>
 
 export type CommitHook = (input: CommitInput, next: () => CommitAnswer) => CommitAnswer
 
+const sourceOf = (accepts: InputSourceDeclaration['accepts']): InputSourceLookup => ({
+  kind: 'registered',
+  declaration: { name: TESTING_SOURCES.person, label: 'Person', accepts, wake: 'always' },
+})
+export const MEMBER_SOURCE = sourceOf({ subject: 'member' })
+export const UNSCREENED_SOURCE = sourceOf({ subject: 'system', component: 'c', screened: false })
+
 export type HarnessOptions = Readonly<{
   backend: BackendFactory
   advance?: boolean
   policy?: Partial<SchedulingPolicy>
-  admission?: readonly BeforeAdmitSlot[] | null
+  admission?: readonly IntakeProcessor<string>[] | null
+  /** What the registry of input sources says of every source; null: the registry is not there. */
+  sources?: InputSourceLookup | null
   drive?: boolean
   measure?: SessionMeasure
 }>
@@ -155,6 +167,10 @@ export async function harness(options: HarnessOptions) {
             log('history.readModelView')
             return view.history.readModelView(input)
           },
+          readForkPoint: input => {
+            log('history.readForkPoint')
+            return view.history.readForkPoint(input)
+          },
         },
       }
     },
@@ -210,6 +226,8 @@ export async function harness(options: HarnessOptions) {
   })
   let directoryPresent = true
   let admission = options.admission === undefined ? [] : options.admission
+  let sources: InputSourceLookup | null =
+    options.sources === undefined ? MEMBER_SOURCE : options.sources
   let drivePresent = options.drive ?? true
   const callControl: { port: SessionCallControl | null } = { port: null }
   const callStates: { port: SessionCallStates | null } = { port: null }
@@ -235,6 +253,7 @@ export async function harness(options: HarnessOptions) {
     callStates: { current: () => callStates.port },
     principals: { coordinator: 'system:coordinator', maintainer: 'system:maintainer' },
     admission: { current: () => admission },
+    sources: { current: () => (sources === null ? null : { lookup: () => sources! }) },
   }
   const diagnostics: SessionDiagnostic[] = []
   const instance: SessionInstance<string> = createSessionInstance(
@@ -319,8 +338,11 @@ export async function harness(options: HarnessOptions) {
     setDirectory: (present: boolean) => {
       directoryPresent = present
     },
-    setAdmission: (slots: readonly BeforeAdmitSlot[] | null) => {
+    setAdmission: (slots: readonly IntakeProcessor<string>[] | null) => {
       admission = slots
+    },
+    setSources: (next: InputSourceLookup | null) => {
+      sources = next
     },
     setDrive: (present: boolean) => {
       drivePresent = present

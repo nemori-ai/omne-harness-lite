@@ -21,7 +21,15 @@ import {
   fixedRequest,
   imageBlock,
   message,
+  PICTURE,
+  PICTURE_BYTES,
+  pictureBlock,
+  pictureRead,
   resultBlock,
+  SPEECH,
+  SPEECH_BYTES,
+  speechBlock,
+  speechRead,
   stateBlock,
   supplierOf,
   testHooks,
@@ -33,6 +41,15 @@ import {
   declarationOf,
   type EngineProbe,
   type RequestParts,
+  DOCUMENT,
+  DOCUMENT_BYTES,
+  documentBlock,
+  documentRead,
+  NATIVE_PARSING,
+  PDF_WIRE,
+  WORDS_TEXT,
+  wordsBlock,
+  wordsRead,
 } from './support/chat-record.ts'
 
 function bind(
@@ -52,8 +69,13 @@ function bind(
   })
 }
 
-function inputOf(request: FixedModelRequest, resent: TransportDispatch['resent'] = []) {
-  return { request, media: [], declaration: request.declarations[0], resent }
+type Media = Parameters<PiFamilyBinding['encode']>[0]['media']
+function inputOf(
+  request: FixedModelRequest,
+  resent: TransportDispatch['resent'] = [],
+  media: Media = [],
+) {
+  return { request, media, declaration: request.declarations[0], resent }
 }
 
 function encode(record: ChatCompletionsRecord, parts: RequestParts = {}, probe = engineProbe()) {
@@ -337,6 +359,221 @@ describe('encode: tool calls and results', () => {
       { role: 'tool', tool_call_id: 'call_b', content: 'ok' },
       { role: 'user', content: [image, image] },
     ])
+  })
+
+  describe('an image by reference', () => {
+    const record = testRecord()
+    const encodeWith = (parts: RequestParts, media: Media) =>
+      bind(record, engineProbe()).encode(inputOf(fixedRequest(record, parts), [], media))
+    const DATA = Buffer.from(PICTURE_BYTES).toString('base64')
+    const wire = (mime = 'image/png') => ({
+      type: 'image_url',
+      image_url: { url: `data:${mime};base64,${DATA}`, detail: 'auto' },
+    })
+
+    it('is written as the bytes read for it, and the measure of what was read goes to the meter', () => {
+      const outcome = encodeWith(
+        { messages: [message('u1', 'user', [textBlock('b1', 'a'), pictureBlock('b2')])] },
+        [pictureRead()],
+      )
+      expect(messagesOf(outcome)).toEqual([
+        { role: 'user', content: [{ type: 'text', text: 'a' }, wire()] },
+      ])
+      if (!('ok' in outcome)) throw new Error('encode failed')
+      expect(outcome.ok.representation).toMatchObject({
+        kind: 'materialized',
+        media: [pictureRead().measurement],
+      })
+    })
+
+    it('is written with the media type of the version that was read, not of the original', () => {
+      const tiff = { ...PICTURE, mediaType: 'image/tiff' }
+      const outcome = encodeWith(
+        { messages: [message('u1', 'user', [pictureBlock('b1', tiff)])] },
+        [pictureRead(tiff, 'image/png')],
+      )
+      expect(messagesOf(outcome)).toEqual([{ role: 'user', content: [wire('image/png')] }])
+    })
+
+    it('of a tool result moves into the user message after the run, like an inline one', () => {
+      const outcome = encodeWith(
+        {
+          messages: [
+            message('a1', 'assistant', [callBlock('c1', 'call_a')]),
+            message('t1', 'tool', [resultBlock('r1', 'call_a'), pictureBlock('b1')]),
+          ],
+        },
+        [pictureRead()],
+      )
+      expect(messagesOf(outcome)).toEqual([
+        expect.objectContaining({ role: 'assistant' }),
+        { role: 'tool', tool_call_id: 'call_a', content: '' },
+        { role: 'user', content: [wire()] },
+      ])
+    })
+
+    it('that the same request refers to twice is written twice from one read', () => {
+      const messages = [
+        message('u1', 'user', [pictureBlock('b1')]),
+        message('u2', 'user', [pictureBlock('b2')]),
+      ]
+      const outcome = encodeWith({ messages }, [pictureRead()])
+      expect(messagesOf(outcome)).toEqual([
+        { role: 'user', content: [wire()] },
+        { role: 'user', content: [wire()] },
+      ])
+      if (!('ok' in outcome)) throw new Error('encode failed')
+      expect(outcome.ok.representation.media).toHaveLength(2)
+    })
+
+    it.each([
+      ['nothing was read for it', [] as Media],
+      ['what was read is of a type the model does not take', [pictureRead(PICTURE, 'image/gif')]],
+    ])('is unsupported at its path when %s', (_, media) => {
+      const messages = [message('u1', 'user', [textBlock('b1', 'a'), pictureBlock('b2')])]
+      expect(encodeWith({ messages }, media)).toEqual({
+        failure: { kind: 'unsupported', field: '/messages/0/blocks/1', adapter: adapterOf(record) },
+      })
+    })
+
+    it('is unsupported when the record takes no image, and so is a voice or a file by reference', () => {
+      const noImages = testRecord({ wire: { ...record.wire, image: null } })
+      const messages = [message('u1', 'user', [pictureBlock('b1')])]
+      const refused = bind(noImages, engineProbe()).encode(
+        inputOf(fixedRequest(noImages, { messages }), [], [pictureRead()]),
+      )
+      expect(refused).toMatchObject({
+        failure: { kind: 'unsupported', field: '/messages/0/blocks/0' },
+      })
+      for (const kind of ['voice', 'file']) {
+        const other = [message('u1', 'user', [pictureBlock('b1', PICTURE, { kind })])]
+        expect(encodeWith({ messages: other }, [pictureRead()])).toMatchObject({
+          failure: { kind: 'unsupported', field: '/messages/0/blocks/0' },
+        })
+      }
+    })
+  })
+
+  describe('a voice by reference', () => {
+    const plain = testRecord()
+    const record = testRecord({
+      wire: { ...plain.wire, voice: { formats: { 'audio/wav': 'wav' } } },
+    })
+    const encodeWith = (parts: RequestParts, media: Media, at = record) =>
+      bind(at, engineProbe()).encode(inputOf(fixedRequest(at, parts), [], media))
+    const heard = {
+      type: 'input_audio',
+      input_audio: { data: Buffer.from(SPEECH_BYTES).toString('base64'), format: 'wav' },
+    }
+
+    it('is written as input_audio from the bytes read for it, named by the format of the record', () => {
+      const outcome = encodeWith(
+        { messages: [message('u1', 'user', [textBlock('b1', 'hear this'), speechBlock('b2')])] },
+        [speechRead()],
+      )
+      expect(messagesOf(outcome)).toEqual([
+        { role: 'user', content: [{ type: 'text', text: 'hear this' }, heard] },
+      ])
+      if (!('ok' in outcome)) throw new Error('encode failed')
+      expect(outcome.ok.representation).toMatchObject({
+        kind: 'materialized',
+        media: [speechRead().measurement],
+      })
+    })
+
+    it('is written with the format of the version that was read, not of the original', () => {
+      const mpeg = { ...SPEECH, mediaType: 'audio/mpeg' }
+      const outcome = encodeWith({ messages: [message('u1', 'user', [speechBlock('b1', mpeg)])] }, [
+        speechRead(mpeg, 'audio/wav'),
+      ])
+      expect(messagesOf(outcome)).toEqual([{ role: 'user', content: [heard] }])
+    })
+
+    it('is unsupported when nothing was read for it, and an inline voice is unsupported', () => {
+      const field = '/messages/0/blocks/0'
+      expect(
+        encodeWith({ messages: [message('u1', 'user', [speechBlock('b1')])] }, []),
+      ).toMatchObject({ failure: { kind: 'unsupported', field } })
+      const inline = {
+        kind: 'voice',
+        id: 'b1',
+        visibility: { toHuman: true, toModel: true },
+        mediaType: 'audio/wav',
+        inline: 'UklGRg==',
+      }
+      expect(
+        encodeWith({ messages: [message('u1', 'user', [inline])] }, [speechRead()]),
+      ).toMatchObject({ failure: { kind: 'unsupported', field } })
+    })
+
+    it('is unsupported when the record takes no voice, when what was read has no format there, and in a tool result', () => {
+      const messages = [message('u1', 'user', [speechBlock('b1')])]
+      const field = '/messages/0/blocks/0'
+      expect(encodeWith({ messages }, [speechRead()], plain)).toMatchObject({
+        failure: { kind: 'unsupported', field },
+      })
+      const mpeg = { ...SPEECH, mediaType: 'audio/mpeg' }
+      expect(
+        encodeWith({ messages: [message('u1', 'user', [speechBlock('b1', mpeg)])] }, [
+          speechRead(mpeg),
+        ]),
+      ).toMatchObject({ failure: { kind: 'unsupported', field } })
+      const inResult = [
+        message('a1', 'assistant', [callBlock('c1', 'call_a')]),
+        message('t1', 'tool', [resultBlock('r1', 'call_a'), speechBlock('b1')]),
+      ]
+      expect(encodeWith({ messages: inResult }, [speechRead()])).toMatchObject({
+        failure: { kind: 'unsupported', field: '/messages/1/blocks/1' },
+      })
+    })
+  })
+
+  it('a record that refuses a forced tool choice answers unsupported for required and for one named tool; auto and none still go', () => {
+    const refusing = testRecord({ accepts: { forcedToolChoice: false } })
+    const tools = [tool('lookup')]
+    for (const toolChoice of ['required', { name: 'lookup' }] as const)
+      expect(encode(refusing, { tools, toolChoice })).toMatchObject({
+        failure: { kind: 'unsupported', field: 'toolChoice' },
+      })
+    for (const toolChoice of ['auto', 'none'] as const)
+      expect(body(encode(refusing, { tools, toolChoice }))['tool_choice']).toBe(toolChoice)
+    expect(body(encode(testRecord(), { tools, toolChoice: 'required' }))['tool_choice']).toBe(
+      'required',
+    )
+  })
+
+  it('a binding gives each referenced medium the types and the byte limit of its kind', () => {
+    const plain = testRecord()
+    const reference = (mediaType: string) => ({ ...PICTURE, mediaType })
+    const limitsOf = (record: ChatCompletionsRecord) =>
+      bindChatCompletions({
+        record,
+        supplier: supplierOf(record),
+        hooks: testHooks(engineProbe()),
+        meter: testMeter(record, engineProbe()),
+        limits: LIMITS,
+        imageBytes: 100,
+        voiceBytes: 200,
+        release: async () => undefined,
+      }).mediaLimits
+    const both = limitsOf(
+      testRecord({ wire: { ...plain.wire, voice: { formats: { 'audio/wav': 'wav' } } } }),
+    )
+    expect(both(reference('image/png'))).toEqual({
+      mediaTypes: ['image/png'],
+      maxBytes: 100,
+      image: null,
+    })
+    expect(both(reference('audio/mpeg'))).toEqual({
+      mediaTypes: ['audio/wav'],
+      maxBytes: 200,
+      image: null,
+    })
+    expect(both(reference('application/pdf'))).toBeNull()
+    expect(limitsOf(plain)(reference('audio/wav'))).toBeNull()
+    expect(
+      limitsOf(testRecord({ wire: { ...plain.wire, image: null } }))(reference('image/png')),
+    ).toBeNull()
   })
 
   it('refuses a call without a result, and a result without a call, as invalid', () => {
@@ -855,5 +1092,94 @@ describe('bindChatCompletions', () => {
     ])
     const acquired = await families.acquire(supplierOf(record), new AbortController().signal)
     expect('ok' in acquired && acquired.ok.adoption).toEqual(supplierOf(record).adoption)
+  })
+})
+
+describe('encode: a file by reference, and words kept apart (chat-completions)', () => {
+  const plain = testRecord()
+  const taking = testRecord({ wire: { ...testRecord().wire, file: PDF_WIRE } })
+  const sent = (
+    record: typeof plain,
+    parts: RequestParts,
+    media: Parameters<PiFamilyBinding['encode']>[0]['media'],
+  ) => {
+    const request: FixedModelRequest = fixedRequest(record, parts)
+    const outcome = bind(record).encode({
+      request,
+      media,
+      declaration: request.declarations[0],
+      resent: [],
+    })
+    return outcome
+  }
+  const parsed = (outcome: ReturnType<typeof sent>) => {
+    if (!('ok' in outcome)) throw new Error(`encode failed: ${JSON.stringify(outcome.failure)}`)
+    return JSON.parse(writeJsonText(outcome.ok.body)) as Record<string, unknown>
+  }
+  const DATA = Buffer.from(DOCUMENT_BYTES).toString('base64')
+  const partsOf = (body: Record<string, unknown>) =>
+    (body['messages'] as { content?: unknown }[]).flatMap(each =>
+      Array.isArray(each.content) ? (each.content as unknown[]) : [],
+    )
+
+  it('a PDF the record takes goes as its own file part, and the request asks the gateway to parse it natively', () => {
+    const messages = [message('u1', 'user', [textBlock('t1', 'read this'), documentBlock('d1')])]
+    const body = parsed(sent(taking, { messages }, [documentRead()]))
+    expect(partsOf(body)).toContainEqual({
+      type: 'file',
+      file: { filename: 'd1.pdf', file_data: `data:application/pdf;base64,${DATA}` },
+    })
+    expect(body.plugins).toEqual(NATIVE_PARSING)
+  })
+
+  it('a file the record does not take is unsupported; a request without a file asks for no parsing', () => {
+    const messages = [message('u1', 'user', [documentBlock('d1')])]
+    expect(sent(plain, { messages }, [documentRead()])).toMatchObject({
+      failure: { kind: 'unsupported', field: '/messages/0/blocks/0' },
+    })
+    const words = [message('u1', 'user', [textBlock('t1', 'hello')])]
+    expect(parsed(sent(taking, { messages: words }, [])).plugins).toBeUndefined()
+  })
+
+  it('an inline file, or one nothing was read for, is unsupported; a type with no known extension is named by its block', () => {
+    const field = '/messages/0/blocks/0'
+    const inline = {
+      kind: 'file',
+      id: 'f1',
+      visibility: { toHuman: true, toModel: true },
+      storage: 'tests',
+      key: 'f',
+      mediaType: 'application/pdf',
+    }
+    expect(
+      sent(taking, { messages: [message('u1', 'user', [inline])] }, [documentRead()]),
+    ).toMatchObject({
+      failure: { kind: 'unsupported', field },
+    })
+    expect(
+      sent(taking, { messages: [message('u1', 'user', [documentBlock('d1')])] }, []),
+    ).toMatchObject({
+      failure: { kind: 'unsupported', field },
+    })
+    const zip = { ...DOCUMENT, mediaType: 'application/zip' }
+    const zipping = testRecord({
+      wire: { ...testRecord().wire, file: { mediaTypes: ['application/zip'], maxBytes: 1024 } },
+    })
+    const messages = [message('u1', 'user', [textBlock('t1', 'unpack'), documentBlock('z1', zip)])]
+    const body = parsed(sent(zipping, { messages }, [documentRead(zip)]))
+    expect(partsOf(body)).toContainEqual({
+      type: 'file',
+      file: { filename: 'z1', file_data: `data:application/zip;base64,${DATA}` },
+    })
+  })
+
+  it('words kept apart are read back and written as words on any record, with no file and no parsing', () => {
+    const messages = [
+      message('u1', 'user', [textBlock('t1', 'what does it say?'), wordsBlock('w1')]),
+    ]
+    const body = parsed(sent(plain, { messages }, [wordsRead()]))
+    expect(partsOf(body)).toContainEqual({ type: 'text', text: WORDS_TEXT })
+    expect(body.plugins).toBeUndefined()
+    expect(sent(plain, { messages }, [])).toMatchObject({ failure: { kind: 'unsupported' } })
   })
 })

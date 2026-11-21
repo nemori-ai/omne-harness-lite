@@ -1,3 +1,4 @@
+import { originalContent } from './before-intake.ts'
 import { decidePermissionAssignment } from './permission-state.ts'
 import { incompleteAuthorization } from './authorizations.ts'
 import {
@@ -59,6 +60,7 @@ import { decideProducerFact } from './decide-receive.ts'
 import { admitInput, readsWithTerms } from './decide-intake.ts'
 import type { AdmittedSource } from './input-sources.ts'
 import { residentEntries, completeEvidence } from './decision-support.ts'
+import { judgeFork, judgeStanding } from './standing.ts'
 import { closingEntries } from './run-closure.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
 import { digestOf } from './operations.ts'
@@ -182,7 +184,11 @@ function decideCreate(
     return invalid('creation.modes.value.environment', 'incomplete adoption')
   if (creation.modes.kind === 'tenant-default' && emptyAdoption(creation.modes.source))
     return invalid('creation.modes.source', 'incomplete adoption')
-  const initialized = decideInitializationCreate(command, guards)
+  const standing = judgeStanding(command.input.session, creation, reads.related)
+  if ('kind' in standing) return standing
+  const forked = judgeFork(creation, reads.fork)
+  if (forked !== null) return forked
+  const initialized = decideInitializationCreate(command, guards, standing.tree)
   if (initialized.kind !== 'entries') return initialized
   const out = [...initialized.entries]
   if (creation.initial !== null) {
@@ -776,10 +782,22 @@ function decideDerived(
   ])
 }
 
+/** A replay is compared by what its sender brought: the facts an intake adds are not part of it. */
+function asBrought(input: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...input }
+  for (const key of ['value', 'urgent']) {
+    const routed = out[key] as Partial<Extract<RoutedInput, { kind: 'ordinary' }>> | undefined
+    if (routed?.kind === 'ordinary' && Array.isArray(routed.message?.blocks))
+      out[key] = { ...routed, message: originalContent(routed.message) }
+  }
+  return out
+}
+
 export function commandDigest(command: SessionCommand): string {
-  const { operation: _operation, ...rest } = command.input as Record<string, unknown> & {
+  const { operation: _operation, ...given } = command.input as Record<string, unknown> & {
     operation: SessionOperationId
   }
+  const rest = asBrought(given)
   const input =
     command.kind === 'create'
       ? {
@@ -937,7 +955,7 @@ function decideCommand(
     case 'freeze':
       return decideFreeze(previous, command, reads)
     case 'control':
-    case 'setRelation':
+    case 'setResident':
     case 'configureAutoArchive':
     case 'considerAutoArchive':
     case 'recordIdle':

@@ -149,6 +149,13 @@ describe('list-archived-sessions', () => {
     lastActivityAt: null,
     lifecycle: 'archived',
     title: 'old work',
+    relation: 'child',
+    parent: 'b'.repeat(64),
+    origin: null,
+    root: 'b'.repeat(64),
+    depth: 1,
+    attendance: 'unattended',
+    definition: 'coding',
     archivedAt: null,
     archivedBy: 'auto',
   }
@@ -181,6 +188,39 @@ describe('list-archived-sessions', () => {
       expect.objectContaining({ limit: 20, from, to: null, by: 'person', titleContains: null }),
       expect.objectContaining({ limit: 5, from: null, to: null, by: null, titleContains: 'build' }),
     ])
+  })
+
+  it('hands the relation filters of both lists through, each missing one as null', async () => {
+    const world = createWorld()
+    const any = { relation: null, parent: null, attendance: null, definition: null }
+    const parent = 'b'.repeat(64)
+    await ops(world)['list-sessions'](as(loginIdentity(ALICE)), body)
+    await ops(world)['list-sessions'](as(loginIdentity(ALICE)), {
+      ...body,
+      relation: 'child',
+      parent,
+      attendance: 'unattended',
+      definition: 'coding',
+    })
+    await ops(world)['list-archived-sessions'](as(loginIdentity(ALICE)), {
+      ...body,
+      relation: 'handoff',
+    })
+    expect(world.listing.calls().map(call => call.filter)).toEqual([
+      any,
+      { relation: 'child', parent, attendance: 'unattended', definition: 'coding' },
+      { ...any, relation: 'handoff' },
+    ])
+  })
+
+  it('lists a session that is not archived with what it is to others, and without archive fields', async () => {
+    const world = createWorld()
+    world.listing.answer({ ok: { items: [row], next: null, completeness: 'complete' } })
+    const { archivedAt: _at, archivedBy: _by, ...listed } = row
+    expect(await ops(world)['list-sessions'](as(loginIdentity(ALICE)), body)).toEqual({
+      outcome: 'succeeded',
+      body: { sessions: [listed], next: null, completeness: 'complete' },
+    })
   })
 
   it('answers invalid above the limit bound and when the list refuses with invalid', async () => {

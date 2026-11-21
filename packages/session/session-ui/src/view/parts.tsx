@@ -10,9 +10,10 @@ import {
   TraceHeader,
   type Icon,
 } from '@omne-harness/ui-kit'
-import { memo, useId, useState, type ReactNode } from 'react'
+import { memo, useContext, useId, useState, type ReactNode } from 'react'
 import type { Item, Part } from '../model/conversation.ts'
 import { isRecord, type Plain } from '../model/plain.ts'
+import { BlockSlotContext } from './block-slot.ts'
 
 type ToolCallPart = Extract<Part, { kind: 'tool-call' }>
 
@@ -228,16 +229,23 @@ function Reasoning({ text, live }: { readonly text: string; readonly live: boole
 const inBubble = (part: Part): boolean =>
   part.kind === 'text' || part.kind === 'media' || part.kind === 'unknown'
 
+/** A block that is not words: the item of `session.block` draws it, else its kind and its words. */
+function MediaPart({ part }: { readonly part: Extract<Part, { kind: 'media' }> }) {
+  const slot = useContext(BlockSlotContext)
+  const placeholder = (
+    <p className="omne-placeholder">
+      〔{part.media}〕{part.detail}
+    </p>
+  )
+  return slot === null || part.source === null ? placeholder : slot(part.source, placeholder)
+}
+
 function BubblePart({ part, live }: { readonly part: Part; readonly live: boolean }) {
   switch (part.kind) {
     case 'text':
       return <Prose text={part.text} isAnimating={live} />
     case 'media':
-      return (
-        <p className="omne-placeholder">
-          〔{part.media}〕{part.detail}
-        </p>
-      )
+      return <MediaPart part={part} />
     case 'unknown':
       return <p className="omne-placeholder">不认识的内容种类：{part.partKind}</p>
     default:

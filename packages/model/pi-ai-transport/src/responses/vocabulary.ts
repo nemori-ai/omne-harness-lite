@@ -1,3 +1,4 @@
+import type { FileWire } from '../media.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ProfileReplay } from '@omne-harness/model-contract'
 import type { PiModelRecordHead } from '../family-table.ts'
@@ -14,6 +15,7 @@ export type ResponsesWire = Readonly<{
   /** Automatic caching with a session key; a breakpoint that moves each turn never hit. */
   cache: Readonly<{ kind: 'none' }> | Readonly<{ kind: 'automatic' }>
   image: Readonly<{ mediaTypes: readonly string[] }> | null
+  file?: FileWire
   reasoning: Readonly<{ summary: 'auto' | null }>
   toolNames: Readonly<{ rule: 'underscore/1'; maxLength: number }>
 }>

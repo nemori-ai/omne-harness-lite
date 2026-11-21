@@ -103,6 +103,8 @@ export function createFakeClient(): FakeClient {
     'select-model',
     'read-permission-mode',
     'change-permission-mode',
+    'read-workspace-selection',
+    'select-workspace',
   ]
   const client = Object.fromEntries(names.map(name => [name, operation(name)])) as Record<
     string,

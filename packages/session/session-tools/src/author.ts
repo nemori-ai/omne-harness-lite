@@ -106,6 +106,12 @@ const summaryOf = (item: SessionSummary) => ({
   last_activity_at: item.lastActivityAt,
   archived_at: item.archivedAt,
   archived_by: item.archivedBy,
+  relation: item.relation,
+  parent: item.parent,
+  handed_from: item.origin,
+  depth: item.depth,
+  attendance: item.attendance,
+  definition: item.definition,
 })
 const nextOf = (next: string | null) => next ?? 'none'
 
@@ -136,11 +142,12 @@ const READS: { readonly [K in Exclude<SessionsArguments['kind'], 'help'>]: Read<
       cursor: args.cursor,
       direction,
       pageBytes,
+      ...(args.inherited ? { inherited: true as const } : {}),
     })
     if ('failure' in read) return failureText(read.failure, args.session)
-    const { entries, exhausted, next } = read.ok
+    const { entries, exhausted, next, from } = read.ok
     const material = entries.map(({ position, kind, payload }) => ({
-      session: args.session,
+      session: from ?? args.session,
       position,
       kind,
       material: payload,

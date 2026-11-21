@@ -25,6 +25,7 @@ const allowed = {
   inputCompatible: true,
   outputCompatible: true,
   attachmentsReadable: true,
+  productsStorable: true,
 } as const
 const search = { k1: 1.2, b: 0.75, maxCachedCorpora: 2 }
 function row(name: string, description: string, revision = '1', programmable = true) {

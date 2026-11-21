@@ -18,7 +18,13 @@ export type Part =
       ended: boolean
     }>
   | Readonly<{ kind: 'tool-result'; key: string; callId: string; result: ToolResultView }>
-  | Readonly<{ kind: 'media'; key: string; media: string; detail: string }>
+  | Readonly<{
+      kind: 'media'
+      key: string
+      media: string
+      detail: string
+      source: BlockSource | null
+    }>
   | Readonly<{ kind: 'unknown'; key: string; partKind: string }>
 
 export type Item =
@@ -34,14 +40,26 @@ export type Item =
   | Readonly<{ kind: 'unknown'; key: string; entryKind: string }>
 
 type Block = { readonly [key: string]: Plain }
-type PartFrom = (block: Block, key: string, kind: string) => Part
+type PartFrom = (block: Block, key: string, kind: string, message: string | null) => Part
 
-const media: PartFrom = (block, key, kind) => ({
-  kind: 'media',
-  key,
-  media: kind,
-  detail: textOf(block['transcript']) ?? textOf(block['mediaType']) ?? '',
-})
+/** Where a block that is not words stands: its message, its own id, and the block as read. */
+export type BlockSource = Readonly<{ message: string; block: string; content: Plain }>
+
+function mediaTypeOf(block: Block): string | undefined {
+  const ref = block['ref']
+  return textOf(block['mediaType']) ?? (isRecord(ref) ? textOf(ref['mediaType']) : undefined)
+}
+
+const media: PartFrom = (block, key, kind, message) => {
+  const id = textOf(block['id'])
+  return {
+    kind: 'media',
+    key,
+    media: kind,
+    detail: textOf(block['transcript']) ?? mediaTypeOf(block) ?? '',
+    source: message === null || id === undefined ? null : { message, block: id, content: block },
+  }
+}
 
 const PART: ReadonlyMap<string, PartFrom> = new Map<string, PartFrom>([
   ['text', (block, key) => ({ kind: 'text', key, text: textOf(block['text']) ?? '' })],
@@ -54,11 +72,13 @@ const PART: ReadonlyMap<string, PartFrom> = new Map<string, PartFrom>([
   ['tool_call_unparsed', (block, key) => toolCall(key, block, 'unparsed')],
 ])
 
-function contentPart(block: Plain, key: string): Part {
+function contentPart(block: Plain, key: string, message: string | null = null): Part {
   if (!isRecord(block)) return { kind: 'unknown', key, partKind: typeof block }
   const kind = textOf(block['kind']) ?? '(none)'
   const build = PART.get(kind)
-  return build === undefined ? { kind: 'unknown', key, partKind: kind } : build(block, key, kind)
+  return build === undefined
+    ? { kind: 'unknown', key, partKind: kind }
+    : build(block, key, kind, message)
 }
 
 function toolCall(key: string, block: Block, state: 'complete' | 'incomplete' | 'unparsed'): Part {
@@ -80,7 +100,7 @@ function argumentsOf(value: Plain): Plain {
   return plainOfTree(value) ?? value
 }
 
-function messageParts(blocks: readonly Plain[], prefix: string): Part[] {
+function messageParts({ blocks, id }: MessageRead, prefix: string): Part[] {
   const parts: Part[] = []
   let body: Part[] | null = null
   blocks.forEach((block, at) => {
@@ -96,18 +116,24 @@ function messageParts(blocks: readonly Plain[], prefix: string): Part[] {
       })
       return
     }
-    const part = contentPart(block, key)
+    const part = contentPart(block, key, id)
     if (body !== null && part.kind !== 'tool-call') body.push(part)
     else parts.push(part)
   })
   return parts
 }
 
-function messageOf(entry: HistoryEntry): { role: string; blocks: readonly Plain[] } | null {
+type MessageRead = Readonly<{ role: string; id: string | null; blocks: readonly Plain[] }>
+
+function messageOf(entry: HistoryEntry): MessageRead | null {
   const payload = entry.payload
   const message = isRecord(payload) ? payload['message'] : undefined
   if (!isRecord(message)) return null
-  return { role: textOf(message['role']) ?? '', blocks: listOf(message['blocks']) }
+  return {
+    role: textOf(message['role']) ?? '',
+    id: textOf(message['id']) ?? null,
+    blocks: listOf(message['blocks']),
+  }
 }
 
 function liveParts(blocks: readonly LiveBlock[]): Part[] {
@@ -137,7 +163,7 @@ function liveParts(blocks: readonly LiveBlock[]): Part[] {
           },
         ]
       case 'voice':
-        return [{ kind: 'media', key, media: 'voice', detail: '' }]
+        return [{ kind: 'media', key, media: 'voice', detail: '', source: null }]
       default:
         return [{ kind: 'unknown', key, partKind: block.content }]
     }
@@ -180,7 +206,7 @@ function walkOf(entries: readonly HistoryEntry[]): Walk {
   for (const entry of entries) {
     const message = entry.kind === 'message.tool' ? messageOf(entry) : null
     if (message === null) continue
-    const parts = messageParts(message.blocks, entry.entryId)
+    const parts = messageParts(message, entry.entryId)
     walk.toolParts.set(entry.entryId, parts)
     for (const part of parts)
       if (part.kind === 'tool-result' && !walk.results.has(part.callId))
@@ -217,7 +243,7 @@ const chatItem: ItemFrom = (walk, entry) => {
     kind: 'message',
     key: entry.entryId,
     role: entry.kind === 'message.user' ? 'user' : 'assistant',
-    parts: withResults(walk, messageParts(message.blocks, entry.entryId)),
+    parts: withResults(walk, messageParts(message, entry.entryId)),
     live: false,
   }
 }
@@ -239,7 +265,7 @@ const noteItem: ItemFrom = (walk, entry) => {
     kind: 'note',
     key: entry.entryId,
     label: entry.kind === 'message.system_reminder' ? '系统提醒' : '内部工具消息',
-    parts: message === null ? [] : withResults(walk, messageParts(message.blocks, entry.entryId)),
+    parts: message === null ? [] : withResults(walk, messageParts(message, entry.entryId)),
   }
 }
 

@@ -1,6 +1,12 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
-import type { SessionAccess, SessionWork, SessionId } from '@omne-harness/session-contract'
+import type {
+  SessionAccess,
+  SessionWork,
+  SessionId,
+  WorkSnapshot,
+} from '@omne-harness/session-contract'
+import { heldBlock } from '@omne-harness/session-adapters/cordis'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -38,10 +44,15 @@ export type PublishedViewBinding<V extends Basis> = PublishedNeedBinding<V> &
 
 export type PublishedViewRead<V> = Outcome<V, string>
 
+type Current = Readonly<{
+  scope: ScopeRef
+  records: NonNullable<WorkSnapshot['contextRecords']>
+}>
+
 async function currentScope(
   ports: PublishedViewPorts,
   access: SessionAccess<unknown>,
-): Promise<PublishedViewRead<ScopeRef>> {
+): Promise<PublishedViewRead<Current>> {
   const work = await ports.work.readWork(access)
   if ('failure' in work) return fail(`session work: ${work.failure.kind}`)
   if (!tenantEquals(work.ok.tenant, access.tenant) || work.ok.session !== access.session)
@@ -50,7 +61,8 @@ async function currentScope(
   if (current === undefined) return fail('session work: no context scope')
   if (current.ended !== null) return fail('session work: the context scope has ended')
   const scope = decodeScopeRef({ ref: current.scope })
-  return 'failure' in scope ? fail('session work: the context scope is not a scope ref') : scope
+  if ('failure' in scope) return fail('session work: the context scope is not a scope ref')
+  return succeed({ scope: scope.ok, records: work.ok.contextRecords ?? [] })
 }
 
 async function selected<V>(
@@ -90,26 +102,48 @@ export async function readPublishedNeed<V>(
   input: SessionAccess<unknown>,
   binding: PublishedNeedBinding<V>,
 ): Promise<PublishedViewRead<V | null>> {
+  return readIn(ports, input, binding, () => true)
+}
+
+// A need of a block the session holds in its own log. Null, reading nothing, when the scope never
+// registered the block: such a block reads nothing however long one waits.
+export async function readHeldNeed<V>(
+  ports: PublishedViewPorts,
+  input: SessionAccess<unknown>,
+  binding: PublishedNeedBinding<V>,
+): Promise<PublishedViewRead<V | null>> {
+  return readIn(
+    ports,
+    input,
+    binding,
+    current => heldBlock(current.records, current.scope, binding.key).kind === 'held',
+  )
+}
+
+async function readIn<V>(
+  ports: PublishedViewPorts,
+  input: SessionAccess<unknown>,
+  binding: PublishedNeedBinding<V>,
+  holds: (current: Current) => boolean,
+): Promise<PublishedViewRead<V | null>> {
   const access = { ...input }
   try {
-    const scope = await currentScope(ports, access)
-    if ('failure' in scope) return scope
+    const current = await currentScope(ports, access)
+    if ('failure' in current) return current
+    if (!holds(current.ok)) return succeed(null)
+    const { scope } = current.ok
     const recovered = await ports.recoverSession({
       tenant: access.tenant,
       session: access.session,
-      scope: scope.ok,
+      scope,
     })
     if (recovered.kind !== 'ready') return fail(`session recovery: ${recovered.kind}`)
-    const issued = await ports.eligibility.current({
-      ...access,
-      scope: scope.ok,
-      consumer: 'coordinator',
-    })
+    const issued = await ports.eligibility.current({ ...access, scope, consumer: 'coordinator' })
     if (issued.kind !== 'current') return fail(`eligibility: ${issued.kind}`)
     const bound = await ports.runtime.bind(issued.eligibility)
     if (bound.kind !== 'bound') return fail(`bind: ${bound.kind}`)
     try {
-      if (bound.reader.consumer !== 'coordinator' || bound.reader.scope.ref !== scope.ok.ref)
+      if (bound.reader.consumer !== 'coordinator' || bound.reader.scope.ref !== scope.ref)
         return fail('bind: another consumer or scope')
       return await selected(bound.reader, binding)
     } finally {
@@ -120,13 +154,14 @@ export async function readPublishedNeed<V>(
   }
 }
 
-export function publishedViewPortsOf(ctx: Context): PublishedViewPorts | null {
-  const session = ctx.intercept(sessionKey, { caller: 'coordinator' }).get(sessionKey)
-  const eligibility = ctx.get(runtimeContextReaderEligibilityKey)
+/** `declared: false` reads the services lazily, for a row that does not list them among its injects. */
+export function publishedViewPortsOf(ctx: Context, declared = true): PublishedViewPorts | null {
+  const session = ctx.intercept(sessionKey, { caller: 'coordinator' }).get(sessionKey, declared)
+  const eligibility = ctx.get(runtimeContextReaderEligibilityKey, declared)
   const runtime = ctx
     .intercept(runtimeContextKey, { consumer: 'coordinator' })
-    .get(runtimeContextKey)
-  const modes = ctx.get(sessionModesInstallationKey)
+    .get(runtimeContextKey, declared)
+  const modes = ctx.get(sessionModesInstallationKey, declared)
   if (!session || !eligibility || !runtime || !modes) return null
   return {
     work: session.work,

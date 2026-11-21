@@ -32,6 +32,12 @@ const item = (session: string): SessionListItem =>
     title: `title of ${session}`,
     archivedAt: null,
     archivedBy: null,
+    relation: { kind: 'child', parent: 'ses_parent' },
+    root: 'ses_parent',
+    depth: 1,
+    attendance: 'unattended',
+    definition: 'coding',
+    toReference: null,
   }) as unknown as SessionListItem
 const verifier = (principal: unknown) =>
   ({
@@ -88,12 +94,20 @@ function world(
   return { bound, fns, principal, ports }
 }
 
+const ANY = { relation: null, parent: null, attendance: null, definition: null } as const
+
 describe('the Sessions binding of the release', () => {
   it('reads with the call principal and tenant, never with anything the model gave', async () => {
     const { bound, fns } = world()
-    await bound.list({ archived: false, title: null, cursor: 'c-1', limit: 5 })
-    expect(fns.list).toHaveBeenCalledWith({ principal: work(A), tenant: A, after: 'c-1', limit: 5 })
-    await bound.list({ archived: true, title: 'trip', cursor: null, limit: 5 })
+    await bound.list({ ...ANY, archived: false, title: null, cursor: 'c-1', limit: 5 })
+    expect(fns.list).toHaveBeenCalledWith({
+      principal: work(A),
+      tenant: A,
+      after: 'c-1',
+      limit: 5,
+      filter: {},
+    })
+    await bound.list({ ...ANY, archived: true, title: 'trip', cursor: null, limit: 5 })
     expect(fns.listArchived).toHaveBeenCalledWith(
       expect.objectContaining({ principal: work(A), tenant: A, titleContains: 'trip' }),
     )
@@ -116,10 +130,66 @@ describe('the Sessions binding of the release', () => {
     })
   })
 
+  it('asks for the prefix of a forked session only when the call does, and hands on whose entries a page holds', async () => {
+    const page = { entries: [], next: 'k-2', exhausted: false, from: 'ses_parent' }
+    const begin = vi.fn(async (input: { inherited?: true }) => ({
+      ok: input.inherited === true ? page : { entries: [], next: null, exhausted: true },
+    }))
+    const { bound } = world({ begin })
+    const ask = { session: 'ses_b', cursor: null, direction: 'forward', pageBytes: 100 } as const
+    const plain = await bound.read(ask)
+    expect(begin.mock.calls[0]?.[0]).not.toHaveProperty('inherited')
+    expect(plain).toEqual({ ok: { entries: [], next: null, exhausted: true } })
+    const inherited = await bound.read({ ...ask, inherited: true })
+    expect(begin.mock.calls[1]?.[0]).toMatchObject({ inherited: true, direction: 'forward' })
+    expect(inherited).toEqual({ ok: page })
+  })
+
+  it('narrows both lists by what the call gives, and gives each session what it is to others', async () => {
+    const { bound, fns } = world()
+    const given = {
+      relation: 'child',
+      parent: 'ses_a',
+      attendance: 'unattended',
+      definition: 'coding',
+    } as const
+    const filter = {
+      kind: 'child',
+      parent: 'ses_a',
+      attendance: 'unattended',
+      definition: 'coding',
+    }
+    await bound.list({ ...given, archived: false, title: null, cursor: null, limit: 5 })
+    expect(fns.list).toHaveBeenLastCalledWith(expect.objectContaining({ filter }))
+    await bound.list({
+      ...ANY,
+      relation: 'handoff',
+      archived: true,
+      title: null,
+      cursor: null,
+      limit: 5,
+    })
+    expect(fns.listArchived).toHaveBeenLastCalledWith(
+      expect.objectContaining({ filter: { kind: 'handoff' } }),
+    )
+    const page = await bound.list({ ...ANY, archived: false, title: null, cursor: null, limit: 5 })
+    if (!('ok' in page)) throw new Error('the list failed')
+    expect(page.ok.items[0]).toMatchObject({
+      relation: 'child',
+      parent: 'ses_parent',
+      origin: null,
+      depth: 1,
+      attendance: 'unattended',
+      definition: 'coding',
+    })
+  })
+
   it('denies before any read when the principal is not a verified work principal of the tenant', async () => {
     const { bound, fns, principal } = world()
     principal.value = null
-    expect(await bound.list({ archived: false, title: null, cursor: null, limit: 5 })).toEqual({
+    expect(
+      await bound.list({ ...ANY, archived: false, title: null, cursor: null, limit: 5 }),
+    ).toEqual({
       failure: { kind: 'denied' },
     })
     expect(
@@ -250,7 +320,7 @@ describe('the Sessions binding of the release', () => {
       },
     )
     expect(
-      await bound.list({ archived: false, title: null, cursor: null, limit: 1 }),
+      await bound.list({ ...ANY, archived: false, title: null, cursor: null, limit: 1 }),
     ).toMatchObject({
       failure: { kind: 'unavailable' },
     })

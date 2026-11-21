@@ -8,6 +8,10 @@ dist/
 node_modules/
 tmp/
 /.worktrees/
+# 桌面应用打出的安装包与解开的应用（apps/desktop 的 pnpm run package 与 pnpm run dist）
+/apps/desktop/out/
+# 桌面应用端到端用例的产物（pnpm run test:e2e）
+/apps/desktop/test-results/
 # pnpm run closeout:mutation（pqw 的差分变异）的 sandbox（与成员同深度，跑完删掉；被打断时可能留下）
 .stryker-tmp*
 # Git 2.31 之前的 rev-parse 原样回显 --path-format=absolute，旧版工具会把依赖图缓存写进以它命名的目录

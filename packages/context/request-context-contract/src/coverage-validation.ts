@@ -30,6 +30,12 @@ function alteration(value: unknown): boolean {
     (value.touches === 'existing-layers' || value.touches === 'history-tail')
   )
 }
+function provenance(value: unknown): boolean {
+  return record(value) && typeof value.name === 'string' && typeof value.revision === 'string'
+}
+function representationSource(value: unknown): boolean {
+  return record(value) && provenance(value.definition) && provenance(value.engine)
+}
 function representation(value: unknown): boolean {
   return (
     record(value) &&
@@ -37,8 +43,8 @@ function representation(value: unknown): boolean {
     parseMessageId(value.message).ok &&
     typeof value.block === 'string' &&
     value.block.length > 0 &&
-    ['original', 'derived', 'transcript', 'pending-load'].includes(String(value.choice)) &&
-    (value.converter === null || adoption(value.converter)) &&
+    ['original', 'derived', 'transcript'].includes(String(value.choice)) &&
+    (value.source === null || representationSource(value.source)) &&
     (value.mediaType === null || typeof value.mediaType === 'string')
   )
 }

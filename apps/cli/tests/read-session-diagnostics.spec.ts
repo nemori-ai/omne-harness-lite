@@ -61,6 +61,7 @@ const modelCall = (fields: Record<string, unknown>) => ({
   call: { kind: 'found', call: 'call-1', phase: 'settled' },
   dispatches: [dispatch({})],
   coverage: 'complete-through-snapshot',
+  reads: [],
   facts: [],
   ...fields,
 })
@@ -294,6 +295,35 @@ describe('read-session-diagnostics', () => {
       expect(lines).toContain(
         '      d-2 openai-compatible: not-sent, first content none-proven, pending, reasoning not-carried',
       )
+    })
+
+    it('says under each model call which form of each block the model read, and nothing when no block had a reference', async () => {
+      const read = (block: string, form: string) => ({ message: 'msg-1', block, read: form })
+      const withReads = run({
+        modelCalls: [
+          modelCall({
+            reads: [
+              read('b-1', 'original'),
+              read('b-2', 'fitted'),
+              read('b-3', 'derived'),
+              read('b-4', 'transcript'),
+            ],
+          }),
+          modelCall({ reference: 'ref-2' }),
+        ],
+      })
+      const service = await serve(diagnosticsService([page([withReads], null)]))
+      await loginOwningSession(service)
+      const result = await cli([name, '--session', sessionId])
+      expect(result.code).toBe(0)
+      const lines = result.stdout.split('\n')
+      const at = lines.indexOf(
+        '    main ref-1 -> call call-1 (settled), 1 dispatch, coverage complete-through-snapshot',
+      )
+      expect(lines[at + 1]).toBe(
+        '      reads: msg-1/b-1 original, msg-1/b-2 fitted, msg-1/b-3 derived, msg-1/b-4 transcript',
+      )
+      expect(lines.filter(line => line.includes('reads:'))).toHaveLength(1)
     })
 
     it('shows the moments, the span to the response and the connect retries of a dispatch, and the progress of its call', async () => {

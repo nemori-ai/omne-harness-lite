@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from '@omne-harness/ui-kit'
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useOffered } from './use-offered.ts'
 import type { ModelChoice, ModelSelectionStore } from '../model/model-selection.ts'
 import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingPlace } from './heading-fold.tsx'
 
@@ -52,17 +53,6 @@ function ModelSelect({
   )
 }
 
-function useChoices(store: ModelSelectionStore, tenant: string, load = true) {
-  const subscribe = useCallback(
-    (listener: () => void) => store.subscribeChoices(tenant, listener),
-    [store, tenant],
-  )
-  useEffect(() => {
-    if (load) void store.loadChoices(tenant)
-  }, [store, tenant, load])
-  return useSyncExternalStore(subscribe, () => store.choices(tenant))
-}
-
 // The model a session has stays in the list even when nobody offers it any more.
 const withCurrent = (choices: readonly ModelChoice[], model: string): readonly ModelChoice[] =>
   choices.some(choice => choice.route === model)
@@ -78,7 +68,7 @@ export function ModelAction({ store, tenant, session }: Props) {
     [store, tenant, session],
   )
   const view = useSyncExternalStore(subscribe, () => store.read(tenant, session))
-  const listing = useChoices(store, tenant, inBar)
+  const listing = useOffered(store, tenant, inBar)
   const [said, say] = useState<string | null>(null)
   useEffect(() => {
     if (!inBar) return

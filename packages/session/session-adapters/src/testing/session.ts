@@ -63,6 +63,8 @@ import {
   rowData,
   materializeModelView,
   compactionReads,
+  forkPointRead,
+  modelViewPage,
 } from './session-values.ts'
 import type { SessionState } from './root.ts'
 import { admittedInputs, withInputs } from './inputs.ts'
@@ -185,7 +187,7 @@ export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason
   else if (
     snapshot.lifecycle !== 'archived' &&
     snapshot.autoArchive?.kind === 'enabled' &&
-    !(snapshot.relation?.kind === 'main' && snapshot.relation.resident)
+    snapshot.resident !== true
   )
     reasons.push('idle-armed')
   if (snapshot.consumptions.some(item => item.results.some(result => result.release === 'pending')))
@@ -486,7 +488,7 @@ export function createSessionTransactions<P>(
       const result =
         snapshot.autoArchive?.kind !== 'enabled'
           ? 'disabled'
-          : snapshot.relation?.kind === 'main' && snapshot.relation.resident
+          : snapshot.resident === true
             ? 'exempt'
             : observation === undefined
               ? 'not-due'
@@ -740,43 +742,14 @@ export function createSessionTransactions<P>(
         }),
       )
     },
+    readForkPoint: async input => {
+      const store = await storeOf(input, 'history.readModelView')
+      return forkPointRead(store, keyOf(input.tenant, input.session))
+    },
     readModelView: async input => {
       const store = await storeOf(input, 'history.readModelView')
       if ('failure' in store) return store
-      if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
-        return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
-      const view = store.ok.modelView
-      const key = keyOf(input.tenant, input.session)
-      if ('failure' in key) return key
-      const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
-      if (input.basis !== null && !input.basis.epoch.startsWith(`${key.ok}/`))
-        return fail({ kind: 'invalid', field: 'basis', reason: 'another session' })
-      if (input.basis !== null && input.basis.epoch !== current.epoch)
-        return succeed({ kind: 'epoch-changed', current })
-      const basis = input.basis ?? current
-      const after = input.after === null ? 0 : Number(input.after)
-      const upper = Number(basis.upper)
-      if (
-        !Number.isInteger(after) ||
-        !Number.isInteger(upper) ||
-        after < 0 ||
-        upper > view.rows.length ||
-        after > upper
-      )
-        return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
-      const rows = []
-      let bytes = 0
-      for (const row of view.rows.slice(after, upper)) {
-        if (rows.length > 0 && bytes + row.bytes > input.pageBytes) break
-        rows.push(row)
-        bytes += row.bytes
-      }
-      return succeed({
-        kind: 'page',
-        basis,
-        rows,
-        next: after + rows.length < upper ? String(after + rows.length) : null,
-      })
+      return modelViewPage(store.ok.modelView, keyOf(input.tenant, input.session), input)
     },
   }
 

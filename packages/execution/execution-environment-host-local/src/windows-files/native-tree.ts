@@ -76,7 +76,7 @@ public static partial class OmneFiles {
     try { IntPtr handle=Create(destination,"",0x4,1,0x200021); CloseHandle(handle); return true; }
     catch(IOException) { return false; }
   }
-  public static object Change(string root,string expectedRoot,string[] segments,string named,string operation,bool recursive,string version,bool hasVersion,string targetRoot,string expectedTargetRoot,string[] targetSegments,string targetNamed,bool replace,bool rooted) {
+  public static object Change(string root,string expectedRoot,string[] segments,string named,string operation,bool recursive,string version,bool hasVersion,string targetRoot,string expectedTargetRoot,string[] targetSegments,string targetNamed,bool replace,bool rooted,bool targetRooted) {
     List<IntPtr> held=new List<IntPtr>(); bool changed=false;
     try {
       if(segments.Length==0) throw new IOException("notAuthorized");
@@ -92,7 +92,7 @@ public static partial class OmneFiles {
           Delete(current); changed=true;
         } else if(operation=="move") {
           if(targetSegments.Length==0) throw new IOException("notAuthorized");
-          IntPtr destinationRoot=Root(targetRoot,expectedTargetRoot,rooted,held), destination=Parent(destinationRoot,targetRoot,targetSegments,rooted,held);
+          IntPtr destinationRoot=Root(targetRoot,expectedTargetRoot,targetRooted,held), destination=Parent(destinationRoot,targetRoot,targetSegments,targetRooted,held);
           string targetName=targetSegments[targetSegments.Length-1]; IntPtr target=IntPtr.Zero; bool replacing=false;
           try { target=OpenRelative(destination,targetName,0x80,false); }
           catch(IOException error) { if(error.Message!="unresolved") throw; }

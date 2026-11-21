@@ -215,7 +215,8 @@
 | [UL-single-active-execution](terms/agent-runtime-loop.md#ul-single-active-execution--会话内单活跃--single-active-execution) | 会话内单活跃 | Single Active Execution | **一个会话同一时刻至多一个活跃 Run、一个活跃 agent runtime**（GPT-Live 时重裁） |
 | [UL-session](terms/agent-runtime-loop.md#ul-session--会话--session) | 会话 | Session | 一段协作的耐久身份与归属边界，**不要求有人说过话**；冻结后不再开始新的运行 |
 | [UL-primary-session](terms/agent-runtime-loop.md#ul-primary-session--主会话--primary-session) | 主会话 | Primary Session | 不是任何会话之子会话的那个；**彼此生命周期独立** |
-| [UL-child-session](terms/agent-runtime-loop.md#ul-child-session--子会话--child-session) | 子会话 | Child Session | `delegate`/`spawn` 出的子 agent 所在的会话；**不继承历史，spawn 不是 fork** |
+| [UL-child-session](terms/agent-runtime-loop.md#ul-child-session--子会话--child-session) | 子会话 | Child Session | `delegate`/`spawn` 出的子 agent 所在的会话；**`spawn` 的从父会话分叉而来，`delegate` 的不带父的对话** |
+| [UL-session-fork](terms/agent-runtime-loop.md#ul-session-fork--会话分叉--session-fork) | 会话分叉 | Session Fork | 新会话从另一个会话的某一刻接着走；**之前的对话按引用共享，不复制**；现在只有 `spawn` 产生 |
 | [UL-session-attendance](terms/agent-runtime-loop.md#ul-session-attendance--会话值守--session-attendance) | 会话值守 | Session Attendance | 随创建固定：另一头有没有人可以沟通、交互、接收通知；**不是协作模式** |
 | [UL-session-archival](terms/agent-runtime-loop.md#ul-session-archival--会话归档--session-archival) | 会话归档 | Session Archival | **唯一那个「协作到此为止」的锚点**；**租户手动或到期自动**；**本身可撤销，连带的三件事不可逆**；冻结过的会话撤销归档后回到冻结 |
 | [UL-session-freeze](terms/agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze) | 会话冻结 | Session Freeze | 采用点判定常驻工具形状无法保持时进入的会话状态；**不再开始新的运行，不可逆，不是归档** |

@@ -39,6 +39,18 @@ describe('acquire', () => {
       const binding = acquired.ok
       expect(binding.supplier).toEqual(supplier)
       expect(binding.adoption).toEqual(recordAdoption(OPENAI_OWNER, record))
+      const picture = { storage: 's', key: 'k', mediaType: 'image/tiff', bytes: '9', digest: 'd' }
+      expect(binding.mediaLimits(picture)).toEqual({
+        mediaTypes: record.wire.image?.mediaTypes,
+        maxBytes: 4_194_304,
+        image: null,
+      })
+      expect(binding.mediaLimits({ ...picture, mediaType: 'application/pdf' })).toEqual(
+        record.name === 'openai/gpt-5.6-luna'
+          ? { mediaTypes: ['application/pdf'], maxBytes: 33_554_432, image: null }
+          : null,
+      )
+      expect(binding.mediaLimits({ ...picture, mediaType: 'audio/wav' })).toBeNull()
       expect(binding.counting).toBe(binding.meter.basis)
       expect(binding.counting.supplier.adoption).toEqual(supplier.adoption)
       expect(binding.counting.tokenization).toEqual({

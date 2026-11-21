@@ -4,10 +4,13 @@ import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { modelDiagnosticsKey, modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
-import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
+import { decodeFixedRequestRecord } from '@omne-harness/request-context-contract'
+import type { SessionId } from '@omne-harness/session-contract'
+import { sessionAdoptedRequestsKey, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import type {
   DiagnosticPorts,
   DiagnosticsPrincipals,
+  ModelRequestReader,
   SessionDiagnosticsFaces,
 } from '@omne-harness/session-diagnostics-access'
 import { createSessionDiagnosticsAccessPlugin } from '@omne-harness/session-diagnostics-access/cordis'
@@ -56,6 +59,32 @@ function present<T>(service: T | undefined, name: string): T {
   return service
 }
 
+// The choices Request Context made for the request adopted for one model call, as it recorded them.
+function modelRequests(ctx: Context): ModelRequestReader<Principal> {
+  return {
+    async readChoices({ principal, tenant, session, reference }) {
+      const requests = present(ctx.get(sessionAdoptedRequestsKey), 'sessionAdoptedRequests')
+      const read = await requests.readAdoptedRequest({
+        access: { principal, tenant },
+        session: session as SessionId,
+        reference,
+      })
+      if (read.kind !== 'value') return { failure: { reason: read.kind } }
+      if (read.value === null) return { failure: { reason: 'not-recorded' } }
+      const record = decodeFixedRequestRecord(read.value.record)
+      if ('failure' in record) return { failure: { reason: 'unsupported' } }
+      return {
+        ok: record.ok.coverage.representations.map(({ message, block, choice, mediaType }) => ({
+          message,
+          block,
+          choice,
+          mediaType,
+        })),
+      }
+    },
+  }
+}
+
 function diagnosticPorts(ctx: Context): DiagnosticPorts<Principal> {
   const journal = () => present(ctx.get(agentJournalKey), 'agentJournal')
   const calls = () => present(ctx.get(modelRuntimeKey), 'modelRuntime').calls
@@ -71,6 +100,7 @@ function diagnosticPorts(ctx: Context): DiagnosticPorts<Principal> {
       dispatches: input => calls().dispatches(input),
     },
     modelDiagnostics: { list: input => attempts().list(input) },
+    modelRequests: modelRequests(ctx),
     toolQueries: {
       lookup: input => tools().lookup(input),
       account: input => tools().account(input),

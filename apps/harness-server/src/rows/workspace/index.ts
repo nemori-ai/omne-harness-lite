@@ -7,15 +7,19 @@ import {
   workspaceCatalogKey,
   workspaceGovernanceKey,
   workspaceInstancesKey,
+  workspaceSourcesKey,
   workspaceTypesKey,
 } from '@omne-harness/workspace-cordis-contract/cordis'
-import { DirectoryType } from '@omne-harness/workspace-filesystem'
+import { assetDigests } from '@omne-harness/workspace-asset-source'
+import { DirectoryType, localSourceFiles } from '@omne-harness/workspace-filesystem'
 import { GitType } from '@omne-harness/workspace-git'
 import {
   createDomainBinding,
   workspacePersistenceParticipant,
   type WorkspaceBinding,
 } from '@omne-harness/workspace-local'
+import { independentSettingsPlugin } from '@omne-harness/assets-cordis-contract/cordis'
+import { workspaceOutsideFilesSettings } from '@omne-harness/workspace-local'
 import { createWorkspaceLocalPlugin } from '@omne-harness/workspace-local/cordis'
 import { defineRow } from '../../row.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
@@ -42,6 +46,7 @@ export const workspaceRow = defineRow({
       workspaceGovernanceKey,
       workspaceInstancesKey,
       workspaceCatalogKey,
+      workspaceSourcesKey,
       workspaceTypesKey,
     ],
     injects: [storageKey],
@@ -65,8 +70,13 @@ export const workspaceRow = defineRow({
         verifier: () => ctx.get(principalVerifierKey) as PrincipalVerifier | undefined,
         standing: () => ctx.get(tenantStandingKey) as TenantStandingSource | undefined,
       }),
+      sources: { files: localSourceFiles, digests: assetDigests },
     })
     await provider.await()
+    // The workspace declares the setting; the assembly hands it to the independent settings point.
+    ctx.plugin(
+      independentSettingsPlugin('workspace-outside-files-settings', workspaceOutsideFilesSettings),
+    )
     ctx.inject([workspaceTypesKey], child => {
       child.workspaceTypes.contribute(new DirectoryType())
       child.workspaceTypes.contribute(new GitType())

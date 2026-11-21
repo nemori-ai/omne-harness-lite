@@ -17,6 +17,14 @@ export type {
   FacilityResult,
 } from './facility.ts'
 
+export { fileEffects, segmentsBelow, windowsPathSegments, withinScope } from './files-scope.ts'
+export type {
+  FileEffect,
+  FilesScope,
+  ScopedFileOperation,
+  WindowsPathRefusal,
+} from './files-scope.ts'
+
 export { filesFacility } from './facilities/files.ts'
 export type {
   FileBatchOutcome,
@@ -64,6 +72,17 @@ export type {
   TerminalRetention,
   TerminalRetentionOperation,
 } from './facilities/terminal.ts'
+
+export { imagePointOnScreen, screenFacility, screenPointOnDesktop } from './facilities/screen.ts'
+export type {
+  ScreenFacility,
+  ScreenFrame,
+  ScreenId,
+  ScreenInfo,
+  ScreenPoint,
+  ScreenRegion,
+  ScreenSize,
+} from './facilities/screen.ts'
 
 export { createRecoveryAccess } from './ports.ts'
 export type {

@@ -18,7 +18,12 @@ import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
 import type { Message, RecordEntryRef } from '@omne-harness/message'
-import type { ContentBlock, BlockId, ContentReference } from '@omne-harness/content-block'
+import type {
+  ContentBlock,
+  BlockId,
+  ContentReference,
+  RepresentationSnapshot,
+} from '@omne-harness/content-block'
 
 export type RequestPurpose = 'main' | 'extension'
 
@@ -253,11 +258,13 @@ export type FitVerdict =
       unknown: readonly [M.BudgetCheck, ...M.BudgetCheck[]]
     }>
 
+export type RepresentationOption = 'original' | 'derived' | 'transcript'
+export type RepresentationSource = Pick<RepresentationSnapshot, 'definition' | 'engine'>
 export type RepresentationChoice = Readonly<{
   message: import('@omne-harness/message').MessageId
   block: BlockId
-  choice: 'original' | 'derived' | 'transcript' | 'pending-load'
-  converter: Adoption | null
+  choice: RepresentationOption
+  source: RepresentationSource | null
   mediaType: string | null
 }>
 
@@ -286,7 +293,7 @@ export type RequestCandidate = Readonly<{
 export type AssemblyFailure =
   | Readonly<{
       kind: 'denied'
-      action: 'read-history' | 'read-conversions' | 'assemble' | 'read-inputs' | 'read-accounts'
+      action: 'read-history' | 'assemble' | 'read-inputs' | 'read-accounts'
       diagnostic: string
     }>
   | Readonly<{ kind: 'invalid'; field: string; reason: InvalidReason }>
@@ -294,7 +301,7 @@ export type AssemblyFailure =
       kind: 'unavailable'
       owner: UnavailableOwner
       diagnostic: string
-      original?: M.ConversionResult
+      block?: Readonly<{ message: import('@omne-harness/message').MessageId; block: BlockId }>
     }>
 export type InvalidReason =
   | 'missing-input'
@@ -317,7 +324,6 @@ export type InvalidReason =
 export type UnavailableOwner =
   | 'history-source'
   | 'meter'
-  | 'conversion-results'
   | 'representation'
   | 'compaction-policy'
   | 'instance'
@@ -401,5 +407,3 @@ export type ProjectedHistory = Readonly<{
   messages: readonly ProjectedMessage[]
   compaction: Readonly<{ seq: HistorySequence; entry: RecordEntryRef }> | null
 }>
-
-export type ConversionIndex = ReadonlyMap<BlockId, M.ConversionResult>

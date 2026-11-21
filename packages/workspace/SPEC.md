@@ -17,7 +17,7 @@ Workspace 包组回答一个问题：加在一份物理资源上的这层逻辑�
 | `workspace-asset-source` | 薄适配：把来源采用记录接成资产的层来源与读口。不认识任何类别 |
 | `workspace-protocol` | 协议：人能做的操作与观察。纯数据 |
 | `workspace-access` | 协议的接入插件 |
-| `workspace-ui` | 界面模块 |
+| `workspace-ui` | 界面模块：「工作区」一页，登记、列出、查看、授予参与与移除；在客户端树上给出这个租户能在哪些实例里工作（`workspaceChoicesKey`），别的界面模块经装配拿去选 |
 | `workspace-tools` | 给 agent 的工具：更换当前会话的工作区 |
 
 工作区以稳定的逻辑身份存在，路径、remote、分支都只是定位值。租户显式登记已有目录，得到工作区、自己的治理所有者关系和一个实例；登记不移动、不改写目录里的内容。会话选定工作区与实例时，Session 一侧向本组核验这个附着，本组答合法与否，并给出根目录与装载依据。Session 把明确的工作区选择交给装配作为候选；参与条件、组织政策、实例条件与当前来源读取资格成立后，工作区按约定位置发现候选来源并交出可解释的材料与一致读取依据；装配校验并采用之后，Session 才确认附着成功。
@@ -111,7 +111,7 @@ Workspace 包组回答一个问题：加在一份物理资源上的这层逻辑�
 ### 来源采用记录与交给求值
 
 - 来源读取是对一个实例的两个来源根做的一次一致的读取。结果是一份清单：读到了哪些包，各在哪个根，版本是什么。版本是包内容的摘要，算法取资产的那一个。清单一经记下不变。
-- [来源采用记录](../../.meta_harness/design/ubiquitous_language/terms/scope-and-resolution.md#ul-source-adoption-record--来源采用记录--source-adoption-record)是调用方给的一个键到一份来源读取的对应。同一个键永远指向同一份。本组不解释键；调用方用它表示「这一轮」。
+- [来源采用记录](../../.meta_harness/design/ubiquitous_language/terms/scope-and-resolution.md#ul-source-adoption-record--来源采用记录--source-adoption-record)是调用方给的一个键到一份来源读取的对应。同一个键永远指向同一份。键属于租户：同一个租户的同一个键，后来带着另一个工作区来，答的也是第一次记下的那一份；读它的一方只凭键找，关系照记录所在的工作区核。本组不解释键；调用方用它表示「这一轮」。
 - 采用是一次提交。键没有记录时分两种情形：
   - 读成一致的清单：记下它。它和这个租户上一次读成的清单不同时，来源修订计数加一。
   - 读不成（实例不可用、形不成一致依据、配置不合法）：记下「沿用上一次读成的清单」，没有上一次时是空清单，并带原因。
@@ -174,15 +174,15 @@ Workspace 包组回答一个问题：加在一份物理资源上的这层逻辑�
 | -------- | --------------------------------------------------------------------------------------- | ------------------------------------------ | -------- |
 | INV-WS01 | 逻辑身份不由定位值替代；地址变化、不可达与实例重建不自动销毁或新建工作区                | 两个项目被合并，或一个项目被拆成两个       | 只有文字 |
 | INV-WS02 | 显式登记与附着分别成立；部分完成分别报告，失败不新建替代工作区                          | 打开一个目录就悄悄登记并读入它的配置       | 只有文字 |
-| INV-WS03 | 按真实主体与本会话租户关系核验资格；跨租户默认拒绝                                      | 地址或邀请被当作授权                       | 只有文字 |
+| INV-WS03 | 按真实主体与本会话租户关系核验资格；跨租户默认拒绝                                      | 地址或邀请被当作授权                       | `workspace/tests/instances.spec.ts` 两条「a tenant without a relation … is not permitted」；`apps/harness-server` 发行树上的 `tests/rows/session-access/workspace-release.spec.ts`：别的租户在这个实例里建不了会话、读不到这个会话的选择 |
 | INV-WS04 | 有治理所有者的工作区恰有一个治理所有者；登记外部仓库地址的参与不产生所有权或外部写权 | 首个登记者取得别人资源的所有权             | 策略表逐格的用例（`workspace-contract` 的 `tests/policy.spec.ts`）：对所有者的移除与所有者的退出在每一种调用者下都答未获准；授予只产生参与者 |
 | INV-WS05 | 实例与会话寿命解耦；结束会话、卸载装配不卸载实例或删托管资源                            | 归档一个会话删掉了共享的工作区             | 只有文字 |
-| INV-WS06 | 发现只读约定位置与明确扩展，不跟随软链接，读取不执行                                    | 读入工作区之外的文件，或读配置时启动了程序 | 只有文字 |
-| INV-WS07 | 缺失是空、错误是失败、混拼的读取不算校验通过                                            | 半份配置被当作完整采用                     | 只有文字 |
-| INV-WS08 | 同层求值按类别加名字取合法并集，local 优先但被过滤的 local 不遮蔽共享；实现不跨来源拼接 | 运行一个拼出来的、谁都没发布过的实现       | 只有文字 |
+| INV-WS06 | 发现只读约定位置与明确扩展，不跟随软链接，读取不执行                                    | 读入工作区之外的文件，或读配置时启动了程序 | `workspace/tests/sources.spec.ts` 读两根的约定位置与软链接；`workspace-filesystem/tests/source-files.spec.ts`；两个成员的 `reads-start-nothing.spec.ts` 核读来源的模块不引入启动程序的接口 |
+| INV-WS07 | 缺失是空、错误是失败、混拼的读取不算校验通过                                            | 半份配置被当作完整采用                     | `workspace/tests/sources.spec.ts`：缺失读成空，读的中途变了重读、再变答读不成 |
+| INV-WS08 | 同层求值按类别加名字取合法并集，local 优先但被过滤的 local 不遮蔽共享；实现不跨来源拼接 | 运行一个拼出来的、谁都没发布过的实现       | `workspace-asset-source/tests/layer-source.spec.ts`：本地在前，被筛掉的本地不遮蔽共享，目录名与声明名不一致的不成为候选 |
 | INV-WS09 | 兼容来源要有准入与受支持格式，不读家目录，不重复加载                                    | 第三方配置绕过准入或执行两次               | 只有文字 |
 | INV-WS10 | `.omne` 在共享同步范围内，`.omne.local` 与有效求值结果不上传                            | 私有配值或凭据泄露给别的租户               | 只有文字 |
-| INV-WS11 | 目录指导与资产采用分开；文件变化不静默更新已采用的装配                                  | 运行中的 Run 被文件变化半路换了组合        | 只有文字 |
+| INV-WS11 | 目录指导与资产采用分开；文件变化不静默更新已采用的装配                                  | 运行中的 Run 被文件变化半路换了组合        | `apps/harness-server` 发行树上的 `tests/rows/workspace-skills-release.spec.ts`「kept as adopted for the rest of a turn」：一轮之内改了文件，这一轮读到的仍是采用的那一份，下一轮才读到新的；`tests/rows/adoption-sources/run-sources.spec.ts`：一轮只在开始时采用一次 |
 | INV-WS12 | 较新的选择与取消优先于迟到候选；已发调用保留原工作区与输入                              | 结果被归到错误的工作区                     | `apps/harness-server` 发行树上的 `tests/rows/working-directory-tools-release.spec.ts`（在途调用、同一步里晚受理的调用、受理后重启的调用都留在原目录） |
 | INV-WS13 | 关系与授权的确认达到声明的耐久边界；恢复不用最新来源替代历史采用依据                    | 重启后关系与授权矛盾                       | 只有文字 |
 | INV-WS14 | 未知与取消不伪装成未发生；有副作用的恢复先查询原生状态                                  | 盲目重建或重复销毁                         | 治理服务的用例「回执丢了答未知，凭原操作认回」（`workspace` 的 `tests/relations.spec.ts`）；SQL 仓储的 `tests/storage/store-failures.spec.ts` |
@@ -196,7 +196,7 @@ Workspace 包组回答一个问题：加在一份物理资源上的这层逻辑�
 | INV-WS22 | 工作区多出一个实例，只在管理类型接纳并且有人显式关联时发生                              | 两个无关的目录被当成同一个工作区           | 管理类型的 `admits` 与关联的事务脚本；符合性用例 |
 | INV-WS23 | 读取物理资源的事实不执行其中指定的任何程序                                              | 登记或打开一个不受信的仓库就运行了它的程序 | `workspace-git` 的 `tests/no-process.spec.ts`（源码的每个导入都在一张只含文件读取的名单里）；`tests/real-git.spec.ts`「leaves no trace」：仓库里设了会留痕迹的钩子与程序，先看到 `git status` 触发它，再登记与核验，没有痕迹、一个字节不变 |
 | INV-WS24 | 一次合法的核验不是许可；关系解除之后的第一次核验就不通过                                | 被移除的租户靠旧的答复继续使用工作区       | `apps/harness-server` 发行树上的两条用例（`tests/rows/working-directory-tools-release.spec.ts`「a tenant removed from a workspace」）：移除之后下一步被告知、调用答不可用；移除之前已受理的调用到执行时什么都做不成 |
-| INV-WS25 | 同一个来源采用记录的键永远指向同一份来源读取；读文件时字节与清单对不上答材料不可用 | 一轮跑到一半，能用的资产换了内容 | 只有文字 |
-| INV-WS26 | 来源读取与它的适配不认识任何类别；多一个登记了布局的类别，本组不改 | 每加一个类别就要改工作区 | 只有文字 |
-| INV-WS27 | 读一个来源采用记录以当时的关系为准；关系解除之后的第一次读就不通过 | 被移除的租户继续用上这个项目的资产 | 只有文字 |
-| INV-WS28 | 工作区目录里的文件不能给「工作区之外的文件」配值；这项设置的说明不声称隔离 | 一个仓库给自己开了出工作区的口；人以为命令被关在工作区里 | 只有文字 |
+| INV-WS25 | 同一个来源采用记录的键永远指向同一份来源读取；读文件时字节与清单对不上答材料不可用 | 一轮跑到一半，能用的资产换了内容 | 存储符合性套件（内存与 SQLite）里键的认回；`workspace/tests/sources.spec.ts` 认回不重读、读文件答材料变了 |
+| INV-WS26 | 来源读取与它的适配不认识任何类别；多一个登记了布局的类别，本组不改 | 每加一个类别就要改工作区 | `docs/architecture/constraints.json` 的方向行 `DIR-WORKSPACE-ASSETS`、`DIR-WORKSPACE-CATEGORIES`；`workspace-asset-source/tests/layer-source.spec.ts` 用一个虚构的类别走通 |
+| INV-WS27 | 读一个来源采用记录以当时的关系为准；关系解除之后的第一次读就不通过 | 被移除的租户继续用上这个项目的资产 | `workspace/tests/sources.spec.ts`：关系解除之后，已记下的键读不出；`workspace-asset-source` 的层答读不到 |
+| INV-WS28 | 工作区目录里的文件不能给「工作区之外的文件」配值；这项设置的说明不声称隔离 | 一个仓库给自己开了出工作区的口；人以为命令被关在工作区里 | `workspace-local/tests/outside-files.spec.ts`：值只从租户这一层的独立设置读，说明里没有「隔离」「保证」；`apps/harness-server/tests/entry/tool-requests.spec.ts` 的表二：文件范围只由租户的值与实例的根算出 |

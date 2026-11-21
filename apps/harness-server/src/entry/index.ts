@@ -4,15 +4,12 @@ import type { EntryObjectModule } from '../types.ts'
 import { agentClock } from './agent-clock.ts'
 import { agentHostPrincipal } from './agent-host-principal.ts'
 import { cursorSigning } from './cursor-signing.ts'
+import { dispatchPrincipal } from './dispatch-principal.ts'
 import { executionAuthorities, scopedRuntimeContextTrust } from './execution-wiring.ts'
 import { identityClock } from './identity-clock.ts'
 import { governanceInstallationPrincipals } from './governance-installation-principals.ts'
 import { governanceDirectoryPrincipals } from './governance-directory-principals.ts'
-import {
-  modelConverterAuthority,
-  modelHostAuthority,
-  modelPublicationAuthority,
-} from './model-authorities.ts'
+import { modelHostAuthority, modelPublicationAuthority } from './model-authorities.ts'
 import { modelClock } from './model-clock.ts'
 import { principalIssuer, principalVerifier, sessionPrincipals } from './principals.ts'
 import { requestContextTrust } from './request-context-trust.ts'
@@ -35,6 +32,7 @@ export const entryObjects: readonly EntryObjectModule[] = [
   agentHostPrincipal,
   toolResidencyPrincipal,
   tenantDomainScannerPrincipal,
+  dispatchPrincipal,
   toolReleaseRegistrant,
   toolContributionAuthority,
   toolClock,
@@ -53,7 +51,6 @@ export const entryObjects: readonly EntryObjectModule[] = [
   identityClock,
   modelClock,
   modelPublicationAuthority,
-  modelConverterAuthority,
   modelHostAuthority,
   storageHost,
   cursorSigning,

@@ -1,5 +1,6 @@
 import readPermissionMode from '../../src/worker/read-permission-mode.ts'
 import callLeftMigration from '../../src/worker/call-left-migration.ts'
+import forkMigration from '../../src/worker/fork-migration.ts'
 import compactionIndexMigration from '../../src/worker/compaction-index-migration.ts'
 import readEntryMessage from '../../src/worker/read-entry-message.ts'
 import readCompactionContext from '../../src/worker/read-compaction-context.ts'
@@ -60,8 +61,10 @@ import readExecutionOperation from '../../src/worker/read-execution-operation.ts
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
+import readInheritedHistory from '../../src/worker/read-inherited-history.ts'
 import readInput from '../../src/worker/read-input.ts'
 import readModelSelection from '../../src/worker/read-model-selection.ts'
+import readForkPoint from '../../src/worker/read-fork-point.ts'
 import readModelView from '../../src/worker/read-model-view.ts'
 import readPending from '../../src/worker/read-pending.ts'
 import readSearchEntries from '../../src/worker/read-search-entries.ts'
@@ -80,6 +83,7 @@ import attemptGrantMigration from '../../src/worker/attempt-grant-migration.ts'
 import scopeIndexMigration from '../../src/worker/scope-index-migration.ts'
 import sessionListMigration from '../../src/worker/session-list-migration.ts'
 import sessionArchiveMigration from '../../src/worker/session-archive-migration.ts'
+import sessionStandingMigration from '../../src/worker/session-standing-migration.ts'
 import readArchivedSessions from '../../src/worker/read-archived-sessions.ts'
 import readSessionList from '../../src/worker/read-session-list.ts'
 import readScopeOwner from '../../src/worker/read-scope-owner.ts'
@@ -101,6 +105,8 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readInput,
   readModelSelection,
   readHistory,
+  readInheritedHistory,
+  readForkPoint,
   readModelView,
   readPending,
   readSearchSessions,
@@ -141,6 +147,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   scopeIndexMigration,
   sessionListMigration,
   sessionArchiveMigration,
+  sessionStandingMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,
@@ -149,6 +156,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   itemMigration,
   compactionIndexMigration,
   callLeftMigration,
+  forkMigration,
 ]
 
 export type StorageCall =

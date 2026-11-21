@@ -367,6 +367,61 @@
           ]
         },
         {
+          "title": "屏幕设施",
+          "names": [
+            {
+              "name": "screenFacility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "imagePointOnScreen",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "screenPointOnDesktop",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScreenFacility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScreenFrame",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScreenId",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScreenInfo",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScreenPoint",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScreenRegion",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScreenSize",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
           "title": "端口与恢复授权",
           "names": [
             {
@@ -526,6 +581,46 @@
             },
             {
               "name": "RecoveryInspection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FilesScope",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FileEffect",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "segmentsBelow",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "withinScope",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "windowsPathSegments",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "WindowsPathRefusal",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "fileEffects",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScopedFileOperation",
               "kind": "type",
               "pending": false
             }
@@ -1059,6 +1154,41 @@
               "pending": false
             },
             {
+              "name": "createScriptedScreenFacility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "scriptedScreenPng",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScreenScript",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedScreenFacility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "screenFacilityConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScreenConformanceSubject",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScreenConformanceOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "terminalFacilityConformance",
               "kind": "value",
               "pending": false
@@ -1118,7 +1248,7 @@
     {
       "module": "../facility.ts",
       "interface": "EnvironmentFacilities",
-      "members": ["files", "command", "terminal"],
+      "members": ["files", "command", "terminal", "screen"],
       "pending": false
     }
   ]

@@ -4,6 +4,7 @@ export { openRequestJournal } from './request-journal.ts'
 export type { QueuedRequest } from './request-queue.ts'
 export type {
   DefinitionResolver,
+  HeldWorkingDirectory,
   JournalRecord,
   ModelTargetCheck,
   ModelTargets,
@@ -17,11 +18,14 @@ export type {
   RunFailureReading,
   SessionAccessFaces,
   SessionAccessSettings,
+  ListFilters,
   SessionListEntry,
   SessionListing,
   SessionListPage,
   SessionPermissionModes,
   TargetTenantPrincipals,
+  WorkspaceSelectionReading,
+  WorkspaceSelections,
   WorkspaceTargetCheck,
   WorkspaceTargets,
 } from './ports.ts'

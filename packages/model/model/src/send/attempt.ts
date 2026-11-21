@@ -11,11 +11,12 @@ import {
 } from '@omne-harness/model-contract'
 import {
   MODEL_SEND,
+  type MaterializeFailure,
   type MaterializedTransport,
+  type MediaRefusal,
   type ModelCommands,
   type SendDemand,
   type SendResult,
-  type ModelTransport,
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { SendLifetime, ownedFacts } from './lifetime.ts'
@@ -50,10 +51,6 @@ type Window = Parameters<Commands['openReceiveWindow']>[0]
 type RecordSend = Parameters<Commands['recordSend']>[0]
 type Preserve = Parameters<Commands['preserve']>[0]
 type Refusal = Extract<SendStart, { kind: 'refused' }>
-type TransportFailure = Extract<
-  Awaited<ReturnType<ModelTransport['prepare']>>,
-  { failure: unknown }
->['failure']
 type Stage =
   | { kind: 'acquire' }
   | { kind: 'refusal'; result: Refusal }
@@ -86,7 +83,30 @@ function credentialFault(diagnostic: string): ModelFault {
   return { cause: 'credential', diagnostic, upstreamStatus: null }
 }
 type RefusalReason = Readonly<{ failure: ModelFailure; fault?: ModelFault }>
-function transportRefusal(failure: TransportFailure): RefusalReason {
+type MediaEnd = Readonly<{
+  failure: Extract<ModelFailure, { kind: 'invalid' }>
+  fault: ModelFault
+}>
+/** A medium that could not be sent ends the call with its own cause, never as a modality. */
+export function mediaRefusal(refusal: MediaRefusal): MediaEnd {
+  const failure = { kind: 'invalid', field: 'request.media', reason: refusal.reason } as const
+  if (refusal.reason === 'material-unavailable')
+    return {
+      failure,
+      fault: { cause: 'input-rejected', diagnostic: refusal.reason, upstreamStatus: null },
+    }
+  return {
+    failure,
+    fault: {
+      cause: 'input-over-limit',
+      diagnostic: 'media-over-limit',
+      upstreamStatus: null,
+      reported: { metric: 'image-bytes', limit: refusal.limit, actual: null },
+    },
+  }
+}
+function transportRefusal(failure: MaterializeFailure): RefusalReason {
+  if (failure.kind === 'media') return mediaRefusal(failure)
   if (failure.kind === 'unavailable') return { failure }
   const causes = { denied: 'excluded', invalid: 'input-rejected', unsupported: 'modality' } as const
   return {

@@ -737,6 +737,38 @@ describe('session commands', () => {
     expect(await cli(['read-model-selection'])).toMatchObject({ code: 2 })
   })
 
+  it('read-workspace-selection reads the workspace one session stands at and its directory', async () => {
+    const body = {
+      workspace: null,
+      state: 'default',
+      directory: '/srv/default',
+      reason: null,
+      revision: '4',
+    }
+    const service = await serve(seen =>
+      seen.operation === 'issue-login'
+        ? { outcome: 'succeeded', body: loginBody(seen) }
+        : { outcome: 'succeeded', body },
+    )
+    await loginOwningSession(service)
+    const result = await cli(['read-workspace-selection', '--session', sessionId])
+    expect(service.seen.at(-1)?.path).toBe('/api/session/v1/read-workspace-selection')
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, session: sessionId })
+    expect(parsed(result.stdout)).toMatchObject({
+      outcome: 'succeeded',
+      body,
+      request: { messageId: expect.any(String), tenant: tenantText },
+    })
+    expect(await cli(['read-workspace-selection'])).toMatchObject({ code: 2 })
+    // A session this state directory never created needs its tenant named.
+    const elsewhere = 'f'.repeat(64)
+    expect(await cli(['read-workspace-selection', '--session', elsewhere])).toMatchObject({
+      code: 2,
+    })
+    await cli(['read-workspace-selection', '--session', elsewhere, '--tenant', tenantText])
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, session: elsewhere })
+  })
+
   it('list-models asks Model for the models of the login tenant, or of the tenant given (C24)', async () => {
     const service = await serve()
     await loginOwningSession(service)
@@ -795,6 +827,63 @@ describe('session commands', () => {
       by: 'auto',
       titleContains: 'build',
     })
+  })
+
+  it('list-sessions reads the sessions that are not archived, and both lists send the relation filters given (C15)', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    await cli(['list-sessions'])
+    expect(service.seen.at(-1)?.path).toBe('/api/session/v1/list-sessions')
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, cursor: null })
+    const filters = [
+      '--relation',
+      'child',
+      '--parent',
+      sessionId,
+      '--attendance',
+      'unattended',
+      '--definition',
+      'coding',
+    ]
+    await cli(['list-sessions', ...filters, '--limit', '5', '--cursor', 'c-1'])
+    const sent = {
+      relation: 'child',
+      parent: sessionId,
+      attendance: 'unattended',
+      definition: 'coding',
+    }
+    expect(service.seen.at(-1)?.body).toEqual({
+      tenant: tenantText,
+      cursor: 'c-1',
+      limit: 5,
+      ...sent,
+    })
+    await cli(['list-archived-sessions', ...filters, '--by', 'parent'])
+    expect(service.seen.at(-1)?.body).toEqual({
+      tenant: tenantText,
+      cursor: null,
+      from: null,
+      to: null,
+      by: 'parent',
+      titleContains: null,
+      ...sent,
+    })
+  })
+
+  it.each([
+    ['list-sessions', '--relation', 'sibling'],
+    ['list-sessions', '--attendance', 'nobody'],
+    ['list-sessions', '--limit', '0'],
+    ['list-sessions', '--by', 'person'],
+    ['list-archived-sessions', '--relation', 'sibling'],
+    ['list-archived-sessions', '--attendance', 'nobody'],
+  ])('%s refuses %s %s as a usage error and sends nothing', async (command, option, value) => {
+    const service = await serve()
+    await loginOwningSession(service)
+    const before = service.seen.length
+    const bad = await cli([command, option, value])
+    expect(bad).toMatchObject({ code: 2, stderr: commandUnrecognized(command) })
+    expect(service.seen.length).toBe(before)
   })
 
   it.each([

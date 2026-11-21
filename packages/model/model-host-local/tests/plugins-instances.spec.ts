@@ -6,7 +6,6 @@ import {
   type ModelHandle,
 } from '@omne-harness/model-contract'
 import {
-  ModelConverterAuthorityService,
   ModelInstancesService,
   ModelPublicationAuthorityService,
   modelInstancesKey,
@@ -14,7 +13,7 @@ import {
   type ModelRegistrationInput,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { expect, it } from 'vitest'
-import { ModelConvertersLocalPlugin, ModelInstancesLocalPlugin } from '../src/cordis.ts'
+import { ModelInstancesLocalPlugin } from '../src/cordis.ts'
 
 function unbox<T>(decoded: { ok: T } | { failure: unknown }): T {
   if ('ok' in decoded) return decoded.ok
@@ -41,10 +40,6 @@ const publication: ModelRegistrationInput<unknown> = {
 class PublicationAuthority extends ModelPublicationAuthorityService<unknown> {
   verdict: { failure: ModelRegistrationFailure } | { ok: undefined } = { ok: undefined }
   readonly check = () => this.verdict
-}
-
-class ConverterAuthority extends ModelConverterAuthorityService<unknown> {
-  readonly check = () => ({ ok: undefined })
 }
 
 async function settle(fiber: PromiseLike<unknown>) {
@@ -138,18 +133,4 @@ it('losing the authority takes the directory down with it, and the directory ret
   await ctx.plugin(PublicationAuthority)
   await new Promise(resolve => setTimeout(resolve, 20))
   expect(ctx.modelInstances).toBeInstanceOf(ModelInstancesService)
-})
-
-it('the converter plugin waits for its authority, publishes the one catalog and does not need the directory', async () => {
-  const ctx = new Context()
-  const fiber = ctx.plugin(ModelConvertersLocalPlugin)
-  await settle(fiber)
-  expect(ctx.modelConverters).toBeUndefined()
-
-  await ctx.plugin(ConverterAuthority)
-  await fiber
-  expect(ctx.modelInstances).toBeUndefined()
-  expect(await ctx.modelConverters.acquire({ mediaType: 'text/plain', modality: null })).toEqual({
-    ok: { kind: 'absent' },
-  })
 })

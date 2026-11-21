@@ -9,6 +9,8 @@ import { createCategoryPoint, readBodyText } from '@omne-harness/assets'
 
 const definition = (extra: Record<string, unknown> = {}) => ({
   category: 'AgentDefinition',
+  type: 'master',
+  summary: 'Works on what the person asks for.',
   name: 'coding',
   references: [],
   attributes: [],
@@ -34,6 +36,8 @@ describe('an accepted definition with instructions', () => {
       kind: 'accepted',
       value: {
         category: 'AgentDefinition',
+        type: 'master',
+        summary: 'Works on what the person asks for.',
         name: 'coding',
         references: [],
         attributes: [],
@@ -52,7 +56,14 @@ describe('an accepted definition with instructions', () => {
     const judged = await judgeAgentDefinition(definition())
     expect(judged).toStrictEqual({
       kind: 'accepted',
-      value: { category: 'AgentDefinition', name: 'coding', references: [], attributes: [] },
+      value: {
+        category: 'AgentDefinition',
+        type: 'master',
+        summary: 'Works on what the person asks for.',
+        name: 'coding',
+        references: [],
+        attributes: [],
+      },
     })
     if (judged.kind !== 'accepted') throw new Error('refused')
     expect('instructions' in judged.value).toBe(false)
@@ -166,6 +177,8 @@ describe('the body contract applies the same instruction rules', () => {
   }
   const body = (instructions: unknown) => ({
     name: 'coding',
+    type: 'master',
+    summary: 'Works on what the person asks for.',
     references: [],
     attributes: [],
     instructions,

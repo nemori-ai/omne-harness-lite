@@ -1,5 +1,11 @@
 import { tenantCodec } from '@omne-harness/legal-identity'
-import type { Adoption, DurableEvidence, Modes, WorkSnapshot } from '@omne-harness/session-contract'
+import {
+  standingOf,
+  type Adoption,
+  type DurableEvidence,
+  type Modes,
+  type WorkSnapshot,
+} from '@omne-harness/session-contract'
 import type { SessionPermissionMode } from '@omne-harness/session-storage-sql/participants'
 import { projectSessionCollaborationMode } from './collaboration-mode.ts'
 import { projectSessionPermissionMode } from './permission-mode.ts'
@@ -13,7 +19,17 @@ export type SessionModeDefaults =
   | Readonly<{ kind: 'available'; adoption: Adoption; modes: Modes; source: DurableEvidence }>
 
 export type SessionModesPublicationInput = Readonly<{
-  work: Pick<WorkSnapshot, 'tenant' | 'session' | 'revision' | 'permissions' | 'changes'>
+  work: Pick<
+    WorkSnapshot,
+    | 'tenant'
+    | 'session'
+    | 'revision'
+    | 'permissions'
+    | 'changes'
+    | 'relation'
+    | 'attendance'
+    | 'tree'
+  >
   permission: SessionPermissionMode
   defaults: SessionModeDefaults
 }>
@@ -72,8 +88,10 @@ export function createSessionModesPublication(
     return { kind: 'unavailable', reason: 'scope-mismatch' }
   if (work.permissions.revision !== permission.revision)
     return { kind: 'unavailable', reason: 'permission-revision-mismatch' }
+  const standing = standingOf(work)
   const inquiry = projectSessionPermissionMode({
     ...permission.mode,
+    attendance: standing.attendance,
     creationSource: permission.creationSource,
     defaultMode:
       defaults.kind === 'unavailable'
@@ -97,6 +115,7 @@ export function createSessionModesPublication(
     inquiry: inquiry.value,
     interaction: projectSessionCollaborationMode(
       current.collaboration.value,
+      { attendance: standing.attendance, child: standing.relation.kind === 'child' },
       current.collaboration.source,
     ),
     basis: {

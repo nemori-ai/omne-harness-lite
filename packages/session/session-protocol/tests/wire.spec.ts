@@ -29,6 +29,7 @@ type Name = Exclude<
   | 'select-model'
   | 'read-model-selection'
   | 'select-workspace'
+  | 'read-workspace-selection'
   | 'read-permission-mode'
   | 'change-permission-mode'
 >
@@ -42,6 +43,7 @@ const validBodies: Samples = {
   'query-send-input': [{ ...target, acceptId: 'accept' }],
   'read-history': [
     { ...target, cursor: null, direction: 'backward', pageBytes: '65536' },
+    { ...target, cursor: null, direction: 'forward', pageBytes: '65536', inherited: true },
     { ...target, cursor: 'opaque-cursor' },
   ],
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'graceful' }],
@@ -75,6 +77,7 @@ const invalidBodies: Samples = {
     { ...target, cursor: 'opaque-cursor', direction: 'forward', pageBytes: '65536' },
     { ...target, cursor: null, direction: 'sideways', pageBytes: '65536' },
     { ...target, cursor: null, direction: 'forward', pageBytes: '0' },
+    { ...target, cursor: null, direction: 'forward', pageBytes: '65536', inherited: 'yes' },
   ],
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'soon' }],
   'archive-session': [{ ...target }, { ...target, controlId: 'control', run: 'run-1' }],
@@ -103,6 +106,14 @@ const successBodies: Samples = {
       upper: '7',
     },
     { entries: [], next: 'next-cursor', exhausted: false, scannedThrough: '', upper: '7' },
+    {
+      entries: [{ entryId: '22', revision: '3', kind: 'message.user', payload: {} }],
+      next: 'next-cursor',
+      exhausted: false,
+      scannedThrough: '0',
+      upper: '7',
+      from: 'another-session-0001',
+    },
   ],
   'archive-session': [
     { kind: 'archived', controlId: 'control', runs: 1, backgroundCalls: 0 },
@@ -218,6 +229,25 @@ describe('outcome bodies', () => {
   })
 })
 
+const STANDING = {
+  relation: 'main',
+  parent: null,
+  origin: null,
+  root: session,
+  depth: 0,
+  attendance: 'attended',
+  definition: 'coding',
+}
+const CHILD = { relation: 'child', parent: session, depth: 1, attendance: 'unattended' }
+// A row as a server before these fields writes it: it still reads.
+const OLD_ROW = {
+  session,
+  createdAt: null,
+  lastActivityAt: null,
+  lifecycle: 'dormant',
+  title: null,
+}
+
 describe('list-sessions', () => {
   const listing = sessionProtocol.operations['list-sessions']
   const row = {
@@ -226,14 +256,18 @@ describe('list-sessions', () => {
     lastActivityAt: null,
     lifecycle: 'dormant',
     title: null,
+    ...STANDING,
   }
 
-  it.each([[{ tenant, cursor: null }], [{ tenant, cursor: 'opaque-cursor', limit: 20 }]])(
-    'reads a body and writes it back as it was',
-    sample => {
-      expectRoundTrip(listing.body, sample)
-    },
-  )
+  it.each([
+    [{ tenant, cursor: null }],
+    [{ tenant, cursor: 'opaque-cursor', limit: 20 }],
+    [{ tenant, cursor: null, relation: 'child', parent: session, attendance: 'unattended' }],
+    [{ tenant, cursor: null, relation: null, parent: null, attendance: null, definition: null }],
+    [{ tenant, cursor: null, definition: 'coding' }],
+  ])('reads a body and writes it back as it was', sample => {
+    expectRoundTrip(listing.body, sample)
+  })
 
   it.each([
     ['without a cursor', { tenant }],
@@ -242,6 +276,9 @@ describe('list-sessions', () => {
     ['with the old includeArchived', { tenant, cursor: null, includeArchived: true }],
     ['with a tenant that is no tenant', { tenant: 'not-a-tenant', cursor: null }],
     ['with a field it does not have', { tenant, cursor: null, extra: 1 }],
+    ['with a relation it does not know', { tenant, cursor: null, relation: 'sibling' }],
+    ['with an attendance it does not know', { tenant, cursor: null, attendance: 'nobody' }],
+    ['with a parent that is no session', { tenant, cursor: null, parent: 7 }],
   ])('refuses a body %s', (_label, sample) => {
     expect(readNew(listing.body, sample)).toEqual({ ok: false })
   })
@@ -249,6 +286,15 @@ describe('list-sessions', () => {
   it.each([
     [{ sessions: [], next: null, completeness: 'complete' }],
     [{ sessions: [row], next: 'next-cursor', completeness: 'partial' }],
+    [{ sessions: [{ ...row, ...CHILD }], next: null, completeness: 'complete' }],
+    [{ sessions: [OLD_ROW], next: null, completeness: 'complete' }],
+    [
+      {
+        sessions: [{ ...row, relation: 'handoff', origin: session }],
+        next: null,
+        completeness: 'complete',
+      },
+    ],
     [
       {
         sessions: [{ ...row, title: 'hello', lifecycle: 'archived' }],
@@ -275,6 +321,14 @@ describe('list-sessions', () => {
       'with a row without a title',
       { sessions: [{ ...row, title: undefined }], next: null, completeness: 'complete' },
     ],
+    [
+      'with a row of a relation it does not know',
+      { sessions: [{ ...row, relation: 'sibling' }], next: null, completeness: 'complete' },
+    ],
+    [
+      'with a row of a negative depth',
+      { sessions: [{ ...row, depth: -1 }], next: null, completeness: 'complete' },
+    ],
   ])('refuses a succeeded body %s', (_label, sample) => {
     expect(readNew(listing.outcomes.succeeded, sample)).toEqual({ ok: false })
   })
@@ -293,6 +347,7 @@ describe('list-archived-sessions', () => {
     lastActivityAt: '2026-11-13T01:02:03Z',
     lifecycle: 'archived',
     title: 'old work',
+    ...STANDING,
     archivedAt: '2026-11-14T00:00:00Z',
     archivedBy: 'person',
   }

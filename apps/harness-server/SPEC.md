@@ -269,7 +269,19 @@
 - 通知接入行把 `notification/v1` 挂上入口。登录能为租户行事时行事者是 owner。通知的服务面与变化源按调用现取，取不到答依据不可用，协议不撤下。
 - Notifications 的绑定（`src/rows/tool-bindings/notifications.ts`）每次调用现取主体核验与通知的服务：发出者与对象是这次调用验证过的会话，来源是 `agent.posts`，因果深度是 0。主体核验不过或服务不在时工具答不可用。
 - Sessions 的绑定（`src/rows/tool-bindings/sessions.ts`）每次调用现取会话的读面（经 `reader` 调用方）与历史搜索：主体与租户是这次调用的，模型给不了；主体不是这个租户核验过的会话工作主体时答拒绝，不读；读面或搜索不在时答不可用。两个能力 `session.read`、`session.search` 对应会话服务与搜索服务。
+- Agents 的绑定（`src/rows/tool-bindings/agents.ts`）每次调用现取派发服务、Agent 定义目录与会话目录的读面（经 `reader` 调用方）：哪个会话在派发、交报告、发消息取自这次调用核验过的会话工作主体，模型给不了；派发的身份由租户、这个会话与这次调用的引用派生。主体不是这个租户核验过的会话工作主体时答依据不可用，不问派发。目录以本会话作参照读，每行带它与本会话的关系。这个工具不声明必需能力：派发行不在时工具照常提供，每个命令答依据不可用，调用不挂着等。
 - 去掉通知行与通知接入行，发行树照常启动，会话照常对话，别的工具照常；`notification/v1` 不挂上。Notifications 仍在发行清单与 agent 定义里，它的两个能力对应的服务不在，所以不可用。
+- 媒体是六行：`media-storage-sql` 把媒体的元数据绑在 SQL 存储上，每个租户一个事务域，第一次问到时登记媒体的存储组合；`media-image` 提供有界的图像编解码；`media` 提供保管服务与存放的登记表；`media-storage-local` 向登记表登记本机文件存放，根目录由运维者层给；`media-sweep` 在启动时与每个节拍用部署扫描主体枚举租户，逐个调清扫，一个节拍没跑完不起下一个；`media-access` 把 `media/v1` 挂上入口。大小上限、分片大小、上传与暂存的期限、请求版本缓存的容量、图像的解码预算是这几行的配置，都有缺省值。
+- 媒体的服务面按调用现取。只装接入行时 `media/v1` 挂着，每个操作答依据不可用。本机存放那一行不在时，开始上传答依据不可用，已有引用的描述照常、读字节答依据不可用。
+- 去掉媒体的六行，发行树照常启动，纯文字的会话照常；`media/v1` 不挂上。
+- `media-model-source` 这一行把媒体接到 Model 的读媒体端口上，提供 `modelMediaSource`；`model-records` 行的发送子插件在物化时按引用读，每次读时现取，不注入。去掉这一行或媒体的各行，带媒体引用的请求答依据不可用，纯文字的请求照常发出。
+- `media-tool-store` 这一行把媒体接到 Tool「存产出」的端口上，提供 `toolMediaStore`；`tool-environments` 行的环境适配在作者每次交出产出时现取，`tool-bindings` 行在判一个命令可不可用时看它在不在，都不注入。去掉这一行或媒体的各行，结果带图片的命令（`Files` 的 `open`）在原位不可用并说明原因，别的命令照常。
+- `media-converters` 这一行让转换件定义成为资产：向资产登记类别 `converter`，并提供 `mediaConverterDefinitions`。求值的层是发行版自带的官方层（语音 `voice` 与 PDF `application-pdf` 两份）与这个租户的本机资产；租户发布同名的一份就用租户的，禁用之后回到官方的那一份，没有官方同名时答不需要。官方层只用于这一处求值，资产页列不出这两份（资产的官方层还没有来源）。去掉这一行，「备好表示」答依据不可用，不答不需要。
+- 两个转换引擎各是一行：`media-engine-transcribe` 登记 `voice.transcribe`，用这次转换的租户在 OpenRouter 上配的凭据，没配用部署的，都没配答引擎不可用；`media-engine-pdf` 登记 `pdf.extract-text`。去掉一行，指向它的定义生效时答引擎不可用，不答不需要。
+- 屏幕：`execution-host` 行装载时按所在的系统选屏幕后端（`execution-environment-host-local` 的 `hostScreen`），选到且屏幕清单自洽才让宿主提供者提供 `screen`，并记下这一行提供了哪些设施；配置里写 `screen: false` 时不找后端。`execution-command` 行多装 `screen` 的设施声明。发行工具 `Screen` 声明能力 `screen.read`：它在不在看宿主行有没有提供 `screen`。所在的系统没有后端时，`Screen` 是已知不可用（原因 `dependency-unavailable:screen.read`）。
+- 已知不可用的工具留在原位：模型调用它时，受理处答一段带原因的文字（`<工具> is not available now (<原因>). Continue without it.`），不启动、不解析参数，这一轮照常往下走。目录答不出可不可用时仍是依据不可用。
+- 会话换型号时，`session-access` 这一行按这段会话的历史判目标可不可选：它以这个会话的协调者主体读这个会话的模型视图（登录的主体无权读模型视图；前提是会话接入已经核过这次登录可以对这个会话行事），只读这一个会话、只为算出历史的原生要求，再交给档案求值。型号盖不住时以模态不符拒绝并带回它读不了的块；模型视图读不到时答依据不可用，不当成空历史放行。`sessionWorkPrincipals` 因此是这一行按调用读的受信名。建会话没有历史，只按文字判。
+- 受理前处理是两行：`session-before-intake` 提供登记面 `session.before-intake`；`media-intake` 在媒体的服务与登记面都在时登记处理件 `media.references`，任一个不在就撤回。会话提供者每次受理现取来源声明与处理件，不写 `admission`。去掉 `media-intake` 或媒体的各行，登记面上没有媒体的处理件：带内容引用的输入不被受理，纯文字的会话照常。去掉 `session-before-intake`，成员本人的输入都不被受理，直到它回来。
 
 ### Skill
 
@@ -301,7 +313,7 @@
 
 - 派发行装一个提供者，服务全部租户；每个租户的派发登记存在这个租户自己的事务域里。它的三个贡献成员各自成行：会话的三个输入来源与对会话的调用、Tool 的报告等待契约与桥、工具 `Agents`。宿主不在时只有那一行不启动；去掉全部派发行，其余行照常启动。
 - 派发以系统主体办事，持有建会话、送输入、读去向三行用途的授予；授予随派发行安装，卸下时撤销。它对会话的每次调用都带被维护的那个租户。
-- 派发要的「这次调用所在那次模型请求的输入副本」由装配把 Agent 与 Request Context 已公开的读口接上；给不出时如实答原因，派发拒绝这一次 `spawn`。
+- 派发要的分叉点由装配接到会话的分叉点读口：受理 `spawn` 时读出派发方此刻的分叉点，建子会话时把它放进会话的创建。定不下来时如实答原因，派发拒绝这一次 `spawn`。视图在两步之间被压缩换代不影响：分叉点指的那个代际的行还在。
 
 ### 其他各行
 
@@ -382,7 +394,7 @@
 | HS-23 | 本租户层有凭据项时不回退官方层；发送只读准备选定的层                                         | 租户的请求用了部署的凭据，或发送时换了层              | `model-credential` 与 `model-request-preparation` 行的用例                                                                                 |
 | HS-24 | 发行快照只在产物与重建的清单全等时受信；不受信时来源权威一律答不可用                         | 被篡改的工具定义以官方身份装载                        | `tests/entry/tool-release.spec.ts`、`tool-host` 行的 `release-host.spec.ts`                                                                |
 | HS-25 | 官方作者只由本运行的登记者装载                                                               | 租户冒充官方层登记工具                                | `tool-release.spec.ts`、`tool-host` 行的用例                                                                                               |
-| HS-26 | 路径只有在不跟随链接按段落在根下、且真实位置在根的真实路径内时才算在文件根内                 | 经链接或别名读写根外的文件                            | `within-root.spec.ts`、`path-alias.spec.ts`                                                                                                |
+| HS-26 | 路径只有在不跟随链接按段落在根下、且真实位置在根的真实路径内时才算在这个根内                 | 经链接或别名读写根外的文件                            | `confined-to-scope.spec.ts`、`path-alias.spec.ts`                                                                                                |
 | HS-27 | 按调用的表只随调用的终态释放，大小随在途调用数                                               | 内存随累计调用数增长，或在途调用失去见证              | `holder-release.spec.ts`                                                                                                                   |
 | HS-28 | 存储命令上限容得下 Tool 暂停内容的三笔提交，否则启动失败                                     | 暂停的提交被记录仓确定地拒绝，账本没有对应的终局      | `suspension-bound.spec.ts`、`tests/local/operator-defaults.spec.ts`                                                                        |
 | HS-29 | 等待的登记与答复在同一笔提交里核对会话没有归档、Run 仍在进行；决定证据不含修订               | 已结束的 Run 出卡，或接手之后重送的决定被当作新的输入 | `tests/rows/tool-hitl/bridge.spec.ts`、`release-ask.spec.ts`                                                                               |
@@ -403,6 +415,6 @@
 | HS-44 | 指定了工作区的创建与更换，只在工作区核验答合法时提交；附着与确认依据取自工作区的答复 | 会话附着了一个这个租户无权使用的工作区，或一个不存在的实例 | 会话接入层的处理函数在提交之前调「工作区目标」端口（`packages/session/session-access/tests/select-workspace.spec.ts`）；发行树上的用例 `tests/rows/session-access/workspace-release.spec.ts` |
 | HS-45 | 模型发出一次调用所依据的工作目录，等于这次调用固定请求里钉住的目录；它只随一步开始之前的动作更换 | 模型发出的命令落在它没被告知的目录里 | 模型 `WorkingDirectory` 的 `ToldDirectory`、`ToldAtBoundary`（`packages/session/session-adapters/verification/working-directory`）；发行树上的 `tests/rows/working-directory-release.spec.ts` 与 `tests/rows/working-directory-tools-release.spec.ts` |
 | HS-46 | 固定请求带了工作区实例的调用，每次取落点之前按当时的关系再核一次资格，核不过的调用什么都做不成并以拒绝收场；会话工作目录是「选了但用不了」或读不到时，需要环境的调用答不可用，不改用默认目录 | 被移除的租户继续在工作区里干活；或文件被写进另一个项目 | `tests/rows/tool-runtime/pinned-directory.spec.ts`、`tests/entry/tool-requests.spec.ts`；发行树上的 `tests/rows/working-directory-tools-release.spec.ts` |
-| HS-47 | 一轮里对工作区层的每次求值用的是这一轮开始时采用的那一份来源读取；没有选工作区的会话没有工作区层 | 一轮跑到一半能用的 Skill 变了；或没选工作区的会话用上了某个项目的 Skill | 只有文字 |
+| HS-47 | 一轮里对工作区层的每次求值用的是这一轮开始时采用的那一份来源读取；没有选工作区的会话没有工作区层 | 一轮跑到一半能用的 Skill 变了；或没选工作区的会话用上了某个项目的 Skill | `tests/rows/workspace-skills-release.spec.ts`（发行树：下一轮读到、这一轮里改了不生效、没选的会话与被移除的租户读不到）；`tests/rows/tool-bindings/skills.spec.ts` 的作用域 |
 | HS-48 | 一次调用的文件范围在受理时算出并钉住，取落点与设施守卫只认钉住的那一份；没有选工作区的会话不受「工作区之外的文件」影响；设置读不到时调用答不可用 | 人放行的是一个范围，执行的是另一个；或没用工作区的人被这项设置改了行为 | 只有文字 |
 | HS-49 | 读不到会话工作目录的调用有确定的结局，包括作用域没有登记这个块的会话 | 这一轮永远不结束 | 只有文字 |

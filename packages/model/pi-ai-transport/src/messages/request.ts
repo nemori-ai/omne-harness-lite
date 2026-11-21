@@ -1,3 +1,4 @@
+import { mediaPending, mediaRead, nativeParsing, type MediaView } from '../media.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
@@ -20,6 +21,7 @@ import {
   appliedFor,
   carriesReplay,
   materialize,
+  represented,
   profileDeclaration,
   wiredParams,
   type EngineBinding,
@@ -109,6 +111,7 @@ function bodyOf(
   context: MessagesContext,
   projection: MessagesProjection,
   params: readonly GatewayParam[],
+  plugins: JsonValue | undefined,
 ): Outcome<JsonValue, TransportFailure> {
   const { record } = context
   const members = parameterMembers(context, params)
@@ -132,6 +135,7 @@ function bodyOf(
       messages: turnsJson(projection.turns, cache),
       tools: projection.tools.length > 0 ? list(projection.tools) : undefined,
       tool_choice: projection.toolChoice,
+      plugins,
     }),
   }
 }
@@ -146,23 +150,22 @@ function viewOf(projection: MessagesProjection, applied: readonly Parameter[]): 
   }
 }
 
-function represent(
+function shown(
   context: MessagesContext,
   input: Readonly<{
     projection: MessagesProjection
     applied: readonly Parameter[]
     representation: Adoption
+    media: MediaView
   }>,
-): Outcome<Readonly<{ body: JsonValue; representation: Materialized }>, TransportFailure> {
+) {
   const params = wiredParams(context, input.applied)
   if (!('ok' in params)) return params
-  const body = bodyOf(context, input.projection, params.ok)
+  const body = bodyOf(context, input.projection, params.ok, nativeParsing(input.media))
   if (!('ok' in body)) return body
-  return materialize(context, {
-    body: body.ok,
-    view: viewOf(input.projection, input.applied),
-    representation: input.representation,
-  })
+  const { representation, media } = input
+  const view = viewOf(input.projection, input.applied)
+  return { ok: { body: body.ok, view, representation, media } }
 }
 
 export function planMessages(
@@ -175,6 +178,7 @@ export function planMessages(
   const { profile, supplier, assembled } = input
   const declaration = profileDeclaration(context, profile, supplier)
   if (!('ok' in declaration)) return declaration
+  const media = mediaPending()
   const planned = planParameters({
     record: context.record,
     adapter: context.adapter,
@@ -194,14 +198,18 @@ export function planMessages(
     toolChoice: assembled.toolChoice,
     replayOff: assembled.replay === 'off',
     resent: new Set(),
+    media,
   })
   if (!('ok' in projection)) return projection
   const parameters = planned.ok
-  const encoded = represent(context, {
+  const request = shown(context, {
     projection: projection.ok,
     applied: parameters.map(adoption => adoption.applied),
     representation: assembled.representation,
+    media,
   })
+  if (!('ok' in request)) return request
+  const encoded = represented(context, request.ok)
   if (!('ok' in encoded)) return encoded
   return { ok: { parameters, representation: encoded.ok.representation } }
 }
@@ -225,8 +233,7 @@ export function encodeMessages(
   TransportFailure
 > {
   const { request } = input
-  if (input.media.length > 0)
-    return { failure: { kind: 'unsupported', field: 'media', adapter: context.adapter } }
+  const media = mediaRead(input.media)
   const projection = projectMessages({
     record: context.record,
     adapter: context.adapter,
@@ -237,13 +244,17 @@ export function encodeMessages(
     toolChoice: request.toolChoice,
     replayOff: request.replay === 'off',
     resent: new Set(input.resent),
+    media,
   })
   if (!('ok' in projection)) return projection
-  const encoded = represent(context, {
+  const sent = shown(context, {
     projection: projection.ok,
     applied: appliedFor(context, request),
     representation: request.representation,
+    media,
   })
+  if (!('ok' in sent)) return sent
+  const encoded = materialize(context, sent.ok)
   if (!('ok' in encoded)) return encoded
   return {
     ok: {

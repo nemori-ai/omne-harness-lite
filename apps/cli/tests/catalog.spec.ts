@@ -62,7 +62,7 @@ describe('command catalog', () => {
     expect(renderHelp(empty)).toBe(expectedEmptyHelp)
   })
 
-  it('registers exactly the commands of the spec, the HITL, governance, calendar, schedule and notification commands, then setting and asset, and the usage reads last', () => {
+  it('registers exactly the commands of the spec, the HITL, governance, calendar, schedule and notification commands, then setting, asset and media, and the usage reads last', () => {
     expect(productionCatalog.commands.map(command => command.name)).toEqual([
       'register',
       'login',
@@ -79,12 +79,14 @@ describe('command catalog', () => {
       'stop-call',
       'select-model',
       'select-workspace',
+      'read-workspace-selection',
       'read-model-selection',
       'list-models',
       'archive-session',
       'unarchive-session',
       'read-permission-mode',
       'change-permission-mode',
+      'list-sessions',
       'list-archived-sessions',
       'calls',
       'list-cards',
@@ -114,6 +116,7 @@ describe('command catalog', () => {
       'workspace',
       'setting',
       'asset',
+      'media',
       'query-usage',
       'list-usage-records',
       'read-context-occupancy',

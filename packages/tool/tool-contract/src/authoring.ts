@@ -283,4 +283,6 @@ export type AvailabilityFacts = Readonly<{
   inputCompatible: boolean
   outputCompatible: boolean
   attachmentsReadable: boolean
+  /** Whether a product the result refers to has somewhere to be stored; true when it carries none. */
+  productsStorable: boolean
 }>

@@ -32,6 +32,7 @@
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/settings": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*",
     "@omne-harness/workspace": "workspace:*",
     "@omne-harness/workspace-contract": "workspace:*",

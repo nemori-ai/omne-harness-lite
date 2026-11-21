@@ -9,8 +9,10 @@
 - `ObserveSessionFrame` · `session-protocol.d.ts`
 - `ObserveSessionOpen` · `session-protocol.d.ts`
 - `SessionProtocol` · `session-protocol.d.ts`
+- `UserAttachment` · `user-message.d.ts`
 - `UserMessage` · `user-message.d.ts`
 - `sessionProtocol` · `session-protocol.d.ts`
+- `userMessage` · `user-message.d.ts`
 - `userMessageId` · `user-message.d.ts`
 - `userTextMessage` · `user-message.d.ts`
 
@@ -18,7 +20,7 @@
 
 ```ts
 export { sessionProtocol, type ObserveSessionFrame, type ObserveSessionOpen, type SessionProtocol, } from './session-protocol.ts';
-export { userMessageId, userTextMessage, type UserMessage } from './user-message.ts';
+export { userMessage, userMessageId, userTextMessage, type UserAttachment, type UserMessage, } from './user-message.ts';
 ```
 
 ## 声明文件 `session-protocol.d.ts`
@@ -414,6 +416,7 @@ export declare const sessionProtocol: {
                         readonly revision: string;
                     }[];
                     readonly exhausted: boolean;
+                    readonly from?: string;
                     readonly next: string | null;
                     readonly scannedThrough: string;
                     readonly upper: string;
@@ -429,6 +432,7 @@ export declare const sessionProtocol: {
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly cursor: null;
                 readonly direction: "backward" | "forward";
+                readonly inherited?: boolean;
                 readonly pageBytes: string;
                 readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
@@ -629,9 +633,16 @@ export declare const sessionProtocol: {
                     readonly completeness: "complete" | "partial";
                     readonly next: string | null;
                     readonly sessions: readonly {
+                        readonly attendance?: "attended" | "unattended";
                         readonly createdAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly definition?: string;
+                        readonly depth?: number;
                         readonly lastActivityAt: import("@omne-harness/utc-instant").Instant | null;
                         readonly lifecycle: "active" | "archived" | "dormant" | "frozen" | "initializing";
+                        readonly origin?: string | null;
+                        readonly parent?: string | null;
+                        readonly relation?: "child" | "handoff" | "main";
+                        readonly root?: string;
                         readonly session: string;
                         readonly title: string | null;
                     }[];
@@ -645,8 +656,12 @@ export declare const sessionProtocol: {
             readonly effect: "read";
             readonly limit: "small";
             readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly attendance?: "attended" | "unattended" | null;
                 readonly cursor: string | null;
+                readonly definition?: string | null;
                 readonly limit?: number;
+                readonly parent?: string | null;
+                readonly relation?: "child" | "handoff" | "main" | null;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
             readonly countsAsAccess: true;
@@ -659,9 +674,16 @@ export declare const sessionProtocol: {
                     readonly sessions: readonly {
                         readonly archivedAt: import("@omne-harness/utc-instant").Instant | null;
                         readonly archivedBy: "auto" | "parent" | "person" | null;
+                        readonly attendance?: "attended" | "unattended";
                         readonly createdAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly definition?: string;
+                        readonly depth?: number;
                         readonly lastActivityAt: import("@omne-harness/utc-instant").Instant | null;
                         readonly lifecycle: "active" | "archived" | "dormant" | "frozen" | "initializing";
+                        readonly origin?: string | null;
+                        readonly parent?: string | null;
+                        readonly relation?: "child" | "handoff" | "main";
+                        readonly root?: string;
                         readonly session: string;
                         readonly title: string | null;
                     }[];
@@ -675,10 +697,14 @@ export declare const sessionProtocol: {
             readonly effect: "read";
             readonly limit: "small";
             readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly attendance?: "attended" | "unattended" | null;
                 readonly by?: "auto" | "parent" | "person" | null;
                 readonly cursor: string | null;
+                readonly definition?: string | null;
                 readonly from?: import("@omne-harness/utc-instant").Instant | null;
                 readonly limit?: number;
+                readonly parent?: string | null;
+                readonly relation?: "child" | "handoff" | "main" | null;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
                 readonly titleContains?: string | null;
                 readonly to?: import("@omne-harness/utc-instant").Instant | null;
@@ -980,6 +1006,10 @@ export declare const sessionProtocol: {
                     readonly model: string;
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly blocks?: readonly {
+                        readonly block: string;
+                        readonly message: string;
+                    }[];
                     readonly reason: "excluded" | "locked" | "modality" | "scope" | "unknown-name" | "withdrawn";
                 }>;
                 readonly archived: import("@omne-harness/public-contract").Codec<{}>;
@@ -1031,6 +1061,32 @@ export declare const sessionProtocol: {
                     readonly instance: string;
                     readonly workspace: string;
                 } | null;
+            }>;
+            readonly countsAsAccess: true;
+        };
+        readonly 'read-workspace-selection': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly directory: string | null;
+                    readonly reason: string | null;
+                    readonly revision: string;
+                    readonly state: "attached" | "default" | "unusable";
+                    readonly workspace: {
+                        readonly instance: string;
+                        readonly workspace: string;
+                    } | null;
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
             readonly countsAsAccess: true;
         };
@@ -1114,6 +1170,15 @@ import type { SessionProtocol } from './session-protocol.ts';
 type SendInputBody = SessionProtocol['operations']['send-input']['body'] extends Codec<infer Body> ? Body : never;
 export type UserMessage = SendInputBody['message'];
 export declare function userMessageId(inputId: string): Promise<string>;
+export type UserAttachment = Readonly<{
+    kind: 'image' | 'voice' | 'file';
+    ref: Readonly<Record<'storage' | 'key' | 'mediaType' | 'bytes' | 'digest', string>>;
+}>;
+export declare function userMessage(input: Readonly<{
+    inputId: string;
+    text: string;
+    attachments: readonly UserAttachment[];
+}>): Promise<UserMessage>;
 export declare function userTextMessage(text: string, inputId: string): Promise<UserMessage>;
 export {};
 ```

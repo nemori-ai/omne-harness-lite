@@ -233,6 +233,7 @@ export type { MaintenanceGrantSource, SystemActionClock, SystemActionDependencie
 ```ts
 export type InquiryPolicy = Readonly<{
     onAsk: 'deny' | 'ask-human' | 'skip-ask';
+    denial?: 'nobody-to-ask' | undefined;
 }>;
 ```
 
@@ -494,7 +495,7 @@ export type ReleaseDecision = Readonly<{
     basis: ReleaseBasis;
 }> | Readonly<{
     kind: 'refuse';
-    reason: 'prohibited' | 'inquiry-policy';
+    reason: 'prohibited' | 'inquiry-policy' | 'nobody-to-ask';
     basis: ReleaseBasis;
 }> | Readonly<{
     kind: 'unavailable';

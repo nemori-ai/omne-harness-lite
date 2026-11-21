@@ -12,15 +12,11 @@ export {
   workingDirectoryCallBinding,
   workingDirectoryDescriptor,
   workingDirectoryModelBinding,
-  workingDirectoryProducer,
 } from './cordis/working-directory-block.ts'
-export {
-  createWorkingDirectoryPublishers,
-  type DirectoryPublication,
-  type WorkingDirectoryPublishersInput,
-} from './cordis/working-directory-publisher.ts'
+export { heldBlock, type HeldBlock } from './cordis/context-records.ts'
 export {
   createStepDirectory,
+  directoryInForce,
   type StepDirectory,
   type StepDirectoryInput,
   type StepDirectoryPorts,
@@ -30,6 +26,7 @@ export {
 export {
   createSessionModesPlugin,
   type SessionModesPluginInput,
+  type SessionModesReading,
   type SessionPermissionModeReading,
 } from './cordis/mode-plugin.ts'
 export type {

@@ -122,6 +122,39 @@ describe('FixedRequestRecord format', () => {
     )
   })
 
+  it('keeps a representation chosen from a converter, and refuses one whose source is not named in full', async () => {
+    const value = stored(await recordOf())
+    const coverage = value['coverage'] as Record<string, unknown>
+    const chosen = (source: unknown) => ({
+      ...value,
+      coverage: {
+        ...coverage,
+        representations: [
+          {
+            message: 'msg_0123456789abcdefghjkmnpqr0',
+            block: 'b1',
+            choice: 'transcript',
+            source,
+            mediaType: 'text/plain',
+          },
+        ],
+      },
+    })
+    const full = {
+      definition: { name: 'voice', revision: '3' },
+      engine: { name: 'voice.transcribe', revision: '1' },
+    }
+    expect(decodeFixedRequestRecord(chosen(full))).toMatchObject({
+      ok: { coverage: { representations: [{ choice: 'transcript', source: full }] } },
+    })
+    expect(
+      decodeFixedRequestRecord(chosen({ ...full, engine: { name: 'voice.transcribe' } })),
+    ).toEqual(refused('coverage'))
+    expect(decodeFixedRequestRecord(chosen({ definition: full.definition }))).toEqual(
+      refused('coverage'),
+    )
+  })
+
   it('does not alias the coverage of its input', async () => {
     const json = stored(await recordOf())
     const decoded = decodeFixedRequestRecord(json)

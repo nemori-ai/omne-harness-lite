@@ -19,6 +19,7 @@ import {
 /** A utility process stand-in: spawns and reports ready on its own unless told otherwise. */
 class FakeChild extends EventEmitter implements ChildLike {
   alive = true
+  spawned = false
   posted: unknown[] = []
   readonly autoReady: boolean
   constructor(autoSpawn: boolean, autoReady: boolean) {
@@ -28,6 +29,7 @@ class FakeChild extends EventEmitter implements ChildLike {
   }
   spawn(): void {
     if (!this.alive) return
+    this.spawned = true
     this.emit('spawn')
   }
   postMessage(message: unknown): void {
@@ -43,7 +45,9 @@ class FakeChild extends EventEmitter implements ChildLike {
     this.alive = false
     this.emit('exit', code)
   }
+  // Like Electron's: a child that does not exist yet cannot be killed.
   kill(): boolean {
+    if (!this.spawned) return false
     this.exit(-1)
     return true
   }
@@ -227,13 +231,12 @@ describe('startServerProcess', () => {
     )
   })
 
-  it('kills an instance that has not spawned yet on shutdown and ignores its late spawn', async () => {
+  it('stops an instance that has not spawned yet by killing it when it spawns', async () => {
     const h = harness({ autoSpawn: false })
     const stopped = h.server.shutdown()
     await flush()
-    await stopped
     h.children[0]!.spawn()
-    await flush()
+    await stopped
 
     expect(h.live()).toBe(0)
     expect(h.children[0]!.posted).toEqual([])
@@ -261,13 +264,25 @@ describe('startServerProcess', () => {
     expect((await h.server.fetch(new Request('http://app.desktop/'))).status).toBe(200)
   })
 
+  it('kills a child retired at the startup timeout as soon as it spawns', async () => {
+    const h = harness({ autoSpawn: false })
+    await flush()
+    await vi.advanceTimersByTimeAsync(STARTUP_TIMEOUT_MS)
+    const late = h.children[0]!
+    expect(late.alive).toBe(true)
+    late.spawn()
+    await flush()
+
+    expect(late.alive).toBe(false)
+    expect(late.posted).toEqual([])
+  })
+
   it('retries a child that never spawns', async () => {
     const h = harness({ autoSpawn: false })
     await flush()
     await vi.advanceTimersByTimeAsync(STARTUP_TIMEOUT_MS + 5_000)
 
     expect(h.children.length).toBeGreaterThanOrEqual(2)
-    expect(h.children[0]!.alive).toBe(false)
   })
 
   it('kills a utility that ignores the shutdown message after the grace period', async () => {

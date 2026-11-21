@@ -200,7 +200,7 @@
 > environment**, so when it goes, **all of them go with it**.
 
 - **形态**：对象
-- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 14） · [PF-005 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
+- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 16） · [PF-005 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），
@@ -225,7 +225,7 @@
 > coordinates.
 
 - **形态**：对象
-- **出处**：[元能力：Computer() 图形界面操作](../../product/meta-capabilities/design.md#meta-computer)（rev 14）
+- **出处**：[元能力：Computer() 图形界面操作](../../product/meta-capabilities/design.md#meta-computer)（rev 16）
 - **别混**：**不是交付面上的一个页面**——屏幕在执行环境里，是 agent 观察与操作的对象，不是人看会话的那一面
 - **注意**：列出屏幕与截屏也以一个只读的截屏工具提供，与 Computer 用同一个图形界面设施、同样的规则；那是一个工具，不另立词条
 

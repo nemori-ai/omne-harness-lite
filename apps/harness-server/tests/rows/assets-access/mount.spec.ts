@@ -170,6 +170,7 @@ describe('assets-access row', () => {
         })
         const page = categories.json as { body: { items: { category: string; title: string }[] } }
         expect(page.body.items.map(item => [item.category, item.title])).toEqual([
+          ['converter', '转换件'],
           ['model-provider', '模型供应商'],
           ['skill', '技能'],
           ['tool', '工具'],

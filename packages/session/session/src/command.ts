@@ -18,11 +18,12 @@ import {
 } from '@omne-harness/session-contract'
 import { admitsCommand } from './callers.ts'
 import type { SessionDependencies } from './dependencies.ts'
-import { denied, guarded, messageOf, OWNERS, unavailable } from './failures.ts'
+import { denied, guarded, OWNERS, unavailable } from './failures.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import { terminalOf, type SessionMeasurer } from './measure.ts'
 import type { SchedulingPolicy } from './policy.ts'
 import { qualify, readSnapshot } from './qualify.ts'
+import { screenCommand } from './screening.ts'
 
 const OPTIMISTIC: ReadonlySet<MutationName> = new Set([
   'claim',
@@ -202,30 +203,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
       if ('failure' in prepared) return prepared
       guards.push(...prepared.ok)
     }
-    if (command.kind === 'accept' && command.input.value.kind === 'ordinary') {
-      const admitted = admission()
-      if ('failure' in admitted) return admitted
-    }
     return succeed(guards)
-  }
-
-  const admission = (): Outcome<null, SessionFailure> => {
-    let slots
-    try {
-      slots = dependencies.admission.current()
-    } catch (error) {
-      return fail(unavailable(OWNERS.admission, `admission.current threw: ${messageOf(error)}`))
-    }
-    if (slots === null)
-      return fail(unavailable(OWNERS.admission, 'the before-admit slot list is absent'))
-    if (slots.length > 0)
-      return fail(
-        unavailable(
-          OWNERS.admission,
-          'before-admit slots are not orchestrated by this member yet; only an empty list is accepted',
-        ),
-      )
-    return succeed(null)
   }
 
   const refusalOf = (snapshot: WorkSnapshot, command: SessionCommand): SessionFailure | null => {
@@ -356,14 +334,16 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
       const early = await readAndRefuse(view, access, command)
       if (early !== null) return early
     }
-    const guards = await materials(access, command)
+    const screened = await screenCommand(dependencies, access, command)
+    if ('failure' in screened) return screened
+    const guards = await materials(access, screened.ok)
     if ('failure' in guards) return guards
-    const answer = await commit(view, access, command, guards.ok)
+    const answer = await commit(view, access, screened.ok, guards.ok)
     if ('failure' in answer)
       return redoable(command, answer.failure, retries)
         ? run(view, access, command, retries + 1)
         : answer
-    return settle(view, access, command, answer)
+    return settle(view, access, screened.ok, answer)
   }
 
   return async (caller, command, principal) => {

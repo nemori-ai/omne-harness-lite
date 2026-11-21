@@ -4,6 +4,7 @@ import type {
   WorkspaceCatalog,
   WorkspaceGovernance,
   WorkspaceInstances,
+  WorkspaceSources,
 } from '@omne-harness/workspace-contract'
 
 /** @owner packages/workspace/workspace-cordis-contract */
@@ -60,6 +61,20 @@ export abstract class WorkspaceCatalogService extends Service implements Workspa
 export const workspaceCatalogKey = WorkspaceCatalogService.provide
 
 /** @owner packages/workspace/workspace-cordis-contract */
+export abstract class WorkspaceSourcesService extends Service implements WorkspaceSources<unknown> {
+  static readonly provide = 'workspaceSources'
+
+  constructor(ctx: Context) {
+    super(ctx, WorkspaceSourcesService.provide)
+  }
+
+  abstract readonly adopt: WorkspaceSources<unknown>['adopt']
+  abstract readonly adopted: WorkspaceSources<unknown>['adopted']
+  abstract readonly open: WorkspaceSources<unknown>['open']
+}
+export const workspaceSourcesKey = WorkspaceSourcesService.provide
+
+/** @owner packages/workspace/workspace-cordis-contract */
 // The extension point `workspace.types`. A contribution is withdrawn when its contributor's scope ends.
 export abstract class WorkspaceTypesService extends Service {
   static readonly provide = 'workspaceTypes'
@@ -81,6 +96,7 @@ declare module '@deepseek-ai/cordis' {
     workspaceGovernance: WorkspaceGovernanceService
     workspaceInstances: WorkspaceInstancesService
     workspaceCatalog: WorkspaceCatalogService
+    workspaceSources: WorkspaceSourcesService
     workspaceTypes: WorkspaceTypesService
   }
 }

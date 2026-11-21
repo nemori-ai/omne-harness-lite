@@ -1,7 +1,12 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
-import { SessionAdoptionSourceService } from '@omne-harness/session-cordis-contract/cordis'
+import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
+import {
+  SessionAdoptionSourceService,
+  sessionKey,
+} from '@omne-harness/session-cordis-contract/cordis'
+import { workspaceSourcesKey } from '@omne-harness/workspace-cordis-contract/cordis'
 import {
   canonicalText,
   contentDigest,
@@ -31,6 +36,7 @@ import { prepareInitialContext, type PreparedBlock } from './initial-context.ts'
 import { jsonOf } from './json.ts'
 import { recallInitialContext } from './recall-context.ts'
 import { plannedResidents } from './residents.ts'
+import { adoptRunSources, type RunSourcesPorts } from './run-sources.ts'
 
 const OWNER = '@omne-harness/harness-server'
 
@@ -267,8 +273,34 @@ function initializationMaterial(facts: InitializationGuardFacts): Prepared {
   ])
 }
 
+function runSourcesOf(ctx: Context): RunSourcesPorts {
+  const coordinator = ctx.intercept(sessionKey, { caller: 'coordinator' })
+  const logger = ctx.logger('adoption-sources')
+  return {
+    readWork: access => coordinator.get(sessionKey)?.work.readWork(access),
+    sources: () => ctx.get(workspaceSourcesKey),
+    categories: () => ctx.get(assetCategoriesKey)?.view,
+    report: reason => logger.warn('the run starts without a workspace layer: %s', reason),
+  }
+}
+
+async function definitionEvidence<P>(
+  runSources: RunSourcesPorts,
+  mappings: DefinitionMappings,
+  command: Extract<AdoptionEvidenceCommand, { kind: 'startRun' | 'reload' }>,
+  access: SessionAccess<P> | undefined,
+): Promise<Prepared> {
+  const entry = mappings.byCandidate(command.input.candidate)
+  if (entry === undefined)
+    return invalid('candidate', 'the candidate is not a definition adoption of this deployment')
+  if (command.kind === 'startRun')
+    await adoptRunSources(runSources, command, access as SessionAccess<unknown> | undefined)
+  return succeed([materialOf(mappings, command.kind, entry)])
+}
+
 async function prepareFrom<P>(
   ctx: Context,
+  runSources: RunSourcesPorts,
   mappings: DefinitionMappings,
   command: AdoptionEvidenceCommand,
   access: SessionAccess<P> | undefined,
@@ -294,12 +326,8 @@ async function prepareFrom<P>(
       return initializationGuardOf(mappings, command, entry, residents.ok, preparation.ok)
     }
     case 'startRun':
-    case 'reload': {
-      const entry = mappings.byCandidate(command.input.candidate)
-      if (entry === undefined)
-        return invalid('candidate', 'the candidate is not a definition adoption of this deployment')
-      return succeed([materialOf(mappings, command.kind, entry)])
-    }
+    case 'reload':
+      return definitionEvidence(runSources, mappings, command, access)
     case 'completeInitialization':
     case 'change':
     case 'freeze':
@@ -315,6 +343,7 @@ export class AdoptionSourcesImpl extends SessionAdoptionSourceService {
   constructor(ctx: Context, mappings: DefinitionMappings) {
     super(ctx)
     this.mappings = mappings
-    this.prepare = (command, access) => prepareFrom(ctx, mappings, command, access)
+    const runSources = runSourcesOf(ctx)
+    this.prepare = (command, access) => prepareFrom(ctx, runSources, mappings, command, access)
   }
 }

@@ -39,6 +39,14 @@ export type SessionOperationElements =
     }>
   | Readonly<{ kind: 'external-call'; binding: CallBinding }>
   | Readonly<{ kind: 'context-reminder'; session: SessionId; source: DurableEvidence }>
+  /** A value the session commits into a block it holds, on the session revision a step begins at. */
+  | Readonly<{
+      kind: 'context-step'
+      session: SessionId
+      scope: string
+      at: string
+      value: string
+    }>
   /** An authorization a person expressed on a card: the decision names the one operation. */
   | Readonly<{
       kind: 'authorization'
@@ -95,7 +103,12 @@ function factElements(fact: ProducerFact): unknown {
     case 'release':
       return { kind: fact.kind, consumption: fact.consumption, version: fact.result.version }
     case 'cascade':
-      return { kind: fact.kind, child: fact.child, childOperation: fact.childOperation }
+      return {
+        kind: fact.kind,
+        child: fact.child,
+        childOperation: fact.childOperation,
+        ...(fact.refusal === undefined ? {} : { refused: true }),
+      }
     case 'routed-input':
       return { kind: fact.kind, originalOperation: fact.originalOperation }
     case 'scope-release':

@@ -37,7 +37,7 @@ describe('current file authorization', () => {
         binding: { kind: 'host_machine' },
         provider: { name: 'fixture', generation: '1', version: '1' },
         quotaDomain: 'fixture',
-        filesRoot: '/srv/blog',
+        filesScope: { read: '/srv/blog', write: '/srv/blog' },
         continuity: { kind: 'not_guaranteed' },
         requirement: {
           allowedBindings: [{ kind: 'host_machine' }],
@@ -63,11 +63,26 @@ describe('current file authorization', () => {
       lease,
       naming: { name },
       facts: { system: 'fixture', release: '1', architecture: 'fixture', facilities: ['files'] },
+      media: () => undefined,
+      directory: { path: '/srv/blog', workspace: null, files: { write: '/srv/blog' } },
     })
     expect(value.facts.os).toBe('fixture')
     expect(value.facts.system).toBe('fixture')
-    // The default directory of the author is the files root of the placement of its lease.
+    // The default directory of the author is the directory pinned in the request, its files the pinned scope.
     expect(value.directory).toBe('/srv/blog')
+    expect(value.scope).toEqual({ write: '/srv/blog' })
+    // A directory pinned with no scope, as in a session with no workspace, carries none.
+    const plain = createAuthorEnvironment({
+      access: { principal: principalA, tenant: tenantA, call: callId('call') },
+      origin: originRef('original'),
+      lease,
+      naming: { name },
+      facts: { system: 'fixture', release: '1', architecture: 'fixture', facilities: ['files'] },
+      media: () => undefined,
+      directory: { path: '/srv/default', workspace: null },
+    })
+    expect(plain.directory).toBe('/srv/default')
+    expect('scope' in plain).toBe(false)
     expect(Object.isFrozen(value)).toBe(true)
     const request = {
       path: '/authorized/new',
@@ -146,6 +161,7 @@ function fixture(
     lease,
     naming: { name },
     facts: { system: 'fixture', release: '1', architecture: 'fixture', facilities: ['files'] },
+    media: () => undefined,
   })
   // A placement that names no files root gives the author no directory: absent, not empty.
   expect('directory' in value).toBe(false)

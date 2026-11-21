@@ -24,12 +24,14 @@ import {
 } from 'react'
 import { stopFace } from '../model/composer.ts'
 import { EMPTY_CONTENT, terminalOf, type HistoryEntry } from '../model/content.ts'
-import { conversationItems, type Item } from '../model/conversation.ts'
+import type { ComposerDraftStore } from '../model/composer-drafts.ts'
+import { conversationItems, type BlockSource, type Item } from '../model/conversation.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import { sessionName, shownBy, type SessionList } from '../model/session-list.ts'
 import type { Open, PendingInput, State } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import type { Waiting } from '../model/waiting.ts'
+import { BlockSlotContext } from './block-slot.ts'
 import { ComposerActionSlot } from './composer-action-slot.tsx'
 import { HeadingFoldContext, useHeadingFold, type HeadingFold } from './heading-fold.tsx'
 import { NoticeLine } from './notice.tsx'
@@ -52,7 +54,17 @@ export type ConversationPageProps = Readonly<{
   dock: (session: string) => ReactNode
   side: (session: string) => ReactNode
   status?: (session: string) => ReactNode
-  /** The two everyday choices on the open session, at the right of its heading: the model and permissions. */
+  /** The message being written: what it will carry, and what contributions put in the composer. */
+  drafts: ComposerDraftStore
+  attachments?: (session: string, draft: string) => ReactNode
+  /** What draws a block of a message that is not words; `fallback` when nothing does. */
+  block?: (
+    session: string,
+    source: BlockSource,
+    fallback: ReactNode,
+    revision: string | null,
+  ) => ReactNode
+  /** The everyday choices on the open session, at the right of its heading: the model, the workspace and permissions. */
   heading?: (session: string) => ReactNode
   /** Verbs on the open session in its `⋯`, such as archiving it; each tells what came of it through `say`. */
   more?: (session: string, say: (text: string) => void) => ReactNode
@@ -68,6 +80,9 @@ export function ConversationPage({
   dock,
   side,
   status = () => null,
+  drafts,
+  attachments = () => null,
+  block = (_session, _source, fallback) => fallback,
   heading = () => null,
   more = () => null,
   work = () => null,
@@ -94,6 +109,9 @@ export function ConversationPage({
           dock={dock}
           side={side}
           status={status}
+          drafts={drafts}
+          attachments={attachments}
+          block={block}
           heading={heading}
           more={more}
           work={work}
@@ -107,6 +125,14 @@ type Parts = Readonly<{
   scope: string | undefined
   dock: (session: string) => ReactNode
   status: (session: string) => ReactNode
+  drafts: ComposerDraftStore
+  attachments: (session: string, draft: string) => ReactNode
+  block: (
+    session: string,
+    source: BlockSource,
+    fallback: ReactNode,
+    revision: string | null,
+  ) => ReactNode
   work: (session: string, revision: string | null) => ReactNode
   waitingCalls: WaitingCalls | undefined
 }>
@@ -345,12 +371,21 @@ function OpenSession({
   scope,
   dock,
   status,
+  drafts,
+  attachments,
+  block,
   work,
   waitingCalls,
 }: Parts & { readonly state: Open; readonly driver: SessionDriver }) {
   const waiting = useWaitingCalls(waitingCalls, scope, state.session)
+  const { session } = state
+  const { revision } = state
+  const drawn = useMemo(
+    () => (source: BlockSource, fallback: ReactNode) => block(session, source, fallback, revision),
+    [block, session, revision],
+  )
   return (
-    <>
+    <BlockSlotContext.Provider value={drawn}>
       {state.notice === null ? null : <NoticeLine notice={state.notice} />}
       {state.history.failure === null ? null : <NoticeLine notice={state.history.failure} />}
       <Conversation
@@ -363,8 +398,15 @@ function OpenSession({
         dock={dock(state.session)}
       />
       {work(state.session, state.revision)}
-      <Composer state={state} driver={driver} status={status(state.session)} waiting={waiting} />
-    </>
+      <Composer
+        state={state}
+        driver={driver}
+        status={status(state.session)}
+        waiting={waiting}
+        drafts={drafts}
+        attachments={attachments}
+      />
+    </BlockSlotContext.Provider>
   )
 }
 
@@ -506,6 +548,9 @@ function PendingInputView({
     <article className="omne-message" data-role="user" data-pending={input.status}>
       <span className="omne-message-speaker">你</span>
       <div className="omne-message-body">{input.text}</div>
+      {input.attachments.length === 0 ? null : (
+        <p className="omne-placeholder">附件 {input.attachments.length} 份</p>
+      )}
       <InputNote input={input} onConfirm={() => driver.confirmSend(input.acceptId)} />
     </article>
   )
@@ -545,16 +590,22 @@ function Composer({
   driver,
   status,
   waiting,
-}: {
+  drafts,
+  attachments,
+}: Pick<Parts, 'drafts' | 'attachments'> & {
   readonly state: Open
   readonly driver: SessionDriver
   readonly status: ReactNode
   readonly waiting: number
 }) {
+  const { session } = state
   const [text, setText] = useState('')
+  const draft = useSyncExternalStore(drafts.subscribe, () => drafts.read(session))
+  useEffect(() => () => drafts.drop(session), [drafts, session])
+  const canSend = draft.ready && (text.trim().length > 0 || draft.attachments.length > 0)
   const submit = () => {
-    if (text.trim().length === 0) return
-    void driver.send(text)
+    if (!canSend) return
+    void driver.send(text, drafts.take(session))
     setText('')
   }
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -578,11 +629,12 @@ function Composer({
         onChange={event => setText(event.target.value)}
         onKeyDown={onKeyDown}
       />
+      <div className="omne-composer-attachments">{attachments(session, draft.draft)}</div>
       <div className="omne-composer-actions">
         <div className="omne-session-status">{status}</div>
         <ComposerActionSlot
           face={stopFace(state.run)}
-          canSend={text.trim().length > 0}
+          canSend={canSend}
           onStop={() => driver.cancel()}
         />
       </div>

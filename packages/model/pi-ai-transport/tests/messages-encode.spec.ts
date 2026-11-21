@@ -13,6 +13,9 @@ import {
   fixedRequest,
   imageBlock,
   message,
+  PICTURE_BYTES,
+  pictureBlock,
+  pictureRead,
   resultBlock,
   stateBlock,
   supplierOf,
@@ -21,6 +24,14 @@ import {
   thinkingBlock,
   tool,
   type RequestParts,
+  DOCUMENT_BYTES,
+  documentBlock,
+  documentRead,
+  NATIVE_PARSING,
+  PDF_WIRE,
+  WORDS_TEXT,
+  wordsBlock,
+  wordsRead,
 } from './support/chat-record.ts'
 import { messagesRecord } from './support/messages-record.ts'
 
@@ -319,5 +330,126 @@ describe('encode: what the model does not accept is refused before anything is s
       },
     })
     expect(() => bind(record)).toThrow(/no member for seed/)
+  })
+})
+
+describe('encode: an image by reference', () => {
+  const record = messagesRecord()
+  const DATA = Buffer.from(PICTURE_BYTES).toString('base64')
+  const wire = { type: 'image', source: { type: 'base64', media_type: 'image/png', data: DATA } }
+  const encodeWith = (
+    parts: RequestParts,
+    media: Parameters<PiFamilyBinding['encode']>[0]['media'],
+  ) => {
+    const request: FixedModelRequest = fixedRequest(record, parts)
+    return bind(record).encode({ request, media, declaration: request.declarations[0], resent: [] })
+  }
+  const messagesOf = (outcome: ReturnType<typeof encodeWith>) => {
+    if (!('ok' in outcome)) throw new Error(`encode failed: ${JSON.stringify(outcome.failure)}`)
+    return (JSON.parse(writeJsonText(outcome.ok.body)) as { messages: unknown[] }).messages
+  }
+
+  it('of a user message is written as the bytes read for it, and its measure goes to the meter', () => {
+    const messages = [message('u1', 'user', [textBlock('t1', 'look'), pictureBlock('p1')])]
+    const outcome = encodeWith({ messages }, [pictureRead()])
+    expect(messagesOf(outcome)).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'look' }, wire] },
+    ])
+    if (!('ok' in outcome)) throw new Error('encode failed')
+    expect(outcome.ok.representation.media).toEqual([pictureRead().measurement])
+  })
+
+  it('of a tool result stays in the result it came with', () => {
+    const outcome = encodeWith(
+      {
+        messages: [
+          message('u1', 'user', [textBlock('t1', 'shoot')]),
+          message('a1', 'assistant', [callBlock('c1', 'call-1', 'screen')]),
+          message('r1', 'tool', [resultBlock('y1', 'call-1'), pictureBlock('y2')]),
+        ],
+        tools: [tool('screen')],
+      },
+      [pictureRead()],
+    )
+    expect(messagesOf(outcome).at(-1)).toEqual({
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'call-1', content: [wire] }],
+    })
+  })
+
+  it('is unsupported at its path when nothing was read for it', () => {
+    const messages = [message('u1', 'user', [pictureBlock('p1')])]
+    expect(encodeWith({ messages }, [])).toMatchObject({
+      failure: { kind: 'unsupported', field: '/messages/0/blocks/0' },
+    })
+  })
+
+  it('a record that takes no image sends none, inline or by reference', () => {
+    const blind = messagesRecord({ wire: { ...record.wire, image: null } })
+    const encodeBlind = (block: unknown, media: Parameters<typeof encodeWith>[1]) => {
+      const request = fixedRequest(blind, { messages: [message('u1', 'user', [block])] })
+      const [declaration] = request.declarations
+      return bind(blind).encode({ request, media, declaration, resent: [] })
+    }
+    const unsupported = { failure: { kind: 'unsupported', field: '/messages/0/blocks/0' } }
+    expect(encodeBlind(imageBlock('i1'), [])).toMatchObject(unsupported)
+    expect(encodeBlind(pictureBlock('p1'), [pictureRead()])).toMatchObject(unsupported)
+  })
+})
+
+describe('encode: a file by reference, and words kept apart (Messages)', () => {
+  const plain = messagesRecord()
+  const taking = messagesRecord({ wire: { ...messagesRecord().wire, file: PDF_WIRE } })
+  const sent = (
+    record: typeof plain,
+    parts: RequestParts,
+    media: Parameters<PiFamilyBinding['encode']>[0]['media'],
+  ) => {
+    const request: FixedModelRequest = fixedRequest(record, parts)
+    const outcome = bind(record).encode({
+      request,
+      media,
+      declaration: request.declarations[0],
+      resent: [],
+    })
+    return outcome
+  }
+  const parsed = (outcome: ReturnType<typeof sent>) => {
+    if (!('ok' in outcome)) throw new Error(`encode failed: ${JSON.stringify(outcome.failure)}`)
+    return JSON.parse(writeJsonText(outcome.ok.body)) as Record<string, unknown>
+  }
+  const DATA = Buffer.from(DOCUMENT_BYTES).toString('base64')
+  const partsOf = (body: Record<string, unknown>) =>
+    (body['messages'] as { content?: unknown }[]).flatMap(each =>
+      Array.isArray(each.content) ? (each.content as unknown[]) : [],
+    )
+
+  it('a PDF the record takes goes as its own file part, and the request asks the gateway to parse it natively', () => {
+    const messages = [message('u1', 'user', [textBlock('t1', 'read this'), documentBlock('d1')])]
+    const body = parsed(sent(taking, { messages }, [documentRead()]))
+    expect(partsOf(body)).toContainEqual({
+      type: 'document',
+      source: { type: 'base64', media_type: 'application/pdf', data: DATA },
+    })
+    expect(body.plugins).toEqual(NATIVE_PARSING)
+  })
+
+  it('a file the record does not take is unsupported; a request without a file asks for no parsing', () => {
+    const messages = [message('u1', 'user', [documentBlock('d1')])]
+    expect(sent(plain, { messages }, [documentRead()])).toMatchObject({
+      failure: { kind: 'unsupported', field: '/messages/0/blocks/0' },
+    })
+    const words = [message('u1', 'user', [textBlock('t1', 'hello')])]
+    expect(parsed(sent(taking, { messages: words }, [])).plugins).toBeUndefined()
+  })
+
+  it('words kept apart are read back and written as words on any record, with no file and no parsing', () => {
+    const messages = [
+      message('u1', 'user', [textBlock('t1', 'what does it say?'), wordsBlock('w1')]),
+    ]
+    const body = parsed(sent(plain, { messages }, [wordsRead()]))
+    expect(partsOf(body)).toContainEqual({ type: 'text', text: WORDS_TEXT })
+    expect(body.plugins).toBeUndefined()
+    expect(sent(plain, { messages }, [])).toMatchObject({ failure: { kind: 'unsupported' } })
   })
 })

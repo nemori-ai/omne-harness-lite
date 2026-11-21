@@ -12,6 +12,8 @@ import {
 import {
   requestHead,
   type MaterializedTransport,
+  type ModelMedia,
+  type ModelMediaSource,
   type SendDemand,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
@@ -221,6 +223,7 @@ function observed(
   faults: readonly (readonly [number, Faults])[] = [],
   onConnectRetry?: PiSendResourcesConfig['onConnectRetry'],
   requestDisclosure?: (request: FixedModelRequest) => TransportFailure | null,
+  media?: PiSendResourcesConfig<Principal>['media'],
 ) {
   network = createNetworkResources({ maxConnections: 2, idleConnectionTimeoutMs: 1_000 })
   const factory = observingFactory()
@@ -234,6 +237,7 @@ function observed(
       materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
       ...(onConnectRetry === undefined ? {} : { onConnectRetry }),
       ...(requestDisclosure === undefined ? {} : { requestDisclosure }),
+      ...(media === undefined ? {} : { media }),
     },
     createTransport: factory.createTransport,
   })
@@ -332,6 +336,98 @@ describe('the report of a connect retry', () => {
     await acquired(without.resources)
     expect(without.factory.acquired()[0]?.config.onConnectRetry).toBeUndefined()
     await without.resources.close()
+  })
+})
+
+describe('the media source of a resource', () => {
+  const PICTURE = { storage: 's', key: 'k', mediaType: 'image/png', bytes: '3', digest: 'd' }
+  const MEDIA_LIMITS = { mediaTypes: ['image/png'], maxBytes: 9, image: null }
+  const READ: ModelMedia = {
+    mediaType: 'image/png',
+    bytes: new Uint8Array([1, 2, 3]),
+    measurement: {
+      reference: PICTURE,
+      bytes: '3',
+      mediaType: 'image/png',
+      kind: 'image',
+      widthPixels: '1',
+      heightPixels: '1',
+    },
+  }
+  type Opened = Parameters<ModelMediaSource<Principal>['open']>
+  function sourceOf(seen: Opened[]): ModelMediaSource<Principal> {
+    return {
+      open: async (...opened) => {
+        seen.push(opened)
+        return { ok: READ }
+      },
+    }
+  }
+  const readOf = (transport: Observed | undefined) => {
+    const read = transport?.config.media
+    if (read === undefined) throw new Error('the transport of the resource reads no media')
+    return read
+  }
+
+  it('reads with the access of its own send, and asks for the source at every read', async () => {
+    const seen: Opened[] = []
+    let current: ModelMediaSource<Principal> | null = sourceOf(seen)
+    const { factory, resources } = observed([], undefined, undefined, () => current)
+    const stranger = { ...DEMAND, principal: { subject: 'another' } }
+    await acquired(resources)
+    await acquired(resources, stranger)
+    const [first, second] = factory.acquired()
+    const signal = new AbortController().signal
+    expect(await readOf(first)(PICTURE, MEDIA_LIMITS, signal)).toEqual({ ok: READ })
+    await readOf(second)(PICTURE, MEDIA_LIMITS, signal)
+    expect(seen).toEqual([
+      [
+        {
+          principal: DEMAND.principal,
+          tenant: DEMAND.tenant,
+          reference: PICTURE,
+          limits: MEDIA_LIMITS,
+        },
+        signal,
+      ],
+      [
+        {
+          principal: stranger.principal,
+          tenant: DEMAND.tenant,
+          reference: PICTURE,
+          limits: MEDIA_LIMITS,
+        },
+        signal,
+      ],
+    ])
+    current = null
+    expect(await readOf(first)(PICTURE, MEDIA_LIMITS, signal)).toEqual({
+      failure: { kind: 'unavailable', diagnostic: 'media-source-absent' },
+    })
+    const later: Opened[] = []
+    current = sourceOf(later)
+    await readOf(first)(PICTURE, MEDIA_LIMITS, signal)
+    expect([seen.length, later.length]).toEqual([2, 1])
+  })
+
+  it('is given to no transport that sends nothing, and to none when the assembly names no source', async () => {
+    const withSource = observed([], undefined, undefined, () => null)
+    await acquired(withSource.resources)
+    await withSource.resources.lookupCost?.(
+      { supplier: REQUEST.suppliers[0], request: 'request-1', secrets: secretsOf('s') },
+      new AbortController().signal,
+    )
+    expect(withSource.factory.transports.map(each => each.config.media !== undefined)).toEqual([
+      false,
+      true,
+      false,
+    ])
+    const without = observed()
+    await acquired(without.resources)
+    expect(without.factory.transports.map(each => each.config.media)).toEqual([
+      undefined,
+      undefined,
+    ])
   })
 })
 

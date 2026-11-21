@@ -57,7 +57,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   create: [I],
   completeInitialization: [I],
   change: [I],
-  setRelation: [I],
+  setResident: [I],
   configureAutoArchive: [I],
   considerAutoArchive: [M],
   interrupt: [I],
@@ -72,6 +72,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   'history.since': [R],
   'history.readModelView': [R],
   'history.readCompactionContext': [R],
+  'history.readAdoptedRequest': [R],
 }
 
 export function admits(caller: SessionCallerClass, operation: FaceOperation): boolean {

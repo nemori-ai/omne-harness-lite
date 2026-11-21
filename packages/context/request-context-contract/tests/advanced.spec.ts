@@ -2,12 +2,7 @@ import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { it, expect } from 'vitest'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
 import { judgeMessage } from '@omne-harness/message'
-import {
-  declareTools,
-  project,
-  chooseRepresentations,
-  coverageSchema,
-} from '@omne-harness/request-context-contract'
+import { declareTools, project, coverageSchema } from '@omne-harness/request-context-contract'
 import type { ToolAdoption } from '@omne-harness/request-context-contract'
 import { createMemoryHistorySource } from '@omne-harness/request-context-contract/testing'
 import {
@@ -161,39 +156,6 @@ it('projection preserves reasoning payload, rewrites at indices and removes dang
       pairs: ['public'],
       payload: 'opaque-state',
     })
-  }
-})
-it('tool media references remain deferred without reading or converting content', () => {
-  const r = row()
-  const marker = judgeBlockIdentity({ id: 'marker', visibility: { toModel: true, toHuman: true } })
-  if ('rejected' in marker) throw new Error('Fixture')
-  const message = judgeMessage({
-    role: 'tool',
-    id: r.message.id,
-    blocks: [
-      { kind: 'tool_result', ...marker.ok, callId: 'c' },
-      {
-        kind: 'image',
-        id: 'media',
-        visibility: { toModel: true, toHuman: true },
-        ref: { storage: 's', key: 'k', mediaType: 'image/png', bytes: '123', digest: 'original' },
-        transcript: null,
-      },
-    ],
-  })
-  if ('rejected' in message) throw new Error(message.rejected)
-  const f = fixture()
-  const result = chooseRepresentations({
-    messages: [message.ok],
-    conversions: new Map(),
-    modalities: ['text'],
-    policy: f.policies.representation,
-  })
-  expect(result.kind).toBe('chosen')
-  if (result.kind === 'chosen') {
-    expect(result.choices[0]?.choice).toBe('pending-load')
-    expect(result.deferred).toHaveLength(1)
-    expect(result.messages[0]).toEqual(message.ok)
   }
 })
 it('pagination retains the identical evidence and never concatenates old epoch pages', async () => {

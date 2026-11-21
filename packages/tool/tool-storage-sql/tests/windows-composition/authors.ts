@@ -101,6 +101,7 @@ export function createAuthors(
       filesToolModule,
       environment => ({
         files: environment.files,
+        media: environment.media,
         ...(environment.directory === undefined ? {} : { directory: environment.directory }),
       }),
       executed('Files'),
@@ -117,7 +118,14 @@ export function createAuthors(
     ),
   }
   const construction = {
-    Files: tree({ resultMaxBytes: maximum }),
+    Files: tree({
+      resultMaxBytes: maximum,
+      openMaxBytes: 1_048_576,
+      imageMaxWidth: 4096,
+      imageMaxHeight: 4096,
+      imageMaxDecodedBytes: 67_108_864,
+      imageConcurrency: 1,
+    }),
     Shell: tree({
       resultMaxBytes: maximum,
       executable,

@@ -57,6 +57,7 @@ C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3
 | **C-36** | 共享实例与本地目录的归属 | 旧投影与最新裁决不一致 | PF-001/PF-002 仍将本地定制与租户私有资源混述，PF-020 已确认实例可跨租户共用 | **已同步 PF-001/PF-002 产品投影**，见下方 C-36 |
 
 | **C-37** | 工作区规则在其他 PF 的旧投影 | 跨 topic 规则冲突 | PF-002 的本地私有验收、PF-015 的仅所有者附着、PF-016 的默认挂载与本机清单边界未对齐 PF-020 | **现行产品投影已对齐并升 rev**（产品负责人 2026-09-27 明确授权），处置见下方 C-37 |
+| **C-38** | **`spawn` 是不是 fork** | 最新裁决推翻旧裁决 | C-22 在 2026-09-22 闭合为「`spawn` 交出去的是上下文的副本，父的日志不被指向、不被拷贝」，现行词义并写「不同会话在会话日志、投影、runtime context 快照三处存储上都不共享」。实现照此做了之后量到：副本是转写的文字，丢了工具调用的结构，并且超过 20 万字节的对话派不出 `spawn` | **已闭合（2026-11-21，产品负责人直接裁决）**：「做真 fork，而且得是高性能和存储友好的，从 session log 根上就是真 fork，注意 fork 不是 deep copy」。`spawn` 的子会话从派发者的会话[分叉](terms/agent-runtime-loop.md#ul-session-fork--会话分叉--session-fork)，分叉点之前的对话按引用共享。C-22 的结论作废；「存储上不共享」收窄为：除分叉共享的那段只追加的前缀之外不共享，runtime context 快照仍不共享，一个会话仍只有一个写入者。落在 [元能力 rev 15](../product/meta-capabilities/design.md#三种派发模式)、[子会话](terms/agent-runtime-loop.md#ul-child-session--子会话--child-session)、[派发](terms/interaction-and-dispatch.md) |
 
 ### C-36：共享实例与本地目录的归属
 
@@ -626,7 +627,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **类型**：缺定义。
 - **原况**：产品与规格都没写 `Files` 的 `open` 结果是否带图片这个模态，工具的可用性因此无从按模态判。
 - **处置**：[Tool 规格的执行事实、收场与结果](../../../packages/tool/SPEC.md#执行事实收场与结果)写明作者在声明里写结果带哪些模态，`open` 的结果是一行文字说明加一个图片的引用块；模型原生读不了而又没有可用的转换时，工具在原位不可用。
-- **留意**：[元能力 Files](../product/meta-capabilities/design.md#meta-files)（rev 13）的动作表仍写 `open`「返回附件和图片内容」。这里的「附件」若按 [UL-attachment](terms/execution-and-outcome.md#ul-attachment--附件--attachment) 读，指只给地址、不进模态约束的产出，与规格的引用块不同；措辞由元能力 topic 的拥有者复核。
+- **留意**：[元能力 Files](../product/meta-capabilities/design.md#meta-files)（rev 16）与规格一致：`open` 返回一行文字说明加一个引用图片的图片块，不叫附件（[UL-attachment](terms/execution-and-outcome.md#ul-attachment--附件--attachment) 指只给地址、不进模态约束的产出）。
 - **状态**：已闭合（Tool 规格）。
 
 ### C-96：表示决定还有没有留到发送时再加载

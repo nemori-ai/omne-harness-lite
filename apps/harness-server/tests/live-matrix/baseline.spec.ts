@@ -69,9 +69,15 @@ describe('the cells come from the records', () => {
     ])
   })
 
-  it('reads the current official records of both families', () => {
+  it('reads the current official records of the three families', () => {
     const families = new Set(currentModels().map(model => model.family))
-    expect(families.size).toBe(2)
+    expect(families).toEqual(
+      new Set([
+        '@omne-harness/pi-ai-openai',
+        '@omne-harness/pi-ai-anthropic',
+        '@omne-harness/pi-ai-qwen',
+      ]),
+    )
     expect(currentModels().every(model => model.revision !== '')).toBe(true)
   })
 })

@@ -1,13 +1,16 @@
 import { type Context, type Plugin, Service } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
+  createBeforeIntakeRegistry,
   createInputSourceRegistry,
+  type BeforeIntakeRegistry,
   type DerivedAdmission,
   type DerivedInputKind,
   type InputSourceDeclaration,
   type InputSourceLookup,
   type InputSourceName,
   type InputSources,
+  type IntakeProcessor,
   type SessionDerivedInputs,
 } from '@omne-harness/session-contract'
 import type {
@@ -411,10 +414,10 @@ export abstract class SessionCursorSigningService extends Service implements Ses
 export const sessionCursorSigningKey = SessionCursorSigningService.provide
 
 /**
- * The adopted request of a session: what the session-log Journal provider saved in the same
- * publication as the last main-purpose M0 (FIXED-FACTS F4). The `agent-journal` row provides it
- * in the plugin body of `agentJournal`, so it is in the same authoritative ordering as the Agent
- * records. The consumer takes it per call (`ctx.get`) and treats absence as `unavailable`.
+ * The adopted request of a session, saved with an M0 (FIXED-FACTS F4): of the call a reference
+ * names, or else of the last main-purpose M0. The `agent-journal` row provides it in the plugin
+ * body of `agentJournal`, so it is in the same authoritative ordering as the Agent records. The
+ * consumer takes it per call (`ctx.get`) and treats absence as `unavailable`.
  *
  * @owner packages/session/session-cordis-contract
  */
@@ -464,6 +467,41 @@ export const sessionInputSourcesPlugin: Plugin.Object = {
 }
 
 /**
+ * The registration point `session.before-intake`: the processors an input of a screened source
+ * goes through before it is accepted, keyed by name and run in the order of their names. Session
+ * takes the list at each intake (`ctx.get`); an absent service is `unavailable`, not a pass.
+ *
+ * @owner packages/session/session-contract
+ */
+export class SessionBeforeIntakeService
+  extends Service
+  implements Pick<BeforeIntakeRegistry<unknown>, 'current'>
+{
+  static readonly provide = 'sessionBeforeIntake'
+  private readonly registry = createBeforeIntakeRegistry<unknown>()
+  constructor(ctx: Context) {
+    super(ctx, SessionBeforeIntakeService.provide)
+  }
+
+  /** Registration is an effect of the caller's fiber (IC-13). A second processor of a name throws. */
+  register(processor: IntakeProcessor<unknown>): void {
+    this.ctx.effect(() => this.registry.register(processor), 'sessionBeforeIntake.register')
+  }
+
+  current(): readonly IntakeProcessor<unknown>[] {
+    return this.registry.current()
+  }
+}
+export const sessionBeforeIntakeKey = SessionBeforeIntakeService.provide
+
+export const sessionBeforeIntakePlugin: Plugin.Object = {
+  name: 'session-before-intake',
+  apply(ctx: Context) {
+    new SessionBeforeIntakeService(ctx)
+  },
+}
+
+/**
  * The admissions of the inputs Session derives from a fact of its own log. The adapter that
  * registers the sources of a kind provides it; the single writer takes it at each commit, and an
  * absent service or a null answer leaves the derived input `unavailable`.
@@ -483,6 +521,7 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     session: SessionService<unknown>
     sessionInputSources: SessionInputSourcesService
+    sessionBeforeIntake: SessionBeforeIntakeService
     sessionDerivedInputs: SessionDerivedInputsService
     sessionAccessCheck: SessionAccessCheckService<unknown>
     sessionTransactions: SessionTransactionPortService<unknown>

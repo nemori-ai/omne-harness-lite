@@ -6,4 +6,3 @@ export {
   createDefaultRepresentationPolicy,
 } from './representation-strategy.ts'
 export type { DefaultRepresentationOptions } from './representation-strategy.ts'
-export { createAbsentConversionResults } from './conversion-results.ts'

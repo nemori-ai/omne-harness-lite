@@ -30,7 +30,7 @@ import type {
   ProviderDiagnostic,
   TransportFact,
 } from '@omne-harness/model-contract/provider'
-import { canonical, digest, invalid } from './value.ts'
+import { canonical, decimal, digest, invalid } from './value.ts'
 import type { CallDocument, DispatchDocument, EvidenceContext, TenantDocuments } from './types.ts'
 import { sentWithoutReplay } from './attempts.ts'
 
@@ -180,6 +180,13 @@ function replayMarksBind({ replayFormat, replayPrefix, replayCarried }: Material
   )
 }
 
+function mediaBind({ media }: MaterializationReceipt): boolean {
+  return (
+    media === undefined ||
+    (media.length > 0 && media.every(each => each.mediaType.length > 0 && decimal(each.bytes)))
+  )
+}
+
 export function receiptBinds(
   receipt: MaterializationReceipt,
   supplier: Supplier,
@@ -189,7 +196,8 @@ export function receiptBinds(
     digest(receipt.supplier) === digest(supplier.adoption) &&
     digest(receipt.representation) === digest(request.representation) &&
     /^[0-9a-f]{64}$/u.test(receipt.payloadDigest) &&
-    replayMarksBind(receipt)
+    replayMarksBind(receipt) &&
+    mediaBind(receipt)
   )
 }
 export function dispatchOf(call: CallDocument, id: string): DispatchDocument | ModelFailure {

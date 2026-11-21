@@ -19,6 +19,7 @@ import {
   type Field,
 } from './protocol.ts'
 import { collectProcess } from './shell-output.ts'
+import { isPosixShell, precheck } from './shell-precheck.ts'
 import {
   OutputStage,
   STAGING_BATCH_MS,
@@ -137,8 +138,7 @@ export function createShellAuthor(
       'Sessions require session retention and a fresh authorized attachment for each call. Invalid or closed terminal references never fall back to one-shot execution. cwd and env execution overrides apply to one call. Only the current ProcessHandle receives stop on cancellation. unconfirmed does not mean stopped. Placement facts come from the injected environment. Facility discards and tool byte truncation are reported separately. A terminal completed means the foreground segment ended; it does not prove shell exit or business success. Process lifetime, one-shot execution: a process left running in the background by a one-shot command (for example cmd &) stays running after the call returns as a retained process; info lists retained processes; it runs until it exits, is stopped explicitly, or the execution environment closes its retention scope; a process is stopped when it cannot be retained; the residue line gives the reason. Intent: every execute call carries intent, one line that says why you run it; it decides nothing and names the call later, and a call without it is refused and does not run. Background execution: run_in_background=true runs a one-shot execute in the background: the call returns a placeholder at once and the outcome comes back later as a system reminder; a terminal execution cannot run in the background; a one-shot execute that runs longer than the backgroundAfterMs setting (one minute by default) moves to the background by itself and returns a placeholder; otherwise a one-shot command waits until the main process exits and output is quiet. Terminals: background tasks in a terminal live as long as the terminal; close_session stops every process in the terminal. Long-running services: a service that must run long and is not managed by this tool belongs to the host service manager (for example systemd-run --user); starting it is an external effect of the command itself.',
       (command, args, environment, execution) =>
         executeShell(command, args, environment, execution, config),
-      shellSettings,
-      SHELL_GATES,
+      { settings: shellSettings, gates: SHELL_GATES },
     ),
   )
 }
@@ -178,8 +178,44 @@ const NO_DIRECTORY =
 /** Where a command or a new terminal starts: the directory the call names, else that of the call. */
 const startDirectory = (args: Arguments, environment: ShellAuthorEnvironment): string | undefined =>
   args.optionalText('cwd') ?? environment.directory
+
+/** The answer when a start would leave the files of the call; undefined: it may start. */
+function outsideScope(
+  environment: ShellAuthorEnvironment,
+  start: Readonly<{
+    cwd: string
+    script: string
+    posix: boolean
+    env: Readonly<Record<string, string>>
+  }>,
+): string | undefined {
+  if (environment.scope === undefined) return undefined
+  const verdict = precheck({ ...start, scope: environment.scope, home: start.env['HOME'] })
+  return verdict.kind === 'start'
+    ? undefined
+    : `rejected reason=outsideScope path=${JSON.stringify(verdict.path)} effect=${verdict.effect} the setting for files outside the workspace keeps this call from ${verdict.effect === 'read' ? 'reading' : 'writing'} there; zero starts`
+}
 const shownDirectory = (environment: ShellAuthorEnvironment): string =>
   JSON.stringify(environment.directory ?? null)
+
+function scriptOutsideScope(
+  args: Arguments,
+  environment: ShellAuthorEnvironment,
+  config: Arguments,
+  inTerminal: boolean,
+): string | undefined {
+  const cwd = startDirectory(args, environment)
+  if (cwd === undefined) return undefined
+  return outsideScope(environment, {
+    cwd,
+    script: args.text('script'),
+    // A retained terminal runs the shell of its host; a one-shot command the configured one.
+    posix: inTerminal
+      ? !/^win/iu.test(environment.facts.os)
+      : isPosixShell(config.text('executable')),
+    env: { ...config.env('env'), ...args.env('env') },
+  })
+}
 
 async function createTerminal(
   args: Arguments,
@@ -192,11 +228,14 @@ async function createTerminal(
     return 'rejected reason=invalidInput columns and rows must be supplied together'
   const cwd = startDirectory(args, environment)
   if (cwd === undefined) return NO_DIRECTORY
+  const env = { ...config.env('env'), ...args.env('env') }
+  const refused = outsideScope(environment, { cwd, script: '', posix: false, env })
+  if (refused !== undefined) return refused
   return confirmation(
     await environment.terminal.create({
       retain: 'scope',
       cwd,
-      env: { ...config.env('env'), ...args.env('env') },
+      env,
       ...(args.has('columns')
         ? { geometry: { columns: args.number('columns', 0), rows: args.number('rows', 0) } }
         : {}),
@@ -294,6 +333,8 @@ async function executeScript(
     if (denied !== undefined) return denied
     if (execution.signal.aborted) return 'rejected reason=cancelled zero starts'
   }
+  const refused = scriptOutsideScope(args, environment, config, terminal !== undefined)
+  if (refused !== undefined) return refused
   const input = args.optionalText('stdin')
   const stdin = input === undefined ? {} : { stdin: new TextEncoder().encode(input) }
   const started =

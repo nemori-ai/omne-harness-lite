@@ -2,6 +2,8 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { capabilityId, createCategoryPoint, type PackageReader } from '@omne-harness/assets'
 import { createAssetsLocal } from '@omne-harness/assets-local'
+import { succeed } from '@omne-harness/operation-result'
+import type { WorkSnapshot } from '@omne-harness/session-contract'
 import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 import type { PackageLocator } from '@omne-harness/skill-contract/provider'
 import { createDirectorySource } from '@omne-harness/skill-host-local'
@@ -10,6 +12,14 @@ import { governanceStorageCombinations } from '../../src/rows/governance/storage
 import { domainRoot } from '../../src/rows/tenant-assets/host.ts'
 
 export const SAMPLE_LINE = 'weekly report collected 3 changes'
+
+/** A session that never stood at a workspace: its calls name no turn. */
+export const readWorkNowhere = async () =>
+  succeed({
+    creation: { workspace: null },
+    changes: [],
+    run: { kind: 'none' },
+  } as unknown as WorkSnapshot)
 
 export async function writeSampleSkill(
   parent: string,

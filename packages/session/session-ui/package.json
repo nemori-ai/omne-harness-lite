@@ -36,6 +36,7 @@
     "@omne-harness/client-assembly": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
+    "@omne-harness/session-diagnostics-protocol": "workspace:*",
     "@omne-harness/session-protocol": "workspace:*",
     "@omne-harness/shell-contract": "workspace:*",
     "@omne-harness/ui-kit": "workspace:*",

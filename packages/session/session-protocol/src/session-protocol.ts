@@ -84,10 +84,16 @@ const limited = ruleCodec(
 )
 
 const instant = { kind: 'instant' } as const
+const relation = literal('main', 'child', 'handoff')
+const attendance = literal('attended', 'unattended')
 const page = {
   tenant: { rule: tenant },
   cursor: { rule: nullable(text) },
   limit: { rule: { kind: 'positive-integer' }, optional: true },
+  relation: { rule: nullable(relation), optional: true },
+  parent: { rule: nullable(session), optional: true },
+  attendance: { rule: nullable(attendance), optional: true },
+  definition: { rule: nullable(text), optional: true },
 } as const
 const listSessions = object(page)
 // The archived list narrows by archive time (from inclusive, to exclusive), by how, by title text.
@@ -99,12 +105,23 @@ const listArchivedSessions = object({
   titleContains: { rule: nullable(anyText), optional: true },
 })
 
+// What a session is to others. A server that does not know these yet leaves them out, so each is optional.
+const standing = {
+  relation: { rule: relation, optional: true },
+  parent: { rule: nullable(session), optional: true },
+  origin: { rule: nullable(session), optional: true },
+  root: { rule: session, optional: true },
+  depth: { rule: { kind: 'count' }, optional: true },
+  attendance: { rule: attendance, optional: true },
+  definition: { rule: text, optional: true },
+} as const
 const sessionItem = {
   session: { rule: session },
   createdAt: { rule: nullable(instant) },
   lastActivityAt: { rule: nullable(instant) },
   lifecycle: { rule: literal('initializing', 'dormant', 'active', 'frozen', 'archived') },
   title: { rule: nullable(anyText) },
+  ...standing,
 } as const
 const listOf = <const F extends Fields>(item: F) =>
   object({
@@ -152,6 +169,7 @@ const readHistory = {
       cursor: { rule: nothing },
       direction: { rule: literal('forward', 'backward') },
       pageBytes: { rule: { kind: 'page-bytes' } },
+      inherited: { rule: boolean, optional: true },
     }),
     object({ ...target, cursor: { rule: text } }),
   ],
@@ -173,6 +191,7 @@ const historyPage = object({
   next: { rule: nullable(text) },
   exhausted: { rule: boolean },
   scannedThrough: { rule: anyText },
+  from: { rule: text, optional: true },
 })
 
 const waiting = object({
@@ -349,6 +368,8 @@ const observeSessionFrame = {
 
 export type ObserveSessionOpen = RuleValue<typeof observeSessionOpen>
 export type ObserveSessionFrame = RuleValue<typeof observeSessionFrame>
+
+const blockPosition = object({ message: { rule: text }, block: { rule: text } })
 
 export const sessionProtocol = defineProtocol({
   name: 'session',
@@ -661,6 +682,7 @@ export const sessionProtocol = defineProtocol({
             reason: {
               rule: literal('unknown-name', 'withdrawn', 'excluded', 'modality', 'locked', 'scope'),
             },
+            blocks: { rule: { kind: 'array', item: blockPosition, max: 16 }, optional: true },
           }),
         ),
         archived: empty,
@@ -692,6 +714,25 @@ export const sessionProtocol = defineProtocol({
         frozen: empty,
         'not-found': empty,
         conflict: empty,
+      },
+      countsAsAccess: true,
+    },
+    'read-workspace-selection': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({
+            workspace: { rule: nullable(workspaceTarget) },
+            state: { rule: literal('default', 'attached', 'unusable') },
+            directory: { rule: nullable(text) },
+            reason: { rule: nullable(text) },
+            revision: { rule: anyText },
+          }),
+        ),
+        'not-found': empty,
       },
       countsAsAccess: true,
     },

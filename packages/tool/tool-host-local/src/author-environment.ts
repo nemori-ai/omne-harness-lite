@@ -9,14 +9,20 @@ import type {
   FacilityRequest,
   FacilityResult,
   FileSystemFacility,
+  FilesScope,
   ObjectToken,
   OriginRef,
+  ScreenFacility,
   TerminalFacility,
   TerminalRetention,
 } from '@omne-harness/execution-environment-contract'
-import type { Outcome } from '@omne-harness/operation-result'
-import type { ToolFailure } from '@omne-harness/tool-contract'
-import type { CallAccess } from '@omne-harness/tool-contract/provider'
+import { fail, type Outcome } from '@omne-harness/operation-result'
+import type { ConsumerRef, ToolCallDirectory, ToolFailure } from '@omne-harness/tool-contract'
+import type {
+  CallAccess,
+  ToolMediaSink,
+  ToolMediaStore,
+} from '@omne-harness/tool-contract/provider'
 
 type BusinessRequest<T> = T extends { readonly entries: readonly (infer E)[] }
   ? Omit<T, keyof FacilityRequest<unknown> | 'entries'> & {
@@ -49,8 +55,12 @@ export type ToolEnvironmentValue = Readonly<{
     readonly retention?: AuthorFacility<TerminalRetention<unknown>>
   }
   facts: EnvironmentFacts & Readonly<{ os: string }>
+  media: ToolMediaSink
+  screen: AuthorFacility<ScreenFacility<unknown>>
   /** Where the call works by default: the directory pinned in its request. Absent: it has none. */
   directory?: string
+  /** The files scope pinned with the directory; absent when none was: a session with no workspace. */
+  scope?: FilesScope
 }>
 export interface FileObjectNaming<P> {
   name(
@@ -70,6 +80,9 @@ export type AuthorEnvironmentInput<P> = Readonly<{
   lease: EnvironmentLease
   naming: FileObjectNaming<P>
   facts: EnvironmentFacts
+  /** The provider that stores products, taken anew at each put; absent while none is installed. */
+  media: () => ToolMediaStore<P> | undefined
+  directory?: ToolCallDirectory
 }>
 
 function namingFailure(requestId: string, failure: ToolFailure): FacilityResult<never> {
@@ -81,20 +94,84 @@ function namingFailure(requestId: string, failure: ToolFailure): FacilityResult<
   }
 }
 
-/** The default directory of the author is the files root of the placement: one pinned value. */
+/** The default directory of the author is the directory pinned in the request: one pinned value. */
 export function createAuthorEnvironment<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue {
-  const value = boundFacilities(input)
-  const directory = input.lease.placement.filesRoot
-  return directory === undefined ? value : Object.freeze({ ...value, directory })
+  const value = {
+    ...boundFacilities(input),
+    media: productSink(input),
+    screen: boundScreen(input),
+  }
+  const pinned = input.directory
+  return pinned === undefined
+    ? Object.freeze(value)
+    : Object.freeze({
+        ...value,
+        directory: pinned.path,
+        ...(pinned.files === undefined ? {} : { scope: pinned.files }),
+      })
 }
 
-function boundFacilities<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue {
-  const base = (): FacilityRequest<P> => ({
+export const TOOL_PRODUCT_OWNER = '@omne-harness/tool-host-local/products'
+const PUT = 'media.put'
+
+/** The author names a media type and bytes; the tenant and the holder are those of this call. */
+function productSink<P>(input: AuthorEnvironmentInput<P>): ToolMediaSink {
+  const { principal, tenant, call } = input.access
+  const holder: ConsumerRef = {
+    owner: TOOL_PRODUCT_OWNER,
+    work: call,
+    position: 'result',
+    purpose: 'product',
+  }
+  return Object.freeze({
+    async put({ mediaType, bytes }) {
+      const store = input.media()
+      if (store === undefined)
+        return fail({
+          kind: 'unavailable',
+          operation: PUT,
+          reason: 'no provider stores products on this host',
+        })
+      try {
+        return await store.put({ principal, tenant, holder, mediaType, bytes })
+      } catch {
+        return fail({ kind: 'unknown', operation: PUT, reason: 'the store did not answer' })
+      }
+    },
+  } satisfies ToolMediaSink)
+}
+
+function requestOf<P>(input: AuthorEnvironmentInput<P>): FacilityRequest<P> {
+  return {
     requestId: randomUUID(),
     access: { principal: input.access.principal, tenant: input.access.tenant },
     origin: input.origin,
     binding: input.lease.placement.binding,
-  })
+  }
+}
+
+/** The screen of the placement of this call; a placement without one answers unavailable. */
+function boundScreen<P>(input: AuthorEnvironmentInput<P>): ToolEnvironmentValue['screen'] {
+  const over = async <T>(
+    perform: (facility: ScreenFacility<unknown>, common: FacilityRequest<P>) => Promise<T>,
+  ) => {
+    const common = requestOf(input)
+    const facility = input.lease.facility('screen')
+    return facility
+      ? perform(facility, common)
+      : ({ kind: 'rejected', requestId: common.requestId, reason: 'unavailable' } as const)
+  }
+  return Object.freeze({
+    list: () => over((facility, common) => facility.list(common)),
+    capture: ({ screen, region }) =>
+      over((facility, common) => facility.capture({ ...common, screen, region })),
+  } satisfies ToolEnvironmentValue['screen'])
+}
+
+function boundFacilities<P>(
+  input: AuthorEnvironmentInput<P>,
+): Omit<ToolEnvironmentValue, 'media' | 'screen'> {
+  const base = () => requestOf(input)
   const name = (
     operation: keyof FileSystemFacility<P>,
     path: string,

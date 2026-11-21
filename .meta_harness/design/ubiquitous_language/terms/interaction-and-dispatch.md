@@ -18,7 +18,7 @@
 > | | **`spawn`** | **`delegate`** | **`handoff`** |
 > |---|---|---|---|
 > | **是不是独立主会话** | 否 | 否 | **是** |
-> | **上下文怎么组装** | **派发那一刻组装出来的那份上下文的副本** | 一段 instruction | 一段 handoff 说明 |
+> | **上下文怎么组装** | **从派发者的会话在派发那一刻[分叉](agent-runtime-loop.md#ul-session-fork--会话分叉--session-fork)，加一段 instruction** | 一段 instruction | 一段 handoff 说明 |
 > | **派发工作由谁控制** | 派发者可显式撤回工作 | 派发者可显式撤回工作 | **不能凭派发关系撤回** |
 > | **派发动作何时结束** | 进[工具等待态](execution-and-outcome.md#ul-tool-wait-state--工具等待态--tool-wait-state)待[报告](#ul-dispatch-report--派发报告--dispatch-report)或失败 | 同左 | **确认会话建没建起来即结束** |
 > | **建出的会话[值守](agent-runtime-loop.md#ul-session-attendance--会话值守--session-attendance)吗** | 无人值守 | 无人值守 | **有人值守** |
@@ -30,7 +30,7 @@
 
 - **控制边界**：派发者可显式撤回 spawn／delegate 的工作；父 Run 停止不自动停止子会话执行，报告结束派发而不决定子 Run 终态。
 - **形态**：过程
-- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 14）
+- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 16）
 - **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
   「**它带着什么开始干活**」——**一个带副本加交代，一个只带交代**；
   `spawn`/`delegate` 与 `handoff` 只差
@@ -43,9 +43,9 @@
 - **注意 ⑥**：**三种方式是一个命令的参数**：工具 `Agents` 只有一个 `dispatch` 命令，方式写在 `mode` 里。**跟谁能[通信](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)不是派发的维度**——同租户未归档的会话之间都通
 - **注意 ⑦**：**派发可以嵌套，深度至多 2**：主会话是第 0 层，第 2 层的会话不能再 `spawn` 或 `delegate`；`handoff` 出的主会话从第 0 层算起
 - **注意 ⑧**：每次派发留下一条[派发记录](#ul-dispatch-record--派发记录--dispatch-record)，那才是有身份的东西
-- **注意 ⑤**：**`spawn` 交出去的是[副本，不是同一本账](../../product/meta-capabilities/design.md#三种派发模式)**——
-  那份副本是子会话日志里的**起始输入记录**，**父的日志不被指向、不被拷贝**；
-  **派发之后父这边发生的事，子看不见**
+- **注意 ⑤**：**`spawn` 的子会话是从派发者的会话[分叉](agent-runtime-loop.md#ul-session-fork--会话分叉--session-fork)出来的**
+  （[三种派发模式](../../product/meta-capabilities/design.md#三种派发模式)，rev 15）——
+  分叉点之前的对话两边按引用共享，**不复制**；**派发之后父这边发生的事，子看不见**
 
 ### UL-subagent · 子 agent · Subagent
 
@@ -62,7 +62,7 @@
 
 - **形态**：属性
 - **出处**：[元能力：三种派发模式](../../product/meta-capabilities/design.md#三种派发模式) ·
-  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 14）
+  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 16）
 - **别混 ①**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
   [agent 间通信](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)对两者一视同仁
 - **别混 ②**：**与 [agent 类型](capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type)不是一回事**——
@@ -70,11 +70,8 @@
   **本条说的是它此刻在派发关系里扮演什么角色**。
   **第二个取值特意不叫 `subagent`，就是为了不与本条撞名**（[C-14](../conflicts.md)）
 - **注意 ①**：**它所在的那个会话就是[子会话](agent-runtime-loop.md#ul-child-session--子会话--child-session)**，
-  内涵见该词条：由**创建**确立而非由历史确立，**不继承父会话的日志**
-  （`spawn` 交出去的是[派发那一刻那份上下文的副本](../../product/meta-capabilities/design.md#三种派发模式)，
-  它是子会话自己日志里的**起始输入记录**），
-  两边的**会话日志、投影与 runtime context 快照在存储上都不共享节点**
-  （**那是存储约束，不是访问约束**——跨会话取数据照常经工具能力与租户权限进行）。
+  内涵见该词条：由**创建**确立；`spawn` 的子会话从父会话分叉而来，按引用共享分叉点之前的对话，
+  `delegate` 的子会话不带父会话的对话。
   **本条只定外延**——哪些算、哪些不算
 - **注意 ②**：**它的会话[无人值守](agent-runtime-loop.md#ul-session-attendance--会话值守--session-attendance)**——要人在场的命令不给它，需要人决定的动作被拒绝；它有疑问就给派发它的 agent 发[消息](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)，或写进报告。**它的通信不收窄**：同租户未归档的会话它都能发
 - **⚠️ 注意 ③**：**master 对自己全部 subagent 的感知与管理**仍归 **PF-015**
@@ -96,7 +93,7 @@
 
 - **归档边界**：接收会话归档期间拒绝新的消息，告知发送方；既有执行的迟到结果和账不丢失，也不作为新任务入队。
 - **形态**：规则
-- **出处**：[元能力：双向通信与消息失败](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 14）
+- **出处**：[元能力：双向通信与消息失败](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 16）
 - **注意 ①**：**「没有归档」就是通路存在的条件**——一个会话已被归档的 agent，不是「暂时联系不上」，是这条通路不存在了。
   **没有删除会话的概念，也就没有「会话结束」这回事**
 - **注意 ②**：**发不出去时要说清是哪一条不满足**：对方不存在或不在本租户（两者答同一句）、对方已归档、发给了自己、此刻不许。
@@ -124,7 +121,7 @@
 > **a report comes once**, messages any number of times.
 
 - **形态**：对象
-- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 14）
+- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 16）
 - **⚠️ 它终结的是这次派发，不是那个会话。**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，
   它的会话不会因此归档，也不据此认定子 Run 终态；后续消息仍须满足[当前通信准入](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
   **不点破这一条，就会被做成「报告一到就把那个会话收掉」——而且不报错**
@@ -148,7 +145,7 @@
 > dispatching tool call.**
 
 - **形态**：对象
-- **出处**：[元能力：Agents 派发与通信](../../product/meta-capabilities/design.md#agents-派发与通信)（rev 14）
+- **出处**：[元能力：Agents 派发与通信](../../product/meta-capabilities/design.md#agents-派发与通信)（rev 16）
 - **身份靠什么**：受理时定下的派发标识；建出的会话的身份由它派生，所以重做认回同一个会话
 - **怎么生怎么灭**：受理即生；`spawn`、`delegate` 以报告成立、失败或撤回了结，`handoff` 以会话建成或建不成了结。了结之后仍读得到
 - **别混 ①**：**不是[子会话](agent-runtime-loop.md#ul-child-session--子会话--child-session)**。派发了结了，那个会话照旧在
@@ -313,7 +310,7 @@
 - **形态**：过程
 - **出处**：[PF-008 §4 放行判断](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 25）
 - **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于不用再问人
-- **注意 ⑤**：**判的是模型实际要执行的动作**——经 `Tools()` 取用一个工具时，判的是被取用的工具与它的参数，不是 `Tools()` 这次调用（[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 14））
+- **注意 ⑤**：**判的是模型实际要执行的动作**——经 `Tools()` 取用一个工具时，判的是被取用的工具与它的参数，不是 `Tools()` 这次调用（[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 16））
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
   而**会话里坐着的那个人，未必是设权限的那个人**
@@ -334,11 +331,11 @@
 > own**. **Several questions may be asked at once.**
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 14）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 16）
 - **别混**：与系统发起的放行卡片**问的不是一类事**——
   **问询要的是信息或选择，答复交回 agent 接着想；放行卡片问的是许不许，答复交授权的拥有者，不经 agent**。
   agent 不拿问询向人要授权：人在问询里答的话不产生任何许可
-  （[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 14））
+  （[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 16））
 - **注意 ①**：**自由作答这条路由系统保证，不靠 agent 记得留**——**靠自觉总有忘的时候**
 - **注意 ②**：**一次问全。**打断的代价**与问题多少无关，只与打断次数有关**——
   **挤牙膏式连问是产品缺陷**
@@ -356,7 +353,7 @@
 > is needed the system raises the release card.
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 14）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 16）
 - **别混**：agent 主动问人的只有[问询](#ul-inquiry--问询--inquiry)，它不产生许可
 
 ### UL-session-authorization-context · 会话授权上下文 · Session Authorization Context
@@ -374,7 +371,7 @@
 > the session's run mode.
 
 - **形态**：对象
-- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 14）
+- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 16）
 - **注意 ①**：**流水里的每一笔是一次[授权表达](#ul-authorization-expression--授权表达--authorization-expression)**，
   **三个维度**——**来源**（结构化：界面上对着条目操作 / **语义化：用嘴说**）、
   **方向**（给出 / 撤回）、**作用域**（这一次 / 本会话 / **全局，即本租户下未来所有会话**）。
@@ -415,7 +412,7 @@
 > that the setting is effective.
 
 - **形态**：对象
-- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 14）
+- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 16）
 - **别混**：**不是[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)**——
   那是流水**整份**，这是流水里的**一笔**
 - **注意 ①**：**撤回也是一笔**——**不是把先前那笔擦掉**，是往后再记一笔
@@ -441,7 +438,7 @@
 > stores the reference unchanged in its own record and does not interpret it.
 
 - **形态**：属性
-- **出处**：[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 14）
+- **出处**：[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 16）
 - **别混**：**不是[放行详情](#ul-release-detail--放行详情--release-detail)**——
   放行详情讲这次调用要做什么，写给人看；授权引用讲这次放行凭什么，留给要依据的领域存
 - **别混**：**不是一次工具调用的引用**——调用引用点名一次调用，授权引用点名一份授权；

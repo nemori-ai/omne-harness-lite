@@ -49,6 +49,7 @@ export class SessionModesInstallation extends Service {
   readonly readPermissionMode: (
     access: SessionAccess<unknown>,
   ) => ReturnType<Producer['readPermissionMode']>
+  readonly readModes: (access: SessionAccess<unknown>) => ReturnType<Producer['readModes']>
 
   constructor(ctx: Context, sources: Sources) {
     super(ctx, sessionModesInstallationKey)
@@ -118,6 +119,20 @@ export class SessionModesInstallation extends Service {
       const mounted = await producer(access.tenant)
       return mounted?.readPermissionMode(access) ?? { kind: 'unavailable' }
     }
+    this.readModes = async access => {
+      const mounted = await producer(access.tenant)
+      return mounted?.readModes(access) ?? { kind: 'unavailable' }
+    }
+  }
+}
+
+/** A system part has no tenant of its own: once verified, the installation prepares as itself. */
+async function isSystemPart(verifier: PrincipalVerifier, creator: unknown): Promise<boolean> {
+  try {
+    const verification = await verifier.verify(creator)
+    return verification.kind === 'verified' && verification.principal.kind === 'system'
+  } catch {
+    return false
   }
 }
 
@@ -158,18 +173,21 @@ async function prepareInitial(
     },
   })
   try {
-    const registered = await temporary.registerProducer<ContextBlockKey>(principal, {
-      tenant: input.tenant,
-      key: block.item,
-      producer: block.producer,
-      declaration: block.descriptor,
-      scoped: true,
-      supply: async () => ({ kind: 'none' }),
-    })
-    if (registered.kind !== 'registered') return unavailable()
+    // A supplied block is judged against its producer; a stateful one brings its declaration.
+    if ('producer' in block) {
+      const registered = await temporary.registerProducer<ContextBlockKey>(principal, {
+        tenant: input.tenant,
+        key: block.item,
+        producer: block.producer,
+        declaration: block.descriptor,
+        scoped: true,
+        supply: async () => ({ kind: 'none' }),
+      })
+      if (registered.kind !== 'registered') return unavailable()
+    }
     return await prepareContextRegistration(
       temporary,
-      input.principal,
+      (await isSystemPart(sources.verifier, input.principal)) ? principal : input.principal,
       {
         kind: 'add',
         tenant: input.tenant,
@@ -180,6 +198,7 @@ async function prepareInitial(
         basedOn: block.basedOn,
         bindings: block.bindings,
         parameters: undefined,
+        ...('producer' in block ? {} : { declaration: block.descriptor }),
       },
       { commit: record.decision.commit },
     )
