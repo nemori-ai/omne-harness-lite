@@ -49,6 +49,21 @@ const ensure = (w: World, ref: ContentReference, signal = live(), tenant = T1) =
 const read = async (w: World, ref: ContentReference) =>
   ok(await w.media.representations.read({ tenant: T1, ref }))
 const failed = (reason: string): Preprocess => ({ kind: 'failed', reason }) as Preprocess
+/** Counts the abort listeners left on a signal. */
+function counted(signal: AbortSignal = live()) {
+  let left = 0
+  const add = signal.addEventListener.bind(signal)
+  const remove = signal.removeEventListener.bind(signal)
+  signal.addEventListener = ((type: string, ...rest: [EventListener]) => {
+    if (type === 'abort') left += 1
+    add(type, ...rest)
+  }) as typeof signal.addEventListener
+  signal.removeEventListener = ((type: string, ...rest: [EventListener]) => {
+    if (type === 'abort') left -= 1
+    remove(type, ...rest)
+  }) as typeof signal.removeEventListener
+  return { signal, left: () => left }
+}
 /** An engine that answers when the test lets it. */
 function held() {
   const gate = Promise.withResolvers<EngineOutput>()
@@ -295,6 +310,39 @@ describe('a conversion ends without its engine when it must', () => {
     expect(calls).toHaveLength(2)
   })
 
+  it('cancel: one who leaves after its turn came takes nobody out of the queue', async () => {
+    const w = world({ conversion: { timeoutMs: 5_000, queueLimit: 2, inlineTextBytes: 16 } })
+    const gates = [0, 1, 2].map(() => Promise.withResolvers<EngineOutput>())
+    let asked = 0
+    converting(w, () => gates[asked++]!.promise, { concurrency: 1 })
+    const refs = [await voice(w, 'a', 8), await voice(w, 'b', 9), await voice(w, 'c', 10)]
+    const first = ensure(w, refs[0]!)
+    const leaving = new AbortController()
+    const second = ensure(w, refs[1]!, leaving.signal)
+    const third = ensure(w, refs[2]!)
+    await tick()
+    gates[0]!.resolve(CONVERTED)
+    expect(ok(await first).kind).toBe('done')
+    await tick()
+    expect(asked).toBe(2)
+    leaving.abort()
+    expect(ok(await second)).toEqual(failed('cancelled'))
+    await tick()
+    gates[2]!.resolve(CONVERTED)
+    expect(ok(await third).kind).toBe('done')
+  })
+
+  it('leaves no listener on the signal of who asked, nor on the engine, once it has answered', async () => {
+    const w = world()
+    converting(w)
+    const lease = w.engines.borrow(ENGINE)!
+    const engine = counted(lease.withdrawn)
+    lease.release()
+    const asking = counted()
+    expect(ok(await ensure(w, await voice(w), asking.signal)).kind).toBe('done')
+    expect([asking.left(), engine.left()]).toEqual([0, 0])
+  })
+
   it('cancel: one who leaves the queue frees its place for the next to wait in', async () => {
     const w = world()
     const { gate, answer } = held()
@@ -447,6 +495,9 @@ describe('step 6: what the engine hands back is checked, stored and kept', () =>
     expect(others).toMatchObject([{ mediaType: 'image/png', bytes: String(picture.byteLength) }])
     for (const made of [text, ...others])
       expect(ok(await w.media.custody.describe({ tenant: T1, ref: made })).state).toBe('held')
+    expect(ok(await w.media.custody.describe({ tenant: T1, ref: text })).facts).toEqual({
+      kind: 'file',
+    })
     const read = ok(await w.media.variants.open({ tenant: T1, ref: text, target: null }))
     expect(Buffer.from(read.bytes).toString('utf8')).toBe(words)
   })
@@ -507,6 +558,18 @@ describe('step 6: what the engine hands back is checked, stored and kept', () =>
     w.returnStore()
     w.faults.hooks.set('recordRepresentation', () => Promise.reject(new Error('boom')))
     expect(ok(await ensure(w, ref))).toEqual(failed('outcome-unknown'))
+  })
+
+  it('when many words cannot be stored the basis is unavailable, and not known when the write is not known', async () => {
+    const w = world()
+    converting(w, async () => ({ kind: 'converted', text: 'x'.repeat(17), derived: [] }))
+    const ref = await voice(w)
+    w.faults.methods.set('insertUploading', 'unavailable')
+    expect(ok(await ensure(w, ref))).toEqual(failed('basis-unavailable'))
+    w.faults.methods.set('insertUploading', 'unknown')
+    expect(ok(await ensure(w, ref))).toEqual(failed('outcome-unknown'))
+    w.faults.methods.clear()
+    expect(ok(await ensure(w, ref)).kind).toBe('done')
   })
 
   it('an outcome another process kept first is the one answered', async () => {
@@ -596,18 +659,46 @@ describe('reading and watching a representation', () => {
     expect(await read(w, ref)).toEqual({ kind: 'not-started' })
   })
 
+  it('remembers the last 1024 failures, the latest of a medium counting: older ones read as not started', async () => {
+    const w = world()
+    w.conversion.definitions = {
+      resolve: async () =>
+        succeed({
+          kind: 'resolved',
+          definition: definitionOf('1'),
+          engine: 'voice.absent',
+          parameters: {},
+          egress: { kind: 'in-process' },
+        }),
+    }
+    const refs: ContentReference[] = []
+    for (let at = 0; at < 1025; at += 1) {
+      const sound = wav(8)
+      new DataView(sound.buffer).setUint16(44, at)
+      refs.push((await w.staged(T1, `up-${String(at)}`, sound, 'audio/wav')).ref)
+    }
+    for (const ref of refs.slice(0, 1024)) await ensure(w, ref)
+    await ensure(w, refs[0]!)
+    await ensure(w, refs[1024]!)
+    expect(await read(w, refs[0]!)).toEqual(failed('engine-unavailable'))
+    expect(await read(w, refs[1]!)).toEqual({ kind: 'not-started' })
+    expect(await read(w, refs[2]!)).toEqual(failed('engine-unavailable'))
+    expect(await read(w, refs[1024]!)).toEqual(failed('engine-unavailable'))
+  })
+
   it('watch tells each change once, from what it is now until the signal aborts', async () => {
     const w = world()
     const { gate, answer } = held()
     converting(w, answer)
     const ref = await voice(w)
     const stop = new AbortController()
+    const watched = counted(stop.signal)
     const seen: string[] = []
     const watching = (async () => {
       for await (const state of w.media.representations.watch({
         tenant: T1,
         ref,
-        signal: stop.signal,
+        signal: watched.signal,
       }))
         seen.push(state.kind)
     })()
@@ -620,6 +711,7 @@ describe('reading and watching a representation', () => {
     stop.abort()
     await watching
     expect(seen).toEqual(['not-started', 'running', 'done'])
+    expect(watched.left()).toBe(0)
   })
 
   it('watch of a medium that is not there ends at once', async () => {

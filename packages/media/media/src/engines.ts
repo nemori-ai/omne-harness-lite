@@ -16,7 +16,6 @@ type Entry = {
   readonly engine: ConverterEngine
   readonly withdrawal: AbortController
   readonly gone: PromiseWithResolvers<void>
-  withdrawn: boolean
   leases: number
 }
 
@@ -25,7 +24,6 @@ export function createEngineRegistry(): EngineRegistry {
   const registered = new Map<string, Entry>()
 
   function withdraw(entry: Entry): Promise<void> {
-    entry.withdrawn = true
     const { name } = entry.engine.declaration
     if (registered.get(name) === entry) registered.delete(name)
     entry.withdrawal.abort()
@@ -43,7 +41,7 @@ export function createEngineRegistry(): EngineRegistry {
         if (back) return
         back = true
         entry.leases -= 1
-        if (entry.withdrawn && entry.leases === 0) entry.gone.resolve()
+        if (entry.withdrawal.signal.aborted && entry.leases === 0) entry.gone.resolve()
       },
     }
   }
@@ -59,7 +57,6 @@ export function createEngineRegistry(): EngineRegistry {
         engine,
         withdrawal: new AbortController(),
         gone: Promise.withResolvers<void>(),
-        withdrawn: false,
         leases: 0,
       }
       registered.set(name, entry)

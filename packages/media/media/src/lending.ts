@@ -29,10 +29,7 @@ export function createTurns(queueLimit: number) {
     }
     if (gate.waiting.length >= queueLimit) return Promise.resolve('full')
     return new Promise(resolve => {
-      const turn = (): void => {
-        signal.removeEventListener('abort', cancel)
-        resolve(leave)
-      }
+      const turn = (): void => resolve(leave)
       const cancel = (): void => {
         const at = gate.waiting.indexOf(turn)
         if (at < 0) return
@@ -40,7 +37,7 @@ export function createTurns(queueLimit: number) {
         resolve('cancelled')
       }
       gate.waiting.push(turn)
-      signal.addEventListener('abort', cancel, { once: true })
+      signal.addEventListener('abort', cancel)
     })
   }
 }
@@ -72,8 +69,8 @@ export function convertWithin(
     const onWithdrawn = (): void => end('withdrawn')
     const onStop = (): void => end('cancelled')
     const cancelTimer = bounds.timer.after(bounds.timeoutMs, () => end('timeout'))
-    withdrawn.addEventListener('abort', onWithdrawn, { once: true })
-    stop.addEventListener('abort', onStop, { once: true })
+    withdrawn.addEventListener('abort', onWithdrawn)
+    stop.addEventListener('abort', onStop)
     const signal = AbortSignal.any([withdrawn, stop])
     void Promise.resolve()
       .then(() => engine.convert({ ...input, signal }))

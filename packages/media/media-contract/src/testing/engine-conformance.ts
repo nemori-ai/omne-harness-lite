@@ -57,7 +57,6 @@ function shaped(output: EngineOutput): void {
   const value = output as { kind?: unknown; text?: unknown; derived?: unknown }
   if (value.kind !== 'converted') return
   assert.equal(typeof value.text, 'string')
-  assert.ok(Array.isArray(value.derived))
   for (const item of value.derived as { mediaType?: unknown; bytes?: unknown }[]) {
     assert.ok(typeof item.mediaType === 'string' && item.mediaType !== '')
     assert.ok(item.bytes instanceof Uint8Array)

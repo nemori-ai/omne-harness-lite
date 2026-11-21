@@ -81,7 +81,7 @@ export function createRepresentations(deps: MediaDependencies, objects: Objects)
     flight.waiters += 1
     const left = Promise.withResolvers<Preprocess>()
     const leave = (): void => left.resolve(failed('cancelled'))
-    signal.addEventListener('abort', leave, { once: true })
+    signal.addEventListener('abort', leave)
     try {
       return await Promise.race([flight.result, left.promise])
     } finally {
@@ -114,13 +114,13 @@ export function createRepresentations(deps: MediaDependencies, objects: Objects)
     read,
     async *watch({ tenant, ref, signal }) {
       const name = `${tenantText(tenant)}\n${ref.key}`
-      let last = ''
+      let last: string | undefined
       while (!signal.aborted) {
         const woken = Promise.withResolvers<void>()
         const wake = (): void => woken.resolve()
         const wakers = watching.get(name) ?? new Set()
         watching.set(name, wakers.add(wake))
-        signal.addEventListener('abort', wake, { once: true })
+        signal.addEventListener('abort', wake)
         try {
           const now = await read({ tenant, ref })
           if ('failure' in now) return

@@ -96,6 +96,10 @@ describe('the conformance suite of converter engines', () => {
       { kind: 'converted', text: '', derived: [{ mediaType: '', bytes: new Uint8Array(1) }] },
     ],
     [
+      'a medium whose type is no text',
+      { kind: 'converted', text: '', derived: [{ mediaType: 7, bytes: new Uint8Array(1) }] },
+    ],
+    [
       'a medium whose bytes are no bytes',
       { kind: 'converted', text: '', derived: [{ mediaType: 'image/png', bytes: [1] }] },
     ],
@@ -128,6 +132,25 @@ describe('the conformance suite of converter engines', () => {
           : { kind: 'converted', text: 'words', derived: [] },
       ).engine
     expect(await verdicts(hasty, CONVERTIBLE)).toEqual(['a cancelled conversion ends'])
+  })
+
+  it('passes an engine that hands back another medium of a type, with bytes', async () => {
+    const drawing = answering({
+      kind: 'converted',
+      text: 'a drawing',
+      derived: [{ mediaType: 'image/png', bytes: new Uint8Array([1]) }],
+    })
+    expect(await verdicts(drawing, CONVERTIBLE)).toEqual([])
+  })
+
+  it('passes an engine that, cancelled, throws; and one that says of a medium that cannot be converted that it cannot', async () => {
+    const throwing = () =>
+      createScriptedEngine(async input => {
+        if (input.signal.aborted) throw new Error('cancelled')
+        return { kind: 'converted', text: 'words', derived: [] }
+      }).engine
+    expect(await verdicts(throwing, CONVERTIBLE)).toEqual([])
+    expect(await verdicts(answering({ kind: 'inconvertible' }), SAMPLES.slice(1))).toEqual([])
   })
 
   it('gives every case a world of its own and disposes of it', async () => {
