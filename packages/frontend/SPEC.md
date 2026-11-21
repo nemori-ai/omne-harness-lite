@@ -252,6 +252,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 - 导航与列表里的计数一律用共用件的计数胶囊。琥珀的样子只给等人回答的数，别的计数用中性的样子。
 - 加载、空与出错各只用共用件的一个件；可点的东西只经控件族，成员不写原生控件。
 - 状态词只取共用件的状态词表；时刻只经共用件的相对时间件写；图标只画共用件的图标集。
+- 动作照[规则与 token 的索引](../../.meta_harness/agents/skills/visual-standard/canonical/references/rules-index.md#a-动作)的 A 节：常用的工具动作是图标钮，名字在提示与可访问名称里；偶尔的动作进一个 `⋯`；带字的 `Button` 只有表单与对话框落定的那一个、对话里要人选的选项、一页唯一的主动作，以及字就是东西本身的对象名与当前值；不需要的动作不画。抬起的件四周留得下它的边线、投影与焦点环，不贴着会裁切的容器的边（S15）。
 - 两套主题下，正文与状态词对它所在的面至少 4.5:1，字段边界与焦点至少 3:1。
 - 守观感的门集中在桌面应用的 `tests/design-gates/`，扫共用件、桌面应用的页面与它装配的每个界面模块。今天的违规记在基线里，基线只许变小：多一处是新违规，少了而基线没缩也失败。
 - 偏好的读写由调用者注入，共用件不自己碰存储。
@@ -296,3 +297,5 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I33 | 时刻只经 `Ago` 与它的格式化模块写 | 同一页出现两种时钟格式，或把 UTC 原文给人看 | `apps/desktop/tests/design-gates/time.spec.ts` |
 | FE-I34 | 图表画成 SVG，颜色只来自图表变量，每张图有表格视图 | 图表在一种主题下看不清，或读屏的人拿不到数 | `ui-kit/tests/charts.spec.tsx` 的「draws SVG whose colors come only from the style variables」与「gives the same data as a table」 |
 | FE-I35 | 源码与本组、桌面应用的规格里指向视觉规范技能的锚点都存在 | 读者顺着引用找到的规则已经不在 | `apps/desktop/tests/design-gates/references.spec.ts` |
+| FE-I36 | 成员视图里每个带字的 `Button` 都在登记表 `baselines/worded-buttons.json` 里，每一条写它是哪一种：`commit`（落定）、`choice`（对话里的选项）、`primary`（一页唯一的主动作）、`name`（对象的名字作入口）、`value`（当前值），或交给哪一程收走（`R7` 至 `R10`）；登记表只许缩，表外多一个就失败 | 面上又长出写字的工具钮，与图标钮的标准两套并存 | `apps/desktop/tests/design-gates/worded-buttons.spec.ts` |
+| FE-I37 | 每个抬起的件连同它的投影与焦点环的余地，都在裁切它的每个祖先的可见范围里；件本身滚出视野的不算 | 钮与字段贴着容器的边被切掉边线与投影，看起来像坏了 | 判法的用例 `apps/desktop/tests/raised-edges.spec.ts`；观感走查 `apps/desktop/demo/visual-walk.mjs` 每张截图核一次 |
