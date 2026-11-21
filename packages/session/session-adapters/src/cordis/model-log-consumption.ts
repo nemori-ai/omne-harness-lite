@@ -412,6 +412,7 @@ export function createSessionModelLogConsumptionPlugin<P>(
               logger.warn(`the consumption of ${target.execution} answered ${said}`)
             } else failing.delete(target.execution)
           },
+          ['interpreted'],
         )
         ctx.effect(() => {
           current = guarded

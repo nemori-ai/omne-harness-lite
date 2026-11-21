@@ -1,13 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type {
-  AgentJournal,
-  AgentOperationId,
-  AgentReceivedCommits,
-  FailureCandidate,
-  FinishIntent,
-  Material,
-  ReceivedEntry,
+import {
+  decodeActionId,
+  type AgentJournal,
+  type AgentOperationId,
+  type AgentReceivedCommits,
+  type FailureCandidate,
+  type FinishIntent,
+  type Material,
+  type PendingCall,
+  type ReceivedEntry,
 } from '@omne-harness/agent-contract'
+import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
 import { agentReceivedCommitsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -16,6 +19,7 @@ import { evidence } from '@omne-harness/session-contract/testing'
 import { unpackText } from '@omne-harness/sql-contract/worker'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
+import { createSessionModelLogConsumptionPlugin } from '../src/cordis/model-log-consumption.ts'
 import { receivedAll } from '../src/cordis/received-all.ts'
 import { createSessionToolLogConsumptionPlugin } from '../src/cordis/tool-log-consumption.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
@@ -34,6 +38,7 @@ import {
   type CordisSceneOptions,
   type SqlScene,
 } from './fixtures/sql-scene.ts'
+import { materialOf as modelMaterialOf } from './fixtures/model-delivery.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 import {
   outcomeMaterial,
@@ -152,13 +157,10 @@ const kindsOf = (s: SqlScene): string[] =>
     String(row[0]),
   )
 
-// A Tool call goes to the background and the execution ends; the outcome comes after the end.
-// The Agent may process the placeholder before the end or end without it (a cancelled Run).
-async function backgroundedThenEnded(
-  s: SqlScene,
-  c: Awaited<ReturnType<typeof cordisScene>>,
-  processed: boolean,
-) {
+type Scene = Awaited<ReturnType<typeof cordisScene>>
+
+// Opens the execution and hands it over; the writes of the Agent records that follow.
+async function opening(s: SqlScene, c: Scene) {
   const journal = c.journal()
   const received = c.ctx.get(agentReceivedCommitsKey) as AgentReceivedCommits<string, ContentBlock>
   const opened = ok(await journal.open(s.openInput))
@@ -199,6 +201,13 @@ async function backgroundedThenEnded(
     )
     if (answer.kind !== 'committed') throw new Error(`received ${answer.kind}`)
   }
+  return { journal, opened, authority, load, commit, receive }
+}
+
+// A Tool call goes to the background and the execution ends; the outcome comes after the end.
+// The Agent may process the placeholder before the end or end without it (a cancelled Run).
+async function backgroundedThenEnded(s: SqlScene, c: Scene, processed: boolean) {
+  const { journal, opened, authority, load, commit, receive } = await opening(s, c)
   const tool = toolCall(s.access.tenant, 'background')
   if (tool.entry.delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
   // The call waits in this execution: its consumer is this execution's work.
@@ -237,6 +246,33 @@ async function backgroundedThenEnded(
   await endOpened(s, journal, opened, refusedByModel())
   const outcome = resultEntry(account)
   await receive('outcome', outcome, outcomeMaterial(s.access.tenant, outcome))
+}
+
+// A Model call waits and its result is kept; the execution ends without processing it. The end is
+// the last write of the Agent records.
+async function modelResultThenEnded(s: SqlScene, c: Scene) {
+  const { journal, opened, authority, load, commit, receive } = await opening(s, c)
+  const sample = sampleReceivedModelResult(s.access.tenant, 'late')
+  const result = { ...sample, consumer: { ...sample.consumer, work: s.execution } }
+  const pending: Extract<PendingCall, { kind: 'model' }> = {
+    kind: 'model',
+    purpose: 'main',
+    action: ok(decodeActionId('action')),
+    reference: result.delivery.key.reference,
+    consumption: result.consumption,
+    position: result.consumer,
+    fixed: evidence('request'),
+  }
+  const waits = [{ kind: 'producer' as const, pending }]
+  await commit('wait', {
+    checkpoint: { ...(await load()).checkpoint, calls: [pending] },
+    state: { kind: 'waiting', waits },
+    events: [{ kind: 'waiting', waits }],
+    effects: [{ action: pending.action, pending, authority }],
+  })
+  const { material: _material, ...draft } = result
+  await receive('model-result', result, modelMaterialOf(s.access.tenant, draft))
+  await endOpened(s, journal, opened, refusedByModel())
 }
 
 async function settled(s: SqlScene): Promise<Head> {
@@ -554,6 +590,30 @@ describe('the Session acknowledges an execution once it has received all of it',
       expect(rowsOf(s, 'er_fact')).toBe(0)
     },
   )
+
+  it('a Model result kept before the interpretation bound its call, with no write of the Agent records after it: the interpretation commit wakes the model log consumption, which writes the result into the session log', async () => {
+    const s = await scene('settle-model-late')
+    const c = await cordisScene(s)
+    disposers.push(() => c.dispose())
+    const coordinator = async () => succeed(s.access.principal)
+    await c.mount(createSessionModelLogConsumptionPlugin<string>({ coordinator }).plugin)
+    await modelResultThenEnded(s, c)
+    // The consumption answered every write before the interpretation starts: it found no binding.
+    await new Promise(resolve => setTimeout(resolve, 200))
+    expect(kindsOf(s)).not.toContain('call.bound')
+    const interpretation = createSessionJournalInterpretationPlugin<string>({ coordinator })
+    await c.mount(interpretation.plugin)
+    ok(
+      await interpretation.interpret({
+        tenant: s.access.tenant,
+        session: s.access.session,
+        execution: s.execution,
+      }),
+    )
+    await vi.waitFor(() => expect(kindsOf(s)).toContain('account.linked'), { timeout: 5000 })
+    const kinds = kindsOf(s)
+    expect(kinds.indexOf('call.bound')).toBeLessThan(kinds.indexOf('call.execution-fact'))
+  })
 
   it('a sweep the first opening could not finish runs again in the same generation and keeps what this generation settled: the settling operation is still recognized', async () => {
     const s = await scene('sweep-again')

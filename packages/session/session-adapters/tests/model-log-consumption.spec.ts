@@ -19,7 +19,6 @@ import {
   agentMaterialsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import type { SessionFaces, SessionTransactionPort } from '@omne-harness/session-contract'
@@ -30,69 +29,8 @@ import {
 } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionModelLogConsumptionPlugin } from '../src/cordis/model-log-consumption.ts'
 import { evidence, ok, operation, operationId, scene } from './fixtures/common-journal.ts'
-
-const SCHEMA = {
-  owner: 'agent',
-  name: 'received-model-delivery',
-  revision: '1',
-  digest: 'agent:received-model-delivery/1',
-}
-type Json = Extract<Material<ContentBlock>, { kind: 'facts' }>['value']
-type Draft = Omit<ReceivedEntry, 'material'>
-
-function json(value: unknown): Json {
-  if (value === null) return { kind: 'null' }
-  if (typeof value === 'string') return { kind: 'string', value }
-  if (typeof value === 'boolean') return { kind: 'boolean', value }
-  if (typeof value === 'number') return { kind: 'number', lexeme: String(value) }
-  if (Array.isArray(value)) return { kind: 'array', items: value.map(json) }
-  if (typeof value === 'object')
-    return {
-      kind: 'object',
-      entries: Object.entries(value)
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([key, member]) => ({ key, value: json(member) })),
-    }
-  throw new Error(`fixture: no JSON for ${typeof value}`)
-}
-
-function textOf(tenant: TenantId): string {
-  const encoded = tenantCodec.encode(tenant)
-  if (!encoded.ok) throw new Error('fixture: tenant')
-  return encoded.value
-}
-
-function deliveryOf(draft: Draft): Record<string, unknown> {
-  const { delivery } = draft
-  if (delivery.producer !== 'model') throw new Error('fixture: a Model entry')
-  return 'accounts' in delivery
-    ? {
-        kind: 'result',
-        key: delivery.key,
-        consumer: draft.consumer,
-        settlement: {
-          version: delivery.key.result,
-          termination: { kind: 'completed' },
-          cursor: { kind: 'end' },
-          source: evidence('settlement'),
-        },
-        parts: [],
-        accounts: delivery.accounts,
-      }
-    : { kind: 'account', key: delivery.key, consumer: draft.consumer, account: delivery.account }
-}
-
-function materialOf(
-  tenant: TenantId,
-  draft: Draft,
-  change: (value: Record<string, unknown>) => Record<string, unknown> = value => value,
-): Material<ContentBlock> {
-  return {
-    kind: 'facts',
-    schema: SCHEMA,
-    value: json(change({ tenant: textOf(tenant), delivery: deliveryOf(draft) })),
-  }
-}
+import { SCHEMA, materialOf, type Draft } from './fixtures/model-delivery.ts'
+import { textOf } from './fixtures/tool-delivery.ts'
 
 async function modelScene(name: string, bind = true) {
   const s = await scene(name)
