@@ -1,6 +1,6 @@
 ; The assisted directory page accepts arbitrary paths, including silent /D overrides.
-; A hidden, required first section runs on the final selection before electron-builder's
-; install section can uninstall an older version or extract any application files.
+; Validate the final scope and destination after any elevation and before the
+; builder can uninstall an older version or extract any application files.
 !macro RejectInstallation REASON
   MessageBox MB_OK|MB_ICONSTOP "${REASON}" /SD IDOK
   SetErrorLevel 3
@@ -49,7 +49,7 @@
   ${Loop}
 !macroend
 
-!macro CheckPreviousInstallation ROOT
+!macro CheckPreviousInstallation ROOT STALE
   ReadRegStr $0 ${ROOT} "${UNINSTALL_REGISTRY_KEY}" UninstallString
   !ifdef UNINSTALL_REGISTRY_KEY_2
     ${If} $0 == ""
@@ -58,18 +58,64 @@
   !endif
   ${If} $0 != ""
     ReadRegStr $1 ${ROOT} "${INSTALL_REGISTRY_KEY}" InstallLocation
-    ReadRegStr $2 ${ROOT} "${INSTALL_REGISTRY_KEY}" FileScopedUninstaller
-    ; An older recursive uninstaller can remove unrelated files even when the NEW
-    ; destination is empty. Never invoke it automatically.
-    ${If} $2 != "1"
-    ${OrIf} $1 == ""
-    ${OrIfNot} ${FileExists} "$1\${UNINSTALL_FILENAME}"
-      !insertmacro RejectInstallation "Cannot safely upgrade the registered installation in '$1'. Back up its directory and resolve the old installation before continuing."
+    ${If} $1 == ""
+      !insertmacro RejectInstallation "The registered installation has no location. Resolve its registration before continuing."
     ${EndIf}
     !insertmacro CheckDirectoryChain "$1"
-    ${If} $1 == $INSTDIR
-      StrCpy $3 "owned"
+    System::Call 'kernel32::GetFileAttributesW(w r1) i.r2 ?e'
+    Pop $R9
+    ${If} $2 == -1
+      ; A disconnected volume can also report PATH_NOT_FOUND. Retire registrations
+      ; only for absolute paths on a mounted local fixed drive, after checking ancestors.
+      ${If} $R9 != 2
+      ${AndIf} $R9 != 3
+        !insertmacro RejectInstallation "Cannot inspect the old installation in '$1' (Windows error $R9). Check its permissions and retry."
+      ${EndIf}
+      StrCpy $R8 $1 3
+      StrCpy $R7 $R8 2 1
+      System::Call 'kernel32::GetDriveTypeW(w R8) i.r2'
+      System::Call 'kernel32::GetFileAttributesW(w R8) i.r6'
+      ${If} $6 == -1
+      ${OrIf} $R7 != ":\"
+      ${OrIf} $2 != 3 ; DRIVE_FIXED
+        !insertmacro RejectInstallation "Cannot confirm the old installation in '$1' is gone. Reconnect its drive and check permissions before retrying."
+      ${EndIf}
+      StrCpy ${STALE} 1
+    ${Else}
+      ReadRegStr $2 ${ROOT} "${INSTALL_REGISTRY_KEY}" FileScopedUninstaller
+      ${If} $2 != "1"
+      ${OrIfNot} ${FileExists} "$1\${UNINSTALL_FILENAME}"
+        !insertmacro RejectInstallation "Cannot safely upgrade the registered installation in '$1'. Back up its directory and resolve the old installation before continuing."
+      ${EndIf}
+      ${If} $1 == $INSTDIR
+        StrCpy $3 "owned"
+      ${EndIf}
     ${EndIf}
+  ${EndIf}
+!macroend
+
+; electron-builder consults both uninstall keys before extracting. Clear the
+; stale scope only after every registration and the new destination passed.
+!macro RemoveStaleUninstallKey ROOT KEY
+  ReadRegStr $0 ${ROOT} "${KEY}" UninstallString
+  ${If} $0 != ""
+    ClearErrors
+    DeleteRegKey ${ROOT} "${KEY}"
+    ${If} ${Errors}
+      !insertmacro RejectInstallation "Cannot remove the stale uninstall registration. Check registry permissions before retrying."
+    ${EndIf}
+  ${EndIf}
+!macroend
+
+!macro RemoveStaleRegistration ROOT
+  !ifdef UNINSTALL_REGISTRY_KEY_2
+    !insertmacro RemoveStaleUninstallKey ${ROOT} "${UNINSTALL_REGISTRY_KEY_2}"
+  !endif
+  !insertmacro RemoveStaleUninstallKey ${ROOT} "${UNINSTALL_REGISTRY_KEY}"
+  ClearErrors
+  DeleteRegKey ${ROOT} "${INSTALL_REGISTRY_KEY}"
+  ${If} ${Errors}
+    !insertmacro RejectInstallation "Cannot remove the stale installation location. Check registry permissions before retrying."
   ${EndIf}
 !macroend
 
@@ -113,20 +159,28 @@
       !insertmacro RejectInstallation "Cannot list '$INSTDIR' (Windows error $2). Choose a directory you can read."
     FunctionEnd
 
-    Section "-Check installation directory"
-      SectionIn RO
-      !insertmacro CheckDirectoryChain "$INSTDIR"
-      StrCpy $3 ""
-      !insertmacro CheckPreviousInstallation SHELL_CONTEXT
-      ${If} $installMode == "all"
-        ; A per-machine install also uninstalls an existing per-user version.
-        !insertmacro CheckPreviousInstallation HKCU
-      ${EndIf}
-      ${If} $3 != "owned"
-        Call CheckEmptyDestination
-      ${EndIf}
-    SectionEnd
   !endif
+!macroend
+
+!macro customCheckInstallationDirectory
+  !insertmacro CheckDirectoryChain "$INSTDIR"
+  StrCpy $3 ""
+  StrCpy $4 0
+  StrCpy $5 0
+  !insertmacro CheckPreviousInstallation SHELL_CONTEXT $4
+  ${If} $installMode == "all"
+    ; A per-machine install also uninstalls an existing per-user version.
+    !insertmacro CheckPreviousInstallation HKCU $5
+  ${EndIf}
+  ${If} $3 != "owned"
+    Call CheckEmptyDestination
+  ${EndIf}
+  ${If} $4 == 1
+    !insertmacro RemoveStaleRegistration SHELL_CONTEXT
+  ${EndIf}
+  ${If} $5 == 1
+    !insertmacro RemoveStaleRegistration HKCU
+  ${EndIf}
 !macroend
 
 !macro customInstall

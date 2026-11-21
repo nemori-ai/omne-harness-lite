@@ -363,6 +363,7 @@ catalogs:
 packageExtensionsChecksum: sha256-3MGTjzmjlgnhjcqVqzjDdnL5Y1xWwi2kaTEc0nFiVqM=
 
 patchedDependencies:
+  app-builder-lib@26.18.0: e1c1032b7cb7a5f233441ce9cb54ce05b5bb15e35d6964ea93fd7095793d6488
   rrule@2.8.1: 5568cd08bde38550aa34fc6e170d3d9551381935a845e2b8a1ec9a37d6298fd6
 
 importers:
@@ -16053,7 +16054,7 @@ snapshots:
       - luxon
       - moment
 
-  app-builder-lib@26.18.0(dmg-builder@26.18.0)(electron-builder-squirrel-windows@26.18.0)(supports-color@7.2.0):
+  app-builder-lib@26.18.0(patch_hash=e1c1032b7cb7a5f233441ce9cb54ce05b5bb15e35d6964ea93fd7095793d6488)(dmg-builder@26.18.0)(electron-builder-squirrel-windows@26.18.0)(supports-color@7.2.0):
     dependencies:
       '@electron/asar': 3.4.1
       '@electron/fuses': 1.8.0
@@ -16685,7 +16686,7 @@ snapshots:
 
   dmg-builder@26.18.0(electron-builder-squirrel-windows@26.18.0)(supports-color@7.2.0):
     dependencies:
-      app-builder-lib: 26.18.0(dmg-builder@26.18.0)(electron-builder-squirrel-windows@26.18.0)(supports-color@7.2.0)
+      app-builder-lib: 26.18.0(patch_hash=e1c1032b7cb7a5f233441ce9cb54ce05b5bb15e35d6964ea93fd7095793d6488)(dmg-builder@26.18.0)(electron-builder-squirrel-windows@26.18.0)(supports-color@7.2.0)
       builder-util: 26.16.0(supports-color@7.2.0)
       fs-extra: 10.1.0
       js-yaml: 4.3.2
@@ -16723,7 +16724,7 @@ snapshots:
 
   electron-builder-squirrel-windows@26.18.0(dmg-builder@26.18.0)(supports-color@7.2.0):
     dependencies:
-      app-builder-lib: 26.18.0(dmg-builder@26.18.0)(electron-builder-squirrel-windows@26.18.0)(supports-color@7.2.0)
+      app-builder-lib: 26.18.0(patch_hash=e1c1032b7cb7a5f233441ce9cb54ce05b5bb15e35d6964ea93fd7095793d6488)(dmg-builder@26.18.0)(electron-builder-squirrel-windows@26.18.0)(supports-color@7.2.0)
       builder-util: 26.16.0(supports-color@7.2.0)
       electron-winstaller: 5.4.0(supports-color@7.2.0)
     transitivePeerDependencies:
@@ -16732,7 +16733,7 @@ snapshots:
 
   electron-builder@26.18.0(electron-builder-squirrel-windows@26.18.0)(supports-color@7.2.0):
     dependencies:
-      app-builder-lib: 26.18.0(dmg-builder@26.18.0)(electron-builder-squirrel-windows@26.18.0)(supports-color@7.2.0)
+      app-builder-lib: 26.18.0(patch_hash=e1c1032b7cb7a5f233441ce9cb54ce05b5bb15e35d6964ea93fd7095793d6488)(dmg-builder@26.18.0)(electron-builder-squirrel-windows@26.18.0)(supports-color@7.2.0)
       builder-util: 26.16.0(supports-color@7.2.0)
       builder-util-runtime: 9.7.0(supports-color@7.2.0)
       chalk: 4.1.2

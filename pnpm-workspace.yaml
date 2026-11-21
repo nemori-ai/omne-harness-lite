@@ -114,7 +114,9 @@ allowBuilds:
   electron-winstaller@5.4.0: false
 
 # node-pty 的 spawn-helper 执行位由 scripts/prepare-native.mjs 补，不经 pnpm 补丁（pnpm 12 应用只改模式的补丁会损坏文件）。
+# app-builder-lib 的补丁：NSIS 安装包初始化时不在安装目录里建东西，并在选定安装范围、完成提权之后才调用 apps/desktop/nsis/installer.nsh 的安装目录检查。
 patchedDependencies:
+  app-builder-lib@26.18.0: patches/app-builder-lib-nsis-destination.patch
   rrule@2.8.1: patches/rrule@2.8.1.patch
 
 # pnpm 12 默认拒绝发布不满一天的版本。本项目自己的两个钉子按「先发新版本，再改钉子」升级，豁免这条；其余依赖照旧。
