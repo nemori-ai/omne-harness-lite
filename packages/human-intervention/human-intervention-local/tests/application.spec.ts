@@ -31,10 +31,13 @@ afterEach(async () => {
   for (const app of applications.splice(0)) await app.close()
   for (const world of worlds.splice(0)) await world.close()
 })
+const ASKED_AT = '2026-11-21T08:30:00.000Z'
+type Clock = Parameters<typeof createIndependentHitlApplication>[0]['clock']
 async function open(
   wrap?: (storage: SqlStorage) => SqlStorage,
   cards = 1,
   options: Parameters<typeof openIdentityWorld>[0] = {},
+  clock: Clock = { now: () => ASKED_AT },
 ) {
   const w = await openIdentityWorld({ ...options, cards })
   worlds.push(w)
@@ -51,6 +54,7 @@ async function open(
       reservations: w.identity.reservations,
     },
     guards: () => [],
+    clock,
   })
   applications.push(app)
   return { ...w, app }
@@ -179,6 +183,93 @@ it('recovers the exact registered result after a lost commit response without al
   if (found.kind !== 'committed') throw new Error(JSON.stringify(found))
   expect(found.method).toBe('registerRequest')
   expect(await w.app.registerRequest(w.principal, w.request)).toEqual(found.result)
+})
+
+async function moments(w: Awaited<ReturnType<typeof open>>, registered: { requestRef: unknown }) {
+  const read = await w.app.getRequest(
+    w.principal,
+    GetRequestSchema.parse({ protocol: 'hitl/1', requestRef: registered.requestRef }),
+  )
+  if (read.kind !== 'found') throw new Error(JSON.stringify(read))
+  const cards = await Promise.all(
+    read.request.cards.map(card =>
+      w.app.getCard(w.principal, GetCardSchema.parse({ protocol: 'hitl/1', cardRef: card.ref })),
+    ),
+  )
+  const page = await w.app.listPool(
+    w.principal,
+    ListPoolSchema.parse({
+      protocol: 'hitl/1',
+      tenantRef: w.request.operation.tenantRef,
+      locationRef: 'local',
+      limit: 100,
+    }),
+  )
+  if (page.kind !== 'page') throw new Error(JSON.stringify(page))
+  return {
+    request: read.request,
+    cards: cards.map(card => {
+      if (card.kind !== 'found') throw new Error(JSON.stringify(card))
+      return card.item
+    }),
+    pool: page.items,
+  }
+}
+
+it('reads the clock once for a batch, keeps that moment on every card and reads it back as kept', async () => {
+  const read: string[] = []
+  const clock = { now: () => (read.push(ASKED_AT), ASKED_AT) }
+  const w = await open(undefined, 2, {}, clock)
+  const registered = await register(w)
+  expect(read).toHaveLength(1)
+  const seen = await moments(w, registered)
+  expect(seen.request.askedAt).toBe(ASKED_AT)
+  expect(seen.cards.map(item => item.askedAt)).toEqual([ASKED_AT, ASKED_AT])
+  expect(seen.pool.map(item => item.askedAt)).toEqual([ASKED_AT, ASKED_AT])
+})
+
+it('keeps the first moment when the same registration is sent again later', async () => {
+  let now = ASKED_AT
+  const w = await open(undefined, 1, {}, { now: () => now })
+  const registered = await register(w)
+  now = '2026-11-21T09:00:00.000Z'
+  expect(await w.app.registerRequest(w.principal, w.request)).toEqual(registered)
+  expect((await moments(w, registered)).cards[0]?.askedAt).toBe(ASKED_AT)
+})
+
+it.each([
+  [
+    'throws',
+    () => {
+      throw new Error('no clock')
+    },
+  ],
+  ['reads a time with an offset', () => '2026-11-21T17:30:00+09:00'],
+  ['reads no date', () => 'not a date'],
+])('registers the batch without a moment when the clock %s', async (_name, now) => {
+  const w = await open(undefined, 2, {}, { now })
+  const registered = await register(w)
+  const seen = await moments(w, registered)
+  expect(seen.request).not.toHaveProperty('askedAt')
+  for (const item of [...seen.cards, ...seen.pool]) expect(item).not.toHaveProperty('askedAt')
+})
+
+it('keeps the role its issuer gave each option as given, and an option without one has none', async () => {
+  const options = [
+    { id: 'no', label: 'No', description: 'Refuse', role: 'reject' as const },
+    { id: 'yes', label: 'Yes', description: 'Release', role: 'approve' as const },
+    { id: 'later', label: 'Later', description: 'No role' },
+  ]
+  const w = await open(undefined, 1, {
+    transformRegistration: request =>
+      RegisterRequestSchema.parse({
+        ...request,
+        questions: request.questions.map(question => ({ ...question, options })),
+      }),
+  })
+  const seen = await moments(w, await register(w))
+  for (const item of [seen.request.cards[0], seen.cards[0]?.card, seen.pool[0]?.card])
+    expect(item?.question.options).toEqual(options)
 })
 
 it('separates original HITL and recovery operation families', async () => {

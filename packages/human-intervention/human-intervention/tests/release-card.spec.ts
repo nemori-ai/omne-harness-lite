@@ -57,6 +57,25 @@ describe('the release card is its own kind of card', () => {
     expect(QuestionSchema.safeParse({ ...release, ...change }).success).toBe(false)
   })
 
+  it('keeps the role the issuer gives an option as given, and takes options with none', () => {
+    const [deny, allow] = release.options
+    const roled = {
+      ...release,
+      options: [
+        { ...deny, role: 'reject' },
+        { ...allow, role: 'approve' },
+      ],
+    }
+    expect(QuestionSchema.parse(roled).options.map(option => option.role)).toEqual([
+      'reject',
+      'approve',
+    ])
+    expect(QuestionSchema.parse(release).options[0]).not.toHaveProperty('role')
+    expect(
+      QuestionSchema.safeParse({ ...release, options: [{ ...deny, role: 'maybe' }] }).success,
+    ).toBe(false)
+  })
+
   it('takes the gate its lasting options are about, whole or not at all', () => {
     const gate = { capabilityId: 'tool/Shell', enforcementKey: 'tool.invoke', basis: 'r7' }
     expect(QuestionSchema.safeParse({ ...release, gate }).success).toBe(true)

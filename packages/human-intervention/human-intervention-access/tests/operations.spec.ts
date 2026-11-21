@@ -158,6 +158,49 @@ describe('the card view', () => {
     for (const secret of ['origin-secret', 'dest-secret', 'position-secret', 'adoption-secret'])
       expect(text).not.toContain(secret)
   })
+
+  it('an option keeps the role its issuer gave it, and an option without one has none', async () => {
+    const world = createWorld()
+    const options = [
+      { id: 'no', label: '本次不放行', description: '这一次调用不执行', role: 'reject' },
+      { id: 'yes', label: '本次放行', description: '只执行这一次调用', role: 'approve' },
+      { id: 'later', label: '再说', description: '没有角色' },
+    ]
+    const item = world.hitl.addCard({
+      tenant: ALICE.tenant,
+      cardId: 'card-1',
+      readers: [world.holder.refOf(ALICE.tenant)],
+      question: { options },
+    })
+    const ask = run(world)
+    const read = await ask('read-card', ALICE, readBody(ALICE.tenantText, item.card.ref))
+    const listed = await ask('list-cards', ALICE, listBody(ALICE))
+    for (const question of [read.body.item.card.question, listed.body.items[0].card.question])
+      expect(question.options).toEqual(options)
+  })
+
+  it('a card carries the moment its batch was registered as it was kept, and a card kept without one carries none', async () => {
+    const world = createWorld()
+    const readers = [world.holder.refOf(ALICE.tenant)]
+    const timed = world.hitl.addCard({
+      tenant: ALICE.tenant,
+      cardId: 'card-1',
+      readers,
+      askedAt: '2026-11-21T08:30:00.000Z',
+    })
+    const old = world.hitl.addCard({ tenant: ALICE.tenant, cardId: 'card-2', readers })
+    const ask = run(world)
+    const read = async (card: unknown) =>
+      (await ask('read-card', ALICE, readBody(ALICE.tenantText, card))).body.item
+    expect((await read(timed.card.ref)).askedAt).toBe('2026-11-21T08:30:00.000Z')
+    expect(await read(old.card.ref)).not.toHaveProperty('askedAt')
+    const listed = (await ask('list-cards', ALICE, listBody(ALICE))).body.items
+    expect(listed.map((each: { askedAt?: string }) => each.askedAt)).toEqual([
+      '2026-11-21T08:30:00.000Z',
+      undefined,
+    ])
+    expect(listed[1]).not.toHaveProperty('askedAt')
+  })
 })
 
 describe('denied does not disclose', () => {

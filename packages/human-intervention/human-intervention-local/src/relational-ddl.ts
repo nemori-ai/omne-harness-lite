@@ -177,6 +177,7 @@ export const requestDdl = [
   action_basis_json TEXT CHECK(action_basis_json IS NULL OR json_valid(action_basis_json)),
   audience_digest TEXT NOT NULL CHECK(length(audience_digest)=64),
   card_count INTEGER NOT NULL CHECK(card_count BETWEEN 1 AND 64),
+  asked_at TEXT CHECK(${stringCheck('asked_at', 66)}),
   ${originColumns()},
   UNIQUE(tenant_ref,request_id),
   UNIQUE(tenant_ref,sequence)

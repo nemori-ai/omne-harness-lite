@@ -11,7 +11,7 @@ import {
   type RequestRef,
 } from '@omne-harness/human-intervention'
 import type { ReadPort, SqlCell } from '@omne-harness/sql-contract/worker'
-import { RequestRecordSchema } from './request-schema.ts'
+import { AskedAtSchema, RequestRecordSchema } from './request-schema.ts'
 import { countSchema, decodeDecision, parseJson } from './relational-values.ts'
 import { SqlSequenceSchema } from './sql-sequence.ts'
 import { originRefs } from './origin-cells.ts'
@@ -19,7 +19,7 @@ import { originRefs } from './origin-cells.ts'
 const identityColumns = `CAST(r.sequence AS TEXT),r.tenant_ref,r.request_id,s.revision,
  r.origin_kind,r.origin_ref,r.wait_owner,r.wait_id,r.incarnation,r.destination,r.position_ref,r.adoption_ref,r.card_count,
  r.session_ref,r.run_ref,r.tool_call_ref`
-const headerColumns = `${identityColumns},r.display_context,r.action_basis_json`
+const headerColumns = `${identityColumns},r.display_context,r.action_basis_json,r.asked_at`
 const requestJoin = `FROM hi_requests_v2 r JOIN hi_request_states_v2 s
  ON s.tenant_ref=r.tenant_ref AND s.request_sequence=r.sequence`
 function identity(row: readonly SqlCell[]) {
@@ -51,7 +51,13 @@ function header(row: readonly SqlCell[]) {
     ...identity(row),
     displayContext: HitlTextSchema.parse(readStringCell(row[16])),
     ...(row[17] === null ? {} : { actionBasis: ActionBasisSchema.parse(parseJson(row[17])) }),
+    ...(row[18] === null ? {} : { askedAt: AskedAtSchema.parse(readStringCell(row[18])) }),
   }
+}
+/** What every card of a request shows of the request itself. */
+export function itemOf(request: ReturnType<typeof header>) {
+  const { origin, displayContext, askedAt } = request
+  return { origin, displayContext, ...(askedAt === undefined ? {} : { askedAt }) }
 }
 export function readRequestIdentity(port: ReadPort, ref: RequestRef) {
   const row = port.execute(
@@ -197,9 +203,8 @@ export function readPoolItem(port: ReadPort, tenant: string, sequence: string, o
   const request = header(row)
   return {
     item: {
-      card: card(request.ref, row.slice(18)).card,
-      origin: request.origin,
-      displayContext: request.displayContext,
+      card: card(request.ref, row.slice(19)).card,
+      ...itemOf(request),
     },
     cardCount: request.cardCount,
   }

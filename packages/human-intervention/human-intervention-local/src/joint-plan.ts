@@ -2,6 +2,7 @@ import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import { digest, equal, json } from './encoding.ts'
 import { TERMINAL_FACT } from './terminal-schema.ts'
 import {
+  AskedAtSchema,
   LOCAL_PROTOCOL,
   PLAN_FACT,
   REQUEST_PLANNER,
@@ -48,7 +49,8 @@ export default {
         !audience.readers.includes(wait.ownerActor))
     )
       return { kind: 'failed', diagnostic: 'local_read_audience' }
-    const planned = RequestPlanSchema.parse(planRequest(input, wait.basis, port))
+    const askedAt = AskedAtSchema.optional().parse(facts['askedAt'])
+    const planned = RequestPlanSchema.parse(planRequest(input, wait.basis, port, askedAt))
     const joint = JointPlanSchema.parse({ kind: 'request-plan', waitPlanDigest, plan: planned })
     port.provideFact(PLAN_FACT, json(joint))
     return { kind: 'participated', response: json({ binding, planDigest: digest(joint) }) }

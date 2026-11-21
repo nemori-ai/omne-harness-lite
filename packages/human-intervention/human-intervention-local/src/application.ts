@@ -23,7 +23,7 @@ import { createIdentityQualifiedHitl, type IdentityHitlCommand } from './identit
 import { createIndependentHitlQueryRuntime, type IndependentHitlQueryOptions } from './queries.ts'
 import { CommandResultSchemas, RecoveryResultSchemas } from './operation-schema.ts'
 import { canonical } from './encoding.ts'
-import { SqlCommandSchema, type SqlCommand } from './request-schema.ts'
+import { AskedAtSchema, SqlCommandSchema, type SqlCommand } from './request-schema.ts'
 import { createIndependentRecoveryQueries } from './recovery-queries.ts'
 import { IndependentCommandSchema } from './independent-schema.ts'
 
@@ -34,7 +34,12 @@ type Application = HumanInterventionCommands<Access> &
   RecoveryQueries<Access>
 
 export type HitlGuards = (origin: Origin) => readonly FactCommandV2[]
-export type HitlApplicationOptions = IndependentHitlQueryOptions & Readonly<{ guards: HitlGuards }>
+export type HitlApplicationOptions = IndependentHitlQueryOptions &
+  Readonly<{
+    guards: HitlGuards
+    /** Read once per registered batch; its answer is the moment the batch's cards show. */
+    clock: Readonly<{ now(): string }>
+  }>
 
 export function createIndependentHitlApplication(
   options: HitlApplicationOptions,
@@ -87,6 +92,15 @@ export function createIndependentHitlApplication(
     const parsed = schema.safeParse('operationRef' in result ? result : { ...result, operationRef })
     return parsed.success ? parsed.data : schema.parse({ kind: 'unknown', operationRef })
   }
+  // The moment only helps a person read the card, so a clock that cannot answer leaves it out.
+  function askedAt(): Readonly<{ askedAt?: string }> {
+    try {
+      const read = AskedAtSchema.safeParse(options.clock.now())
+      return read.success ? { askedAt: read.data } : {}
+    } catch {
+      return {}
+    }
+  }
   const guardRejected = (answer: { kind: string; reason?: unknown }): boolean =>
     answer.kind === 'conflict' && answer.reason === 'guard-rejected'
   async function closedCardAnswer<M extends HitlMethod>(
@@ -128,9 +142,10 @@ export function createIndependentHitlApplication(
         if (routed.kind !== 'routed') return { ...routed, operationRef }
         const guards = guardsOf('origin' in routed ? routed.origin : undefined)
         if (!guards) return { kind: 'unavailable', reason: 'session-guard-missing', operationRef }
+        const moment = command.method === 'registerRequest' ? askedAt() : {}
         const answer = await execute(
           access,
-          { kind: 'request', input: command, waitRef: routed.wait },
+          { kind: 'request', input: command, waitRef: routed.wait, ...moment },
           CommandResultSchemas[method],
           operationRef,
           guards,

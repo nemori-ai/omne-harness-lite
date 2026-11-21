@@ -102,6 +102,7 @@ function viewOf(item: PoolItem): HumanInterventionCardItem {
     card: item.card as unknown as HumanInterventionCardItem['card'],
     origin: origin as HumanInterventionCardItem['origin'],
     displayContext: item.displayContext,
+    ...(item.askedAt === undefined ? {} : { askedAt: item.askedAt }),
   }
 }
 
