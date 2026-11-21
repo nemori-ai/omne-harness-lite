@@ -239,6 +239,20 @@ describe('页面的恢复', () => {
     expect(done).toEqual(['ask-load', 'reload'])
   })
 
+  it('排着重新加载、又问着没有响应时 utility 启动失败：收起那一问，改问加载失败', async () => {
+    const { made, done, answerHung, answerLoad } = recovery('starting')
+    made.unresponsive()
+    await answerHung('reload')
+    made.unresponsive()
+    made.utility('failed')
+    // Answering "wait" to the hung question would have left the page with nothing queued.
+    expect(done).toEqual(['ask-hung', 'ask-hung', 'dismiss-hung', 'ask-load'])
+    made.utility('starting')
+    await answerLoad('reload')
+    made.utility('ready')
+    expect(done.at(-1)).toBe('reload')
+  })
+
   it('页面好好的：utility 进程换代不动它', () => {
     const { made, done } = recovery()
     made.utility('starting')

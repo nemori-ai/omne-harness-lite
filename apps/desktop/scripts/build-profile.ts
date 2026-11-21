@@ -8,9 +8,6 @@ export const BUILD_PROFILES = ['dev', 'test', 'release'] as const
 export type BuildProfile = (typeof BUILD_PROFILES)[number]
 export type PackagedProfile = Exclude<BuildProfile, 'dev'>
 
-/** How scripts/build.ts tells the bundle build which profile to build. */
-export const PROFILE_ENV = 'OMNE_DESKTOP_PROFILE'
-
 export const BUILD_USAGE = 'usage: build.ts [release | test]'
 
 export function isBuildProfile(value: unknown): value is BuildProfile {

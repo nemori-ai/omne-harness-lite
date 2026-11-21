@@ -101,8 +101,10 @@ export function createRecovery(
       if (queued === undefined) return
       if (state === 'ready') return reload(queued)
       if (state !== 'failed') return
-      // The utility process could not start: the wait has no known end, so the person decides.
+      // The utility process could not start: the wait has no known end, so the person decides. A
+      // hung question open meanwhile could only be answered with a wait that leads nowhere.
       queued = undefined
+      dismiss('hung')
       if (question === undefined) askLoadFailed()
     },
   }

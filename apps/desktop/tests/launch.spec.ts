@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { packagedExecutable } from '../scripts/packaged-path.ts'
@@ -9,6 +10,8 @@ import {
   processDirOf,
   type SandboxProbe,
   windowStateSwitches,
+  freshUserDataDir,
+  removeUserDataDir,
 } from '../scripts/launch.ts'
 import { screenLock } from '../scripts/session-state.ts'
 import { remoteDebuggingSwitch, reportedBuildProfile } from '../src/startup-signals.ts'
@@ -149,4 +152,13 @@ describe('测试启动的隔离', () => {
   it.runIf(process.platform === 'darwin')('读得到这台 Mac 真实的会话清单', () => {
     expect(screenLock()).toHaveProperty('locked')
   })
+})
+
+it('一次性的用户数据目录按真实路径给出：辅助进程拿到的是真实路径，要按它认', () => {
+  const directory = freshUserDataDir('launch-spec')
+  try {
+    expect(directory).toBe(realpathSync(directory))
+  } finally {
+    removeUserDataDir(directory)
+  }
 })

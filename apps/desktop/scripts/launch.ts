@@ -1,7 +1,15 @@
 // How every test launcher starts the app: `pnpm run start:test`, `pnpm run dev`, the e2e fixtures.
 // The release profile is started only by scripts/verify-release.ts.
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, type RmOptions, statSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  type RmOptions,
+  statSync,
+} from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -169,8 +177,9 @@ export function sandboxSwitches(
   return ['--no-sandbox']
 }
 
+/** A new directory by its real path: Electron hands its helpers the real path, and they are matched by it. */
 export const freshUserDataDir = (label: string): string =>
-  mkdtempSync(join(tmpdir(), `omne-${label}-`))
+  realpathSync(mkdtempSync(join(tmpdir(), `omne-${label}-`)))
 
 /** Removes a user data directory, retrying while helpers still hold files; warns instead of failing. */
 export function removeUserDataDir(

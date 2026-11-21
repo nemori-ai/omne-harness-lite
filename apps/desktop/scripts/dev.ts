@@ -39,33 +39,64 @@ async function watchBuild(
   })
 }
 
+/** How long an app asked to quit gets before its whole group is killed. */
+const QUIT_GRACE_MS = 3_000
+
 let app: ChildProcess | undefined
+/** Every app started and not yet exited: the current one, and one a restart is still ending. */
+const running = new Set<ChildProcess>()
 let stopping = false
 let exiting = false
 let restartTimer: ReturnType<typeof setTimeout> | undefined
 const watchers: Watcher[] = []
 
-/** Ends the app with its helpers: its process group (POSIX) or tree (Windows). */
-function kill(child: ChildProcess, signal: NodeJS.Signals = 'SIGTERM'): void {
-  if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) return
+const alive = (child: ChildProcess) => child.exitCode === null && child.signalCode === null
+
+/**
+ * Asks the app to quit: SIGTERM to its main process only, which then flushes the cookies and ends its
+ * helpers; signalling the group would kill the network service before the flush. Windows has no such
+ * signal: the tree ends at once.
+ */
+function quit(child: ChildProcess): void {
+  if (!alive(child) || child.pid === undefined) return
+  if (process.platform === 'win32') return forceQuit(child)
+  child.kill('SIGTERM')
+}
+
+/** Kills the app with its helpers: its process group (POSIX) or tree (Windows). */
+function forceQuit(child: ChildProcess): void {
+  if (!alive(child) || child.pid === undefined) return
   try {
     if (process.platform === 'win32')
       execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
-    else process.kill(-child.pid, signal)
+    else process.kill(-child.pid, 'SIGKILL')
   } catch {
-    child.kill(signal)
+    child.kill('SIGKILL')
   }
+}
+
+/** Resolves once `child` has exited, killing its group if it has not within the grace period. */
+function ended(child: ChildProcess): Promise<void> {
+  if (!alive(child)) return Promise.resolve()
+  return new Promise(done => {
+    const lingering = setTimeout(() => forceQuit(child), QUIT_GRACE_MS)
+    child.once('exit', () => {
+      clearTimeout(lingering)
+      done()
+    })
+  })
 }
 
 function stop(code: number): void {
   if (exiting) return
   exiting = stopping = true
   clearTimeout(restartTimer)
-  // The app leads its own process group: an exit of this script would not end it.
-  if (app !== undefined) kill(app)
-  void Promise.allSettled(watchers.map(watcher => watcher.close())).finally(() =>
-    process.exit(code),
-  )
+  // Each app leads its own process group: an exit of this script would not end it.
+  for (const child of running) quit(child)
+  void Promise.allSettled([
+    ...[...running].map(ended),
+    ...watchers.map(watcher => watcher.close()),
+  ]).finally(() => process.exit(code))
 }
 
 function startApp(): void {
@@ -78,6 +109,8 @@ function startApp(): void {
     detached: process.platform !== 'win32',
   })
   app = started
+  running.add(started)
+  started.once('exit', () => running.delete(started))
   verifyBuildProfile(started.stdout!, 'dev').catch((failure: unknown) => {
     // A restart ends the old app on purpose, often before it reports its profile.
     if (app !== started) return
@@ -100,13 +133,10 @@ function restartApp(): void {
   app = undefined
   say('the main side was rebuilt; restarting the app')
   // The single-instance lock: the new process starts after the old one is gone, killed if it lingers.
-  const lingering = setTimeout(() => kill(old, 'SIGKILL'), 3000)
-  lingering.unref()
-  old.once('exit', () => {
-    clearTimeout(lingering)
+  void ended(old).then(() => {
     if (!stopping) startApp()
   })
-  kill(old)
+  quit(old)
 }
 
 const restartSoon = () => {
