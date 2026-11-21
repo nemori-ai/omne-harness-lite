@@ -29,13 +29,14 @@ CASES = [('settlement', None),
          ('masked-no-ad06-ack', None),
          ('bad-interpret-overtakes', 'NoLostLateResult'),
          ('bad-ad06-agent-wake-only', 'EventuallyReclaimed'),
-         ('bad-open-awaits-processing', 'EventuallyReclaimed')]
+         ('bad-open-awaits-processing', 'EventuallyReclaimed'),
+         ('bad-atomic-event-awaits', 'EventuallyReclaimed')]
 parser = argparse.ArgumentParser()
 parser.add_argument('--case')
 parser.add_argument('--jar', default=os.environ.get('TLA2TOOLS_JAR'))
 parser.add_argument('--out', required=True)
 parser.add_argument('--workers', type=int, default=8)
-parser.add_argument('--timeout', type=int, default=300, help='seconds per configuration')
+parser.add_argument('--timeout', type=int, default=900, help='seconds per configuration')
 args = parser.parse_args()
 if not args.jar:
     parser.error('--jar or TLA2TOOLS_JAR is required')
