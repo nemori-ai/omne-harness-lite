@@ -353,6 +353,7 @@ describe('the search page', () => {
     expect(search).toHaveBeenCalledTimes(2)
     expect(screen.getByText(refusalText({ outcome: 'denied' } as never))).toBeTruthy()
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: /更多|接着搜|重试/u })).toBeNull()
     expect(view.watched()).toEqual([])
     act(() => view.enter())
     await settle()
