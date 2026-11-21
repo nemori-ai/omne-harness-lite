@@ -80,6 +80,7 @@ import attemptGrantMigration from '../../src/worker/attempt-grant-migration.ts'
 import scopeIndexMigration from '../../src/worker/scope-index-migration.ts'
 import sessionListMigration from '../../src/worker/session-list-migration.ts'
 import sessionArchiveMigration from '../../src/worker/session-archive-migration.ts'
+import sessionStandingMigration from '../../src/worker/session-standing-migration.ts'
 import readArchivedSessions from '../../src/worker/read-archived-sessions.ts'
 import readSessionList from '../../src/worker/read-session-list.ts'
 import readScopeOwner from '../../src/worker/read-scope-owner.ts'
@@ -141,6 +142,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   scopeIndexMigration,
   sessionListMigration,
   sessionArchiveMigration,
+  sessionStandingMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,

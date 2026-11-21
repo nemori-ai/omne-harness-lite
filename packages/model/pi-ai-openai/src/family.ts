@@ -63,6 +63,14 @@ function checkConfig(config: OpenAiFamilyConfig): void {
     throw new RangeError('config.margin.percent must be a non-negative decimal integer')
 }
 
+/** The byte limit of one image, as the profile of this record declares it. */
+function imageBytesOf(record: {
+  profile: { limits: readonly { metric: string; provided: string }[] }
+}) {
+  const limit = record.profile.limits.find(each => each.metric === 'image-bytes')
+  return limit === undefined ? {} : { imageBytes: Number(limit.provided) }
+}
+
 export function createOpenAiFamily(config: OpenAiFamilyConfig): PiFamily {
   checkConfig(config)
   return defineFamily<OpenAiRecord>({
@@ -79,6 +87,7 @@ export function createOpenAiFamily(config: OpenAiFamilyConfig): PiFamily {
           supplier,
           meter: createOpenAiMeter(record, tokenizer.ok.tokenizer, config.margin),
           limits: config.limits,
+          ...imageBytesOf(record),
           release: async () => {
             const released = await tokenizer.ok.release()
             if ('failure' in released) throw new Error(`tokenizer-${released.failure.kind}`)

@@ -5,6 +5,7 @@ import type {
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type {
+  MaterializeFailure,
   CostLookupAnswer,
   ModelTransport,
   PreparedTransport,
@@ -195,7 +196,7 @@ function createPrepared(
   async function runMaterialize(
     binding: PiFamilyBinding,
     signal: AbortSignal,
-  ): Promise<Outcome<MaterializedHandle, TransportFailure>> {
+  ): Promise<Outcome<MaterializedHandle, MaterializeFailure>> {
     return materialize({
       config,
       route,

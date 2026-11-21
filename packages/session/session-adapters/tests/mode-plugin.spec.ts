@@ -228,11 +228,19 @@ it('publishes original Session mode changes through a coordinator Cordis fiber a
       mode: 'auto_permission',
       revision: '2',
     })
+    expect(await producer.readModes(scene.sessionAccess)).toMatchObject({
+      kind: 'read',
+      modes: { permission: 'auto_permission', collaboration: expect.any(String) },
+      revision: '2',
+    })
     expect(
       await producer.readPermissionMode({
         ...scene.sessionAccess,
         tenant: memoryOtherAccess(null).tenant,
       }),
+    ).toEqual({ kind: 'unavailable' })
+    expect(
+      await producer.readModes({ ...scene.sessionAccess, session: 'missing' as never }),
     ).toEqual({ kind: 'unavailable' })
     expect(
       await producer.readPermissionMode({ ...scene.sessionAccess, session: 'missing' as never }),
@@ -242,6 +250,7 @@ it('publishes original Session mode changes through a coordinator Cordis fiber a
     expect(await bound.reader.read([need])).toHaveProperty('kind', 'missing')
     expect(await producer.refresh(work.session)).toEqual({ kind: 'unavailable' })
     expect(await producer.readPermissionMode(scene.sessionAccess)).toEqual({ kind: 'unavailable' })
+    expect(await producer.readModes(scene.sessionAccess)).toEqual({ kind: 'unavailable' })
   } finally {
     await context.dispose()
     await runtime.close()

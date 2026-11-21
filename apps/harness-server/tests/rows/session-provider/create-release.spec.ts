@@ -85,7 +85,9 @@ const residentNames = [
   'Schedules',
   'Notifications',
   'Sessions',
+  'Agents',
   'SwitchWorkspace',
+  'Screen',
   'Skills',
 ]
 const releaseDistribution = JSON.parse(
@@ -150,6 +152,7 @@ async function start(
       hostFilesDir: base.stateRoot,
       assetsRoot: `${base.stateRoot}/assets`,
       historyIndexRoot: `${base.stateRoot}/history-index`,
+      mediaRoot: `${base.stateRoot}/media`,
     },
     settings: {
       version: 1,

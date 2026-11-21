@@ -13,6 +13,8 @@ const probe = () => undefined
 
 const definition = (extra: Record<string, unknown>) => ({
   category: 'AgentDefinition',
+  type: 'master',
+  summary: 'Works on what the person asks for.',
   name: 'coding',
   references: [],
   attributes: [],
@@ -59,7 +61,7 @@ describe('the declaration limits of a definition', () => {
 
   it('stops at the 201st JSON value and goes past the 200th', async () => {
     const nodeAt = (position: number) =>
-      definition({ extra: [...Array<number>(position - 7).fill(0), probe] })
+      definition({ extra: [...Array<number>(position - 9).fill(0), probe] })
     expect(await judgeAgentDefinition(nodeAt(200))).toEqual(executable)
     expect(await judgeAgentDefinition(nodeAt(201))).toEqual(malformed)
   })

@@ -18,6 +18,7 @@ export type {
   RunFailureReading,
   SessionAccessFaces,
   SessionAccessSettings,
+  ListFilters,
   SessionListEntry,
   SessionListing,
   SessionListPage,

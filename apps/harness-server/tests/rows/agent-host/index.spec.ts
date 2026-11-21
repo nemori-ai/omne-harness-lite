@@ -368,7 +368,14 @@ async function invoke(row: Plugin, execution: AgentExecutionId) {
   const { tree, doubles } = started
   const { controls } = doubles
   controls.adoptions.define(definition, {
-    definition: { category: 'AgentDefinition', name: 'tool', references: [], attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'tool',
+      references: [],
+      attributes: [],
+    },
     evaluator: agentEvaluator,
     extensions: [],
   })

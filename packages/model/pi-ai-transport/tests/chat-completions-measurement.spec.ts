@@ -264,7 +264,7 @@ describe('createCalibratedMeter', () => {
   const inputAmount = (result: Awaited<ReturnType<ModelInputMeter['measure']>>) =>
     'ok' in result ? result.ok.checks[0]?.measurement.amount : result.failure
 
-  it('refuses another supplier, another representation, pending media and another schema', async () => {
+  it('refuses another supplier, another representation and another schema; measures a request whose media are pending and defers them', async () => {
     const meter = createCalibratedMeter(rules())
     expect(
       await meter.measure({ ...metered, supplier: { ...supplier, adoption: adoption('other') } }),
@@ -295,7 +295,7 @@ describe('createCalibratedMeter', () => {
           references: [reference],
         },
       }),
-    ).toEqual({ failure: { kind: 'unsupported', field: 'representation.kind', adapter: METER } })
+    ).toMatchObject({ ok: { kind: 'deferred-media', references: [reference] } })
     expect(await createCalibratedMeter(rules({ contentOf: () => null })).measure(metered)).toEqual({
       failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' },
     })
@@ -527,19 +527,18 @@ describe('createCalibratedMeter', () => {
         } as const,
       ],
     })
+    const limits = [
+      limit('image-bytes', '100'),
+      limit('image-count', '4'),
+      limit('request-bytes', '64'),
+      limit('voice-bytes', '1000'),
+      limit('voice-duration-ms', '1000'),
+    ]
+    const media = [image('image-1', '11'), voice, image('image-2', '12')]
     const measured = await createCalibratedMeter(rules()).measure({
       ...metered,
-      limits: [
-        limit('image-bytes', '100'),
-        limit('image-count', '4'),
-        limit('request-bytes', '64'),
-        limit('voice-bytes', '1000'),
-        limit('voice-duration-ms', '1000'),
-      ],
-      representation: {
-        ...metered.representation,
-        media: [image('image-1', '11'), voice, image('image-2', '12')],
-      },
+      limits,
+      representation: { ...metered.representation, media },
     })
     const exact = (metric: string, subject: string, amount: string, provided: string) => ({
       supplier: supplier.adoption,
@@ -557,6 +556,22 @@ describe('createCalibratedMeter', () => {
       exact('image-bytes', 'image-2', '12', '100'),
       exact('image-count', 'request', '2', '4'),
       exact('request-bytes', 'request', '7', '64'),
+    ])
+    // Pending images are read at the send, each within the limit: an original over it is no excess here.
+    const over = [image('image-1', '5000'), image('image-2', '12')]
+    const pending = await createCalibratedMeter(rules()).measure({
+      ...metered,
+      limits,
+      representation: {
+        kind: 'pending-media',
+        adoption: REPRESENTATION,
+        tokenInput: metered.representation.tokenInput,
+        media: over,
+        references: [reference('image-1'), reference('image-2')],
+      },
+    })
+    expect('ok' in pending && pending.ok.checks.slice(1)).toEqual([
+      exact('image-count', 'request', '2', '4'),
     ])
   })
 

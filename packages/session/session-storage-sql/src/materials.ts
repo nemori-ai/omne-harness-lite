@@ -59,11 +59,13 @@ import {
   ATTEMPT_GRANT_TABLES,
   SCOPE_INDEX_MIGRATION,
   SCOPE_INDEX_TABLES,
+  SESSION_LIST_HELD,
   SESSION_LIST_MIGRATION,
   SESSION_LIST_SCAN_ROWS,
   SESSION_LIST_TABLES,
   SESSION_ARCHIVE_MIGRATION,
   SESSION_ARCHIVE_TABLES,
+  SESSION_STANDING_MIGRATION,
 } from './worker/schema.ts'
 import {
   COMPACTION_INDEX_MIGRATION,
@@ -109,6 +111,10 @@ const sessionListMigrationRef = Object.freeze({
 const sessionArchiveMigrationRef = Object.freeze({
   owner: SESSION_ARCHIVE_MIGRATION.owner,
   id: SESSION_ARCHIVE_MIGRATION.id,
+})
+const sessionStandingMigrationRef = Object.freeze({
+  owner: SESSION_STANDING_MIGRATION.owner,
+  id: SESSION_STANDING_MIGRATION.id,
 })
 const recordMigrationRef = Object.freeze({
   owner: EXECUTION_RECORD_MIGRATION.owner,
@@ -300,15 +306,15 @@ export const HANDLERS: readonly Handler[] = [
     handler: 'session.list',
     file: 'read-session-list',
     tables: ['sl_session_list'],
-    migrations: [sessionListMigrationRef],
-    maxRowsRead: SESSION_LIST_SCAN_ROWS + 1,
+    migrations: [sessionStandingMigrationRef],
+    maxRowsRead: SESSION_LIST_SCAN_ROWS + 2,
   },
   {
     handler: 'session.list-archived',
     file: 'read-archived-sessions',
     tables: ['sl_session_list', 'sl_session_archive'],
-    migrations: [sessionArchiveMigrationRef],
-    maxRowsRead: SESSION_LIST_SCAN_ROWS + 1,
+    migrations: [sessionArchiveMigrationRef, sessionStandingMigrationRef],
+    maxRowsRead: SESSION_LIST_SCAN_ROWS + 2,
   },
 
   { handler: 'session.references', file: 'read-references', tables: ['sl_resident_idx'] },
@@ -495,6 +501,7 @@ export function sessionStorageMaterials(
           ...ATTEMPT_GRANT_TABLES,
           ...SCOPE_INDEX_TABLES,
           ...SESSION_LIST_TABLES,
+          SESSION_LIST_HELD,
           ...SESSION_ARCHIVE_TABLES,
         ],
         readTables: [...EXECUTION_RECORD_INDEX_TABLES, 'sl_blob'],
@@ -536,6 +543,9 @@ export function sessionStorageMaterials(
         PERMISSION_CURRENT_MIGRATION,
       ]),
       migrationOf(CALL_LEFT_MIGRATION, 'call-left-migration', [migrationRef]),
+      migrationOf(sessionStandingMigrationRef, 'session-standing-migration', [
+        sessionArchiveMigrationRef,
+      ]),
       migrationOf(preadmissionMigrationRef, 'preadmission-migration', [recordMigrationRef]),
       migrationOf(admissionAttemptMigrationRef, 'admission-attempt-migration', [
         recordMigrationRef,

@@ -18,6 +18,7 @@
 - `ArchiveCollapse` · `call-control.d.ts`
 - `ArchivedBy` · `faces.d.ts`
 - `AttemptId` · `identity.d.ts`
+- `Attendance` · `values.d.ts`
 - `AuthorizationConsumer` · `authorizations.d.ts`
 - `AuthorizationContext` · `authorizations.d.ts`
 - `AuthorizationExpression` · `authorizations.d.ts`
@@ -34,11 +35,13 @@
 - `BackgroundDisposition` · `values.d.ts`
 - `BackgroundOutcomeJudgment` · `background-outcome.d.ts`
 - `BatchId` · `identity.d.ts`
+- `BeforeIntakeRegistry` · `before-intake.d.ts`
 - `BoundedClose` · `values.d.ts`
 - `BudgetTerms` · `input-sources.d.ts`
 - `CONTEXT_SCOPE_KINDS` · `context-scopes.d.ts`
 - `CallBinding` · `values.d.ts`
 - `CallRegistrationView` · `call-registration.d.ts`
+- `ChildRecord` · `standing.d.ts`
 - `ClockSample` · `values.d.ts`
 - `CommitReceipt` · `faces.d.ts`
 - `CommittedBatch` · `judgments.d.ts`
@@ -68,6 +71,7 @@
 - `DerivedInputKind` · `input-sources.d.ts`
 - `DerivedMessage` · `values.d.ts`
 - `DirectCallControl` · `call-control.d.ts`
+- `DirectoryStanding` · `directory-relation.d.ts`
 - `DriveFailure` · `ports.d.ts`
 - `DriveOperationElements` · `operations.d.ts`
 - `DriveReceipt` · `ports.d.ts`
@@ -120,8 +124,13 @@
 - `InputSourceRegistry` · `input-sources.d.ts`
 - `InputSources` · `input-sources.d.ts`
 - `IntakeBasis` · `input-sources.d.ts`
+- `IntakeBlockRefusal` · `before-intake.d.ts`
+- `IntakeProcessor` · `before-intake.d.ts`
+- `IntakeScreening` · `before-intake.d.ts`
 - `IntakeSubject` · `input-sources.d.ts`
 - `IntakeTerms` · `input-sources.d.ts`
+- `IntakeVerdict` · `before-intake.d.ts`
+- `MAX_SESSION_DEPTH` · `standing.d.ts`
 - `ModelViewBasis` · `faces.d.ts`
 - `ModelViewRead` · `faces.d.ts`
 - `ModelViewRow` · `faces.d.ts`
@@ -143,9 +152,12 @@
 - `ProducerFact` · `faces.d.ts`
 - `ProducerRef` · `values.d.ts`
 - `ProductionEvidenceCommand` · `ports.d.ts`
+- `RELATIONS_TO_REFERENCE` · `directory-relation.d.ts`
 - `RecoveryTask` · `values.d.ts`
 - `ReduceResult` · `judgments.d.ts`
+- `RelatedSession` · `standing.d.ts`
 - `Relation` · `values.d.ts`
+- `RelationToReference` · `directory-relation.d.ts`
 - `ReleasedScope` · `faces.d.ts`
 - `Reply` · `faces.d.ts`
 - `ResidentAdoption` · `values.d.ts`
@@ -165,6 +177,7 @@
 - `ScopeReleaseDisposition` · `values.d.ts`
 - `ScopeReleasePort` · `ports.d.ts`
 - `ScopeReleaseReadback` · `ports.d.ts`
+- `Screened` · `before-intake.d.ts`
 - `SessionAccess` · `identity.d.ts`
 - `SessionAccessCheck` · `access.d.ts`
 - `SessionAccessDecision` · `access.d.ts`
@@ -238,8 +251,10 @@
 - `SessionIntakeLimits` · `intake.d.ts`
 - `SessionInternalPrincipals` · `ports.d.ts`
 - `SessionLateCallFact` · `call-settlement.d.ts`
+- `SessionListFilter` · `faces.d.ts`
 - `SessionListItem` · `faces.d.ts`
 - `SessionListPage` · `faces.d.ts`
+- `SessionListRelation` · `faces.d.ts`
 - `SessionLogCommitObservation` · `interpretation-values.d.ts`
 - `SessionLogConsequence` · `projection.d.ts`
 - `SessionLogObservation` · `projection.d.ts`
@@ -266,6 +281,7 @@
 - `SessionTakenRecord` · `history-values.d.ts`
 - `SessionTodos` · `todos.d.ts`
 - `SessionTransactionPort` · `ports.d.ts`
+- `SessionTree` · `values.d.ts`
 - `SessionUninterpretedCall` · `history-values.d.ts`
 - `SessionWaiting` · `values.d.ts`
 - `SessionWork` · `faces.d.ts`
@@ -286,6 +302,7 @@
 - `TodoMutationReceipt` · `todos.d.ts`
 - `TodoPage` · `todos.d.ts`
 - `TodoPageCursor` · `todos.d.ts`
+- `UnarchivedLifecycle` · `faces.d.ts`
 - `VisibleTodoItem` · `todos.d.ts`
 - `Waiting` · `values.d.ts`
 - `WaitingCall` · `intake-reads.d.ts`
@@ -308,6 +325,7 @@
 - `callKeysOutside` · `call-settlement.d.ts`
 - `callWithLate` · `call-settlement.d.ts`
 - `cancellationDriveOf` · `decision-support.d.ts`
+- `childRecorded` · `standing.d.ts`
 - `commandDigest` · `decide.d.ts`
 - `commandInput` · `input-sources.d.ts`
 - `commitWithinBudget` · `input-sources.d.ts`
@@ -318,6 +336,7 @@
 - `contextScopesOf` · `context-scopes.d.ts`
 - `controlAnswer` · `call-control.d.ts`
 - `controlRoutes` · `call-control.d.ts`
+- `createBeforeIntakeRegistry` · `before-intake.d.ts`
 - `createInputSourceRegistry` · `input-sources.d.ts`
 - `decide` · `decide.d.ts`
 - `decideCompactionCommit` · `compaction-commit.d.ts`
@@ -344,13 +363,16 @@
 - `judgeBackgroundOutcome` · `background-outcome.d.ts`
 - `judgeCompletion` · `judgments.d.ts`
 - `judgeIdle` · `judgments.d.ts`
+- `judgeIntakeBlocks` · `before-intake.d.ts`
 - `judgeRunStart` · `judgments.d.ts`
 - `judgeSessionIntake` · `intake.d.ts`
+- `judgeStanding` · `standing.d.ts`
 - `judgeWaiting` · `judgments.d.ts`
 - `lendCalls` · `call-settlement.d.ts`
 - `mutationAccessRequest` · `access.d.ts`
 - `onceAuthorizationOf` · `authorizations.d.ts`
 - `openWork` · `judgments.d.ts`
+- `originalContent` · `before-intake.d.ts`
 - `parseInputSourceName` · `input-sources.d.ts`
 - `pendingAcceptances` · `intake-reads.d.ts`
 - `pendingInputOf` · `intake-reads.d.ts`
@@ -368,6 +390,9 @@
 - `rebuildSessionPermissions` · `permission-history.d.ts`
 - `reduce` · `reduce.d.ts`
 - `reduceAuthorizations` · `authorizations.d.ts`
+- `relatedOf` · `standing.d.ts`
+- `relatedSessionOf` · `standing.d.ts`
+- `relationToReference` · `directory-relation.d.ts`
 - `requiredWorkEntries` · `work-entry-state.d.ts`
 - `resolveCascade` · `judgments.d.ts`
 - `resolveControlScope` · `judgments.d.ts`
@@ -377,11 +402,13 @@
 - `runCancelledBy` · `decision-support.d.ts`
 - `runIdOf` · `decide.d.ts`
 - `runStartInputs` · `intake.d.ts`
+- `screenInput` · `before-intake.d.ts`
 - `sessionInputBytes` · `intake.d.ts`
 - `sessionIntakeLimits` · `intake.d.ts`
 - `sessionModesBlock` · `block.d.ts`
 - `shortCallId` · `background-calls.d.ts`
 - `sourceRequestIdentities` · `source-requests.d.ts`
+- `standingOf` · `standing.d.ts`
 - `uninterpretedCalls` · `uninterpreted-calls.d.ts`
 - `waitingCalls` · `intake-reads.d.ts`
 - `wakingInputs` · `intake.d.ts`
@@ -749,6 +776,70 @@ export {};
 import type { DurableEvidence } from './identity.ts';
 import type { CommittedBatch } from './judgments.ts';
 export declare function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence;
+```
+
+## 声明文件 `before-intake.d.ts`
+
+```ts
+import { type Message, type MessageContentBlock } from '@omne-harness/message';
+import type { InputId, SessionAccess, SessionOperationId } from './identity.ts';
+import type { InputSourceName } from './input-sources.ts';
+type ContentBlock = MessageContentBlock;
+type BlockId = ContentBlock['id'];
+export type IntakeScreening<P> = Readonly<{
+    original: Message;
+    effective: Message;
+    source: InputSourceName;
+    request: Readonly<{
+        input: InputId;
+        operation: SessionOperationId;
+    }>;
+    access: SessionAccess<P>;
+}>;
+export type IntakeVerdict = Readonly<{
+    kind: 'pass';
+    effective?: Message;
+}> | Readonly<{
+    kind: 'block';
+    block?: BlockId;
+    reason: string;
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export type IntakeProcessor<P> = Readonly<{
+    name: string;
+    run(input: IntakeScreening<P>): Promise<IntakeVerdict>;
+}>;
+export type BeforeIntakeRegistry<P> = Readonly<{
+    register(processor: IntakeProcessor<P>): () => void;
+    current(): readonly IntakeProcessor<P>[];
+}>;
+export declare function createBeforeIntakeRegistry<P>(): BeforeIntakeRegistry<P>;
+export declare function originalContent<M extends Message>(message: M): M;
+export type Screened = Readonly<{
+    kind: 'screened';
+    effective: Message;
+}> | Readonly<{
+    kind: 'blocked';
+    processor: string;
+    block: BlockId | null;
+    reason: string;
+}> | Readonly<{
+    kind: 'unavailable';
+    processor: string;
+    diagnostic: string;
+}>;
+export declare function screenInput<P>(input: Readonly<{
+    processors: readonly IntakeProcessor<P>[];
+}> & Omit<IntakeScreening<P>, 'effective'>): Promise<Screened>;
+export type IntakeBlockRefusal = Readonly<{
+    kind: 'inline' | 'unmeasured';
+    index: number;
+    block: BlockId;
+}>;
+export declare function judgeIntakeBlocks(message: Message): IntakeBlockRefusal | null;
+export {};
 ```
 
 ## 声明文件 `block.d.ts`
@@ -1139,10 +1230,10 @@ export declare function decideDelivery(snapshot: WorkSnapshot, participation: Pa
 ```ts
 import type { SessionCommand, GuardCommand } from './ports.ts';
 import type { Decision, DecideReads } from './judgments.ts';
-import type { WorkSnapshot } from './values.ts';
+import type { WorkSnapshot, SessionTree } from './values.ts';
 export declare function decideInitializationCreate(command: Extract<SessionCommand, {
     kind: 'create';
-}>, guards: readonly GuardCommand[]): Decision;
+}>, guards: readonly GuardCommand[], tree: SessionTree | null): Decision;
 export declare function decideInitializationComplete(snapshot: WorkSnapshot, command: Extract<SessionCommand, {
     kind: 'completeInitialization';
 }>, guards: readonly GuardCommand[], reads: DecideReads): Decision;
@@ -1284,6 +1375,33 @@ export declare function terminalEntries(snapshot: WorkSnapshot, terminal: RunTer
 }>): EncodedEntry[];
 ```
 
+## 声明文件 `directory-relation.d.ts`
+
+```ts
+import type { SessionId } from './identity.ts';
+export declare const RELATIONS_TO_REFERENCE: readonly [
+    'self',
+    'parent',
+    'child',
+    'sibling',
+    'upper',
+    'lower',
+    'rest',
+    'handed-off',
+    'handed-from',
+    'unrelated'
+];
+export type RelationToReference = (typeof RELATIONS_TO_REFERENCE)[number];
+export type DirectoryStanding = Readonly<{
+    session: SessionId;
+    parent: SessionId | null;
+    origin: SessionId | null;
+    root: SessionId;
+    depth: number;
+}>;
+export declare function relationToReference(row: DirectoryStanding, reference: DirectoryStanding): RelationToReference;
+```
+
 ## 声明文件 `entries-interpretation.d.ts`
 
 ```ts
@@ -1313,7 +1431,7 @@ import type { JsonValue } from '@omne-harness/json-text';
 import { type TenantId, type WorkspaceId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
 import type { Adoption, AgentInstanceRef, AttemptId, ConsumptionId, DurableEvidence, InputId, RunId, SessionId, SessionOperationId, TodoItemId } from './identity.ts';
-import type { BoundedClose, InitializationResult, Participation, RecoveryTask, RunTerminal, SessionCreation, ResidentAdoption, ResidentTool, DeclarationChange, Relation, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, ProducerRef, InputBatch, Waiting, ExecutionRef, BackgroundDisposition } from './values.ts';
+import type { BoundedClose, InitializationResult, Participation, RecoveryTask, RunTerminal, SessionCreation, ResidentAdoption, ResidentTool, DeclarationChange, SessionTree, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, ProducerRef, InputBatch, Waiting, ExecutionRef, BackgroundDisposition } from './values.ts';
 import type { EntryClass, HistoryEntry } from './faces.ts';
 import type { AdmittedSource } from './input-sources.ts';
 import type { EncodedEntry } from './judgments.ts';
@@ -1351,6 +1469,7 @@ export type SessionEntry = Readonly<{
     session: SessionId;
     operation: SessionOperationId;
     creation: SessionCreation;
+    tree?: SessionTree;
     items: readonly InitializationItem[];
     initializationProtocol: 1;
     initialAdoption: InitialAdoption;
@@ -1460,8 +1579,12 @@ export type SessionEntry = Readonly<{
     kind: 'session.declaration-adopted';
     policy: AutoArchivePolicy;
 }> | Readonly<{
-    kind: 'session.relation' | 'session.resident';
-    relation: Relation;
+    kind: 'session.resident';
+    resident: boolean;
+}> | Readonly<{
+    kind: 'session.child-recorded';
+    child: SessionId;
+    basis: DurableEvidence;
 }> | Readonly<{
     kind: 'session.idle-evidence';
     observation: IdleObservation | null;
@@ -1618,6 +1741,7 @@ export declare function expandHistoryEntries(rows: readonly HistoryEntry[], crea
 import type { BackgroundCallResolution, BackgroundCallView } from './background-calls.ts';
 import type { ArchiveCollapse } from './call-control.ts';
 import type { ContextScopeBinding } from './values.ts';
+import type { RelationToReference } from './directory-relation.ts';
 import type { SessionCallBinding } from './call-settlement.ts';
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts';
 import type { JsonValue } from '@omne-harness/json-text';
@@ -1626,7 +1750,7 @@ import type { CompactionContext, Message, RecordEntryRef } from '@omne-harness/m
 import type { Outcome } from '@omne-harness/operation-result';
 import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionId, SessionOperationId, SessionRevision, TodoItemId } from './identity.ts';
 import type { ControlOperationResolution, SessionCallTerminal, SessionControlReceipt, SessionModelSelection } from './control-values.ts';
-import type { AutoArchivePolicy, BoundedClose, CallBinding, Control, ControlProgress, DeclarationChange, DerivedMessage, FreezeVerdict, IdleObservation, InitializationResult, Participation, ProducedResult, ProducerRef, Relation, ResidentAdoption, RoutedInput, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionWaiting, WorkSnapshot } from './values.ts';
+import type { AutoArchivePolicy, BoundedClose, CallBinding, Control, ControlProgress, DeclarationChange, DerivedMessage, FreezeVerdict, IdleObservation, InitializationResult, Participation, ProducedResult, ProducerRef, ResidentAdoption, RoutedInput, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionWaiting, WorkSnapshot, Attendance } from './values.ts';
 import type { InputFate } from './input-fate.ts';
 import type { PendingPage, WaitingCall } from './intake-reads.ts';
 export type SessionFailure = Readonly<{
@@ -1897,8 +2021,8 @@ export interface SessionManagement<P> {
     change(input: Mutation<P> & Readonly<{
         declaration: DeclarationChange;
     }>): Reply<CommitReceipt>;
-    setRelation(input: Mutation<P> & Readonly<{
-        relation: Relation;
+    setResident(input: Mutation<P> & Readonly<{
+        resident: boolean;
     }>): Reply<CommitReceipt>;
     configureAutoArchive(input: Mutation<P> & Readonly<{
         policy: AutoArchivePolicy;
@@ -1957,6 +2081,9 @@ export type ProducerFact = Readonly<{
     child: SessionId;
     childOperation: SessionOperationId;
     source: DurableEvidence;
+    refusal?: Readonly<{
+        reason: string;
+    }>;
 }> | Readonly<{
     kind: 'routed-input';
     originalOperation: SessionOperationId;
@@ -2091,6 +2218,15 @@ export interface SessionHistory<P> {
     }>): Reply<ModelViewRead>;
 }
 export type ArchivedBy = 'person' | 'auto' | 'parent';
+export type SessionListRelation = Readonly<{
+    kind: 'main';
+}> | Readonly<{
+    kind: 'child';
+    parent: SessionId;
+}> | Readonly<{
+    kind: 'handoff';
+    origin: SessionId;
+}>;
 export type SessionListItem = Readonly<{
     session: SessionId;
     createdAt: string | null;
@@ -2099,6 +2235,20 @@ export type SessionListItem = Readonly<{
     title: string | null;
     archivedAt: string | null;
     archivedBy: ArchivedBy | null;
+    relation: SessionListRelation;
+    root: SessionId;
+    depth: number;
+    attendance: Attendance;
+    definition: string;
+    toReference: RelationToReference | null;
+}>;
+export type SessionListFilter = Readonly<{
+    kind?: SessionListRelation['kind'];
+    parent?: SessionId;
+    root?: SessionId;
+    attendance?: Attendance;
+    definition?: string;
+    toReference?: RelationToReference;
 }>;
 export type SessionListPage = Readonly<{
     items: readonly SessionListItem[];
@@ -2110,9 +2260,15 @@ type DirectoryAccess<P> = Readonly<{
     tenant: TenantId;
     after: string | null;
     limit: number;
+    filter?: SessionListFilter;
+    reference?: SessionId;
 }>;
+export type UnarchivedLifecycle = Exclude<WorkSnapshot['lifecycle'], 'archived'>;
 export interface SessionDirectory<P> {
-    list(input: DirectoryAccess<P>): Reply<SessionListPage>;
+    list(input: DirectoryAccess<P> & Readonly<{
+        lifecycle?: UnarchivedLifecycle;
+        titleContains?: string;
+    }>): Reply<SessionListPage>;
     listArchived(input: DirectoryAccess<P> & Readonly<{
         from: string | null;
         to: string | null;
@@ -2332,8 +2488,8 @@ export type AdvanceRef = Readonly<{
 ```ts
 export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, TodoItemId, } from './identity.ts';
 export { requiredWorkEntries, compactionCallChangeOf } from './work-entry-state.ts';
-export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InitializationSource, InitializationSources, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, BackgroundDisposition, SessionCreation, SessionFrozen, SessionWaiting, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
-export type { AdmittedMessage, DeliveredInputs, CommitReceipt, CompactionContextRead, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionDirectory, SessionFaces, SessionFailure, SessionHistory, ArchivedBy, SessionListItem, SessionListPage, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, StartedRun, } from './faces.ts';
+export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InitializationSource, InitializationSources, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, Attendance, SessionTree, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, BackgroundDisposition, SessionCreation, SessionFrozen, SessionWaiting, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
+export type { AdmittedMessage, DeliveredInputs, CommitReceipt, CompactionContextRead, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionDirectory, SessionFaces, SessionFailure, SessionHistory, ArchivedBy, SessionListFilter, SessionListItem, SessionListPage, SessionListRelation, UnarchivedLifecycle, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, StartedRun, } from './faces.ts';
 export { INGRESS_FAMILIES, deriveDriveOperation, deriveIngressOperation, deriveSessionOperation, type DriveOperationElements, type IngressFamily, type SessionOperationElements, } from './operations.ts';
 export type { ControlOperationResolution, SavedModelSelection, SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionControlReceipt, SessionModelSelection, SessionRunLookup, } from './control-values.ts';
 export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInterpretation, SessionEntriesItem, SessionEntriesObservation, SessionEntriesProgress, SessionEntriesReceipt, SessionEntriesStart, SessionLogCommitObservation, SessionLogReceipt, } from './interpretation-values.ts';
@@ -2341,6 +2497,8 @@ export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, P
 export { sessionModesBlock } from './block.ts';
 export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, judgeWaiting, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest, runIdOf } from './decide.ts';
+export { RELATIONS_TO_REFERENCE, relationToReference, type DirectoryStanding, type RelationToReference, } from './directory-relation.ts';
+export { MAX_SESSION_DEPTH, childRecorded, judgeStanding, relatedOf, relatedSessionOf, standingOf, type ChildRecord, type RelatedSession, } from './standing.ts';
 export { workspaceSelection, type WorkspaceSelection } from './workspace-selection.ts';
 export { cancellationDriveOf, runCancelledBy } from './decision-support.ts';
 export { batchEvidence } from './batch-evidence.ts';
@@ -2386,6 +2544,7 @@ export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts
 export { sourceRequestIdentities, type SourceRequest, type SourceRequestIdentities, } from './source-requests.ts';
 export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts';
 export { PENDING_PAGE_LIMIT, PENDING_PREVIEW_CHARS, inputFateOfRows, pendingAcceptances, pendingInputOf, pendingPageOf, previewOf, waitingCalls, type PendingInput, type PendingPage, type WaitingCall, } from './intake-reads.ts';
+export { createBeforeIntakeRegistry, judgeIntakeBlocks, originalContent, screenInput, type BeforeIntakeRegistry, type IntakeBlockRefusal, type IntakeProcessor, type IntakeScreening, type IntakeVerdict, type Screened, } from './before-intake.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -2992,6 +3151,7 @@ export type DecideReads = Readonly<{
     compaction: CompactionContext | null;
     compactionEpoch?: string;
     children?: readonly SessionId[];
+    related?: import('./standing.ts').RelatedSession | null;
     idleObservation?: IdleObservation;
     idleCoverage?: IdleCoverage;
     frozenReceipt?: CommitReceipt;
@@ -3447,7 +3607,7 @@ export type SessionBlockDeclaration = Readonly<{
     consumers: readonly ('model' | 'coordinator')[];
     schema: Adoption;
 }>;
-export type MutationName = 'addTodo' | 'removeTodo' | 'markTodoComplete' | 'accept' | 'startRun' | 'claim' | 'reload' | 'recordMessage' | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' | 'bindExternalCall' | 'commitDerived' | 'release' | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change' | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'cancelRun' | 'stopCall' | 'retryRun' | 'freeze' | 'receive';
+export type MutationName = 'addTodo' | 'removeTodo' | 'markTodoComplete' | 'accept' | 'startRun' | 'claim' | 'reload' | 'recordMessage' | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' | 'bindExternalCall' | 'commitDerived' | 'release' | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change' | 'setResident' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'cancelRun' | 'stopCall' | 'retryRun' | 'freeze' | 'receive';
 export type Mutations = Pick<SessionWork<never> & SessionManagement<never> & SessionReconciliation<never>, MutationName>;
 export type SessionCommand = {
     readonly [K in MutationName]: Readonly<{
@@ -3780,8 +3940,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:4a5b88a2955ae88266d6e1ed5f17d5237651ce1d80899c06da3ad92da23c72a0";
-export declare const SESSION_RELEASE_DIGEST = "sha256:4a5b88a2955ae88266d6e1ed5f17d5237651ce1d80899c06da3ad92da23c72a0";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:64adfe72b84cc9f38795ffb46a5f315b81bff3a0a4afe152818f2a0b8cd182c4";
+export declare const SESSION_RELEASE_DIGEST = "sha256:64adfe72b84cc9f38795ffb46a5f315b81bff3a0a4afe152818f2a0b8cd182c4";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3884,6 +4044,46 @@ export type SourceRequestIdentities = Readonly<{
     accept: SessionOperationId;
 }>;
 export declare function sourceRequestIdentities(request: SourceRequest): SourceRequestIdentities;
+```
+
+## 声明文件 `standing.d.ts`
+
+```ts
+import type { SessionId, SessionOperationId } from './identity.ts';
+import type { Decision, EncodedEntry } from './judgments.ts';
+import type { Attendance, Relation, SessionCreation, SessionTree, WorkSnapshot } from './values.ts';
+export declare const MAX_SESSION_DEPTH = 2;
+export type RelatedSession = Readonly<{
+    session: SessionId;
+    lifecycle: WorkSnapshot['lifecycle'];
+    tree: SessionTree;
+}>;
+type Standing = Readonly<{
+    relation: Relation;
+    attendance: Attendance;
+    tree: SessionTree;
+}>;
+export declare function standingOf(snapshot: Pick<WorkSnapshot, 'session' | 'relation' | 'attendance' | 'tree'>): Standing;
+export declare function relatedOf(snapshot: WorkSnapshot): RelatedSession;
+export declare function judgeStanding(session: SessionId, creation: Pick<SessionCreation, 'relation' | 'attendance'>, related: RelatedSession | null | undefined): Decision | Readonly<{
+    tree: SessionTree | null;
+}>;
+type Created = Readonly<{
+    session: SessionId;
+    operation: SessionOperationId;
+    creation: SessionCreation;
+}>;
+export declare function relatedSessionOf(creation: Pick<SessionCreation, 'relation'>): SessionId | null;
+export type ChildRecord = Readonly<{
+    parent: SessionId;
+    operation: SessionOperationId;
+    entry: EncodedEntry;
+}>;
+export declare function childRecorded(created: Created): ChildRecord | null;
+export declare function relatedAsRecorded(creation: Pick<SessionCreation, 'relation'>, tree: SessionTree | undefined): Readonly<{
+    related?: RelatedSession;
+}>;
+export {};
 ```
 
 ## 声明文件 `stop-reminder.d.ts`
@@ -4253,6 +4453,37 @@ export declare function testingWriter<P>(options: TestingWriterOptions): {
 };
 ```
 
+## 声明文件 `testing-store-reads.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { Outcome } from '@omne-harness/operation-result';
+import type { HistoryEntry, SessionFailure } from './faces.ts';
+import type { SessionId } from './identity.ts';
+import type { DecideReads, OperationRecord } from './judgments.ts';
+import { type MaterializedModelView } from './model-view.ts';
+import type { SessionCommand } from './ports.ts';
+import * as gone from './testing-calls-left.ts';
+import type { WorkSnapshot } from './values.ts';
+type Held = Readonly<{
+    snapshot: WorkSnapshot;
+    left: gone.CallsLeft;
+    modelView: MaterializedModelView;
+    entries: HistoryEntry[];
+}>;
+type KeyOf = (tenant: TenantId, session: SessionId) => Outcome<string, SessionFailure>;
+export declare function relatedReads<S extends Held>(stores: ReadonlyMap<string, S>, keyOf: KeyOf, command: SessionCommand): Pick<DecideReads, 'related'>;
+export declare function recordChild<S extends Held>(stores: Map<string, S>, keyOf: KeyOf, command: SessionCommand): void;
+type Operated<O> = Readonly<{
+    operations: ReadonlyMap<unknown, O>;
+    entries: readonly HistoryEntry[];
+}>;
+export declare function frozenOperation<O extends Readonly<{
+    record: OperationRecord;
+}>>(store: Operated<O> | undefined): O | undefined;
+export {};
+```
+
 ## 声明文件 `testing-transactions.d.ts`
 
 ```ts
@@ -4366,6 +4597,8 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         initialModelSelection?: import('./control-values.ts').SavedModelSelection;
         residentAdoption?: import("./values.ts").ResidentAdoption;
         initialization?: import("./values.ts").InitializationSources;
+        relation?: import("./values.ts").Relation;
+        attendance?: import("./values.ts").Attendance;
     }>) => Promise<Outcome<Readonly<{
         receipt: CommitReceipt;
         state: WorkSnapshot;
@@ -4447,6 +4680,9 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         executions?: readonly import("./values.ts").RunExecution[];
         residentKeys?: import("./values.ts").ResidentAdoption['keys'];
         relation?: import("./values.ts").Relation;
+        tree?: import("./values.ts").SessionTree;
+        attendance?: import("./values.ts").Attendance;
+        resident?: boolean;
         children?: readonly SessionId[];
         autoArchive?: import("./values.ts").AutoArchivePolicy;
         taken?: readonly InputId[];
@@ -4743,6 +4979,10 @@ export type RoutedInput = Readonly<{
     input: DurableEvidence;
     destination: DurableEvidence;
 }>;
+export type ArchiveCascade = Readonly<{
+    parent: SessionId;
+    control: SessionOperationId;
+}>;
 export type Control = Readonly<{
     kind: 'cancel-run';
     run: RunId;
@@ -4759,6 +4999,7 @@ export type Control = Readonly<{
     }>;
 }> | Readonly<{
     kind: 'archive';
+    cascade?: ArchiveCascade;
 }> | Readonly<{
     kind: 'unarchive';
 }> | Readonly<{
@@ -4880,6 +5121,8 @@ export type SessionCreation = Readonly<{
     initialModelSelection?: import('./control-values.ts').SavedModelSelection;
     residentAdoption?: ResidentAdoption;
     initialization?: InitializationSources;
+    relation?: Relation;
+    attendance?: Attendance;
 }>;
 export type InitializationSource = Readonly<{
     item: string;
@@ -4976,7 +5219,6 @@ export type DeclarationChange = Readonly<{
 }>;
 export type Relation = Readonly<{
     kind: 'main';
-    resident: boolean;
 }> | Readonly<{
     kind: 'child';
     parent: SessionId;
@@ -4985,6 +5227,11 @@ export type Relation = Readonly<{
     kind: 'handoff';
     origin: SessionId;
     basis: DurableEvidence;
+}>;
+export type Attendance = 'attended' | 'unattended';
+export type SessionTree = Readonly<{
+    root: SessionId;
+    depth: number;
 }>;
 export type ClockSample = Readonly<{
     at: string;
@@ -5071,6 +5318,9 @@ export type WorkSnapshot = Readonly<{
     executions?: readonly RunExecution[];
     residentKeys?: ResidentAdoption['keys'];
     relation?: Relation;
+    tree?: SessionTree;
+    attendance?: Attendance;
+    resident?: boolean;
     children?: readonly SessionId[];
     autoArchive?: AutoArchivePolicy;
     taken?: readonly InputId[];

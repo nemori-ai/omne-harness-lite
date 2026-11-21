@@ -196,6 +196,10 @@ test('list-sessions has a body and a success body of its own, and `invalid` is e
     readonly tenant: TenantId
     readonly cursor: string | null
     readonly limit?: number
+    readonly relation?: 'main' | 'child' | 'handoff' | null
+    readonly parent?: string | null
+    readonly attendance?: 'attended' | 'unattended' | null
+    readonly definition?: string | null
   }>()
   expectTypeOf<ResultBody<'list-sessions', 'succeeded'>>().toEqualTypeOf<{
     readonly sessions: readonly {
@@ -204,6 +208,13 @@ test('list-sessions has a body and a success body of its own, and `invalid` is e
       readonly lastActivityAt: Instant | null
       readonly lifecycle: 'initializing' | 'dormant' | 'active' | 'frozen' | 'archived'
       readonly title: string | null
+      readonly relation?: 'main' | 'child' | 'handoff'
+      readonly parent?: string | null
+      readonly origin?: string | null
+      readonly root?: string
+      readonly depth?: number
+      readonly attendance?: 'attended' | 'unattended'
+      readonly definition?: string
     }[]
     readonly next: string | null
     readonly completeness: 'complete' | 'partial'

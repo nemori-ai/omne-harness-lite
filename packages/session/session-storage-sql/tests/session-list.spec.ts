@@ -9,6 +9,7 @@ import {
 } from '@omne-harness/session-contract/testing'
 import { sessionStorageMaterials } from '../src/index.ts'
 import migration from '../src/worker/session-list-migration.ts'
+import standingMigration from '../src/worker/session-standing-migration.ts'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
 import { clockOf, T } from './fixtures/clock.ts'
 import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
@@ -26,8 +27,8 @@ describe('the materials', () => {
     )
     const read = materials.readHandlers.find(item => item.handler === 'session.list')
     expect(read?.readTables).toEqual(['sl_session_list'])
-    expect(read?.requiresMigrations).toEqual([{ owner: 'session', id: '008-session-list' }])
-    expect(read?.maxRowsRead).toBe(1001)
+    expect(read?.requiresMigrations).toEqual([{ owner: 'session', id: '013-session-standing' }])
+    expect(read?.maxRowsRead).toBe(1002)
   })
 })
 
@@ -253,6 +254,12 @@ describe('directory.list', () => {
             title: 'input input-1',
             archivedAt: null,
             archivedBy: null,
+            relation: { kind: 'main' },
+            root: 'session-1',
+            depth: 0,
+            attendance: 'attended',
+            definition: 'assistant',
+            toReference: null,
           },
         ],
         next: null,
@@ -261,7 +268,7 @@ describe('directory.list', () => {
     })
   })
 
-  it('answers partial when a page scanned its bound of rows without filling', async () => {
+  it('fills a page past any number of archived sessions: the filter runs in the store', async () => {
     const a = await app()
     seed(
       a,
@@ -278,16 +285,7 @@ describe('directory.list', () => {
       after: null,
       limit: 10,
     })
-    if (!('ok' in first)) throw new Error('first page')
-    expect(first.ok).toMatchObject({ items: [], completeness: 'partial' })
-    expect(first.ok.next).not.toBeNull()
-    const second = await directoryOf(a).list({
-      principal: 'tester',
-      tenant: TENANT_A,
-      after: first.ok.next,
-      limit: 10,
-    })
-    expect(second).toMatchObject({
+    expect(first).toMatchObject({
       ok: { items: [{ session: 's-live' }], next: null, completeness: 'complete' },
     })
   })
@@ -377,7 +375,11 @@ describe('the migration backfill', () => {
     const a = await app({ clock: clockOf([T(1), T(2), T(3)]) })
     expect(await a.create(TENANT_A)).toHaveProperty('ok')
     expect(await a.accept(TENANT_A, 'session-1', 'input-1')).toHaveProperty('ok')
-    expect(await a.create(TENANT_A, 'session-2')).toHaveProperty('ok')
+    const child = {
+      relation: { kind: 'child', parent: sessionId('session-1'), basis: evidence('dispatch') },
+      attendance: 'unattended',
+    } as const
+    expect(await a.create(TENANT_A, 'session-2', child)).toHaveProperty('ok')
     const port = {
       execute: (sql: string, params: readonly unknown[]) =>
         a.provider.select('dom_0', sql, params as never),
@@ -386,6 +388,9 @@ describe('the migration backfill', () => {
     port.execute('DROP TABLE sl_commit_time', [])
     migration.up(port)
     expect(migration.verify(port)).toEqual({ kind: 'verified' })
+    expect(() => standingMigration.verify(port)).toThrow(/relation_kind/u)
+    standingMigration.up(port)
+    expect(standingMigration.verify(port)).toEqual({ kind: 'verified' })
     const page = await directoryOf(a).list({
       principal: 'tester',
       tenant: TENANT_A,
@@ -403,6 +408,12 @@ describe('the migration backfill', () => {
             title: 'input input-1',
             archivedAt: null,
             archivedBy: null,
+            relation: { kind: 'main' },
+            root: 'session-1',
+            depth: 0,
+            attendance: 'attended',
+            definition: 'assistant',
+            toReference: null,
           },
           {
             session: 'session-2',
@@ -412,6 +423,12 @@ describe('the migration backfill', () => {
             title: null,
             archivedAt: null,
             archivedBy: null,
+            relation: { kind: 'child', parent: 'session-1' },
+            root: 'session-1',
+            depth: 1,
+            attendance: 'unattended',
+            definition: 'assistant',
+            toReference: null,
           },
         ],
         next: null,

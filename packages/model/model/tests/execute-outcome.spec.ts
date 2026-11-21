@@ -144,4 +144,22 @@ describe('provider preparation outcomes through the public entry', () => {
       expect(await iterator.next()).toEqual({ done: true, value: undefined })
     })
   }
+
+  it.each(['material-unavailable', 'over-limit'] as const)(
+    'a medium that is %s at materialization is a rejected start that says so',
+    async reason => {
+      const reference = { storage: 's', key: 'k', mediaType: 'image/png', bytes: '9', digest: 'd' }
+      const refusal = { kind: 'media', reference, reason, limit: '4194304' } as const
+      const given = controlled({ materializeOutcome: () => ({ failure: refusal }) as never })
+      const iterator = executeModel(request, given.transport, signal())[Symbol.asyncIterator]()
+      expect(await iterator.next()).toEqual({
+        done: false,
+        value: {
+          kind: 'not-started',
+          reason: 'rejected',
+          failure: { kind: 'invalid', field: 'request.media', reason },
+        },
+      })
+    },
+  )
 })

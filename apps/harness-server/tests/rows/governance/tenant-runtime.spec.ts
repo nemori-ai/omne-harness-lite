@@ -778,12 +778,14 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(catalog).toMatchObject({ kind: 'page', completeness: 'complete' })
   if (catalog.kind !== 'page') throw new Error(JSON.stringify(catalog))
   expect(catalog.items.map(item => item.declaration.reference.definitionId).sort()).toEqual([
+    'tool.Agents',
     'tool.Ask',
     'tool.BkgToolCalls',
     'tool.Calendar',
     'tool.Files',
     'tool.Notifications',
     'tool.Schedules',
+    'tool.Screen',
     'tool.Sessions',
     'tool.Shell',
     'tool.Skills',
@@ -812,11 +814,13 @@ it('installs the actual Tool release and adopts its original holdings before exp
       ['independent', 'calendar', 'environment'],
       ['independent', 'session', 'intake'],
       ...[
+        'Agents',
         'BkgToolCalls',
         'Calendar',
         'Files',
         'Notifications',
         'Schedules',
+        'Screen',
         'Sessions',
         'Shell',
         'Skills',

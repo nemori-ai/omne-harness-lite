@@ -37,6 +37,7 @@ export const toolHostConfig = z
         Schedules: z.strictObject({ resultMaxBytes: positive }).optional(),
         Notifications: z.strictObject({ resultMaxBytes: positive }).optional(),
         Sessions: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Agents: z.strictObject({ resultMaxBytes: positive }).optional(),
         SwitchWorkspace: z.strictObject({ resultMaxBytes: positive }).optional(),
         Tools: z
           .strictObject({
@@ -44,7 +45,26 @@ export const toolHostConfig = z
             outputModalities: z.tuple([z.literal('text')]),
           })
           .optional(),
-        Files: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Files: z
+          .strictObject({
+            resultMaxBytes: positive,
+            openMaxBytes: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
+          .optional(),
+        Screen: z
+          .strictObject({
+            resultMaxBytes: positive,
+            captureMaxLongSide: positive,
+            imageMaxWidth: positive,
+            imageMaxHeight: positive,
+            imageMaxDecodedBytes: positive,
+            imageConcurrency: positive,
+          })
+          .optional(),
       })
       .optional(),
     /** The operator's values for the settings a release tool declares, by tool name and item id. */

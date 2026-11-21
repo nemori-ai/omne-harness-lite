@@ -63,6 +63,10 @@ const PARSERS = {
   list: z.strictObject({
     archived: z.boolean().optional(),
     title: z.string().min(1).optional(),
+    relation: z.enum(['main', 'child', 'handoff']).optional(),
+    parent: session.optional(),
+    attendance: z.enum(['attended', 'unattended']).optional(),
+    definition: z.string().min(1).max(200).optional(),
     cursor,
     limit,
   }),
@@ -103,6 +107,10 @@ const BUILD: { readonly [N in SessionsCommandName]: (params: Params<N>) => Sessi
     input: {
       archived: params.archived ?? false,
       title: params.title ?? null,
+      relation: params.relation ?? null,
+      parent: params.parent ?? null,
+      attendance: params.attendance ?? null,
+      definition: params.definition ?? null,
       cursor: params.cursor ?? null,
       limit: params.limit ?? PAGE,
     },

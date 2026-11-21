@@ -65,9 +65,8 @@ import type {
   SessionTransactionPort,
 } from './ports.ts'
 import { decide, commandDigest } from './decide.ts'
-import { judgeCompletion } from './judgments.ts'
-import { SESSION_INTERPRETER } from './entries.ts'
-import { type OperationRecord } from './judgments.ts'
+import { judgeCompletion, type OperationRecord } from './judgments.ts'
+import { frozenOperation, recordChild, relatedReads } from './testing-store-reads.ts'
 import { canonicalText, digestOf, deriveSessionOperation } from './operations.ts'
 import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
@@ -76,7 +75,7 @@ import * as gone from './testing-calls-left.ts'
 import { controlAnswer } from './call-control.ts'
 import { materializeModelView, compactionReads, type MaterializedModelView } from './model-view.ts'
 import { memoryCompactionContext, memoryModelViewPage } from './testing-model-view-reads.ts'
-import { decodeEntry } from './entries.ts'
+import { SESSION_INTERPRETER, decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
 import { admittedInputs, withInputs } from './testing-inputs.ts'
@@ -250,7 +249,7 @@ export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason
   else if (
     snapshot.lifecycle !== 'archived' &&
     snapshot.autoArchive?.kind === 'enabled' &&
-    !(snapshot.relation?.kind === 'main' && snapshot.relation.resident)
+    snapshot.resident !== true
   )
     reasons.push('idle-armed')
   if (snapshot.consumptions.some(item => item.results.some(result => result.release === 'pending')))
@@ -646,18 +645,7 @@ export function createMemorySessionTransactionPair<P>(
         if (refusal !== null) return fail(refusal)
       }
       const held = store?.operations.get(command.input.operation)
-      const frozen =
-        store === undefined
-          ? undefined
-          : [...store.operations.values()].find(
-              item =>
-                item.record.receipt.source.record.endsWith('/' + item.record.operation) &&
-                store.entries.some(
-                  entry =>
-                    entry.kind === 'session.frozen' &&
-                    entry.revision === item.record.receipt.revision,
-                ),
-            )
+      const frozen = frozenOperation(store)
       const selected =
         command.kind === 'startRun'
           ? runStartInputs(store?.snapshot)
@@ -681,6 +669,7 @@ export function createMemorySessionTransactionPair<P>(
             }
       const lent = gone.lentFor(store, prepared, command)
       const decision = decide(lent, command, guards, held?.record ?? null, {
+        ...relatedReads(stores, keyOf, command),
         ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
         intakeLimits,
         ...(material === undefined ? {} : { history: material.reads }),
@@ -808,6 +797,7 @@ export function createMemorySessionTransactionPair<P>(
         return fail(unavailable('injected failure before initialization publication'))
       }
       stores.set(key.ok, target)
+      recordChild(stores, keyOf, command)
       if (initialization && loseInitializationReply) {
         loseInitializationReply = false
         return fail({ kind: 'commit-unknown', operation: command.input.operation })

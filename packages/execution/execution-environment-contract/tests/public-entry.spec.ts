@@ -11,6 +11,7 @@ import {
   filesFacility,
   judgeRequirement,
   matchProviders,
+  screenFacility,
   terminalFacility,
 } from '@omne-harness/execution-environment-contract'
 
@@ -66,7 +67,8 @@ it('guards every operation of the three core facilities', () => {
   )
   expect(commandFacility.operations).toEqual(['start'])
   expect([...terminalFacility.operations].sort()).toEqual(['close', 'create', 'execute', 'list'])
-  for (const descriptor of [filesFacility, commandFacility, terminalFacility])
+  expect([...screenFacility.operations].sort()).toEqual(['capture', 'list'])
+  for (const descriptor of [filesFacility, commandFacility, terminalFacility, screenFacility])
     expect([...descriptor.guarded].sort()).toEqual([...descriptor.operations].sort())
 })
 

@@ -15,12 +15,7 @@ import type {
   InputGroups,
   InvalidReason,
 } from './values.js'
-import type {
-  AssemblyOperations,
-  AssemblyPolicies,
-  ConversionResultSource,
-  HistorySource,
-} from './ports.js'
+import type { AssemblyOperations, AssemblyPolicies, HistorySource } from './ports.js'
 
 export type SourceRead<T> =
   | Readonly<{ kind: 'value'; value: T }>
@@ -57,7 +52,7 @@ export interface ContextReadEligibility<P> {
     input: Readonly<{
       access: Access<P>
       target: ContextTarget
-      operation: 'history' | 'conversions' | 'assembly'
+      operation: 'history' | 'assembly'
     }>,
   ): Promise<
     | Readonly<{ kind: 'allowed'; revision: GroupToken }>
@@ -74,7 +69,6 @@ export type ContextSources<P> = Readonly<{
   groups: ContextGroupSources<P>
   adopted: AdoptedRequestSource<P>
   history: HistorySource<P>
-  conversions: ConversionResultSource<P>
   eligibility: ContextReadEligibility<P>
   preparation: M.ModelPreparationResources<P>
 }>

@@ -35,6 +35,7 @@ const input: SessionPermissionModeInput = {
   creationSource: source,
   override: null,
   defaultMode: { kind: 'available', adoption, value: 'auto_permission', source: defaultSource },
+  attendance: 'attended',
 }
 
 it.each([
@@ -155,4 +156,44 @@ it('never lets a projected bypass override a structural prohibition or missing b
       missing: 'verdict',
     })
   }
+})
+
+// Rows: whether a person attends. Columns: the permission mode. Each cell is the inquiry policy.
+it.each([
+  ['attended', 'never', { onAsk: 'deny' }],
+  ['attended', 'auto_permission', { onAsk: 'ask-human' }],
+  ['attended', 'bypass-permissions', { onAsk: 'skip-ask' }],
+  ['unattended', 'never', { onAsk: 'deny' }],
+  ['unattended', 'auto_permission', { onAsk: 'deny', denial: 'nobody-to-ask' }],
+  ['unattended', 'bypass-permissions', { onAsk: 'skip-ask' }],
+] as const)('an %s session in %s answers an inquiry with %o', (attendance, permission, policy) => {
+  const projected = projectSessionPermissionMode({
+    ...input,
+    attendance,
+    adopted: { kind: 'explicit', value: { ...modes, permission } },
+    defaultMode: { kind: 'unavailable' },
+  })
+  expect(projected).toMatchObject({ kind: 'projected', value: { policy } })
+  if (projected.kind !== 'projected') throw new Error('projected')
+  expect(projected.value.policy).toEqual(policy)
+})
+
+it('refuses an action a person would have to decide where nobody attends, and says why', () => {
+  const projected = projectSessionPermissionMode({ ...input, attendance: 'unattended' })
+  if (projected.kind !== 'projected') throw new Error('projected')
+  const decided = decideRelease({
+    carrier: false,
+    verdict: { kind: 'decision-required', revision: '1' },
+    session: {
+      kind: 'read',
+      revision: '1',
+      policy: projected.value.policy,
+      policySource: projected.value.source,
+      once: null,
+      sessionGrant: null,
+    },
+    holders: { tenant: 'tenant', session: 'session' },
+    gate: { capability: 'tool.Shell', key: 'tool.run' },
+  })
+  expect(decided).toMatchObject({ kind: 'refuse', reason: 'nobody-to-ask' })
 })

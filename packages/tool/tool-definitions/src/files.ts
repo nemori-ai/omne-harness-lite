@@ -9,7 +9,9 @@ import { createAuthor, type CommandGates } from './author.ts'
 import { filesCommands } from './commands.ts'
 import type { FilesAuthorEnvironment } from './environment.ts'
 import { editFiles } from './files-edits.ts'
+import { openLimitFields, openLimits, openPicture, type OpenLimits } from './files-open.ts'
 import { explainedRefusal } from './files-refusal.ts'
+import { pictureResult } from './pictures.ts'
 import {
   placedFiles,
   placePath,
@@ -32,9 +34,10 @@ export function createFilesAuthor(
 ): ReturnType<
   ToolImplementationModule<FilesAuthorEnvironment, ToolMessageContentBlock>['createAuthor']
 > {
-  const parsed = parseConstruction(construction, [resultMaximumField])
+  const parsed = parseConstruction(construction, [resultMaximumField, ...openLimitFields])
   if ('failure' in parsed) return fail({ field: 'construction', reason: parsed.failure.reason })
   const maximum = parsed.ok.number('resultMaxBytes', 0)
+  const limits = openLimits((name, minimum) => parsed.ok.number(name, minimum))
   return succeed(
     createAuthor<FilesAuthorEnvironment>(
       'Files',
@@ -42,10 +45,17 @@ export function createFilesAuthor(
       filesCommands,
       ['files'],
       maximum,
-      'Paths are absolute or relative to the working directory of the session, the same directory where Shell starts. A call with no working directory takes absolute paths only. Resolution grants no access: a path outside the authorized files is still refused. Images and attachments are unsupported in this delivery. Text is UTF-8 with original line endings. Patch preflight changes nothing. Unknown batches must be recovered by their original identity, never resubmitted. A version is an observation, not authorization. Every final text has resultMaxBytes as its byte bound. Truncation preserves head and tail when the bound can hold its marker.',
+      'Paths are absolute or relative to the working directory of the session, the same directory where Shell starts. A call with no working directory takes absolute paths only. Resolution grants no access: a path outside the authorized files is still refused. open reads one static PNG, JPEG or WebP picture within the configured limits and returns it for the model to see; an animated, damaged or oversized picture is refused. Text is UTF-8 with original line endings. Patch preflight changes nothing. Unknown batches must be recovered by their original identity, never resubmitted. A version is an observation, not authorization. Every final text has resultMaxBytes as its byte bound. Truncation preserves head and tail when the bound can hold its marker.',
       (command, args, environment) => executeFiles(command, args, environment, maximum),
-      null,
-      FILES_GATES,
+      {
+        gates: FILES_GATES,
+        structured: {
+          open: {
+            modalities: ['image'],
+            execute: (args, environment) => openFile(args, environment, limits),
+          },
+        },
+      },
     ),
   )
 }
@@ -97,28 +107,50 @@ function expected(args: Arguments) {
   const version = args.optionalText('expected_version')
   return version === undefined ? {} : { expectedVersion: version }
 }
+/** Runs one command against files placed in the working directory; the note says a relative path had none. */
+async function placed<T>(
+  environment: FilesAuthorEnvironment,
+  work: (
+    files: FilesAuthorEnvironment['files'],
+    directory: WorkingDirectory | undefined,
+  ) => Promise<T>,
+): Promise<Readonly<{ value: T; note: string }>> {
+  // A directory that is not an absolute path resolves nothing: relative paths are refused as with none.
+  const directory =
+    environment.directory === undefined ? undefined : workingDirectoryOf(environment.directory)
+  const notes: PathNotes = { relativeRefused: false }
+  const value = await work(placedFiles(environment.files, directory, notes), directory)
+  return { value, note: notes.relativeRefused ? `\n${RELATIVE_PATH_DIAGNOSTIC}` : '' }
+}
+const headerOf = (path: string, directory: WorkingDirectory | undefined): string => {
+  const resolved = placePath(path, directory)
+  return `path=${JSON.stringify(path)}${resolved === path ? '' : ` resolved_path=${JSON.stringify(resolved)}`}`
+}
 async function executeFiles(
   command: string,
   args: Arguments,
   environment: FilesAuthorEnvironment,
   maximum: number,
 ): Promise<string> {
-  // A directory that is not an absolute path resolves nothing: relative paths are refused as with none.
-  const directory =
-    environment.directory === undefined ? undefined : workingDirectoryOf(environment.directory)
-  const notes: PathNotes = { relativeRefused: false }
-  const done = await executeCommand(
-    command,
-    args,
-    placedFiles(environment.files, directory, notes),
-    maximum,
-    directory,
+  const { value, note } = await placed(environment, async (files, directory) =>
+    explainedRefusal(await executeCommand(command, args, files, maximum, directory), {
+      command,
+      args,
+      scope: environment.scope,
+      directory,
+    }),
   )
-  const text = explainedRefusal(done, { command, args, scope: environment.scope, directory })
-  return notes.relativeRefused
-    ? `${text}
-${RELATIVE_PATH_DIAGNOSTIC}`
-    : text
+  return `${value}${note}`
+}
+async function openFile(args: Arguments, environment: FilesAuthorEnvironment, limits: OpenLimits) {
+  const path = args.text('path')
+  const { value: opened, note } = await placed(environment, async (files, directory) => {
+    const header = headerOf(path, directory)
+    const done = await openPicture(path, header, { files, media: environment.media }, limits)
+    const said = { command: 'open', args, scope: environment.scope, directory }
+    return { ...done, text: explainedRefusal(done.text, said) }
+  })
+  return pictureResult('Files.open', { ...opened, text: `${opened.text}${note}` }, 'text')
 }
 async function executeCommand(
   command: string,
@@ -128,11 +160,8 @@ async function executeCommand(
   directory: WorkingDirectory | undefined,
 ): Promise<string> {
   const path = args.text('path')
-  const resolved = placePath(path, directory)
-  const header = `path=${JSON.stringify(path)}${resolved === path ? '' : ` resolved_path=${JSON.stringify(resolved)}`}`
+  const header = headerOf(path, directory)
   const operations: Record<string, () => Promise<string> | string> = {
-    open: () =>
-      `rejected reason=unsupported ${header}\nImage attachments are reserved for a later delivery.`,
     read: async () => {
       const offset = args.number('offset_bytes', 0)
       const result = await files.read({

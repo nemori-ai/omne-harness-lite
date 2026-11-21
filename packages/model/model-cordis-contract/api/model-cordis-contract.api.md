@@ -30,6 +30,7 @@
 - `ModelHostAuthorityService` · `cordis.d.ts`
 - `ModelInstanceHostService` · `cordis.d.ts`
 - `ModelInstancesService` · `instances.d.ts`
+- `ModelMediaSourceService` · `cordis.d.ts`
 - `ModelMessageConversionService` · `cordis.d.ts`
 - `ModelPreparationResourcesService` · `cordis.d.ts`
 - `ModelProfileMaintenanceService` · `cordis.d.ts`
@@ -59,6 +60,7 @@
 - `modelHostAuthorityKey` · `cordis.d.ts`
 - `modelInstanceHostKey` · `cordis.d.ts`
 - `modelInstancesKey` · `instances.d.ts`
+- `modelMediaSourceKey` · `cordis.d.ts`
 - `modelMessageConversionKey` · `cordis.d.ts`
 - `modelPreparationResourcesKey` · `cordis.d.ts`
 - `modelProfileMaintenanceKey` · `cordis.d.ts`
@@ -110,7 +112,7 @@ export declare const modelConvertersKey = "modelConverters";
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelDispatchFacts, ModelPreparationResources, ModelResultReceiver, ModelRuntime, ModelStreamReferences, ModelStreamObservation, Revision } from '@omne-harness/model-contract';
-import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMessageConversion, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
+import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMediaSource, ModelMessageConversion, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
 import type { ModelConvertersService } from './converters.ts';
 import type { ModelInstancesService } from './instances.ts';
 import { type ModelResultReceiverTable } from './receivers.ts';
@@ -127,6 +129,12 @@ export declare abstract class ModelCredentialService<P = unknown> extends Servic
     abstract readonly resolve: CredentialPort<P>['resolve'];
 }
 export declare const modelCredentialKey = "modelCredential";
+export declare abstract class ModelMediaSourceService<P = unknown> extends Service implements ModelMediaSource<P> {
+    static readonly provide = "modelMediaSource";
+    constructor(ctx: CordisContext);
+    abstract readonly open: ModelMediaSource<P>['open'];
+}
+export declare const modelMediaSourceKey = "modelMediaSource";
 export declare abstract class ModelStreamReferencesService<P> extends Service implements ModelStreamReferences<P> {
     static readonly provide = "modelStreamReferences";
     constructor(ctx: CordisContext);
@@ -292,6 +300,7 @@ declare module '@deepseek-ai/cordis' {
         modelStreamReferences?: ModelStreamReferencesService<unknown>;
         modelStreamObservation?: ModelStreamObservationService<unknown>;
         modelCredential?: ModelCredentialService;
+        modelMediaSource?: ModelMediaSourceService;
     }
     interface Events {
         'model-cordis-contract/call-changed'(tenant: TenantId, call: ModelCallId, revision: Revision): void;

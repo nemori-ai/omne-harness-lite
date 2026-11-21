@@ -60,6 +60,7 @@ describe('the release grant table', () => {
     expect(AGENT_HOST_COMPONENT).toBe('agent-host')
     expect(Object.keys(MAINTENANCE_GRANTS).sort()).toEqual([
       'agent-host',
+      'dispatch',
       'sessionPrincipals.maintainer',
       'tenant-domain-scanner',
       'toolResidencyPrincipal',
@@ -71,6 +72,14 @@ describe('the release grant table', () => {
     expect([...record.purposes].sort()).toEqual(AGENT_INSTANCE_PURPOSES)
     expect(Object.isFrozen(record)).toBe(true)
     expect(Object.isFrozen(record.purposes)).toBe(true)
+  })
+
+  it('gives dispatch the three purposes of a part of another domain, and nothing else', () => {
+    expect(MAINTENANCE_GRANTS.dispatch.purposes).toEqual([
+      'session-create',
+      'session-input',
+      'input-fate',
+    ])
   })
 
   it('gives the tool residency principal resident-references only', () => {
@@ -108,6 +117,45 @@ describe('the read port over the table', () => {
     await expect(source.read({ principal: scanner, operation, target })).resolves.toEqual({
       kind: 'none',
     })
+  })
+
+  it('answers the grant of dispatch as revoked while the dispatch row has not installed it, and leaves the other holders alone', async () => {
+    const asked: string[] = []
+    let installed = false
+    const source = releaseMaintenanceGrants(MAINTENANCE_GRANTS, holder => {
+      asked.push(holder)
+      return installed
+    })
+    const read = (component: string) => {
+      const { principal } = issuedSystem(component)
+      const target = agentInstanceRequest(principal, 'publish').target
+      return source.read({ principal, operation: { owner: 'agent', name: 'publish' }, target })
+    }
+    await expect(read('dispatch')).resolves.toEqual({
+      kind: 'found',
+      grant: { ...MAINTENANCE_GRANTS.dispatch, revoked: true },
+    })
+    await expect(read('agent-host')).resolves.toEqual({
+      kind: 'found',
+      grant: MAINTENANCE_GRANTS['agent-host'],
+    })
+    installed = true
+    await expect(read('dispatch')).resolves.toEqual({
+      kind: 'found',
+      grant: MAINTENANCE_GRANTS.dispatch,
+    })
+    expect(asked).toEqual(['dispatch', 'dispatch'])
+  })
+
+  it('reads every grant as installed when it is given no reading of the rows', async () => {
+    const { principal } = issuedSystem('dispatch')
+    const target = agentInstanceRequest(principal, 'publish').target
+    const reading = releaseMaintenanceGrants().read({
+      principal,
+      operation: { owner: 'agent', name: 'publish' },
+      target,
+    })
+    await expect(reading).resolves.toEqual({ kind: 'found', grant: MAINTENANCE_GRANTS.dispatch })
   })
 
   it('does not read the component text as a wildcard or a prefix', async () => {

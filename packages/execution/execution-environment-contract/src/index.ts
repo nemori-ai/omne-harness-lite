@@ -73,6 +73,17 @@ export type {
   TerminalRetentionOperation,
 } from './facilities/terminal.ts'
 
+export { imagePointOnScreen, screenFacility, screenPointOnDesktop } from './facilities/screen.ts'
+export type {
+  ScreenFacility,
+  ScreenFrame,
+  ScreenId,
+  ScreenInfo,
+  ScreenPoint,
+  ScreenRegion,
+  ScreenSize,
+} from './facilities/screen.ts'
+
 export { createRecoveryAccess } from './ports.ts'
 export type {
   FacilityGuard,

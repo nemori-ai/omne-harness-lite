@@ -32,6 +32,7 @@ import type {
   ToolEnvironment,
 } from '@omne-harness/tool-contract/provider'
 import {
+  type AuthorEnvironmentInput,
   createAuthorEnvironment,
   type EnvironmentFacts,
   type FileObjectNaming,
@@ -99,14 +100,14 @@ function authorOf<P>(
   request: EnvPreparationInput<P>,
   plan: EnvironmentPlan<P>,
   lease: EnvironmentLease,
-  naming: FileObjectNaming<P>,
+  ports: Pick<AuthorEnvironmentInput<P>, 'naming' | 'media'>,
 ) {
   const directory = request.request.directory
   return createAuthorEnvironment({
     access: request,
     origin: plan.acquire.origin,
     lease,
-    naming,
+    ...ports,
     facts: plan.facts,
     ...(directory === undefined ? {} : { directory }),
   })
@@ -173,9 +174,14 @@ export type LocalExecutionEnvironmentInput<P> = Readonly<{
   store: ToolLedgerStore
   plans: EnvironmentPlanResolver<P>
   naming: FileObjectNaming<P>
+  media?: AuthorEnvironmentInput<P>['media']
   cleanup: OriginalCleanup<P>
   storage?: Omit<EnvironmentStorageOptions, 'store'>
 }>
+const authorPorts = <P>(input: LocalExecutionEnvironmentInput<P>) => ({
+  naming: input.naming,
+  media: input.media ?? (() => undefined),
+})
 type Live<P> = {
   readonly plan: EnvironmentPlan<P>
   lease: EnvironmentLease | null
@@ -336,7 +342,7 @@ export function createLocalExecutionEnvironment<P>(
     )
       return environmentFailure('original live environment unavailable')
     if (!current.value || !Object.is(current.principal, request.principal)) {
-      current.value = authorOf(request, current.plan, current.lease, input.naming)
+      current.value = authorOf(request, current.plan, current.lease, authorPorts(input))
       current.principal = request.principal
     }
     return succeed({

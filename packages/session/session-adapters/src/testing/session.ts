@@ -185,7 +185,7 @@ export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason
   else if (
     snapshot.lifecycle !== 'archived' &&
     snapshot.autoArchive?.kind === 'enabled' &&
-    !(snapshot.relation?.kind === 'main' && snapshot.relation.resident)
+    snapshot.resident !== true
   )
     reasons.push('idle-armed')
   if (snapshot.consumptions.some(item => item.results.some(result => result.release === 'pending')))
@@ -486,7 +486,7 @@ export function createSessionTransactions<P>(
       const result =
         snapshot.autoArchive?.kind !== 'enabled'
           ? 'disabled'
-          : snapshot.relation?.kind === 'main' && snapshot.relation.resident
+          : snapshot.resident === true
             ? 'exempt'
             : observation === undefined
               ? 'not-due'

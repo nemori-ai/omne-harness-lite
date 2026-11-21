@@ -779,6 +779,7 @@ describe('author binding command selection', () => {
             inputCompatible: true,
             outputCompatible: true,
             attachmentsReadable: true,
+            productsStorable: true,
           }),
       },
     })

@@ -13,6 +13,7 @@ import type {
   SessionAccess,
   SessionFailure,
   SessionHistory,
+  SessionId,
   SessionManagement,
   SessionWork,
   WorkspaceAttachment,
@@ -64,13 +65,18 @@ export type SessionListPage = Readonly<{
   completeness: 'complete' | 'partial'
 }>
 
+type ArchivedBody = BodyOf<SessionProtocol['operations']['list-archived-sessions']>
+/** What both lists narrow by, as the protocol reads it: each one given, or null for any. */
+export type ListFilters = Readonly<{
+  [K in 'relation' | 'parent' | 'attendance' | 'definition']-?: Exclude<ArchivedBody[K], undefined>
+}>
 type ListingInput = Readonly<{
   principal: Principal
   tenant: TenantId
   after: string | null
   limit: number
+  filter: ListFilters
 }>
-type ArchivedBody = BodyOf<SessionProtocol['operations']['list-archived-sessions']>
 /** The archived list's filters as the protocol reads them; the times are instants, not text. */
 export type ArchiveFilters = Readonly<{
   [K in 'from' | 'to' | 'by' | 'titleContains']-?: Exclude<ArchivedBody[K], undefined>
@@ -177,12 +183,13 @@ export type ModelTargetCheck =
   | Readonly<{
       kind: 'refused'
       reason: 'unknown-name' | 'withdrawn' | 'excluded' | 'modality' | 'locked' | 'scope'
+      blocks?: readonly Readonly<{ message: string; block: string }>[]
     }>
   | Readonly<{ kind: 'unavailable' }>
 
 export interface ModelTargets {
   check(
-    input: Readonly<{ principal: Principal; tenant: TenantId; route: string }>,
+    input: Readonly<{ principal: Principal; tenant: TenantId; route: string; session?: SessionId }>,
   ): Promise<ModelTargetCheck>
 }
 

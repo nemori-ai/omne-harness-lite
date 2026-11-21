@@ -31,6 +31,11 @@
       "config": {}
     },
     {
+      "id": "session-before-intake",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-history-index",
       "plugin": "stubPlugin",
       "config": {}
@@ -72,6 +77,46 @@
     },
     {
       "id": "calendar-notification",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-storage-sql",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-image",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-storage-local",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-sweep",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-intake",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-model-source",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-tool-store",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -356,6 +401,21 @@
       "config": {}
     },
     {
+      "id": "dispatch",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "dispatch-session",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "dispatch-tool",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "server-entry",
       "plugin": "stubPlugin",
       "config": {}
@@ -397,6 +457,11 @@
     },
     {
       "id": "notification-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-access",
       "plugin": "stubPlugin",
       "config": {}
     },

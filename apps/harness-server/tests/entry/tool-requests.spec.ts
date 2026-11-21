@@ -128,7 +128,8 @@ async function world() {
     scopeBinding: () => bindings,
     release: () => releaseOf(fixture.root),
     operatorSettings: () => ({}),
-    interaction: async () => succeed({ humanInteraction: true }),
+    interaction: async () =>
+      succeed({ attendance: 'attended', humanInteraction: true, child: false }),
     workingDirectory: async () => succeed({ state: 'default', directory: '/srv/default' }),
     outsideFiles: async () => 'none',
   }
@@ -765,6 +766,8 @@ const ASK = JSON.stringify({
 describe('the meta-capability host: Ask runs only while the session lets the model ask a person', () => {
   const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
   type Interaction = Readonly<{ humanInteraction: boolean }> | null
+  const facts = (value: NonNullable<Interaction>) =>
+    ({ attendance: 'attended', child: false, ...value }) as const
 
   async function hosted(interaction: () => Interaction) {
     const { ports, principalA } = await world()
@@ -774,7 +777,7 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
       interaction: async access => {
         reads.push(access)
         const value = interaction()
-        return value === null ? fail('the publication is not there') : succeed(value)
+        return value === null ? fail('the publication is not there') : succeed(facts(value))
       },
     })
     const call = (name: string, args: string) => actionInput(principalA, TENANT_A, name, args)
@@ -797,7 +800,7 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
     expect(await source.describe(call('Ask', ASK))).toEqual({
       ok: {
         kind: 'answered',
-        text: 'Ask: the command "ask" is not available now. This session does not let you ask a person (collaboration mode). Continue without the answer, or stop and report what you need.',
+        text: 'Ask: the command "ask" is not available here: no person can be asked for an answer in this session now. Continue without it, or stop and report what you need.',
       },
     })
   })
@@ -819,8 +822,7 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
     expect(await source.describe(call('Ask', ASK))).toMatchObject({
       failure: {
         kind: 'unavailable',
-        diagnostic:
-          'the human interaction of the session is unreadable: the publication is not there',
+        diagnostic: 'the standing of the session is unreadable: the publication is not there',
       },
     })
     reads.length = 0
@@ -829,6 +831,123 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
       ok: { kind: 'answered' },
     })
     expect(reads).toEqual([])
+  })
+})
+
+describe('a command whose result carries more than the tool declares is judged by itself before it runs', () => {
+  const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+  const OPEN = '{"command":"open","params":{"path":"/a.png"}}'
+  const READ = '{"command":"read","params":{"path":"/a.txt"}}'
+  type Inspect = ToolCatalog<unknown>['inspect']
+  type Answer = Awaited<ReturnType<Inspect>> | 'available'
+
+  async function hosted(forCommand: () => Answer) {
+    const { ports, principalA } = await world()
+    const whole = ports.catalog()
+    if (whole === undefined) throw new Error('fixture: no catalog')
+    const asked: (string | null)[] = []
+    const inspect: Inspect = async input => {
+      asked.push(input.command)
+      const answer = input.command === null ? 'available' : forCommand()
+      return answer === 'available' ? whole.inspect({ ...input, command: null }) : answer
+    }
+    const source = createReleaseToolRequests({ ...ports, catalog: () => ({ ...whole, inspect }) })
+    const call = (args: string) => actionInput(principalA, TENANT_A, 'Files', args)
+    return { source, call, asked }
+  }
+  const unavailableFor = (reason: string) => async () => {
+    const { definitions } = await world()
+    return succeed({
+      kind: 'known-unavailable' as const,
+      definition: definitions.get('Files')!,
+      reason,
+    })
+  }
+
+  it('asks the catalog about the command, and runs it while the catalog says available', async () => {
+    const { source, call, asked } = await hosted(() => 'available')
+    const input = call(OPEN)
+    const described = await source.describe(input)
+    if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
+    expect(asked).toEqual([null, 'open'])
+    expect(
+      await source.prepare({ ...input, definition: described.ok.definition, admission }),
+    ).toMatchObject({ ok: { command: 'open' } })
+  })
+
+  it('does not ask again for a command that adds nothing to what the tool declares', async () => {
+    const { source, call, asked } = await hosted(() => {
+      throw new Error('asked about a plain command')
+    })
+    expect(await source.describe(call(READ))).toMatchObject({ ok: { kind: 'tool' } })
+    expect(asked).toEqual([null])
+  })
+
+  it.each([
+    [
+      'products-unstorable',
+      'Files: the command "open" is not available now (products-unstorable). This deployment has nowhere to store what the command produces. Continue without it.',
+    ],
+    [
+      'output-incompatible',
+      'Files: the command "open" is not available now (output-incompatible). The model of this session does not take what the command returns. Continue without it.',
+    ],
+    [
+      'qualification-denied; output-incompatible',
+      'Files: the command "open" is not available now (qualification-denied; output-incompatible). Continue without it.',
+    ],
+  ])('answers with the reason and never runs it: %s', async (reason, text) => {
+    const known = await unavailableFor(reason)()
+    const { source, call } = await hosted(() => known)
+    expect(await source.describe(call(OPEN))).toEqual({ ok: { kind: 'answered', text } })
+  })
+
+  it('a tool the catalog knows but cannot offer now answers any call with the reason, and never runs (TL: a dummy in place)', async () => {
+    const { ports, principalA, definitions } = await world()
+    const whole = ports.catalog()
+    if (whole === undefined) throw new Error('fixture: no catalog')
+    const inspect: Inspect = async input =>
+      input.name === 'Files'
+        ? succeed({
+            kind: 'known-unavailable' as const,
+            definition: definitions.get('Files')!,
+            reason: 'dependency-unavailable:screen.read',
+          })
+        : whole.inspect(input)
+    const source = createReleaseToolRequests({ ...ports, catalog: () => ({ ...whole, inspect }) })
+    const text =
+      'Files is not available now (dependency-unavailable:screen.read). Continue without it.'
+    for (const args of [READ, OPEN, '{"command":"nope"}', '{}'])
+      expect(await source.describe(actionInput(principalA, TENANT_A, 'Files', args))).toEqual({
+        ok: { kind: 'answered', text },
+      })
+    expect(await source.describe(actionInput(principalA))).toMatchObject({ ok: { kind: 'tool' } })
+    const input = actionInput(principalA, TENANT_A, 'Files', READ)
+    expect(
+      await source.prepare({ ...input, definition: definitions.get('Files')!.adoption, admission }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
+  it('answers unavailable, not a run, when the catalog cannot say whether the command is available', async () => {
+    const { source, call } = await hosted(() =>
+      fail({ kind: 'unavailable', dependency: 'tool-availability', diagnostic: 'unreadable' }),
+    )
+    expect(await source.describe(call(OPEN))).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'tool catalog answered unavailable for open' },
+    })
+  })
+
+  it('judges again at prepare: a command that became unavailable after describe is not run', async () => {
+    const known = await unavailableFor('products-unstorable')()
+    let answer: Answer = 'available'
+    const { source, call } = await hosted(() => answer)
+    const input = call(OPEN)
+    const described = await source.describe(input)
+    if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
+    answer = known
+    expect(
+      await source.prepare({ ...input, definition: described.ok.definition, admission }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
   })
 })
 

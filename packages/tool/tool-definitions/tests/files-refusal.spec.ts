@@ -1,13 +1,8 @@
 import type { FacilityResult, FilesScope } from '@omne-harness/execution-environment-contract'
 import { describe, expect, it } from 'vitest'
 import { createFilesAuthor, type FilesAuthorEnvironment } from '@omne-harness/tool-definitions'
-import { filesFixture } from './fixtures/files.ts'
-import { run, value } from './run-author.ts'
-
-const construction = {
-  kind: 'object',
-  entries: [{ key: 'resultMaxBytes', value: { kind: 'number', lexeme: '32768' } }],
-} as const
+import { filesConstruction, filesFixture } from './fixtures/files.ts'
+import { run, runRaw, value } from './run-author.ts'
 
 const SETTING = 'the setting for files outside the workspace keeps this call from'
 
@@ -24,6 +19,7 @@ function fenced(
       : Promise.resolve({ kind: 'rejected', requestId: 'host', reason } as const)
   const environment: FilesAuthorEnvironment = {
     directory: '/work',
+    media: fixture.environment.media,
     ...(scope === undefined ? {} : { scope }),
     files: {
       ...files,
@@ -36,7 +32,7 @@ function fenced(
   return environment
 }
 
-const author = value(createFilesAuthor(construction))
+const author = value(createFilesAuthor(filesConstruction()))
 const read = (environment: FilesAuthorEnvironment, path: string) =>
   run(author, 'read', { path }, environment)
 
@@ -50,6 +46,16 @@ describe('a refusal of the fence, said by the files this call may reach', () => 
       await run(author, 'write', { path: '../out.txt', text: 'x', mode: 'create' }, both),
     ).toBe(
       `rejected request="host" reason=outsideScope path="/out.txt" effect=write ${SETTING} writing there`,
+    )
+  })
+
+  it('names the path of an open outside the scope: opening a picture reads it', async () => {
+    const both = fenced({ read: '/work', write: '/work' })
+    const opened = (await runRaw(author, 'open', { path: '/etc/passwd' }, both)) as Readonly<{
+      content: readonly Readonly<{ kind: string; text?: string }>[]
+    }>
+    expect(opened.content.map(block => block.text).join('')).toContain(
+      `rejected request="host" reason=outsideScope path="/etc/passwd" effect=read ${SETTING} reading there`,
     )
   })
 

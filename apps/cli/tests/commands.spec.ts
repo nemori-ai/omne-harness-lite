@@ -829,6 +829,63 @@ describe('session commands', () => {
     })
   })
 
+  it('list-sessions reads the sessions that are not archived, and both lists send the relation filters given (C15)', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    await cli(['list-sessions'])
+    expect(service.seen.at(-1)?.path).toBe('/api/session/v1/list-sessions')
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, cursor: null })
+    const filters = [
+      '--relation',
+      'child',
+      '--parent',
+      sessionId,
+      '--attendance',
+      'unattended',
+      '--definition',
+      'coding',
+    ]
+    await cli(['list-sessions', ...filters, '--limit', '5', '--cursor', 'c-1'])
+    const sent = {
+      relation: 'child',
+      parent: sessionId,
+      attendance: 'unattended',
+      definition: 'coding',
+    }
+    expect(service.seen.at(-1)?.body).toEqual({
+      tenant: tenantText,
+      cursor: 'c-1',
+      limit: 5,
+      ...sent,
+    })
+    await cli(['list-archived-sessions', ...filters, '--by', 'parent'])
+    expect(service.seen.at(-1)?.body).toEqual({
+      tenant: tenantText,
+      cursor: null,
+      from: null,
+      to: null,
+      by: 'parent',
+      titleContains: null,
+      ...sent,
+    })
+  })
+
+  it.each([
+    ['list-sessions', '--relation', 'sibling'],
+    ['list-sessions', '--attendance', 'nobody'],
+    ['list-sessions', '--limit', '0'],
+    ['list-sessions', '--by', 'person'],
+    ['list-archived-sessions', '--relation', 'sibling'],
+    ['list-archived-sessions', '--attendance', 'nobody'],
+  ])('%s refuses %s %s as a usage error and sends nothing', async (command, option, value) => {
+    const service = await serve()
+    await loginOwningSession(service)
+    const before = service.seen.length
+    const bad = await cli([command, option, value])
+    expect(bad).toMatchObject({ code: 2, stderr: commandUnrecognized(command) })
+    expect(service.seen.length).toBe(before)
+  })
+
   it.each([
     ['--since', 'yesterday'],
     ['--by', 'robot'],

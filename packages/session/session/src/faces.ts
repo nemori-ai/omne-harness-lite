@@ -276,7 +276,7 @@ export function createFaces<P>(
     create: mutation('create'),
     completeInitialization: mutation('completeInitialization'),
     change: mutation('change'),
-    setRelation: mutation('setRelation'),
+    setResident: mutation('setResident'),
     configureAutoArchive: mutation('configureAutoArchive'),
     considerAutoArchive: mutation('considerAutoArchive'),
     interrupt: mutation('interrupt'),

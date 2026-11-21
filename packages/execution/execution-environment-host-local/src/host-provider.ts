@@ -39,7 +39,9 @@ import {
   type HostFilesDomain,
 } from './host-domain.ts'
 import type { HostFileDiagnostic, HostFilesLimits } from './host-files.ts'
+import type { ScreenBackend } from '@omne-harness/screen'
 import { probeHostFilesPrerequisite } from './host-paths.ts'
+import { createScreenFacility } from './host-screen.ts'
 import { probeWindowsFilesPrerequisite } from './windows-files/facility.ts'
 import { probeMacosFilesPrerequisite } from './macos-files/prerequisite.ts'
 import { type HostTerminalPrerequisite } from './host-probe.ts'
@@ -104,6 +106,8 @@ export type HostFilesProviderOptions = Readonly<{
   terminal?: HostTerminalOptions
   stateDirectory?: string
   limits?: Partial<HostFilesLimits>
+  /** The screen backend this host offers (see `offeredScreen`); absent: it offers no `screen`. */
+  screen?: ScreenBackend
 }>
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -199,6 +203,21 @@ function enginesByScope(
   }
 }
 
+function screenPart(backend: ScreenBackend | undefined) {
+  const screen = backend === undefined ? undefined : createScreenFacility(backend)
+  const keys: readonly FacilityKey[] = ['files', 'command', 'terminal']
+  return {
+    facilities: Object.freeze(screen === undefined ? keys : [...keys, 'screen' as const]),
+    leased: (record: DomainRecord): Partial<EnvironmentFacilities> => ({
+      files: record.facade.facility,
+      command: record.commands.facility,
+      terminal: record.terminals.facility,
+      ...(screen === undefined ? {} : { screen }),
+    }),
+    screenPermission: async () => (backend === undefined ? [] : [await backend.permission()]),
+  }
+}
+
 export function createHostFilesProvider(options: HostFilesProviderOptions): EnvironmentProvider {
   const domain = options.domain
   const internals: DomainInternals | undefined = domain ? domainInternals(domain) : undefined
@@ -220,7 +239,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     report(temporaryFileRemains(name, generation, fact)),
   )
   internals.registerGeneration(generation)
-  const facilities: readonly FacilityKey[] = Object.freeze(['files', 'command', 'terminal'])
+  const { facilities, leased, screenPermission } = screenPart(options.screen)
   let retired = false
   const execution = createHostPlatform({
     settings,
@@ -298,11 +317,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     const invalidated = new Promise<LeaseInvalidation>(resolve => {
       settle = resolve
     })
-    const available: Partial<EnvironmentFacilities> = {
-      files: record.facade.facility,
-      command: record.commands.facility,
-      terminal: record.terminals.facility,
-    }
+    const available = leased(record)
     record.invalidate = value => {
       settle(value)
       record.invalidate = () => undefined
@@ -380,7 +395,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         platform,
         facilities,
         isolation: [],
-        prerequisites: merged([...(await execution.prerequisites()), await filesPrerequisite()]),
+        prerequisites: merged([
+          ...(await execution.prerequisites()),
+          await filesPrerequisite(),
+          ...(await screenPermission()),
+        ]),
       })
     },
     async quota(tenant) {

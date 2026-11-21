@@ -26,6 +26,7 @@ export {
 export {
   createSessionModesPlugin,
   type SessionModesPluginInput,
+  type SessionModesReading,
   type SessionPermissionModeReading,
 } from './cordis/mode-plugin.ts'
 export type {

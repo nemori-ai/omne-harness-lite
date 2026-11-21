@@ -134,6 +134,7 @@ describe('边界', () => {
       '@omne-harness/human-intervention-ui/cordis',
       '@omne-harness/identity-ui/cordis',
       '@omne-harness/mcp-ui/cordis',
+      '@omne-harness/media-ui/cordis',
       '@omne-harness/model-ui/cordis',
       '@omne-harness/notification-ui/cordis',
       '@omne-harness/schedule-ui/cordis',

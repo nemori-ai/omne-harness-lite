@@ -1,3 +1,4 @@
+import type { UserAttachment } from '@omne-harness/session-protocol'
 import type { ClientOf, ObservationEnd as ClientObservationEnd } from '@omne-harness/sdk/core'
 import type { ObserveSessionFrame, SessionProtocol } from '@omne-harness/session-protocol'
 import {
@@ -53,6 +54,7 @@ export type PendingInput = Readonly<{
   inputId: string
   messageId: string
   text: string
+  attachments: readonly UserAttachment[]
   status: InputStatus
   notice: Notice | null
 }>
@@ -109,7 +111,14 @@ export type Event =
   | Readonly<{ kind: 'create-answered'; createCallId: string; answer: CreateAnswer }>
   | Readonly<{ kind: 'create-confirm' }>
   | Readonly<{ kind: 'create-confirmed'; createCallId: string; answer: CreateQueryAnswer }>
-  | Readonly<{ kind: 'send'; text: string; acceptId: string; inputId: string; messageId: string }>
+  | Readonly<{
+      kind: 'send'
+      text: string
+      attachments?: readonly UserAttachment[]
+      acceptId: string
+      inputId: string
+      messageId: string
+    }>
   | Readonly<{ kind: 'send-answered'; session: string; acceptId: string; answer: SendAnswer }>
   | Readonly<{ kind: 'send-confirm'; acceptId: string }>
   | Readonly<{ kind: 'send-confirmed'; session: string; acceptId: string; answer: SendQueryAnswer }>
@@ -140,6 +149,7 @@ export type Effect =
       acceptId: string
       inputId: string
       text: string
+      attachments: readonly UserAttachment[]
     }>
   | Readonly<{ kind: 'query-send-input'; session: string; acceptId: string }>
   | Readonly<{ kind: 'cancel-run'; session: string; run: string; controlId: string }>
@@ -341,12 +351,15 @@ function onCreateConfirmed(
 }
 
 function onSend(state: State, event: Extract<Event, { kind: 'send' }>): Step {
-  if (state.kind !== 'open' || event.text.trim().length === 0) return same(state)
+  const attachments = event.attachments ?? []
+  const empty = event.text.trim().length === 0 && attachments.length === 0
+  if (state.kind !== 'open' || empty) return same(state)
   const input: PendingInput = {
     acceptId: event.acceptId,
     inputId: event.inputId,
     messageId: event.messageId,
     text: event.text,
+    attachments,
     status: 'sending',
     notice: null,
   }
@@ -359,6 +372,7 @@ function onSend(state: State, event: Extract<Event, { kind: 'send' }>): Step {
         acceptId: event.acceptId,
         inputId: event.inputId,
         text: event.text,
+        attachments,
       },
     ],
   }

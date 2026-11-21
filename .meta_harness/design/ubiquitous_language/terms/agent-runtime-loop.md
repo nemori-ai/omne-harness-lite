@@ -124,22 +124,23 @@
 
 > **中**：**由某个会话的 agent 通过 `delegate` 或 `spawn` 创建出的
 > [子 agent](interaction-and-dispatch.md#ul-subagent--子-agent--subagent) 所在的那个会话。**
-> 它由**创建**这个动作确立，**不由历史确立**——`spawn` 不是 `fork`，
-> **它不继承父会话的日志**：`spawn` 交出去的是**派发那一刻组装出来的那份上下文的副本**，
-> 那份副本是**它自己日志里的起始输入记录**。
+> 它由**创建**这个动作确立。`delegate` 的子会话从一段交代开始，不带父会话的对话；
+> `spawn` 的子会话是从父会话[分叉](#ul-session-fork--会话分叉--session-fork)出来的：
+> 分叉点之前的对话按引用与父会话共享，之后它写自己的日志。
 >
 > **EN**: **The session of a subagent that some session's agent created via `delegate` or
-> `spawn`.** It is established by **the act of creation, not by history**: `spawn` is not
-> `fork`, and **it inherits none of the parent's session log** — what `spawn` hands over is
-> **a copy of the context assembled at the moment of dispatch**, which becomes **the opening
-> input entry in the child's own log**.
+> `spawn`.** It is established by the act of creation. The child session of a `delegate` starts
+> from an instruction and carries nothing of the conversation of the parent. The child session
+> of a `spawn` is [forked](#ul-session-fork--会话分叉--session-fork) from the parent: it shares
+> the conversation before the fork point with the parent by reference, and writes its own log
+> after it.
 
 - **形态**：变体（父：[会话](#ul-session--会话--session)）
 - **出处**：[现行词义](../index.md)（产品负责人 2026-09-21 直接裁决，定义由 PM 起草）
-- **别混 ①**：**不是 fork。**fork 复制或引用一段既有历史；它的历史**从那份副本这一条开始**，
-  **父的日志不被指向、不被拷贝**，**派发之后父那边发生的事它看不见**。
-  两个会话的**会话日志、投影与 runtime context 快照在存储上都不共享节点**（无指针引用）——
-  **但那是存储约束，不是访问约束**：跨会话取数据照常经工具能力与租户权限进行
+- **别混 ①**：**`spawn` 是分叉，`delegate` 不是。**`spawn` 的子会话按引用读父会话在分叉点之前的那段对话，
+  **不复制**；**派发之后父那边发生的事它看不见**。共享的只有这一段只追加、不会再变的前缀：
+  两个会话各有各的写入者，**runtime context 快照不共享**，父会话进行中的工作不带过来。
+  `delegate` 的子会话与父会话在存储上不共享任何东西
 - **别混 ②**：**「子会话」是会话，「[子 agent](interaction-and-dispatch.md#ul-subagent--子-agent--subagent)」是 agent。**
   前者是后者所在的那个会话
 - **注意 ①**：**可以嵌套，层数至多 2**——主会话是第 0 层，子会话的 agent 可以再创建它自己的子会话，第 2 层的不能再创建
@@ -163,6 +164,26 @@
   有人值守的会话选了 `auto-drive`，只关掉提问，仍然可以通知人；无人值守的会话什么模式都问不到人
 - **注意 ①**：**无人值守不放松权限**——需要人决定的动作被拒绝并说明没有人可以批准，不因此放行
 - **注意 ②**：装配按命令声明的[调用条件](reach-and-availability.md#ul-invocation-condition--调用条件--invocation-condition)决定给不给，**不按工具名**
+
+### UL-session-fork · 会话分叉 · Session Fork
+
+> **中**：**让一个新会话从另一个会话的某一刻接着往下走：分叉点之前的对话两个会话按引用共享，
+> 之后各写各的日志。**分叉点是来源会话的一次模型请求的输入边界。共享的那一段不复制，也不会再变；
+> 新会话只继承模型看到的对话，不继承来源进行中的工作。
+>
+> **EN**: **Starting a new session from a moment of another one: the two sessions share the
+> conversation before the fork point by reference, and each writes its own log after it.** The
+> fork point is the input boundary of one model request of the source session. The shared part is
+> not copied and does not change afterwards; the new session inherits the conversation the model
+> saw, and none of the work the source has in progress.
+
+- **形态**：过程
+- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 15）
+- **别混 ①**：**不是复制。**复制得到两份互不相干的内容；分叉之后前缀仍只有来源名下的一份，
+  新会话读的是同一批记录
+- **别混 ②**：**不是共用一本日志。**一个会话仍然只有一个写入者；分叉之后来源写的，新会话看不见
+- **注意 ①**：现在只有 `spawn` 产生分叉，来源就是派发者的会话；人不能发起分叉，也不能从更早的一刻分叉
+- **注意 ②**：它留下的是新会话的一项随创建固定的事实：来源会话与分叉点。来源归档之后新会话照常读得到前缀
 
 ### UL-session-archival · 会话归档 · Session Archival
 
@@ -268,7 +289,7 @@
 
 - **形态**：属性
 - **出处**：[PF-015 §4 会话运行模式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 21）；
-  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 14）里是第 ④ 步
+  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 15）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。

@@ -15,6 +15,7 @@ import type {
   ReplayDeclaration,
 } from '@omne-harness/model-contract'
 import type {
+  ModelMediaLimits,
   CalibratedInputMeter,
   ModelToolPayloadAdapter,
   TransportFact,
@@ -40,6 +41,8 @@ export type PiMaterializedMedia = Readonly<{
 export type PiFamilyBinding = Readonly<{
   supplier: Supplier
   adoption: Adoption
+  /** What this model takes of a referenced medium; null: it takes none of this kind. */
+  mediaLimits(reference: ContentReference): ModelMediaLimits | null
   counting: ModelCountingBasis
   rules: ModelRequestRules
   meter: CalibratedInputMeter

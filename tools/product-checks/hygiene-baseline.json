@@ -88,8 +88,8 @@
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1263,
       "packages/session/session-adapters/src/testing/journal.ts": 4190,
       "packages/session/session-adapters/src/testing/session.ts": 1221,
-      "packages/session/session-contract/src/testing-transactions.ts": 2516,
-      "packages/session/session-storage-sql/src/worker/participant.ts": 1119,
+      "packages/session/session-contract/src/testing-transactions.ts": 2506,
+      "packages/session/session-storage-sql/src/worker/participant.ts": 1074,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
       "packages/tool/tool-host-local/src/start-coordinator.ts": 1055,
@@ -211,7 +211,7 @@
       },
       "packages/context/agent-context/src/requests.ts": {
         "count": 1,
-        "longest": 461
+        "longest": 460
       },
       "packages/context/request-context-contract/src/testing/history-source.ts": {
         "count": 1,
@@ -567,7 +567,7 @@
       },
       "packages/session/session-contract/src/testing-transactions.ts": {
         "count": 5,
-        "longest": 840
+        "longest": 831
       },
       "packages/session/session-observation/src/observation.ts": {
         "count": 2,
@@ -579,7 +579,7 @@
       },
       "packages/session/session/src/command.ts": {
         "count": 1,
-        "longest": 260
+        "longest": 239
       },
       "packages/session/session/src/control.ts": {
         "count": 1,
@@ -639,7 +639,7 @@
       },
       "packages/tool/tool-host-local/src/author-environment.ts": {
         "count": 1,
-        "longest": 199
+        "longest": 196
       },
       "packages/tool/tool-host-local/src/author-generations.ts": {
         "count": 1,
@@ -651,7 +651,7 @@
       },
       "packages/tool/tool-host-local/src/catalog.ts": {
         "count": 1,
-        "longest": 202
+        "longest": 193
       },
       "packages/tool/tool-host-local/src/control-subject-adapter.ts": {
         "count": 1,

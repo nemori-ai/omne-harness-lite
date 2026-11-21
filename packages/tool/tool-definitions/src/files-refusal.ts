@@ -10,6 +10,7 @@ import type { Arguments } from './protocol.ts'
 
 const OPERATIONS: Readonly<Record<string, ScopedFileOperation>> = {
   read: 'read',
+  open: 'read',
   info: 'stat',
   list: 'list',
   find: 'search',
