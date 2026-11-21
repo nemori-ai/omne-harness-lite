@@ -154,6 +154,8 @@ export type DecideReads = Readonly<{
   compaction: CompactionContext | null
   compactionEpoch?: string
   children?: readonly SessionId[]
+  /** The other end of the relation of a create: null when the tenant has no such session. */
+  related?: import('./standing.ts').RelatedSession | null
   idleObservation?: IdleObservation
   idleCoverage?: IdleCoverage
   frozenReceipt?: CommitReceipt
@@ -501,7 +503,7 @@ export function judgeIdle(
   }>,
 ): IdleJudgment {
   if (input.policy.kind === 'disabled') return { kind: 'disabled' }
-  if (snapshot.relation?.kind === 'main' && snapshot.relation.resident) return { kind: 'exempt' }
+  if (snapshot.resident === true) return { kind: 'exempt' }
   if (snapshot.lifecycle === 'archived' || snapshot.run.kind === 'active')
     return { kind: 'not-due' }
   if (

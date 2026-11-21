@@ -260,7 +260,12 @@ export async function loopAssembly(
   })
   const release = gate()
   controls.adoptions.define(adoption('definition'), {
-    definition: stub({ category: 'AgentDefinition', name: 'test' }),
+    definition: stub({
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'test',
+    }),
     evaluator: agentEvaluator,
     extensions: [],
   })

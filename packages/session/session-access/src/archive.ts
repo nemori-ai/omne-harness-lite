@@ -107,7 +107,19 @@ async function listed<K extends ListName>(
   if (listing === undefined) return UNAVAILABLE as Answer<K>
   const limit = body.limit ?? ports.settings.defaultListLimit
   if (limit > ports.settings.maxListLimit) return { outcome: 'invalid', body: {} } as Answer<K>
-  const input = { principal: issued.principal, tenant: body.tenant, after: body.cursor, limit }
+  const filter = {
+    relation: body.relation ?? null,
+    parent: body.parent ?? null,
+    attendance: body.attendance ?? null,
+    definition: body.definition ?? null,
+  }
+  const input = {
+    principal: issued.principal,
+    tenant: body.tenant,
+    after: body.cursor,
+    limit,
+    filter,
+  }
   const page = await readCall(() => read(listing, input))
   if (page === 'basis-unavailable') return UNAVAILABLE as Answer<K>
   return { page }

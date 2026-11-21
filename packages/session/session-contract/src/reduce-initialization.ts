@@ -13,6 +13,7 @@ import {
 import { digestOf } from './operations.ts'
 
 import { withIntakeTerms, type IntakeTerms } from './input-sources.ts'
+import { relatedAsRecorded } from './standing.ts'
 function historicalGuard(facts: InitializationGuardFacts) {
   return {
     owner: 'session-initialization',
@@ -77,7 +78,7 @@ export function validateInitializationBatch(
         },
         withIntakeTerms([historicalGuard(facts)], recordedTerms(decoded)),
         null,
-        { compaction: null },
+        { compaction: null, ...relatedAsRecorded(created.creation, created.tree) },
       )
     } else if (outcomes.length > 0) {
       const entry = outcomes[0]

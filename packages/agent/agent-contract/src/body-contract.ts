@@ -11,8 +11,8 @@ import {
   type JudgeContext,
   type Judgment,
 } from '@omne-harness/assets'
-import { INSTRUCTION_LIMITS, attributeItem, type AttributeItem } from './definition.ts'
-import { instructionsProblem } from './judge-definition.ts'
+import { AGENT_TYPES, INSTRUCTION_LIMITS, attributeItem, type AttributeItem } from './definition.ts'
+import { instructionsProblem, summaryProblem } from './judge-definition.ts'
 
 const CATEGORY = 'AgentDefinition'
 
@@ -22,7 +22,7 @@ export const agentDefinitionCategoryDisplay: CategoryDisplay = Object.freeze({
 })
 
 const schemaRead = readBodyText(
-  '{"kind":"agent-definition-body","properties":{"name":"string","references":"[{capability:{category,name},resident?}]","attributes":"[{item}]","instructions?":"[{id,text}]","permissionBounds?":"[{capabilityId,enforcementKey,allowedSet}]"}}',
+  '{"kind":"agent-definition-body","properties":{"name":"string","type":"master|non-master","summary":"string","references":"[{capability:{category,name},resident?}]","attributes":"[{item}]","instructions?":"[{id,text}]","permissionBounds?":"[{capabilityId,enforcementKey,allowedSet}]"}}',
   {
     maxBytes: 1000,
     maxDepth: 8,
@@ -37,6 +37,8 @@ const schema: JsonValue = schemaRead.value
 
 type BodyRefusal =
   | 'incomplete-reference'
+  | 'invalid-type'
+  | 'invalid-summary'
   | 'name-mismatch'
   | 'duplicate-capability'
   | 'invalid-resident'
@@ -93,6 +95,8 @@ function decode(body: unknown, context?: JudgeContext): Decoded {
   if (members === undefined) return reject('incomplete-reference')
   const identity = checkIdentity(members, context)
   if (identity !== undefined) return identity
+  const standing = checkStanding(members)
+  if (standing !== undefined) return standing
   const references = decodeReferences(valueAt(members, 'references'))
   if (!references.ok) return references
   const items = decodeAttributes(valueAt(members, 'attributes'))
@@ -106,9 +110,27 @@ function decode(body: unknown, context?: JudgeContext): Decoded {
       'invalid-input'
   )
     return reject('invalid-permission-bounds')
-  if (!onlyKeys(members, ['name', 'references', 'attributes', 'instructions', 'permissionBounds']))
-    return reject('unknown-field')
+  if (!onlyKeys(members, BODY_KEYS)) return reject('unknown-field')
   return { ok: true, references: references.ids, items: items.items }
+}
+
+const BODY_KEYS = [
+  'name',
+  'type',
+  'summary',
+  'references',
+  'attributes',
+  'instructions',
+  'permissionBounds',
+]
+
+function checkStanding(members: readonly Member[]): Refused | undefined {
+  const type = textOf(valueAt(members, 'type'))
+  if (!AGENT_TYPES.some(known => known === type)) return reject('invalid-type')
+  const summary = textOf(valueAt(members, 'summary'))
+  return summary === undefined || summaryProblem(summary) !== undefined
+    ? reject('invalid-summary')
+    : undefined
 }
 
 function checkIdentity(members: readonly Member[], context?: JudgeContext): Refused | undefined {

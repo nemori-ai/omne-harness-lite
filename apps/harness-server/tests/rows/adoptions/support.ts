@@ -49,7 +49,14 @@ export const entryConfig = (name: string, patch: Plain = {}): Plain => ({
   entryContract,
   requiredIdentities,
   modes: modesOf(),
-  definition: { category: 'AgentDefinition', name, references: [], attributes: [] },
+  definition: {
+    category: 'AgentDefinition',
+    type: 'master',
+    summary: 'Works on what the person asks for.',
+    name,
+    references: [],
+    attributes: [],
+  },
   extensions: [],
   ...patch,
 })

@@ -102,7 +102,7 @@
 - 命令为每次执行生成新的消息标识；创建、接受、输入、控制与答复的标识缺省时也各生成一个新值。调用者要重做同一次意图，用对应的选项传回原值；消息标识不必沿用。
 - 治理命令与设置命令以登录状态里的租户行事，不接受别的租户。命令在读登录状态之前先检查选项。服务端声明本部署不提供某个操作时答 `stage-not-provided`，命令照常输出，退出 `3`，不当作错误。
 - 发输入与插队（`send-input`、`interrupt-input`）发同一种正文，共用受理标识与输入标识的生成，插队的答复多一个 `as`：`interrupt` 是交给了当前这一轮，`ordinary` 是当时没有一轮、按普通输入受理。
-- 归档与撤销归档（`archive-session`、`unarchive-session`）是会话的控制，控制标识缺省时生成，重做同一次意图要传回原值。`list-archived-sessions` 读行事租户的已归档会话，租户取 `--tenant`，没有时取登录状态里的租户；只把给了的筛选放进正文：`--since`（含）、`--before`（不含）按协议的时刻规则读，读不懂是用法错误；`--by` 只认 `person`、`auto`、`parent`；`--title` 是标题里的字；`--limit` 与 `--cursor` 同分页读取。
+- 归档与撤销归档（`archive-session`、`unarchive-session`）是会话的控制，控制标识缺省时生成，重做同一次意图要传回原值。`list-sessions` 读行事租户没有归档的会话，`list-archived-sessions` 读已归档的；两个命令的每一行都带会话的关系（`main`、`child`、`handoff`）、父会话或交接的来源、根、层、值守与定义，都能用 `--relation`、`--parent`、`--attendance`、`--definition` 筛选，取值不认识是用法错误。两个命令的租户都取 `--tenant`，没有时取登录状态里的租户；只把给了的筛选放进正文。`list-archived-sessions` 另有这些筛选：`--since`（含）、`--before`（不含）按协议的时刻规则读，读不懂是用法错误；`--by` 只认 `person`、`auto`、`parent`；`--title` 是标题里的字；`--limit` 与 `--cursor` 同分页读取。
 - 设置命令只读写行事租户自己这一层；部署默认由运维者在本机写，本应用不提供写它的路径。
 - 设置命令缺省指资产的设置项；加 `--independent` 指独立设置：`setting list --independent` 列出本租户的独立设置，`setting show|set|unset --independent <提供者>/<定义> <项>` 指到一项。两种不一起列。
 - `setting set` 写普通项时，值可以从命令行读一个 JSON 值，原样交给服务端，由设置按声明校验；秘密项仍从终端或管道读，不从命令行读。

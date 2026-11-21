@@ -128,6 +128,42 @@ export const SESSION_LIST_MIGRATION = Object.freeze({ owner: 'session', id: '008
 
 export const SESSION_LIST_SCAN_ROWS = 1000
 
+const LISTED = 'tenant, session, created_at, last_activity_at, lifecycle, title, version'
+
+/** The table a list row waits in while the list is rebuilt with its standing columns. */
+export const SESSION_LIST_HELD = 'sl_session_list_held'
+
+// A migration may create, fill and drop its tables but not alter one, so the list is rebuilt.
+export const SESSION_STANDING_STATEMENTS: readonly string[] = [
+  `CREATE TABLE ${SESSION_LIST_HELD} (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, created_at TEXT, last_activity_at TEXT,
+    lifecycle TEXT NOT NULL, title TEXT, version INTEGER NOT NULL,
+    PRIMARY KEY (tenant, session)) STRICT`,
+  `INSERT INTO ${SESSION_LIST_HELD} (${LISTED}) SELECT ${LISTED} FROM sl_session_list`,
+  `DROP TABLE sl_session_list`,
+  `CREATE TABLE sl_session_list (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, created_at TEXT, last_activity_at TEXT,
+    lifecycle TEXT NOT NULL, title TEXT, version INTEGER NOT NULL,
+    relation_kind TEXT NOT NULL DEFAULT 'main', parent TEXT, origin TEXT,
+    root TEXT NOT NULL DEFAULT '', depth INTEGER NOT NULL DEFAULT 0,
+    attendance TEXT NOT NULL DEFAULT 'attended', definition TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (tenant, session)) STRICT`,
+  `CREATE INDEX sl_session_list_activity_idx
+    ON sl_session_list (tenant, last_activity_at DESC, session)`,
+  `CREATE INDEX sl_session_list_parent_idx
+    ON sl_session_list (tenant, parent, last_activity_at DESC, session)`,
+  `CREATE INDEX sl_session_list_root_idx
+    ON sl_session_list (tenant, root, last_activity_at DESC, session)`,
+  `CREATE INDEX sl_session_list_origin_idx ON sl_session_list (tenant, origin)`,
+  `INSERT INTO sl_session_list (${LISTED}) SELECT ${LISTED} FROM ${SESSION_LIST_HELD}`,
+  `DROP TABLE ${SESSION_LIST_HELD}`,
+]
+
+export const SESSION_STANDING_MIGRATION = Object.freeze({
+  owner: 'session',
+  id: '013-session-standing',
+})
+
 export const SESSION_ARCHIVE_STATEMENTS: readonly string[] = [
   `CREATE TABLE sl_session_archive (
     tenant TEXT NOT NULL, session TEXT NOT NULL, archived_at TEXT, archived_by TEXT,

@@ -63,6 +63,8 @@ async function loaded(): Promise<ReleaseFixture> {
             succeed({
               definition: {
                 category: 'AgentDefinition',
+                type: 'master',
+                summary: 'Works on what the person asks for.',
                 name: 'coding',
                 attributes: [],
                 references: ['Files', 'Shell'].map(name => ({

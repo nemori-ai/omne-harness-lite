@@ -57,6 +57,7 @@ export type {
   ToolBodyDeclaration,
   ToolCommandBackground,
   ToolCommandDeclaration,
+  ToolCallConditions,
   ToolCommandRelease,
   ToolCommandReleaseDetail,
   ToolDefinition,
@@ -213,3 +214,4 @@ export type {
   ToolsReadArguments,
 } from './tools-protocol.ts'
 export { returnSummary } from './return-description.ts'
+export { offeredDefinition, unmetConditions } from './conditions.ts'

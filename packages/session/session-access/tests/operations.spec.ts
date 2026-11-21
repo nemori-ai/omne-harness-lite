@@ -702,6 +702,13 @@ describe('list-sessions', () => {
     lastActivityAt: '2026-11-13T02:00:00Z' as unknown as SessionListEntry['lastActivityAt'],
     lifecycle: 'dormant',
     title: 'hello',
+    relation: 'main',
+    parent: null,
+    origin: null,
+    root: session,
+    depth: 0,
+    attendance: 'attended',
+    definition: 'coding',
     archivedAt: null,
     archivedBy: null,
     ...over,
@@ -760,6 +767,7 @@ describe('list-sessions', () => {
       tenant: ALICE.tenant,
       after: null,
       limit: 20,
+      filter: { relation: null, parent: null, attendance: null, definition: null },
     })
   })
 

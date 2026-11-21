@@ -1,20 +1,32 @@
-import type { SqlValue } from '@omne-harness/sql-contract/worker'
+import {
+  referenceOf,
+  STANDING_COLUMN_NAMES,
+  standingClauses,
+  standingOfRow,
+  type Clause,
+  type StandingQuery,
+} from './list-standing.ts'
 import { handler, rowsOf, text, type Row } from './support.ts'
 
 // Newest archive first; a session archived before the archive columns sorts last (time unknown).
 type Key = Readonly<{ at: string; session: string }>
-type Input = Readonly<{
-  tenant: string
-  after: Key | null
-  limit: number
-  from: string | null
-  to: string | null
-  by: 'person' | 'auto' | 'parent' | null
-  titleContains: string | null
-}>
+type Input = StandingQuery &
+  Readonly<{
+    tenant: string
+    after: Key | null
+    limit: number
+    from: string | null
+    to: string | null
+    by: 'person' | 'auto' | 'parent' | null
+    titleContains: string | null
+  }>
 
-const COLUMNS =
-  'l.session, l.created_at, l.last_activity_at, l.lifecycle, l.title, a.archived_at, a.archived_by'
+const LISTED = ['session', 'created_at', 'last_activity_at', 'lifecycle', 'title']
+const COLUMNS = [
+  ...[...LISTED, ...STANDING_COLUMN_NAMES].map(column => `l.${column}`),
+  'a.archived_at',
+  'a.archived_by',
+].join(', ')
 const ORDER = "COALESCE(a.archived_at, '')"
 const nullable = (cell: Row[string] | undefined): string | null =>
   cell === null || cell === undefined ? null : text(cell)
@@ -34,10 +46,11 @@ function valid(input: Input): boolean {
   )
 }
 
-function filters(input: Input): readonly (readonly [string, readonly SqlValue[]])[] {
+function filters(input: Input, standing: readonly Clause[]): readonly Clause[] {
   const after = input.after
   return [
     ["l.lifecycle = 'archived'", []],
+    ...standing,
     ...(input.from === null ? [] : [['a.archived_at >= ?', [input.from]] as const]),
     ...(input.to === null ? [] : [['a.archived_at < ?', [input.to]] as const]),
     ...(input.by === null ? [] : [['a.archived_by = ?', [input.by]] as const]),
@@ -58,7 +71,10 @@ function filters(input: Input): readonly (readonly [string, readonly SqlValue[]]
 export default handler('session.list-archived', (raw, port) => {
   const input = raw as unknown as Input
   if (!valid(input)) throw new Error('invalid input')
-  const where = filters(input)
+  const reference =
+    input.reference === undefined ? null : referenceOf(port, input.tenant, input.reference)
+  if (input.reference !== undefined && reference === null) return { reference: 'absent' }
+  const where = filters(input, standingClauses(input.filter ?? {}, reference, 'l.'))
   const rows = rowsOf(
     port,
     `SELECT ${COLUMNS} FROM sl_session_list l
@@ -76,6 +92,7 @@ export default handler('session.list-archived', (raw, port) => {
     title: nullable(row['title']),
     archivedAt: nullable(row['archived_at']),
     archivedBy: nullable(row['archived_by']),
+    ...standingOfRow(row, reference),
   }))
   const last = page.at(-1)
   const next =

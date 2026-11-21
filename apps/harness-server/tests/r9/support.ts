@@ -290,6 +290,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Schedules: { resultMaxBytes: 65_536 },
       Notifications: { resultMaxBytes: 65_536 },
       Sessions: { resultMaxBytes: 131_072 },
+      Agents: { resultMaxBytes: 1_048_576 },
       SwitchWorkspace: { resultMaxBytes: 65_536 },
     },
     web: {
@@ -355,6 +356,9 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
 }
 
 /** A whole policy, as an operator gives it: the release layer carries no numbers. */
+/** The registry is walked often, so a test does not wait long for a step a lost wake-up left. */
+export const DISPATCH_POLICY = { maxOpen: 3, reconcileIntervalMs: 1000 }
+
 export const NOTIFICATION_POLICY = {
   bodyLength: 4096,
   causalDepth: 3,
@@ -457,6 +461,7 @@ export function operatorLayer(options: {
       },
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
       { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
+      { kind: 'replace', id: 'dispatch', config: { policy: DISPATCH_POLICY } },
       { kind: 'replace', id: 'workspace', config: { node: 'local' } },
       {
         kind: 'replace',

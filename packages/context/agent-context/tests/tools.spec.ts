@@ -115,7 +115,7 @@ const available = (definition: Definition): ToolAvailabilityRead => ({
 })
 
 function lookupOf(
-  table: Readonly<Record<string, SourceRead<ToolAvailabilityRead>>>,
+  table: Readonly<Record<string, SourceRead<ToolAvailabilityRead | null>>>,
 ): ToolLookup<string> & { calls: Adoption[] } {
   const calls: Adoption[] = []
   const lookup = async ({ binding: asked }: Parameters<ToolLookup<string>>[0]) => {
@@ -167,6 +167,15 @@ describe('toolsSourceOf: the sixth group from the bindings of the conditions', (
       value: [],
     })
     expect(lookup.calls).toEqual([])
+  })
+
+  it('leaves out a bound tool that the lookup answers is not offered, and keeps the rest', async () => {
+    const lookup = lookupOf({ ...KNOWN, Shell: { kind: 'value', value: null } })
+    const bindings = [binding('Files'), binding('Shell')]
+    expect(await toolsSourceOf(lookup)({ access, conditions: conditionsWith(bindings) })).toEqual({
+      kind: 'value',
+      value: [{ resident: true, availability: available(FILES), binding: bindings[0] }],
+    })
   })
 
   it('closes the whole group for a binding that the lookup does not know', async () => {

@@ -56,6 +56,8 @@ it('opens and closes one schema domain for one definition judgment', async () =>
   const closed = counts.closed
   const result = await judgeAgentDefinition({
     category: 'AgentDefinition',
+    type: 'master',
+    summary: 'Works on what the person asks for.',
     name: 'coding',
     references: [],
     attributes: [],
