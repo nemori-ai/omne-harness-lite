@@ -359,8 +359,8 @@ async function walk(browser, origin, proofs, elsewhere) {
   await step(
     '侧栏：页面导航、会话列表与账号块',
     `
-    await wait('the account block', () => /租户 /.test(document.querySelector('.identity-account')?.textContent ?? ''))
-    return { nav: nav(), sidebar: sidebar(), tenant: document.querySelector('.identity-account-tenant').textContent }`,
+    const short = await wait('the account block', () => document.querySelector('.identity-account-short')?.textContent.trim())
+    return { nav: nav(), sidebar: sidebar(), tenant: short }`,
   )
   await step(
     '空的会话列表',
@@ -654,7 +654,10 @@ async function walk(browser, origin, proofs, elsewhere) {
     '切回对话，退出登录',
     `
     await goHome()
-    await press('button', '退出登录')
+    const account = await wait('the account control', () => document.querySelector('.identity-account-control'))
+    account.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))
+    const out = await wait('the account menu', () => [...document.querySelectorAll('[role=menu] [role=menuitem]')].find(item => item.textContent.trim() === '退出登录'))
+    out.click()
     await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))
     return { sidebar: document.querySelector('.shell-sidebar') === null ? 'gone' : 'still there' }`,
   )
