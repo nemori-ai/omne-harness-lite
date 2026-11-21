@@ -603,6 +603,13 @@ async function reportTold(walk) {
 
 const ON_ASSETS = `await goTo('资产'); await seated('home')`
 
+/** The calendar page with its shipped calendars and their health read: no loading state left in that section. */
+const ON_CALENDAR = `
+  await goTo('日历')
+  await wait('the shipped calendars and their health', () =>
+    document.querySelector('#calendar-shipped .setting-row') &&
+    !document.querySelector('#calendar-shipped [aria-label=读取中]'))`
+
 /**
  * The first run, signed in as an account without a session (OD-42, OD-43): the conversation page draws no header and
  * says one line in its middle, the figure stays at home, the empty session list says nothing; the sidebar's 新建会话
@@ -1249,7 +1256,30 @@ const SCENES = [
   },
   { id: 'D1-search', title: '搜索', act: `await goTo('搜索')` },
   { id: 'D2-schedule', title: '日程', act: `await goTo('日程')` },
-  { id: 'D3-calendar', title: '日历', act: `await goTo('日历')` },
+  { id: 'D3-calendar', title: '日历', act: ON_CALENDAR },
+  {
+    id: 'D3b-calendar-sources',
+    title: '日历：第一份日历的「来源」打开，失败的来源是一张事实表',
+    act: [
+      ON_CALENDAR,
+      `
+      await press('#calendar-shipped .omne-disclosure-trigger', '来源')
+      await wait('the sources open', () =>
+        document.querySelector('#calendar-shipped .omne-disclosure-trigger[aria-expanded=true]'))`,
+    ],
+    leave: `await press('#calendar-shipped .omne-disclosure-trigger[aria-expanded=true]', '来源')`,
+  },
+  {
+    id: 'D3c-calendar-day',
+    title: '日历：查一天，结果是一张事实表',
+    act: [
+      ON_CALENDAR,
+      `
+      fill(document.querySelector('#calendar-lookup input[aria-label=日期]'), '2026-10-01')
+      await press('#calendar-lookup button[type=submit]', '查')
+      await wait('the day', () => document.querySelector('#calendar-lookup dl[aria-label=这一天]'))`,
+    ],
+  },
   { id: 'D4-assets', title: '资产', act: `await goTo('资产')` },
   { id: 'D6-settings', title: '设置', tiers: true, act: `await goTo('设置')` },
   { id: 'D9-usage', title: '用量', act: `await goTo('用量')` },

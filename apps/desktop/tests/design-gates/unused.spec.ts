@@ -46,7 +46,6 @@ const UNUSED_ON_PURPOSE: ReadonlyMap<string, Allowance> = new Map<string, Allowa
   ['ReadingDocument', PAGE_SKELETON],
   ['ReadingState', PAGE_SKELETON],
   ['ReadingToolbar', PAGE_SKELETON],
-  ['SettingRow', PAGE_SKELETON],
 ])
 
 type Reader = (path: string) => SyntaxNode | undefined
