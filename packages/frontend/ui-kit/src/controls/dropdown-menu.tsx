@@ -7,7 +7,8 @@ import { GlideMenu } from '../patterns/ai/glide-menu.tsx'
 import * as React from 'react'
 import { cn } from '../lib/utils.ts'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
-import { DisclosureIcon, DoneIcon } from '../icons/index.ts'
+import { DoneIcon } from '../icons/index.ts'
+import { DisclosureIcon } from '../icons/kit-only.ts'
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
   return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />

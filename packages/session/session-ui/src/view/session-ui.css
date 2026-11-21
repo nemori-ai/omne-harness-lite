@@ -4,33 +4,12 @@
   gap: var(--omne-space-inline);
   min-width: 0;
 }
-/* 新建会话 and the model of a new session share one line (design 5.1). */
-.omne-sessions-top {
-  display: flex;
-  align-items: center;
-  gap: var(--omne-space-inline);
-  min-width: 0;
-}
-.omne-sessions-model {
-  flex: 0 1 auto;
-  min-width: 0;
-  color: var(--omne-ink-muted);
-}
-.omne-sessions-model-value {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.omne-sessions-model-note {
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
 /* 新建会话 is a row of the navigation's column (the shell's `.shell-nav-link`): the same inline padding, icon column,
    gap and row height, in muted ink that turns strong under the pointer. */
 .omne-sessions-new {
-  flex: 1 1 auto;
   justify-content: flex-start;
   gap: calc((var(--omne-nav-row-height) - var(--omne-icon-label)) / 2);
+  width: 100%;
   height: auto;
   min-height: var(--omne-nav-row-height);
   padding: 0 calc((var(--omne-nav-row-height) - var(--omne-icon-label)) / 2);

@@ -71,9 +71,6 @@
     "packages/session/session-ui/src/view/background-pane.tsx | 后台有 {view.calls.length} 项在跑": {
       "name": 1
     },
-    "packages/session/session-ui/src/view/model-selection.tsx | {shown}": {
-      "value": 1
-    },
     "packages/session/session-ui/src/view/session-list-panel.tsx | 新建会话": {
       "primary": 1
     },

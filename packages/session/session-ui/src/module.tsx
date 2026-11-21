@@ -81,7 +81,6 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
       render: ({ scope }) => (
         <SessionListPanel
           workspaces={workspaces}
-          models={models}
           scope={scope}
           onShow={() => shell.navigate(CONVERSATION_PAGE)}
           conversationShown={conversationShown}

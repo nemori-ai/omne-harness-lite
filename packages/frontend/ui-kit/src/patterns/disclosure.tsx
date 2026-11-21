@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 
 import { cn } from '../lib/utils.ts'
 import { type DataAttributes } from './ai/data-attributes.ts'
-import { DisclosureIcon } from '../icons/index.ts'
+import { DisclosureIcon } from '../icons/kit-only.ts'
 
 export function Disclosure({
   label,

@@ -20,7 +20,6 @@ const ICONS = [
   'DebugIcon',
   'DeleteIcon',
   'DeviceIcon',
-  'DisclosureIcon',
   'DoneIcon',
   'DownloadIcon',
   'EditIcon',

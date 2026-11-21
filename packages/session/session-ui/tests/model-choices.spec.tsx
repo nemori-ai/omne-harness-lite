@@ -58,7 +58,7 @@ it('nobody lists models: the session interface is whole, and a new session names
   expect(create.body).toEqual({ createCallId: expect.any(String), purpose: '' })
 })
 
-it('a list is handed over: a new session starts with the model picked; taken away: the rest stays', async () => {
+it('a list is handed over: the sidebar still offers no model and a new session names none; taken away: the rest stays', async () => {
   const fake = createFakeClient()
   const { root, shell } = await mountModule(fake.client, TENANT)
   let withdraw: () => void = () => {}
@@ -66,12 +66,10 @@ it('a list is handed over: a new session starts with the model picked; taken awa
     withdraw = holderOf(root).attach(list)
   })
   await settle()
-  fireEvent.pointerDown(picker()!, { button: 0, ctrlKey: false })
-  fireEvent.click(await screen.findByRole('menuitemradio', { name: /claude-y/u }))
-  await settle()
+  expect(picker()).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
   const create = await fake.next('create-session')
-  expect(create.body).toEqual({ createCallId: expect.any(String), purpose: '', model: CLAUDE })
+  expect(create.body).toEqual({ createCallId: expect.any(String), purpose: '' })
 
   await act(async () => {
     withdraw()

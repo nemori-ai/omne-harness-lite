@@ -8,7 +8,6 @@ import {
   CodeSurface,
   colorSchemeQuery,
   createThemeController,
-  DisclosureIcon,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -161,10 +160,7 @@ function Specimen() {
           </Select>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="field">
-                更多
-                <DisclosureIcon />
-              </Button>
+              <Button variant="field">更多</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem>重命名</DropdownMenuItem>

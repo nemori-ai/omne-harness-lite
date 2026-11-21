@@ -12,7 +12,6 @@ import {
 } from '@omne-harness/ui-kit'
 import { encodeInstant } from '@omne-harness/utc-instant'
 import { useCallback, useSyncExternalStore } from 'react'
-import type { ModelSelectionStore } from '../model/model-selection.ts'
 import type { SessionDriver } from '../model/session-driver.ts'
 import {
   sessionName,
@@ -23,13 +22,11 @@ import {
 } from '../model/session-list.ts'
 import { createInFlight } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
-import { useNewSessionModel } from './model-selection.tsx'
 import { ReadOnEnd } from './read-on-end.tsx'
 import { useSession } from './use-session.ts'
 
 export type SessionListPanelProps = Readonly<{
   workspaces: SessionWorkspaces
-  models: ModelSelectionStore
   scope: string | undefined
   onShow: () => void
   /** Whether the conversation page is on show; without it, it always is. */
@@ -42,7 +39,6 @@ const ALWAYS_SHOWN: ConversationShown = { get: () => true, subscribe: () => () =
 
 export function SessionListPanel({
   workspaces,
-  models,
   scope,
   onShow,
   conversationShown = ALWAYS_SHOWN,
@@ -50,32 +46,19 @@ export function SessionListPanel({
   const handle = useSession(workspaces, scope)
   if (handle.kind !== 'ready' || scope === undefined)
     return <div className="omne-session-sidebar" />
-  return (
-    <Panel
-      driver={handle.driver}
-      models={models}
-      tenant={scope}
-      onShow={onShow}
-      shown={conversationShown}
-    />
-  )
+  return <Panel driver={handle.driver} onShow={onShow} shown={conversationShown} />
 }
 
 function Panel({
   driver,
-  models,
-  tenant,
   onShow,
   shown,
 }: {
   readonly driver: SessionDriver
-  readonly models: ModelSelectionStore
-  readonly tenant: string
   readonly onShow: () => void
   readonly shown: ConversationShown
 }) {
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
-  const { model, picker } = useNewSessionModel(models, tenant)
   // The current session is the sidebar's one selection only while its page is on show (DT-31).
   const conversation = useSyncExternalStore(
     useCallback((listener: () => void) => shown.subscribe(listener), [shown]),
@@ -85,21 +68,19 @@ function Panel({
   const current = conversation ? open : null
   return (
     <div className="omne-session-sidebar">
-      <div className="omne-sessions-top">
-        <Button
-          variant="ghost"
-          className="omne-sessions-new"
-          disabled={state.kind === 'creating'}
-          onClick={() => {
-            driver.createSession(model)
-            onShow()
-          }}
-        >
-          <AddIcon aria-hidden="true" />
-          <span>新建会话</span>
-        </Button>
-        {picker}
-      </div>
+      {/* A new session names no model: it takes the deployment's default. */}
+      <Button
+        variant="ghost"
+        className="omne-sessions-new"
+        disabled={state.kind === 'creating'}
+        onClick={() => {
+          driver.createSession()
+          onShow()
+        }}
+      >
+        <AddIcon aria-hidden="true" />
+        <span>新建会话</span>
+      </Button>
       <SessionListView
         list={list}
         current={current}

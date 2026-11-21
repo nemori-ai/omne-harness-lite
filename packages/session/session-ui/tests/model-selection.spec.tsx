@@ -7,7 +7,7 @@ import {
   type ModelChoiceListing,
   type ModelChoiceSource,
 } from '../src/model/model-selection.ts'
-import { ModelAction, useNewSessionModel } from '../src/view/model-selection.tsx'
+import { ModelAction } from '../src/view/model-selection.tsx'
 
 beforeAll(() => {
   Object.assign(Element.prototype, {
@@ -260,109 +260,5 @@ describe('the model in the heading of a conversation', () => {
     view.rerender(<ModelAction store={store} tenant={TENANT} session="s-2" />)
     await settle()
     expect(screen.queryByRole('status')).toBeNull()
-  })
-})
-
-describe('the model of the next new session', () => {
-  function Probe({ store, seen }: { store: ModelSelectionStore; seen: (string | undefined)[] }) {
-    const { model, picker } = useNewSessionModel(store, TENANT)
-    seen.push(model)
-    return <div>{picker}</div>
-  }
-
-  const trigger = () => screen.getByRole('button', { name: /新会话的模型/u })
-  async function pick(option: string): Promise<void> {
-    fireEvent.pointerDown(trigger(), { button: 0, ctrlKey: false })
-    fireEvent.click(await screen.findByRole('menuitemradio', { name: new RegExp(option, 'u') }))
-    await settle()
-  }
-
-  it('without a list there is no choice and no model is named', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    expect(screen.queryByRole('button', { name: /新会话的模型/u })).toBeNull()
-    expect(seen.at(-1)).toBeUndefined()
-  })
-
-  it('is a quiet dropdown whose face is the value: it starts at the default and names the model a person picks', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    store.attach(sourceOf(LISTED))
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    expect(trigger().getAttribute('data-variant')).toBe('ghost')
-    expect(trigger().getAttribute('aria-haspopup')).toBe('menu')
-    expect(trigger().textContent).toBe('默认模型')
-    expect(seen.at(-1)).toBeUndefined()
-    await pick('claude-y')
-    expect(seen.at(-1)).toBe(CLAUDE)
-    expect(trigger().textContent).toBe(CLAUDE)
-    await pick('默认模型')
-    expect(seen.at(-1)).toBeUndefined()
-  })
-
-  it('offers every model; one that cannot be picked is disabled with its reason', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    store.attach(sourceOf(LISTED))
-    render(<Probe store={store} seen={[]} />)
-    await settle()
-    fireEvent.pointerDown(trigger(), { button: 0, ctrlKey: false })
-    const items = await screen.findAllByRole('menuitemradio')
-    expect(items.map(item => item.textContent)).toEqual([
-      '默认模型',
-      GPT,
-      `${CLAUDE}（还没有配置凭据，选了也暂时调不了）`,
-      `${LOCKED}（不能选：被锁定）`,
-    ])
-    expect(items.map(item => item.getAttribute('aria-checked'))).toEqual([
-      'true',
-      'false',
-      'false',
-      'false',
-    ])
-    expect(items[3]!.getAttribute('aria-disabled')).toBe('true')
-  })
-
-  it('a picked model is not named once the list is gone or no longer offers it', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    const detach = store.attach(sourceOf(LISTED))
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    await pick('claude-y')
-    expect(seen.at(-1)).toBe(CLAUDE)
-    act(() => detach())
-    await settle()
-    expect(seen.at(-1)).toBeUndefined()
-    act(() => {
-      store.attach(
-        sourceOf({ kind: 'listed', choices: [{ route: GPT, selectable: true, note: null }] }),
-      )
-    })
-    await settle()
-    expect(seen.at(-1)).toBeUndefined()
-  })
-
-  it('a picked model is not named once the list says it cannot be picked', async () => {
-    const { store } = storeWith([selection(GPT, '1')])
-    store.attach(sourceOf(LISTED))
-    const seen: (string | undefined)[] = []
-    render(<Probe store={store} seen={seen} />)
-    await settle()
-    await pick('claude-y')
-    expect(seen.at(-1)).toBe(CLAUDE)
-    act(() => {
-      store.attach(
-        sourceOf({
-          kind: 'listed',
-          choices: [{ route: CLAUDE, selectable: false, note: '被锁定' }],
-        }),
-      )
-    })
-    await settle()
-    expect(seen.at(-1)).toBeUndefined()
-    expect(trigger().textContent).toBe('默认模型')
   })
 })

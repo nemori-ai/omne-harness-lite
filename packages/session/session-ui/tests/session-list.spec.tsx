@@ -42,7 +42,7 @@ const holderOf = (root: Context): ModelChoiceHolder =>
   ) as ModelChoiceHolder
 
 describe('会话列表的顶上一行', () => {
-  it('「新建会话」是导航那一列里的一行：图标加字的安静钮，不是描边框；新会话的模型是它右边同一行里的下拉', async () => {
+  it('「新建会话」是导航那一列里的一行：图标加字的安静钮，不是描边框；模型列着也不在侧栏里选，新会话不带模型', async () => {
     const fake = createFakeClient()
     const { root } = await mountModule(fake.client, TENANT)
     await act(async () => {
@@ -60,9 +60,14 @@ describe('会话列表的顶上一行', () => {
     expect([...create.children].map(child => child.tagName.toLowerCase())).toEqual(['svg', 'span'])
     expect(create.querySelector('svg[data-icon="add"][aria-hidden]')).not.toBeNull()
     expect(create.textContent).toBe('新建会话')
-    const picker = screen.getByRole('button', { name: /新会话的模型/u })
-    expect([...create.parentElement!.children]).toEqual([create, picker])
-    expect(picker.textContent).toBe('默认模型')
+    expect(create.parentElement?.classList.contains('omne-session-sidebar')).toBe(true)
+    expect(screen.queryByRole('button', { name: /模型/u })).toBeNull()
+    expect(document.querySelector('.omne-session-sidebar')?.textContent).not.toMatch(/模型/u)
+    fireEvent.click(create)
+    expect((await fake.next('create-session')).body).toEqual({
+      createCallId: expect.any(String),
+      purpose: '',
+    })
   })
 })
 
