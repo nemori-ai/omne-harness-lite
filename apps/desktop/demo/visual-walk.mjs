@@ -571,6 +571,131 @@ async function seedInbox(walk) {
   )
 }
 
+/** The protocol carries a JSON value as a tagged tree, as the command line builds it (cli `json-tree.ts`). */
+function jsonTree(value) {
+  if (value === null) return { kind: 'null' }
+  if (typeof value === 'boolean') return { kind: 'boolean', value }
+  if (typeof value === 'string') return { kind: 'string', value }
+  if (typeof value === 'number') return { kind: 'number', lexeme: JSON.stringify(value) }
+  if (Array.isArray(value)) return { kind: 'array', items: value.map(jsonTree) }
+  return {
+    kind: 'object',
+    entries: Object.entries(value).map(([key, entry]) => ({ key, value: jsonTree(entry) })),
+  }
+}
+
+/** A reminder the owner keeps, written as the command line's definition file is (`omne schedule create`). */
+function reminder(label, recurrence, body) {
+  return {
+    label,
+    recurrence,
+    limits: { eligibleLimit: null, jobLimit: null, excludeDates: [] },
+    binding: { kind: 'followUserEnvironment' },
+    calendarOverlay: null,
+    purpose: {
+      kind: 'reminder',
+      content: { title: label, body },
+      admissionPolicy: 'reminder-window-v1',
+      overlap: 'parallel',
+    },
+  }
+}
+
+const SINCE = '2026-11-01T00:00:00'
+const cron = expression => ({ kind: 'cron', expression, begin: SINCE, until: null })
+/**
+ * The schedules the schedule page is shot with: two in effect, one draft and one paused, so the list shows the
+ * state word only where it is not the normal one. The first is the one the selected scene opens.
+ */
+const SCHEDULES = [
+  {
+    id: 'monthly',
+    state: 'active',
+    definition: reminder(
+      '交月报',
+      {
+        kind: 'position',
+        period: 'month',
+        interval: 1,
+        begin: SINCE,
+        until: null,
+        ordinal: 'last',
+        selector: { kind: 'workingDay' },
+        times: ['17:00:00'],
+      },
+      '交本月的月报',
+    ),
+  },
+  {
+    id: 'standup',
+    state: 'active',
+    definition: reminder('周一早会', cron('30 9 * * 1'), '十点前把上周的进展写进周报'),
+  },
+  {
+    id: 'review',
+    state: 'draft',
+    definition: reminder('季度复盘', cron('0 15 1 1,4,7,10 *'), '回顾这一季的目标与结果'),
+  },
+  {
+    id: 'plants',
+    state: 'active',
+    pause: true,
+    definition: reminder('给阳台的花浇水', cron('0 8 * * *'), '先摸摸土干不干'),
+  },
+]
+const SCHEDULE_OPENED = SCHEDULES[0].definition.label
+
+/**
+ * The owner makes the schedules through the schedule protocol, once per walk, the way the command line does; then the
+ * page reads its list again with its 刷新, since the list does not follow the server by itself.
+ */
+let schedulesSeeded = false
+async function seedSchedules(walk) {
+  const { stack } = walk
+  if (!schedulesSeeded) {
+    schedulesSeeded = true
+    const schedule = client(stack, 'schedule')
+    const tenant = await tenantOf(stack)
+    for (const { id, state, pause, definition } of SCHEDULES) {
+      const created = await schedule['create-schedule']({
+        tenant,
+        createId: `visual-walk-${id}`,
+        definition: jsonTree(definition),
+        state,
+        reason: null,
+      })
+      if (created.outcome !== 'succeeded')
+        throw new Error(`create-schedule ${id} answered ${JSON.stringify(created)}`)
+      if (pause !== true) continue
+      const paused = await schedule['manage-schedule']({
+        tenant,
+        actionId: `visual-walk-${id}-pause`,
+        schedule: created.body.schedule,
+        revision: created.body.revision,
+        action: { kind: 'pause', reason: null },
+      })
+      if (paused.outcome !== 'succeeded')
+        throw new Error(`manage-schedule ${id} answered ${JSON.stringify(paused)}`)
+    }
+    print(`made ${SCHEDULES.length} schedules`)
+  }
+  await run(
+    walk.browser,
+    `
+    await goTo('日程')
+    await press('section[data-page=schedules] button', '刷新')
+    await wait('the schedules listed', () =>
+      document.querySelector('section[data-page=schedules]')?.textContent.includes(${JSON.stringify(SCHEDULE_OPENED)}))`,
+  )
+}
+
+/** The schedule page has read what it shows: nothing on it is loading. */
+const SCHEDULES_READ = `
+  await wait('the schedule page read', () => {
+    const page = document.querySelector('section[data-page=schedules]')
+    return page !== null && page.querySelector('[role=status][aria-label="读取中"]') === null
+  })`
+
 /** Where the told note ends against the first row of the navigation under it, printed for each shot (OD-20). */
 async function reportTold(walk) {
   const seen = await evaluate(
@@ -1248,7 +1373,32 @@ const SCENES = [
     leave: `await press('[data-segment]', '未了结')`,
   },
   { id: 'D1-search', title: '搜索', act: `await goTo('搜索')` },
-  { id: 'D2-schedule', title: '日程', act: `await goTo('日程')` },
+  // Before the schedules are made, which the two scenes after it do: the tenant has none yet.
+  {
+    id: 'D2c-schedule-empty',
+    title: '日程：还没有日程，阅读面的那一句就是这一页',
+    act: `await goTo('日程')\n${SCHEDULES_READ}`,
+  },
+  {
+    id: 'D2-schedule',
+    title: '日程：列表，没有选中的，阅读面空闲的那一句',
+    act: [seedSchedules, SCHEDULES_READ],
+  },
+  {
+    id: 'D2b-schedule-selected',
+    title: '日程：选中一条，阅读面是它的记录',
+    act: [
+      seedSchedules,
+      `
+      const row = await wait('the row ${SCHEDULE_OPENED}', () =>
+        [...document.querySelectorAll('section[data-page=schedules] button')].find(button =>
+          button.textContent.trim().startsWith(${JSON.stringify(SCHEDULE_OPENED)})))
+      row.click()
+      await wait('the record', () => document.querySelector('section[data-page=schedules] [aria-label="日程详情"]'))
+      ${SCHEDULES_READ}`,
+    ],
+    leave: `byText('section[data-page=schedules] button', '回到列表')?.click()`,
+  },
   { id: 'D3-calendar', title: '日历', act: `await goTo('日历')` },
   { id: 'D4-assets', title: '资产', act: `await goTo('资产')` },
   { id: 'D6-settings', title: '设置', tiers: true, act: `await goTo('设置')` },
