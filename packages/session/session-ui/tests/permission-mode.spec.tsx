@@ -36,11 +36,9 @@ const mode = (value: Mode, revision: string) => ({
 })
 
 describe('the permission mode of a session', () => {
-  it('says each answer of a change, and an unknown one as not known', () => {
-    expect(changeText(mode('auto_permission', '1'))).toBe('已改为「需要时问我」')
-    expect(changeText({ outcome: 'no-change', body: { mode: 'never', revision: '0' } })).toBe(
-      '本来就是「需要时拒绝」',
-    )
+  it('says nothing of a change that took, the dropdown shows it; says why one did not, and an unknown one as not known', () => {
+    expect(changeText(mode('auto_permission', '1'))).toBeNull()
+    expect(changeText({ outcome: 'no-change', body: { mode: 'never', revision: '0' } })).toBeNull()
     expect(changeText({ outcome: 'conflict', body: {} })).toBe(
       '模式刚被改过，已重新读取，请再选一次',
     )
@@ -55,7 +53,7 @@ describe('the permission mode of a session', () => {
     )
     store.subscribe(TENANT, SESSION, () => {})
     await store.load(TENANT, SESSION)
-    expect(await store.change(TENANT, SESSION, 'auto_permission')).toBe('已改为「需要时问我」')
+    expect(await store.change(TENANT, SESSION, 'auto_permission')).toBeNull()
     expect(change.mock.calls[0]?.[0]).toMatchObject({
       session: SESSION,
       mode: 'auto_permission',
@@ -81,7 +79,7 @@ describe('the permission mode of a session', () => {
     expect(change).not.toHaveBeenCalled()
   })
 
-  it('is a quiet dropdown whose face is the mode in force; it offers the three and changes on a choice', async () => {
+  it('is a quiet dropdown whose face is the mode in force; it offers the three and changes on a choice, with no receipt beside it', async () => {
     const { store, change } = clientWith(
       [mode('bypass-permissions', '0'), mode('never', '1')],
       mode('never', '1'),
@@ -103,7 +101,25 @@ describe('the permission mode of a session', () => {
       fireEvent.click(screen.getByRole('option', { name: '需要时拒绝' }))
     })
     expect(change.mock.calls[0]?.[0]).toMatchObject({ mode: 'never', expectedRevision: '0' })
-    expect(screen.getByRole('status').textContent).toBe('已改为「需要时拒绝」')
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(document.body.textContent).not.toMatch(/已改为/u)
     expect(screen.getByRole('combobox', { name: '权限处理' }).textContent).toBe('需要时拒绝')
+  })
+
+  it('a change that did not take says why beside the dropdown, in words of its own', async () => {
+    const { store } = clientWith(
+      [mode('bypass-permissions', '0'), mode('bypass-permissions', '1')],
+      { outcome: 'conflict', body: {} },
+    )
+    await act(async () => {
+      render(<PermissionModeAction store={store} tenant={TENANT} session={SESSION} />)
+    })
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '权限处理' }), { key: 'Enter' })
+    await screen.findAllByRole('option')
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: '需要时拒绝' }))
+    })
+    expect(screen.getByRole('status').textContent).toBe('模式刚被改过，已重新读取，请再选一次')
+    expect(screen.getByRole('combobox', { name: '权限处理' }).textContent).toBe('跳过询问')
   })
 })

@@ -4,6 +4,7 @@ import {
   PAGE_CAP,
   deniedEnd,
   keyOf,
+  labelOf,
   openCount,
   sectionsOf,
   step,
@@ -44,11 +45,14 @@ describe('watching', () => {
     expect(framed.effects).toEqual([{ kind: 'list', token: 1, filter: 'unresolved', after: null }])
   })
 
-  it('a catalogue frame reads nothing, and changes nothing while it is live', () => {
+  it('a catalogue frame reads the sources, not the inbox', () => {
     expect(run([{ kind: 'watch' }, frame(1, 'catalog')]).effects).toEqual([
       { kind: 'observe', generation: 1 },
+      { kind: 'sources', token: 1 },
     ])
-    expect(step(READY, frame(1, 'catalog')).state).toBe(READY)
+    const framed = run([frame(1, 'catalog')], READY)
+    expect(framed.effects).toEqual([{ kind: 'sources', token: 2 }])
+    expect(framed.state).toMatchObject({ entries: READY.entries, read: READY.read })
   })
 
   it('stops the observation when nobody watches, keeps the list, and ignores what still arrives', () => {
@@ -322,6 +326,81 @@ describe('opening one notification', () => {
     expect(run([stale], other).state.opened).toMatchObject({ key: keyOf(e2), view: 'reading' })
     const closed = run([{ kind: 'close' }, stale], other).state
     expect(closed.opened).toBeNull()
+  })
+})
+
+describe('the names of the sources', () => {
+  const sources = (token: number, answer: unknown) =>
+    ({ kind: 'sources-answered', token, answer }) as never
+  const listedSources = (...pairs: (readonly [string, string])[]) => ({
+    outcome: 'succeeded',
+    body: { sources: pairs.map(([name, label]) => ({ name, label, types: [] })) },
+  })
+  const asking = run([frame(1, 'catalog')], READY).state
+
+  it('knows no name until the catalogue answers, then each source by its name for people', () => {
+    expect(labelOf(READY, 'demo.things')).toBeUndefined()
+    const answered = run(
+      [sources(2, listedSources(['demo.things', '演示的来源'], ['owner.posts', '自己写的']))],
+      asking,
+    ).state
+    expect(labelOf(answered, 'demo.things')).toBe('演示的来源')
+    expect(labelOf(answered, 'owner.posts')).toBe('自己写的')
+    expect(labelOf(answered, 'gone.source')).toBeUndefined()
+  })
+
+  it('a catalogue it cannot read keeps the names it had; a source the catalogue no longer lists loses its name', () => {
+    const named = run([sources(2, listedSources(['demo.things', '演示的来源']))], asking).state
+    const again = run([frame(1, 'catalog')], named).state
+    const failed = run([sources(3, { outcome: 'basis-unavailable' })], again).state
+    expect(labelOf(failed, 'demo.things')).toBe('演示的来源')
+    const thrown = run([frame(1, 'catalog'), sources(4, { outcome: 'unavailable' })], failed).state
+    expect(labelOf(thrown, 'demo.things')).toBe('演示的来源')
+    const dropped = run([frame(1, 'catalog'), sources(5, listedSources())], thrown).state
+    expect(labelOf(dropped, 'demo.things')).toBeUndefined()
+  })
+
+  it('drops the answer of a catalogue read a later frame replaced', () => {
+    const twice = run([frame(1, 'catalog')], asking).state
+    const stale = run([sources(2, listedSources(['demo.things', '旧的名字']))], twice).state
+    expect(labelOf(stale, 'demo.things')).toBeUndefined()
+    const fresh = run([sources(3, listedSources(['demo.things', '新的名字']))], stale).state
+    expect(labelOf(fresh, 'demo.things')).toBe('新的名字')
+  })
+})
+
+describe('reading an opened notification again', () => {
+  const unreadable = run(
+    [
+      { kind: 'open', key: k1 },
+      { kind: 'read-answered', token: 2, answer: { outcome: 'basis-unavailable' } },
+    ],
+    READY,
+  ).state
+
+  it('reads the body again after it could not be read, without marking it seen again', () => {
+    const again = run([{ kind: 'reread' }], unreadable)
+    expect(again.effects).toEqual([
+      { kind: 'read', token: 3, ref: { source: 'demo.things', event: 'e1' } },
+    ])
+    expect(again.state.opened).toEqual({ key: k1, token: 3, view: 'reading' })
+    const full = view(e1)
+    const read = run(
+      [{ kind: 'read-answered', token: 3, answer: { outcome: 'succeeded', body: full } }],
+      again.state,
+    )
+    expect(read.state.opened?.view).toEqual(full)
+  })
+
+  it('does nothing when nothing is open, or what is open is read or being read', () => {
+    expect(run([{ kind: 'reread' }], READY)).toEqual({ state: READY, effects: [] })
+    const reading = run([{ kind: 'open', key: k1 }], READY).state
+    expect(run([{ kind: 'reread' }], reading)).toEqual({ state: reading, effects: [] })
+    const gone = run(
+      [{ kind: 'read-answered', token: 2, answer: { outcome: 'not-found', body: {} } }],
+      reading,
+    ).state
+    expect(run([{ kind: 'reread' }], gone)).toEqual({ state: gone, effects: [] })
   })
 })
 

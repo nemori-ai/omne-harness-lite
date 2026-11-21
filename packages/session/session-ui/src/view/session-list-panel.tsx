@@ -2,7 +2,6 @@ import {
   AddIcon,
   Ago,
   Button,
-  EmptyState,
   GlideMenu,
   InlineNotice,
   LoadingState,
@@ -88,8 +87,8 @@ function Panel({
     <div className="omne-session-sidebar">
       <div className="omne-sessions-top">
         <Button
-          variant="outline"
-          size="compact"
+          variant="ghost"
+          className="omne-sessions-new"
           disabled={state.kind === 'creating'}
           onClick={() => {
             driver.createSession(model)
@@ -97,7 +96,7 @@ function Panel({
           }}
         >
           <AddIcon aria-hidden="true" />
-          新建会话
+          <span>新建会话</span>
         </Button>
         {picker}
       </div>
@@ -188,7 +187,7 @@ function ListState({
         </InlineNotice>
       )
     case 'read':
-      return list.page.sessions.length === 0 ? <EmptyState title="新的会话会出现在这里。" /> : null
+      return null
   }
 }
 

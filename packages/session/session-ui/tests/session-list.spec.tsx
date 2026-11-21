@@ -42,7 +42,7 @@ const holderOf = (root: Context): ModelChoiceHolder =>
   ) as ModelChoiceHolder
 
 describe('会话列表的顶上一行', () => {
-  it('「新建会话」是描边、紧凑的钮，新会话的模型是它右边同一行里的下拉，不另占一行', async () => {
+  it('「新建会话」是导航那一列里的一行：图标加字的安静钮，不是描边框；新会话的模型是它右边同一行里的下拉', async () => {
     const fake = createFakeClient()
     const { root } = await mountModule(fake.client, TENANT)
     await act(async () => {
@@ -55,10 +55,12 @@ describe('会话列表的顶上一行', () => {
     })
     await settle()
     const create = screen.getByRole('button', { name: '新建会话' })
+    expect(create.getAttribute('data-variant')).toBe('ghost')
+    expect(create.classList.contains('omne-sessions-new')).toBe(true)
+    expect([...create.children].map(child => child.tagName.toLowerCase())).toEqual(['svg', 'span'])
+    expect(create.querySelector('svg[data-icon="add"][aria-hidden]')).not.toBeNull()
+    expect(create.textContent).toBe('新建会话')
     const picker = screen.getByRole('button', { name: /新会话的模型/u })
-    expect(create.getAttribute('data-variant')).toBe('outline')
-    expect(create.getAttribute('data-size')).toBe('compact')
-    expect(picker.parentElement).toBe(create.parentElement)
     expect([...create.parentElement!.children]).toEqual([create, picker])
     expect(picker.textContent).toBe('默认模型')
   })
@@ -161,7 +163,7 @@ describe('会话列表的行', () => {
 })
 
 describe('会话列表的加载、空与读不到', () => {
-  it('读首页时一行「正在读会话列表……」；空时说新的会话会出现在这里，旁边就是「新建会话」', async () => {
+  it('读首页时一行「正在读会话列表……」；空时列表什么都不写，主区的那一句已经说了，顶上就是「新建会话」', async () => {
     const fake = createFakeClient()
     await mountModule(fake.client, TENANT)
     const first = await fake.next('list-sessions')
@@ -169,7 +171,9 @@ describe('会话列表的加载、空与读不到', () => {
     first.answer(listPage([]))
     await settle()
     expect(within(list()).queryByRole('status')).toBeNull()
-    expect(list().textContent).toBe('新的会话会出现在这里。')
+    expect(list().textContent).toBe('')
+    expect(document.querySelector('.omne-session-sidebar .empty-state')).toBeNull()
+    expect(screen.getAllByText('点「新建会话」开始一段对话。')).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: '新建会话' })).toHaveLength(1)
   })
 

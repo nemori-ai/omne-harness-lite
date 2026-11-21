@@ -65,6 +65,7 @@
 ## 会话列表、已归档与搜索页（R5）
 
 - 照来源提交 `83c1616f`：会话列表与搜索结果的行是共用件 `GlideMenu` 的行（来源 `components/ai/glide-menu.tsx`，sha256 `535de9b5f964a8ec427bbad13bc6d62f922313ecfd1745c231eebb705eba01eb`），时间是共用件 `Ago`（来源 `components/ago.tsx`，sha256 `f474b3e44fc6a9cc3f40216aa517953576ca2cc75926b75edc636bd0e5adabae`）；行里一行标题、一行相对时间照来源的话题行。不同之处：已归档在侧栏里原地展开，来源是同一页上的分段；本成员没有取来源的代码与样式，只用共用件。
+- 列表顶上的「新建会话」（R7b，OD-43）照来源侧栏导航的行（`styles.css` 的 `.shell-nav-link`，sha256 `489f671735b0c91da06e972491c71a1346c6a4d641e1936ce85c9de3844a5565`：左右内边距与图标到字的间距 12、行高 `--pe-nav-row-height`、图标 `--pe-icon-label`、界面字号、常规字重、弱墨，悬停变浓墨），写成与外壳导航行同一组 token，所以与导航同一列。来源的侧栏没有这一行。
 
 ## 对话页的头部、转写与输入框（R5）
 

@@ -74,17 +74,13 @@ export function ConversationPage({
   waitingCalls,
 }: ConversationPageProps) {
   const handle = useSession(workspaces, scope)
+  // Without a session there is no header and no seat: the figure stays at home (OD-42).
   switch (handle.kind) {
     case 'waiting':
-      return (
-        <div className="omne-session-page">
-          <SeatOnly />
-        </div>
-      )
+      return <div className="omne-session-page" />
     case 'unreadable':
       return (
         <div className="omne-session-page">
-          <SeatOnly />
           <NoticeLine
             notice={{ kind: 'refused', text: '外壳给的租户读不懂，会话界面不能工作。' }}
           />
@@ -115,15 +111,6 @@ type Parts = Readonly<{
   waitingCalls: WaitingCalls | undefined
 }>
 
-/** Before there is a session to show, the header still holds the figure's seat. */
-function SeatOnly() {
-  return (
-    <header className="omne-session-bar">
-      <FigureControl frame={null} />
-    </header>
-  )
-}
-
 function Page({
   driver,
   side,
@@ -143,6 +130,12 @@ function Page({
   const fold = useHeadingFold(frame.header, title)
   const known = state.kind === 'open' || state.kind === 'unavailable' ? state.session : null
   const open = state.kind === 'open' ? state.session : null
+  if (state.kind === 'none')
+    return (
+      <div className="omne-session-page" data-empty="" ref={page}>
+        <Body state={state} driver={driver} {...parts} />
+      </div>
+    )
   return (
     <SideFrameContext.Provider value={frame}>
       <div className="omne-session-page" ref={page}>
@@ -181,7 +174,7 @@ function Page({
 function titleOf(state: State, list: SessionList): string {
   switch (state.kind) {
     case 'none':
-      return '还没有会话'
+      return ''
     case 'creating':
       return '正在建会话'
     case 'open':
@@ -305,7 +298,7 @@ function Body({
   switch (state.kind) {
     case 'none':
       return (
-        <div className="omne-empty">
+        <div className="omne-empty" data-empty="none">
           {state.notice === null ? null : <NoticeLine notice={state.notice} />}
           <p>点「新建会话」开始一段对话。</p>
         </div>

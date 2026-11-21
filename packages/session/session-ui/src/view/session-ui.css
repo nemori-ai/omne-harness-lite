@@ -25,6 +25,27 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
+/* 新建会话 is a row of the navigation's column (the shell's `.shell-nav-link`): the same inline padding, icon column,
+   gap and row height, in muted ink that turns strong under the pointer. */
+.omne-sessions-new {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  gap: calc((var(--omne-nav-row-height) - var(--omne-icon-label)) / 2);
+  height: auto;
+  min-height: var(--omne-nav-row-height);
+  padding: 0 calc((var(--omne-nav-row-height) - var(--omne-icon-label)) / 2);
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-ui);
+  font-weight: var(--omne-weight-regular);
+  line-height: var(--omne-leading-ui);
+}
+.omne-sessions-new:hover {
+  color: var(--omne-ink-primary);
+}
+.omne-sessions-new > svg {
+  width: var(--omne-icon-label);
+  height: var(--omne-icon-label);
+}
 .omne-sessions {
   display: flex;
   flex-direction: column;
@@ -591,6 +612,18 @@
   flex-direction: column;
   gap: var(--omne-space-inline);
   color: var(--omne-ink-muted);
+}
+/* No session: no header, and the one quiet line in the middle of the page (OD-42). */
+.omne-session-page[data-empty] {
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+}
+.omne-empty[data-empty='none'] {
+  align-items: center;
+  text-align: center;
+}
+.omne-empty[data-empty='none'] > p {
+  margin: 0;
 }
 
 /* A message: its words in bubbles, its reasoning and tool calls as process lines between them (C9: no card holds

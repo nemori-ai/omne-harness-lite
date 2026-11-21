@@ -78,6 +78,8 @@ const sizes = list('--sizes', '')
 const scale = Number(option('--scale', '1'))
 const reduced = args.includes('--reduced')
 const ACCOUNT = { loginIdentifier: 'visual', credential: 'visual-walk-pw-3b81' }
+/** A second account that never has a session: the first run of A9-first-run. */
+const FIRST_RUN = { loginIdentifier: 'visual-first', credential: 'visual-walk-pw-first-7c2e' }
 /** The window every scene's way in runs at: the sidebar's links are there only from 768 up. */
 const WAY_IN = windowOf('1440x900')
 /** How long a scene stays still after its animations ended, before the shot. */
@@ -600,6 +602,23 @@ async function reportTold(walk) {
 }
 
 const ON_ASSETS = `await goTo('资产'); await seated('home')`
+
+/**
+ * The first run, signed in as an account without a session (OD-42, OD-43): the conversation page draws no header and
+ * says one line in its middle, the figure stays at home, the empty session list says nothing; the sidebar's 新建会话
+ * row and its foot are in the same shot. Throws when anything says the empty state twice.
+ */
+const FIRST_RUN_STILL = `
+  await wait('the conversation page', () => document.querySelector('section[data-page=conversation]:not([hidden])'))
+  await seated('home')
+  const page = document.querySelector('section[data-page=conversation]:not([hidden])')
+  if (page.querySelector('header, [data-figure-seat]') !== null)
+    throw new Error('the conversation page draws a header or a seat with no session')
+  if (page.innerText.trim() !== '点「新建会话」开始一段对话。')
+    throw new Error('the empty conversation page says: ' + page.innerText)
+  if (document.querySelector('.omne-sessions')?.innerText.trim() !== '')
+    throw new Error('the empty session list says: ' + document.querySelector('.omne-sessions')?.innerText)
+  await settle()`
 const WIDE_ONLY = ['1440', '1100']
 
 /**
@@ -1023,6 +1042,24 @@ const SCENES = [
       await settle()`,
   },
   {
+    id: 'A9-first-run',
+    title: '第一次登录、还没有会话：形在家，主区一行，侧栏的新建会话与底部',
+    before: true,
+    tiers: true,
+    widths: WIDE_ONLY,
+    act: `
+      await signIn('第一次使用', ${JSON.stringify(FIRST_RUN)})
+      ${FIRST_RUN_STILL}`,
+    each: FIRST_RUN_STILL,
+    leave: `
+      const account = await wait('the account control', () => document.querySelector('.identity-account-control'))
+      account.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))
+      const out = await wait('the account menu', () =>
+        [...document.querySelectorAll('[role=menu] [role=menuitem]')].find(item => item.textContent.trim() === '退出登录'))
+      out.click()
+      await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))`,
+  },
+  {
     id: 'A3-rest',
     title: '登录后的静止：形在家，一页选中（日程）',
     tiers: true,
@@ -1089,6 +1126,27 @@ const SCENES = [
     act: `
       await openSession(${JSON.stringify(REST_ASK)})
       await wait('the finished reply', () => transcript().includes('没有动别的设置'))`,
+  },
+  {
+    id: 'B1-mode-changed',
+    title: '在对话头里改了权限处理：下拉的脸就是新值，头部不写「已改为……」',
+    widths: ['1440'],
+    act: `
+      await fresh()
+      const trigger = await wait('the permission dropdown', () =>
+        conversation().querySelector('header [role=combobox][aria-label="权限处理"]'))
+      const before = trigger.textContent.trim()
+      trigger.focus()
+      trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+      const option = await wait('another mode', () =>
+        [...document.querySelectorAll('[role=option]')].find(item => item.textContent.trim() !== before))
+      const chosen = option.textContent.trim()
+      option.click()
+      await wait('the dropdown showing ' + chosen, () => trigger.textContent.trim() === chosen)`,
+    each: `
+      await restFolded()
+      const header = conversation().querySelector('header')
+      if (/已改为|本来就是/.test(header.innerText)) throw new Error('the header says: ' + header.innerText)`,
   },
   {
     id: 'B2-working',
@@ -1172,11 +1230,13 @@ const SCENES = [
   {
     id: 'C6-notifications',
     title: '通知：未了结的两条，一条强的没看过',
+    tiers: true,
     act: [ON_ASSETS, seedInbox, `await goTo('通知')`],
   },
   {
     id: 'C6b-notifications-all',
     title: '通知的「全部」：未了结与已了结两组',
+    tiers: true,
     act: [
       ON_ASSETS,
       seedInbox,

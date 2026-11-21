@@ -145,15 +145,29 @@ it('页头：会话还不在列表里时，主标题是「新会话」', async (
   expect(within(heading()).getByRole('heading').textContent).toBe('新会话')
 })
 
-it('对话头：页头里放形的座位，名字 header、优先级 2，在正中、名字在它右边；还没有租户、还没有会话时也在', async () => {
+it('没有会话时没有头部、座位不在，形留在家；主区正中只有一行，不画成标题', async () => {
   const fake = createFakeClient()
   const { rerender } = await mountModule(fake.client, undefined)
-  const seat = () => heading().querySelector('[data-figure-seat]')
-  expect(seat()?.getAttribute('data-figure-seat')).toBe('header')
+  const page = () => screen.getByRole('region', { name: '对话' })
+  expect(page().querySelector('header')).toBeNull()
+  expect(page().querySelector('[data-figure-seat]')).toBeNull()
+  expect(page().textContent).toBe('')
   rerender(TENANT)
-  ;(await fake.next('list-sessions')).answer(listPage([]))
+  ;(await fake.next('list-sessions')).answer(listPage([listed('ses_a', '甲')]))
   await settle()
-  expect(within(heading()).getByRole('heading').textContent).toBe('还没有会话')
+  expect(page().querySelector('header')).toBeNull()
+  expect(page().querySelector('[data-figure-seat]')).toBeNull()
+  expect(within(page()).queryByRole('heading')).toBeNull()
+  expect(page().textContent).toBe('点「新建会话」开始一段对话。')
+  const line = within(page()).getByText('点「新建会话」开始一段对话。')
+  expect(line.closest('.omne-empty')?.getAttribute('data-empty')).toBe('none')
+  expect(seats).toEqual([])
+})
+
+it('对话头：页头里放形的座位，名字 header、优先级 2，在正中、名字在它右边；会话打开了才有', async () => {
+  const fake = createFakeClient()
+  await openLong(fake)
+  const seat = () => heading().querySelector('[data-figure-seat]')
   expect(seat()?.getAttribute('data-figure-seat')).toBe('header')
   expect(seats.length).toBeGreaterThan(0)
   expect(seats.every(props => props.name === 'header' && props.priority === 2)).toBe(true)
@@ -257,7 +271,7 @@ it('头部三栏放不下：右端只用自己那一栏，留出远端让开的�
   }
 })
 
-it('收进「更多」的权限处理照样能改：选一个值就发，回执落在页头', async () => {
+it('收进「更多」的权限处理照样能改：选一个值就发；改成了页头不写「已改为……」，菜单里写新的值', async () => {
   layOut(560)
   const fake = createFakeClient()
   await openWithChoices(fake)
@@ -279,9 +293,11 @@ it('收进「更多」的权限处理照样能改：选一个值就发，回执�
     body: { mode: 'bypass-permissions', revision: '5' },
   })
   await settle()
-  const said = [...heading().querySelectorAll('.omne-session-receipt')].map(
-    node => node.textContent,
+  expect(heading().querySelector('.omne-session-receipt')).toBeNull()
+  expect(heading().textContent).not.toMatch(/已改为/u)
+  const again = await openMore()
+  expect(within(again).getByRole('menuitem', { name: /^权限处理/ }).textContent).toBe(
+    '权限处理跳过询问',
   )
-  expect(said).toEqual(['已改为「跳过询问」'])
   vi.restoreAllMocks()
 })

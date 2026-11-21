@@ -98,14 +98,14 @@ it('watches nothing without a tenant, and lets go of the tenant on sign-out', as
   expect(fake.observations).toHaveLength(1)
 })
 
-it('the page brought up on one notification scrolls to it and marks it, and opens nothing', async () => {
+it('the page brought up on one notification scrolls to it, draws no standing mark on it, and opens nothing', async () => {
   const t = await signedIn()
   const target = strong('new', 2)
   const item = t.shell.items('pages')[0]!
   const view = render(<>{item.render({ scope: TENANT, subject: keyOf(target) })}</>)
   await act(async () => t.inbox([entry('other', 1), target]))
-  const focused = view.container.querySelectorAll('[data-focused]')
-  expect([...focused].map(row => row.textContent)).toEqual([expect.stringContaining(target.title)])
-  expect(scrolled).toHaveBeenCalled()
+  expect(view.container.querySelector('[data-focused]')).toBeNull()
+  const rows = (scrolled.mock.contexts as Element[]).map(row => row.textContent)
+  expect(rows).toEqual([expect.stringContaining(target.title)])
   expect(t.fake.calls.some(call => call.operation !== 'list-inbox')).toBe(false)
 })

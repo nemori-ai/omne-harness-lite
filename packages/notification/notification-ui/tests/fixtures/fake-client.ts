@@ -78,6 +78,7 @@ export function createFakeClient() {
     'list-inbox': operation('list-inbox'),
     'read-notification': operation('read-notification'),
     mark: operation('mark'),
+    'list-sources': operation('list-sources'),
     observe: {
       'observe-changes': (open: unknown, options: ObserveOptions) => {
         const made = observation(open, options)
