@@ -1386,10 +1386,10 @@ const SCENES = [
       seedInbox,
       `
       await goTo('通知')
-      await press('[data-segment]', '全部')
+      await press('section[data-page=notifications] [data-segment]', '全部')
       await wait('the settled group', () => document.querySelector('[role=region][aria-label="已了结"]'))`,
     ],
-    leave: `await press('[data-segment]', '未了结')`,
+    leave: `await press('section[data-page=notifications] [data-segment]', '未了结')`,
   },
   { id: 'D1-search', title: '搜索', act: `await goTo('搜索')` },
   {
