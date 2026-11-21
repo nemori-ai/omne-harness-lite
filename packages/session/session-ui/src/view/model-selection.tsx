@@ -3,6 +3,7 @@ import {
   DisclosureIcon,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
@@ -14,6 +15,7 @@ import {
 } from '@omne-harness/ui-kit'
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { ModelChoice, ModelSelectionStore } from '../model/model-selection.ts'
+import { FOLD_RANK, FoldedChoice, HeadingChoice, useHeadingPlace } from './heading-fold.tsx'
 
 const DEFAULT = '::default'
 const OPTION = 'omne-session-model-option'
@@ -58,14 +60,14 @@ function ModelSelect({
   )
 }
 
-function useChoices(store: ModelSelectionStore, tenant: string) {
+function useChoices(store: ModelSelectionStore, tenant: string, load = true) {
   const subscribe = useCallback(
     (listener: () => void) => store.subscribeChoices(tenant, listener),
     [store, tenant],
   )
   useEffect(() => {
-    void store.loadChoices(tenant)
-  }, [store, tenant])
+    if (load) void store.loadChoices(tenant)
+  }, [store, tenant, load])
   return useSyncExternalStore(subscribe, () => store.choices(tenant))
 }
 
@@ -78,39 +80,75 @@ const withCurrent = (choices: readonly ModelChoice[], model: string): readonly M
 type Props = Readonly<{ store: ModelSelectionStore; tenant: string; session: string }>
 
 export function ModelAction({ store, tenant, session }: Props) {
+  const inBar = useHeadingPlace() === 'bar'
   const subscribe = useCallback(
     (listener: () => void) => store.subscribe(tenant, session, listener),
     [store, tenant, session],
   )
   const view = useSyncExternalStore(subscribe, () => store.read(tenant, session))
-  const listing = useChoices(store, tenant)
+  const listing = useChoices(store, tenant, inBar)
   const [said, say] = useState<string | null>(null)
   useEffect(() => {
+    if (!inBar) return
     say(null)
     void store.load(tenant, session)
-  }, [store, tenant, session])
+  }, [store, tenant, session, inBar])
   if (view.kind === 'unread') return null
-  if (view.kind === 'unreadable')
+  if (view.kind === 'unreadable') {
+    const reason = `模型读不到：${view.reason}`
     return (
-      <span className="omne-session-model" role="status">
-        模型读不到：{view.reason}
-      </span>
+      <HeadingChoice
+        rank={FOLD_RANK.model}
+        bar={
+          <span className="omne-session-model" role="status">
+            {reason}
+          </span>
+        }
+        menu={() => <DropdownMenuItem disabled>{reason}</DropdownMenuItem>}
+      />
     )
+  }
+  const choices = listing.kind === 'listed' ? withCurrent(listing.choices, view.model) : null
+  const select = (model: string, tell: (text: string) => void) =>
+    void store.select(tenant, session, model).then(tell)
   return (
-    <span className="omne-session-model">
-      {listing.kind === 'listed' ? (
-        <ModelSelect
+    <HeadingChoice
+      rank={FOLD_RANK.model}
+      bar={
+        <span className="omne-session-model">
+          {choices === null ? (
+            <span>模型：{view.model}</span>
+          ) : (
+            <ModelSelect
+              label="模型"
+              value={view.model}
+              shown={view.model}
+              choices={choices}
+              onValueChange={model => select(model, say)}
+            />
+          )}
+          {said === null ? null : <span role="status">{said}</span>}
+        </span>
+      }
+      menu={tell => (
+        <FoldedChoice
           label="模型"
           value={view.model}
           shown={view.model}
-          choices={withCurrent(listing.choices, view.model)}
-          onValueChange={model => void store.select(tenant, session, model).then(say)}
+          options={
+            choices === null
+              ? null
+              : choices.map(choice => ({
+                  value: choice.route,
+                  label: choice.route,
+                  note: choice.note,
+                  disabled: !choice.selectable,
+                }))
+          }
+          onPick={model => select(model, tell)}
         />
-      ) : (
-        <span>模型：{view.model}</span>
       )}
-      {said === null ? null : <span role="status">{said}</span>}
-    </span>
+    />
   )
 }
 

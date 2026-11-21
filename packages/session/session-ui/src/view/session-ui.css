@@ -158,12 +158,33 @@
   white-space: nowrap;
 }
 .omne-session-bar-end {
+  position: relative;
   display: flex;
   flex: none;
   align-items: center;
   gap: var(--omne-space-inline);
   min-width: 0;
   margin-left: auto;
+}
+/* Short of room, the title keeps eight characters and the choices fold into the `⋯`, permissions first. A folded
+   choice keeps its box out of the flow and unseen, so its width is known for when the room comes back. */
+.omne-session-choice {
+  display: inline-flex;
+  min-width: 0;
+}
+.omne-session-choice[data-folded] {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.omne-session-folded-value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--omne-ink-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .omne-session-model,
 .omne-session-mode {
@@ -386,19 +407,23 @@
 .omne-session-dock:empty {
   display: none;
 }
+/* Above the composer, the inputs still in line: one line at receipt weight that unfolds in place into the list, no
+   frame. The box reaches out by the fold's pulled-out hover fill and the focus ring's room, so neither is cut. */
 .omne-session-work {
   flex: none;
-  display: grid;
-  gap: var(--omne-space-inline);
   max-height: 30%;
+  margin: calc(-1 * var(--omne-ring-room)) 0 calc(-1 * var(--omne-ring-room))
+    calc(var(--spacing) * -1.5);
+  padding: var(--omne-ring-room) 0 var(--omne-ring-room) calc(var(--spacing) * 1.5);
   overflow-y: auto;
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-wrapped);
 }
 .omne-session-work-line {
   margin: 0;
 }
-.omne-session-work ul {
+.omne-session-work-list {
   margin: 0;
   padding-left: 1.25em;
 }

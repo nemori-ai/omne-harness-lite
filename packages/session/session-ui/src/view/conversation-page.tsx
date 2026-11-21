@@ -31,6 +31,7 @@ import type { Open, PendingInput, State } from '../model/session-machine.ts'
 import type { SessionWorkspaces } from '../model/session-workspaces.ts'
 import type { Waiting } from '../model/waiting.ts'
 import { ComposerActionSlot } from './composer-action-slot.tsx'
+import { HeadingFoldContext, useHeadingFold, type HeadingFold } from './heading-fold.tsx'
 import { NoticeLine } from './notice.tsx'
 import { ItemView, speakerOf } from './parts.tsx'
 import { useFollowBottom } from './scroll.ts'
@@ -138,20 +139,29 @@ function Page({
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
   const page = useRef<HTMLDivElement>(null)
   const frame = useSideFrame(page)
+  const title = titleOf(state, list)
+  const fold = useHeadingFold(frame.header, title)
   const known = state.kind === 'open' || state.kind === 'unavailable' ? state.session : null
+  const open = state.kind === 'open' ? state.session : null
   return (
     <SideFrameContext.Provider value={frame}>
       <div className="omne-session-page" ref={page}>
         <header className="omne-session-bar" ref={frame.header}>
-          <h2 className="omne-session-title">{titleOf(state, list)}</h2>
+          <h2 className="omne-session-title" ref={fold.title}>
+            {title}
+          </h2>
           <FigureControl frame={frame} />
-          <div className="omne-session-bar-end">
-            {state.kind === 'open' ? heading(state.session) : null}
+          <div className="omne-session-bar-end" ref={fold.end}>
+            <HeadingFoldContext.Provider value={fold.bar}>
+              {open === null ? null : heading(open)}
+            </HeadingFoldContext.Provider>
             {known === null ? null : (
               <SessionMore
                 key={known}
                 session={known}
                 verbs={state.kind === 'open' ? more : null}
+                folded={open !== null && fold.folded > 0 ? fold.folded : 0}
+                choices={heading}
               />
             )}
           </div>
@@ -190,11 +200,16 @@ const shortened = (session: string): string =>
 function SessionMore({
   session,
   verbs,
+  folded,
+  choices,
 }: {
   readonly session: string
   readonly verbs: ((session: string, say: (text: string) => void) => ReactNode) | null
+  readonly folded: number
+  readonly choices: (session: string) => ReactNode
 }) {
   const [said, say] = useState<string | null>(null)
+  const menu = useMemo<HeadingFold>(() => ({ place: 'menu', folded, say }), [folded])
   return (
     <>
       {said === null ? null : (
@@ -218,6 +233,14 @@ function SessionMore({
             </dl>
           </DropdownMenuLabel>
           <CopyItem value={session} />
+          {folded === 0 ? null : (
+            <>
+              <DropdownMenuSeparator />
+              <HeadingFoldContext.Provider value={menu}>
+                {choices(session)}
+              </HeadingFoldContext.Provider>
+            </>
+          )}
           {verbs === null ? null : (
             <>
               <DropdownMenuSeparator />
