@@ -32,11 +32,37 @@
 }
 
 .notification-line {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--omne-space-inline);
   min-width: 0;
+}
+
+/* A strong notification not yet seen and still open starts with one dot of strong ink, in the title's start padding
+   and in the middle of its line: the source's quiet dot for something not yet seen (conversation.css
+   `.conversation-jump[data-unseen='true']::after`, 9px, pill), in strong ink instead of its info ink. */
+.notification-dot {
+  position: absolute;
+  inset-block-start: calc((var(--omne-control-height) - var(--spacing) * 2.25) / 2);
+  inset-inline-start: 0;
+  width: calc(var(--spacing) * 2.25);
+  height: calc(var(--spacing) * 2.25);
+  border-radius: var(--omne-radius-pill);
+  background: var(--omne-ink-primary);
+}
+
+/* A title longer than its line wraps in the column instead of running past it; its first line keeps the middle of a
+   control's height, where the dot and the actions sit. */
+.notification-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: auto;
+  padding-block: calc((var(--omne-control-height) - 1lh) / 2);
+  line-height: var(--omne-leading-wrapped);
+  white-space: normal;
+  text-align: start;
 }
 
 .notification-actions {
