@@ -6,7 +6,11 @@ import {
 } from '../../../src/entry/tool-permission-release.ts'
 import { loadProductionRelease } from '../../../src/entry/tool-release.ts'
 import type { ToolReleaseEntry } from '../../../src/entry/tool-release-manifest.ts'
-import { releaseRebaseAssignments } from '../../../src/rows/governance/tool-settings-rebase.ts'
+import {
+  reconcileToolSettings,
+  releaseRebaseAssignments,
+  type ReleaseSettingsMaintenance,
+} from '../../../src/rows/governance/tool-settings-rebase.ts'
 
 let shell: ToolReleaseEntry
 beforeAll(async () => {
@@ -66,4 +70,61 @@ it('drops the value of an item the new definition no longer declares', () => {
   const previous = declared()
   const without = { ...previous, items: previous.items.filter(item => item.id !== 'run') }
   expect(releaseRebaseAssignments(previous, stored, without)).toEqual(runChanged)
+})
+
+const definitionRef = { owner: 'asset:tool/Shell', id: 'gates', revision: 'r1' } as never
+const tool = {
+  name: 'Shell',
+  assetRef: 'tool/Shell',
+  target: { owner: 'asset:tool/Shell' } as never,
+}
+
+function reconciliation(
+  observe: Awaited<ReturnType<ReleaseSettingsMaintenance['observe']>>,
+  versions: 'readable' | 'unreadable',
+  rebase: Awaited<ReturnType<ReleaseSettingsMaintenance['rebase']>>,
+) {
+  const warnings: string[] = []
+  const input = {
+    tenantRef: 'tenant-a',
+    warn: (message: string) => warnings.push(message),
+    releaseSettings: { observe: async () => observe, rebase: async () => rebase },
+    assets: {
+      listVersions: async () =>
+        versions === 'readable'
+          ? { kind: 'page', versions: ['v1'], next: null }
+          : { kind: 'unavailable' },
+      readVersion: async () => ({
+        kind: 'version',
+        version: { declaration: { kind: 'declared', definitionRef, definition: declared() } },
+      }),
+    },
+  } as never
+  return { input, warnings }
+}
+
+const changed = { kind: 'changed', stored: { definitionRef, state: stored } } as const
+
+it('warns once, naming the step, whenever a reconciliation could not finish and is left to the next open', async () => {
+  const cases = [
+    reconciliation({ kind: 'unknown' }, 'readable', { kind: 'current' }),
+    reconciliation(changed, 'unreadable', { kind: 'current' }),
+    reconciliation(changed, 'readable', { kind: 'unavailable', phase: 'commit' }),
+  ]
+  for (const { input } of cases) await reconcileToolSettings(input, tool)
+  expect(cases.map(item => item.warnings.length)).toEqual([1, 1, 1])
+  expect(cases[0]!.warnings[0]).toContain('settings projection unavailable')
+  expect(cases[1]!.warnings[0]).toContain('versions of tool/Shell unavailable')
+  expect(cases[2]!.warnings[0]).toContain('rebase commit unavailable')
+  for (const { warnings } of cases)
+    expect(warnings[0]).toContain('the next open of governance tries again')
+})
+
+it('stays quiet when the target is current or the rebase is done', async () => {
+  const cases = [
+    reconciliation({ kind: 'current' }, 'readable', { kind: 'current' }),
+    reconciliation(changed, 'readable', { kind: 'rebased', revision: 3 }),
+  ]
+  for (const { input } of cases) await reconcileToolSettings(input, tool)
+  expect(cases.map(item => item.warnings)).toEqual([[], []])
 })

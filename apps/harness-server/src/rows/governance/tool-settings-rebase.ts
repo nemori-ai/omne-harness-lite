@@ -85,20 +85,26 @@ export async function reconcileToolSettings(
   input: Reconciliation,
   tool: GovernedToolSettings,
 ): Promise<void> {
+  const unfinished = (step: string) =>
+    input.warn(
+      `tool installation could not reconcile the settings of tool ${tool.name} in tenant ${input.tenantRef}: ${step} unavailable; the next open of governance tries again`,
+    )
   const observed = await input.releaseSettings.observe(tool.target)
+  if (observed.kind === 'unknown') return unfinished('settings projection')
   if (observed.kind !== 'changed') return
   const { definitionRef } = observed.stored
   const previous = await declaredBy(input.assets, tool.assetRef, definitionRef)
-  if (previous.kind === 'unknown') return
+  if (previous.kind === 'unknown') return unfinished(`versions of ${tool.assetRef}`)
   if (previous.kind === 'absent') {
     input.warn(
       `tool installation left the settings of tool ${tool.name} in tenant ${input.tenantRef} as stored: no version of ${tool.assetRef} declares ${canonicalText(definitionRef)}`,
     )
     return
   }
-  await input.releaseSettings.rebase(tool.target, (stored, definition) =>
+  const rebased = await input.releaseSettings.rebase(tool.target, (stored, definition) =>
     canonicalText(stored.definitionRef) === canonicalText(definitionRef)
       ? releaseRebaseAssignments(previous.definition, stored.state, definition)
       : undefined,
   )
+  if (rebased.kind === 'unavailable') unfinished(`rebase ${rebased.phase}`)
 }
