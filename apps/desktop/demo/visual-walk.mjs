@@ -507,8 +507,8 @@ const WIDE_ONLY = ['1440', '1100']
  * A scene: `act` brings the app there once, at the way-in window; `each` brings what does not outlast a change of
  * window, theme or size again before every shot (by default: still, with the figure seated); `leave` puts the app
  * back for the next scene. A step is a script run in the page with the helpers above, or a function of the walk
- * run outside the page. `widths` names the windows the scene means something in; `breaks` says it ends the login
- * or stops the server, so it runs after the others.
+ * run outside the page. `widths` and `sizes` name the windows and text sizes the scene means something in; `breaks`
+ * says it ends the login or stops the server, so it runs after the others.
  */
 /** The side open on 「后台」, its call unfolded with output: B9 and the tooltip of the call's stop. */
 const ON_BACKGROUND = `
@@ -538,7 +538,7 @@ const shiftKey = type => walk =>
   })
 
 /** An icon button's name shows on a pointer resting on it and on keyboard focus (A1); `find` is in-page code. */
-function tipScenes(id, title, { act, ready = 'await rest()', find, leave = [] }) {
+function tipScenes(id, title, { act, ready = 'await rest()', find, leave = [], sizes }) {
   const target = `await wait('the icon button', () => ${find})`
   const tooltip = `await wait('the tooltip', () => document.querySelector('[role=tooltip]'))\n await settle()`
   const away = [pointerAt(1, 1), 'document.activeElement?.blur()']
@@ -547,6 +547,7 @@ function tipScenes(id, title, { act, ready = 'await rest()', find, leave = [] })
       id: `${id}-hover`,
       title: `${title}：指针停在上面`,
       widths: ['1440'],
+      sizes,
       act,
       each: [
         ...away,
@@ -566,6 +567,7 @@ function tipScenes(id, title, { act, ready = 'await rest()', find, leave = [] })
       id: `${id}-focus`,
       title: `${title}：键盘聚焦`,
       widths: ['1440'],
+      sizes,
       act,
       each: [
         ...away,
@@ -757,7 +759,9 @@ const SCENES = [
   { id: 'D4-assets', title: '资产', act: `await goTo('资产')` },
   { id: 'D6-settings', title: '设置', tiers: true, act: `await goTo('设置')` },
   { id: 'D9-usage', title: '用量', act: `await goTo('用量')` },
+  // The fold shows only where the side docks: in the 1440 window at the two smaller text sizes.
   ...tipScenes('T2-tip-side-fold', '侧边区的收起钮的提示', {
+    sizes: ['small', 'medium'],
     act: `await openSession('请总结')`,
     ready: `await rest(); await openSide()`,
     find: `document.querySelector('section[data-page=conversation]:not([hidden]) .omne-session-side [aria-label="收起侧边区"]')`,
@@ -829,8 +833,10 @@ async function perform(walk, steps) {
   }
 }
 
-function combinations(windows) {
-  const tiers = ['medium', ...sizes.filter(size => size !== 'medium')]
+function combinations(windows, scene) {
+  const tiers = ['medium', ...sizes.filter(size => size !== 'medium')].filter(
+    size => scene.sizes?.includes(size) ?? true,
+  )
   const out = []
   for (const theme of themes)
     for (const width of windows) for (const size of tiers) out.push({ theme, width, size })
@@ -1016,7 +1022,7 @@ async function shootScene(walk, scene, done) {
   await apply(browser, { theme: themes[0], width: WAY_IN, size: 'medium' })
   await perform(walk, scene.act)
   await pause(INK_DRY_MS)
-  for (const combination of combinations(windows)) {
+  for (const combination of combinations(windows, scene)) {
     await apply(browser, combination)
     await perform(walk, scene.each ?? (scene.specimen ? undefined : 'await rest()'))
     if (scene.each !== undefined) await pause(INK_DRY_MS)
