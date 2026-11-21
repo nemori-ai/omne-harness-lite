@@ -24,6 +24,7 @@ import {
 import { principalIssuer, principalVerifier } from '../../../src/entry/principals.ts'
 import { governanceDirectoryPrincipals } from '../../../src/entry/governance-directory-principals.ts'
 import { governanceInstallationPrincipals } from '../../../src/entry/governance-installation-principals.ts'
+import { tenantDomainScannerPrincipal } from '../../../src/entry/tenant-domain-scanner.ts'
 import { identityClock } from '../../../src/entry/identity-clock.ts'
 import { storageHost } from '../../../src/entry/storage-host.ts'
 import { cursorSigning } from '../../../src/entry/cursor-signing.ts'
@@ -60,6 +61,7 @@ it('sets and clears a Session permission through the original login and delegate
       principalIssuer,
       governanceDirectoryPrincipals,
       governanceInstallationPrincipals,
+      tenantDomainScannerPrincipal,
       toolReleaseRegistrant,
       toolContributionAuthority,
       identityClock,

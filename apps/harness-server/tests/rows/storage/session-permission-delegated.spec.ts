@@ -40,6 +40,7 @@ import { tenantAssetsRow } from '../../../src/rows/tenant-assets/index.ts'
 import { governanceRow } from '../../../src/rows/governance/index.ts'
 import { principalIssuer, principalVerifier } from '../../../src/entry/principals.ts'
 import { governanceInstallationPrincipals } from '../../../src/entry/governance-installation-principals.ts'
+import { tenantDomainScannerPrincipal } from '../../../src/entry/tenant-domain-scanner.ts'
 import { governanceDirectoryPrincipals } from '../../../src/entry/governance-directory-principals.ts'
 import { identityClock } from '../../../src/entry/identity-clock.ts'
 import {
@@ -156,6 +157,7 @@ it('publishes a real tenant backend from the governance row without authorizing 
       principalIssuer,
       governanceDirectoryPrincipals,
       governanceInstallationPrincipals,
+      tenantDomainScannerPrincipal,
       toolReleaseRegistrant,
       toolContributionAuthority,
       identityClock,

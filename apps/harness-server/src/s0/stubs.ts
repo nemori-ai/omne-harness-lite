@@ -115,6 +115,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'toolContributionAuthority',
       'assetCategories',
       'tenantAssets',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
     ],
     phase: 'composition',
   },
