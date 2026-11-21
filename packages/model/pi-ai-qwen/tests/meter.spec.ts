@@ -130,6 +130,36 @@ describe('measure', () => {
     })
   })
 
+  it("refuses a token input that is not this family's shape as invalid", async () => {
+    const without =
+      (key: string) =>
+      (value: JsonValue): JsonValue =>
+        value.kind === 'object'
+          ? { kind: 'object', entries: value.entries.filter(entry => entry.key !== key) }
+          : value
+    const flat = (value: JsonValue): JsonValue =>
+      value.kind === 'object'
+        ? {
+            kind: 'object',
+            entries: value.entries.map(entry =>
+              entry.key === 'messages' && entry.value.kind === 'array'
+                ? {
+                    key: 'messages',
+                    value: { kind: 'array', items: entry.value.items.map(without('content')) },
+                  }
+                : entry,
+            ),
+          }
+        : value
+    const parts = { messages: [message('u1', 'user', [textBlock('b1', 'hello')])] }
+    for (const change of [without('messages'), flat]) {
+      const { measured } = await planAndMeasure(parts, change)
+      expect(measured).toEqual({
+        failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' },
+      })
+    }
+  })
+
   it('counts a tool call and its result with the words around them', async () => {
     const shown = { toHuman: true, toModel: true }
     const call = {

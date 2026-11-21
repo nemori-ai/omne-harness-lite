@@ -43,13 +43,17 @@ function unavailable(diagnostic: string): Outcome<never, TransportFailure> {
   return { failure: { kind: 'unavailable', dependency: QWEN_OWNER, diagnostic } }
 }
 
-function checkConfig(config: QwenFamilyConfig): void {
-  if (typeof config !== 'object' || config === null)
-    throw new RangeError('the Qwen family configuration must be an object')
+function checkTokenizerConfig(config: QwenFamilyConfig): void {
   if (typeof config.tokenizer !== 'object' || config.tokenizer === null)
     throw new RangeError('config.tokenizer must be the tokenizer resources')
   if (typeof config.executor?.acquire !== 'function')
     throw new RangeError('config.executor must acquire tokenizer leases')
+}
+
+function checkConfig(config: QwenFamilyConfig): void {
+  if (typeof config !== 'object' || config === null)
+    throw new RangeError('the Qwen family configuration must be an object')
+  checkTokenizerConfig(config)
   if (typeof config.limits !== 'object' || config.limits === null)
     throw new RangeError('config.limits must be the decoder limits')
   if (typeof config.margin !== 'object' || config.margin === null)
