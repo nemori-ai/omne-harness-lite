@@ -22,6 +22,7 @@ export type InstalledTenantOptions = Omit<
 > & {
   installationPrincipal: ActingForTenantPrincipal
   release: Extract<ToolRelease, { kind: 'trusted' }>
+  installationConcurrency: number
   organizationTargets: ReturnType<typeof createStandaloneSettingsOwner>
   categories: Pick<CategoryView, 'list' | 'lookup'>
   tenantAssets(): Promise<AssetsLocal | undefined>
@@ -82,6 +83,7 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         scope: options.scope,
         epoch: runtime.epoch,
         release: options.release,
+        concurrency: options.installationConcurrency,
         service: runtime.service,
         assets,
         organizationTargets: options.organizationTargets,
