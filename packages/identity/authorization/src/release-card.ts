@@ -43,7 +43,6 @@ export type ReleaseCardOption = Readonly<{
   offered: boolean
   /** The answer lasts beyond this one call. */
   lasting: boolean
-  /** Whether the answer releases the action. */
   role: 'approve' | 'reject'
 }>
 

@@ -226,6 +226,15 @@ it('reads the clock once for a batch, keeps that moment on every card and reads 
   expect(seen.request.askedAt).toBe(ASKED_AT)
   expect(seen.cards.map(item => item.askedAt)).toEqual([ASKED_AT, ASKED_AT])
   expect(seen.pool.map(item => item.askedAt)).toEqual([ASKED_AT, ASKED_AT])
+  const reply = SubmitReplySchema.parse({
+    protocol: 'hitl/1',
+    operation: w.operation('reply'),
+    cardRef: registered.cards[0],
+    expectedRevision: '0',
+    reply: { kind: 'selection', optionId: 'yes' },
+  })
+  expect(await w.app.submitReply(w.principal, reply)).toMatchObject({ kind: 'decided' })
+  expect(read).toHaveLength(1)
 })
 
 it('keeps the first moment when the same registration is sent again later', async () => {

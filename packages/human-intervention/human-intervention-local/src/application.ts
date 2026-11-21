@@ -17,6 +17,7 @@ import {
   type HitlCommands,
   type Origin,
   type RecoveryWrites,
+  type WaitRef,
 } from '@omne-harness/human-intervention'
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
 import { createIdentityQualifiedHitl, type IdentityHitlCommand } from './identity.ts'
@@ -40,6 +41,22 @@ export type HitlApplicationOptions = IndependentHitlQueryOptions &
     /** Read once per registered batch; its answer is the moment the batch's cards show. */
     clock: Readonly<{ now(): string }>
   }>
+
+// The moment only helps a person read the card, so a clock that cannot answer leaves it out.
+function requestOf(
+  input: SqlCommand,
+  waitRef: WaitRef,
+  clock: HitlApplicationOptions['clock'],
+): IdentityHitlCommand {
+  const request = { kind: 'request', input, waitRef } as const
+  if (input.method !== 'registerRequest') return request
+  try {
+    const read = AskedAtSchema.safeParse(clock.now())
+    return read.success ? { ...request, askedAt: read.data } : request
+  } catch {
+    return request
+  }
+}
 
 export function createIndependentHitlApplication(
   options: HitlApplicationOptions,
@@ -92,15 +109,6 @@ export function createIndependentHitlApplication(
     const parsed = schema.safeParse('operationRef' in result ? result : { ...result, operationRef })
     return parsed.success ? parsed.data : schema.parse({ kind: 'unknown', operationRef })
   }
-  // The moment only helps a person read the card, so a clock that cannot answer leaves it out.
-  function askedAt(): Readonly<{ askedAt?: string }> {
-    try {
-      const read = AskedAtSchema.safeParse(options.clock.now())
-      return read.success ? { askedAt: read.data } : {}
-    } catch {
-      return {}
-    }
-  }
   const guardRejected = (answer: { kind: string; reason?: unknown }): boolean =>
     answer.kind === 'conflict' && answer.reason === 'guard-rejected'
   async function closedCardAnswer<M extends HitlMethod>(
@@ -142,10 +150,9 @@ export function createIndependentHitlApplication(
         if (routed.kind !== 'routed') return { ...routed, operationRef }
         const guards = guardsOf('origin' in routed ? routed.origin : undefined)
         if (!guards) return { kind: 'unavailable', reason: 'session-guard-missing', operationRef }
-        const moment = command.method === 'registerRequest' ? askedAt() : {}
         const answer = await execute(
           access,
-          { kind: 'request', input: command, waitRef: routed.wait, ...moment },
+          requestOf(command, routed.wait, options.clock),
           CommandResultSchemas[method],
           operationRef,
           guards,
