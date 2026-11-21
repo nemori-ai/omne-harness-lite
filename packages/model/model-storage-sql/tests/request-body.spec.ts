@@ -39,7 +39,7 @@ function process(
   intercept: Intercept = () => null,
   chunkBytes = CHUNK_BYTES,
 ) {
-  const sizes: { intent: unknown; bytes: number }[] = []
+  const sizes: { intent: unknown; bytes: number; recall: string | undefined }[] = []
   const reads: { handler: string; bytes: number }[] = []
   const storage: SqlStorage = {
     ...sqlite.storage,
@@ -51,7 +51,11 @@ function process(
     },
     commit(request) {
       const intent = request.commands[0]?.facts['intent']
-      sizes.push({ intent, bytes: Buffer.byteLength(JSON.stringify(request.commands), 'utf8') })
+      sizes.push({
+        intent,
+        bytes: Buffer.byteLength(JSON.stringify(request.commands), 'utf8'),
+        recall: request.identity.recall,
+      })
       const answered = intercept(request, intent)
       return answered === null ? sqlite.storage.commit(request) : Promise.resolve(answered)
     },
@@ -144,6 +148,9 @@ describe('the body of an admitted call', () => {
     expect(rows).toEqual(rows.map((_, seq) => [BigInt(seq), BigInt(rows.length)]))
     expect(p.sizes.map(size => size.intent)).toEqual([...rows.map(() => 'body-chunk'), 'write'])
     for (const size of p.sizes) expect(size.bytes).toBeLessThan(CHUNK_BYTES + 4096)
+    expect(p.sizes.filter(size => size.intent === 'body-chunk').map(size => size.recall)).toEqual(
+      rows.map(() => 'never'),
+    )
 
     expect(await p.commands.loadRequest(input)).toEqual({ ok: request })
     const recovery = await p.commands.loadRecovery(input)

@@ -577,17 +577,16 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     return current
   }
 
-  const identityOf = (domain: DomainRef, operation: string, key: string): SqlIdentity => ({
+  const withoutReceipt = (domain: DomainRef, operation: string, key: string): SqlIdentity => ({
     scope: domain.scope,
     transactionDomain: domain.transactionDomain,
     operation,
     protocolVersion: '2',
     operationKey: key,
-  })
-  const generation = (domain: DomainRef, operation: ModelOperationId, at: number): SqlIdentity => ({
-    ...identityOf(domain, operation, `${operation}#${at}`),
     recall: 'never',
   })
+  const generation = (domain: DomainRef, operation: ModelOperationId, at: number): SqlIdentity =>
+    withoutReceipt(domain, operation, `${operation}#${at}`)
   const generationsKey = (domain: DomainRef, operation: ModelOperationId): string =>
     JSON.stringify([
       domain.scope.kind === 'tenant' ? domain.scope.tenant : null,
@@ -633,7 +632,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   function identityFor(domain: DomainRef, tenant: string, staged: Staged): Target | Step {
     if (staged.kind === 'publish') {
       const operation = `${staged.call.state.call}#read`
-      return { identity: identityOf(domain, operation, `${operation}@${staged.expected}`) }
+      return { identity: withoutReceipt(domain, operation, `${operation}@${staged.expected}`) }
     }
     const { operation } = staged.write
     if (unresolved.full(tenant, operation))
@@ -743,7 +742,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   ): Promise<CommitResultV2> {
     const operation = `${call}#body`
     return storage.commit({
-      identity: identityOf(domain, operation, `${operation}@${randomUUID()}`),
+      identity: withoutReceipt(domain, operation, `${operation}@${randomUUID()}`),
       ...combination,
       commands: [{ participant: MODEL_PARTICIPANT, facts }],
     })

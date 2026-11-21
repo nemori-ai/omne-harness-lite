@@ -808,17 +808,27 @@ describe('operation identity', () => {
     expect(queried).toEqual(['mop_edit#2'])
   })
 
-  it('takes a recalled read-progress commit as written, and publishes once', async () => {
+  it('keeps no receipt for a read-progress commit: a resent copy is refused by the version guard, and the run publishes again from what it reads', async () => {
     const sqlite = sqliteStorage()
     let resent = false
+    const sends: string[] = []
     const resending: SqlStorage = {
       ...sqlite.storage,
       commit: async (request, options) => {
-        if (!resent && request.identity.operationKey.includes('#read@')) {
-          resent = true
-          await sqlite.storage.commit(request, options)
+        if (!request.identity.operationKey.includes('#read@'))
+          return sqlite.storage.commit(request, options)
+        const answer = async () => {
+          const result = await sqlite.storage.commit(request, options)
+          sends.push(
+            `${request.identity.recall ?? 'recallable'} ${result.kind}${'recalled' in result && result.recalled ? ' recalled' : ''}`,
+          )
+          return result
         }
-        return sqlite.storage.commit(request, options)
+        if (!resent) {
+          resent = true
+          await answer()
+        }
+        return answer()
       },
     }
     const store = createSqlModelStorage(options(resending))
@@ -843,7 +853,10 @@ describe('operation identity', () => {
     )
     expect(result).toEqual({ failure: { kind: 'denied', action: 'content' } })
     expect(resent).toBe(true)
-    expect((await stored(store, call)).record?.version).toBe(2)
+    expect(sends).toEqual(['never committed', 'never rolled_back', 'never committed'])
+    const kept = (await stored(store, call)).record
+    expect(kept?.version).toBe(3)
+    expect(kept?.document.reads.get(read)).toMatchObject({ furthest: 2 })
   })
 
   it('answers commit-unknown when the reply is lost, then shows the committed original', async () => {
