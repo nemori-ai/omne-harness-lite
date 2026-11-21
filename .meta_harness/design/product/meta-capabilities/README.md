@@ -2,7 +2,7 @@
 id: PD-meta-capabilities
 title: 元能力入口
 status: accepted
-revision: 16
+revision: 17
 relations:
   supersedes: []
   depends-on: []

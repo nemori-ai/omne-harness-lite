@@ -28,8 +28,6 @@
 - `ContextLimits` · `profile.d.ts`
 - `ContextWindow` · `root.d.ts`
 - `ControlState` · `result.d.ts`
-- `ConversionResult` · `conversion.d.ts`
-- `ConvertedContent` · `conversion.d.ts`
 - `CostLookupState` · `cost-lookup.d.ts`
 - `CredentialLayer` · `root.d.ts`
 - `CustodyState` · `result.d.ts`
@@ -50,6 +48,7 @@
 - `MODEL_IDENTITY_PREFIXES` · `identity-values.d.ts`
 - `MODEL_REFERENCE_MAX_LENGTH` · `reference.d.ts`
 - `MaterializationReceipt` · `provider-protocol.d.ts`
+- `MaterializedMedium` · `provider-protocol.d.ts`
 - `Measurement` · `profile.d.ts`
 - `MediaMeasurementFact` · `profile.d.ts`
 - `MeterRepresentation` · `profile.d.ts`
@@ -216,10 +215,6 @@
 - `CalibratedInputMeter` · `profile.d.ts`
 - `CallAccountReport` · `provider-protocol.d.ts`
 - `CommitQuery` · `provider-protocol.d.ts`
-- `ConversionFailure` · `conversion.d.ts`
-- `ConversionReply` · `conversion.d.ts`
-- `ConverterKey` · `conversion.d.ts`
-- `ConverterLookup` · `conversion.d.ts`
 - `CostLookupAnswer` · `provider-protocol.d.ts`
 - `CredentialFailure` · `credential.d.ts`
 - `CredentialItemState` · `credential.d.ts`
@@ -247,8 +242,6 @@
 - `ModelCommands` · `provider-protocol.d.ts`
 - `ModelConsumerOwnerDeclaration` · `consumer-owner.d.ts`
 - `ModelContentAuthority` · `profile-source.d.ts`
-- `ModelConverter` · `conversion.d.ts`
-- `ModelConverterCatalog` · `conversion.d.ts`
 - `ModelDriveInput` · `driver.d.ts`
 - `ModelDriver` · `driver.d.ts`
 - `ModelDriverBinding` · `driver.d.ts`
@@ -261,7 +254,6 @@
 - `ModelMediaFailure` · `provider-protocol.d.ts`
 - `ModelMediaLimits` · `provider-protocol.d.ts`
 - `ModelMediaSource` · `provider-protocol.d.ts`
-- `ModelMessageConversion` · `conversion.d.ts`
 - `ModelOperationParts` · `reference.d.ts`
 - `ModelOperationRef` · `reference.d.ts`
 - `ModelProfileMaintenance` · `profile.d.ts`
@@ -1052,78 +1044,6 @@ export type ModelConsumerOwnerDeclaration = Readonly<{
 }>;
 ```
 
-## 声明文件 `conversion.d.ts`
-
-```ts
-import type { Outcome } from '@omne-harness/operation-result';
-import type { ContentBlock } from '@omne-harness/content-block';
-import type { Access } from './root.ts';
-import type { DurableEvidence, ModelFailure, Reply } from './result.ts';
-import type { Modality } from '@omne-harness/modality';
-import type { Adoption } from './root.ts';
-export type ConverterKey = Readonly<{
-    kind: 'media-type';
-    mediaType: string;
-}> | Readonly<{
-    kind: 'modality';
-    modality: Modality;
-}>;
-export type ConvertedContent = Readonly<{
-    original: ContentBlock;
-    derived: readonly [
-        ContentBlock,
-        ...ContentBlock[]
-    ];
-    transcript: string;
-    converter: Adoption;
-}>;
-export type ConversionResult = Readonly<{
-    kind: 'unchanged';
-    original: ContentBlock;
-    reason: 'human-only' | 'text' | 'no-converter';
-}> | Readonly<{
-    kind: 'deferred';
-    original: ContentBlock;
-    source: DurableEvidence;
-}> | Readonly<{
-    kind: 'converted';
-    value: ConvertedContent;
-}>;
-export type ConversionFailure = ModelFailure | Readonly<{
-    kind: 'cancelled';
-}>;
-export type ConversionReply<T> = Promise<Outcome<T, ConversionFailure>>;
-export interface ModelConverter<P> {
-    readonly adoption: Adoption;
-    convert(input: Access<P> & Readonly<{
-        original: ContentBlock;
-        source: DurableEvidence;
-        signal: AbortSignal;
-    }>): ConversionReply<ConvertedContent>;
-}
-export type ConverterLookup<P> = Readonly<{
-    kind: 'absent';
-}> | Readonly<{
-    kind: 'selected';
-    converter: ModelConverter<P>;
-    release(): Promise<void>;
-}>;
-export interface ModelConverterCatalog<P> {
-    acquire(input: Readonly<{
-        mediaType: string;
-        modality: Modality | null;
-    }>): Reply<ConverterLookup<P>>;
-}
-export interface ModelMessageConversion<P> {
-    prepare(input: Access<P> & Readonly<{
-        original: ContentBlock;
-        source: DurableEvidence;
-        origin: 'inbound' | 'model-output' | 'tool-output';
-        signal: AbortSignal;
-    }>): ConversionReply<ConversionResult>;
-}
-```
-
 ## 声明文件 `cost-lookup.d.ts`
 
 ```ts
@@ -1395,10 +1315,9 @@ export { encodeModelOutputV1, decodeModelOutputV1, projectModelOutputV1, } from 
 export type { ModelOutputV1, ModelOutputV1Snapshot, ModelOutputV1Delta, ModelOutputV1Failure, } from './model-output-v1.ts';
 export type * from './call-surface.ts';
 export type * from './dispatch-facts.ts';
-export type { MaterializationReceipt, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
+export type { MaterializationReceipt, MaterializedMedium, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
 export type { AnchorMiss, AssembledModelInput, BudgetCheck, CalibrationReport, ContextLimits, ForeignThinking, LimitMetric, Measurement, MediaMeasurementFact, MeterRepresentation, ModalityRequirement, ModelInputMeter, ModelLimit, ModelModality, ModelProfile, ModelProfileDefinition, ParameterAdoption, ProfileIdentity, ProfileReplay, ProfileResolution, ProfileScope, ProfileSupplier, ReplayDeclaration, RequestBudget, TokenLimit, UpstreamLimit, } from './profile.ts';
 export { isNativeFileType, profileCovers } from './profile.ts';
-export type { ConversionResult, ConvertedContent } from './conversion.ts';
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts';
 export type { ModelPreparationLease, ModelPreparationResources, ModelRequestRules, PreparationLineage, } from './profile-source.ts';
 export type * from './diagnostics.ts';
@@ -1656,7 +1575,7 @@ import type { MessageId } from '@omne-harness/message';
 import type { Access, ModelCallId } from './root.ts';
 import type { DurableEvidence, ModelFailure, Reply } from './result.ts';
 import type { Supplier } from './root.ts';
-import type { ConversionReply, ModelMessageConversion } from './conversion.ts';
+import type { ContentBlock } from '@omne-harness/content-block';
 import type { AssembledModelInput, MeterRepresentation, ModelInputMeter, ModelProfile, ParameterAdoption, ProfileScope } from './profile.ts';
 import type { TransportFailure } from './provider-protocol.ts';
 import type { Outcome } from '@omne-harness/operation-result';
@@ -1716,9 +1635,16 @@ export interface ModelPreparationResources<P> {
     }>): Reply<ModelPreparationLease>;
 }
 export interface ModelContentAuthority<P> {
-    check(input: Parameters<ModelMessageConversion<P>['prepare']>[0]): ConversionReply<Readonly<{
+    check(input: Access<P> & Readonly<{
+        original: ContentBlock;
+        source: DurableEvidence;
+        origin: 'inbound' | 'model-output' | 'tool-output';
+        signal: AbortSignal;
+    }>): Promise<Outcome<Readonly<{
         treatment: 'human-only' | 'text' | 'tool-ref' | 'convertible';
-    }>>;
+    }>, ModelFailure | Readonly<{
+        kind: 'cancelled';
+    }>>>;
 }
 ```
 
@@ -2234,10 +2160,16 @@ export type IndependentModelFact = TransportFact | Readonly<{
     reason: 'rejected';
     failure: TransportFailure;
 }>;
+export type MaterializedMedium = Readonly<{
+    reference: ContentReference;
+    mediaType: string;
+    bytes: string;
+}>;
 export type MaterializationReceipt = Readonly<{
     supplier: Adoption;
     representation: Adoption;
     payloadDigest: string;
+    media?: readonly MaterializedMedium[];
     replayFormat?: string;
     replayPrefix?: string;
     replayCarried?: true;
@@ -2517,7 +2449,6 @@ export interface ModelProvider<P> {
 export type { ActorRef, FixedRequestHead } from '../root.ts';
 export type { CallAccountReport, CommitQuery, CostLookupAnswer, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, MaterializeFailure, MediaRefusal, ModelMedia, ModelMediaFailure, ModelMediaLimits, ModelMediaSource, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
 export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayBinding, ReplayDiagnostic, ReplayOmission, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
-export type { ConversionFailure, ConversionReply, ConverterKey, ConverterLookup, ModelConverter, ModelConverterCatalog, ModelMessageConversion, } from '../conversion.ts';
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts';
 export type { ModelBindingFailure, ModelDriveInput, ModelDriver, ModelDriverBinding, ModelDriverHost, ModelHostAuthority, } from '../driver.ts';
 export type { ModelContentAuthority, ModelProfileSnapshot, ModelProfileSource, } from '../profile-source.ts';

@@ -1270,6 +1270,22 @@
       "source": "packages/media/SPEC.md"
     },
     {
+      "id": "packages/media/media-engine-transcribe",
+      "paths": ["packages/media/media-engine-transcribe/src/**"],
+      "layer": "assembly",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "packages/media/media-engine-pdf",
+      "paths": ["packages/media/media-engine-pdf/src/**"],
+      "layer": "assembly",
+      "domains": ["media"],
+      "status": "candidate",
+      "source": "packages/media/SPEC.md"
+    },
+    {
       "id": "packages/media/media-protocol",
       "paths": ["packages/media/media-protocol/src/**"],
       "layer": "contract",
@@ -2006,6 +2022,8 @@
         "packages/media/media-storage-local",
         "packages/media/media-storage-sql",
         "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
         "packages/media/media-protocol",
         "packages/media/media-access",
         "packages/media/media-adapters",
@@ -2023,6 +2041,8 @@
         "packages/media/media-storage-local",
         "packages/media/media-storage-sql",
         "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
         "packages/media/media-protocol",
         "packages/media/media-access",
         "packages/media/media-adapters"
@@ -2053,6 +2073,8 @@
         "packages/media/media-storage-local",
         "packages/media/media-storage-sql",
         "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
         "packages/media/media-protocol",
         "packages/media/media-access",
         "packages/media/media-adapters"
@@ -2069,6 +2091,8 @@
         "packages/media/media-storage-local",
         "packages/media/media-storage-sql",
         "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
         "packages/media/media-access",
         "packages/media/media-adapters"
       ],
@@ -2082,6 +2106,8 @@
         "packages/media/media-storage-local",
         "packages/media/media-storage-sql",
         "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
         "packages/media/media-adapters"
       ],
       "source": "packages/media/SPEC.md"
@@ -2094,6 +2120,8 @@
         "packages/media/media-storage-local",
         "packages/media/media-storage-sql",
         "packages/media/media-image",
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf",
         "packages/media/media-protocol",
         "packages/media/media-access",
         "packages/session/session",
@@ -2104,6 +2132,24 @@
         "packages/session/session-access",
         "packages/session/session-search",
         "packages/session/session-search-sqlite"
+      ],
+      "source": "packages/media/SPEC.md"
+    },
+    {
+      "id": "DIR-MEDIA-ENGINE",
+      "from": [
+        "packages/media/media-engine-transcribe",
+        "packages/media/media-engine-pdf"
+      ],
+      "to": [
+        "packages/media/media",
+        "packages/media/media-cordis-contract",
+        "packages/media/media-storage-local",
+        "packages/media/media-storage-sql",
+        "packages/media/media-image",
+        "packages/media/media-protocol",
+        "packages/media/media-access",
+        "packages/media/media-adapters"
       ],
       "source": "packages/media/SPEC.md"
     },

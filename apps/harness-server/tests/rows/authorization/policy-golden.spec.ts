@@ -79,6 +79,7 @@ const SESSION_GOLDEN = {
   'history.since': BOTH,
   'history.readModelView': WORK_ONLY,
   'history.readCompactionContext': WORK_ONLY,
+  'history.readAdoptedRequest': BOTH,
   pending: [D, M, 'matrix pending-sessions'],
   'directory.list': BOTH,
   references: [D, D, 'matrix resident-references'],
@@ -162,8 +163,8 @@ compare('Session', SESSION_POLICY, SESSION_GOLDEN)
 compare('Agent', AGENT_POLICY, AGENT_GOLDEN)
 
 describe('the golden itself', () => {
-  it('has the 53 Session rows and 30 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(53)
+  it('has the 54 Session rows and 30 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(54)
     expect(Object.keys(AGENT_GOLDEN)).toHaveLength(30)
   })
 })

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  deployment,
   CATALOG,
   declare,
   find,
@@ -42,7 +43,7 @@ const pointsNamed = (node: TreeNode, name: string): TreeNode[] =>
 
 describe('tree：点、键、条目排成一棵树', () => {
   it('只有底：树上只有目录这个点', () => {
-    const { root, problems } = tree(registryOf())
+    const { root, problems } = tree(registryOf(), deployment)
     expect(render(root)).toBe(
       ['system', '  server', '    dynamis', `      ${CATALOG}  [keyed-one]`, '  client'].join('\n'),
     )
@@ -50,7 +51,7 @@ describe('tree：点、键、条目排成一棵树', () => {
   })
 
   it('全貌：宿主下是点，点下是键，键下是条目与键取自它的点', () => {
-    const { root, problems } = tree(registryOf(...parts()))
+    const { root, problems } = tree(registryOf(...parts()), deployment)
     expect(problems).toEqual([])
     expect(render(root)).toBe(
       [
@@ -87,7 +88,7 @@ describe('tree：点、键、条目排成一棵树', () => {
   })
 
   it('每个节点的路径唯一，按路径找得到（DY-13）', () => {
-    const { root } = tree(registryOf(...parts()))
+    const { root } = tree(registryOf(...parts()), deployment)
     const every = paths(root)
     expect(new Set(every).size).toBe(every.length)
     for (const node of all(root)) expect(find(root, node.path)).toBe(node)
@@ -98,7 +99,7 @@ describe('tree：点、键、条目排成一棵树', () => {
   })
 
   it('节点的种类：根、边、宿主、点、键、条目', () => {
-    const { root } = tree(registryOf(...parts()))
+    const { root } = tree(registryOf(...parts()), deployment)
     expect([root.kind, root.label, root.path, root.note]).toEqual(['root', 'system', '', ''])
     const kinds = [
       'server',
@@ -115,7 +116,7 @@ describe('tree：点、键、条目排成一棵树', () => {
       ['docs', [declare(contract('docs.notes', { keyFrom: CATALOG }))]],
       ['writer', [entry('docs.notes', 'docs.notes', { digest: 'about itself' })]],
     )
-    const { root, problems } = tree(registry)
+    const { root, problems } = tree(registry, deployment)
     expect(problems).toEqual([])
     expect(find(root, `server/dynamis/${CATALOG}/docs.notes/docs.notes/writer#1`)?.kind).toBe(
       'entry',
@@ -123,7 +124,7 @@ describe('tree：点、键、条目排成一棵树', () => {
   })
 
   it('每个点恰有一个父：不取键的点只出现一次，取键的点在父的每个有它条目的键下各一次', () => {
-    const { root } = tree(registryOf(...parts()))
+    const { root } = tree(registryOf(...parts()), deployment)
     expect(pointsNamed(root, CATEGORIES)).toHaveLength(1)
     expect(pointsNamed(root, PAGES)).toHaveLength(1)
     expect(pointsNamed(root, HOLDINGS).map(node => node.path)).toEqual([
@@ -133,8 +134,8 @@ describe('tree：点、键、条目排成一棵树', () => {
   })
 
   it('与装的先后无关', () => {
-    const forward = render(tree(registryOf(...parts())).root)
-    expect(render(tree(registryOf(...[...parts()].reverse())).root)).toBe(forward)
+    const forward = render(tree(registryOf(...parts()), deployment).root)
+    expect(render(tree(registryOf(...[...parts()].reverse()), deployment).root)).toBe(forward)
   })
 
   it('条目的状态写在节点上：撞键、不合规矩', () => {
@@ -143,7 +144,7 @@ describe('tree：点、键、条目排成一棵树', () => {
       ['rival', [entry(CATEGORIES, 'tool', { digest: 'rival' })]],
       ['sloppy', [entry(CATEGORIES, 'bad', { item: {} })]],
     )
-    const text = render(tree(registry).root)
+    const text = render(tree(registry, deployment).root)
     expect(text).toContain('          rival#1  [conflict: tool]')
     expect(text).toContain('          tool#1  [conflict: rival]')
     expect(text).toContain('          sloppy#1  [breach: the item lacks label (string)]')
@@ -151,14 +152,28 @@ describe('tree：点、键、条目排成一棵树', () => {
 
   it('正在撤下的实例放的不上树', () => {
     const registry = retire(registryOf(...parts()), inst('tool'))
-    expect(render(tree(registry).root)).not.toContain('tool#1')
+    expect(render(tree(registry, deployment).root)).not.toContain('tool#1')
+  })
+
+  it('贡献只在构建时定的点，树上写明', () => {
+    const registry = registryOf([
+      'shell',
+      [declare(contract(PAGES, { arity: 'list', tree: 'client', binding: 'build' }))],
+    ])
+    expect(find(tree(registry, deployment).root, `client/shell/${PAGES}`)?.note).toBe('list, build')
+    const mounted = registryOf(
+      ['assets', [declare(contract(CATEGORIES))]],
+      ['ui', [declare(contract(PAGE, { keyFrom: CATEGORIES, tree: 'client', binding: 'build' }))]],
+      ['mcp-ui', [entry(PAGE, 'mcp')]],
+    )
+    expect(render(tree(mounted, deployment).root)).toContain(`${PAGE}  [keyed-one, client, build]`)
   })
 
   it('读不出的点：点在树上，写明读不出，它自己的条目一个都不列；键取自它的点照常在', () => {
     const registry = withUnread(registryOf(...parts()), [
       { point: CATEGORIES, source: 'tenant-layer', scope: [] },
     ])
-    const node = find(tree(registry).root, `server/assets/${CATEGORIES}`)
+    const node = find(tree(registry, deployment).root, `server/assets/${CATEGORIES}`)
     expect(node?.note).toBe('keyed-one, unread: tenant-layer')
     expect(node?.children.map(key => key.label)).toEqual(['mcp', 'skill'])
     expect(node?.children.flatMap(key => key.children.map(child => child.kind))).toEqual([
@@ -172,7 +187,7 @@ describe('tree：点、键、条目排成一棵树', () => {
       'tenant-plugin',
       [entry(CATEGORIES, 'notes', { scope: ['org', 't'] })],
     ])
-    expect(render(tree(registry).root)).not.toContain('notes')
+    expect(render(tree(registry, deployment).root)).not.toContain('notes')
     const text = render(tree(registry, ['org', 't']).root)
     expect(text).toContain('        notes\n          tenant-plugin#1  [effective, @org/t]')
   })
@@ -187,7 +202,7 @@ describe('tree：上不了树的列在问题里', () => {
         declare(contract('loop.second', { keyFrom: 'loop.first' })),
       ],
     ])
-    const { root, problems } = tree(registry)
+    const { root, problems } = tree(registry, deployment)
     expect(pointsNamed(root, 'loop.first')).toEqual([])
     expect(problems).toEqual([
       { kind: 'cyclic', point: 'loop.first', detail: 'loop.first -> loop.second -> loop.first' },
@@ -203,7 +218,7 @@ describe('tree：上不了树的列在问题里', () => {
         declare(contract('child.deeper', { keyFrom: 'child.point' })),
       ],
     ])
-    const { root, problems } = tree(registry)
+    const { root, problems } = tree(registry, deployment)
     expect(pointsNamed(root, 'child.point')).toEqual([])
     expect(problems).toEqual([
       { kind: 'orphan', point: 'child.deeper', detail: 'nobody.point is not declared' },
@@ -218,7 +233,7 @@ describe('tree：上不了树的列在问题里', () => {
       ['c', [entry('twice.point', 'k'), declare(contract('fine.point'))]],
       ['d', [entry('fine.point', 'twice.point', { digest: 'd' })]],
     )
-    const { root, problems } = tree(registry)
+    const { root, problems } = tree(registry, deployment)
     expect(pointsNamed(root, 'twice.point')).toEqual([])
     expect(problems).toEqual([
       { kind: 'stray', point: 'nobody.point', detail: 'a, b' },
@@ -228,15 +243,15 @@ describe('tree：上不了树的列在问题里', () => {
 
   it('不算问题的：只有一份不合法的声明；目录读不出；正在撤下的与发问者看不见的', () => {
     const invalid = registryOf(['a', [{ ...declare(contract('bad.point')), id: 'x' }]])
-    expect(tree(invalid).problems).toEqual([])
+    expect(tree(invalid, deployment).problems).toEqual([])
     const unread = withUnread(registryOf(['a', [entry('nobody.point', 'k')]]), [
       { point: CATALOG, source: 'plugins', scope: [] },
     ])
-    expect(tree(unread).problems).toEqual([])
+    expect(tree(unread, deployment).problems).toEqual([])
     const gone = retire(registryOf(['a', [entry('nobody.point', 'k')]]), inst('a'))
-    expect(tree(gone).problems).toEqual([])
+    expect(tree(gone, deployment).problems).toEqual([])
     const scoped = registryOf(['a', [entry('nobody.point', 'k', { scope: ['org'] })]])
-    expect(tree(scoped).problems).toEqual([])
+    expect(tree(scoped, deployment).problems).toEqual([])
     expect(tree(scoped, ['org']).problems).toHaveLength(1)
   })
 })

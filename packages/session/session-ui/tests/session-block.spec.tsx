@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
-import { SESSION_BLOCK, sessionBlock } from '../src/cordis.ts'
+import { SESSION_BLOCK, sessionBlock, sessionBlockReadsKey } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, messageEntry, page } from './fixtures/frames.ts'
 import { mountModule } from './fixtures/shell.tsx'
@@ -30,9 +30,16 @@ async function settle(): Promise<void> {
 
 async function opened(
   contribute: (shell: Awaited<ReturnType<typeof mountModule>>['shell']) => void,
+  reads?: ReadonlyMap<string, 'original' | 'fitted' | 'derived' | 'transcript'>,
 ) {
   const fake = createFakeClient()
   const mounted = await mountModule(fake.client, TENANT)
+  if (reads !== undefined) {
+    const holder = (
+      mounted.root as unknown as { get(name: string): { attach(source: unknown): () => void } }
+    ).get(sessionBlockReadsKey)
+    holder.attach({ readsOf: async () => reads })
+  }
   ;(await fake.next('list-sessions')).answer(listPage([listed('ses_a', '甲')]))
   await settle()
   contribute(mounted.shell)
@@ -70,6 +77,28 @@ it('消息里一块非文字内容的位置由放进来的项画，收到会话�
   })
   expect(screen.queryByText(/〔image〕/u)).toBeNull()
   expect(screen.getByText('看这张图')).not.toBeNull()
+})
+
+it('交来了读法的来源时，块的位置还收到模型这一次读的是哪一份', async () => {
+  const seen: unknown[] = []
+  await opened(
+    shell =>
+      sessionBlock.contribute(shell, {
+        id: 'pictures',
+        order: 0,
+        render: ({ subject }) => {
+          seen.push(subject)
+          return <span data-testid="drawn">图</span>
+        },
+      }),
+    new Map([['msg_pictured\nblk_picture', 'fitted']]),
+  )
+  await settle()
+  expect(seen.at(-1)).toMatchObject({
+    message: 'msg_pictured',
+    block: 'blk_picture',
+    read: 'fitted',
+  })
 })
 
 it('没有项时宿主画占位的文字：种类与行内的文字兜底或媒体类型', async () => {

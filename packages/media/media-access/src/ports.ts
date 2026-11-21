@@ -14,4 +14,5 @@ export type MediaFace = Readonly<{
   uploads: Pick<Media['uploads'], 'begin' | 'append' | 'commit' | 'status'>
   custody: Pick<Media['custody'], 'describe'>
   reads: Media['reads']
+  representations: Pick<Media['representations'], 'read' | 'ensure' | 'watch'>
 }>

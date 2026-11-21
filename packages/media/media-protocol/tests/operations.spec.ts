@@ -8,7 +8,7 @@ const own = (name: keyof typeof mediaProtocol.operations): string[] =>
     .sort()
 
 describe('media/v1', () => {
-  it('is media major 1 with six operations and no observation', () => {
+  it('is media major 1 with seven operations and one observation', () => {
     expect([mediaProtocol.name, mediaProtocol.major]).toEqual(['media', 1])
     expect(Object.keys(mediaProtocol.operations)).toEqual([
       'begin-upload',
@@ -17,8 +17,13 @@ describe('media/v1', () => {
       'query-upload',
       'read-media-page',
       'describe-media',
+      'prepare-media',
     ])
-    expect(Object.keys(mediaProtocol.observations)).toEqual([])
+    expect(Object.keys(mediaProtocol.observations)).toEqual(['observe-media'])
+    expect(mediaProtocol.observations['observe-media']).toMatchObject({
+      identity: 'login',
+      ends: [],
+    })
   })
 
   it.each([
@@ -28,6 +33,7 @@ describe('media/v1', () => {
     ['query-upload', 'read', 'small'],
     ['read-media-page', 'read', 'small'],
     ['describe-media', 'read', 'small'],
+    ['prepare-media', 'commit', 'small'],
   ] as const)('%s is a login %s of the %s limit that counts as access', (name, effect, limit) => {
     const operation = mediaProtocol.operations[name]
     expect({
@@ -53,5 +59,6 @@ describe('media/v1', () => {
     expect(own('query-upload')).toEqual(['not-found', 'succeeded'])
     expect(own('read-media-page')).toEqual(['limited', 'not-found', 'succeeded'])
     expect(own('describe-media')).toEqual(['not-found', 'succeeded'])
+    expect(own('prepare-media')).toEqual(['not-found', 'succeeded'])
   })
 })

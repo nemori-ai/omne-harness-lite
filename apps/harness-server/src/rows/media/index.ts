@@ -1,11 +1,17 @@
 import type { Context } from '@deepseek-ai/cordis'
 import {
+  mediaEnginesKey,
   mediaImageKey,
   mediaIndexKey,
   mediaKey,
   mediaStoresKey,
 } from '@omne-harness/media-cordis-contract/cordis'
-import { MediaStoresProvider, createMediaPlugin } from '@omne-harness/media/cordis'
+import {
+  MediaEnginesProvider,
+  MediaStoresProvider,
+  createMediaPlugin,
+} from '@omne-harness/media/cordis'
+import { systemTime } from '@omne-harness/time-source'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
 
@@ -27,14 +33,21 @@ export const mediaConfig = z.strictObject({
   uploadTtlMs: positive.default(24 * HOUR_MS),
   stagingTtlMs: positive.default(24 * HOUR_MS),
   variantCacheBytes: positive.default(64 * MIB),
+  conversion: z
+    .strictObject({
+      timeoutMs: positive.default(120_000),
+      queueLimit: positive.default(16),
+      inlineTextBytes: positive.default(16 * 1024),
+    })
+    .prefault({}),
 })
 
-/** The custody of media and the registry its byte stores come to. */
+/** The custody of media and the registries its byte stores and converter engines come to. */
 export const mediaRow = defineRow({
   row: 'media',
   implementation: 'real',
   manifest: {
-    provides: [mediaStoresKey, mediaKey],
+    provides: [mediaStoresKey, mediaEnginesKey, mediaKey],
     injects: [mediaIndexKey, mediaImageKey],
     sameProviderGroup: null,
   },
@@ -45,8 +58,11 @@ export const mediaRow = defineRow({
     Config: mediaConfig,
     apply(ctx: Context, raw: unknown) {
       const { writeTo, ...config } = mediaConfig.parse(raw)
+      const time = systemTime()
+      const timer = { after: (delayMs: number, fire: () => void) => time.after(delayMs, fire) }
       ctx.plugin(MediaStoresProvider)
-      ctx.plugin(createMediaPlugin({ config, writeTo }))
+      ctx.plugin(MediaEnginesProvider)
+      ctx.plugin(createMediaPlugin({ config, writeTo, timer }))
     },
   },
 })

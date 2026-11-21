@@ -19,13 +19,13 @@ const REQUIRED = {
 }
 
 describe('the official send sources', () => {
-  it('name every official profile of both families with the adoption the real profiles plugin resolves, and are official', async () => {
+  it('name every official profile of the three families with the adoption the real profiles plugin resolves, and are official', async () => {
     const sources = officialSendSources({
       profiles: PROFILES,
       current: () => ({ ok: { authorized: false } }),
     })
     const families = new Set(sources.map(source => source.model.split('/')[0]))
-    expect(families).toEqual(new Set(['openai', 'anthropic']))
+    expect(families).toEqual(new Set(['openai', 'anthropic', 'qwen']))
     const ctx = new Context()
     await ctx.plugin(ModelProfilesLocalPlugin, { ...PROFILES, updatedAt: '2026-11-02T00:00:00Z' })
     const profiles = ctx.get(modelProfilesKey) as ModelProfiles<unknown>
@@ -43,6 +43,21 @@ describe('the official send sources', () => {
       expect(source.provider).toBe(resolved.ok.profile.definition.suppliers[0].provider)
       expect(source.official).toBe(true)
     }
+    await ctx.fiber.dispose()
+  })
+
+  it('resolve qwen/qwen3.8-omni-flash for a request that needs voice: it takes the speech itself', async () => {
+    const ctx = new Context()
+    await ctx.plugin(ModelProfilesLocalPlugin, { ...PROFILES, updatedAt: '2026-11-21T00:00:00Z' })
+    const profiles = ctx.get(modelProfilesKey) as ModelProfiles<unknown>
+    const resolved = await profiles.resolve({
+      principal: Object.freeze({ subject: 'test' }),
+      tenant: fixtureTenant('a'),
+      route: 'qwen/qwen3.8-omni-flash',
+      required: { ...REQUIRED, modalities: ['text', 'voice'] },
+    })
+    if (!('ok' in resolved) || resolved.ok.kind !== 'resolved') throw new Error('not resolved')
+    expect(resolved.ok.profile.definition.input).toEqual(['text', 'voice'])
     await ctx.fiber.dispose()
   })
 })

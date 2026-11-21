@@ -11,11 +11,12 @@ const sources = readdirSync(join(here, '../src'))
   .map(name => ({ name, text: codeOf(readFileSync(join(here, '../src', name), 'utf8')) }))
 
 describe('DY-14：这个成员是纯的', () => {
-  it('八个部件加根入口，一个部件一个文件', () => {
+  it('九个部件加根入口，一个部件一个文件', () => {
     expect(sources.map(source => source.name).sort()).toEqual([
       'answer.ts',
       'catalog.ts',
       'floor.ts',
+      'impact.ts',
       'index.ts',
       'reference.ts',
       'registry.ts',

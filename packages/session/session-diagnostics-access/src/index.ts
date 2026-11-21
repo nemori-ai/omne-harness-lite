@@ -11,5 +11,7 @@ export type {
   DiagnosticPorts,
   ModelAttemptReader,
   ModelCallInspector,
+  ModelRequestReader,
+  RequestBlockChoice,
   ToolCallReader,
 } from './session-view/index.ts'

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  deployment,
   adopt,
   bound,
   declare,
@@ -35,26 +36,26 @@ describe('resolve：依次试点名的键', () => {
   )
 
   it('第一个键有：就是它', () => {
-    expect(resolve(registry, want(MEMORY, 'vector', 'graph'))).toMatchObject({
+    expect(resolve(registry, want(MEMORY, 'vector', 'graph'), deployment)).toMatchObject({
       kind: 'one',
       holders: [inst('mem-vector')],
     })
   })
 
   it('第一个键没有：试下一个', () => {
-    expect(resolve(registry, want(MEMORY, 'graph', 'vector'))).toMatchObject({
+    expect(resolve(registry, want(MEMORY, 'graph', 'vector'), deployment)).toMatchObject({
       kind: 'one',
       holders: [inst('mem-vector')],
     })
   })
 
   it('都没有：没有。一个键都不写也是没有', () => {
-    expect(resolve(registry, want(MEMORY, 'graph', 'kv')).kind).toBe('none')
-    expect(resolve(registry, want(MEMORY))).toEqual({ kind: 'none', filtered: [] })
+    expect(resolve(registry, want(MEMORY, 'graph', 'kv'), deployment).kind).toBe('none')
+    expect(resolve(registry, want(MEMORY), deployment)).toEqual({ kind: 'none', filtered: [] })
   })
 
   it('不找替代：点上有别的键也不拿来顶', () => {
-    expect(resolve(registry, want(MEMORY, 'graph')).kind).toBe('none')
+    expect(resolve(registry, want(MEMORY, 'graph'), deployment).kind).toBe('none')
   })
 
   it('冲突不往下试', () => {
@@ -63,16 +64,16 @@ describe('resolve：依次试点名的键', () => {
       impl(MEMORY, 'graph', 'b'),
       impl(MEMORY, 'vector', 'mem-vector'),
     )
-    expect(resolve(clash, want(MEMORY, 'graph', 'vector')).kind).toBe('conflict')
+    expect(resolve(clash, want(MEMORY, 'graph', 'vector'), deployment).kind).toBe('conflict')
   })
 
   it('依据不可用不往下试', () => {
     const unread = withUnread(registry, [{ point: MEMORY, source: 'tenant-layer', scope: [] }])
-    expect(resolve(unread, want(MEMORY, 'graph', 'vector'))).toMatchObject({
+    expect(resolve(unread, want(MEMORY, 'graph', 'vector'), deployment)).toMatchObject({
       kind: 'unavailable',
       reason: 'unread',
     })
-    expect(resolve(registry, want('nobody.point', 'x'))).toMatchObject({
+    expect(resolve(registry, want('nobody.point', 'x'), deployment)).toMatchObject({
       kind: 'unavailable',
       reason: 'undeclared',
     })
@@ -82,7 +83,7 @@ describe('resolve：依次试点名的键', () => {
     const scoped = mustInstall(registry, inst('mem-graph'), [
       entry(MEMORY, 'graph', { scope: ['org'], digest: 'g' }),
     ])
-    expect(resolve(scoped, want(MEMORY, 'graph')).kind).toBe('none')
+    expect(resolve(scoped, want(MEMORY, 'graph'), deployment).kind).toBe('none')
     expect(resolve(scoped, want(MEMORY, 'graph'), ['org', 't']).kind).toBe('one')
   })
 })
@@ -95,10 +96,14 @@ describe('adopt：一份定义点名的全部解析成功才算采用', () => {
   )
 
   it('每条引用钉住点、键、标识、作用域、摘要、实例', () => {
-    const adoption = adopt(registry, {
-      memory: want(MEMORY, 'graph'),
-      compaction: want(COMPACTION, 'semantic', 'default'),
-    })
+    const adoption = adopt(
+      registry,
+      {
+        memory: want(MEMORY, 'graph'),
+        compaction: want(COMPACTION, 'semantic', 'default'),
+      },
+      deployment,
+    )
     expect(adoption).toEqual({
       kind: 'adopted',
       bindings: {
@@ -123,20 +128,24 @@ describe('adopt：一份定义点名的全部解析成功才算采用', () => {
   })
 
   it('两份定义同时各用各的', () => {
-    const researcher = adopt(registry, { memory: want(MEMORY, 'graph') })
-    const coder = adopt(registry, { memory: want(MEMORY, 'vector') })
+    const researcher = adopt(registry, { memory: want(MEMORY, 'graph') }, deployment)
+    const coder = adopt(registry, { memory: want(MEMORY, 'vector') }, deployment)
     expect(researcher).toMatchObject({ bindings: { memory: { instance: inst('mem-graph') } } })
     expect(coder).toMatchObject({ bindings: { memory: { instance: inst('mem-vector') } } })
   })
 
   it('有一条解析不成：整份不可用，逐条列出缺的是什么', () => {
     const clash = mustInstall(registry, inst('other'), [entry(MEMORY, 'graph', { digest: 'o' })])
-    const adoption = adopt(clash, {
-      memory: want(MEMORY, 'graph'),
-      compaction: want(COMPACTION, 'semantic'),
-      tools: want('nobody.point', 'x'),
-      fine: want(MEMORY, 'vector'),
-    })
+    const adoption = adopt(
+      clash,
+      {
+        memory: want(MEMORY, 'graph'),
+        compaction: want(COMPACTION, 'semantic'),
+        tools: want('nobody.point', 'x'),
+        fine: want(MEMORY, 'vector'),
+      },
+      deployment,
+    )
     expect(adoption).toEqual({
       kind: 'unavailable',
       missing: [
@@ -159,28 +168,28 @@ describe('adopt：一份定义点名的全部解析成功才算采用', () => {
 
   it('可选的引用：没有时记空；冲突与依据不可用照样算缺', () => {
     const optional = { ...want(COMPACTION, 'semantic'), optional: true }
-    expect(adopt(registry, { compaction: optional })).toEqual({
+    expect(adopt(registry, { compaction: optional }, deployment)).toEqual({
       kind: 'adopted',
       bindings: { compaction: null },
     })
     const clash = mustInstall(registry, inst('other'), [entry(MEMORY, 'graph', { digest: 'o' })])
-    expect(adopt(clash, { memory: { ...want(MEMORY, 'graph'), optional: true } }).kind).toBe(
-      'unavailable',
-    )
-    expect(adopt(registry, { x: { ...want('nobody.point', 'x'), optional: true } }).kind).toBe(
-      'unavailable',
-    )
+    expect(
+      adopt(clash, { memory: { ...want(MEMORY, 'graph'), optional: true } }, deployment).kind,
+    ).toBe('unavailable')
+    expect(
+      adopt(registry, { x: { ...want('nobody.point', 'x'), optional: true } }, deployment).kind,
+    ).toBe('unavailable')
   })
 
   it('什么都不点名：采用成功，没有绑定', () => {
-    expect(adopt(registry, {})).toEqual({ kind: 'adopted', bindings: {} })
+    expect(adopt(registry, {}, deployment)).toEqual({ kind: 'adopted', bindings: {} })
   })
 
   it('同内容的两个持有者：钉在正规次序里最前的那个实例上', () => {
     const twin = mustInstall(registry, inst('a-twin'), [
       entry(MEMORY, 'graph', { digest: 'mem-graph:graph' }),
     ])
-    expect(adopt(twin, { memory: want(MEMORY, 'graph') })).toMatchObject({
+    expect(adopt(twin, { memory: want(MEMORY, 'graph') }, deployment)).toMatchObject({
       bindings: { memory: { instance: inst('a-twin') } },
     })
   })
@@ -188,7 +197,7 @@ describe('adopt：一份定义点名的全部解析成功才算采用', () => {
 
 describe('bound：采用之后按钉住的取（DY-8）', () => {
   const registry = world(impl(MEMORY, 'graph', 'mem-graph'))
-  const adoption = adopt(registry, { memory: want(MEMORY, 'graph') })
+  const adoption = adopt(registry, { memory: want(MEMORY, 'graph') }, deployment)
   if (adoption.kind !== 'adopted') throw new Error('unreachable')
   const binding = adoption.bindings['memory']
   if (binding === null || binding === undefined) throw new Error('unreachable')
@@ -244,15 +253,21 @@ describe('refersTo：这份采用的哪些槽位钉在这个实例上', () => {
   const registry = world(impl(MEMORY, 'graph', 'mem-graph'), impl(COMPACTION, 'default', 'compact'))
 
   it('列出槽位，按名字排；没采用成的没有', () => {
-    const adoption = adopt(registry, {
-      second: want(MEMORY, 'graph'),
-      first: want(MEMORY, 'graph'),
-      other: want(COMPACTION, 'default'),
-      none: { ...want(COMPACTION, 'semantic'), optional: true },
-    })
+    const adoption = adopt(
+      registry,
+      {
+        second: want(MEMORY, 'graph'),
+        first: want(MEMORY, 'graph'),
+        other: want(COMPACTION, 'default'),
+        none: { ...want(COMPACTION, 'semantic'), optional: true },
+      },
+      deployment,
+    )
     expect(refersTo(adoption, inst('mem-graph'))).toEqual(['first', 'second'])
     expect(refersTo(adoption, inst('mem-graph', 2))).toEqual([])
     expect(refersTo(adoption, inst('compact'))).toEqual(['other'])
-    expect(refersTo(adopt(registry, { x: want(MEMORY, 'nope') }), inst('mem-graph'))).toEqual([])
+    expect(
+      refersTo(adopt(registry, { x: want(MEMORY, 'nope') }, deployment), inst('mem-graph')),
+    ).toEqual([])
   })
 })

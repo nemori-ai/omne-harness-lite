@@ -689,6 +689,7 @@ describe('sessionAccessCheck: the steps before the dependencies (policy draft §
       'history.since',
       'history.readModelView',
       'history.readCompactionContext',
+      'history.readAdoptedRequest',
       'queryOperation',
     ])
       expect(await w.session.check(read(w.work(OTHER), operation)), operation).toEqual({

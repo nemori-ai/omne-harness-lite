@@ -14,13 +14,10 @@ import type {
   ModelHostAuthority,
 } from '@omne-harness/model-contract/provider'
 import {
-  ModelConverterAuthorityService,
   ModelHostAuthorityService,
   ModelPublicationAuthorityService,
-  modelConverterAuthorityKey,
   modelHostAuthorityKey,
   modelPublicationAuthorityKey,
-  type ModelConverterAuthority,
   type ModelPublicationAuthority,
   type ModelRegistrationFailure,
 } from '@omne-harness/model-cordis-contract/cordis'
@@ -45,10 +42,6 @@ import type { EntryEnv, EntryObjectModule } from '../types.ts'
 const DENIED: ModelRegistrationFailure = Object.freeze({ kind: 'denied' })
 
 export function createModelPublicationAuthority(): ModelPublicationAuthority<unknown> {
-  return Object.freeze({ check: () => fail(DENIED) })
-}
-
-export function createModelConverterAuthority(): ModelConverterAuthority<unknown> {
   return Object.freeze({ check: () => fail(DENIED) })
 }
 
@@ -189,14 +182,6 @@ class EntryModelPublicationAuthority extends ModelPublicationAuthorityService<un
   }
 }
 
-class EntryModelConverterAuthority extends ModelConverterAuthorityService<unknown> {
-  readonly check: ModelConverterAuthority<unknown>['check']
-  constructor(ctx: Context, authority: ModelConverterAuthority<unknown>) {
-    super(ctx)
-    this.check = input => authority.check(input)
-  }
-}
-
 class EntryModelHostAuthority extends ModelHostAuthorityService<unknown> {
   readonly resolve: ModelHostAuthority<unknown>['resolve']
   constructor(ctx: Context, authority: ModelHostAuthority<unknown>) {
@@ -237,14 +222,6 @@ export const modelPublicationAuthority: EntryObjectModule = {
   implementation: 'real',
   install(scope) {
     new EntryModelPublicationAuthority(scope, createModelPublicationAuthority())
-  },
-}
-
-export const modelConverterAuthority: EntryObjectModule = {
-  name: modelConverterAuthorityKey,
-  implementation: 'real',
-  install(scope) {
-    new EntryModelConverterAuthority(scope, createModelConverterAuthority())
   },
 }
 

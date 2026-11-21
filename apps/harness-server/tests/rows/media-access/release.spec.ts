@@ -42,7 +42,7 @@ describe('the six media rows', () => {
   it.each([
     [mediaStorageSqlRow, 'media-storage-sql', ['mediaIndex'], ['storage', 'tenantDomainLookup']],
     [mediaImageRow, 'media-image', ['mediaImage'], []],
-    [mediaRow, 'media', ['mediaStores', 'media'], ['mediaIndex', 'mediaImage']],
+    [mediaRow, 'media', ['mediaStores', 'mediaEngines', 'media'], ['mediaIndex', 'mediaImage']],
     [mediaStorageLocalRow, 'media-storage-local', [], ['mediaStores']],
     [mediaSweepRow, 'media-sweep', [], ['media', 'tenantDomains', 'tenantDomainScannerPrincipal']],
     [mediaAccessRow, 'media-access', [], ['accessRegistry', 'principalIssuer']],
@@ -136,7 +136,7 @@ describe('the six media rows', () => {
           })
           expect(await client['describe-media']({ tenant, ref })).toEqual({
             outcome: 'succeeded',
-            body: { state: 'staged', facts },
+            body: { state: 'staged', facts, preprocess: { kind: 'not-needed' } },
           })
 
           const pages: Uint8Array[] = []
@@ -203,6 +203,14 @@ describe('the six media rows', () => {
             body: { bytes: PICTURE.byteLength, digest: digestOf(PICTURE) },
           })
           expect(readFileSync(back).equals(Buffer.from(PICTURE))).toBe(true)
+          const described = await tree.cli(['media', 'describe', '--ref', JSON.stringify(ref)])
+          expect(described.status, described.stderr).toBe(0)
+          expect(JSON.parse(described.stdout)).toMatchObject({
+            body: { state: 'staged', preprocess: { kind: 'not-needed' } },
+          })
+          const categories = await tree.cli(['asset', 'categories'])
+          expect(categories.status, categories.stderr).toBe(0)
+          expect(categories.stdout).toContain('converter')
         },
       ])
       expect(exitCodes).toEqual([0, 0])

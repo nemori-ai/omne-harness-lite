@@ -427,6 +427,7 @@ type ChatPart =
       type: 'image_url'
       image_url: Readonly<{ url: string; detail?: string | undefined }>
     }>
+  | Readonly<{ type: 'file'; file: Readonly<{ filename?: string | undefined; file_data: string }> }>
 
 type ChatToolCall = Readonly<{
   id: string | undefined
@@ -496,7 +497,14 @@ function conversation() {
   }
 }
 
-type ResponsesPart = Readonly<{ type: string; text?: string; image_url?: string; detail?: string }>
+type ResponsesPart = Readonly<{
+  type: string
+  text?: string
+  image_url?: string
+  detail?: string
+  filename?: string
+  file_data?: string
+}>
 
 type ResponsesItem = Readonly<{
   type?: string
@@ -528,6 +536,8 @@ function responsesParts(content: ResponsesItem['content']): readonly ChatPart[] 
       return { type: 'text', text: part.text }
     if (part.type === 'input_image' && part.image_url !== undefined)
       return { type: 'image_url', image_url: { url: part.image_url, detail: part.detail } }
+    if (part.type === 'input_file' && part.file_data !== undefined)
+      return { type: 'file', file: { filename: part.filename, file_data: part.file_data } }
     throw new Error(`gateway-wire: a content part of type ${part.type} is not covered`)
   })
 }
@@ -615,6 +625,11 @@ function messagesPart(block: MessagesBlock): ChatPart {
     return {
       type: 'image_url',
       image_url: { url: `data:${block.source.media_type ?? ''};base64,${block.source.data}` },
+    }
+  if (block.type === 'document' && block.source?.data !== undefined)
+    return {
+      type: 'file',
+      file: { file_data: `data:${block.source.media_type ?? ''};base64,${block.source.data}` },
     }
   throw new Error(`gateway-wire: a content block of type ${block.type} is not covered`)
 }

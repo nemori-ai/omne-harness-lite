@@ -2,6 +2,9 @@ export type Instance = Readonly<{ fiber: string; generation: number }>
 
 export type Scope = readonly string[]
 
+/** The scope of an asker that sees only what holds for the whole deployment. */
+export const deployment: Scope = Object.freeze([])
+
 export type Entry<I = unknown> = Readonly<{
   point: string
   key: string

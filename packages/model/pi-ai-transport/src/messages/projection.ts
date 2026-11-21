@@ -1,4 +1,4 @@
-import { sentImage, type MediaView } from '../media.ts'
+import { sentFile, sentImage, sentWords, type MediaView } from '../media.ts'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
@@ -73,6 +73,23 @@ function invalid(field: string, reason: string): Outcome<never, TransportFailure
   return { failure: { kind: 'invalid', field, reason } }
 }
 
+function documentJson(
+  block: ContentBlock,
+  path: string,
+  input: MessagesProjectionInput,
+): Outcome<JsonValue, TransportFailure> {
+  const words = sentWords(block, input.media)
+  if (words !== null) return { ok: object({ type: text('text'), text: text(words) }) }
+  const sent = sentFile(block, input.record.wire.file, input.media)
+  if (sent === null) return unsupported(path, input.adapter)
+  const source = object({
+    type: text('base64'),
+    media_type: text(sent.mime),
+    data: text(sent.data),
+  })
+  return { ok: object({ type: text('document'), source }) }
+}
+
 function contentJson(
   block: ContentBlock,
   path: string,
@@ -80,6 +97,7 @@ function contentJson(
 ): Outcome<JsonValue | null, TransportFailure> {
   if (!block.visibility.toModel) return { ok: null }
   if (block.kind === 'text') return { ok: object({ type: text('text'), text: text(block.text) }) }
+  if (block.kind === 'file') return documentJson(block, path, input)
   const sent = sentImage(block, input.record.wire.image?.mediaTypes, input.media)
   if (sent === null) return unsupported(path, input.adapter)
   const source = object({

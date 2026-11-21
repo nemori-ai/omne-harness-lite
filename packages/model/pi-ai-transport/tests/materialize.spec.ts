@@ -353,6 +353,38 @@ describe('waiting for capacity', () => {
       ])
     })
 
+    it('names in the receipt each medium read, with the type and byte count of what was encoded, in reading order', async () => {
+      const fitted = new Uint8Array([1, 2, 3])
+      const { prepare, probe } = reading(async given =>
+        given.mediaType === 'audio/wav'
+          ? read(given, BYTES, 'audio/wav')
+          : read(given, fitted, 'image/webp'),
+      )
+      probe.mediaLimits = { ...LIMITS_OF_MODEL, mediaTypes: ['image/webp', 'audio/wav'] }
+      const voice = judgeContentBlock({
+        kind: 'voice',
+        id: 'block-voice',
+        visibility: { toHuman: true, toModel: true },
+        ref: { ...reference('voice'), mediaType: 'audio/wav' },
+        transcript: null,
+      })
+      if (!('ok' in voice)) throw new Error(`the test built a refused block: ${voice.rejected}`)
+      const request = { ...REQUEST, messages: [user(picture('a'), voice.ok, picture('a'))] }
+      const sent = await materialized(await prepare(request))
+      expect(sent.receipt.media).toEqual([
+        { reference: reference('a'), mediaType: 'image/webp', bytes: '3' },
+        {
+          reference: { ...reference('voice'), mediaType: 'audio/wav' },
+          mediaType: 'audio/wav',
+          bytes: '10',
+        },
+      ])
+      await sent.close()
+      const plain = await materialized(await prepare())
+      expect(Object.hasOwn(plain.receipt, 'media')).toBe(false)
+      await plain.close()
+    })
+
     it('takes two references for one medium only when storage, key and digest are all the same', async () => {
       const { prepare, asked } = reading(async given => read(given))
       const elsewhere = { ...picture('a'), ref: { ...reference('a'), storage: 'elsewhere' } }

@@ -14,6 +14,32 @@ const image = { kind: 'image', widthPixels: 640, heightPixels: 480 }
 const voice = { kind: 'voice', durationMs: 1200, sampleRate: 16000, channels: 1 }
 const uploading = { kind: 'uploading', nextSequence: 2, partBytes: 262144 }
 const committed = { kind: 'committed', ref, facts: image }
+const definition = { name: 'voice', revision: '1' }
+const engine = { name: 'voice.transcribe', revision: '1' }
+const words = { ...ref, mediaType: 'text/plain', bytes: '20480' }
+const PREPROCESS = [
+  { kind: 'not-needed' },
+  { kind: 'not-started' },
+  { kind: 'running' },
+  {
+    kind: 'done',
+    representation: { outcome: 'converted', definition, engine, text: 'hello', others: [] },
+  },
+  {
+    kind: 'done',
+    representation: { outcome: 'converted', definition, engine, text: words, others: [ref] },
+  },
+  { kind: 'done', representation: { outcome: 'inconvertible', definition, engine } },
+  ...[
+    'basis-unavailable',
+    'engine-unavailable',
+    'engine-error',
+    'timeout',
+    'invalid-result',
+    'outcome-unknown',
+    'cancelled',
+  ].map(reason => ({ kind: 'failed', reason })),
+]
 
 describe('the bodies of media/v1 go to the wire and back unchanged', () => {
   it.each([
@@ -33,6 +59,7 @@ describe('the bodies of media/v1 go to the wire and back unchanged', () => {
       },
     ],
     ['describe-media', { tenant, ref }],
+    ['prepare-media', { tenant, ref }],
   ] as const)('%s', (name, body) => {
     expectRoundTrip(operations[name].body, body)
   })
@@ -102,9 +129,18 @@ describe('the outcomes of media/v1 go to the wire and back unchanged', () => {
     ['read-media-page', 'not-found', { reason: 'reference' }],
     ['read-media-page', 'not-found', { reason: 'material' }],
     ['read-media-page', 'limited', {}],
-    ['describe-media', 'succeeded', { state: 'staged', facts: image }],
-    ['describe-media', 'succeeded', { state: 'held', facts: voice }],
+    [
+      'describe-media',
+      'succeeded',
+      { state: 'staged', facts: image, preprocess: { kind: 'not-needed' } },
+    ],
+    [
+      'describe-media',
+      'succeeded',
+      { state: 'held', facts: voice, preprocess: { kind: 'running' } },
+    ],
     ['describe-media', 'not-found', {}],
+    ['prepare-media', 'not-found', {}],
   ] as const)('%s %s %j', (name, outcome, body) => {
     const outcomes = operations[name].outcomes as Record<string, unknown>
     expectRoundTrip(outcomes[outcome] as never, body)
@@ -117,9 +153,51 @@ describe('the outcomes of media/v1 go to the wire and back unchanged', () => {
     ['commit-upload', 'succeeded', { ref, facts: { kind: 'video' } }],
     ['commit-upload', 'invalid', { reason: 'too-slow' }],
     ['read-media-page', 'not-found', { reason: 'other' }],
-    ['describe-media', 'succeeded', { state: 'uploading', facts: image }],
+    [
+      'describe-media',
+      'succeeded',
+      { state: 'uploading', facts: image, preprocess: { kind: 'running' } },
+    ],
+    ['describe-media', 'succeeded', { state: 'held', facts: image }],
+    ['prepare-media', 'succeeded', { preprocess: { kind: 'failed', reason: 'tired' } }],
+    [
+      'prepare-media',
+      'succeeded',
+      {
+        preprocess: {
+          kind: 'done',
+          representation: { outcome: 'converted', definition, engine, text: 7, others: [] },
+        },
+      },
+    ],
+    [
+      'prepare-media',
+      'succeeded',
+      { preprocess: { kind: 'done', representation: { outcome: 'inconvertible', definition } } },
+    ],
   ] as const)('%s %s refuses %j', (name, outcome, body) => {
     const outcomes = operations[name].outcomes as Record<string, unknown>
     expect(readSample(outcomes[outcome] as never, body)).toEqual({ ok: false })
+  })
+})
+
+describe('what preprocessing came to goes to the wire and back unchanged', () => {
+  it.each(PREPROCESS)('prepare-media and describe-media carry %j', preprocess => {
+    expectRoundTrip(operations['prepare-media'].outcomes.succeeded, { preprocess })
+    expectRoundTrip(operations['describe-media'].outcomes.succeeded, {
+      state: 'held',
+      facts: voice,
+      preprocess,
+    })
+  })
+
+  it('observe-media opens on one medium of a tenant and says only that it changed', () => {
+    const observation = mediaProtocol.observations['observe-media']
+    expectRoundTrip(observation.open, { tenant, ref })
+    expectRoundTrip(observation.frame, { kind: 'changed' })
+    expect(
+      readSample(observation.frame, { kind: 'changed', preprocess: { kind: 'running' } }),
+    ).toEqual({ ok: false })
+    expect(readSample(observation.open, { tenant })).toEqual({ ok: false })
   })
 })

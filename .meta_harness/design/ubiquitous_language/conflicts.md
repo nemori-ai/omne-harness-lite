@@ -627,7 +627,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **类型**：缺定义。
 - **原况**：产品与规格都没写 `Files` 的 `open` 结果是否带图片这个模态，工具的可用性因此无从按模态判。
 - **处置**：[Tool 规格的执行事实、收场与结果](../../../packages/tool/SPEC.md#执行事实收场与结果)写明作者在声明里写结果带哪些模态，`open` 的结果是一行文字说明加一个图片的引用块；模型原生读不了而又没有可用的转换时，工具在原位不可用。
-- **留意**：[元能力 Files](../product/meta-capabilities/design.md#meta-files)（rev 13）的动作表仍写 `open`「返回附件和图片内容」。这里的「附件」若按 [UL-attachment](terms/execution-and-outcome.md#ul-attachment--附件--attachment) 读，指只给地址、不进模态约束的产出，与规格的引用块不同；措辞由元能力 topic 的拥有者复核。
+- **留意**：[元能力 Files](../product/meta-capabilities/design.md#meta-files)（rev 16）与规格一致：`open` 返回一行文字说明加一个引用图片的图片块，不叫附件（[UL-attachment](terms/execution-and-outcome.md#ul-attachment--附件--attachment) 指只给地址、不进模态约束的产出）。
 - **状态**：已闭合（Tool 规格）。
 
 ### C-96：表示决定还有没有留到发送时再加载

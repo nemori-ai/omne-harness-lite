@@ -19,7 +19,12 @@ import {
   engineProbe,
   fixedRequest,
   message,
+  DOCUMENT,
+  documentBlock,
+  PDF_WIRE,
   profileOf,
+  speechBlock,
+  speechRead,
   stateBlock,
   supplierOf,
   testHooks,
@@ -69,6 +74,45 @@ function adoptionsOf(outcome: ReturnType<typeof plan>): readonly ParameterAdopti
 function applied(outcome: ReturnType<typeof plan>): readonly Parameter[] {
   return adoptionsOf(outcome).map(item => item.applied)
 }
+
+describe('rules.plan: a request that refers to a voice', () => {
+  it('is pending on its reference, measured by the duration, rate and channels the block carries', () => {
+    const plain = testRecord()
+    const record = testRecord({
+      wire: { ...plain.wire, voice: { formats: { 'audio/wav': 'wav' } } },
+    })
+    const outcome = plan(bind(record), record, {
+      messages: [message('u1', 'user', [textBlock('b1', 'hear'), speechBlock('b2')])],
+    })
+    if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
+    expect(outcome.ok.representation).toMatchObject({
+      kind: 'pending-media',
+      references: [speechRead().reference],
+      media: [speechRead().measurement],
+    })
+  })
+})
+
+describe('rules.plan: a request that refers to a file', () => {
+  const record = testRecord({ wire: { ...testRecord().wire, file: PDF_WIRE } })
+  it('a PDF the record takes is pending on its reference', () => {
+    const outcome = plan(bind(record), record, {
+      messages: [message('u1', 'user', [textBlock('b1', 'read'), documentBlock('d1')])],
+    })
+    if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
+    expect(outcome.ok.representation).toMatchObject({
+      kind: 'pending-media',
+      references: [DOCUMENT],
+    })
+  })
+
+  it('a file of a type the record does not take is unsupported before anything is read', () => {
+    const zip = { ...DOCUMENT, mediaType: 'application/zip' }
+    expect(
+      plan(bind(record), record, { messages: [message('u1', 'user', [documentBlock('d1', zip)])] }),
+    ).toMatchObject({ failure: { kind: 'unsupported', field: '/messages/0/blocks/0' } })
+  })
+})
 
 describe('rules.plan: the replay declaration', () => {
   const other = message('a1', 'assistant', [stateBlock('s1', 'sealed'), textBlock('b1', 'hi')], {

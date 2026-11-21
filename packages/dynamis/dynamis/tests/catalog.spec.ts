@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  deployment,
   ask,
   candidates,
   CATALOG,
@@ -57,7 +58,7 @@ describe('declare：声明一个点就是往目录里放一项', () => {
 
 describe('standingOf：一个点的四种状态', () => {
   it('目录自己：总是声明了，规矩是内建的', () => {
-    expect(standingOf(registryOf(), CATALOG)).toEqual({
+    expect(standingOf(registryOf(), CATALOG, deployment)).toEqual({
       kind: 'declared',
       contract: catalogContract,
       holders: [],
@@ -75,6 +76,7 @@ describe('standingOf：一个点的四种状态', () => {
       gives: 'nothing: a declaration is data',
       item: { kind: 'data', fields: { name: 'string', item: 'object' } },
       resolve: 'conflict',
+      binding: 'run',
       onError: 'a point whose declaration cannot be read answers unavailable',
       version: 1,
       conformance: null,
@@ -87,17 +89,19 @@ describe('standingOf：一个点的四种状态', () => {
 
   it('别的点的声明不算这个点的', () => {
     const registry = hosted(['other', [declare(contract('other.point'))]])
-    expect(standingOf(registry, 'third.point')).toEqual({ kind: 'undeclared' })
-    expect(standingOf(registry, POINT).kind).toBe('declared')
-    expect(standingOf(registry, 'other.point')).toMatchObject({ holders: [inst('other')] })
+    expect(standingOf(registry, 'third.point', deployment)).toEqual({ kind: 'undeclared' })
+    expect(standingOf(registry, POINT, deployment).kind).toBe('declared')
+    expect(standingOf(registry, 'other.point', deployment)).toMatchObject({
+      holders: [inst('other')],
+    })
   })
 
   it('没有声明：没声明', () => {
-    expect(standingOf(registryOf(), POINT)).toEqual({ kind: 'undeclared' })
+    expect(standingOf(registryOf(), POINT, deployment)).toEqual({ kind: 'undeclared' })
   })
 
   it('一份声明：声明了', () => {
-    expect(standingOf(hosted(), POINT)).toEqual({
+    expect(standingOf(hosted(), POINT, deployment)).toEqual({
       kind: 'declared',
       contract: contract(POINT),
       holders: [inst('host')],
@@ -105,32 +109,37 @@ describe('standingOf：一个点的四种状态', () => {
   })
 
   it('两个 fiber 声明内容相同的一份：算一份，两个持有者', () => {
-    const standing = standingOf(hosted(['twin', [host()]]), POINT)
+    const standing = standingOf(hosted(['twin', [host()]]), POINT, deployment)
     expect(standing).toMatchObject({ kind: 'declared', holders: [inst('host'), inst('twin')] })
   })
 
   it('两份内容不同：声明了两次，带两家', () => {
     const other = declare(contract(POINT, { gives: 'something else' }))
-    expect(standingOf(hosted(['fork', [other]]), POINT)).toEqual({
+    expect(standingOf(hosted(['fork', [other]]), POINT, deployment)).toEqual({
       kind: 'ambiguous',
       by: [inst('fork'), inst('host')],
     })
   })
 
   it('正在撤下的 fiber 的声明不算', () => {
-    expect(standingOf(retire(hosted(), inst('host')), POINT)).toEqual({ kind: 'undeclared' })
+    expect(standingOf(retire(hosted(), inst('host')), POINT, deployment)).toEqual({
+      kind: 'undeclared',
+    })
   })
 
   it('声明在一个作用域里：只有那个作用域之下的发问者看得见', () => {
     const scoped = registryOf(['host', [declare(contract(POINT), ['org'])]])
     expect(standingOf(scoped, POINT, ['org', 't']).kind).toBe('declared')
-    expect(standingOf(scoped, POINT).kind).toBe('undeclared')
+    expect(standingOf(scoped, POINT, deployment).kind).toBe('undeclared')
     expect(standingOf(scoped, POINT, ['other']).kind).toBe('undeclared')
   })
 
   it('目录有读不出的来源：读不出', () => {
     const registry = withUnread(hosted(), [{ point: CATALOG, source: 'plugins', scope: [] }])
-    expect(standingOf(registry, POINT)).toEqual({ kind: 'unreadable', source: 'plugins' })
+    expect(standingOf(registry, POINT, deployment)).toEqual({
+      kind: 'unreadable',
+      source: 'plugins',
+    })
   })
 
   const good = contract(POINT)
@@ -159,6 +168,8 @@ describe('standingOf：一个点的四种状态', () => {
       { ...host(), item: { ...good, item: { kind: 'data', fields: { a: 'date' } } } },
     ],
     ['答法不认识', { ...host(), item: { ...good, resolve: 'first' } }],
+    ['绑定时刻不认识', { ...host(), item: { ...good, binding: 'sometimes' } }],
+    ['绑定时刻没写', { ...host(), item: { ...good, binding: undefined } }],
     ['主版本不是正整数', { ...host(), item: { ...good, version: 0 } }],
     ['主版本不是整数', { ...host(), item: { ...good, version: 1.5 } }],
     ['符合性用例既不是文字也不是空', { ...host(), item: { ...good, conformance: 3 } }],
@@ -185,6 +196,8 @@ describe('standingOf：一个点的四种状态', () => {
     字段表不是对象: 'the item fields are not an object',
     字段的种类不认识: 'the kind of field a is unknown',
     答法不认识: 'the resolve rule is unknown',
+    绑定时刻不认识: 'the binding time is unknown',
+    绑定时刻没写: 'the binding time is unknown',
     主版本不是正整数: 'the version is not a positive integer',
     主版本不是整数: 'the version is not a positive integer',
     符合性用例既不是文字也不是空: 'conformance is neither text nor null',
@@ -194,24 +207,34 @@ describe('standingOf：一个点的四种状态', () => {
     if (found === undefined) throw new Error(`no declaration named ${name}`)
     const declaration = found[1]
     const registry = registryOf(['host', [declaration]])
-    expect(standingOf(registry, declaration.key === CATALOG ? 'nothing.here' : POINT)).toEqual({
+    expect(
+      standingOf(registry, declaration.key === CATALOG ? 'nothing.here' : POINT, deployment),
+    ).toEqual({
       kind: 'undeclared',
     })
     expect(Object.keys(why)).toHaveLength(bad().length)
     expect(report(registry, inst('host'))[0]).toMatchObject({ state: 'breach', detail: why[name] })
   })
 
+  it('贡献只在构建时定：合法', () => {
+    const declaration = declare(contract(POINT, { binding: 'build' }))
+    expect(standingOf(registryOf(['host', [declaration]]), POINT, deployment)).toMatchObject({
+      kind: 'declared',
+      contract: { binding: 'build' },
+    })
+  })
+
   it('键取自另一个点、符合性用例写了路径：合法', () => {
     const declaration = declare(
       contract(POINT, { keyFrom: 'assets.categories', conformance: 'memory-contract/conformance' }),
     )
-    expect(standingOf(registryOf(['host', [declaration]]), POINT).kind).toBe('declared')
+    expect(standingOf(registryOf(['host', [declaration]]), POINT, deployment).kind).toBe('declared')
   })
 })
 
 describe('candidates 与 ask：读一个点的前置', () => {
   it('没声明：依据不可用 undeclared', () => {
-    expect(ask(registryOf(['a', [put('graph')]]), POINT, 'graph')).toEqual({
+    expect(ask(registryOf(['a', [put('graph')]]), POINT, 'graph', deployment)).toEqual({
       kind: 'unavailable',
       reason: 'undeclared',
       detail: POINT,
@@ -220,7 +243,7 @@ describe('candidates 与 ask：读一个点的前置', () => {
 
   it('声明了两次：依据不可用 ambiguous，带两家', () => {
     const fork = declare(contract(POINT, { gives: 'else' }))
-    expect(ask(hosted(['fork', [fork]]), POINT, 'graph')).toEqual({
+    expect(ask(hosted(['fork', [fork]]), POINT, 'graph', deployment)).toEqual({
       kind: 'unavailable',
       reason: 'ambiguous',
       detail: 'fork, host',
@@ -229,12 +252,15 @@ describe('candidates 与 ask：读一个点的前置', () => {
 
   it('目录读不出：依据不可用 unread', () => {
     const registry = withUnread(hosted(), [{ point: CATALOG, source: 'plugins', scope: [] }])
-    expect(ask(registry, POINT, 'graph')).toEqual({
+    expect(ask(registry, POINT, 'graph', deployment)).toEqual({
       kind: 'unavailable',
       reason: 'unread',
       detail: 'plugins',
     })
-    expect(ask(registry, CATALOG, POINT)).toMatchObject({ kind: 'unavailable', reason: 'unread' })
+    expect(ask(registry, CATALOG, POINT, deployment)).toMatchObject({
+      kind: 'unavailable',
+      reason: 'unread',
+    })
   })
 
   it('这个点有对发问者可见的读不出的来源：依据不可用 unread', () => {
@@ -246,7 +272,7 @@ describe('candidates 与 ask：读一个点的前置', () => {
       reason: 'unread',
       detail: 'tenant-layer',
     })
-    expect(ask(registry, POINT, 'graph').kind).toBe('one')
+    expect(ask(registry, POINT, 'graph', deployment).kind).toBe('one')
     expect(ask(registry, POINT, 'graph', ['other']).kind).toBe('one')
   })
 
@@ -254,18 +280,21 @@ describe('candidates 与 ask：读一个点的前置', () => {
     const registry = withUnread(hosted(['a', [put('graph')]]), [
       { point: 'other.point', source: 'x', scope: [] },
     ])
-    expect(ask(registry, POINT, 'graph').kind).toBe('one')
+    expect(ask(registry, POINT, 'graph', deployment).kind).toBe('one')
   })
 
   it('读得出：没有、一项', () => {
     const registry = hosted(['a', [put('graph')]])
-    expect(ask(registry, POINT, 'vector')).toEqual({ kind: 'none', filtered: [] })
-    expect(ask(registry, POINT, 'graph')).toMatchObject({ kind: 'one', holders: [inst('a')] })
+    expect(ask(registry, POINT, 'vector', deployment)).toEqual({ kind: 'none', filtered: [] })
+    expect(ask(registry, POINT, 'graph', deployment)).toMatchObject({
+      kind: 'one',
+      holders: [inst('a')],
+    })
   })
 
   it('正在撤下的实例放的不看', () => {
     const registry = retire(hosted(['a', [put('graph')]]), inst('a'))
-    expect(ask(registry, POINT, 'graph')).toEqual({ kind: 'none', filtered: [] })
+    expect(ask(registry, POINT, 'graph', deployment)).toEqual({ kind: 'none', filtered: [] })
   })
 
   it('发问者看不见的作用域里的不看', () => {
@@ -286,11 +315,14 @@ describe('candidates 与 ask：读一个点的前置', () => {
     )
     const answer = ask(layered, POINT, 'graph', ['org'])
     expect(answer).toMatchObject({ kind: 'one', holders: [inst('b')] })
-    expect(ask(layered, POINT, 'graph')).toMatchObject({ kind: 'one', holders: [inst('a')] })
+    expect(ask(layered, POINT, 'graph', deployment)).toMatchObject({
+      kind: 'one',
+      holders: [inst('a')],
+    })
   })
 
   it('candidates 不给键时给出全部键下的条目，连同规矩', () => {
-    const read = candidates(hosted(['a', [put('graph'), put('vector')]]), POINT, null)
+    const read = candidates(hosted(['a', [put('graph'), put('vector')]]), POINT, null, deployment)
     expect(read.kind).toBe('read')
     if (read.kind !== 'read') return
     expect(read.contract).toEqual(contract(POINT))
@@ -302,7 +334,12 @@ describe('核规矩是答案的一部分（DY-6）', () => {
   const shaped = (arity: 'one' | 'list' | 'keyed-one' | 'keyed-list', fields = {}) =>
     declare(contract(POINT, { arity, item: { kind: 'data', fields } }))
   const breachOf = (declaration: Entry, entries: readonly Entry[]): readonly string[] => {
-    const read = candidates(registryOf(['host', [declaration]], ['a', entries]), POINT, null)
+    const read = candidates(
+      registryOf(['host', [declaration]], ['a', entries]),
+      POINT,
+      null,
+      deployment,
+    )
     if (read.kind !== 'read') throw new Error('unreachable')
     expect(read.entries).toHaveLength(entries.length - read.filtered.length)
     return read.filtered.map(out => `${out.reason}: ${out.detail}`)
@@ -364,7 +401,7 @@ describe('核规矩是答案的一部分（DY-6）', () => {
       ['good', [put('graph')]],
       ['sloppy', [put('graph', { item: {}, digest: 's' })]],
     )
-    const answer = ask(registry, POINT, 'graph')
+    const answer = ask(registry, POINT, 'graph', deployment)
     expect(answer).toMatchObject({ kind: 'one', holders: [inst('good')] })
     if (answer.kind === 'one') expect(answer.filtered.map(out => out.reason)).toEqual(['breach'])
   })
@@ -379,7 +416,7 @@ describe('list：放一列的点', () => {
       ['a', [put('', { id: 'second', rank: 2 }), put('', { id: 'bad', item: {} })]],
       ['b', [put('', { id: 'first', rank: 1 })]],
     )
-    const listing = list(registry, POINT, null)
+    const listing = list(registry, POINT, null, deployment)
     expect(listing.kind).toBe('read')
     if (listing.kind !== 'read') return
     expect(listing.items.map(item => item.entry.id)).toEqual(['first', 'second'])
@@ -392,13 +429,13 @@ describe('list：放一列的点', () => {
       ['host', [keyed]],
       ['a', [put('k', { id: '1' }), put('j', { id: '2' })]],
     )
-    const listing = list(registry, POINT, 'k')
+    const listing = list(registry, POINT, 'k', deployment)
     if (listing.kind !== 'read') throw new Error('unreachable')
     expect(listing.items.map(item => item.entry.id)).toEqual(['1'])
   })
 
   it('点没声明：依据不可用', () => {
-    expect(list(registryOf(), POINT, null)).toMatchObject({
+    expect(list(registryOf(), POINT, null, deployment)).toMatchObject({
       kind: 'unavailable',
       reason: 'undeclared',
     })

@@ -196,12 +196,17 @@ function replayOf(binding: 'prefix' | 'none') {
   } as const
 }
 
+/** A PDF the model reads natively; one file up to 32 MiB is the offering of this project, no upstream limit is established. */
+const PDF = { mediaTypes: ['application/pdf'], maxBytes: 33554432 } as const
+
 type Measured = Readonly<{
   model: string
   revision: string
   binding: 'prefix' | 'none'
   profile: ProfileData
   image: ImageRuleName
+  /** Files read natively, and the request that showed it. */
+  files?: Readonly<{ evidence: string }>
 }>
 
 function recordOf(item: Measured) {
@@ -212,8 +217,12 @@ function recordOf(item: Measured) {
     route: { provider: OPENROUTER, model: name },
     status: 'current',
     ...RESPONSES,
+    ...(item.files === undefined ? {} : { wire: { ...RESPONSES.wire, file: PDF } }),
     replay: replayOf(item.binding),
-    profile: item.profile,
+    profile:
+      item.files === undefined
+        ? item.profile
+        : { ...item.profile, evidence: `${item.profile.evidence} ${item.files.evidence}` },
     meter: { ...METER, image: item.image },
     provenance: provenanceOf(name, item.revision),
   } as const satisfies OpenAiResponsesRecord
@@ -324,10 +333,14 @@ export const OPENAI_RECORDS = [
   },
   recordOf({
     model: 'gpt-5.6-luna',
-    revision: '3',
+    revision: '4',
     binding: 'none',
     profile: ENDPOINT_PROFILE,
     image: 'gpt56-patch/1',
+    files: {
+      evidence:
+        'PDF in: probes/sample.pdf sent as input_file with plugins file-parser engine native, one request on 2026-11-21, answered its passphrase (probe p8 responses-luna; the same file as a chat file part, p8 chat-luna).',
+    },
   }),
   {
     name: 'openai/gpt-5.6-luna-pro',

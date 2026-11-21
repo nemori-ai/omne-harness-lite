@@ -5,7 +5,7 @@ import type {
   ParticipantDescriptor,
   ReadHandlerDescriptor,
 } from '@omne-harness/sql-contract'
-import { HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, TABLES } from './schema.ts'
+import { HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, REPRESENTATIONS, TABLES } from './schema.ts'
 
 export type MediaSqlMaterials = Readonly<{
   participants: readonly ParticipantDescriptor[]
@@ -24,6 +24,7 @@ function file(name: string) {
 export function mediaSqlMaterials(): MediaSqlMaterials {
   const participant = file('participant')
   const migration = file('migration')
+  const representations = file('migration-representations')
   const reader = file('read')
   return {
     participants: [
@@ -42,6 +43,12 @@ export function mediaSqlMaterials(): MediaSqlMaterials {
     ],
     migrations: [
       { ...MIGRATION, moduleUrl: migration.moduleUrl, checksum: migration.digest, requires: [] },
+      {
+        ...REPRESENTATIONS,
+        moduleUrl: representations.moduleUrl,
+        checksum: representations.digest,
+        requires: [MIGRATION],
+      },
     ],
     readHandlers: [
       {
@@ -51,7 +58,7 @@ export function mediaSqlMaterials(): MediaSqlMaterials {
         codeDigest: reader.digest,
         ordering: 'snapshot',
         readTables: TABLES,
-        requiresMigrations: [MIGRATION],
+        requiresMigrations: [MIGRATION, REPRESENTATIONS],
         maxRowsRead: 20_000,
         maxOutputBytes: 8 * 1024 * 1024,
       },

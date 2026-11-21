@@ -415,10 +415,10 @@ export abstract class SessionCursorSigningService extends Service implements Ses
 export const sessionCursorSigningKey = SessionCursorSigningService.provide
 
 /**
- * The adopted request of a session: what the session-log Journal provider saved in the same
- * publication as the last main-purpose M0 (FIXED-FACTS F4). The `agent-journal` row provides it
- * in the plugin body of `agentJournal`, so it is in the same authoritative ordering as the Agent
- * records. The consumer takes it per call (`ctx.get`) and treats absence as `unavailable`.
+ * The adopted request of a session, saved with an M0 (FIXED-FACTS F4): of the call a reference
+ * names, or else of the last main-purpose M0. The `agent-journal` row provides it in the plugin
+ * body of `agentJournal`, so it is in the same authoritative ordering as the Agent records. The
+ * consumer takes it per call (`ctx.get`) and treats absence as `unavailable`.
  *
  * @owner packages/session/session-cordis-contract
  */

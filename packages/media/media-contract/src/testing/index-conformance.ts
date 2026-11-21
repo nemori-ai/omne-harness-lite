@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import type { MediaIndex, MediaRow, NewRow, Staging } from '../ports.ts'
-import type { Holder } from '../values.ts'
+import { representationHolder, type Representation } from '../representation.ts'
+import type { Holder, Provenance } from '../values.ts'
 
 export type IndexConformanceCase = Readonly<{
   name: string
@@ -62,6 +63,15 @@ async function staged(
   ok(await index.insertUploading(uploading(letter, tenant)))
   return ok(await index.stageOrMerge(staging(letter, tenant, extra)))
 }
+const definition = (revision: string): Provenance => ({ name: 'voice', revision })
+const ENGINE: Provenance = { name: 'fixture.engine', revision: '1' }
+const converted = (revision: string, text: string): Representation => ({
+  definition: definition(revision),
+  engine: ENGINE,
+  outcome: 'converted',
+  text,
+  others: [],
+})
 const states = async (index: MediaIndex, tenant = T1): Promise<string[]> =>
   ok(await index.listDeleting(tenant, 10)).map((row: MediaRow) => row.key)
 
@@ -354,6 +364,60 @@ export const mediaIndexConformanceCases: readonly IndexConformanceCase[] = [
       assert.equal(ok(await index.readUpload(T1, 'up-a')).key, key('b'))
       ok(await index.dropRow(T1, key('a')))
       assert.equal(ok(await index.readUpload(T1, 'up-a')).key, key('b'))
+    },
+  },
+  {
+    name: 'a representation is kept for a live row once for each version of a definition, and read back by it',
+    async run(create) {
+      const index = await create()
+      await staged(index, 'a')
+      const first = converted('1', 'the first words')
+      const record = (representation: Representation, tenant = T1, letter = 'a') =>
+        index.recordRepresentation({ tenant, key: key(letter), representation })
+      assert.deepEqual(ok(await record(first)), first)
+      assert.deepEqual(ok(await record(converted('1', 'other words'))), first)
+      const cannot: Representation = {
+        definition: definition('2'),
+        engine: ENGINE,
+        outcome: 'inconvertible',
+      }
+      assert.deepEqual(ok(await record(cannot)), cannot)
+      const read = (revision: string, tenant = T1, letter = 'a') =>
+        index.readRepresentation({ tenant, key: key(letter), definition: definition(revision) })
+      assert.deepEqual(ok(await read('1')), first)
+      assert.deepEqual(ok(await read('2')), cannot)
+      assert.equal(ok(await read('3')), null)
+      assert.equal(ok(await read('1', T2)), null)
+      assert.equal(ok(await read('1', T1, 'z')), null)
+      assert.equal(failure(await record(first, T2)), 'not-live')
+      assert.equal(failure(await record(first, T1, 'z')), 'not-live')
+      ok(await index.insertUploading(uploading('u')))
+      assert.equal(failure(await record(first, T1, 'u')), 'not-live')
+    },
+  },
+  {
+    name: 'the expiry sweep takes with a row what was kept for its representations, and leaves what others hold',
+    async run(create) {
+      const index = await create()
+      const made = representationHolder(key('a'), definition('1'))
+      await staged(index, 'a', T1, { digest: 'sha256:a', expiresAt: EARLIER })
+      await staged(index, 'b', T1, { digest: 'sha256:b', holder: made })
+      await staged(index, 'c', T1, { digest: 'sha256:c', holder: made })
+      ok(await index.holdIfLive({ key: key('c'), tenant: T1, holder: holder('someone') }))
+      await staged(index, 'd', T1, {
+        digest: 'sha256:d',
+        holder: representationHolder(key('e'), definition('1')),
+      })
+      const kept = converted('1', 'words')
+      ok(await index.recordRepresentation({ tenant: T1, key: key('a'), representation: kept }))
+      const marked = ok(await index.markDeletingIfExpired({ tenant: T1, now: NOW, limit: 10 }))
+      assert.deepEqual(marked.map(row => row.key).sort(), [key('a'), key('b')])
+      assert.deepEqual((await states(index)).sort(), [key('a'), key('b')])
+      assert.equal(ok(await index.readLive(key('c'), T1)).holderCount, 1)
+      assert.equal(ok(await index.readLive(key('d'), T1)).holderCount, 1)
+      await staged(index, 'f', T1, { digest: 'sha256:a' })
+      const again = { tenant: T1, key: key('a'), definition: definition('1') }
+      assert.equal(ok(await index.readRepresentation(again)), null)
     },
   },
   {

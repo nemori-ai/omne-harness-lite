@@ -1,5 +1,6 @@
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { requestHead } from '@omne-harness/model-contract/provider'
+import type { ContentReference } from '@omne-harness/content-block'
 import type { Outcome } from '@omne-harness/operation-result'
 import { expectTypeOf, it } from 'vitest'
 import type {
@@ -7,6 +8,7 @@ import type {
   CallState,
   DispatchProgress,
   MaterializationReceipt,
+  MaterializedMedium,
   ModelFault,
   ModelHandle,
   ModelRuntime,
@@ -169,9 +171,16 @@ it('a materialization receipt names the supplier, the representation and the pay
     | 'supplier'
     | 'representation'
     | 'payloadDigest'
+    | 'media'
     | 'replayFormat'
     | 'replayPrefix'
     | 'replayCarried'
+  >()
+  expectTypeOf<MaterializationReceipt['media']>().toEqualTypeOf<
+    readonly MaterializedMedium[] | undefined
+  >()
+  expectTypeOf<MaterializedMedium>().toEqualTypeOf<
+    Readonly<{ reference: ContentReference; mediaType: string; bytes: string }>
   >()
   void [noDigest, withBudget]
 })

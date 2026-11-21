@@ -16,9 +16,16 @@ it('exports the pure functions of the contract', async () => {
   const root = (await import('@omne-harness/media-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'KNOWN_MEDIA_TYPES',
+    'REPRESENTATION_OWNER',
+    'declarationProblem',
+    'definitionNamesOf',
     'digestText',
+    'engineAccepts',
+    'isDefinitionName',
+    'isEngineName',
     'isMediaKey',
     'modalityOf',
+    'representationHolder',
     'sniffMediaType',
     'wavFacts',
   ])
@@ -40,6 +47,8 @@ it('sniffs nothing from bytes of no known type, a RIFF of another form, or too f
   expect(sniffMediaType(head(...ascii('GIF89a')))).toBeNull()
   expect(sniffMediaType(head(...ascii('ID3'), 4))).toBeNull()
   expect(sniffMediaType(head(...ascii('RIFF'), 1, 2, 3, 4, ...ascii('AVI ')))).toBeNull()
+  expect(sniffMediaType(head(...ascii('RIFX'), 1, 2, 3, 4, ...ascii('WAVE')))).toBeNull()
+  expect(sniffMediaType(head(...ascii('RIFX'), 1, 2, 3, 4, ...ascii('WEBP')))).toBeNull()
   expect(sniffMediaType(new Uint8Array([0x89, 0x50]))).toBeNull()
   expect(sniffMediaType(new Uint8Array())).toBeNull()
 })
@@ -100,4 +109,13 @@ it('reads the duration, rate and channels of a PCM WAV, past a chunk of odd size
 it('reads no facts from a WAV without a format or a data chunk', () => {
   expect(wavFacts(wav(16000, 1, 1).subarray(0, 36))).toBeNull()
   expect(wavFacts(new Uint8Array(12))).toBeNull()
+})
+
+it('takes an uploaded header that lies as no facts, and a cut recording at what is there', () => {
+  expect(wavFacts(wav(16000, 1, 1).subarray(0, 30))).toBeNull()
+  const noRate = wav(16000, 1, 1)
+  new DataView(noRate.buffer).setUint32(28, 0, true)
+  expect(wavFacts(noRate)).toBeNull()
+  const cut = wav(16000, 1, 2).slice(0, 44 + 16000)
+  expect(wavFacts(cut)).toEqual({ durationMs: 500, sampleRate: 16000, channels: 1 })
 })

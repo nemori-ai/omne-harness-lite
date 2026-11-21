@@ -79,6 +79,7 @@ export const contract = (name: string, over: Partial<Contract> = {}): Contract =
   gives: 'nothing',
   item: { kind: 'data', fields: { label: 'string' } },
   resolve: 'conflict',
+  binding: 'run',
   onError: 'the answer is unavailable',
   version: 1,
   conformance: null,

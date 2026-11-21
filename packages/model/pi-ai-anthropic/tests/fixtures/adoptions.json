@@ -5,5 +5,5 @@
   {"name":"anthropic/claude-opus-5","revision":"3","digest":"9a230d91c5bc4f9f2530cf77f5c8753260faa250c7c93f0bffa4dd4412c3b945"},
   {"name":"anthropic/claude-sonnet-5.5","revision":"2","digest":"eab713c8fc505f5339bc08693e7f48ac24aacab950cf580c4cf0dc407963d231"},
   {"name":"anthropic/claude-sonnet-5","revision":"3","digest":"967c74cfdc69609ab7099793a4c36472fb6db07dd69fd1b305d05343babb73bf"},
-  {"name":"anthropic/claude-haiku-5.5","revision":"2","digest":"c4afc8cfb8649290a8bba7be68da9f53d57492288feba9c09d456ef587e4997b"}
+  {"name":"anthropic/claude-haiku-5.5","revision":"3","digest":"3b6efeba2f5c63a67912f3516ed88c61062f6f7b27688e64879250bff755f0bb"}
 ]

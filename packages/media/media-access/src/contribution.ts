@@ -2,10 +2,12 @@ import type {
   AccessContribution,
   AnswerOf,
   LoginIdentity,
+  Principal,
 } from '@omne-harness/access-cordis-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { UploadStatus } from '@omne-harness/media-contract'
 import { mediaProtocol, type MediaProtocol } from '@omne-harness/media-protocol'
+import { createMediaObservation } from './observe-media.ts'
 import type { MediaFace, TargetTenantPrincipals } from './ports.ts'
 
 export type MediaContributionInput = Readonly<{
@@ -86,18 +88,23 @@ async function write<T, F extends { kind: string }, A>(
 export function createMediaContribution(
   input: MediaContributionInput,
 ): AccessContribution<MediaProtocol> {
-  /** Steps one to three of every handler: the acting, then the face of media at this call. */
-  async function admitted(
+  /** Steps one to three of every handler: the acting, the principal, then the face of media at this call. */
+  async function acting(
     login: LoginIdentity,
     tenant: TenantId,
-  ): Promise<MediaFace | typeof DENIED | typeof UNAVAILABLE> {
+  ): Promise<{ media: MediaFace; principal: Principal } | typeof DENIED | typeof UNAVAILABLE> {
     const text = tenantCodec.encode(tenant)
     if (!text.ok) throw new TypeError('media-access: tenant is not a minted TenantId')
     const issued = await input.principals
       .actingFor(login, text.value)
       .catch(() => ({ refused: 'basis-unavailable' as const }))
     if ('refused' in issued) return issued.refused === 'denied' ? DENIED : UNAVAILABLE
-    return input.media() ?? UNAVAILABLE
+    const media = input.media()
+    return media === undefined ? UNAVAILABLE : { media, principal: issued.ok }
+  }
+  async function admitted(login: LoginIdentity, tenant: TenantId) {
+    const acted = await acting(login, tenant)
+    return 'outcome' in acted ? acted : acted.media
   }
 
   return {
@@ -179,12 +186,27 @@ export function createMediaContribution(
         const media = await admitted(call.principal, body.tenant)
         if ('outcome' in media) return media
         return read(
-          () => media.custody.describe(body),
+          async () => {
+            const described = await media.custody.describe(body)
+            if ('failure' in described) return described
+            const state = await media.representations.read(body)
+            return 'failure' in state ? state : { ok: { ...described.ok, preprocess: state.ok } }
+          },
           (ok): Answer<'describe-media'> => ({ outcome: 'succeeded', body: ok }),
           { 'invalid-reference': () => NOT_FOUND },
         )
       },
+      async 'prepare-media'(call, body) {
+        const acted = await acting(call.principal, body.tenant)
+        if ('outcome' in acted) return acted
+        const access = { tenant: body.tenant, principal: acted.principal }
+        return write(
+          () => acted.media.representations.ensure({ access, ref: body.ref, signal: call.signal }),
+          (preprocess): Answer<'prepare-media'> => ({ outcome: 'succeeded', body: { preprocess } }),
+          { 'invalid-reference': () => NOT_FOUND },
+        )
+      },
     },
-    observations: {},
+    observations: { 'observe-media': createMediaObservation(input) },
   }
 }

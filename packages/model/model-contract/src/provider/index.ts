@@ -50,15 +50,6 @@ export type {
   ReplayProjectionInput,
   ReplayTreatment,
 } from '../profile.ts'
-export type {
-  ConversionFailure,
-  ConversionReply,
-  ConverterKey,
-  ConverterLookup,
-  ModelConverter,
-  ModelConverterCatalog,
-  ModelMessageConversion,
-} from '../conversion.ts'
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts'
 export type {
   ModelBindingFailure,

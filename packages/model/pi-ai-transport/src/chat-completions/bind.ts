@@ -1,4 +1,4 @@
-import { imageLimits } from '../media.ts'
+import { wireLimits } from '../media.ts'
 import type { RouteAccounting } from '../config.ts'
 import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
 import { recordAdoption } from '../family-table.ts'
@@ -27,6 +27,8 @@ export type ChatCompletionsBindingInput = Readonly<{
   limits: ChatCompletionsLimits
   /** The byte limit of one image of this profile; absent, images have none. */
   imageBytes?: number
+  /** The byte limit of one voice of this profile; absent, voices have none. */
+  voiceBytes?: number
   release(): Promise<void>
 }>
 
@@ -164,7 +166,7 @@ export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamil
   return Object.freeze({
     supplier,
     adoption,
-    mediaLimits: imageLimits(record.wire.image, input.imageBytes),
+    mediaLimits: wireLimits(record.wire, { image: input.imageBytes, voice: input.voiceBytes }),
     counting: meter.instance.basis,
     rules: Object.freeze({
       plan: (planInput: Parameters<typeof planRequest>[1]) => planRequest(context, planInput),

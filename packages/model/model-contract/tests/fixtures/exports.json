@@ -638,6 +638,11 @@
               "pending": false
             },
             {
+              "name": "MaterializedMedium",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "RetryDecision",
               "kind": "type",
               "pending": false
@@ -830,21 +835,6 @@
             {
               "name": "replaySourceCall",
               "kind": "value",
-              "pending": false
-            }
-          ]
-        },
-        {
-          "title": "消息转换",
-          "names": [
-            {
-              "name": "ConvertedContent",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ConversionResult",
-              "kind": "type",
               "pending": false
             }
           ]
@@ -1299,46 +1289,6 @@
             {
               "name": "continuedMessages",
               "kind": "value",
-              "pending": false
-            }
-          ]
-        },
-        {
-          "title": "消息转换",
-          "names": [
-            {
-              "name": "ConverterKey",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ConversionFailure",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ConversionReply",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ModelConverter",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ConverterLookup",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ModelConverterCatalog",
-              "kind": "type",
-              "pending": false
-            },
-            {
-              "name": "ModelMessageConversion",
-              "kind": "type",
               "pending": false
             }
           ]

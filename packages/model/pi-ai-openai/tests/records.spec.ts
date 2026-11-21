@@ -50,7 +50,7 @@ const REVISIONS = {
   'openai/gpt-6.1-terra': '3',
   'openai/gpt-5.6-terra': '3',
   'openai/gpt-6-luna': '3',
-  'openai/gpt-5.6-luna': '3',
+  'openai/gpt-5.6-luna': '4',
   'openai/gpt-6-astra-pro': '1',
   'openai/gpt-6-sol-pro': '1',
   'openai/gpt-6-luna-pro': '1',
@@ -217,7 +217,13 @@ describe('the wire data', () => {
   it('pins the one OpenAI upstream on the Responses interface: a developer message, automatic caching keyed by the session, four image types, automatic summaries, 64-character tool names', () => {
     for (const record of RESPONSES_RECORDS) {
       expect(record.serving).toEqual({ order: ['openai'], reports: ['OpenAI'] })
-      expect(record.wire).toEqual({
+      const { file, ...wire } = record.wire
+      expect(file).toEqual(
+        record.name === 'openai/gpt-5.6-luna'
+          ? { mediaTypes: ['application/pdf'], maxBytes: 33554432 }
+          : undefined,
+      )
+      expect(wire).toEqual({
         system: 'developer',
         cache: { kind: 'automatic' },
         image: { mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] },

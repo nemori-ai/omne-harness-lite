@@ -11,6 +11,7 @@ import {
   type MediaBlockSubject,
   type MediaDraftSubject,
 } from '../src/cordis.tsx'
+import type { Microphone } from '../src/model/recorder.ts'
 import { fakeMedia, TENANT, TENANT_TEXT, type FakeMedia } from './fixtures/fake-media.ts'
 import { startShell } from './fixtures/reference-shell.ts'
 
@@ -45,11 +46,17 @@ async function settle(): Promise<void> {
 const png = (name: string, bytes: number[]) =>
   new File([new Uint8Array(bytes)], name, { type: 'image/png' })
 
-async function mounted(media: FakeMedia) {
+async function mounted(media: FakeMedia, microphone?: Microphone) {
   const { root, shell } = await startShell()
   shell.tenant = TENANT_TEXT
   root.reflect.provide(SERVICE, media.client)
-  await root.plugin(createMediaUiModule({ composerAttachments: attachments, block }))
+  await root.plugin(
+    createMediaUiModule({
+      composerAttachments: attachments,
+      block,
+      ...(microphone === undefined ? {} : { microphone }),
+    }),
+  )
   const offers: DraftOffer[] = []
   const holder = (
     root as unknown as { get(name: string): { attach(given: unknown): () => void } }
@@ -94,8 +101,10 @@ describe('输入框的附件区', () => {
     const { shell, offers } = await mounted(media)
     render(tray(shell))
     await settle()
-    const input = screen.getByLabelText('选择图片') as HTMLInputElement
-    expect(input.accept).toBe('image/png,image/jpeg,image/webp,image/gif')
+    const input = screen.getByLabelText('选择附件') as HTMLInputElement
+    expect(input.accept).toBe(
+      'image/png,image/jpeg,image/webp,image/gif,audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/ogg,audio/webm,audio/flac,audio/aac,application/pdf',
+    )
     fireEvent.change(input, { target: { files: [png('a.png', [1, 2, 3, 4, 5])] } })
     expect(screen.getByText('a.png')).not.toBeNull()
     expect(screen.getByRole('img', { name: 'a.png 的预览' }).getAttribute('src')).toBe(
@@ -113,23 +122,115 @@ describe('输入框的附件区', () => {
     expect(media.calls[0]?.body['tenant']).toEqual(TENANT)
   })
 
-  it('点「附加图片」打开选文件；去掉一份之后它不再交回', async () => {
+  it('点附加按钮打开选文件；去掉一份之后它不再交回', async () => {
     const media = fakeMedia(2)
     const { shell, offers } = await mounted(media)
     render(tray(shell))
     await settle()
-    const input = screen.getByLabelText('选择图片') as HTMLInputElement
+    const input = screen.getByLabelText('选择附件') as HTMLInputElement
     let opened = 0
     input.click = () => {
       opened += 1
     }
-    fireEvent.click(screen.getByRole('button', { name: '附加图片' }))
+    fireEvent.click(screen.getByRole('button', { name: '附加图片、语音或 PDF' }))
     expect(opened).toBe(1)
     fireEvent.change(input, { target: { files: [png('a.png', [1, 2, 3])] } })
     await settle()
     fireEvent.click(screen.getByRole('button', { name: '去掉 a.png' }))
     expect(screen.queryByText('a.png')).toBeNull()
     expect(offers.at(-1)).toMatchObject({ attachments: [], ready: true })
+  })
+
+  it('语音传完先显示在转换，转出来的文字显示在附件上；转换失败时显示原因与重试', async () => {
+    const media = fakeMedia(2)
+    const gate = Promise.withResolvers<unknown>()
+    const definition = { name: 'voice', revision: '1' }
+    const engine = { name: 'voice.transcribe', revision: '1' }
+    media.once('prepare-media', () => gate.promise)
+    media.once('prepare-media', () => ({
+      outcome: 'succeeded',
+      body: { preprocess: { kind: 'failed', reason: 'timeout' } },
+    }))
+    const { shell, offers } = await mounted(media)
+    render(tray(shell))
+    await settle()
+    const input = screen.getByLabelText('选择附件') as HTMLInputElement
+    const wav = (name: string) => new File([new Uint8Array([1, 2, 3])], name, { type: 'audio/wav' })
+    fireEvent.change(input, { target: { files: [wav('memo.wav')] } })
+    await settle()
+    expect(screen.getByText('在转换…')).not.toBeNull()
+    gate.resolve({
+      outcome: 'succeeded',
+      body: {
+        preprocess: {
+          kind: 'done',
+          representation: {
+            outcome: 'converted',
+            definition,
+            engine,
+            text: '今天下午三点开会',
+            others: [],
+          },
+        },
+      },
+    })
+    await settle()
+    expect(screen.getByText('已转出：今天下午三点开会')).not.toBeNull()
+    expect(offers.at(-1)).toMatchObject({ ready: true, attachments: [{ kind: 'voice' }] })
+    fireEvent.change(input, { target: { files: [wav('late.wav')] } })
+    await settle()
+    expect(screen.getByText('转换超时')).not.toBeNull()
+    expect(offers.at(-1)).toMatchObject({ ready: false })
+    fireEvent.click(screen.getByRole('button', { name: '重试 late.wav' }))
+    await settle()
+    expect(screen.queryByRole('button', { name: '重试 late.wav' })).toBeNull()
+    expect(offers.at(-1)).toMatchObject({ ready: true })
+  })
+
+  it('按住录音：松开后录下的话作为语音附件上传并显示转写；用不了麦克风时说出来', async () => {
+    const media = fakeMedia(64)
+    media.once('prepare-media', () => ({
+      outcome: 'succeeded',
+      body: {
+        preprocess: {
+          kind: 'done',
+          representation: {
+            outcome: 'converted',
+            definition: { name: 'voice', revision: '1' },
+            engine: { name: 'voice.transcribe', revision: '1' },
+            text: '提醒我明天交周报',
+            others: [],
+          },
+        },
+      },
+    }))
+    let refuse = false
+    const microphone: Microphone = {
+      open: async () => {
+        if (refuse) throw new Error('refused')
+        return { finish: async () => new Float32Array([0.1, -0.1]), cancel: () => undefined }
+      },
+    }
+    const { shell, offers } = await mounted(media, microphone)
+    render(tray(shell))
+    await settle()
+    const button = screen.getByRole('button', { name: '按住录音' })
+    fireEvent.pointerDown(button)
+    await settle()
+    expect(button.textContent).toContain('松开结束')
+    fireEvent.pointerUp(button)
+    await settle()
+    expect(screen.getByText('录音 1.wav')).not.toBeNull()
+    expect(screen.getByText('已转出：提醒我明天交周报')).not.toBeNull()
+    expect(offers.at(-1)).toMatchObject({ ready: true, attachments: [{ kind: 'voice' }] })
+    const begun = media.calls.find(call => call.operation === 'begin-upload')
+    expect(begun?.body).toMatchObject({ mediaType: 'audio/wav', bytes: 48 })
+    refuse = true
+    fireEvent.keyDown(button, { key: ' ' })
+    await settle()
+    fireEvent.keyUp(button, { key: ' ' })
+    await settle()
+    expect(screen.getByRole('status').textContent).toBe('用不了麦克风')
   })
 
   it('贴图与拖入：在输入框的表单上贴进或拖进的图片也附加上；只贴文字时不拦', async () => {
@@ -154,7 +255,7 @@ describe('输入框的附件区', () => {
     const { shell } = await mounted(media)
     const view = render(tray(shell))
     await settle()
-    fireEvent.change(screen.getByLabelText('选择图片'), {
+    fireEvent.change(screen.getByLabelText('选择附件'), {
       target: { files: [png('kept.png', [1, 2, 3])] },
     })
     await settle()
@@ -174,7 +275,7 @@ describe('输入框的附件区', () => {
     const { shell } = await mounted(media)
     const view = render(tray(shell))
     await settle()
-    fireEvent.change(screen.getByLabelText('选择图片'), {
+    fireEvent.change(screen.getByLabelText('选择附件'), {
       target: { files: [png('big.png', [1, 2, 3])] },
     })
     await settle()
@@ -271,6 +372,51 @@ describe('消息里一块非文字内容', () => {
     await settle()
     expect(screen.getByText('图片读不出来：这份内容不在了')).not.toBeNull()
     expect(screen.queryByRole('img')).toBeNull()
+  })
+
+  it('块上写着模型这一次读的是哪一份：原件、缩小的图、转写、提取的文字；不知道时不写', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const { shell } = await mounted(media)
+    const voice = { ...picture, kind: 'voice', ref: { ...ref, mediaType: 'audio/wav' } }
+    const file = { ...picture, kind: 'file', ref: { ...ref, mediaType: 'application/pdf' } }
+    const told = (content: unknown, read: string | undefined, id: string) =>
+      block.slot(
+        shell,
+        {
+          session: 'ses_a',
+          message: 'msg_1',
+          block: id,
+          content,
+          ...(read === undefined ? {} : { read }),
+        },
+        all,
+      )
+    render(
+      <>
+        {told(voice, 'original', 'b1')}
+        {told(picture, 'fitted', 'b2')}
+        {told(voice, 'transcript', 'b3')}
+        {told(file, 'transcript', 'b4')}
+        {told(file, 'derived', 'b5')}
+        {told(file, undefined, 'b6')}
+      </>,
+    )
+    await settle()
+    const voices = [...document.querySelectorAll('.omne-media-block')]
+      .filter(each => each.textContent?.includes('〔voice〕'))
+      .map(each => each.querySelector('.omne-media-read')?.textContent)
+    expect(voices).toEqual(['模型读的是原件', '模型读的是转写'])
+    const files = [...document.querySelectorAll('.omne-media-block')]
+      .filter(each => each.textContent?.includes('〔file〕'))
+      .map(each => each.querySelector('.omne-media-read')?.textContent)
+    expect(files).toEqual(['模型读的是提取的文字', '模型读的是另一种表示'])
+    expect(screen.getAllByText('模型读的是原件')).toHaveLength(1)
+    expect(screen.getAllByText('模型读的是缩小的图')).toHaveLength(1)
+    expect(screen.getAllByText('模型读的是转写')).toHaveLength(1)
+    expect(screen.getAllByText('模型读的是提取的文字')).toHaveLength(1)
+    expect(screen.getAllByText('模型读的是另一种表示')).toHaveLength(1)
+    expect(document.querySelectorAll('.omne-media-read')).toHaveLength(5)
   })
 
   it('语音与文件画成一行：种类、媒体类型与大小；读不懂的内容照样说出来', async () => {

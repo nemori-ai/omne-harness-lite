@@ -37,7 +37,12 @@ export type ConversationPageProps = Readonly<{
   drafts: ComposerDraftStore
   attachments?: (session: string, draft: string) => ReactNode
   /** What draws a block of a message that is not words; `fallback` when nothing does. */
-  block?: (session: string, source: BlockSource, fallback: ReactNode) => ReactNode
+  block?: (
+    session: string,
+    source: BlockSource,
+    fallback: ReactNode,
+    revision: string | null,
+  ) => ReactNode
   /** Actions on the open session in its heading, such as archiving it. */
   heading?: (session: string) => ReactNode
   /** What the open session still holds, read again at each log position. */
@@ -90,7 +95,12 @@ type Parts = Readonly<{
   status: (session: string) => ReactNode
   drafts: ComposerDraftStore
   attachments: (session: string, draft: string) => ReactNode
-  block: (session: string, source: BlockSource, fallback: ReactNode) => ReactNode
+  block: (
+    session: string,
+    source: BlockSource,
+    fallback: ReactNode,
+    revision: string | null,
+  ) => ReactNode
   work: (session: string, revision: string | null) => ReactNode
 }>
 
@@ -238,9 +248,10 @@ function OpenSession({
   work,
 }: Parts & { readonly state: Open; readonly driver: SessionDriver }) {
   const { session } = state
+  const { revision } = state
   const drawn = useMemo(
-    () => (source: BlockSource, fallback: ReactNode) => block(session, source, fallback),
-    [block, session],
+    () => (source: BlockSource, fallback: ReactNode) => block(session, source, fallback, revision),
+    [block, session, revision],
   )
   return (
     <BlockSlotContext.Provider value={drawn}>

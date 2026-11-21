@@ -118,3 +118,49 @@ export const WITH_PROFILES_THAT_TAKE_WORDS_ONLY = {
     },
   ],
 }
+
+/** The official profiles, with one official route judged as reading words only: its record still sends. */
+export function withRouteReadingWordsOnly(route: string) {
+  class ReadingWordsOnly extends ModelProfilesLocalPlugin {
+    constructor(ctx: Context, config: ConstructorParameters<typeof ModelProfilesLocalPlugin>[1]) {
+      super(ctx, config)
+      const official = this.resolve
+      const resolve: Resolve = async input => {
+        if (input.route !== route) return official(input)
+        const words = { ...input.required, modalities: ['text'] as const, fileTypes: [] }
+        const resolved = await official({ ...input, required: words })
+        if (!('ok' in resolved) || resolved.ok.kind !== 'resolved') return resolved
+        const { fileTypes: _files, ...rest } = resolved.ok.profile.definition
+        const definition = { ...rest, input: ['text'] as const }
+        const covered = profileCovers(definition, input.required)
+        const profile = { ...resolved.ok.profile, definition }
+        return {
+          ok: {
+            ...resolved.ok,
+            profile,
+            selectable: covered,
+            reasons: covered ? [] : ['modality'],
+          },
+        }
+      }
+      Object.assign(this, { resolve })
+    }
+  }
+  return {
+    withoutRows: ['model-profiles'],
+    addedRows: [
+      {
+        id: 'model-profiles',
+        plugin: 'readingWordsOnly',
+        config: PROFILES_CONFIG,
+        definition: defineRow({
+          row: 'model-profiles',
+          implementation: 'real',
+          manifest: { provides: [modelProfilesKey], injects: [], sameProviderGroup: null },
+          lifecycle: { kind: 'none' },
+          plugin: ReadingWordsOnly,
+        }),
+      },
+    ],
+  }
+}

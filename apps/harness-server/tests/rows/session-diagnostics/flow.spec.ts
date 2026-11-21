@@ -186,6 +186,12 @@ describe('session diagnostics over real processes: the two smoke failures', () =
         upstreamStatus: '504',
       })
       expect(body.gaps.filter(gap => gap.reason === 'unsupported')).toEqual([])
+      const calls = modelCallsOf(run)
+      const references = calls.map(call => call['reference'])
+      expect(calls.map(call => call['reads'])).toEqual(calls.map(() => []))
+      expect(
+        body.gaps.filter(gap => gap.source !== 'model' && references.includes(gap.subject)),
+      ).toEqual([])
 
       const text = await bob(['read-session-diagnostics', '--session', sessions.upstream])
       expect(text.status, text.stderr).toBe(0)

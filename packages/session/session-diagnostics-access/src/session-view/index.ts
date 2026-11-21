@@ -18,6 +18,8 @@ import {
   type RunSkeleton,
   type ToolAnswers,
 } from './project.ts'
+import { blockKey, blockReferencesOf, type BlockAnswer } from './blocks.ts'
+import { originalMedia } from './reads.ts'
 import { sourcesOf, type DiagnosticPorts, type DiagnosticSources } from './sources.ts'
 
 export { createDiagnosticsCursors } from './cursor.ts'
@@ -27,6 +29,8 @@ export type {
   DiagnosticPorts,
   ModelAttemptReader,
   ModelCallInspector,
+  ModelRequestReader,
+  RequestBlockChoice,
   ToolCallReader,
 } from './sources.ts'
 
@@ -124,10 +128,12 @@ async function modelAnswersOf(
   const lookup = await sources.inspectModelCall(reference)
   const call =
     lookup.kind === 'value' && lookup.value.kind === 'found' ? lookup.value.state.call : null
-  if (call === null) return { lookup, attempts: null, dispatches: null }
+  if (call === null) return { lookup, attempts: null, dispatches: null, choices: null }
   const attempts = await sources.listModelAttempts(call)
   const listed = attempts.kind === 'value' && attempts.value.entries.length > 0
-  return { lookup, attempts, dispatches: listed ? await sources.listModelDispatches(call) : null }
+  const dispatches = listed ? await sources.listModelDispatches(call) : null
+  const choices = await sources.readRequestChoices(reference)
+  return { lookup, attempts, dispatches, choices }
 }
 
 async function toolAnswersOf(sources: DiagnosticSources, reference: string): Promise<ToolAnswers> {
@@ -138,6 +144,9 @@ async function toolAnswersOf(sources: DiagnosticSources, reference: string): Pro
   ])
   return { current, account, diagnostics }
 }
+
+const projectedOf = (skeleton: RunSkeleton, limits: DiagnosticsLimits): number =>
+  Math.min(skeleton.calls.length, limits.maxCallsPerRun)
 
 async function answersOf(
   sources: DiagnosticSources,
@@ -152,7 +161,17 @@ async function answersOf(
       models.set(call.position, await modelAnswersOf(sources, call.reference))
     else tools.set(call.position, await toolAnswersOf(sources, call.reference))
   }
-  return { models, tools }
+  return { models, tools, blocks: null }
+}
+
+function wantedBlocks(runs: readonly RunAnswers[]): Set<string> {
+  const wanted = new Set<string>()
+  for (const { models } of runs)
+    for (const { choices } of models.values())
+      if (choices?.kind === 'value')
+        for (const choice of originalMedia(choices.value))
+          wanted.add(blockKey(choice.message, choice.block))
+  return wanted
 }
 
 export async function projectSessionDiagnostics<P>(
@@ -161,12 +180,18 @@ export async function projectSessionDiagnostics<P>(
   const scanned = await scan(input)
   if ('kind' in scanned) return { kind: 'failure', failure: scanned }
   const access: Access<P> = { principal: input.access.principal, tenant: input.access.tenant }
-  const sources = sourcesOf(access, input.ports)
+  const sources = sourcesOf(access, input.ports, input.access.session)
   const runs: SessionRunDiagnostic[] = []
   const gaps: SessionDiagnosticGap[] = undisclosedGaps(input.kinds)
-  for (const skeleton of scanned.runs) {
-    const projected = Math.min(skeleton.calls.length, input.limits.maxCallsPerRun)
-    const one = projectRun(skeleton, projected, await answersOf(sources, skeleton, projected))
+  const answered: RunAnswers[] = []
+  for (const skeleton of scanned.runs)
+    answered.push(await answersOf(sources, skeleton, projectedOf(skeleton, input.limits)))
+  const wanted = wantedBlocks(answered)
+  const blocks: BlockAnswer | null =
+    wanted.size === 0 ? null : await blockReferencesOf(input, wanted)
+  for (const [index, skeleton] of scanned.runs.entries()) {
+    const answers = { ...answered[index]!, blocks }
+    const one = projectRun(skeleton, projectedOf(skeleton, input.limits), answers)
     runs.push(one.value)
     gaps.push(...one.gaps)
   }

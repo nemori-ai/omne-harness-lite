@@ -1,7 +1,7 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (buildParams; the source
 // file is named in provenance.json). Copyright (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi.
 // See provenance.json.
-import { mediaPending, mediaRead, type MediaView } from '../media.ts'
+import { mediaPending, mediaRead, nativeParsing, type MediaView } from '../media.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   type Adoption,
@@ -70,6 +70,7 @@ function bodyOf(
   context: RequestContext,
   projection: Projection,
   params: readonly GatewayParam[],
+  plugins: JsonValue | undefined,
 ): Outcome<JsonValue, TransportFailure> {
   const { record } = context
   let target = null
@@ -93,6 +94,7 @@ function bodyOf(
       messages: messagesJson(projection.messages, record.wire, target),
       tools: projection.tools.length > 0 ? list(projection.tools) : undefined,
       tool_choice: projection.toolChoice,
+      plugins,
     }),
   }
 }
@@ -127,7 +129,7 @@ type RepresentInput = Readonly<{
 function shown(context: RequestContext, input: RepresentInput) {
   const params = gatewayParams(context, input.applied)
   if (!('ok' in params)) return params
-  const body = bodyOf(context, input.projection, params.ok)
+  const body = bodyOf(context, input.projection, params.ok, nativeParsing(input.media))
   if (!('ok' in body)) return body
   const { representation, media } = input
   const view = viewOf(input.projection, input.applied)

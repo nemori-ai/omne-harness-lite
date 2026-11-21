@@ -1,4 +1,4 @@
-import { sentImage, type MediaView } from '../media.ts'
+import { sentFile, sentImage, sentWords, type MediaView } from '../media.ts'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
@@ -100,10 +100,26 @@ function contentJson(
   if (!block.visibility.toModel) return { ok: null }
   if (block.kind === 'text')
     return { ok: object({ type: text('input_text'), text: text(block.text) }) }
+  if (block.kind === 'file') return fileJson(block, path, input)
   const sent = sentImage(block, input.record.wire.image?.mediaTypes, input.media)
   if (sent === null) return unsupported(path, input.adapter)
   const url = `data:${sent.mime};base64,${sent.data}`
   return { ok: object({ type: text('input_image'), image_url: text(url) }) }
+}
+
+function fileJson(
+  block: ContentBlock,
+  path: string,
+  input: ResponsesProjectionInput,
+): Outcome<JsonValue, TransportFailure> {
+  const words = sentWords(block, input.media)
+  if (words !== null) return { ok: object({ type: text('input_text'), text: text(words) }) }
+  const sent = sentFile(block, input.record.wire.file, input.media)
+  if (sent === null) return unsupported(path, input.adapter)
+  const url = `data:${sent.mime};base64,${sent.data}`
+  return {
+    ok: object({ type: text('input_file'), filename: text(sent.filename), file_data: text(url) }),
+  }
 }
 
 // The system prompt is one text: its shown text blocks joined as they are.
