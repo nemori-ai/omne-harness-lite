@@ -57,6 +57,8 @@ function media(over: (seen: Seen) => Answer | undefined = () => undefined) {
           outcome: 'succeeded',
           body: { ref: refOf(body['upload'], types.get(String(body['upload']))), facts: FACTS },
         }
+      case 'prepare-media':
+        return { outcome: 'succeeded', body: { preprocess: { kind: 'not-needed' } } }
       default:
         return undefined
     }
@@ -107,13 +109,17 @@ describe('send-input --attach', () => {
       'append-upload-part',
       'append-upload-part',
       'commit-upload',
+      'prepare-media',
       'begin-upload',
       'append-upload-part',
       'append-upload-part',
       'append-upload-part',
       'commit-upload',
+      'prepare-media',
       'send-input',
     ])
+    const prepared = service.seen.find(seen => seen.operation === 'prepare-media')
+    expect(prepared?.body).toMatchObject({ tenant: tenantText, ref: { mediaType: 'image/png' } })
     const uploads = service.seen
       .filter(seen => seen.operation === 'begin-upload')
       .map(seen => seen.body as Record<string, unknown>)
@@ -196,6 +202,51 @@ describe('send-input --attach', () => {
     expect(JSON.parse(run.stdout)).toMatchObject({ outcome: 'invalid' })
     expect(run.stderr).toContain('a.png')
     expect(operations(service)).not.toContain('send-input')
+  })
+
+  it('an attachment whose preprocessing did not end well stops the command before the message', async () => {
+    const service = await serve(
+      media(seen =>
+        seen.operation === 'prepare-media'
+          ? {
+              outcome: 'succeeded',
+              body: { preprocess: { kind: 'failed', reason: 'engine-unavailable' } },
+            }
+          : undefined,
+      ),
+    )
+    const run = await cli(['send-input', '--session', sessionId, '--attach', file('note.wav')])
+    expect(run.code).not.toBe(0)
+    expect(run.stderr).toContain('note.wav')
+    expect(run.stderr).toContain('engine-unavailable')
+    expect(operations(service)).not.toContain('send-input')
+  })
+
+  it('a transcript that came back is not written by the client: the server adds it at intake', async () => {
+    const service = await serve(
+      media(seen =>
+        seen.operation === 'prepare-media'
+          ? {
+              outcome: 'succeeded',
+              body: {
+                preprocess: {
+                  kind: 'done',
+                  representation: {
+                    outcome: 'converted',
+                    definition: { name: 'voice', revision: '1' },
+                    engine: { name: 'voice.transcribe', revision: '1' },
+                    text: 'hello',
+                    others: [],
+                  },
+                },
+              },
+            }
+          : undefined,
+      ),
+    )
+    const run = await cli(['send-input', '--session', sessionId, '--attach', file('note.wav')])
+    expect(run.code, run.stderr).toBe(0)
+    expect(blocksOf(service)[0]).toMatchObject({ kind: 'voice', transcript: null })
   })
 
   it('only --attach may be given twice: another option twice is still unrecognized', async () => {

@@ -1,4 +1,4 @@
-import { mediaPending, mediaRead, type MediaView } from '../media.ts'
+import { mediaPending, mediaRead, nativeParsing, type MediaView } from '../media.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
   Adoption,
@@ -98,6 +98,7 @@ function bodyOf(
   context: ResponsesContext,
   projection: ResponsesProjection,
   params: readonly GatewayParam[],
+  plugins: JsonValue | undefined,
 ): Outcome<JsonValue, TransportFailure> {
   const { record } = context
   const members = parameterMembers(context, params)
@@ -118,6 +119,7 @@ function bodyOf(
       input: itemsJson(projection.items),
       tools: projection.tools.length > 0 ? list(projection.tools) : undefined,
       tool_choice: projection.toolChoice,
+      plugins,
     }),
   }
 }
@@ -143,7 +145,7 @@ function shown(
 ) {
   const params = wiredParams(context, input.applied)
   if (!('ok' in params)) return params
-  const body = bodyOf(context, input.projection, params.ok)
+  const body = bodyOf(context, input.projection, params.ok, nativeParsing(input.media))
   if (!('ok' in body)) return body
   const { representation, media } = input
   const view = viewOf(input.projection, input.applied)

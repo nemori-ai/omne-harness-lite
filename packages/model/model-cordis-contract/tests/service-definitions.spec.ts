@@ -3,11 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   ModelClockService,
   ModelCommandsService,
-  ModelConverterAuthorityService,
   ModelDiagnosticsService,
   ModelHostAuthorityService,
   ModelInstanceHostService,
-  ModelMessageConversionService,
   ModelProfileMaintenanceService,
   ModelProfilesService,
   ModelPublicationAuthorityService,
@@ -19,11 +17,9 @@ import {
   ModelStreamObservationService,
   modelClockKey,
   modelCommandsKey,
-  modelConverterAuthorityKey,
   modelDiagnosticsKey,
   modelHostAuthorityKey,
   modelInstanceHostKey,
-  modelMessageConversionKey,
   modelProfileMaintenanceKey,
   modelProfilesKey,
   modelPublicationAuthorityKey,
@@ -54,14 +50,8 @@ class ProfileMaintenance extends ModelProfileMaintenanceService<unknown> {
 class RequestPreparation extends ModelRequestPreparationService<unknown> {
   readonly prepare = unused
 }
-class MessageConversion extends ModelMessageConversionService<unknown> {
-  readonly prepare = unused
-}
 class HostAuthority extends ModelHostAuthorityService<unknown> {
   readonly resolve = unused
-}
-class ConverterAuthority extends ModelConverterAuthorityService<unknown> {
-  readonly check = () => ({ ok: undefined })
 }
 class Diagnostics extends ModelDiagnosticsService<unknown> {
   readonly list = unused
@@ -166,19 +156,7 @@ const definitions: readonly (readonly [string, string, Definition, Provider])[] 
     ModelRequestPreparationService,
     RequestPreparation,
   ],
-  [
-    'modelMessageConversion',
-    modelMessageConversionKey,
-    ModelMessageConversionService,
-    MessageConversion,
-  ],
   ['modelHostAuthority', modelHostAuthorityKey, ModelHostAuthorityService, HostAuthority],
-  [
-    'modelConverterAuthority',
-    modelConverterAuthorityKey,
-    ModelConverterAuthorityService,
-    ConverterAuthority,
-  ],
   ['modelDiagnostics', modelDiagnosticsKey, ModelDiagnosticsService, Diagnostics],
   ['modelRetryPolicy', modelRetryPolicyKey, ModelRetryPolicyService, RetryPolicy],
   ['modelRuntime', modelRuntimeKey, ModelRuntimeService, Runtime],

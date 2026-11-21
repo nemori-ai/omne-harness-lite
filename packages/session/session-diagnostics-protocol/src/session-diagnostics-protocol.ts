@@ -206,6 +206,16 @@ const modelCall = object({
   },
   dispatches: { rule: array(attempt) },
   coverage: { rule: literal('complete-through-snapshot', 'expired-prefix', 'unknown') },
+  /** For each block of the fixed request with a content reference, which form of it the model read. */
+  reads: {
+    rule: array(
+      object({
+        message: { rule: text },
+        block: { rule: text },
+        read: { rule: literal('original', 'fitted', 'derived', 'transcript') },
+      }),
+    ),
+  },
   facts: { rule: counted },
 })
 

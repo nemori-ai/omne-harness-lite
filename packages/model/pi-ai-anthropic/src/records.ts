@@ -150,11 +150,16 @@ function replayOf(binding: 'prefix' | 'none') {
   } as const
 }
 
+/** A PDF the model reads natively; one file up to 32 MiB is the offering of this project, no upstream limit is established. */
+const PDF = { mediaTypes: ['application/pdf'], maxBytes: 33554432 } as const
+
 type Measured = Readonly<{
   model: string
   revision: string
   forcedToolChoice: boolean
   binding: 'prefix' | 'none'
+  /** Files read natively, and the request that showed it. */
+  files?: Readonly<{ evidence: string }>
 }>
 
 function recordOf(item: Measured) {
@@ -164,6 +169,15 @@ function recordOf(item: Measured) {
     route: { provider: OPENROUTER, model: `anthropic/${item.model}` },
     status: 'current',
     ...COMMON,
+    ...(item.files === undefined
+      ? {}
+      : {
+          wire: { ...COMMON.wire, file: PDF },
+          profile: {
+            ...COMMON.profile,
+            evidence: `${COMMON.profile.evidence} ${item.files.evidence}`,
+          },
+        }),
     accepts: { forcedToolChoice: item.forcedToolChoice, endsWithAssistant: false },
     replay: replayOf(item.binding),
     provenance: provenanceOf(item.model, item.revision),
@@ -192,5 +206,14 @@ export const ANTHROPIC_RECORDS = [
     binding: 'prefix',
   }),
   recordOf({ model: 'claude-sonnet-5', revision: '3', forcedToolChoice: true, binding: 'none' }),
-  recordOf({ model: 'claude-haiku-5.5', revision: '2', forcedToolChoice: true, binding: 'prefix' }),
+  recordOf({
+    model: 'claude-haiku-5.5',
+    revision: '3',
+    forcedToolChoice: true,
+    binding: 'prefix',
+    files: {
+      evidence:
+        'PDF in: probes/sample.pdf sent as a document part with plugins file-parser engine native, one request on 2026-11-21, answered its passphrase (probe p8 messages-haiku; as a chat file part, p8 chat-haiku).',
+    },
+  }),
 ] as const satisfies readonly AnthropicRecord[]

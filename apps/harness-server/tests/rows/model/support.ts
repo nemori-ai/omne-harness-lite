@@ -6,10 +6,8 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import {
-  ModelConverterAuthorityService,
   ModelPublicationAuthorityService,
   modelCommandsKey,
-  modelConverterAuthorityKey,
   modelPublicationAuthorityKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { stubPlugin } from '../../../src/cordis.ts'
@@ -99,19 +97,6 @@ export function publicationAuthorityEntry(verdict: { current: Verdict }): EntryO
   }
   return {
     name: modelPublicationAuthorityKey,
-    implementation: 'contract-double',
-    install(scope) {
-      new Authority(scope)
-    },
-  }
-}
-
-export function converterAuthorityEntry(verdict: { current: Verdict }): EntryObjectModule {
-  class Authority extends ModelConverterAuthorityService<unknown> {
-    readonly check = () => verdict.current
-  }
-  return {
-    name: modelConverterAuthorityKey,
     implementation: 'contract-double',
     install(scope) {
       new Authority(scope)

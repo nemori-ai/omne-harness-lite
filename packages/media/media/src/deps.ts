@@ -1,9 +1,12 @@
 import { fail } from '@omne-harness/operation-result'
 import type {
   ByteStore,
+  ConverterDefinitions,
+  Engines,
   ImageCodec,
   MediaClock,
   MediaIndex,
+  MediaTimer,
   MediaUnavailable,
   MediaUnknown,
   Modality,
@@ -18,6 +21,13 @@ export type MediaConfig = Readonly<{
   uploadTtlMs: number
   stagingTtlMs: number
   variantCacheBytes: number
+  conversion: ConversionConfig
+}>
+export type ConversionConfig = Readonly<{
+  timeoutMs: number
+  /** How many conversions may wait for one engine beyond those it runs at a time. */
+  queueLimit: number
+  inlineTextBytes: number
 }>
 
 export type MediaDependencies = Readonly<{
@@ -27,6 +37,9 @@ export type MediaDependencies = Readonly<{
   index: MediaIndex
   image: ImageCodec
   clock: MediaClock
+  timer: MediaTimer
+  definitions(): ConverterDefinitions | null
+  engines(): Engines | null
   newKey(): string
   config: MediaConfig
 }>

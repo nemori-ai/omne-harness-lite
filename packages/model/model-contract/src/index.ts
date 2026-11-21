@@ -50,6 +50,7 @@ export type * from './call-surface.ts'
 export type * from './dispatch-facts.ts'
 export type {
   MaterializationReceipt,
+  MaterializedMedium,
   RetryDecision,
   RetryPosition,
   RetryResolution,
@@ -84,7 +85,6 @@ export type {
   UpstreamLimit,
 } from './profile.ts'
 export { isNativeFileType, profileCovers } from './profile.ts'
-export type { ConversionResult, ConvertedContent } from './conversion.ts'
 export type { ModelCountingBasis, TokenizerDefinition } from './tokenizer.ts'
 export type {
   ModelPreparationLease,

@@ -264,6 +264,79 @@ export function pictureRead(
   return { reference, mime, bytes, measurement }
 }
 
+export const SPEECH = {
+  storage: 'tests',
+  key: 'speech-1',
+  mediaType: 'audio/wav',
+  bytes: '4',
+  digest: 'e'.repeat(64),
+}
+/** A voice block that refers to its bytes, measured as the intake leaves it. */
+export function speechBlock(id: string, ref = SPEECH): unknown {
+  const facts = { kind: 'voice', durationMs: 1500, sampleRate: 16000, channels: 1 }
+  return { kind: 'voice', id, visibility: SHOWN, ref, transcript: null, facts }
+}
+export const SPEECH_BYTES = new Uint8Array([0x52, 0x49, 0x46, 0x46])
+/** What a media source read for a voice reference. */
+export function speechRead(reference = SPEECH, mime = reference.mediaType) {
+  const measurement = {
+    reference,
+    bytes: String(SPEECH_BYTES.byteLength),
+    mediaType: mime,
+    kind: 'voice' as const,
+    durationMs: '1500',
+    sampleRate: '16000',
+    channels: '1',
+  }
+  return { reference, mime, bytes: SPEECH_BYTES, measurement }
+}
+
+export const DOCUMENT = {
+  storage: 'tests',
+  key: 'document-1',
+  mediaType: 'application/pdf',
+  bytes: '5',
+  digest: 'f'.repeat(64),
+}
+export const DOCUMENT_BYTES = new TextEncoder().encode('%PDF-')
+/** A file block that refers to its bytes, as the intake leaves it. */
+export function documentBlock(id: string, ref = DOCUMENT): unknown {
+  return { kind: 'file', id, visibility: SHOWN, ref, transcript: null, facts: { kind: 'file' } }
+}
+export function documentRead(reference = DOCUMENT, mime = reference.mediaType) {
+  const measurement = {
+    reference,
+    bytes: String(DOCUMENT_BYTES.byteLength),
+    mediaType: mime,
+    kind: 'file' as const,
+  }
+  return { reference, mime, bytes: DOCUMENT_BYTES, measurement }
+}
+/** The words a medium was made into, kept apart: Request Context stands them in as a file block. */
+export const WORDS_TEXT = 'The passphrase is BLUE GIRAFFE 4172.'
+export const WORDS = {
+  storage: 'tests',
+  key: 'words-1',
+  mediaType: 'text/plain',
+  bytes: String(new TextEncoder().encode(WORDS_TEXT).byteLength),
+  digest: 'c'.repeat(64),
+}
+export function wordsBlock(id: string): unknown {
+  return { kind: 'file', id, visibility: SHOWN, ref: WORDS, transcript: null }
+}
+export function wordsRead() {
+  const bytes = new TextEncoder().encode(WORDS_TEXT)
+  const measurement = {
+    reference: WORDS,
+    bytes: String(bytes.byteLength),
+    mediaType: 'text/plain',
+    kind: 'file' as const,
+  }
+  return { reference: WORDS, mime: 'text/plain', bytes, measurement }
+}
+export const NATIVE_PARSING = [{ id: 'file-parser', pdf: { engine: 'native' } }]
+export const PDF_WIRE = { mediaTypes: ['application/pdf'], maxBytes: 1024 }
+
 export function thinkingBlock(id: string, text: string): unknown {
   return { kind: 'thinking', id, visibility: SHOWN, text }
 }

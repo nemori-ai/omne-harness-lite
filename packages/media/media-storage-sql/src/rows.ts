@@ -1,4 +1,4 @@
-import type { Holder, MediaRow } from '@omne-harness/media-contract'
+import type { Holder, MediaRow, Provenance, Representation } from '@omne-harness/media-contract'
 import type { QueryRows, SqlValue } from '@omne-harness/sql-contract/worker'
 
 /** One statement at a time, inside the transaction of a commit or of a read; a read refuses a statement with no LIMIT. */
@@ -57,3 +57,34 @@ export function pointed(port: SqlPort, upload: string): Row | null {
 
 export const isLive = (row: Row | null): row is Row =>
   row !== null && (row.state === 'staged' || row.state === 'held')
+
+export function representationOf(
+  port: SqlPort,
+  key: string,
+  definition: Provenance,
+): Representation | null {
+  const found = port.execute(
+    'SELECT record FROM md_representations WHERE key = ? AND definition = ? AND revision = ? LIMIT 1',
+    [key, definition.name, definition.revision],
+  ).rows[0]
+  return found === undefined ? null : (JSON.parse(String(found[0])) as Representation)
+}
+
+/** Ends what was kept for the representations of a row that goes; answers the rows left with no holder. */
+export function released(port: SqlPort, original: string, owner: string): Row[] {
+  port.execute('DELETE FROM md_representations WHERE key = ?', [original])
+  const held = port.execute('SELECT key FROM md_holds WHERE owner = ? AND work = ?', [
+    owner,
+    original,
+  ])
+  port.execute('DELETE FROM md_holds WHERE owner = ? AND work = ?', [owner, original])
+  const orphans: Row[] = []
+  for (const key of new Set(held.rows.map(row => String(row[0])))) {
+    const row = load(port, key)
+    if (row === null || row.state !== 'held' || row.holderCount > 0) continue
+    const gone: Row = { ...row, state: 'deleting' }
+    save(port, gone)
+    orphans.push(gone)
+  }
+  return orphans
+}

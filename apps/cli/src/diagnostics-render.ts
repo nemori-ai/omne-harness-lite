@@ -160,6 +160,13 @@ function progressOf(progress: SessionDispatchProgress | undefined): string {
   return `, sent ${progress.made} of ${progress.allowed} allowed${last}`
 }
 
+function readsLines(reads: SessionModelCallDiagnostic['reads']): string[] {
+  if (reads.length === 0) return []
+  return [
+    at(3, `reads: ${reads.map(each => `${each.message}/${each.block} ${each.read}`).join(', ')}`),
+  ]
+}
+
 function renderModelCall(call: SessionModelCallDiagnostic): string[] {
   const resolved =
     call.call.kind === 'found'
@@ -171,6 +178,7 @@ function renderModelCall(call: SessionModelCallDiagnostic): string[] {
       2,
       `${call.purpose} ${call.reference} -> ${resolved}, ${dispatches} ${dispatches === 1 ? 'dispatch' : 'dispatches'}, coverage ${call.coverage}`,
     ),
+    ...readsLines(call.reads),
     ...call.dispatches.flatMap(renderDispatch),
     ...factsLines(3, call.facts),
   ]

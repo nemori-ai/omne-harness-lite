@@ -3,7 +3,6 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { ModelCallId, ModelOperationId, Revision } from '@omne-harness/model-contract'
 import type {
   CredentialPort,
-  ModelConverterCatalog,
   ModelInstanceDirectory,
   ModelSendBoundary,
   SendResult,
@@ -19,13 +18,10 @@ import {
   type ModelStreamObservationService,
   modelClockKey,
   modelCommandsKey,
-  modelConverterAuthorityKey,
-  modelConvertersKey,
   modelDiagnosticsKey,
   modelHostAuthorityKey,
   modelInstanceHostKey,
   modelInstancesKey,
-  modelMessageConversionKey,
   modelProfileMaintenanceKey,
   modelProfilesKey,
   modelPublicationAuthorityKey,
@@ -35,15 +31,10 @@ import {
   modelSendBoundaryKey,
   type ModelClockService,
   type ModelCommandsService,
-  type ModelConverterAuthorityService,
-  type ModelConverterRegistration,
-  type ModelConverterRegistrationInput,
-  type ModelConvertersService,
   type ModelDiagnosticsService,
   type ModelHostAuthorityService,
   type ModelInstanceHostService,
   type ModelInstancesService,
-  type ModelMessageConversionService,
   type ModelProfileMaintenanceService,
   type ModelProfilesService,
   type ModelPublicationAuthorityService,
@@ -67,12 +58,9 @@ it('types the injected Model services on the context', () => {
   expectTypeOf(ctx.modelProfiles).toEqualTypeOf<ModelProfilesService<unknown>>()
   expectTypeOf(ctx.modelProfileMaintenance).toEqualTypeOf<ModelProfileMaintenanceService<unknown>>()
   expectTypeOf(ctx.modelRequestPreparation).toEqualTypeOf<ModelRequestPreparationService<unknown>>()
-  expectTypeOf(ctx.modelMessageConversion).toEqualTypeOf<ModelMessageConversionService<unknown>>()
   expectTypeOf(ctx.modelHostAuthority).toEqualTypeOf<ModelHostAuthorityService<unknown>>()
-  expectTypeOf(ctx.modelConverterAuthority).toEqualTypeOf<ModelConverterAuthorityService<unknown>>()
   expectTypeOf(ctx.modelDiagnostics).toEqualTypeOf<ModelDiagnosticsService<unknown>>()
   expectTypeOf(ctx.modelRetryPolicy).toEqualTypeOf<ModelRetryPolicyService<unknown>>()
-  expectTypeOf(ctx.modelConverters).toEqualTypeOf<ModelConvertersService<unknown>>()
   expectTypeOf(ctx.modelRuntime).toEqualTypeOf<ModelRuntimeService<unknown>>()
   expectTypeOf(ctx.modelCommands).toEqualTypeOf<ModelCommandsService<unknown>>()
   expectTypeOf(ctx.modelSendBoundary).toEqualTypeOf<ModelSendBoundaryService<unknown>>()
@@ -87,17 +75,6 @@ it('types the injected Model services on the context', () => {
   expectTypeOf(ctx.modelInstances).toEqualTypeOf<ModelInstancesService<unknown>>()
   expectTypeOf(ctx.modelPublicationAuthority).toEqualTypeOf<
     ModelPublicationAuthorityService<unknown>
-  >()
-})
-
-it('gives the converter catalog the catalog operation of the contract and a registration of its own', () => {
-  expectTypeOf<ModelConvertersService<string>['acquire']>().toEqualTypeOf<
-    ModelConverterCatalog<string>['acquire']
-  >()
-  expectTypeOf<ModelConvertersService<string>['register']>().toEqualTypeOf<
-    (
-      input: ModelConverterRegistrationInput<string>,
-    ) => Promise<Outcome<ModelConverterRegistration, ModelRegistrationFailure>>
   >()
 })
 
@@ -117,10 +94,7 @@ it('types each key constant as the literal that names its context member', () =>
   expectTypeOf<typeof modelProfilesKey>().toEqualTypeOf<'modelProfiles'>()
   expectTypeOf<typeof modelProfileMaintenanceKey>().toEqualTypeOf<'modelProfileMaintenance'>()
   expectTypeOf<typeof modelRequestPreparationKey>().toEqualTypeOf<'modelRequestPreparation'>()
-  expectTypeOf<typeof modelMessageConversionKey>().toEqualTypeOf<'modelMessageConversion'>()
   expectTypeOf<typeof modelHostAuthorityKey>().toEqualTypeOf<'modelHostAuthority'>()
-  expectTypeOf<typeof modelConverterAuthorityKey>().toEqualTypeOf<'modelConverterAuthority'>()
-  expectTypeOf<typeof modelConvertersKey>().toEqualTypeOf<'modelConverters'>()
   expectTypeOf<typeof modelDiagnosticsKey>().toEqualTypeOf<'modelDiagnostics'>()
   expectTypeOf<typeof modelRetryPolicyKey>().toEqualTypeOf<'modelRetryPolicy'>()
   expectTypeOf<typeof modelRuntimeKey>().toEqualTypeOf<'modelRuntime'>()

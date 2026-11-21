@@ -86,7 +86,11 @@ export function fakeMedia(partBytes = 4) {
         },
       }
     },
-    'describe-media': () => ({ outcome: 'succeeded', body: { state: 'held', facts: FACTS } }),
+    'describe-media': () => ({
+      outcome: 'succeeded',
+      body: { state: 'held', facts: FACTS, preprocess: { kind: 'not-needed' } },
+    }),
+    'prepare-media': () => ({ outcome: 'succeeded', body: { preprocess: { kind: 'not-needed' } } }),
   }
   const client = new Proxy(
     {},

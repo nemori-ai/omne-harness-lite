@@ -4,6 +4,7 @@ import { createSqlMediaIndex } from '../src/store.ts'
 import type { JsonValue, SqlStorage } from '@omne-harness/sql-contract'
 import type { SqlValue } from '@omne-harness/sql-contract/worker'
 import migration from '../src/migration.ts'
+import representations from '../src/migration-representations.ts'
 import participant from '../src/participant.ts'
 import reader from '../src/read.ts'
 
@@ -41,6 +42,7 @@ export function createInProcessStorage(): SqlStorage {
     if (db === undefined) {
       db = new DatabaseSync(':memory:')
       migration.up(portOf(db))
+      representations.up(portOf(db))
       databases.set(domain, db)
     }
     return db

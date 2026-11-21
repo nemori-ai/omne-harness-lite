@@ -108,6 +108,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     maxCitedCalls: 1_024,
     openai: family,
     anthropic: structuredClone(family),
+    qwen: structuredClone(family),
   }
   const host = {
     host: { concurrencyLimit: 4, wakeCapacity: 64, scanBatchSize: 10, scanIntervalMs: 1000 },

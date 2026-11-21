@@ -3,7 +3,12 @@ import { useEffect, useState } from 'react'
 import { IMAGE_TYPES } from '../model/attachment-tray.ts'
 import { readWhole, type DisplayTarget, type MediaClient, type Reference } from '../model/upload.ts'
 
-export type MediaBlockProps = Readonly<{ client: MediaClient; tenant: TenantId; content: unknown }>
+export type MediaBlockProps = Readonly<{
+  client: MediaClient
+  tenant: TenantId
+  content: unknown
+  modelRead?: string | undefined
+}>
 
 const THUMBNAIL: DisplayTarget = {
   mediaTypes: [...IMAGE_TYPES],
@@ -94,8 +99,19 @@ function Picture(props: MediaBlockProps & { readonly read: Read }) {
   )
 }
 
-/** One block of a message that is not words: a picture as a thumbnail, anything else as a line. */
-export function MediaBlock(props: MediaBlockProps) {
+const READ: Readonly<Record<string, string>> = {
+  original: '原件',
+  fitted: '缩小的图',
+  derived: '另一种表示',
+}
+
+/** What the model read of a block, in words; null when it is not known. */
+function readText(read: string | undefined, kind: string): string | null {
+  if (read === 'transcript') return kind === 'voice' ? '转写' : '提取的文字'
+  return read === undefined ? null : (READ[read] ?? null)
+}
+
+function MediaContent(props: MediaBlockProps) {
   const read = readBlock(props.content)
   if (typeof read === 'string')
     return <p className="omne-media-line">〔{read}〕这一块的内容读不懂</p>
@@ -104,5 +120,18 @@ export function MediaBlock(props: MediaBlockProps) {
     <p className="omne-media-line">
       〔{read.kind}〕{read.ref.mediaType} · {sizeText(read.ref.bytes)}
     </p>
+  )
+}
+
+/** One block of a message that is not words: a picture as a thumbnail, anything else as a line. */
+export function MediaBlock(props: MediaBlockProps) {
+  const block = readBlock(props.content)
+  const said = readText(props.modelRead, typeof block === 'string' ? block : block.kind)
+  if (said === null) return <MediaContent {...props} />
+  return (
+    <div className="omne-media-block">
+      <MediaContent {...props} />
+      <p className="omne-media-read">模型读的是{said}</p>
+    </div>
   )
 }

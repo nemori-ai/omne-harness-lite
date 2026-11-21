@@ -230,6 +230,26 @@ describe('parse of a call read', () => {
     expect(read.held).toBe(3)
   })
 
+  it('gives back the encoded media of a materialization receipt unchanged', () => {
+    const plain = documentOf()
+    const [first] = plain.dispatches
+    if (first === undefined) throw new Error('the document has a dispatch')
+    const reference = { storage: 's', key: 'k', mediaType: 'image/png', bytes: '9', digest: 'd' }
+    const receipt = {
+      supplier: SUPPLIER.adoption,
+      representation: ADOPTION,
+      payloadDigest: 'a'.repeat(64),
+      media: [{ reference, mediaType: 'image/webp', bytes: '4' }],
+    }
+    const materialization = { receipt, source: EVIDENCE }
+    const document = {
+      ...plain,
+      dispatches: [{ ...first, record: { ...first.record, materialization } }],
+    }
+    const read = ok(parse(outputOf(document)))
+    expect(read.record?.document.dispatches[0]?.record.materialization).toEqual(materialization)
+  })
+
   it('gives no record and an empty answer for a call without rows', () => {
     const output = { call: null, dispatches: [], parts: [], operation: null, held: 0 }
     expect(ok(parse(output))).toEqual({ record: undefined, binding: null, held: 0 })

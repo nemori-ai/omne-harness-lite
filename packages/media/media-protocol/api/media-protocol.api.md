@@ -262,6 +262,49 @@ export declare const mediaProtocol: {
                     } | {
                         readonly kind: "file";
                     };
+                    readonly preprocess: {
+                        readonly kind: "not-needed" | "not-started" | "running";
+                    } | {
+                        readonly kind: "done";
+                        readonly representation: {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly revision: string;
+                            };
+                            readonly engine: {
+                                readonly name: string;
+                                readonly revision: string;
+                            };
+                            readonly others: readonly {
+                                readonly bytes: string;
+                                readonly digest: string;
+                                readonly key: string;
+                                readonly mediaType: string;
+                                readonly storage: string;
+                            }[];
+                            readonly outcome: "converted";
+                            readonly text: string | {
+                                readonly bytes: string;
+                                readonly digest: string;
+                                readonly key: string;
+                                readonly mediaType: string;
+                                readonly storage: string;
+                            };
+                        } | {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly revision: string;
+                            };
+                            readonly engine: {
+                                readonly name: string;
+                                readonly revision: string;
+                            };
+                            readonly outcome: "inconvertible";
+                        };
+                    } | {
+                        readonly kind: "failed";
+                        readonly reason: "basis-unavailable" | "cancelled" | "engine-error" | "engine-unavailable" | "invalid-result" | "outcome-unknown" | "timeout";
+                    };
                     readonly state: "held" | "staged";
                 }>;
                 readonly 'not-found': import("@omne-harness/public-contract").Codec<{}>;
@@ -284,10 +327,97 @@ export declare const mediaProtocol: {
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
+        readonly 'prepare-media': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly preprocess: {
+                        readonly kind: "not-needed" | "not-started" | "running";
+                    } | {
+                        readonly kind: "done";
+                        readonly representation: {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly revision: string;
+                            };
+                            readonly engine: {
+                                readonly name: string;
+                                readonly revision: string;
+                            };
+                            readonly others: readonly {
+                                readonly bytes: string;
+                                readonly digest: string;
+                                readonly key: string;
+                                readonly mediaType: string;
+                                readonly storage: string;
+                            }[];
+                            readonly outcome: "converted";
+                            readonly text: string | {
+                                readonly bytes: string;
+                                readonly digest: string;
+                                readonly key: string;
+                                readonly mediaType: string;
+                                readonly storage: string;
+                            };
+                        } | {
+                            readonly definition: {
+                                readonly name: string;
+                                readonly revision: string;
+                            };
+                            readonly engine: {
+                                readonly name: string;
+                                readonly revision: string;
+                            };
+                            readonly outcome: "inconvertible";
+                        };
+                    } | {
+                        readonly kind: "failed";
+                        readonly reason: "basis-unavailable" | "cancelled" | "engine-error" | "engine-unavailable" | "invalid-result" | "outcome-unknown" | "timeout";
+                    };
+                }>;
+                readonly 'not-found': import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'commit';
+            readonly limit: 'small';
+            readonly countsAsAccess: true;
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly ref: {
+                    readonly bytes: string;
+                    readonly digest: string;
+                    readonly key: string;
+                    readonly mediaType: string;
+                    readonly storage: string;
+                };
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
     };
     readonly name: "media";
     readonly major: 1;
-    readonly observations: {};
+    readonly observations: {
+        readonly 'observe-media': {
+            readonly identity: "login";
+            readonly open: import("@omne-harness/public-contract").Codec<{
+                readonly ref: {
+                    readonly bytes: string;
+                    readonly digest: string;
+                    readonly key: string;
+                    readonly mediaType: string;
+                    readonly storage: string;
+                };
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly frame: import("@omne-harness/public-contract").Codec<{
+                readonly kind: "changed";
+            }>;
+            readonly ends: readonly [
+            ];
+        };
+    };
 };
 export type MediaProtocol = typeof mediaProtocol;
 ```

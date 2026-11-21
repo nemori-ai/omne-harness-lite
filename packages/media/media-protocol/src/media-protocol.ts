@@ -60,6 +60,40 @@ const target = object({
   maxHeight: { rule: count },
 })
 
+const provenance = object({ name: { rule: text }, revision: { rule: text } })
+const representation = oneOf(
+  object({
+    outcome: { rule: literal('converted') },
+    definition: { rule: provenance },
+    engine: { rule: provenance },
+    text: { rule: oneOf(text, reference) },
+    others: { rule: array(reference) },
+  }),
+  object({
+    outcome: { rule: literal('inconvertible') },
+    definition: { rule: provenance },
+    engine: { rule: provenance },
+  }),
+)
+const preprocess = oneOf(
+  object({ kind: { rule: literal('not-needed', 'not-started', 'running') } }),
+  object({ kind: { rule: literal('done') }, representation: { rule: representation } }),
+  object({
+    kind: { rule: literal('failed') },
+    reason: {
+      rule: literal(
+        'basis-unavailable',
+        'engine-unavailable',
+        'engine-error',
+        'timeout',
+        'invalid-result',
+        'outcome-unknown',
+        'cancelled',
+      ),
+    },
+  }),
+)
+
 const empty = ruleCodec(object({}))
 const standing = ruleCodec(object({ status: { rule: status } }))
 const limit = ruleCodec(object({ limit: { rule: count } }))
@@ -149,12 +183,32 @@ export const mediaProtocol = defineProtocol({
       body: ruleCodec(object(ofMedium)),
       outcomes: {
         succeeded: ruleCodec(
-          object({ state: { rule: literal('staged', 'held') }, facts: { rule: facts } }),
+          object({
+            state: { rule: literal('staged', 'held') },
+            facts: { rule: facts },
+            preprocess: { rule: preprocess },
+          }),
         ),
         'not-found': empty,
       },
     },
+    /** Makes the representation ready, or redoes one that failed; sending it again is safe. */
+    'prepare-media': {
+      ...write,
+      body: ruleCodec(object(ofMedium)),
+      outcomes: {
+        succeeded: ruleCodec(object({ preprocess: { rule: preprocess } })),
+        'not-found': empty,
+      },
+    },
   },
-  observations: {},
+  observations: {
+    'observe-media': {
+      identity: 'login',
+      open: ruleCodec(object(ofMedium)),
+      frame: ruleCodec(object({ kind: { rule: literal('changed') } })),
+      ends: [],
+    },
+  },
 })
 export type MediaProtocol = typeof mediaProtocol

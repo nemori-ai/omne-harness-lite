@@ -4,21 +4,11 @@ import {
   decodeModelInstanceId,
   type ModelHandle,
 } from '@omne-harness/model-contract'
-import {
-  ModelConvertersService,
-  ModelInstancesService,
-} from '@omne-harness/model-cordis-contract/cordis'
+import { ModelInstancesService } from '@omne-harness/model-cordis-contract/cordis'
 import { rowDeclarationOf } from '../../../src/row.ts'
-import { modelConvertersRow } from '../../../src/rows/model-converters/index.ts'
 import { modelInstancesRow } from '../../../src/rows/model-instances/index.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
-import {
-  TENANT,
-  converterAuthorityEntry,
-  publicationAuthorityEntry,
-  withLiveRows,
-  type Verdict,
-} from './support.ts'
+import { TENANT, publicationAuthorityEntry, withLiveRows, type Verdict } from './support.ts'
 
 function unbox<T>(decoded: { ok: T } | { failure: unknown }): T {
   if ('ok' in decoded) return decoded.ok
@@ -117,60 +107,6 @@ describe('the model-instances row', () => {
     expect(run.state('model-instances')).toMatchObject({
       state: 'PENDING',
       missing: ['modelPublicationAuthority'],
-    })
-  })
-})
-
-describe('the model-converters row', () => {
-  it('declares the formal keys, one inject and no shutdown phase', () => {
-    expect(rowDeclarationOf(modelConvertersRow)).toEqual({
-      row: 'model-converters',
-      implementation: 'real',
-      manifest: {
-        provides: ['modelConverters'],
-        injects: ['modelConverterAuthority'],
-        phase: null,
-        sameProviderGroup: null,
-      },
-      lifecycle: { kind: 'none' },
-    })
-  })
-
-  it('is ACTIVE with its authority and answers an empty catalog with absent', async () => {
-    const verdict: { current: Verdict } = { current: { ok: undefined } }
-    const { value, run } = await withLiveRows(
-      {
-        rows: [{ id: 'model-converters', plugin: 'modelConvertersRow' }],
-        plugins: { modelConvertersRow },
-        entryObjects: [converterAuthorityEntry(verdict)],
-        probe: ['modelConverters'],
-      },
-      async ctx => {
-        const catalog = ctx.get('modelConverters') as ModelConvertersService<unknown>
-        return {
-          isService: catalog instanceof ModelConvertersService,
-          acquired: await catalog.acquire({ mediaType: 'text/plain', modality: null }),
-        }
-      },
-    )
-    expect(value.isService).toBe(true)
-    expect(value.acquired).toEqual({ ok: { kind: 'absent' } })
-    expect(run.state('model-converters')).toMatchObject({ state: 'ACTIVE', missing: [] })
-    expect(run.result.exitCode).toBe(0)
-  })
-
-  it('stays PENDING without the converter authority and names the missing key', async () => {
-    const run = await serveOnce({
-      distribution: {
-        rows: [{ id: 'model-converters', plugin: 'modelConvertersRow', config: {} }],
-      },
-      plugins: { modelConvertersRow },
-      entryObjects: [],
-    })
-    expect(run.result.exitCode).toBe(4)
-    expect(run.state('model-converters')).toMatchObject({
-      state: 'PENDING',
-      missing: ['modelConverterAuthority'],
     })
   })
 })

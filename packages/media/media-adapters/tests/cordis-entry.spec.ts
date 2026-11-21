@@ -21,6 +21,9 @@ class Media extends MediaService {
     },
   }
   readonly reads = {} as MediaService['reads']
+  readonly representations = {
+    read: async () => ({ ok: { kind: 'not-needed' } }),
+  } as Pick<MediaService['representations'], 'read'> as MediaService['representations']
   readonly custody = {
     hold: async input => {
       holds.push(input.ref)
@@ -35,11 +38,12 @@ class Media extends MediaService {
 const names = (root: Context) => root.sessionBeforeIntake.current().map(each => each.name)
 
 describe('the ./cordis entry', () => {
-  it('exports the plugins of the intake adapter and of the media source of Model', async () => {
+  it('exports the plugins of the intake adapter, the media source of Model and the converter category', async () => {
     const cordis = (await import('@omne-harness/media-adapters/cordis')) as Record<string, unknown>
     expect(Object.keys(cordis).sort()).toEqual([
       'MediaModelSourcePlugin',
       'MediaToolStorePlugin',
+      'converterCategoryPlugin',
       'mediaIntakePlugin',
     ])
     expect(mediaIntakePlugin.name).toBe('media-intake')

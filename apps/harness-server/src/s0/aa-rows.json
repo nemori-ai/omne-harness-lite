@@ -25,6 +25,9 @@
     "media-intake",
     "media-model-source",
     "media-tool-store",
+    "media-converters",
+    "media-engine-transcribe",
+    "media-engine-pdf",
     "workspace",
     "usage",
     "usage-adapters",
@@ -52,7 +55,6 @@
     "agent-instances",
     "model-host",
     "model-instances",
-    "model-converters",
     "model-tokenizers",
     "model-profiles",
     "model-request-preparation",
@@ -340,6 +342,12 @@
     },
     {
       "row": "model-credential",
+      "names": [
+        "settingsSecretCustody"
+      ]
+    },
+    {
+      "row": "media-engine-transcribe",
       "names": [
         "settingsSecretCustody"
       ]

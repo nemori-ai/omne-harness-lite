@@ -1,9 +1,9 @@
-import type { ContentReference, MediaFacts } from '@omne-harness/content-block'
+import type { ContentReference, MediaFacts, Provenance } from '@omne-harness/content-block'
 import type { ConsumerRef } from '@omne-harness/exchange-refs'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 
-export type { ContentReference, MediaFacts }
+export type { ContentReference, MediaFacts, Provenance }
 
 /** A medium being deleted is the same as none: it has no state to show. */
 export type MediaState = 'uploading' | 'staged' | 'held'
@@ -142,11 +142,4 @@ export interface Reads {
     limit: number
     target: VariantTarget | null
   }): MediaRead<Page, VariantFailure>
-}
-
-export interface Media {
-  readonly uploads: Uploads
-  readonly custody: Custody
-  readonly variants: Variants
-  readonly reads: Reads
 }

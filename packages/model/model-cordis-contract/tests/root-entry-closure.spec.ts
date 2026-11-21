@@ -33,5 +33,5 @@ it('has a built root declaration that reaches the registration types and never C
 
   expect(files).toContain('registration.d.ts')
   expect(specifiers.filter(name => name.startsWith('@deepseek-ai/cordis'))).toEqual([])
-  expect(files.filter(file => /^(cordis|converters)\./.test(file))).toEqual([])
+  expect(files.filter(file => file.startsWith('cordis.'))).toEqual([])
 })

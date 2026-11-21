@@ -1,13 +1,22 @@
 import { randomBytes } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
-import type { ByteStore } from '@omne-harness/media-contract'
+import type {
+  ByteStore,
+  ConverterEngine,
+  EngineLease,
+  MediaTimer,
+} from '@omne-harness/media-contract'
 import {
+  MediaEnginesService,
   MediaService,
   MediaStoresService,
+  mediaConverterDefinitionsKey,
+  mediaEnginesKey,
   mediaImageKey,
   mediaIndexKey,
   mediaStoresKey,
 } from '@omne-harness/media-cordis-contract/cordis'
+import { createEngineRegistry } from './engines.ts'
 import { createMedia, type MediaConfig } from './index.ts'
 
 /** The byte stores of this tree, by name. A store leaves when the plugin that registered it does. */
@@ -26,6 +35,19 @@ export class MediaStoresProvider extends MediaStoresService {
   }
 }
 
+/** The converter engines of this tree, by name. An engine leaves when the plugin that registered it does. */
+export class MediaEnginesProvider extends MediaEnginesService {
+  private readonly registry = createEngineRegistry()
+
+  protected contribute(engine: ConverterEngine) {
+    return this.registry.contribute(engine)
+  }
+
+  borrow(name: string): EngineLease | null {
+    return this.registry.borrow(name)
+  }
+}
+
 export type MediaPluginClass = {
   new (ctx: Context): MediaService
   readonly inject: readonly string[]
@@ -33,7 +55,7 @@ export type MediaPluginClass = {
 
 /** The custody over the ports of the tree. The stores are read at each call; an operation cut short is one a crash leaves. */
 export function createMediaPlugin(
-  input: Readonly<{ config: MediaConfig; writeTo: string }>,
+  input: Readonly<{ config: MediaConfig; writeTo: string; timer: MediaTimer }>,
 ): MediaPluginClass {
   return class MediaProvider extends MediaService {
     static readonly inject = [mediaStoresKey, mediaIndexKey, mediaImageKey]
@@ -41,6 +63,7 @@ export function createMediaPlugin(
     readonly custody: MediaService['custody']
     readonly variants: MediaService['variants']
     readonly reads: MediaService['reads']
+    readonly representations: MediaService['representations']
 
     constructor(ctx: Context) {
       super(ctx)
@@ -56,6 +79,9 @@ export function createMediaPlugin(
           now: () =>
             /* wall-clock: clock-source -- the clock of the custody in this tree: expiry of uploads and staged media */ new Date().toISOString(),
         },
+        timer: input.timer,
+        definitions: () => ctx.get(mediaConverterDefinitionsKey) ?? null,
+        engines: () => ctx.get(mediaEnginesKey) ?? null,
         newKey: () => randomBytes(16).toString('hex'),
         config: input.config,
       })
@@ -63,6 +89,7 @@ export function createMediaPlugin(
       this.custody = media.custody
       this.variants = media.variants
       this.reads = media.reads
+      this.representations = media.representations
     }
   }
 }

@@ -17,7 +17,7 @@ const REVISIONS = {
   'anthropic/claude-opus-5': '3',
   'anthropic/claude-sonnet-5.5': '2',
   'anthropic/claude-sonnet-5': '3',
-  'anthropic/claude-haiku-5.5': '2',
+  'anthropic/claude-haiku-5.5': '3',
 } as const
 
 describe('the migrated models', () => {
@@ -100,7 +100,13 @@ describe('the wire data', () => {
     for (const record of RECORDS) {
       expect(record.engine).toBe('messages')
       expect(record.serving).toEqual({ order: ['anthropic'], reports: ['Anthropic', 'anthropic'] })
-      expect(record.wire).toEqual({
+      const { file, ...wire } = record.wire
+      expect(file).toEqual(
+        record.name === 'anthropic/claude-haiku-5.5'
+          ? { mediaTypes: ['application/pdf'], maxBytes: 33554432 }
+          : undefined,
+      )
+      expect(wire).toEqual({
         cache: { kind: 'last-message', ttl: '1h' },
         image: { mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] },
         thinking: { display: 'summarized' },

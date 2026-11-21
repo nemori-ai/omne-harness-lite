@@ -1,14 +1,7 @@
-import type { Adoption, DurableEvidence, ModelHandle } from '@omne-harness/model-contract'
-import type {
-  ConverterKey,
-  ExecutionRef,
-  ModelConverter,
-} from '@omne-harness/model-contract/provider'
+import type { DurableEvidence, ModelHandle } from '@omne-harness/model-contract'
+import type { ExecutionRef } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
-  ModelConverterAuthority,
-  ModelConverterRegistration,
-  ModelConverterRegistrationInput,
   ModelPublication,
   ModelPublicationAuthority,
   ModelRegistration,
@@ -18,18 +11,8 @@ import type {
 import type * as FromCordis from '@omne-harness/model-cordis-contract/cordis'
 import { expectTypeOf, it } from 'vitest'
 
-declare const declaredConverter: ModelConverter<string>
-declare const declaredEvidence: DurableEvidence
-
 it('re-exports the root declarations from ./cordis as the same types', () => {
   expectTypeOf<FromCordis.ModelRegistrationFailure>().toEqualTypeOf<ModelRegistrationFailure>()
-  expectTypeOf<FromCordis.ModelConverterRegistrationInput<string>>().toEqualTypeOf<
-    ModelConverterRegistrationInput<string>
-  >()
-  expectTypeOf<FromCordis.ModelConverterAuthority<string>>().toEqualTypeOf<
-    ModelConverterAuthority<string>
-  >()
-  expectTypeOf<FromCordis.ModelConverterRegistration>().toEqualTypeOf<ModelConverterRegistration>()
   expectTypeOf<FromCordis.ModelPublication>().toEqualTypeOf<ModelPublication>()
   expectTypeOf<FromCordis.ModelRegistrationInput<string>>().toEqualTypeOf<
     ModelRegistrationInput<string>
@@ -45,50 +28,6 @@ it('names the failure categories of a registration and only those', () => {
     | Readonly<{ kind: 'denied' | 'stale-publication' | 'conflict' }>
     | Readonly<{ kind: 'invalid'; reason: string }>
     | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-  >()
-})
-
-it('carries the key, the converter, its adoption, the authority evidence and an optional release hook of the provider in a converter registration', () => {
-  expectTypeOf<ModelConverterRegistrationInput<string>>().toEqualTypeOf<
-    Readonly<{
-      key: ConverterKey
-      converter: ModelConverter<string>
-      adoption: Adoption
-      authority: DurableEvidence
-      release?(): Promise<void>
-    }>
-  >()
-  const withoutHook: ModelConverterRegistrationInput<string> = {
-    key: { kind: 'media-type', mediaType: 'image/png' },
-    converter: declaredConverter,
-    adoption: declaredConverter.adoption,
-    authority: declaredEvidence,
-  }
-  const hookWithAnswer: ModelConverterRegistrationInput<string> = {
-    ...withoutHook,
-    // @ts-expect-error TS2322: Type 'Promise<{ removed: boolean; }>' is not assignable to type 'Promise<void>'.
-    release: async () => ({ removed: true }),
-  }
-  void [withoutHook, hookWithAnswer]
-})
-
-it('checks a converter registration synchronously and answers with a registration failure', () => {
-  expectTypeOf<ModelConverterAuthority<string>['check']>().toEqualTypeOf<
-    (input: ModelConverterRegistrationInput<string>) => Outcome<void, ModelRegistrationFailure>
-  >()
-})
-
-it('gives back a string token and a release that reports whether it removed the entry, and the failure of the hook of the provider', () => {
-  expectTypeOf<ModelConverterRegistration>().toEqualTypeOf<
-    Readonly<{
-      token: string
-      release(): Promise<
-        Readonly<{
-          removed: boolean
-          failure?: Readonly<{ kind: 'unavailable'; diagnostic: string }>
-        }>
-      >
-    }>
   >()
 })
 

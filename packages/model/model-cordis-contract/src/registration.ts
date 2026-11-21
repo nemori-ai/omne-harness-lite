@@ -1,9 +1,5 @@
-import type { Adoption, DurableEvidence } from '@omne-harness/model-contract'
-import type {
-  ConverterKey,
-  ModelConverter,
-  ModelInstanceHost,
-} from '@omne-harness/model-contract/provider'
+import type { DurableEvidence } from '@omne-harness/model-contract'
+import type { ModelInstanceHost } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 
 export type ModelRegistrationFailure =
@@ -29,25 +25,3 @@ export type ModelRegistration = Readonly<{
 export interface ModelPublicationAuthority<P> {
   check(input: ModelRegistrationInput<P>): Outcome<void, ModelRegistrationFailure>
 }
-
-export type ModelConverterRegistrationInput<P> = Readonly<{
-  key: ConverterKey
-  converter: ModelConverter<P>
-  adoption: Adoption
-  authority: DurableEvidence
-  release?(): Promise<void>
-}>
-
-export interface ModelConverterAuthority<P> {
-  check(input: ModelConverterRegistrationInput<P>): Outcome<void, ModelRegistrationFailure>
-}
-
-export type ModelConverterRegistration = Readonly<{
-  token: string
-  release(): Promise<
-    Readonly<{
-      removed: boolean
-      failure?: Extract<ModelRegistrationFailure, { kind: 'unavailable' }>
-    }>
-  >
-}>

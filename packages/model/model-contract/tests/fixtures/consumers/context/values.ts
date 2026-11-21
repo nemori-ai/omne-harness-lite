@@ -109,9 +109,6 @@ const visible = { toHuman: true, toModel: true }
 export const textBlock = (id: string, text: string): ContentBlock =>
   judged({ kind: 'text', id, visibility: visible, text })
 
-export const voiceBlock = (id: string): ContentBlock =>
-  judged({ kind: 'voice', id, visibility: visible, mediaType: 'audio/wav', inline: 'AAAA' })
-
 export const imageBlock = (id: string): ContentBlock =>
   judged({
     kind: 'image',

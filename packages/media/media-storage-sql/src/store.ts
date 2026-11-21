@@ -84,5 +84,8 @@ export function createSqlMediaIndex(options: MediaSqlOptions): MediaIndex {
     markDeletingIfExpired: input => commit(input.tenant, 'markDeletingIfExpired', input),
     listDeleting: (tenant, limit) => read(tenant, { read: 'listDeleting', name: '', limit }),
     dropRow: (tenant, key) => commit(tenant, 'dropRow', { key }),
+    recordRepresentation: input => commit(input.tenant, 'recordRepresentation', input),
+    readRepresentation: ({ tenant, key, definition }) =>
+      read(tenant, { read: 'readRepresentation', name: key, limit: 1, definition }),
   }
 }

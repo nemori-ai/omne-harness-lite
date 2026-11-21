@@ -1,11 +1,16 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type {
   ByteStore,
+  ConverterDefinitions,
+  ConverterEngine,
   Custody,
+  EngineLease,
+  Engines,
   ImageCodec,
   Media,
   MediaIndex,
   Reads,
+  Representations,
   Uploads,
   Variants,
 } from '@omne-harness/media-contract'
@@ -25,6 +30,7 @@ export abstract class MediaService extends Service implements Media {
   abstract readonly custody: Custody
   abstract readonly variants: Variants
   abstract readonly reads: Reads
+  abstract readonly representations: Representations
 }
 export const mediaKey = MediaService.provide
 
@@ -70,6 +76,8 @@ export abstract class MediaIndexService extends Service implements MediaIndex {
   abstract readonly markDeletingIfExpired: MediaIndex['markDeletingIfExpired']
   abstract readonly listDeleting: MediaIndex['listDeleting']
   abstract readonly dropRow: MediaIndex['dropRow']
+  abstract readonly recordRepresentation: MediaIndex['recordRepresentation']
+  abstract readonly readRepresentation: MediaIndex['readRepresentation']
 }
 export const mediaIndexKey = MediaIndexService.provide
 
@@ -89,9 +97,59 @@ export abstract class MediaImageService extends Service implements ImageCodec {
 }
 export const mediaImageKey = MediaImageService.provide
 
+export type EngineRegistration = Readonly<{ release(): Promise<void> }>
+
+/**
+ * The extension point `media.engines`: converter engines by name, one for a name. Registering is
+ * the effect of the caller: the engine is withdrawn when the scope of the caller ends.
+ * @owner packages/media/media-cordis-contract
+ */
+export abstract class MediaEnginesService extends Service implements Engines {
+  static readonly provide = 'mediaEngines'
+
+  constructor(ctx: Context) {
+    super(ctx, MediaEnginesService.provide)
+  }
+
+  register(engine: ConverterEngine): EngineRegistration {
+    let registration: EngineRegistration | undefined
+    this.ctx.effect(() => {
+      const made = this.contribute(engine)
+      registration = made
+      return () => void made.release()
+    }, 'mediaEngines.register')
+    if (registration === undefined) throw new Error('mediaEngines.register did not run')
+    return registration
+  }
+
+  protected abstract contribute(engine: ConverterEngine): EngineRegistration
+  abstract borrow(name: string): EngineLease | null
+}
+export const mediaEnginesKey = MediaEnginesService.provide
+
+/**
+ * The port that says which converter definition is in force, given by one provider.
+ * @owner packages/media/media-cordis-contract
+ */
+export abstract class MediaConverterDefinitionsService
+  extends Service
+  implements ConverterDefinitions
+{
+  static readonly provide = 'mediaConverterDefinitions'
+
+  constructor(ctx: Context) {
+    super(ctx, MediaConverterDefinitionsService.provide)
+  }
+
+  abstract readonly resolve: ConverterDefinitions['resolve']
+}
+export const mediaConverterDefinitionsKey = MediaConverterDefinitionsService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     media: MediaService
+    mediaEngines: MediaEnginesService
+    mediaConverterDefinitions: MediaConverterDefinitionsService
     mediaStores: MediaStoresService
     mediaIndex: MediaIndexService
     mediaImage: MediaImageService

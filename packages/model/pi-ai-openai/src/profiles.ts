@@ -53,6 +53,7 @@ export function profileOf(
     ],
     fallback: false,
     input: record.profile.input,
+    ...(record.wire.file === undefined ? {} : { fileTypes: record.wire.file.mediaTypes }),
     output: record.profile.output,
     context: {
       window: tokenLimit(record, supplier, context.window),

@@ -85,7 +85,7 @@ import {
   type SqlScene,
   type SqlSceneOptions,
 } from './fixtures/sql-scene.ts'
-import { m0Checkpoint } from './fixtures/adopted-request.ts'
+import { invocation, m0Checkpoint } from './fixtures/adopted-request.ts'
 import { endWithFailure, noReplyWithFault, refusedByModel } from './fixtures/finish.ts'
 import { MODEL_CALL } from './fixtures/main-reply.ts'
 import { toolCall } from './fixtures/tool-call.ts'
@@ -961,7 +961,7 @@ describe('sessionAdoptedRequests: the a part of a session, from the same plugin 
     )
   }
 
-  it('answers null before the first M0 and the saved request after it, checking history.readModelView on the session each call', async () => {
+  it('answers null before the first M0 and the saved request after it, checking history.readAdoptedRequest on the session each call', async () => {
     const s = await scene('adopted-plugin')
     const { plugin, journal, adopted, wiring } = await assembled(s)
     expect(provides(plugin, sessionAdoptedRequestsKey)).toBe(true)
@@ -980,9 +980,38 @@ describe('sessionAdoptedRequests: the a part of a session, from the same plugin 
     })
     expect(wiring.decided.at(-1)).toEqual({
       access: s.access,
-      operation: 'history.readModelView',
+      operation: 'history.readAdoptedRequest',
       target: { kind: 'session', session: s.access.session },
     })
+  })
+
+  it('answers the request adopted for the call a reference names, the latest without one, and null for a call it has none of', async () => {
+    const s = await scene('adopted-plugin-reference')
+    const { adopted, journal, wiring } = await assembled(s)
+    const open = ok(await journal().open(s.openInput))
+    await m0(s, journal(), open.authority, '1')
+    await m0(s, journal(), open.authority, '2')
+    const read = (reference?: string) =>
+      adopted().readAdoptedRequest({
+        access: s.access,
+        session: s.access.session,
+        ...(reference === undefined ? {} : { reference }),
+      })
+    const named = (tag: string) => invocation(s.access.tenant, tag)
+    expect(await read(named('1'))).toMatchObject({
+      kind: 'value',
+      value: { reference: named('1') },
+    })
+    expect(await read(named('2'))).toMatchObject({
+      kind: 'value',
+      value: { reference: named('2') },
+    })
+    expect(await read()).toMatchObject({ kind: 'value', value: { reference: named('2') } })
+    expect(await read(named('3'))).toEqual({ kind: 'value', value: null })
+    expect(wiring.decided.at(-1)).toMatchObject({ operation: 'history.readAdoptedRequest' })
+    const [first, second] = [await read(named('1')), await read(named('2'))]
+    if (first.kind !== 'value' || second.kind !== 'value') throw new Error('expected two values')
+    expect(BigInt(first.value!.order) < BigInt(second.value!.order)).toBe(true)
   })
 
   it('a denied access is denied, an undecided one or a throwing check unavailable, and nothing is read', async () => {

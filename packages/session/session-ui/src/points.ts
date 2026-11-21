@@ -70,6 +70,8 @@ export type SessionBlockSubject = Readonly<{
   message: string
   block: string
   content: unknown
+  /** Which representation the model read of this block in its latest request, when known. */
+  read?: 'original' | 'fitted' | 'derived' | 'transcript'
 }>
 
 export const SESSION_COMPOSER_ATTACHMENTS = 'session.composer-attachments'

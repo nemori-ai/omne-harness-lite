@@ -1,7 +1,9 @@
+import { isDeepStrictEqual } from 'node:util'
 import type {
   Adoption,
   FixedModelRequest,
   MaterializationReceipt,
+  MaterializedMedium,
   TransportFailure,
 } from '@omne-harness/model-contract'
 import type {
@@ -28,12 +30,21 @@ function copyAdoption(adoption: Adoption): Adoption {
   }
 }
 
+function copyMedia(media: readonly MaterializedMedium[]): MaterializedMedium[] {
+  return Array.from(media, ({ reference, mediaType, bytes }) => ({
+    reference: { ...reference },
+    mediaType,
+    bytes,
+  }))
+}
+
 function copyReceipt(receipt: MaterializationReceipt): MaterializationReceipt {
-  const { replayFormat, replayPrefix, replayCarried } = receipt
+  const { media, replayFormat, replayPrefix, replayCarried } = receipt
   return {
     supplier: copyAdoption(receipt.supplier),
     representation: copyAdoption(receipt.representation),
     payloadDigest: receipt.payloadDigest,
+    ...(media === undefined ? {} : { media: copyMedia(media) }),
     ...(replayFormat === undefined ? {} : { replayFormat }),
     ...(replayPrefix === undefined ? {} : { replayPrefix }),
     ...(replayCarried === undefined ? {} : { replayCarried }),
@@ -52,6 +63,7 @@ function receiptMatches(
     first.replayFormat === second.replayFormat &&
     first.replayPrefix === second.replayPrefix &&
     first.replayCarried === second.replayCarried &&
+    isDeepStrictEqual(first.media, second.media) &&
     sameAdoption(first.supplier, expected.supplier) &&
     sameAdoption(first.representation, expected.representation) &&
     sameAdoption(first.supplier, second.supplier) &&

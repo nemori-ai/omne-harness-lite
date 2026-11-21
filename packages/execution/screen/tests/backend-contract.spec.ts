@@ -98,6 +98,17 @@ describe('what the library gives becomes one geometry', () => {
       origin: { x: 3840, y: 0 },
     })
   })
+
+  it('on Windows and Linux: the origin of a scaled screen away from the corner is in points', async () => {
+    const [primary, raw] = PIXELS_TWO_SCREENS
+    const scaled = { ...raw!, x: 3840, y: -1080, scaleFactor: 2 }
+    const [, second] = await backendOver('pixels', [primary!, scaled]).backend.list()
+    expect(second).toMatchObject({
+      pixels: { width: 1920, height: 1080 },
+      scale: 2,
+      origin: { x: 1920, y: -540 },
+    })
+  })
 })
 
 describe('the geometry of a listing holds together, or it says what does not', () => {

@@ -93,7 +93,7 @@ export async function readUpload(file: string, mediaType?: string): Promise<Read
 }
 
 /** Begins, sends the parts and commits; the answer that stopped it, or the reference committed. */
-export async function sendUpload(
+async function sendUpload(
   context: Sender,
   read: Extract<ReadFile, { file: string }>,
   upload: string,
@@ -118,6 +118,50 @@ export async function sendUpload(
   const committed = await call(context, 'commit-upload', { tenant, upload, digest })
   const ref = succeeded(committed) ? (committed.body as { ref: Reference }).ref : null
   return { result: committed, ref }
+}
+
+async function prepareUpload(
+  context: Sender,
+  ref: Reference,
+): Promise<
+  | Readonly<{ ready: true }>
+  | Readonly<{ result: CallResult | undefined }>
+  | Readonly<{ unready: string }>
+> {
+  const result = await call(context, 'prepare-media', { tenant: context.tenant, ref })
+  if (!succeeded(result)) return { result }
+  const { preprocess } = result.body as { preprocess: { kind: string; reason?: string } }
+  if (preprocess.kind === 'not-needed' || preprocess.kind === 'done') return { ready: true }
+  return { unready: preprocess.reason ?? preprocess.kind }
+}
+
+function attachmentKind(mediaType: string): 'image' | 'voice' | 'file' {
+  if (mediaType.startsWith('image/')) return 'image'
+  return mediaType.startsWith('audio/') ? 'voice' : 'file'
+}
+
+type Attachment = Readonly<{ kind: 'image' | 'voice' | 'file'; ref: Reference }>
+type Attached =
+  | Readonly<{ attachments: Attachment[] }>
+  | Readonly<{ stop: CallResult | Readonly<{ local: string }> | undefined; refused: string | null }>
+
+export async function attachUploads(
+  sender: Sender,
+  files: readonly Extract<ReadFile, { file: string }>[],
+): Promise<Attached> {
+  const attachments: Attachment[] = []
+  for (const read of files) {
+    const { result, ref } = await sendUpload(sender, read, sender.newId())
+    if (ref === null) return { stop: result, refused: read.file }
+    const prepared = await prepareUpload(sender, ref)
+    if ('result' in prepared) return { stop: prepared.result, refused: read.file }
+    if ('unready' in prepared) {
+      const local = `the attachment ${read.file} is not ready (its preprocessing: ${prepared.unready}); the input was not sent`
+      return { stop: { local }, refused: null }
+    }
+    attachments.push({ kind: attachmentKind(read.mediaType), ref })
+  }
+  return { attachments }
 }
 
 async function put(context: Context, values: Option): Promise<Ending> {

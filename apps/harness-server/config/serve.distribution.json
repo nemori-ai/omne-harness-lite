@@ -221,6 +221,21 @@
       "config": {}
     },
     {
+      "id": "media-converters",
+      "plugin": "mediaConvertersRow",
+      "config": {}
+    },
+    {
+      "id": "media-engine-transcribe",
+      "plugin": "mediaEngineTranscribeRow",
+      "config": {}
+    },
+    {
+      "id": "media-engine-pdf",
+      "plugin": "mediaEnginePdfRow",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "workspaceRow",
       "config": {}
@@ -624,11 +639,6 @@
     {
       "id": "model-instances",
       "plugin": "modelInstancesRow",
-      "config": {}
-    },
-    {
-      "id": "model-converters",
-      "plugin": "modelConvertersRow",
       "config": {}
     },
     {

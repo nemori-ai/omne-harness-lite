@@ -7,3 +7,10 @@ export {
   type StoreWorld,
 } from './store-conformance.ts'
 export { mediaIndexConformanceCases, type IndexConformanceCase } from './index-conformance.ts'
+export {
+  engineConformanceCases,
+  type EngineConformanceCase,
+  type EngineSample,
+  type EngineWorld,
+} from './engine-conformance.ts'
+export { createScriptedEngine, type ScriptedEngine } from './scripted-engine.ts'

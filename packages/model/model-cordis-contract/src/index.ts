@@ -1,7 +1,4 @@
 export type {
-  ModelConverterAuthority,
-  ModelConverterRegistration,
-  ModelConverterRegistrationInput,
   ModelPublication,
   ModelPublicationAuthority,
   ModelRegistration,

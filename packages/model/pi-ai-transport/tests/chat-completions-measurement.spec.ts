@@ -491,7 +491,7 @@ describe('createCalibratedMeter', () => {
     })
   })
 
-  it('adds one exact check per image for image-bytes, one for image-count and one for request-bytes, and none for voice', async () => {
+  it('adds one exact check per image for image-bytes, one for image-count, one for request-bytes, and one per voice for its bytes and its duration', async () => {
     const reference = (key: string) => ({
       storage: 'tests',
       key,
@@ -556,9 +556,12 @@ describe('createCalibratedMeter', () => {
       exact('image-bytes', 'image-2', '12', '100'),
       exact('image-count', 'request', '2', '4'),
       exact('request-bytes', 'request', '7', '64'),
+      exact('voice-bytes', 'voice-1', '30', '1000'),
+      exact('voice-duration-ms', 'voice-1', '10', '1000'),
     ])
-    // Pending images are read at the send, each within the limit: an original over it is no excess here.
-    const over = [image('image-1', '5000'), image('image-2', '12')]
+    // Pending media are read at the send, each within the limit: an original over it is no excess here.
+    // The duration of a voice is known from its block before it is read.
+    const over = [image('image-1', '5000'), image('image-2', '12'), { ...voice, bytes: '5000' }]
     const pending = await createCalibratedMeter(rules()).measure({
       ...metered,
       limits,
@@ -567,11 +570,12 @@ describe('createCalibratedMeter', () => {
         adoption: REPRESENTATION,
         tokenInput: metered.representation.tokenInput,
         media: over,
-        references: [reference('image-1'), reference('image-2')],
+        references: [reference('image-1'), reference('image-2'), reference('voice-1')],
       },
     })
     expect('ok' in pending && pending.ok.checks.slice(1)).toEqual([
       exact('image-count', 'request', '2', '4'),
+      exact('voice-duration-ms', 'voice-1', '10', '1000'),
     ])
   })
 

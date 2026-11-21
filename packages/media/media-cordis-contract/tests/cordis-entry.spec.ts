@@ -7,6 +7,12 @@ const services = [
   [entry.MediaStoresService, entry.mediaStoresKey, 'mediaStores'],
   [entry.MediaIndexService, entry.mediaIndexKey, 'mediaIndex'],
   [entry.MediaImageService, entry.mediaImageKey, 'mediaImage'],
+  [entry.MediaEnginesService, entry.mediaEnginesKey, 'mediaEngines'],
+  [
+    entry.MediaConverterDefinitionsService,
+    entry.mediaConverterDefinitionsKey,
+    'mediaConverterDefinitions',
+  ],
 ] as const
 
 it('gives the custody, the store registry and each port one service identity', () => {

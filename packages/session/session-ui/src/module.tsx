@@ -2,9 +2,11 @@ import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
 import { serviceKey } from '@omne-harness/shell-contract'
-import { defineUiModule } from '@omne-harness/shell-contract/cordis'
-import { Fragment } from 'react'
+import { defineUiModule, type ShellService } from '@omne-harness/shell-contract/cordis'
+import { Fragment, type ReactNode } from 'react'
 import { ArchiveStore } from './model/archive.ts'
+import { BlockReads, type BlockReadsHolder } from './model/block-reads.ts'
+import type { BlockSource } from './model/conversation.ts'
 import { EntryFocus } from './model/entry-focus.ts'
 import { HistorySearchStore } from './model/history-search.ts'
 import { BackgroundCallsStore } from './model/background-calls.ts'
@@ -25,6 +27,7 @@ import {
 import { ArchiveAction, ArchivedSessions } from './view/archive.tsx'
 import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
 import { ConversationPage } from './view/conversation-page.tsx'
+import { ReadBlock } from './view/read-block.tsx'
 import { HistorySearch } from './view/history-search.tsx'
 import { ModelAction } from './view/model-selection.tsx'
 import { EntryFocusContext } from './view/shown-entry.ts'
@@ -51,8 +54,35 @@ export const sessionWorkspaceChoicesKey = serviceKey<WorkspaceChoiceHolder>(
   'session.workspace-choices',
 )
 
+/** Where the reads of the blocks are handed to the session interface; it works without them. */
+export const sessionBlockReadsKey = serviceKey<BlockReadsHolder>('session.block-reads')
+
 /** Where a contribution to the composer gives back what the message being written carries. */
 export const sessionComposerIntakeKey = serviceKey<ComposerDrafts>('session.composer-intake')
+
+/** A block of a message drawn by whatever is put at its point, told what the model read of it. */
+function blockDrawer(shell: ShellService, reads: BlockReads, scope: string | undefined) {
+  return (session: string, source: BlockSource, fallback: ReactNode, revision: string | null) => (
+    <ReadBlock
+      reads={reads}
+      tenant={scope}
+      session={session}
+      revision={revision}
+      message={source.message}
+      block={source.block}
+      draw={read =>
+        sessionBlock.slot(
+          shell,
+          { session, ...source, ...(read === undefined ? {} : { read }) },
+          entries =>
+            entries.length === 0
+              ? fallback
+              : entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
+        )
+      }
+    />
+  )
+}
 
 export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionProtocol>>>({
   name: 'session-ui',
@@ -63,6 +93,8 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
     provide(sessionModelChoicesKey, models)
     const drafts = new ComposerDraftStore()
     provide(sessionComposerIntakeKey, drafts)
+    const reads = new BlockReads()
+    provide(sessionBlockReadsKey, reads)
     const places = new WorkspaceSelectionStore(client)
     provide(sessionWorkspaceChoicesKey, places)
     const workspaces = new SessionWorkspaces({ client })
@@ -147,13 +179,7 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
                 entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
               )
             }
-            block={(session, source, fallback) =>
-              sessionBlock.slot(shell, { session, ...source }, entries =>
-                entries.length === 0
-                  ? fallback
-                  : entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
-              )
-            }
+            block={blockDrawer(shell, reads, scope)}
             side={session =>
               sessionSide.slot(shell, { session }, entries =>
                 scope === undefined ? (

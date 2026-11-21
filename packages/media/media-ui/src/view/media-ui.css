@@ -45,6 +45,15 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
+.omne-media-block {
+  display: grid;
+  gap: 4px;
+}
+.omne-media-read {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
 .omne-media-picture {
   display: block;
   margin: 4px 0;

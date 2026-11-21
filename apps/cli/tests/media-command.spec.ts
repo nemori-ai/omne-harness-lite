@@ -52,7 +52,10 @@ function media(over: (seen: Seen) => Answer | undefined = () => undefined, next 
       case 'commit-upload':
         return { outcome: 'succeeded', body: { ref: REF, facts: FACTS } }
       case 'describe-media':
-        return { outcome: 'succeeded', body: { state: 'staged', facts: FACTS } }
+        return {
+          outcome: 'succeeded',
+          body: { state: 'staged', facts: FACTS, preprocess: { kind: 'not-needed' } },
+        }
       case 'read-media-page': {
         const offset = Number(body['offset'])
         const part = BYTES.subarray(offset, offset + 16)

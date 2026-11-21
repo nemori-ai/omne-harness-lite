@@ -151,18 +151,19 @@ function inputCheck<U extends MeteredUnit>(
 
 type Measured = readonly (readonly [subject: string, amount: string])[]
 
-/** What each limit is checked against; bytes only once read: a pending image is read at the send, within its limit. */
+/** What each limit is checked against; bytes only once read: a pending medium is read at the send, within its limit. */
 function measuredOf(
   representation: MeterFacts['representation'],
 ): Record<MeterFacts['limits'][number]['metric'], Measured> {
   const images = representation.media.filter(fact => fact.kind === 'image')
+  const voices = representation.media.filter(fact => fact.kind === 'voice')
   const read = representation.kind === 'materialized' ? representation : null
   return {
     'image-bytes': read === null ? [] : images.map(fact => [fact.reference.key, fact.bytes]),
     'image-count': [['request', String(images.length)]],
     'request-bytes': read === null ? [] : [['request', read.requestBytes]],
-    'voice-bytes': [],
-    'voice-duration-ms': [],
+    'voice-bytes': read === null ? [] : voices.map(fact => [fact.reference.key, fact.bytes]),
+    'voice-duration-ms': voices.map(fact => [fact.reference.key, fact.durationMs]),
   }
 }
 

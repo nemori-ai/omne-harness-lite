@@ -525,7 +525,7 @@ import type { Access, TenantId } from '@omne-harness/legal-identity';
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts';
 import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts';
 import type { IntakeSubject } from './input-sources.ts';
-export type SessionReadAccessOperation = 'listTodos' | 'readWork' | 'readCurrentScope' | 'readWaiting' | 'readBackgroundCalls' | 'resolveBackgroundCall' | 'readInput' | 'readPending' | 'readWaitingCalls' | 'readInputFate' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView' | 'history.readCompactionContext';
+export type SessionReadAccessOperation = 'listTodos' | 'readWork' | 'readCurrentScope' | 'readWaiting' | 'readBackgroundCalls' | 'resolveBackgroundCall' | 'readInput' | 'readPending' | 'readWaitingCalls' | 'readInputFate' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView' | 'history.readCompactionContext' | 'history.readAdoptedRequest';
 type SessionMutationAccess<P> = {
     readonly [K in MutationName]: Readonly<{
         access: Access<P>;
@@ -3995,8 +3995,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:456e52243a85924983cdb5eb84a007b50b0373716c16f15845edec894120265a";
-export declare const SESSION_RELEASE_DIGEST = "sha256:456e52243a85924983cdb5eb84a007b50b0373716c16f15845edec894120265a";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:ecaf49fb79f19d369a8c77ffa82bb69e2d00420632ed8d215ce5aedb0cbbb6b6";
+export declare const SESSION_RELEASE_DIGEST = "sha256:ecaf49fb79f19d369a8c77ffa82bb69e2d00420632ed8d215ce5aedb0cbbb6b6";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

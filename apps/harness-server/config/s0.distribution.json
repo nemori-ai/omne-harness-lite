@@ -121,6 +121,21 @@
       "config": {}
     },
     {
+      "id": "media-converters",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-engine-transcribe",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "media-engine-pdf",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "workspace",
       "plugin": "stubPlugin",
       "config": {}
@@ -252,11 +267,6 @@
     },
     {
       "id": "model-instances",
-      "plugin": "stubPlugin",
-      "config": {}
-    },
-    {
-      "id": "model-converters",
       "plugin": "stubPlugin",
       "config": {}
     },

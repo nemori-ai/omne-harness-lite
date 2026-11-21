@@ -34,6 +34,7 @@ describe('officialAnthropicProfiles', () => {
         suppliers: [{ adoption: supplier, provider: 'openrouter', model: record.name, replay: {} }],
         fallback: false,
         input: ['text', 'image'],
+        ...(record.name === 'anthropic/claude-haiku-5.5' ? { fileTypes: ['application/pdf'] } : {}),
         output: ['text'],
         context: {
           window: { provided: '1000000', upstream: upstream(context.window.upstream) },

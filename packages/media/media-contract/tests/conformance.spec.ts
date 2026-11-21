@@ -56,3 +56,29 @@ it('the index suite fails an index that merges across tenants', async () => {
   )
   expect(outcomes.some(outcome => outcome.status === 'rejected')).toBe(true)
 })
+
+it('the index suite fails an index that lets a second record of a definition replace the first', async () => {
+  const forgetful = async () => {
+    const index = createMemoryMediaIndex()
+    const last = new Map<string, unknown>()
+    return {
+      ...index,
+      async recordRepresentation(input: Parameters<typeof index.recordRepresentation>[0]) {
+        const answer = await index.recordRepresentation(input)
+        if ('ok' in answer) last.set(input.key, input.representation)
+        return 'ok' in answer ? { ok: input.representation } : answer
+      },
+      async readRepresentation(input: Parameters<typeof index.readRepresentation>[0]) {
+        const answer = await index.readRepresentation(input)
+        const kept = last.get(input.key)
+        return 'ok' in answer && answer.ok !== null && kept !== undefined
+          ? { ok: kept as never }
+          : answer
+      },
+    }
+  }
+  const outcomes = await Promise.allSettled(
+    mediaIndexConformanceCases.map(item => item.run(forgetful)),
+  )
+  expect(outcomes.filter(outcome => outcome.status === 'rejected')).toHaveLength(1)
+})

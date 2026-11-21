@@ -63,6 +63,15 @@ export async function materialize(
       supplier: supplier.adoption,
       representation: request.representation,
       payloadDigest: digestOf(body),
+      ...(media.ok.length === 0
+        ? {}
+        : {
+            media: Object.freeze(
+              media.ok.map(({ reference, mime, bytes }) =>
+                Object.freeze({ reference, mediaType: mime, bytes: String(bytes.byteLength) }),
+              ),
+            ),
+          }),
       ...(replayFormat === null
         ? {}
         : {

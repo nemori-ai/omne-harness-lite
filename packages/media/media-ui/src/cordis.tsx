@@ -5,9 +5,11 @@ import { serviceKey, type PointSink } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { useMemo, type ReactNode } from 'react'
 import type { Drafts } from './model/attachment-tray.ts'
+import type { Microphone } from './model/recorder.ts'
 import type { MediaClient } from './model/upload.ts'
 import { AttachmentTrayView } from './view/attachment-tray.tsx'
 import { MediaBlock } from './view/media-block.tsx'
+import { browserMicrophone } from './view/microphone.ts'
 
 export type { DraftOffer, Drafts } from './model/attachment-tray.ts'
 
@@ -19,11 +21,15 @@ export type MediaBlockSubject = Readonly<{
   message: string
   block: string
   content: unknown
+  /** Which representation the model read of this block in its latest request, when known. */
+  read?: string
 }>
 
 export type MediaUiOptions = Readonly<{
   composerAttachments?: PointSink<MediaDraftSubject>
   block?: PointSink<MediaBlockSubject>
+  /** Where recordings come from; the browser's microphone when not given. */
+  microphone?: Microphone
 }>
 
 export type DraftsHolder = Readonly<{ attach(given: Drafts): () => void }>
@@ -73,6 +79,7 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
                 session={subject.session}
                 draft={subject.draft}
                 drafts={drafts}
+                microphone={options.microphone ?? browserMicrophone}
               />
             )}
           </Scoped>
@@ -83,7 +90,14 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
         order: 0,
         render: ({ scope, subject }) => (
           <Scoped scope={scope}>
-            {tenant => <MediaBlock client={client} tenant={tenant} content={subject.content} />}
+            {tenant => (
+              <MediaBlock
+                client={client}
+                tenant={tenant}
+                content={subject.content}
+                modelRead={subject.read}
+              />
+            )}
           </Scoped>
         ),
       })

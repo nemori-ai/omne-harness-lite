@@ -351,7 +351,6 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'business',
   },
   'model-instances': { provides: ['modelInstances'], injects: ['modelPublicationAuthority'] },
-  'model-converters': { provides: ['modelConverters'], injects: ['modelConverterAuthority'] },
   'model-profiles': { provides: ['modelProfiles'] },
   'model-tokenizers': { provides: ['modelTokenizers'], phase: 'composition' },
   'model-request-preparation': {
@@ -477,12 +476,21 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'media-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'media-storage-sql': { provides: ['mediaIndex'], injects: ['storage', 'tenantDomainLookup'] },
   'media-image': { provides: ['mediaImage'], injects: [] },
-  media: { provides: ['mediaStores', 'media'], injects: ['mediaIndex', 'mediaImage'] },
+  media: {
+    provides: ['mediaStores', 'mediaEngines', 'media'],
+    injects: ['mediaIndex', 'mediaImage'],
+  },
   'media-storage-local': { injects: ['mediaStores'] },
   'media-sweep': { injects: ['media', 'tenantDomains', 'tenantDomainScannerPrincipal'] },
   'media-intake': { injects: ['media', 'sessionBeforeIntake'] },
   'media-model-source': { provides: ['modelMediaSource'], injects: ['media'] },
   'media-tool-store': { provides: ['toolMediaStore'], injects: ['media'] },
+  'media-converters': {
+    provides: ['mediaConverterDefinitions'],
+    injects: ['tenantAssets', 'assetCategories'],
+  },
+  'media-engine-transcribe': { injects: ['mediaEngines', 'settingsSecretCustody'] },
+  'media-engine-pdf': { injects: ['mediaEngines'] },
   'workspace-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }

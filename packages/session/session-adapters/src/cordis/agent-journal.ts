@@ -75,6 +75,7 @@ import {
   type RequestView,
   type SessionJournalView,
 } from '../journal/index.ts'
+import { adoptedIn } from './adopted-in.ts'
 import {
   participationAccessFailure,
   participationFailure,
@@ -1101,7 +1102,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   async function readAdopted(
-    scope: Readonly<{ tenant: TenantId; session: SessionId }>,
+    scope: Readonly<{ tenant: TenantId; session: SessionId; reference?: string | undefined }>,
   ): Promise<AdoptedRead> {
     const book = bookOf(scope.tenant, scope.session)
     if (book === null) return { kind: 'unavailable', diagnostic: 'the tenant is not minted' }
@@ -1120,13 +1121,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           diagnostic:
             synced.failure.kind === 'unavailable' ? synced.failure.diagnostic : synced.failure.kind,
         }
-      let latest: Readonly<{ execution: string; request: RequestView }> | null = null
-      for (const execution of book.view.executions.values())
-        if (
-          execution.adopted !== null &&
-          (latest === null || execution.adopted.pub > latest.request.pub)
-        )
-          latest = { execution: execution.execution, request: execution.adopted }
+      const latest = adoptedIn(book.view.executions.values(), scope.reference)
       if (latest === null) return { kind: 'value', value: null }
       const digest = blobRowDigest(latest.request.record.digest)
       let payload = book.blobs.get(digest)

@@ -17,7 +17,8 @@ export type SessionAdoptedRequestRead =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 export interface SessionAdoptedRequests<P> {
+  /** The request adopted for the model call named by `reference`; without one, the latest of the session. */
   readAdoptedRequest(
-    input: Readonly<{ access: Access<P>; session: SessionId }>,
+    input: Readonly<{ access: Access<P>; session: SessionId; reference?: string }>,
   ): Promise<SessionAdoptedRequestRead>
 }

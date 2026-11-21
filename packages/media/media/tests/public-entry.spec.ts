@@ -5,7 +5,7 @@ import { CONFIG, T1, fakeImage } from './world.ts'
 
 it('exports the factory of the core', async () => {
   const entry = (await import('@omne-harness/media')) as Record<string, unknown>
-  expect(Object.keys(entry)).toEqual(['createMedia'])
+  expect(Object.keys(entry).sort()).toEqual(['createEngineRegistry', 'createMedia'])
 })
 
 it('answers unavailable while the store new objects go to is not there', async () => {
@@ -15,6 +15,9 @@ it('answers unavailable while the store new objects go to is not there', async (
     index: createMemoryMediaIndex(),
     image: fakeImage().codec,
     clock: { now: () => '2026-10-19T00:00:00.000Z' },
+    timer: { after: () => () => undefined },
+    definitions: () => null,
+    engines: () => null,
     newKey: () => '0'.repeat(32),
     config: CONFIG,
   })

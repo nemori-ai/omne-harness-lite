@@ -10,11 +10,13 @@ import {
 import type {
   ByteStore,
   Committed,
+  ConverterDefinitions,
   Holder,
   ImageCodec,
   Media,
   MediaIndex,
 } from '@omne-harness/media-contract'
+import { createEngineRegistry } from '@omne-harness/media'
 import {
   createCrashSwitch,
   createMemoryByteStore,
@@ -84,6 +86,7 @@ export const CONFIG: MediaConfig = {
   uploadTtlMs: 60_000,
   stagingTtlMs: 600_000,
   variantCacheBytes: 40,
+  conversion: { timeoutMs: 5_000, queueLimit: 1, inlineTextBytes: 16 },
 }
 
 export function ok<T>(reply: { ok: T } | { failure: unknown }): T {
@@ -160,6 +163,20 @@ export function world(config: Partial<MediaConfig> = {}) {
     now: () => new Date(clock.at).toISOString(),
   }
   const image = fakeImage()
+  /** A timer the test moves: `elapse` fires what is due. */
+  const pending: { at: number; fire: () => void }[] = []
+  const timer = {
+    after(delayMs: number, fire: () => void) {
+      const entry = { at: clock.at + delayMs, fire }
+      pending.push(entry)
+      return () => void pending.splice(pending.indexOf(entry) >>> 0, 1)
+    },
+  }
+  const engines = createEngineRegistry()
+  const conversion = {
+    engines: engines as ReturnType<typeof createEngineRegistry> | null,
+    definitions: null as ConverterDefinitions | null,
+  }
   let keys = 0
   const stores: ByteStore[] = [crash.wrap(store)]
   const open = (): Media =>
@@ -169,6 +186,9 @@ export function world(config: Partial<MediaConfig> = {}) {
       index: crash.wrap(index),
       image: image.codec,
       clock,
+      timer,
+      definitions: () => conversion.definitions,
+      engines: () => conversion.engines,
       newKey: () => (keys++).toString(16).padStart(32, '0'),
       config: { ...CONFIG, ...config },
     })
@@ -196,6 +216,17 @@ export function world(config: Partial<MediaConfig> = {}) {
     },
     advance(ms: number): void {
       clock.at += ms
+    },
+    engines,
+    conversion,
+    timers: pending,
+    /** Moves the clock and fires the timers that are due by then. */
+    elapse(ms: number): void {
+      clock.at += ms
+      for (const entry of pending.filter(each => each.at <= clock.at)) {
+        pending.splice(pending.indexOf(entry), 1)
+        entry.fire()
+      }
     },
     async upload(tenant: TenantId, upload: string, bytes: Uint8Array, mediaType = 'image/png') {
       ok(await w.media.uploads.begin({ tenant, upload, mediaType, bytes: bytes.byteLength }))

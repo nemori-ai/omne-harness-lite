@@ -1,6 +1,6 @@
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
-import { isLive, keysWhere, load, pointed, type SqlPort } from './rows.ts'
+import { isLive, keysWhere, load, pointed, representationOf, type SqlPort } from './rows.ts'
 import { HANDLER, PROTOCOL, READS, type ReadName, type ReadRequest } from './schema.ts'
 
 const notFound = { failure: { kind: 'not-found' } }
@@ -17,6 +17,11 @@ const RUN: Record<ReadName, (port: SqlPort, request: ReadRequest) => unknown> = 
   listDeleting(port, request) {
     const keys = keysWhere(port, "state = 'deleting' LIMIT ?", [request.limit])
     return { ok: keys.map(key => load(port, key)) }
+  },
+  readRepresentation(port, request) {
+    const { definition } = request
+    if (definition === undefined || !isLive(load(port, request.name))) return { ok: null }
+    return { ok: representationOf(port, request.name, definition) }
   },
 }
 

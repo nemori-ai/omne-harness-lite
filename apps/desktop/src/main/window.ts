@@ -20,6 +20,7 @@ import {
   type WindowState,
   type WindowStateFile,
 } from './window-state.ts'
+import { onlyMicrophone } from './permissions.ts'
 
 export function registerAppScheme(): void {
   protocol.registerSchemesAsPrivileged([
@@ -71,10 +72,12 @@ export function harden(contents: WebContents): void {
     openOutside(url)
   })
   contents.on('will-attach-webview', event => event.preventDefault())
-  contents.session.setPermissionRequestHandler((_contents, _permission, callback) =>
-    callback(false),
+  contents.session.setPermissionRequestHandler((_contents, permission, callback, details) =>
+    callback(onlyMicrophone(permission, 'mediaTypes' in details ? (details.mediaTypes ?? []) : [])),
   )
-  contents.session.setPermissionCheckHandler(() => false)
+  contents.session.setPermissionCheckHandler((_contents, permission, _origin, details) =>
+    onlyMicrophone(permission, details.mediaType === undefined ? [] : [details.mediaType]),
+  )
 }
 
 /** The utility process's state now, and its changes until the returned function is called. */

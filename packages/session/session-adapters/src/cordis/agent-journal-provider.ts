@@ -258,13 +258,13 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
   const adoptedRequests: SessionAdoptedRequests<P> = {
     async readAdoptedRequest(input): Promise<SessionAdoptedRequestRead> {
       if (closed) return { kind: 'unavailable', diagnostic: 'the agentJournal plugin has stopped' }
-      const { access, session } = input
+      const { access, session, reference } = input
       if (!tenantCodec.encode(access.tenant).ok) return { kind: 'denied' }
       let decision
       try {
         decision = await options.sessionAccessCheck.check({
           access,
-          operation: 'history.readModelView',
+          operation: 'history.readAdoptedRequest',
           target: { kind: 'session', session },
         })
       } catch (error) {
@@ -272,7 +272,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
       }
       if (decision.kind === 'denied') return { kind: 'denied' }
       if (decision.kind !== 'allowed') return decision
-      const read = await journals.readAdopted({ tenant: access.tenant, session })
+      const read = await journals.readAdopted({ tenant: access.tenant, session, reference })
       if (read.kind !== 'value' || read.value === null) return read
       return { kind: 'value', value: { ...read.value } }
     },

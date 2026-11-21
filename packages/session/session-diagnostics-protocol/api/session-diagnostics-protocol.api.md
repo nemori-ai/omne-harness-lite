@@ -198,6 +198,11 @@ export declare const sessionDiagnosticsProtocol: {
                                 readonly kind: string;
                             }[];
                             readonly purpose: string;
+                            readonly reads: readonly {
+                                readonly block: string;
+                                readonly message: string;
+                                readonly read: "derived" | "fitted" | "original" | "transcript";
+                            }[];
                             readonly reference: string;
                         }[];
                         readonly run: string;
