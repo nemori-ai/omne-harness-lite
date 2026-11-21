@@ -29,6 +29,12 @@
     "packages/calendar/calendar-ui/src/view/drawn.tsx | 重读": {
       "R8": 1
     },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | {option.label}": {
+      "choice": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 取消": {
+      "commit": 1
+    },
     "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 另有 ${…} 张放行卡没答，可以先提交已答的": {
       "name": 1
     },
@@ -37,6 +43,9 @@
     },
     "packages/human-intervention/human-intervention-ui/src/view/card-area.tsx | 还差 ${…} 题": {
       "name": 1
+    },
+    "packages/human-intervention/human-intervention-ui/src/view/card-view.tsx | 不回答这一题": {
+      "choice": 1
     },
     "packages/identity/identity-ui/src/view/login-card.tsx | 请稍候……/{TITLE[form.mode]}": {
       "commit": 1

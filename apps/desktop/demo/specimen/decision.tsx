@@ -11,6 +11,8 @@ import type { ClientOf } from '@omne-harness/sdk/core'
  * The decision paper drawn from card data, for the states the real app cannot be brought to on purpose (R7): a
  * section closed elsewhere. The cards are the walk's own question and a release card; a client in the page lists
  * them, says the question was already decided elsewhere when it is submitted, and lists the release card after.
+ * `?decision=release` lists the release card alone (R7b): one section with two short one-time options answers with
+ * them as buttons, each with the glyph of the role its asker gave it, and the kind line ends with when it was asked.
  */
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -43,13 +45,24 @@ const QUESTION: HumanInterventionCardItem = {
   displayContext: 'Ask',
 }
 
-const option = (id: string, label: string, scope: string, offered: boolean, lasting: boolean) => ({
+const option = (
+  id: string,
+  label: string,
+  scope: string,
+  role: 'approve' | 'reject',
+  offered: boolean,
+  lasting: boolean,
+) => ({
   id,
   label,
   description: scope,
+  role,
   offered,
   lasting,
 })
+
+/** Asked a little over two hours before the page opened: the kind line reads 2 小时前 for the whole walk. */
+const ASKED_AT = new Date(Date.now() - 125 * 60_000).toISOString()
 
 const RELEASE: HumanInterventionCardItem = {
   card: {
@@ -67,22 +80,30 @@ const RELEASE: HumanInterventionCardItem = {
       arguments: { text: '{"script":"rm 资料库/搬家清单草稿.md"}', truncated: false, digest: '' },
       origin: { session: SESSION, agent: 'exe-visual' },
       options: [
-        option('deny-once', '这一次不放行', '只对这一次调用。', true, false),
-        option('allow-once', '这一次放行', '只对这一次调用。', true, false),
-        option('allow-session', '这个会话里都放行', '这个会话里同一类动作。', true, true),
-        option('allow-always', '以后都放行', '以后同一类动作。', true, true),
-        option('deny-always', '以后都不放行', '以后同一类动作。', true, true),
+        option('deny-once', '这一次不放行', '只对这一次调用。', 'reject', true, false),
+        option('allow-once', '这一次放行', '只对这一次调用。', 'approve', true, false),
+        option(
+          'allow-session',
+          '这个会话里都放行',
+          '这个会话里同一类动作。',
+          'approve',
+          true,
+          true,
+        ),
+        option('allow-always', '以后都放行', '以后同一类动作。', 'approve', true, true),
+        option('deny-always', '以后都不放行', '以后同一类动作。', 'reject', false, true),
       ],
     },
   },
   origin: { kind: 'admission', sessionRef: SESSION },
   displayContext: '',
+  askedAt: ASKED_AT,
 }
 
 type Client = ClientOf<HumanInterventionProtocol>
 
-function specimenClient(): Client {
-  let pending: HumanInterventionCardItem[] = [QUESTION, RELEASE]
+function specimenClient(alone: boolean): Client {
+  let pending: HumanInterventionCardItem[] = alone ? [RELEASE] : [QUESTION, RELEASE]
   const wakers = new Set<() => void>()
   const changed = () => {
     for (const wake of wakers) wake()
@@ -133,7 +154,13 @@ function specimenClient(): Client {
 }
 
 export function DecisionSpecimen() {
-  const hub = useMemo(() => new CardsHub({ client: specimenClient() }), [])
+  const hub = useMemo(
+    () =>
+      new CardsHub({
+        client: specimenClient(new URLSearchParams(location.search).get('decision') === 'release'),
+      }),
+    [],
+  )
   const [ready, setReady] = useState(false)
   useEffect(() => setReady(true), [])
   return (
