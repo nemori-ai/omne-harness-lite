@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
 import { CardsHub, DecisionsPage, PendingBadge, SessionCards } from '../src/index.ts'
-import { extensionItem, page, questionItem } from './fixtures/cards.ts'
+import { extensionItem, page, questionItem, rowedItem } from './fixtures/cards.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 
@@ -95,7 +95,7 @@ describe('会话里的卡', () => {
         </div>
       </>,
     )
-    await answer(fake, 'list-cards', page([questionItem(), OTHER_CARD]))
+    await answer(fake, 'list-cards', page([rowedItem(), OTHER_CARD]))
     expect(fake.observations).toHaveLength(1)
     const inSessionView = within(screen.getByTestId('session'))
     const inPage = within(screen.getByTestId('page'))
@@ -142,7 +142,7 @@ describe('会话里的卡', () => {
         </div>
       </>,
     )
-    await answer(fake, 'list-cards', page([questionItem(), OTHER_CARD]))
+    await answer(fake, 'list-cards', page([rowedItem(), OTHER_CARD]))
     const mine = within(screen.getByTestId('mine'))
     pick(mine, '主干')
     fireEvent.click(mine.getByRole('button', { name: '提交' }))

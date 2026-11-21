@@ -95,6 +95,11 @@
   white-space: nowrap;
 }
 
+/* `.decision-kind-time`: when it was asked, in the faintest ink; the instant is in its hint. */
+.hitl-kind-time {
+  color: var(--omne-ink-faint);
+}
+
 .hitl-title {
   margin: 0;
   color: var(--omne-ink-primary);
@@ -195,7 +200,7 @@
 }
 
 .hitl-fold > .omne-disclosure-trigger,
-.hitl-lasting > .omne-disclosure-trigger {
+.hitl-choice-fold > .omne-disclosure-trigger {
   min-height: var(--omne-control-height-compact);
 }
 
@@ -208,12 +213,23 @@
   margin: calc(var(--spacing) * 2.5) calc(var(--spacing) * 2) 0;
 }
 
-/* The lasting options' fold sits among the rows: its chevron stands where the rows' marks stand. */
-.hitl-lasting > .omne-disclosure-trigger {
-  margin-left: 0;
+/* A fold of answer rows (这一类动作, 自己写，或不回答) stands on the section's edge like 详情 (the source's
+   `.decision-scope-fold` and `.decision-note`): past the rows' inset (8), the trigger's own pull (-6) comes back
+   to 20. Its rows stay at the rows' inset; folds stand 6 apart. */
+.hitl-choice-fold > .omne-disclosure-trigger {
+  margin-left: calc(var(--spacing) * 1.5);
 }
 
-.hitl-lasting-rows {
+.hitl-choice-fold:not(:first-child) {
+  margin-top: var(--spacing);
+}
+
+/* With the options as buttons at the foot, the answer opens with a fold, 6 under what is above it. */
+.hitl-answer[data-verdict='buttons'] > .hitl-options {
+  margin-top: calc(var(--spacing) * 1.5);
+}
+
+.hitl-choice-fold-rows {
   display: flex;
   flex-direction: column;
   gap: calc(var(--spacing) * 0.5);
@@ -243,6 +259,19 @@
   font-size: var(--omne-text-caption);
   line-height: var(--omne-leading-wrapped);
   overflow-wrap: anywhere;
+}
+
+/* A card with no options: 不回答这一题 is a quiet link under the field, its consequence under it. */
+.hitl-decline {
+  margin: calc(var(--spacing) * 1.5) calc(var(--spacing) * 5) 0;
+}
+
+.hitl-decline-link {
+  padding-inline: 0;
+}
+
+.hitl-decline .hitl-decline-text {
+  padding: 0;
 }
 
 .hitl-outcome {

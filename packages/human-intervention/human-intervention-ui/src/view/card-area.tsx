@@ -1,8 +1,24 @@
-import { Button, DoneIcon, LoadingIndicator, WarningIcon } from '@omne-harness/ui-kit'
-import { useId, useRef, type JSX } from 'react'
+import {
+  ActionTooltip,
+  Button,
+  CloseIcon,
+  DoneIcon,
+  LoadingIndicator,
+  WarningIcon,
+} from '@omne-harness/ui-kit'
+import { useId, useRef, useState, type JSX } from 'react'
 import type { CardsDriver } from '../model/cards-driver.ts'
-import { EMPTY_DRAFT, busy, sheetOf, type Sheet, type State } from '../model/cards-machine.ts'
-import { CardView, lastingChosen, type Shown } from './card-view.tsx'
+import {
+  EMPTY_DRAFT,
+  busy,
+  sheetOf,
+  type Draft,
+  type Entry,
+  type Sheet,
+  type State,
+} from '../model/cards-machine.ts'
+import { verdictOf, type Exposed } from '../model/verdict.ts'
+import { CardView, itemOf, lastingChosen, type Shown } from './card-view.tsx'
 
 type Props = Readonly<{ driver: CardsDriver; state: State; group: string }>
 
@@ -40,14 +56,72 @@ function armedOf(state: State, sheet: Sheet): boolean {
   })
 }
 
+type Verdict = Readonly<{
+  options: readonly Exposed[]
+  entry: Entry
+  draft: Draft
+  pick: (option: Exposed) => void
+  cancel: () => void
+}>
+
+/** A row in a fold is chosen (a lasting option, the person's own words, no answer): 取消 and 提交 stand in. */
+function foldChosen({ options, draft }: Verdict): boolean {
+  const choice = draft.choice
+  if (choice.kind === 'option') return !options.some(option => option.id === choice.optionId)
+  return choice.kind !== 'none'
+}
+
+function RoleGlyph({ role, waiting }: Readonly<{ role: Exposed['role']; waiting: boolean }>) {
+  if (waiting) return <LoadingIndicator />
+  if (role === 'approve') return <DoneIcon aria-hidden="true" />
+  if (role === 'reject') return <CloseIcon aria-hidden="true" />
+  return null
+}
+
+function OptionButton({
+  option,
+  main,
+  waiting,
+  disabled,
+  quiet,
+  onPress,
+}: Readonly<{
+  option: Exposed
+  main: boolean
+  waiting: boolean
+  disabled: boolean
+  quiet: string | undefined
+  onPress: () => void
+}>): JSX.Element {
+  const face = (
+    <Button
+      variant={main ? 'default' : 'outline'}
+      disabled={disabled}
+      aria-busy={waiting || undefined}
+      {...(quiet !== undefined && { 'aria-describedby': quiet })}
+      onClick={onPress}
+    >
+      <RoleGlyph role={option.role} waiting={waiting} />
+      {option.label}
+    </Button>
+  )
+  return option.description === '' ? (
+    face
+  ) : (
+    <ActionTooltip label={option.description}>{face}</ActionTooltip>
+  )
+}
+
 function Foot({
   sheet,
   armed,
+  verdict,
   go,
   submit,
 }: {
   readonly sheet: Sheet
   readonly armed: boolean
+  readonly verdict: Verdict | null
   readonly go: (key: string) => void
   readonly submit: () => void
 }): JSX.Element {
@@ -57,6 +131,9 @@ function Foot({
   const firstOpen = sheet.open[0]
   const said = sheet.running || armed
   const linked = !sheet.running && sheet.entries.length > 1
+  const held = verdict !== null && (sheet.running || busy(verdict.entry.submit))
+  const choice = verdict?.draft.choice
+  const options = verdict !== null && !foldChosen(verdict) ? verdict.options : null
   return (
     <div className="hitl-foot">
       {!linked ? null : first !== undefined ? (
@@ -69,16 +146,41 @@ function Foot({
         </Button>
       )}
       <div className="hitl-actions">
-        <Button
-          variant={armed ? 'destructive' : 'default'}
-          disabled={!sheet.ready}
-          aria-busy={sheet.running || undefined}
-          {...(said && { 'aria-describedby': quiet })}
-          onClick={submit}
-        >
-          {sheet.running ? <LoadingIndicator /> : <DoneIcon aria-hidden="true" />}
-          提交
-        </Button>
+        {options !== null ? (
+          options.map((option, at) => {
+            const waiting =
+              sheet.running && choice?.kind === 'option' && choice.optionId === option.id
+            return (
+              <OptionButton
+                key={option.id}
+                option={option}
+                main={at === options.length - 1}
+                waiting={waiting}
+                disabled={held || !option.offered}
+                quiet={waiting ? quiet : undefined}
+                onPress={() => verdict?.pick(option)}
+              />
+            )
+          })
+        ) : (
+          <>
+            {verdict === null ? null : (
+              <Button variant="outline" disabled={held} onClick={verdict.cancel}>
+                取消
+              </Button>
+            )}
+            <Button
+              variant={armed ? 'destructive' : 'default'}
+              disabled={!sheet.ready}
+              aria-busy={sheet.running || undefined}
+              {...(said && { 'aria-describedby': quiet })}
+              onClick={submit}
+            >
+              {sheet.running ? <LoadingIndicator /> : <DoneIcon aria-hidden="true" />}
+              提交
+            </Button>
+          </>
+        )}
       </div>
       {sheet.running ? (
         <p id={quiet} className="hitl-quiet" role="status">
@@ -100,6 +202,7 @@ function Foot({
 export function CardArea({ driver, state, group }: Props): JSX.Element | null {
   const paper = useRef<HTMLDivElement>(null)
   const order = useRef<readonly string[]>([])
+  const [cancels, setCancels] = useState(0)
   const sheet = sheetOf(state, group)
   const shown = inPlace(shownOf(state, sheet), order.current)
   order.current = shown.map(card => card.key)
@@ -114,6 +217,28 @@ export function CardArea({ driver, state, group }: Props): JSX.Element | null {
       ?.querySelector<HTMLElement>('textarea:not(:disabled), [role="radio"]:not(:disabled)')
       ?.focus({ preventScroll: true })
   }
+  const buttons = verdictOf(shown.map(itemOf))
+  const [only] = sheet.entries
+  const draft = only === undefined ? EMPTY_DRAFT : (state.drafts[only.key] ?? EMPTY_DRAFT)
+  const verdict: Verdict | null =
+    buttons === null || only === undefined
+      ? null
+      : {
+          options: buttons,
+          entry: only,
+          draft,
+          pick: option => {
+            driver.draft(only.key, {
+              choice: { kind: 'option', optionId: option.id },
+              text: draft.text,
+            })
+            driver.submitGroup(group)
+          },
+          cancel: () => {
+            driver.draft(only.key, { choice: { kind: 'none' }, text: draft.text })
+            setCancels(count => count + 1)
+          },
+        }
   return (
     <div className="hitl-paper" ref={paper}>
       {shown.map((card, at) => (
@@ -122,6 +247,8 @@ export function CardArea({ driver, state, group }: Props): JSX.Element | null {
           card={card}
           at={at + 1}
           of={shown.length}
+          optionsAsButtons={buttons !== null}
+          cancels={cancels}
           disabled={card.kind === 'closed' || sheet.running || busy(card.entry.submit)}
           driver={driver}
           onDraft={value => driver.draft(card.key, value)}
@@ -131,6 +258,7 @@ export function CardArea({ driver, state, group }: Props): JSX.Element | null {
         <Foot
           sheet={sheet}
           armed={armedOf(state, sheet)}
+          verdict={verdict}
           go={go}
           submit={() => driver.submitGroup(group)}
         />

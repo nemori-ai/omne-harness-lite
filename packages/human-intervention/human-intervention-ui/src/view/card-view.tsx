@@ -1,5 +1,7 @@
 import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
 import {
+  Ago,
+  Button,
   ChoiceList,
   ChoiceRow,
   CloseIcon,
@@ -16,9 +18,10 @@ import {
   StateWord,
   Textarea,
 } from '@omne-harness/ui-kit'
-import { useId, useState, type JSX } from 'react'
+import { useId, useState, type JSX, type ReactNode } from 'react'
 import type { CardsDriver } from '../model/cards-driver.ts'
-import type { Closed, Draft, Entry } from '../model/cards-machine.ts'
+import type { Choice, Closed, Draft, Entry } from '../model/cards-machine.ts'
+import { exposedOf, type Exposed } from '../model/verdict.ts'
 import { NoticeLine } from './notice.tsx'
 import { ReleaseDetailView } from './release-detail.tsx'
 
@@ -34,12 +37,10 @@ export const draftOfShown = (card: Shown): Draft =>
 
 type Question = HumanInterventionCardItem['card']['question']
 type ReleaseQuestion = Extract<Question, { kind: 'release' }>
-type Option = Readonly<{ id: string; label: string; description: string }>
 type ReleaseOption = ReleaseQuestion['options'][number]
 
 const WHO: Readonly<Record<string, string>> = {
   question: 'Agent 在问你',
-  release: '系统要你放行这一次调用',
   extension: '拓展件在问你',
 }
 
@@ -47,9 +48,10 @@ const OPTION = 'option:'
 const WORDS = 'words'
 const DECLINE = 'decline'
 
-/** Whose move it is, once at the head of the section: amber while the card waits on the person. */
+/** Whose move it is and when it was asked, once at the head of the section: amber while the card waits on the person. */
 function KindLine({ card, at, of }: Readonly<{ card: Shown; at: number; of: number }>) {
-  const release = itemOf(card).card.question.kind === 'release'
+  const item = itemOf(card)
+  const release = item.card.question.kind === 'release'
   const Glyph = release ? PermissionIcon : QuestionIcon
   const submit = card.kind === 'pending' ? card.entry.submit : null
   const waiting = submit !== null && (submit.kind === 'none' || submit.kind === 'refused')
@@ -59,16 +61,20 @@ function KindLine({ card, at, of }: Readonly<{ card: Shown; at: number; of: numb
     ) : submit?.kind === 'unknown' ? (
       <StateWord state="unknown" />
     ) : (
-      <span>{release ? '需要你放行' : '需要你回答'}</span>
+      <span>{release ? '需要你授权' : '需要你回答'}</span>
     )
+  const asked = item.askedAt
   return (
     <p className="hitl-kind" data-waiting={waiting}>
       <Glyph aria-hidden="true" className="hitl-kind-mark" />
       {word}
       {submit?.kind === 'submitting' ? (
         <LoadingState label="正在提交" className="hitl-kind-trail" />
-      ) : of > 1 ? (
-        <span className="hitl-kind-trail">{`${at} / ${of}`}</span>
+      ) : of > 1 || asked !== undefined ? (
+        <span className="hitl-kind-trail">
+          {of > 1 ? <span>{`${at} / ${of}`}</span> : null}
+          {asked === undefined ? null : <Ago at={asked} className="hitl-kind-time" />}
+        </span>
       ) : null}
     </p>
   )
@@ -83,15 +89,27 @@ type Props = Readonly<{
   card: Shown
   at: number
   of: number
+  optionsAsButtons: boolean
+  cancels: number
   disabled: boolean
   driver: CardsDriver
   onDraft: (draft: Draft) => void
 }>
 
 /** One section of the paper: the kind line, the question, the answer rows, and what came of sending it. */
-export function CardView({ card, at, of, disabled, driver, onDraft }: Props): JSX.Element {
+export function CardView({
+  card,
+  at,
+  of,
+  optionsAsButtons,
+  cancels,
+  disabled,
+  driver,
+  onDraft,
+}: Props): JSX.Element {
   const item = itemOf(card)
   const question = item.card.question
+  const release = question.kind === 'release'
   const title = useId()
   const state = card.kind === 'closed' ? 'closed' : card.entry.submit.kind
   return (
@@ -103,103 +121,137 @@ export function CardView({ card, at, of, disabled, driver, onDraft }: Props): JS
       aria-labelledby={title}
     >
       <KindLine card={card} at={at} of={of} />
-      <h3
-        id={title}
-        className="hitl-title"
-        data-face={question.kind === 'release' ? 'ui' : 'reading'}
-      >
+      <h3 id={title} className="hitl-title" data-face={release ? 'ui' : 'reading'}>
         {question.title}
       </h3>
-      {question.description === '' ? null : <p className="hitl-text">{question.description}</p>}
-      <p className="hitl-who">{whoOf(item)}</p>
-      {question.kind === 'release' ? <ReleaseCall question={question} /> : null}
+      {release || question.description === '' ? null : (
+        <p className="hitl-text">{question.description}</p>
+      )}
+      {release ? null : <p className="hitl-who">{whoOf(item)}</p>}
+      {release ? <ReleaseCall question={question} /> : null}
       <DisclosureContent open={card.kind !== 'closed'}>
-        <Answer item={item} draft={draftOfShown(card)} disabled={disabled} onDraft={onDraft} />
+        <Answer
+          key={cancels}
+          item={item}
+          draft={draftOfShown(card)}
+          buttons={optionsAsButtons}
+          disabled={disabled}
+          onDraft={onDraft}
+        />
       </DisclosureContent>
       <Outcome card={card} driver={driver} />
     </article>
   )
 }
 
-function chosenOf(draft: Draft, words: boolean): string | undefined {
-  if (draft.choice.kind === 'option') return `${OPTION}${draft.choice.optionId}`
-  if (draft.choice.kind === 'decline') return DECLINE
-  return words || draft.text.trim() !== '' ? WORDS : undefined
+const optionValue = (id: string) => `${OPTION}${id}`
+
+function valueOf(choice: Choice): string | undefined {
+  if (choice.kind === 'option') return optionValue(choice.optionId)
+  if (choice.kind === 'none') return undefined
+  return choice.kind === 'words' ? WORDS : DECLINE
 }
 
-// The person's own words are a draft with no option chosen; choosing a row keeps the words and sends only that row.
+function choiceOf(value: string): Choice {
+  if (value === WORDS) return { kind: 'words' }
+  if (value === DECLINE) return { kind: 'decline' }
+  return { kind: 'option', optionId: value.slice(OPTION.length) }
+}
+
+// Choosing a row keeps the words and sends only that row; 取消 on the paper remounts this, folding the folds.
 function Answer({
   item,
   draft,
+  buttons,
   disabled,
   onDraft,
 }: Readonly<{
   item: HumanInterventionCardItem
   draft: Draft
+  buttons: boolean
   disabled: boolean
   onDraft: (draft: Draft) => void
 }>): JSX.Element {
   const question = item.card.question
-  const [words, setWords] = useState(false)
-  const chosen = chosenOf(draft, words)
-  const choose = (value: string) => {
-    setWords(value === WORDS)
-    if (value === WORDS) onDraft({ choice: { kind: 'none' }, text: draft.text })
-    else if (value === DECLINE) onDraft({ choice: { kind: 'decline' }, text: draft.text })
-    else
-      onDraft({
-        choice: { kind: 'option', optionId: value.slice(OPTION.length) },
-        text: draft.text,
-      })
-  }
+  const choose = (choice: Choice) => onDraft({ choice, text: draft.text })
   const field = (
     <div className="hitl-field">
       <Textarea
         aria-label="用自己的话回答"
         value={draft.text}
         disabled={disabled}
-        onChange={event => onDraft({ choice: { kind: 'none' }, text: event.target.value })}
+        onChange={event => onDraft({ choice: { kind: 'words' }, text: event.target.value })}
       />
     </div>
   )
-  const offered = question.options.length > 0
+  const consequence =
+    question.declineConsequence === '' ? null : (
+      <p className="hitl-decline-text">{question.declineConsequence}</p>
+    )
+  if (question.options.length === 0) {
+    const declined = draft.choice.kind === 'decline'
+    return (
+      <div className="hitl-answer">
+        {field}
+        <div className="hitl-decline">
+          <Button
+            variant="link"
+            className="hitl-decline-link"
+            aria-pressed={declined}
+            disabled={disabled}
+            onClick={() => choose(declined ? { kind: 'words' } : { kind: 'decline' })}
+          >
+            不回答这一题
+          </Button>
+          {consequence === null ? null : (
+            <DisclosureContent open={declined}>{consequence}</DisclosureContent>
+          )}
+        </div>
+      </div>
+    )
+  }
+  const chosen = valueOf(draft.choice)
+  const lasting =
+    question.kind === 'release' ? question.options.filter(option => option.lasting) : []
   return (
-    <div className="hitl-answer">
-      {offered ? null : field}
+    <div className="hitl-answer" data-verdict={buttons ? 'buttons' : 'rows'}>
       <ChoiceList
         label="作答"
         value={chosen}
-        onValueChange={choose}
+        onValueChange={value => choose(choiceOf(value))}
         disabled={disabled}
         className="hitl-options"
       >
-        {question.kind === 'release' ? (
-          <ReleaseChoices options={question.options} chosen={chosen} />
-        ) : (
-          question.options.map(option => <Row key={option.id} option={option} />)
+        {buttons
+          ? null
+          : exposedOf(question).map(option => <Row key={option.id} option={option} />)}
+        {lasting.length === 0 ? null : (
+          <Fold label="这一类动作" held={lasting.some(option => optionValue(option.id) === chosen)}>
+            {lasting.map(option => (
+              <Row key={option.id} option={option} />
+            ))}
+          </Fold>
         )}
-        {offered ? (
+        <Fold label="自己写，或不回答" held={chosen === WORDS || chosen === DECLINE}>
           <ChoiceRow value={WORDS} label="用自己的话回答">
             {field}
           </ChoiceRow>
-        ) : null}
-        <ChoiceRow value={DECLINE} label="不回答这一题">
-          {question.declineConsequence === '' ? null : (
-            <p className="hitl-decline-text">{question.declineConsequence}</p>
-          )}
-        </ChoiceRow>
+          <ChoiceRow value={DECLINE} label="不回答这一题">
+            {consequence}
+          </ChoiceRow>
+        </Fold>
       </ChoiceList>
     </div>
   )
 }
 
-function Row({ option, disabled = false }: Readonly<{ option: Option; disabled?: boolean }>) {
+function Row({ option }: Readonly<{ option: Exposed }>) {
   return (
     <ChoiceRow
-      value={`${OPTION}${option.id}`}
+      value={optionValue(option.id)}
       label={option.label}
       {...(option.description === '' ? {} : { description: option.description })}
-      disabled={disabled}
+      disabled={!option.offered}
     />
   )
 }
@@ -211,41 +263,29 @@ export function lastingChosen(options: readonly ReleaseOption[], choice: Draft['
   )
 }
 
-// The one-time options are rows of the answer; the lasting ones wait in a quiet fold that stays open while one is chosen.
-function ReleaseChoices({
-  options,
-  chosen,
-}: Readonly<{ options: ReleaseQuestion['options']; chosen: string | undefined }>) {
+/** A quiet fold of answer rows; it stays open while one of its rows is chosen. */
+function Fold({
+  label,
+  held,
+  children,
+}: Readonly<{ label: string; held: boolean; children: ReactNode }>) {
   const [open, setOpen] = useState(false)
-  const lasting = options.filter(option => option.lasting)
-  const held = lasting.some(option => `${OPTION}${option.id}` === chosen)
   return (
-    <>
-      {options
-        .filter(option => !option.lasting)
-        .map(option => (
-          <Row key={option.id} option={option} disabled={!option.offered} />
-        ))}
-      {lasting.length === 0 ? null : (
-        <Disclosure
-          label="这一类动作"
-          open={open || held}
-          onOpenChange={setOpen}
-          className="hitl-lasting"
-          contentClassName="hitl-lasting-rows"
-        >
-          {lasting.map(option => (
-            <Row key={option.id} option={option} disabled={!option.offered} />
-          ))}
-        </Disclosure>
-      )}
-    </>
+    <Disclosure
+      label={label}
+      open={open || held}
+      onOpenChange={setOpen}
+      className="hitl-choice-fold"
+      contentClassName="hitl-choice-fold-rows"
+    >
+      {children}
+    </Disclosure>
   )
 }
 
 // The call as a fact table, then what the tool said it would do, or the arguments behind 详情.
 function ReleaseCall({ question }: Readonly<{ question: ReleaseQuestion }>): JSX.Element {
-  const { target, arguments: given, origin, detail } = question
+  const { target, arguments: given, detail } = question
   const call = [target.tool, target.command, target.preview]
     .filter(part => part !== null && part !== '')
     .join(' ')
@@ -256,12 +296,6 @@ function ReleaseCall({ question }: Readonly<{ question: ReleaseQuestion }>): JSX
           <code className="hitl-call">{call}</code>
         </FactRow>
         <FactRow term="动作类别">{`${target.tool}：${question.gateTitle}`}</FactRow>
-        <FactRow term="会话">
-          <Reference value={origin.session} />
-        </FactRow>
-        <FactRow term="Agent">
-          <Reference value={origin.agent} />
-        </FactRow>
       </FactList>
       {detail?.state === 'given' ? <ReleaseDetailView detail={detail} /> : null}
       {detail?.state === 'unavailable' ? (
@@ -277,14 +311,6 @@ function ReleaseCall({ question }: Readonly<{ question: ReleaseQuestion }>): JSX
       )}
     </>
   )
-}
-
-const SHOWN_REFERENCE = 12
-
-/** A reference as its first 12 characters, the whole of it in the hint: the same cut as a group's head. */
-function Reference({ value }: Readonly<{ value: string }>) {
-  if (value.length <= SHOWN_REFERENCE) return <>{value}</>
-  return <span title={value}>{`${value.slice(0, SHOWN_REFERENCE)}…`}</span>
 }
 
 function Outcome({ card, driver }: Readonly<{ card: Shown; driver: CardsDriver }>) {
