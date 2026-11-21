@@ -374,6 +374,43 @@ describe('消息里一块非文字内容', () => {
     expect(screen.queryByRole('img')).toBeNull()
   })
 
+  it('块上写着模型这一次读的是哪一份：原件、缩小的图、转写、提取的文字；不知道时不写', async () => {
+    const media = fakeMedia(4)
+    stored(media)
+    const { shell } = await mounted(media)
+    const voice = { ...picture, kind: 'voice', ref: { ...ref, mediaType: 'audio/wav' } }
+    const file = { ...picture, kind: 'file', ref: { ...ref, mediaType: 'application/pdf' } }
+    const told = (content: unknown, read: string | undefined, id: string) =>
+      block.slot(
+        shell,
+        {
+          session: 'ses_a',
+          message: 'msg_1',
+          block: id,
+          content,
+          ...(read === undefined ? {} : { read }),
+        },
+        all,
+      )
+    render(
+      <>
+        {told(voice, 'original', 'b1')}
+        {told(picture, 'fitted', 'b2')}
+        {told(voice, 'transcript', 'b3')}
+        {told(file, 'transcript', 'b4')}
+        {told(file, 'derived', 'b5')}
+        {told(file, undefined, 'b6')}
+      </>,
+    )
+    await settle()
+    expect(screen.getAllByText('模型读的是原件')).toHaveLength(1)
+    expect(screen.getAllByText('模型读的是缩小的图')).toHaveLength(1)
+    expect(screen.getAllByText('模型读的是转写')).toHaveLength(1)
+    expect(screen.getAllByText('模型读的是提取的文字')).toHaveLength(1)
+    expect(screen.getAllByText('模型读的是另一种表示')).toHaveLength(1)
+    expect(document.querySelectorAll('.omne-media-read')).toHaveLength(5)
+  })
+
   it('语音与文件画成一行：种类、媒体类型与大小；读不懂的内容照样说出来', async () => {
     const media = fakeMedia(4)
     const { shell } = await mounted(media)

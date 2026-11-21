@@ -21,6 +21,8 @@ export type MediaBlockSubject = Readonly<{
   message: string
   block: string
   content: unknown
+  /** Which representation the model read of this block in its latest request, when known. */
+  read?: string
 }>
 
 export type MediaUiOptions = Readonly<{
@@ -88,7 +90,14 @@ export function createMediaUiModule(options: MediaUiOptions = {}) {
         order: 0,
         render: ({ scope, subject }) => (
           <Scoped scope={scope}>
-            {tenant => <MediaBlock client={client} tenant={tenant} content={subject.content} />}
+            {tenant => (
+              <MediaBlock
+                client={client}
+                tenant={tenant}
+                content={subject.content}
+                modelRead={subject.read}
+              />
+            )}
           </Scoped>
         ),
       })
