@@ -489,7 +489,7 @@
   margin: 0;
   font-family: var(--omne-font-mono);
 }
-/* The hint above the composer is a receipt-weight line: caption size, muted, no frame; pressing it opens 后台. */
+/* The hint at the end of the transcript is a receipt-weight line: caption size, muted, no frame; pressing it opens 后台. */
 .omne-background-hint {
   align-self: flex-start;
   padding-inline: 0;
@@ -516,7 +516,7 @@
    hover fill and a focus ring need, and takes that room back as its padding, so rows land on the column's edges
    where the composer stands (conversation.css `.conversation-transcript-frame`, `.conversation-transcript`: inset
    6, top 8, bottom 24, floor 160, drawn at the size step). In a short window its floor gives way first, so the
-   waiting cards and the whole composer keep their room. */
+   whole composer keeps its room. */
 .omne-conversation {
   display: flex;
   flex-direction: column;
@@ -528,17 +528,14 @@
   scrollbar-gutter: stable both-edges;
   padding: calc(var(--spacing) * 2) calc(var(--spacing) * 1.5) calc(var(--spacing) * 6);
 }
-/* The cards above the composer give way before the composer does, and scroll inside themselves. The scroller reaches
-   out past the column by the ring room and takes it back as its padding, so a raised control at a card's edge keeps
-   its edge and ring (S15) and the cards stay on the column's edges. */
+/* What waits at the end of the transcript (the cards, the background line): in the column, scrolling with the
+   transcript, never inside itself. The transcript's own padding is the room a raised edge and its ring need (S15). */
 .omne-session-dock {
-  flex: 0 1 auto;
-  min-height: 0;
-  max-height: 70%;
-  margin-inline: calc(-1 * var(--omne-ring-room));
-  padding-inline: var(--omne-ring-room);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: var(--omne-space-inline);
+  min-width: 0;
 }
 .omne-session-dock:empty {
   display: none;

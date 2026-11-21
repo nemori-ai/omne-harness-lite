@@ -447,7 +447,7 @@ it('没有侧边区的内容时，对话头只有座位与名字，不是控件'
   expect(seat?.closest('.omne-session-figure')?.textContent).toBe('Agent')
 })
 
-it('经带类型的点往 session.dock 放的项，出现在转写区与输入框之间，收到解回来的会话', async () => {
+it('经带类型的点往 session.dock 放的项，出现在转写的末尾，收到解回来的会话', async () => {
   const { root } = await opened()
   await contribute(root, 'dock', ctx =>
     sessionDock.contribute(ctx.shell, {
@@ -462,6 +462,7 @@ it('经带类型的点往 session.dock 放的项，出现在转写区与输入�
   )
   const typed = screen.getByTestId('typed')
   expect(typed.textContent).toBe(`ses_a|${TENANT}`)
-  const composer = screen.getByRole('textbox', { name: '输入消息' }).closest('form')
-  expect(typed.closest('.omne-session-dock')?.nextElementSibling).toBe(composer)
+  const dock = typed.closest('.omne-session-dock')
+  expect(dock?.parentElement?.classList.contains('omne-conversation')).toBe(true)
+  expect(dock?.parentElement?.lastElementChild).toBe(dock)
 })

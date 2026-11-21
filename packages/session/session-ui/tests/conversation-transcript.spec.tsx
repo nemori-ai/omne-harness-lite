@@ -69,7 +69,8 @@ it('气泡：说话人的名字不画，只给读屏；行标出是谁的话，�
   expect(articles.map(article => article.querySelector('.omne-message-body')?.textContent)).toEqual(
     ['第一句', '第一个回答', '接着说', '第二句'],
   )
-  expect([...transcript().children].map(row => row.getAttribute('data-speaker'))).toEqual([
+  const rows = [...transcript().children].filter(row => !row.matches('.omne-session-dock'))
+  expect(rows.map(row => row.getAttribute('data-speaker'))).toEqual([
     'user',
     'agent',
     'agent',
