@@ -147,16 +147,22 @@ export function viewHead(port: Executor, scope: Scope, epoch: string): Head | un
   return headOf(row)
 }
 
-/** The session an entry position of the chain of a session lives in: at most two steps up. */
-export function entrySession(port: Executor, scope: Scope, position: bigint): string {
+/** Where an entry position of the chain of a session lives: the chain is read once, two steps up at most. */
+export function entryOwners(port: Executor, scope: Scope): (position: bigint) => string {
+  const chain: Readonly<{ session: string; above: bigint }>[] = []
   let session = scope.session
   for (let step = 0; step < 2; step += 1) {
     const fork = forkOf(port, { tenant: scope.tenant, session })
-    if (fork === undefined || position > fork.position) return session
+    if (fork === undefined) break
+    chain.push({ session, above: fork.position })
     session = fork.source
   }
-  return session
+  const root = session
+  return position => chain.find(link => position > link.above)?.session ?? root
 }
+
+export const entrySession = (port: Executor, scope: Scope, position: bigint): string =>
+  entryOwners(port, scope)(position)
 
 const tailOf = (port: Executor, scope: Scope, fork: Fork | undefined): bigint => {
   const head = oneRow(
