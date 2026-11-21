@@ -727,19 +727,20 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
-/* The page's one raised sheet: the window radius, one hairline and the field's paper. Focus deepens the hairline and
-   draws no ring. It never grows past its cap; inside it only the words scroll (conversation-patterns.css
-   `.assistant-composer`, conversation.css `.conversation-composer`). */
+/* The page's one raised sheet: the window radius, the composer's own light hairline and the field's paper. Focus
+   deepens the hairline and draws no ring. It never grows past its cap; inside it only the words scroll
+   (conversation-patterns.css `.assistant-composer`, conversation.css `.conversation-composer`). The source's px are
+   drawn at the size (its size-lengths step), so here they are steps of `--spacing`. */
 .omne-composer {
   display: flex;
   flex: none;
   flex-direction: column;
-  gap: 8px;
+  gap: calc(var(--spacing) * 2);
   max-height: min(46dvh, calc(var(--spacing) * 100));
-  padding: 12px 16px;
+  padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
   border-radius: var(--omne-radius-window);
   background: var(--omne-surface-field);
-  box-shadow: 0 0 0 1px var(--omne-line);
+  box-shadow: 0 0 0 1px var(--omne-line-subtle);
   transition: box-shadow var(--omne-motion-feedback) var(--omne-motion-ease);
 }
 .omne-composer:has([data-slot='textarea']:focus-visible) {
@@ -747,8 +748,8 @@
 }
 .omne-composer [data-slot='textarea'] {
   flex: 0 1 auto;
-  min-height: 38px;
-  padding: 2px 2px 0;
+  min-height: calc(var(--spacing) * 9.5);
+  padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 0.5) 0;
   overflow-y: auto;
   border: 0;
   background: transparent;
@@ -757,11 +758,15 @@
   line-height: var(--omne-leading-reading);
   resize: none;
 }
+.omne-composer [data-slot='textarea']::placeholder {
+  color: var(--omne-ink-faint);
+}
 .omne-composer [data-slot='textarea']:focus-visible {
   outline: none;
   box-shadow: none;
 }
-/* The bottom row: what other domains read out at the left, the one action at the right. */
+/* The one row under the words: the icon actions at the left when there are any; at the right what other domains
+   read out, then the one action (conversation.css `.composer-send-pair`). */
 .omne-composer-actions {
   display: flex;
   flex: none;
@@ -770,16 +775,15 @@
 }
 .omne-session-status {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0 var(--omne-space-block);
   min-width: 0;
+  margin-left: auto;
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
-}
-.omne-composer-actions > [data-action] {
-  margin-left: auto;
 }
 .omne-live-status {
   color: var(--omne-ink-muted);

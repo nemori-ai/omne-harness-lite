@@ -10,7 +10,7 @@ import {
   type RefObject,
 } from 'react'
 
-const AGENT_NAME = 'Agent'
+export const AGENT_NAME = 'Agent'
 
 /** The page width (px at the standard size) the docked column needs, drawn at the app's size like the column. */
 const DOCK_ROOM = 1160

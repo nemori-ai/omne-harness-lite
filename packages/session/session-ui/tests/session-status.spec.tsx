@@ -43,7 +43,7 @@ it('附着位置的名字是 session.status (C31)', () => {
   expect(sessionStatus.name).toBe(SESSION_STATUS)
 })
 
-it('会话打开后，放进来的项按次序排在输入框底部一行的左边、动作钮之前，收到会话标识与当前租户', async () => {
+it('会话打开后，放进来的项按次序排在输入框字段下面那一行、动作钮的左边，收到会话标识与当前租户', async () => {
   const { shell, open } = await opened()
   for (const [id, order] of [
     ['second', 2],

@@ -157,10 +157,12 @@ it('没有发出：气泡留着，下一行写原因，词用失败色，没有�
   expect(bubble?.querySelector('[data-slot="status-pill"], header')).toBeNull()
 })
 
-it('输入框的占位符：平时「输入消息」；这个会话有在等人答的调用时说现在发的话会排队', async () => {
+it('输入框的占位符照来源：平时「发消息给」加对话头上 Agent 的名字；有在等人答的调用时后面接会排队、不算回答', async () => {
   const fake = createFakeClient()
   await opened(fake)
-  expect(composer().getAttribute('placeholder')).toBe('输入消息')
+  const name = document.querySelector('.omne-session-figure-name')?.textContent
+  expect(name).toBe('Agent')
+  expect(composer().getAttribute('placeholder')).toBe(`发消息给${name}`)
   ;(await fake.next('read-pending')).answer({
     outcome: 'succeeded',
     body: { inputs: [], next: null },
@@ -171,7 +173,7 @@ it('输入框的占位符：平时「输入消息」；这个会话有在等人�
     body: { calls: [{ card, action: 'deploy', passage: 'p', position: '5', run: 'run_1' }] },
   })
   await settle()
-  expect(composer().getAttribute('placeholder')).toBe('现在发的话会排队，不算回答')
+  expect(composer().getAttribute('placeholder')).toBe(`发消息给${name}，会排队，不算回答`)
   expect(composer().getAttribute('aria-label')).toBe('输入消息')
   await act(async () => fake.observations[0]!.push(stateFrame(null, '9')))
   await settle()
@@ -181,7 +183,7 @@ it('输入框的占位符：平时「输入消息」；这个会话有在等人�
   })
   ;(await fake.next('read-waiting-calls')).answer({ outcome: 'succeeded', body: { calls: [] } })
   await settle()
-  expect(composer().getAttribute('placeholder')).toBe('输入消息')
+  expect(composer().getAttribute('placeholder')).toBe(`发消息给${name}`)
 })
 
 it('从搜索跳来的那一行落定一次（不透明度 .6 到 1），不再找它时不动', () => {
