@@ -182,6 +182,9 @@ function withAppInbox(layer) {
   return visit(layer)
 }
 
+// The server writes megabytes of telemetry per scene; the walk keeps the newest part, enough to read a failure.
+const LOG_TAIL = 4_000_000
+
 export async function startStack({ answer, pageRoot, specimenRoot }) {
   const scratch = newScratch('visual-walk-')
   const hostLog = []
@@ -200,6 +203,7 @@ export async function startStack({ answer, pageRoot, specimenRoot }) {
     operatorPath,
     port,
     extraCaPath: gateway.certPath,
+    logTail: LOG_TAIL,
   })
   let lastLogin
   const inner = createForwardingRules({
