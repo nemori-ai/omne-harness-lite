@@ -57,7 +57,7 @@ type Fields = ReadonlyMap<string, JsonValue>
 
 /** Reads a body; the engine named need not be there now. */
 export function parseConverterBody(
-  body: JsonValue,
+  body: JsonValue | undefined,
   capabilityName?: string,
 ): Outcome<ConverterBody, ConverterBodyRejection> {
   const fields = fieldsOf(body)
@@ -92,9 +92,7 @@ export function converterBodyContract(): BodyContract {
 
 /** The assets judge only a body they read themselves: an object literal is refused. */
 function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
-  const read = readSnapshot(body)
-  if (read === undefined) return refusal('not-an-object')
-  const parsed = parseConverterBody(read, context?.capabilityName)
+  const parsed = parseConverterBody(readSnapshot(body), context?.capabilityName)
   return 'ok' in parsed ? { ok: true } : refusal(parsed.failure)
 }
 
