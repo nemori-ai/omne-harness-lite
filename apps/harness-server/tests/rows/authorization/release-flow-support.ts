@@ -1,5 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import { unpackText } from '@omne-harness/sql-contract/worker'
+import type { ToolStartAuthority } from '@omne-harness/tool-contract/provider'
+import { toolStartAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { expect } from 'vitest'
 import { SHELL, faceOf } from '../../governance/tenant-settings-support.ts'
 import { loginAccess } from '../../model/public-stream-support.ts'
@@ -13,6 +15,25 @@ import {
 
 /** The history kind of an authorization a person expressed on a card. */
 export const ONCE = 'session.authorization-expressed'
+
+/** Holds the first start of a call of the named tool until `go`; the call stays live meanwhile. */
+export function holdStart(tree: ReleaseTree, tool: string) {
+  const authority = tree.scope.get(toolStartAuthorityKey) as ToolStartAuthority<unknown> | undefined
+  if (authority === undefined) throw new Error('no start authority installed')
+  const consume = authority.consume.bind(authority)
+  const released = Promise.withResolvers<void>()
+  let held = 0
+  Object.assign(authority, {
+    consume: async (input: Parameters<typeof consume>[0]) => {
+      if (held === 0 && input.request.availability.definition.name === tool) {
+        held += 1
+        await released.promise
+      }
+      return consume(input)
+    },
+  })
+  return { held: () => held, go: () => released.resolve() }
+}
 
 const RELEASED = 'action-current-permission'
 

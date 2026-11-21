@@ -82,6 +82,12 @@ const toolSide = (tree: ReleaseTree) =>
   })
 
 async function ranOnce(tree: ReleaseTree, session: string, label: string) {
+  const once = await pollUntil(
+    `the admission of ${label} to hold the release it used`,
+    () => admittedReleases(tree.storageRoot).filter(release => release.by === 'once'),
+    rows => rows.length > 0,
+  )
+  expect(once).toHaveLength(1)
   const { entries } = await pollUntil(
     `the Run of ${label} to end after the restart`,
     async () => ({
@@ -94,8 +100,6 @@ async function ranOnce(tree: ReleaseTree, session: string, label: string) {
   expect(entries.filter(entry => entry.kind === ONCE)).toHaveLength(1)
   expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(1)
   expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toHaveLength(0)
-  const once = admittedReleases(tree.storageRoot).filter(release => release.by === 'once')
-  expect(once).toHaveLength(1)
 }
 
 // The working directory of a session is recovered from its log: a card answered after a restart
@@ -160,7 +164,7 @@ it(
             return { kind: 'rejected', failure } as Awaited<ReturnType<typeof invoke>>
           },
         })
-        session = await releaseOnce(tree, 'handed', () => {})
+        session = await releaseOnce(tree, 'slow-handed', () => {})
         await pollUntil(
           'the Agent to hand the call over',
           async () => stopped.entered(),
@@ -170,7 +174,7 @@ it(
         expect(entries.filter(entry => entry.kind === ONCE)).toHaveLength(1)
         expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(0)
       },
-      tree => ranOnce(tree, session, 'handed'),
+      tree => ranOnce(tree, session, 'slow-handed'),
     ])
   },
 )

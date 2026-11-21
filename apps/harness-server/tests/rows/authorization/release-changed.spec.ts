@@ -1,21 +1,19 @@
 // @module-tag slow
 // A call the Agent handed to the Tool runs even when its gate changes before the Tool starts it.
 import { expect, it } from 'vitest'
-import { toolStartAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
-import type { ToolStartAuthority } from '@omne-harness/tool-contract/provider'
 import {
   onReleaseTree,
   pollUntil,
   startAcceptances,
   toolCalls,
   toolResults,
-  type ReleaseTree,
 } from '../../support/release-tree.ts'
 import {
   ONCE,
   admittedReleases,
   answerCard,
   endedRuns,
+  holdStart,
   pendingCard,
   perMessageShell,
   sendInput,
@@ -24,24 +22,6 @@ import {
 } from './release-flow-support.ts'
 
 const PROHIBITED = 'The tool call was denied by a rule or a prohibition and did not run.'
-
-function holdShellConsume(tree: ReleaseTree) {
-  const authority = tree.scope.get(toolStartAuthorityKey) as ToolStartAuthority<unknown> | undefined
-  if (authority === undefined) throw new Error('no start authority installed')
-  const consume = authority.consume.bind(authority)
-  const changed = Promise.withResolvers<void>()
-  let held = 0
-  Object.assign(authority, {
-    consume: async (input: Parameters<typeof consume>[0]) => {
-      if (held === 0 && input.request.availability.definition.name === 'Shell') {
-        held += 1
-        await changed.promise
-      }
-      return consume(input)
-    },
-  })
-  return { held: () => held, go: () => changed.resolve() }
-}
 
 async function changedBeforeStart(pick: 'deny' | 'auto') {
   let first = ''
@@ -54,7 +34,7 @@ async function changedBeforeStart(pick: 'deny' | 'auto') {
   const exit = await onReleaseTree(
     { script: perMessageShell, permission: 'auto_permission', extraHistoryKinds: [ONCE] },
     async tree => {
-      const hold = holdShellConsume(tree)
+      const hold = holdStart(tree, 'Shell')
       const session = await tree.startSession('start: echo changed')
       const card = await pendingCard(tree, session, 'changed')
       await answerCard(tree, card, ['--option', 'allow-once'], 'reply-changed')

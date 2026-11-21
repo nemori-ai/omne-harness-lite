@@ -13,6 +13,7 @@ import {
 import {
   admittedReleases,
   answerCard,
+  holdStart,
   pendingCard,
   setGate,
 } from '../authorization/release-flow-support.ts'
@@ -66,7 +67,11 @@ describe('a subscription of the Notifications tool on the release tree', () => {
     { tags: ['slow'], timeout: 300_000 },
     async () => {
       const exit = await onReleaseTree({ script, permission: 'auto_permission' }, async tree => {
+        const hold = holdStart(tree, 'Notifications')
         const session = await tree.startSession('notifications: standing')
+        await pollUntil('the Tool to reach the start', async () => hold.held(), n => n > 0)
+        const releases = admittedReleases(tree.storageRoot)
+        hold.go()
         const standing = await settled(tree, session, 'standing')
         const [standingCall, ...others] = callsOf(tree)
         expect(others).toEqual([])
@@ -77,7 +82,7 @@ describe('a subscription of the Notifications tool on the release tree', () => {
           originatingCallRef: standingCall,
         })
         expect(startAcceptances(tree.storageRoot).filter(row => 'release' in row)).toEqual([])
-        expect(admittedReleases(tree.storageRoot)).toContainEqual({
+        expect(releases).toContainEqual({
           by: 'verdict',
           grant: expect.objectContaining({
             gate: expect.objectContaining({ key: 'tool.subscribe' }),

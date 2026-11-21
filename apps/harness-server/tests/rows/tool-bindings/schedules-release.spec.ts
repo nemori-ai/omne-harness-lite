@@ -14,6 +14,7 @@ import {
 import {
   admittedReleases,
   answerCard,
+  holdStart,
   pendingCard,
   setGate,
 } from '../authorization/release-flow-support.ts'
@@ -113,7 +114,11 @@ describe('the Schedules tool on the release tree', () => {
     { tags: ['slow'], timeout: 300_000 },
     async () => {
       const exit = await onReleaseTree({ script, nonresident: ['Schedules'] }, async tree => {
+        const hold = holdStart(tree, 'Schedules')
         const forwarded = await tree.startSession('schedules: forwarded')
+        await pollUntil('the Tool to reach the start', async () => hold.held(), n => n > 0)
+        const releases = admittedReleases(tree.storageRoot)
+        hold.go()
         await settled(tree, forwarded, 'it')
         const shown = await pollUntil(
           'the forwarded schedule',
@@ -122,7 +127,6 @@ describe('the Schedules tool on the release tree', () => {
         )
         expect(shown).toEqual(byAgentOf(forwarded))
         expect(startAcceptances(tree.storageRoot).filter(row => 'release' in row)).toEqual([])
-        const releases = admittedReleases(tree.storageRoot)
         expect(releases).toContainEqual({
           by: 'verdict',
           grant: expect.objectContaining({ layer: 'tenant' }),
