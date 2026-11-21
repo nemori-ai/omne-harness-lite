@@ -17,25 +17,17 @@ import {
   decodeModelOperationId,
   type ModelHandle,
 } from '@omne-harness/model-contract'
-import type { ModelConverter, ModelDriveInput } from '@omne-harness/model-contract/provider'
+import type { ModelDriveInput } from '@omne-harness/model-contract/provider'
 import {
-  ModelConverterAuthorityService,
-  ModelConvertersService,
   ModelHostAuthorityService,
   ModelInstancesService,
   ModelPublicationAuthorityService,
-  modelConverterAuthorityKey,
-  modelConvertersKey,
   modelHostAuthorityKey,
   modelInstancesKey,
   modelPublicationAuthorityKey,
-  type ModelConverterRegistrationInput,
   type ModelRegistrationInput,
 } from '@omne-harness/model-cordis-contract/cordis'
-import {
-  ModelConvertersLocalPlugin,
-  ModelInstancesLocalPlugin,
-} from '@omne-harness/model-host-local/cordis'
+import { ModelInstancesLocalPlugin } from '@omne-harness/model-host-local/cordis'
 import type {
   ModelAcceptedOrigin,
   ModelInitialExecution,
@@ -43,11 +35,7 @@ import type {
   ModelObservationSource,
 } from '@omne-harness/model/commands'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
-import {
-  modelConverterAuthority,
-  modelHostAuthority,
-  modelPublicationAuthority,
-} from '../../src/entry/model-authorities.ts'
+import { modelHostAuthority, modelPublicationAuthority } from '../../src/entry/model-authorities.ts'
 import { principalIssuer, principalVerifier } from '../../src/entry/principals.ts'
 import { modelHostPortOf, modelRecordsPortOf } from '../../src/model/ports.ts'
 import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../../src/model/principals.ts'
@@ -80,18 +68,6 @@ const handle: ModelHandle<unknown> = {
 }
 const publication: ModelRegistrationInput<unknown> = {
   publication: [{ tenant: TENANT, call: CALL, instance: INSTANCE, generation: '1' }, handle],
-  authority: EVIDENCE,
-}
-const converter: ModelConverter<unknown> = {
-  adoption: { owner: 'probe', name: 'converter', revision: '1', digest: 'd' },
-  convert: () => {
-    throw new Error('the probe converter is never called')
-  },
-}
-const conversion: ModelConverterRegistrationInput<unknown> = {
-  key: { kind: 'media-type', mediaType: 'image/png' },
-  converter,
-  adoption: converter.adoption,
   authority: EVIDENCE,
 }
 
@@ -167,7 +143,6 @@ async function installed(options: { withIssuer?: boolean; standing?: TenantStand
   }
   await fixture.install(modelHostAuthority)
   await fixture.install(modelPublicationAuthority)
-  await fixture.install(modelConverterAuthority)
   const script: Scripted = {
     acceptance: { ok: ACCEPTED },
     prepared: {
@@ -196,7 +171,6 @@ async function installed(options: { withIssuer?: boolean; standing?: TenantStand
     issues,
     host,
     publication: got(fixture.root.get(modelPublicationAuthorityKey), 'modelPublicationAuthority'),
-    converter: got(fixture.root.get(modelConverterAuthorityKey), 'modelConverterAuthority'),
     records: got(modelRecordsPortOf(fixture.root), 'records port'),
     hostPort: got(modelHostPortOf(fixture.root), 'host port'),
   }
@@ -229,19 +203,14 @@ async function attachedAndBound(scene: Awaited<ReturnType<typeof installed>>) {
   return { qualification, binding, hostFiber: fiber, handle: attached.ok, observation }
 }
 
-describe('the three model authorities on a real Cordis context', () => {
+describe('the two model authorities on a real Cordis context', () => {
   it('are the model-cordis-contract definitions on the root, declared real', async () => {
-    const { host, publication: pub, converter: conv } = await installed()
+    const { host, publication: pub } = await installed()
     expect(host).toBeInstanceOf(ModelHostAuthorityService)
     expect(pub).toBeInstanceOf(ModelPublicationAuthorityService)
-    expect(conv).toBeInstanceOf(ModelConverterAuthorityService)
     expect(modelHostAuthority).toMatchObject({ name: 'modelHostAuthority', implementation: 'real' })
     expect(modelPublicationAuthority).toMatchObject({
       name: 'modelPublicationAuthority',
-      implementation: 'real',
-    })
-    expect(modelConverterAuthority).toMatchObject({
-      name: 'modelConverterAuthority',
       implementation: 'real',
     })
   })
@@ -265,26 +234,9 @@ describe('the three model authorities on a real Cordis context', () => {
     ).resolves.toEqual({ ok: { kind: 'no-live-route' } })
   })
 
-  it('let the real converter catalog load, and the catalog refuses every converter registration as denied', async () => {
-    const { fixture } = await installed()
-    await fixture.root.plugin(ModelConvertersLocalPlugin)
-    const catalog = got(fixture.root.get(modelConvertersKey), 'modelConverters')
-    expect(catalog).toBeInstanceOf(ModelConvertersService)
-    let registration: Awaited<ReturnType<ModelConvertersService<unknown>['register']>> | undefined
-    await fixture.root.plugin({
-      name: 'probe-converter',
-      inject: [modelConvertersKey],
-      async apply(ctx) {
-        registration = await ctx.modelConverters.register(conversion)
-      },
-    })
-    expect(registration).toEqual({ failure: { kind: 'denied' } })
-  })
-
-  it('publication and converter checks are denied; before any records row attaches, resolve is unavailable', async () => {
-    const { host, publication: pub, converter: conv } = await installed()
+  it('publication checks are denied; before any records row attaches, resolve is unavailable', async () => {
+    const { host, publication: pub } = await installed()
     expect(pub.check(publication)).toEqual({ failure: { kind: 'denied' } })
-    expect(conv.check(conversion)).toEqual({ failure: { kind: 'denied' } })
     const resolved = await host.resolve({ tenant: TENANT, call: CALL })
     expect(resolved).toMatchObject({
       failure: { kind: 'unavailable', dependency: 'modelHostAuthority' },

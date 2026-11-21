@@ -9,11 +9,7 @@ import { executionAuthorities, scopedRuntimeContextTrust } from './execution-wir
 import { identityClock } from './identity-clock.ts'
 import { governanceInstallationPrincipals } from './governance-installation-principals.ts'
 import { governanceDirectoryPrincipals } from './governance-directory-principals.ts'
-import {
-  modelConverterAuthority,
-  modelHostAuthority,
-  modelPublicationAuthority,
-} from './model-authorities.ts'
+import { modelHostAuthority, modelPublicationAuthority } from './model-authorities.ts'
 import { modelClock } from './model-clock.ts'
 import { principalIssuer, principalVerifier, sessionPrincipals } from './principals.ts'
 import { requestContextTrust } from './request-context-trust.ts'
@@ -55,7 +51,6 @@ export const entryObjects: readonly EntryObjectModule[] = [
   identityClock,
   modelClock,
   modelPublicationAuthority,
-  modelConverterAuthority,
   modelHostAuthority,
   storageHost,
   cursorSigning,

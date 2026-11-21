@@ -52,7 +52,6 @@
     "agent-instances",
     "model-host",
     "model-instances",
-    "model-converters",
     "model-tokenizers",
     "model-profiles",
     "model-request-preparation",

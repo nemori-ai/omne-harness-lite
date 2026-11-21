@@ -441,10 +441,6 @@
         "count": 1,
         "longest": 214
       },
-      "packages/model/model-cordis-contract/src/converters.ts": {
-        "count": 1,
-        "longest": 159
-      },
       "packages/model/model-cordis-contract/src/testing/index.ts": {
         "count": 1,
         "longest": 164

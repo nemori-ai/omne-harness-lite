@@ -627,11 +627,6 @@
       "config": {}
     },
     {
-      "id": "model-converters",
-      "plugin": "modelConvertersRow",
-      "config": {}
-    },
-    {
       "id": "model-tokenizers",
       "plugin": "modelTokenizersRow",
       "config": {}
