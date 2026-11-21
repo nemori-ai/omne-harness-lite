@@ -341,7 +341,57 @@ export type ScriptedDecisionCards<P> = Readonly<{
   lookup: ScriptOf<DecisionCards<P>['lookup']>
   read: ScriptOf<DecisionCards<P>['read']>
   invalidate: ScriptOf<DecisionCards<P>['invalidate']>
+  changes: Readonly<{
+    calls: readonly In<DecisionCards<P>['changes']>[]
+    open(): number
+    emit(): void
+  }>
 }>
+
+function scriptedCardChanges<P>(): Readonly<{
+  call: DecisionCards<P>['changes']
+  script: ScriptedDecisionCards<P>['changes']
+}> {
+  const calls: In<DecisionCards<P>['changes']>[] = []
+  const listening = new Set<() => void>()
+  async function* listen(signal: AbortSignal): AsyncGenerator<void> {
+    let heard = 0
+    let wake = (): void => {}
+    const hear = () => {
+      heard += 1
+      wake()
+    }
+    const stop = () => wake()
+    listening.add(hear)
+    signal.addEventListener('abort', stop, { once: true })
+    try {
+      while (!signal.aborted)
+        if (heard > 0) {
+          heard -= 1
+          yield
+        } else
+          await new Promise<void>(resolve => {
+            wake = resolve
+          })
+    } finally {
+      signal.removeEventListener('abort', stop)
+      listening.delete(hear)
+    }
+  }
+  return {
+    call: input => {
+      calls.push(input)
+      return listen(input.signal)
+    },
+    script: {
+      calls,
+      open: () => listening.size,
+      emit: () => {
+        for (const hear of listening) hear()
+      },
+    },
+  }
+}
 
 export function createScriptedDecisionCards<P>(): ScriptedDecisionCards<P> {
   const present = scriptedMethod<In<DecisionCards<P>['present']>, Out<DecisionCards<P>['present']>>(
@@ -357,17 +407,20 @@ export function createScriptedDecisionCards<P>(): ScriptedDecisionCards<P> {
     In<DecisionCards<P>['invalidate']>,
     Out<DecisionCards<P>['invalidate']>
   >(unavailable('agentDecisionCards'))
+  const changes = scriptedCardChanges<P>()
   return {
     port: {
       present: present.call,
       lookup: lookup.call,
       read: read.call,
       invalidate: invalidate.call,
+      changes: changes.call,
     },
     present: present.script,
     lookup: lookup.script,
     read: read.script,
     invalidate: invalidate.script,
+    changes: changes.script,
   }
 }
 

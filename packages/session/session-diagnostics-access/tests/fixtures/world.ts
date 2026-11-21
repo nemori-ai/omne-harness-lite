@@ -212,7 +212,7 @@ export function createWorld(options: WorldOptions = {}) {
           } as never,
           modelDiagnostics: { list: async () => fail({ kind: 'denied', action: 'list' }) } as never,
           toolQueries: {
-            lookup: async () => fail({ kind: 'denied', action: 'lookup' }),
+            current: async () => fail({ kind: 'denied', action: 'lookup' }),
             account: async () => fail({ kind: 'denied', action: 'account' }),
             readDiagnostics: async () => fail({ kind: 'denied', action: 'diagnostics' }),
           } as never,

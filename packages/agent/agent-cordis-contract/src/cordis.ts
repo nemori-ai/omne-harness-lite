@@ -127,6 +127,7 @@ export abstract class DecisionCardsService<P> extends Service implements Decisio
   abstract readonly lookup: DecisionCards<P>['lookup']
   abstract readonly read: DecisionCards<P>['read']
   abstract readonly invalidate: DecisionCards<P>['invalidate']
+  abstract readonly changes: DecisionCards<P>['changes']
 }
 export const agentDecisionCardsKey = DecisionCardsService.provide
 

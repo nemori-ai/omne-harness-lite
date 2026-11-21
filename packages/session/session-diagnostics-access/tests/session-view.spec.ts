@@ -15,7 +15,7 @@ import type {
   SessionFailure,
   SessionHistory,
 } from '@omne-harness/session-contract'
-import type { DiagnosticPage, ToolLookup } from '@omne-harness/tool-contract'
+import type { DiagnosticPage, ToolState } from '@omne-harness/tool-contract'
 import {
   createDiagnosticsCursors,
   projectSessionDiagnostics,
@@ -219,21 +219,41 @@ function modelDouble(
 }
 
 function toolDouble(
-  lookups: Record<string, Outcome<ToolLookup, { kind: string }> | 'throw'>,
+  states: Record<string, Outcome<ToolState, { kind: string }> | 'throw'>,
   accounts: Record<string, Outcome<CallAccount, { kind: string }>> = {},
   diagnostics: Record<string, Outcome<DiagnosticPage, { kind: string }>> = {},
 ) {
-  const calls: Writes & { looked: string[]; diagnosed: unknown[] } = {
+  const calls: Writes & {
+    looked: string[]
+    read: unknown[]
+    lookups: string[]
+    diagnosed: unknown[]
+  } = {
     writes: 0,
     looked: [],
+    read: [],
+    lookups: [],
     diagnosed: [],
   }
+  const stateOf = (reference: string) => {
+    const answer = states[reference]
+    if (answer === 'throw') throw new Error('tool exploded')
+    return answer ?? fail({ kind: 'invalid', field: 'reference', reason: 'unknown' })
+  }
   const toolQueries = {
-    lookup: async (input: { reference: string }) => {
+    current: async (input: { access: unknown; reference: string }) => {
       calls.looked.push(input.reference)
-      const answer = lookups[input.reference]
-      if (answer === 'throw') throw new Error('tool exploded')
-      return answer ?? fail({ kind: 'invalid', field: 'reference', reason: 'unknown' })
+      calls.read.push(input)
+      const answer = stateOf(input.reference)
+      return 'ok' in answer ? succeed({ state: answer.ok, current: null }) : answer
+    },
+    lookup: async (input: { reference: string }) => {
+      calls.lookups.push(input.reference)
+      const answer = stateOf(input.reference)
+      if ('ok' in answer) return succeed({ kind: 'found', state: answer.ok })
+      if (Reflect.get(answer.failure, 'field') !== 'reference') return answer
+      calls.writes += 1
+      return succeed({ kind: 'not-accepted', operation: 'op' })
     },
     account: async (input: { reference: string }) =>
       accounts[input.reference] ?? fail({ kind: 'denied', action: 'account' }),
@@ -322,27 +342,24 @@ const dispatchPage = (
 const settledTool = (
   call: string,
   diagnostic = 'SECRET-TOOL-DIAGNOSTIC',
-): Outcome<ToolLookup, never> =>
+): Outcome<ToolState, never> =>
   succeed({
-    kind: 'found',
-    state: {
-      call,
-      revision: '1',
-      source: evidence('s'),
-      foreground: null,
-      effect: { kind: 'none' },
-      execution: { kind: 'none' },
-      timing: {},
-      queue: { kind: 'none' },
-      controls: [],
-      delivery: null,
-      supplements: [],
-      phase: 'settled',
-      wait: { kind: 'none' },
-      result: 'r1',
-      relation: 'foreground',
-      terminal: { kind: 'failed', cause: 'executor', diagnostic },
-    },
+    call,
+    revision: '1',
+    source: evidence('s'),
+    foreground: null,
+    effect: { kind: 'none' },
+    execution: { kind: 'none' },
+    timing: {},
+    queue: { kind: 'none' },
+    controls: [],
+    delivery: null,
+    supplements: [],
+    phase: 'settled',
+    wait: { kind: 'none' },
+    result: 'r1',
+    relation: 'foreground',
+    terminal: { kind: 'failed', cause: 'executor', diagnostic },
   } as never)
 
 const toolAccount = (): Outcome<CallAccount, never> =>
@@ -913,7 +930,7 @@ describe('gaps', () => {
     })
 
     it.each([
-      [{ kind: 'invalid', field: 'reference', reason: 'not a reference' }, 'not-found'],
+      [{ kind: 'invalid', field: 'tenant', reason: 'x' }, 'unavailable'],
       [{ kind: 'invalid-cursor', reason: 'x' }, 'unavailable'],
       [{ kind: 'stale-revision', current: '2' }, 'unavailable'],
       [{ kind: 'stale-instance', instance: 'i' }, 'unavailable'],
@@ -922,7 +939,7 @@ describe('gaps', () => {
       [{ kind: 'not-settled' }, 'not-recorded'],
       [{ kind: 'not-found', target: 'result', reason: 'missing' }, 'not-found'],
       [{ kind: 'not-found', target: 'body', reason: 'expired' }, 'not-found'],
-    ] as const)('Tool lookup, account and readDiagnostics %j -> %s', async (failure, reason) => {
+    ] as const)('Tool current, account and readDiagnostics %j -> %s', async (failure, reason) => {
       const entries = [started('e1', 'r1'), bound('e2', 'tool', 't1', 'action')]
       const tool = toolDouble({ t1: fail(failure) }, { t1: fail(failure) }, { t1: fail(failure) })
       const page = await project({ entries, ports: { ...tool } })
@@ -1137,6 +1154,26 @@ describe('read only', () => {
     expect(model.calls.writes).toBe(0)
     expect(tool.calls.writes).toBe(0)
   })
+
+  it('reads the state of a Tool call through current, never through lookup', async () => {
+    const tool = toolDouble({
+      t1: settledTool('tool-1'),
+      t2: fail({ kind: 'invalid', field: 'reference', reason: 'gone' }),
+    })
+    const entries = [
+      started('e1', 'r1'),
+      bound('e2', 'tool', 't1', 'action'),
+      bound('e3', 'tool', 't2', 'action'),
+      terminal('e4', 'r1', 'completed'),
+    ]
+    await project({ entries, ports: { ...tool } })
+    expect(tool.calls.lookups).toEqual([])
+    expect(tool.calls.read).toEqual([
+      { access: { principal, tenant }, reference: 't1' },
+      { access: { principal, tenant }, reference: 't2' },
+    ])
+    expect(tool.calls.writes).toBe(0)
+  })
 })
 
 describe('the values the owners give', () => {
@@ -1340,35 +1377,31 @@ describe('the values the owners give', () => {
 
   const toolState = (call: string, patch: Record<string, unknown>) =>
     succeed({
-      kind: 'found',
-      state: {
-        call,
-        revision: '1',
-        source: evidence('s'),
-        foreground: null,
-        effect: { kind: 'none' },
-        execution: { kind: 'none' },
-        timing: {},
-        queue: { kind: 'none' },
-        controls: [],
-        delivery: null,
-        supplements: [],
-        phase: 'settled',
-        wait: { kind: 'none' },
-        result: 'r1',
-        relation: 'background',
-        terminal: null,
-        ...patch,
-      },
-    } as never) as Outcome<ToolLookup, never>
+      call,
+      revision: '1',
+      source: evidence('s'),
+      foreground: null,
+      effect: { kind: 'none' },
+      execution: { kind: 'none' },
+      timing: {},
+      queue: { kind: 'none' },
+      controls: [],
+      delivery: null,
+      supplements: [],
+      phase: 'settled',
+      wait: { kind: 'none' },
+      result: 'r1',
+      relation: 'background',
+      terminal: null,
+      ...patch,
+    } as never) as Outcome<ToolState, never>
 
-  it('writes the Tool states: running without a terminal, a terminal only once settled, a completed terminal without a cause, a call Tool did not accept, and an account Tool refused', async () => {
+  it('writes the Tool states: running without a terminal, a terminal only once settled, a completed terminal without a cause, and an account Tool refused', async () => {
     const entries = [
       started('e1', 'r1'),
       bound('e2', 'tool', 't-running', 'action'),
       bound('e3', 'tool', 't-early', 'action'),
       bound('e4', 'tool', 't-done', 'action'),
-      bound('e5', 'tool', 't-refused', 'action'),
     ]
     const tool = toolDouble(
       {
@@ -1378,9 +1411,8 @@ describe('the values the owners give', () => {
           terminal: { kind: 'failed', cause: 'executor', diagnostic: 'SECRET' },
         }),
         't-done': toolState('tool-d', { terminal: { kind: 'completed' } }),
-        't-refused': succeed({ kind: 'not-accepted', operation: 'op' }) as never,
       },
-      { 't-early': toolAccount(), 't-done': toolAccount(), 't-refused': toolAccount() },
+      { 't-early': toolAccount(), 't-done': toolAccount() },
     )
     const page = await project({ entries, ports: { ...tool } })
     expect(page.runs[0]!.toolCalls.map(call => call.state)).toEqual([
@@ -1393,14 +1425,32 @@ describe('the values the owners give', () => {
         relation: 'background',
         terminal: { kind: 'completed', cause: null },
       },
-      { kind: 'unknown', reason: 'not-accepted' },
     ])
     expect(page.runs[0]!.toolCalls[0]!.account).toEqual({ kind: 'unknown', reason: 'denied' })
-    expect(page.gaps).toEqual([
-      { source: 'tool', subject: 't-running', reason: 'denied' },
-      { source: 'tool', subject: 't-refused', reason: 'not-accepted' },
-    ])
+    expect(page.gaps).toEqual([{ source: 'tool', subject: 't-running', reason: 'denied' }])
     expect(JSON.stringify(page)).not.toContain('SECRET')
+  })
+
+  it('writes a registered call Tool no longer keeps as not recorded, never as not accepted', async () => {
+    const gone = fail({
+      kind: 'invalid',
+      field: 'reference',
+      reason: 'the admission of the reference was not accepted; the call has no state',
+    })
+    const entries = [started('e1', 'r1'), bound('e2', 'tool', 't-gone', 'action')]
+    const tool = toolDouble({ 't-gone': gone }, { 't-gone': gone }, { 't-gone': gone })
+    const page = await project({ entries, ports: { ...tool } })
+    expect(page.runs[0]!.toolCalls[0]).toMatchObject({
+      reference: 't-gone',
+      state: { kind: 'unknown', reason: 'not-recorded' },
+      account: { kind: 'unknown', reason: 'not-found' },
+      diagnostics: { kind: 'unknown', reason: 'not-found' },
+    })
+    expect(page.gaps).toEqual([
+      { source: 'tool', subject: 't-gone', reason: 'not-recorded' },
+      { source: 'tool', subject: 't-gone', reason: 'not-found' },
+    ])
+    expect(JSON.stringify(page)).not.toContain('not-accepted')
   })
 
   it('shows the account items as the owner states them: a lexeme only outside the unknown state, the duration when given', async () => {

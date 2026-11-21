@@ -131,12 +131,12 @@ async function modelAnswersOf(
 }
 
 async function toolAnswersOf(sources: DiagnosticSources, reference: string): Promise<ToolAnswers> {
-  const [lookup, account, diagnostics] = await Promise.all([
-    sources.lookupToolCall(reference),
+  const [current, account, diagnostics] = await Promise.all([
+    sources.readToolState(reference),
     sources.readToolAccount(reference),
     sources.readToolDiagnostics(reference),
   ])
-  return { lookup, account, diagnostics }
+  return { current, account, diagnostics }
 }
 
 async function answersOf(

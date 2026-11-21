@@ -149,6 +149,7 @@ export declare abstract class DecisionCardsService<P> extends Service implements
     abstract readonly lookup: DecisionCards<P>['lookup'];
     abstract readonly read: DecisionCards<P>['read'];
     abstract readonly invalidate: DecisionCards<P>['invalidate'];
+    abstract readonly changes: DecisionCards<P>['changes'];
 }
 export declare const agentDecisionCardsKey = "agentDecisionCards";
 export declare abstract class MessageHandoffService<P> extends Service implements MessageHandoff<P> {

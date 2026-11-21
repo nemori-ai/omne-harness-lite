@@ -13,16 +13,15 @@ import type {
   DiagnosticPage,
   ToolFailure,
   ToolInvocationQueries,
-  ToolLookup,
+  ToolStreamReferences,
+  ToolStreamSelection,
 } from '@omne-harness/tool-contract'
 import type { SessionDiagnosticUnknown } from '../view-types.ts'
 
 export type ModelCallInspector<P> = Pick<ModelCalls<P>, 'inspect' | 'dispatches'>
 export type ModelAttemptReader<P> = ModelDiagnostics<P>
-export type ToolCallReader<P> = Pick<
-  ToolInvocationQueries<P, never>,
-  'lookup' | 'account' | 'readDiagnostics'
->
+export type ToolCallReader<P> = Pick<ToolStreamReferences<P>, 'current'> &
+  Pick<ToolInvocationQueries<P, never>, 'account' | 'readDiagnostics'>
 export type CallAccount = Extract<
   Awaited<ReturnType<ToolCallReader<unknown>['account']>>,
   { ok: unknown }
@@ -72,15 +71,20 @@ const GAP_OF: Readonly<Record<Exclude<OwnerFailure['kind'], 'invalid'>, SourceGa
   changed: 'unavailable',
 }
 
-function reasonOf(failure: OwnerFailure, referenceField: string): SourceGapReason {
+function reasonOf(
+  failure: OwnerFailure,
+  referenceField: string,
+  unknownReference: SourceGapReason,
+): SourceGapReason {
   if (failure.kind === 'invalid')
-    return failure.field === referenceField ? 'not-found' : 'unavailable'
+    return failure.field === referenceField ? unknownReference : 'unavailable'
   return GAP_OF[failure.kind] ?? 'unavailable'
 }
 
 async function answerOf<T>(
   call: () => Promise<Outcome<T, OwnerFailure>>,
   referenceField: string,
+  unknownReference: SourceGapReason = 'not-found',
 ): Promise<SourceAnswer<T>> {
   let outcome: Outcome<T, OwnerFailure>
   try {
@@ -89,7 +93,7 @@ async function answerOf<T>(
     return UNAVAILABLE
   }
   if ('failure' in outcome)
-    return { kind: 'gap', reason: reasonOf(outcome.failure, referenceField) }
+    return { kind: 'gap', reason: reasonOf(outcome.failure, referenceField, unknownReference) }
   return { kind: 'value', value: outcome.ok }
 }
 
@@ -97,7 +101,7 @@ export interface DiagnosticSources {
   inspectModelCall(reference: string): Promise<SourceAnswer<Lookup>>
   listModelAttempts(call: string): Promise<SourceAnswer<ModelDiagnosticsPage>>
   listModelDispatches(call: string): Promise<SourceAnswer<readonly DispatchRecord[]>>
-  lookupToolCall(reference: string): Promise<SourceAnswer<ToolLookup>>
+  readToolState(reference: string): Promise<SourceAnswer<ToolStreamSelection>>
   readToolAccount(reference: string): Promise<SourceAnswer<CallAccount>>
   readToolDiagnostics(reference: string): Promise<SourceAnswer<DiagnosticPage>>
 }
@@ -129,12 +133,13 @@ export function sourcesOf<P>(access: Access<P>, ports: DiagnosticPorts<P>): Diag
       modelCalls === undefined
         ? Promise.resolve(UNSUPPORTED)
         : answerOf(() => modelCalls.dispatches({ ...access, call: call as never }), 'call'),
-    lookupToolCall: reference =>
+    readToolState: reference =>
       toolQueries === undefined
         ? Promise.resolve(UNSUPPORTED)
         : answerOf(
-            () => toolQueries.lookup({ ...access, reference: reference as never }),
+            () => toolQueries.current({ access, reference: reference as never }),
             'reference',
+            'not-recorded',
           ),
     readToolAccount: reference =>
       toolQueries === undefined
