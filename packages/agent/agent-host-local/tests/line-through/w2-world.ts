@@ -870,24 +870,32 @@ export async function openW2World(options: W2Options) {
     }
   }
 
-  async function logEntries(kind: string): Promise<unknown[]> {
+  async function logOf(
+    kinds: readonly string[],
+  ): Promise<Readonly<{ kind: string; payload: unknown }>[]> {
     const reader = await historyOf()
     const access = await readerAccess()
-    const found: unknown[] = []
+    const found: { kind: string; payload: unknown }[] = []
     let page = ok(
       await reader.begin({
         ...access,
-        kinds: [kind],
+        kinds: [...kinds],
         from: null,
         direction: 'forward',
         pageBytes: 1_000_000,
       }),
     )
     for (;;) {
-      found.push(...page.entries.map(entry => plainJson(entry.payload)))
+      found.push(
+        ...page.entries.map(entry => ({ kind: entry.kind, payload: plainJson(entry.payload) })),
+      )
       if (page.next === null) return found
       page = ok(await reader.next({ ...access, cursor: page.next }))
     }
+  }
+
+  async function logEntries(kind: string): Promise<unknown[]> {
+    return (await logOf([kind])).map(entry => entry.payload)
   }
 
   async function runEnd(run: string): Promise<RunEnd | null> {
@@ -957,6 +965,7 @@ export async function openW2World(options: W2Options) {
     runEnd,
     batchesTaken,
     modelView,
+    logOf,
     runRound,
     createSession,
     accept,

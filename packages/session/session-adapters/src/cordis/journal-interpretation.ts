@@ -16,6 +16,7 @@ import type {
   SessionFailure,
   SessionId,
   SessionLogCommitObservation,
+  SessionLogConsequence,
   SessionLogReceipt,
   SessionOperationId,
   SessionTransactionPort,
@@ -112,14 +113,26 @@ function progressOf(
   return held === undefined ? null : { run: held.run, readThrough: held.execution.readThrough }
 }
 
+const WHOLE_EVENT = 'ad02/1'
+const EVENT_BINDINGS = 'ad02/bindings/1'
+
 function operationOf(
+  part: typeof WHOLE_EVENT | typeof EVENT_BINDINGS,
   tenantText: string,
   observation: Omit<SessionLogCommitObservation, 'operation' | 'tenant'>,
 ): SessionOperationId {
   const digest = createHash('sha256')
-    .update(canonical(['ad02/1', tenantText, observation]))
+    .update(canonical([part, tenantText, observation]))
     .digest('hex')
   return `ad02_${digest}` as SessionOperationId
+}
+
+function unbound(work: WorkSnapshot, item: SessionLogConsequence): boolean {
+  if (item.kind !== 'call-registration' && item.kind !== 'call-association') return false
+  const held = work.callRegistrations?.find(record => record.consumption === item.consumption)
+  return item.kind === 'call-registration'
+    ? held === undefined
+    : held?.registration.kind !== 'associated'
 }
 
 function createJournalInterpretation<P>(
@@ -200,26 +213,31 @@ function createJournalInterpretation<P>(
       if (event.consequences?.every(item => item.kind === 'observed') === true) continue
       const awaits = await awaitsDelivery(access, work.ok, progress.run, target.execution, event)
       if ('failure' in awaits) return awaits
-      if (awaits.ok) return succeed({ readThrough, committed: sent.count, waiting: 0 })
+      const consequences = awaits.ok
+        ? (event.consequences ?? []).filter(item => unbound(work.ok, item))
+        : (event.consequences ?? [])
+      if (awaits.ok && consequences.length === 0)
+        return succeed({ readThrough, committed: sent.count, waiting: 0 })
       const value = {
         session: target.session,
         run: progress.run,
         execution: target.execution,
-        sequence: event.sequence,
+        sequence: awaits.ok ? null : event.sequence,
         revision: view.revision,
         executionEvidence: view.head,
         source: event.source,
-        consequences: event.consequences ?? [],
+        consequences,
         ...(event.control === null ? {} : { control: event.control }),
       } satisfies Omit<SessionLogCommitObservation, 'operation' | 'tenant'>
       const answer = await send({
         ...value,
         tenant: target.tenant,
-        operation: operationOf(tenantText, value),
+        operation: operationOf(awaits.ok ? EVENT_BINDINGS : WHOLE_EVENT, tenantText, value),
       })
       if ('failure' in answer) return answer
-      readThrough = answer.ok.readThrough
       sent.count += 1
+      if (awaits.ok) return succeed({ readThrough, committed: sent.count, waiting: 0 })
+      readThrough = answer.ok.readThrough
     }
     return succeed({ readThrough, committed: sent.count, waiting: 0 })
   }

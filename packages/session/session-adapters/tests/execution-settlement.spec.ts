@@ -15,7 +15,12 @@ import { agentReceivedCommitsKey } from '@omne-harness/agent-cordis-contract/cor
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
-import type { Consumption, ConsumptionId, WorkSnapshot } from '@omne-harness/session-contract'
+import type {
+  Consumption,
+  ConsumptionId,
+  SessionLogCommitObservation,
+  WorkSnapshot,
+} from '@omne-harness/session-contract'
 import type { SessionExecutionLog } from '@omne-harness/session-cordis-contract'
 import { sessionExecutionLogKey } from '@omne-harness/session-cordis-contract/cordis'
 import { evidence } from '@omne-harness/session-contract/testing'
@@ -308,6 +313,108 @@ const targetOf = (s: SqlScene) => ({
   session: s.access.session,
   execution: s.execution,
 })
+
+type Producer = 'tool' | 'model'
+
+function keptResult(s: SqlScene, producer: Producer) {
+  if (producer === 'tool') {
+    const tool = toolCall(s.access.tenant, 'early')
+    const consumer = { ...tool.entry.consumer, work: s.execution }
+    const entry = resultEntry({ ...tool.entry, consumer })
+    return {
+      pending: { ...tool.pending, position: consumer },
+      entry,
+      material: outcomeMaterial(s.access.tenant, entry),
+      result: {
+        producer: { kind: 'tool' as const, call: tool.call },
+        version: 'tres_1',
+        delivery: null,
+        source: evidence('tool-result'),
+      },
+    }
+  }
+  const sample = sampleReceivedModelResult(s.access.tenant, 'early')
+  const entry = { ...sample, consumer: { ...sample.consumer, work: s.execution } }
+  const { key } = entry.delivery
+  if (key.kind !== 'result') throw new Error('fixture: a Model result')
+  const pending: Extract<PendingCall, { kind: 'model' }> = {
+    kind: 'model',
+    purpose: 'main',
+    action: ok(decodeActionId('action')),
+    reference: key.reference,
+    consumption: entry.consumption,
+    position: entry.consumer,
+    fixed: evidence('request'),
+  }
+  const { material: _material, ...draft } = entry
+  return {
+    pending,
+    entry,
+    material: modelMaterialOf(s.access.tenant, draft),
+    result: {
+      producer: {
+        kind: 'model' as const,
+        call: ok(resolveModelInvocationRef(key.reference, s.access.tenant)).call,
+      },
+      version: String(key.result),
+      delivery: null,
+      source: evidence('model-result'),
+    },
+  }
+}
+
+async function processedWhereRegistered(s: SqlScene, c: Scene, producer: Producer) {
+  const { journal, opened, authority, load, commit, receive } = await opening(s, c)
+  const kept = keptResult(s, producer)
+  await commit('issue', {
+    checkpoint: { ...(await load()).checkpoint, calls: [kept.pending] },
+    effects: [{ action: kept.pending.action, pending: kept.pending, authority }],
+  })
+  await receive('result', kept.entry, kept.material)
+  await commit('processed', {
+    checkpoint: { ...(await load()).checkpoint, calls: [] },
+    events: [{ kind: 'producer', result: kept.result, consumption: kept.pending.consumption }],
+  })
+  await endOpened(s, journal, opened, refusedByModel())
+}
+
+async function consuming(s: SqlScene, c: Scene, producer: Producer) {
+  const coordinator = async () => succeed(s.access.principal)
+  if (producer === 'tool') {
+    const tool = createSessionToolLogConsumptionPlugin({ toolDeliveries: reader, coordinator })
+    await c.mount(tool.plugin, {})
+    return () => tool.consume({ ...targetOf(s), principal: s.access.principal })
+  }
+  const model = createSessionModelLogConsumptionPlugin<string>({ coordinator })
+  await c.mount(model.plugin)
+  return () => model.consume(targetOf(s))
+}
+
+type LogEntry = Readonly<{ kind: string; body: Record<string, unknown> }>
+
+const entriesOf = (s: SqlScene): LogEntry[] =>
+  (s.controls?.select('SELECT kind, entry FROM sl_entry ORDER BY position').rows ?? []).map(
+    ([kind, cell]) => ({
+      kind: String(kind),
+      body: (
+        JSON.parse(cell instanceof Uint8Array ? unpackText(cell) : String(cell)) as {
+          body: Record<string, unknown>
+        }
+      ).body,
+    }),
+  )
+
+function callOrder(s: SqlScene) {
+  const entries = entriesOf(s)
+  const fact = (field: string) =>
+    entries.findIndex(entry => entry.kind === 'call.execution-fact' && field in entry.body)
+  return {
+    entries,
+    bound: entries.findIndex(entry => entry.kind === 'call.bound'),
+    delivered: fact('delivered'),
+    processed: fact('result'),
+  }
+}
 
 async function settled(s: SqlScene): Promise<Head> {
   let head: Head | null = null
@@ -794,5 +901,125 @@ describe('the Session acknowledges an execution once it has received all of it',
     ).toMatchObject({
       ok: { kind: 'committed', receipt: { operation: lost[0], state: 'applied' } },
     })
+  })
+})
+
+describe('an Agent event that registers a call and processes its result kept before that event', () => {
+  it.each(['tool', 'model'] as const)(
+    'a %s call: the interpretation commits the binding first without moving its position, the entries consumption writes the delivery, then the rest of the event commits; the execution settles',
+    async producer => {
+      const s = await scene(`registered-where-processed-${producer}`)
+      const c = await cordisScene(s)
+      disposers.push(() => c.dispose())
+      await consuming(s, c, producer)
+      const interpretation = createSessionJournalInterpretationPlugin<string>({
+        coordinator: async () => succeed(s.access.principal),
+      })
+      await c.mount(interpretation.plugin)
+      await processedWhereRegistered(s, c, producer)
+      const head = await settled(s)
+      expect(head.acknowledged).toBe(head.emitted)
+      const order = callOrder(s)
+      expect(order.bound).toBeGreaterThanOrEqual(0)
+      expect(order.bound).toBeLessThan(order.delivered)
+      expect(order.delivered).toBeLessThan(order.processed)
+      expect(order.entries.map(entry => entry.kind)).toContain('run.terminal')
+    },
+  )
+
+  it('a Tool intent the Session registered, whose association comes in the event that processes its result: the association commits first, then the delivery, then the rest of the event', async () => {
+    const s = await scene('associated-where-processed')
+    const c = await cordisScene(s)
+    disposers.push(() => c.dispose())
+    await consuming(s, c, 'tool')
+    await c.mount(
+      createSessionJournalInterpretationPlugin<string>({
+        coordinator: async () => succeed(s.access.principal),
+      }).plugin,
+    )
+    const { journal, opened, authority, load, commit, receive } = await opening(s, c)
+    const kept = keptResult(s, 'tool')
+    if (kept.pending.kind !== 'tool') throw new Error('fixture: a Tool call')
+    const { reference: _reference, acceptance: _acceptance, ...fields } = kept.pending
+    const intent: PendingCall = { ...fields, association: 'intent' }
+    const waits = [{ kind: 'producer' as const, pending: intent }]
+    await commit('intent', {
+      checkpoint: { ...(await load()).checkpoint, calls: [intent] },
+      state: { kind: 'waiting', waits },
+      events: [{ kind: 'waiting', waits }],
+      effects: [{ action: intent.action, pending: intent, authority }],
+    })
+    await vi.waitFor(() => expect(kindsOf(s)).toContain('call.bound'), { timeout: 5000 })
+    await commit('associated', {
+      checkpoint: { ...(await load()).checkpoint, calls: [kept.pending] },
+    })
+    await receive('result', kept.entry, kept.material)
+    await commit('processed', {
+      checkpoint: { ...(await load()).checkpoint, calls: [kept.pending] },
+      events: [{ kind: 'producer', result: kept.result, consumption: kept.pending.consumption }],
+    })
+    await endOpened(s, journal, opened, refusedByModel())
+    const head = await settled(s)
+    expect(head.acknowledged).toBe(head.emitted)
+    const order = callOrder(s)
+    const associated = order.entries.findIndex(
+      entry => entry.kind === 'call.bound' && entry.body['association'] !== null,
+    )
+    expect(associated).toBeGreaterThan(order.bound)
+    expect(associated).toBeLessThan(order.delivered)
+    expect(order.delivered).toBeLessThan(order.processed)
+  })
+
+  it('the binding part whose reply is lost is sent again under its own operation and recalled; a restarted interpretation finds the binding in the session and does not send it again', async () => {
+    const s = await scene('registered-where-processed-recalled')
+    const sent: SessionLogCommitObservation[] = []
+    const recalled: boolean[] = []
+    const lose = { next: true }
+    const c = await cordisScene(s, {
+      commitLog: inner => async input => {
+        sent.push(input.observation)
+        const answer = await inner(input)
+        if (input.observation.sequence !== null) return answer
+        if (lose.next) {
+          lose.next = false
+          return fail({ kind: 'commit-unknown', operation: input.observation.operation })
+        }
+        if ('ok' in answer) recalled.push(answer.ok.recovered)
+        return answer
+      },
+    })
+    disposers.push(() => c.dispose())
+    const coordinator = async () => succeed(s.access.principal)
+    await processedWhereRegistered(s, c, 'tool')
+    const first = createSessionJournalInterpretationPlugin<string>({ coordinator })
+    const fiber = await c.mount(first.plugin)
+    ok(await first.interpret(targetOf(s)))
+    const bindings = sent.filter(observation => observation.sequence === null)
+    expect(bindings.map(observation => observation.operation)).toEqual([
+      bindings[0]!.operation,
+      bindings[0]!.operation,
+    ])
+    expect(bindings[0]!.consequences.map(item => item.kind)).toEqual(['call-registration'])
+    expect(recalled).toEqual([true])
+    await fiber.dispose()
+
+    const again = createSessionJournalInterpretationPlugin<string>({ coordinator })
+    await c.mount(again.plugin)
+    ok(await again.interpret(targetOf(s)))
+    expect(sent.filter(observation => observation.sequence === null)).toHaveLength(2)
+    const consume = await consuming(s, c, 'tool')
+    ok(await consume())
+    await settled(s)
+    const order = callOrder(s)
+    expect(order.bound).toBeLessThan(order.delivered)
+    expect(order.delivered).toBeLessThan(order.processed)
+    expect(
+      order.entries.slice(0, order.delivered).filter(entry => entry.kind === 'call.bound'),
+    ).toHaveLength(1)
+    const whole = sent.find(observation =>
+      observation.consequences.some(item => item.kind === 'producer'),
+    )
+    expect(whole?.sequence).not.toBeNull()
+    expect(whole?.operation).not.toBe(bindings[0]!.operation)
   })
 })

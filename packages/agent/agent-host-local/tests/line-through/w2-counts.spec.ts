@@ -48,45 +48,57 @@ const stable = ({
   storageCommitBytes: _commitBytes,
   ad02Commits: _ad02Commits,
   storageCommitTotal: _commitTotal,
-  storageCommits,
+  storageCommits: _commits,
   storageReads: { [PARTS_HANDLER]: _partsCalls, ...reads },
   storageReadRows,
   ...rest
 }: RoundCount) => ({
   ...rest,
-  storageCommits: Object.fromEntries(
-    Object.entries(storageCommits).filter(
-      ([participant]) => !SESSION_COMMITS.includes(participant),
-    ),
-  ),
   storageReads: untimed(reads),
   storageReadRows: untimed(storageReadRows),
 })
 
 const SESSION_COMMITS: readonly string[] = ['session', 'session-ordinary-basis']
 const SESSION_COMMIT_SPREAD = 1
-const SESSION_COMMIT_NAMES = [
-  'storageCommitTotal',
-  ...SESSION_COMMITS.map(participant => `storageCommits.${participant}`),
-]
 
 function sessionCommitsOffBound(rounds: readonly RoundCount[]): string[] {
-  return SESSION_COMMIT_NAMES.flatMap(name => {
-    const values = rounds.map(count => timedOf(count)[name]!)
+  return SESSION_COMMITS.flatMap(participant => {
+    const values = rounds.map(count => count.storageCommits[participant] ?? 0)
     const largest = Math.max(...values)
     return rounds.flatMap((count, at) =>
       largest - values[at]! > SESSION_COMMIT_SPREAD
         ? [
-            `round ${String(count.round)}: ${name} ${String(values[at])}, largest ${String(largest)}`,
+            `round ${String(count.round)}: storageCommits.${participant} ${String(values[at])}, largest ${String(largest)}`,
           ]
         : [],
     )
   })
 }
 
+function commitsGrowing(early: readonly RoundCount[], late: readonly RoundCount[]): string[] {
+  const participants = new Set(
+    [...early, ...late].flatMap(count => Object.keys(count.storageCommits)),
+  )
+  return [...participants]
+    .filter(participant => !SESSION_COMMITS.includes(participant))
+    .flatMap(participant => {
+      const commits = (count: RoundCount) => count.storageCommits[participant] ?? 0
+      const highestEarly = Math.max(...early.map(commits))
+      const lowestLate = Math.min(...late.map(commits))
+      return lowestLate > highestEarly
+        ? [
+            `storageCommits.${participant}: every late round above the early highest ${String(highestEarly)}, the late lowest ${String(lowestLate)}`,
+          ]
+        : []
+    })
+}
+
+const earlyOf = (completed: readonly RoundCount[]) =>
+  completed.slice(EARLY_FROM, EARLY_FROM + WINDOW)
+const lateOf = (completed: readonly RoundCount[]) => completed.slice(-WINDOW)
 const windowsOf = (completed: readonly RoundCount[]) => [
-  ...completed.slice(EARLY_FROM, EARLY_FROM + WINDOW),
-  ...completed.slice(-WINDOW),
+  ...earlyOf(completed),
+  ...lateOf(completed),
 ]
 
 const TIMED_HANDLERS: readonly string[] = [
@@ -307,9 +319,8 @@ describe('J6: fixed round counts', () => {
       expect(partsOverBound('plain', completed, w.counters.partsRounds)).toEqual([])
       expect(timedGrowthOf('plain', completed)).toEqual({ growing: [], controlMissed: [] })
       expect(sessionCommitsOffBound(windowsOf(completed))).toEqual([])
-      const early = completed.slice(EARLY_FROM, EARLY_FROM + WINDOW).map(stable)
-      const late = completed.slice(-WINDOW).map(stable)
-      expect(late).toEqual(early)
+      expect(commitsGrowing(earlyOf(completed), lateOf(completed))).toEqual([])
+      expect(lateOf(completed).map(stable)).toEqual(earlyOf(completed).map(stable))
     },
   )
 
@@ -335,9 +346,8 @@ describe('J6: fixed round counts', () => {
       expect(partsOverBound('tool', completed, w.counters.partsRounds)).toEqual([])
       expect(timedGrowthOf('tool', completed)).toEqual({ growing: [], controlMissed: [] })
       expect(sessionCommitsOffBound(windowsOf(completed))).toEqual([])
-      const early = completed.slice(EARLY_FROM, EARLY_FROM + WINDOW).map(stable)
-      const late = completed.slice(-WINDOW).map(stable)
-      expect(late).toEqual(early)
+      expect(commitsGrowing(earlyOf(completed), lateOf(completed))).toEqual([])
+      expect(lateOf(completed).map(stable)).toEqual(earlyOf(completed).map(stable))
     },
   )
 })
