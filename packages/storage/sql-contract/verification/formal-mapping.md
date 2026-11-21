@@ -30,11 +30,11 @@
 
 一个操作的身份声明 `recall: 'never'`，存储不留回执。参加者有自己的操作记录，与写在同一个事务里写下，靠它认出同一操作：记录在，就不再写。发出的提交可能在调用方的答复丢了之后才执行。答复丢了的调用方先问存储：存储只知道这个身份还有没有提交在途；不在途了，调用方再读自己的记录。
 
-| 性质           | 含义                                                         | 规格不变式 |
-| -------------- | ------------------------------------------------------------ | ---------- |
-| `AtMostOnce`   | 所有调用与重送加起来，写至多生效一次                         | ST-3       |
-| `OwnIsOwn`     | 把写当成自己做的那个调用确实做了它                           | ST-3       |
-| `AbsentIsTrue` | 调用方得出「没提交」时，写确实没有生效                       | ST-6       |
+| 性质           | 含义                                   | 规格不变式 |
+| -------------- | -------------------------------------- | ---------- |
+| `AtMostOnce`   | 所有调用与重送加起来，写至多生效一次   | ST-3       |
+| `OwnIsOwn`     | 把写当成自己做的那个调用确实做了它     | ST-3       |
+| `AbsentIsTrue` | 调用方得出「没提交」时，写确实没有生效 | ST-6       |
 
 | 配置                        | 去掉的规则                                         | 预期                |
 | --------------------------- | -------------------------------------------------- | ------------------- |
@@ -44,11 +44,11 @@
 
 正控对「全部调用都有了结局」写成显式的终止步，其余卡住的状态仍按死锁报告。
 
-| 模型                     | 代码                                                                                         |
-| ------------------------ | -------------------------------------------------------------------------------------------- |
-| `Run` 认出自己的记录     | 各调用方参加者按自己的表认出原操作：Agent 日志 `er_operation`、预准入 `er_preadmission`、会话 `sl_operation`、Model `md_operation` |
-| `Query` 的「不在途」     | `sqlite-provider/src/query.ts`：`never` 身份不在待决索引、五项证明齐全时答 `settled`          |
-| `Query` 之后读自己的记录 | 调用方的未知路径：Agent 日志的 `settleHeld`，会话提交的 `resolve`，Model 提交的 `freeGeneration` |
+| 模型                     | 代码                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Run` 认出自己的记录     | Agent 日志：`session-storage-sql/src/worker/execution-record.ts` 的 `publish` 先查 `er_operation`，有就答操作冲突并回滚；预准入：同文件的 `saveIntent`、`fixOutcome` 查 `er_preadmission`；会话：`worker/entries.ts` 按 `input_digest` 判认回或冲突，`worker/participant.ts` 的 `recallOriginal`；Model：`model-storage-sql/src/commit.ts` 的 `write` 以 `md_operation` 的 `ON CONFLICT DO NOTHING` 答 `operation-bound` |
+| `Query` 的「不在途」     | `sqlite-provider/src/query.ts`：调用时已在待决索引答 `unknown`；Worker 往返之后再查待决，五项证明齐全答 `settled`；`worker/execute.ts` 对 `never` 不读回执                                                                                                                                                                                                                                                               |
+| `Query` 之后读自己的记录 | Agent 日志：`session-adapters/src/cordis/journal-read.ts` 的 `recordedStanding`，`standingOf` 答 `settled` 之后才读 `er_operation`，调用处是 `agent-journal.ts` 的 `settleHeld`；会话：`session-storage-sql/src/commit.ts` 的 `resolve`、`settledThrough`、`generationFrom`；Model：`model-storage-sql/src/commit.ts` 的 `attempt` 先 `settleUnresolved` 问存储，再 `readCall` 读绑定                                    |
 
 不覆盖：回滚之后换下一次尝试的代次（同 RecallAtCommit 的代次规则）；多个身份；存储之外的读者。
 
