@@ -41,6 +41,7 @@ import {
   declarationOf,
   type EngineProbe,
   type RequestParts,
+  DOCUMENT,
   DOCUMENT_BYTES,
   documentBlock,
   documentRead,
@@ -1138,6 +1139,38 @@ describe('encode: a file by reference, and words kept apart (chat-completions)',
     })
     const words = [message('u1', 'user', [textBlock('t1', 'hello')])]
     expect(parsed(sent(taking, { messages: words }, [])).plugins).toBeUndefined()
+  })
+
+  it('an inline file, or one nothing was read for, is unsupported; a type with no known extension is named by its block', () => {
+    const field = '/messages/0/blocks/0'
+    const inline = {
+      kind: 'file',
+      id: 'f1',
+      visibility: { toHuman: true, toModel: true },
+      storage: 'tests',
+      key: 'f',
+      mediaType: 'application/pdf',
+    }
+    expect(
+      sent(taking, { messages: [message('u1', 'user', [inline])] }, [documentRead()]),
+    ).toMatchObject({
+      failure: { kind: 'unsupported', field },
+    })
+    expect(
+      sent(taking, { messages: [message('u1', 'user', [documentBlock('d1')])] }, []),
+    ).toMatchObject({
+      failure: { kind: 'unsupported', field },
+    })
+    const zip = { ...DOCUMENT, mediaType: 'application/zip' }
+    const zipping = testRecord({
+      wire: { ...testRecord().wire, file: { mediaTypes: ['application/zip'], maxBytes: 1024 } },
+    })
+    const messages = [message('u1', 'user', [textBlock('t1', 'unpack'), documentBlock('z1', zip)])]
+    const body = parsed(sent(zipping, { messages }, [documentRead(zip)]))
+    expect(partsOf(body)).toContainEqual({
+      type: 'file',
+      file: { filename: 'z1', file_data: `data:application/zip;base64,${DATA}` },
+    })
   })
 
   it('words kept apart are read back and written as words on any record, with no file and no parsing', () => {

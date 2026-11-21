@@ -247,7 +247,7 @@ export function sentFile(
   file: FileWire | undefined,
   view: MediaView,
 ): Readonly<{ mime: string; data: string; filename: string }> | null {
-  if (block.kind !== 'file' || !('ref' in block) || file === undefined) return null
+  if (!('ref' in block) || file === undefined) return null
   const found = view.read(block)
   if (found === null) return null
   const mime = found.mime ?? block.ref.mediaType
@@ -263,8 +263,7 @@ export function sentFile(
 
 /** Words a medium was made into and kept apart, read back as words; null for anything else. */
 export function sentWords(block: ContentBlock, view: MediaView): string | null {
-  if (block.kind !== 'file' || !('ref' in block) || block.ref.mediaType !== WORDS.prefix)
-    return null
+  if (!('ref' in block) || block.ref.mediaType !== WORDS.prefix) return null
   const found = view.read(block)
   return found === null ? null : Buffer.from(found.data, 'base64').toString('utf8')
 }
