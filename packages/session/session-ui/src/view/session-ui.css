@@ -131,7 +131,8 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
-  padding: 0 40px 32px;
+  /* conversation.css `.conversation-page`: 0 40 32 at the standard size, drawn at the size step. */
+  padding: 0 calc(var(--spacing) * 10) calc(var(--spacing) * 8);
 }
 /* The heading is 84 high at the standard size (`--spacing` is 4 there and moves with the size step, as the shell's
    rows do), over one hairline: the title in the reading face, the figure's seat beside it, and at the right only the
@@ -460,29 +461,36 @@
   font-size: var(--omne-text-caption);
   font-weight: var(--omne-weight-regular);
 }
+/* The reading column: at most 740 at the standard size, drawn at the size step, centred in what the side content
+   leaves (conversation.css `.conversation-main`). What leads it under the heading's hairline, when it is not the
+   transcript, stands as far below the line as the transcript's first row does. */
 .omne-session-main {
   display: flex;
   flex-direction: column;
   gap: var(--omne-space-inline);
   width: 100%;
-  max-width: 740px;
+  max-width: calc(var(--spacing) * 185);
   min-height: 0;
   margin: 0 auto;
-  padding-top: var(--omne-space-inline);
 }
-/* The page's one scrolling face; its scroller reaches out past the column by the bar's gutter, so rows land on the
-   column's edges where the composer stands (conversation.css `.conversation-transcript`). In a short window its
-   floor gives way first, so the waiting cards and the whole composer keep their room. */
+.omne-session-main > :first-child:not(.omne-conversation) {
+  margin-top: calc(var(--spacing) * 2);
+}
+/* The page's one scrolling face. Its scroller reaches out past the column by the bar's gutter and by the room a
+   hover fill and a focus ring need, and takes that room back as its padding, so rows land on the column's edges
+   where the composer stands (conversation.css `.conversation-transcript-frame`, `.conversation-transcript`: inset
+   6, top 8, bottom 24, floor 160, drawn at the size step). In a short window its floor gives way first, so the
+   waiting cards and the whole composer keep their room. */
 .omne-conversation {
   display: flex;
   flex-direction: column;
   flex: 1 1 0;
-  min-height: min(160px, 15dvh);
-  margin-inline: calc(-1 * var(--omne-scrollbar-size));
+  min-height: min(calc(var(--spacing) * 40), 15dvh);
+  margin-inline: calc(-1 * (var(--omne-scrollbar-size) + var(--spacing) * 1.5));
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable both-edges;
-  padding: 8px 0 24px;
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 1.5) calc(var(--spacing) * 6);
 }
 /* The cards above the composer give way before the composer does, and scroll inside themselves. The scroller reaches
    out past the column by the ring room and takes it back as its padding, so a raised control at a card's edge keeps
@@ -522,6 +530,12 @@
 /* A failed run's notice stands under its line and is never squeezed by the transcript's scrolling column. */
 .omne-waiting {
   flex-shrink: 0;
+}
+/* Only the sentence that states the failure is in its colour; what follows (how many are left, what to do) is in
+   the body's ink. The shared notice draws all of it in the tone's ink, as the source's does, so this is the
+   session's own rule. */
+.omne-waiting-body {
+  color: var(--omne-ink-primary);
 }
 /* What came of a retry that is not a failure (not known, not sent, refused): neutral ink inside the notice. */
 .omne-waiting-note {
@@ -632,15 +646,22 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
-/* A process line (run-line.tsx `RunLineRow` in the source): an icon, a name and a state word on one line, unfolding
-   in place under the name. The tool's name is mono; the lightest line (a reminder) has no icon and no word. */
+/* A process line (run-line.tsx in the source): the shared trace header on the column's own left edge, its label at
+   the interface size in weak ink, one line on a desk-sized window that wraps rather than being cut
+   (conversation.css `.conversation-run-line`). Machine strings in it are mono at the caption size, as the source's
+   tool names are (`font-mono text-xs`); the lightest line (a reminder) has no icon and no word. */
 .omne-process {
   min-width: 0;
 }
+.omne-process [data-trace-label] > span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .omne-process-label {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--omne-space-inline);
+  gap: 0 var(--omne-space-inline);
   min-width: 0;
 }
 .omne-process[data-weight='light'] .omne-process-label {
@@ -649,11 +670,16 @@
 }
 .omne-process-name {
   font-family: var(--omne-font-mono);
+  font-size: var(--omne-text-caption);
   font-weight: var(--omne-weight-regular);
 }
 .omne-process-word {
   color: var(--omne-ink-muted);
   font-weight: var(--omne-weight-regular);
+}
+/* What a line unfolds reads under its words, past the chevron; it never widens the column, whatever it holds. */
+.omne-process [data-expand-content] {
+  min-width: 0;
 }
 .omne-process-body {
   display: flex;
@@ -662,15 +688,45 @@
   min-width: 0;
   padding: var(--spacing) 0 var(--omne-space-inline) calc(var(--spacing) * 5.5);
 }
-/* Reasoning and a reminder's words: the reading face in weak ink, no bubble. */
+/* Reasoning: the reading face at the interface size in weak ink, no bubble, its own measure; headings inside it are
+   not raised (conversation.css `.conversation-run-reasoning`). */
 .omne-process-reading {
   min-width: 0;
+  max-width: 62ch;
   color: var(--omne-ink-muted);
   font-family: var(--omne-font-reading);
-  font-size: var(--omne-text-body);
+  font-size: var(--omne-text-ui);
   line-height: var(--omne-leading-reading);
   letter-spacing: var(--omne-reading-tracking);
   overflow-wrap: anywhere;
+}
+.omne-process-reading .omne-prose :is(h1, h2, h3, h4) {
+  margin-block: 1em 0.3em;
+  font-size: 1em;
+}
+/* A reminder unfolds into a few lines of name and value in weak ink, never the text it gave the model. */
+.omne-process-facts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-wrapped);
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+.omne-process-fact {
+  display: flex;
+  min-width: 0;
+}
+.omne-process-fact > .omne-process-term {
+  flex: none;
+  max-width: 50%;
+}
+.omne-process-fact > .omne-process-value {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .omne-process-term,
 .omne-process-value {

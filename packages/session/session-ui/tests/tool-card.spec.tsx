@@ -197,6 +197,55 @@ it('推理是一行过程行：图标、「推理」、状态词；展开是弱�
   expect(word(line(/推理/))?.getAttribute('data-state-word')).toBe('thinking')
 })
 
+const noteEntry = (entryId: string, kind: string, text: string): WireEntry =>
+  plainEntry(entryId, entryId, kind, {
+    kind,
+    message: {
+      id: `m${entryId}`,
+      role: 'system',
+      blocks: [{ kind: 'text', id: 'b', visibility, text }],
+    },
+  })
+
+it('系统提醒展开后是几行弱墨的「名：值」，不出给模型的原文；嵌套的值写一行摘要', () => {
+  const reminder = [
+    'Runtime context: the current values. They hold from here until a later runtime context reminder changes them.',
+    '<block key="session.model" revision="3">',
+    '"gpt-6"',
+    '</block>',
+    '<block key="workspace.root" revision="1">',
+    '{"files":3,"path":"/w"}',
+    '<previous>{"files":2,"path":"/w"}</previous>',
+    '</block>',
+  ].join('\n')
+  const items = itemsOf([
+    noteEntry('1', 'message.system_reminder', reminder),
+    noteEntry('2', 'message.tool_internal', '{"limit":20,"range":{"from":1}}'),
+  ])
+  const notes = items.filter(item => item.kind === 'note')
+  render(
+    <>
+      {notes.map(item => (
+        <ItemView key={item.key} item={item} />
+      ))}
+    </>,
+  )
+  const unfold = (name: RegExp) => {
+    const button = line(name)
+    fireEvent.click(button)
+    return document.getElementById(button.getAttribute('aria-controls') ?? '')!
+  }
+  const rows = (region: HTMLElement) =>
+    [...region.querySelectorAll('.omne-process-fact')].map(row => row.textContent)
+  const told = unfold(/系统提醒/)
+  expect(told.textContent).not.toMatch(/<block|<previous|Runtime context|"gpt-6"/)
+  expect(rows(told)).toEqual(['session.model：gpt-6', 'workspace.root：{"files":3,"path":"/w"}'])
+  expect(told.querySelector('[data-nested]')?.getAttribute('title')).toBe('{"files":3,"path":"/w"}')
+  const internal = unfold(/内部工具消息/)
+  expect(internal.textContent).not.toContain('{"limit":20')
+  expect(rows(internal)).toEqual(['limit：20', 'range：{"from":1}'])
+})
+
 it('系统提醒与内部工具消息：最轻的过程行，缺省收着，没有图标也没有状态词', () => {
   const items = itemsOf([
     userEntry('1', '1', '在吗', 'msg_a'),
