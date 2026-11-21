@@ -55,3 +55,21 @@ export {
   type Unread,
 } from './registry.ts'
 export { find, render, tree, type Problem, type Tree, type TreeNode } from './tree.ts'
+export {
+  admit,
+  complete,
+  drain,
+  finish,
+  lost,
+  noCalls,
+  reconcile,
+  record,
+  settled,
+  type Admitted,
+  type Call,
+  type DrainReport,
+  type Ledger,
+  type Moved,
+  type Reconciled,
+  type Withdrawn,
+} from './withdraw.ts'
