@@ -6,6 +6,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { SESSION_DOCK, SESSION_SIDE, sessionDock, sessionSide } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { assistantEntry, listed, listPage, page } from './fixtures/frames.ts'
+import { iconButton } from './fixtures/icon-button.ts'
 import { stubRoom } from './fixtures/room.ts'
 import { mountModule } from './fixtures/shell.tsx'
 
@@ -201,7 +202,9 @@ it('停靠时收起与展开：收起后整个侧边区藏起来不卸下，对�
   expect(control().getAttribute('aria-expanded')).toBe('true')
   expect(control().getAttribute('aria-controls')).toBe(panel()?.id)
   expect(folded()).toBe(false)
-  fireEvent.click(screen.getByRole('button', { name: '收起侧边区' }))
+  const fold = iconButton(panel()!, '收起侧边区', 'fold')
+  expect(fold.querySelector('[data-icon="fold"]')?.hasAttribute('data-icon-reversed')).toBe(true)
+  fireEvent.click(fold)
   expect(folded()).toBe(true)
   expect(screen.getByTestId('status')).toBeTruthy()
   expect(control().getAttribute('aria-expanded')).toBe('false')

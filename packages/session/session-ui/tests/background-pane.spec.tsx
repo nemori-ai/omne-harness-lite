@@ -12,6 +12,7 @@ import { BackgroundHint, BackgroundPane, SideWithBackground } from '../src/view/
 import './fixtures/dom.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { assistantEntry, listed, listPage, page } from './fixtures/frames.ts'
+import { iconButton } from './fixtures/icon-button.ts'
 import { stubRoom } from './fixtures/room.ts'
 import { mountModule } from './fixtures/shell.tsx'
 
@@ -179,8 +180,9 @@ describe('a call in 后台 is one process row (C26)', () => {
     const actions = (id: string) =>
       within(rowOf(id).querySelector<HTMLElement>('.omne-background-call-row')!)
         .getAllByRole('button')
-        .map(button => button.textContent)
+        .map(button => button.getAttribute('aria-label') ?? button.textContent)
     expect(actions('b1')).toEqual(['b1构建前端产物处理中', '停止'])
+    expect(iconButton(rowOf('b1'), '停止', 'stop').getAttribute('data-size')).toBe('icon-compact')
     expect(actions('b2')).toHaveLength(1)
     expect(actions('b3')).toHaveLength(1)
   })
@@ -191,15 +193,17 @@ describe('a call in 后台 is one process row (C26)', () => {
       [item('b1'), item('b2')],
       new Promise<string>(resolve => (answer = resolve)),
     )
-    const button = within(rowOf('b1')).getByRole('button', { name: '停止' })
+    const button = iconButton(rowOf('b1'), '停止', 'stop')
     fireEvent.click(button)
     expect(button.getAttribute('aria-busy')).toBe('true')
-    expect(button.querySelector('[data-loading-indicator]')).not.toBeNull()
+    expect(iconButton(rowOf('b1'), '停止', 'activity')).toBe(button)
+    expect(button.querySelector('[data-icon="stop"]')).toBeNull()
     fireEvent.click(button)
     expect(stop).toHaveBeenCalledTimes(1)
     expect(stop).toHaveBeenCalledWith('t', 's', expect.objectContaining({ id: 'b1' }))
     await act(async () => answer('停止没有送达：没有权限，或登录已失效。'))
     expect(button.getAttribute('aria-busy')).toBeNull()
+    expect(iconButton(rowOf('b1'), '停止', 'stop')).toBe(button)
     const said = rowOf('b1').querySelector('.omne-background-call-said')
     expect(said?.textContent).toBe('停止没有送达：没有权限，或登录已失效。')
     expect(said?.previousElementSibling?.className).toBe('omne-background-call-row')

@@ -1,5 +1,4 @@
 import {
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -8,6 +7,7 @@ import {
   DropdownMenuTrigger,
   IconButton,
   MoreIcon,
+  RetryIcon,
   Textarea,
   ValuePill,
 } from '@omne-harness/ui-kit'
@@ -525,9 +525,9 @@ function InputNote({
     <p className="omne-message-note" data-tone={failed ? 'danger' : undefined} role="status">
       {input.notice.text}
       {input.status === 'unknown' ? (
-        <Button variant="ghost" size="compact" onClick={onConfirm}>
-          再确认一次
-        </Button>
+        <IconButton label="再确认一次" size="icon-compact" onClick={onConfirm}>
+          <RetryIcon aria-hidden="true" />
+        </IconButton>
       ) : null}
     </p>
   )

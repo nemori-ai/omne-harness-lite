@@ -267,6 +267,16 @@ const HELPERS = `
     })
     button.click()
   }
+  // An icon button writes no words: it is found by its accessible name.
+  const byName = (selector, name) =>
+    [...document.querySelectorAll(selector)].find(element => element.getAttribute('aria-label') === name)
+  const pressNamed = async (selector, name) => {
+    const button = await wait('an enabled ' + name, () => {
+      const found = byName(selector, name)
+      return found && !found.disabled ? found : undefined
+    })
+    button.click()
+  }
   const signIn = async (mode, account) => {
     await wait('the login gate', () => document.querySelector('input[name=loginIdentifier]'))
     await press('button', mode)
@@ -386,7 +396,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     '发消息，看到流式回复',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'say hello')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     await wait('the reply', () => transcript().includes(${JSON.stringify(REPLY[0])}))
     return transcript().slice(-120)`,
   )
@@ -394,12 +404,12 @@ async function walk(browser, origin, proofs, elsewhere) {
     '再发一条，回复停在半路时停止这一轮',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'hold on')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     await wait('the held run', () => transcript().includes(${JSON.stringify(REPLY[1].slice(0, 8))}) && document.querySelector('button[data-action=stop]'))
-    await press('button', '停止')
-    const confirm = await wait('the stop to settle', () => byText('button', '再确认停止') ?? byText('button[type=submit]', '发送'))
-    if (confirm.textContent.trim() === '再确认停止') confirm.click()
-    await wait('the send button back', () => byText('button[type=submit]', '发送'))
+    await pressNamed('.omne-composer button', '停止')
+    const confirm = await wait('the stop to settle', () => byName('.omne-composer button', '再确认停止') ?? byName('button[type=submit]', '发送'))
+    if (confirm.getAttribute('aria-label') === '再确认停止') confirm.click()
+    await wait('the send button back', () => byName('button[type=submit]', '发送'))
     return 'stopped'`,
   )
   releaseHeld()
@@ -407,7 +417,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     '停止之后再发一条',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'once more')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     await wait('the third reply', () => transcript().includes(${JSON.stringify(REPLY[2])}))
     return transcript().slice(-120)`,
   )
@@ -694,7 +704,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     await press('button', '新建会话')
     const box = await wait('the composer', () => document.querySelector('textarea[aria-label="输入消息"]'))
     fill(box, 'this one will fail')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     const notice = await wait('the failure notice', () => document.querySelector('section.omne-waiting[aria-label="这一轮失败了"]'))
     await wait('the cause and the pending count', () => notice.innerText.includes('模型没有给出有效的回复。') && /还有 [1-9][0-9]* 条消息没有处理/.test(notice.innerText))
     await wait('the retry button', () => byText('section.omne-waiting button', '重试'))
@@ -713,10 +723,10 @@ async function walk(browser, origin, proofs, elsewhere) {
     '工具调用是一行过程行，展开后参数是人读的名与值',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'run the tool')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     const live = () => [...document.querySelectorAll('section[data-page=conversation] .omne-process')].find(item => item.querySelector('code.omne-process-name')?.textContent === 'Shell')
     await wait('the tool call line', live)
-    await wait('the run to settle', () => transcript().includes('done') && byText('button[type=submit]', '发送'))
+    await wait('the run to settle', () => transcript().includes('done') && byName('button[type=submit]', '发送'))
     const trigger = await wait('the line trigger', () => live().querySelector('button[aria-expanded]'))
     if (trigger.getAttribute('aria-expanded') === 'false') trigger.click()
     await wait('the line open', () => live().querySelector('button[aria-expanded=true]'))
@@ -743,10 +753,10 @@ async function walk(browser, origin, proofs, elsewhere) {
     if (before <= 32) throw new Error('the open line does not push the end out of view, so this step cannot tell: gap ' + before)
     scroller.dispatchEvent(new Event('scroll'))
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'one more message')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     await wait('the message in the transcript', () => transcript().includes('one more message'))
     await wait('the reply to the message', () =>
-      transcript().split('one more message').at(-1).includes('done') && byText('button[type=submit]', '发送'))
+      transcript().split('one more message').at(-1).includes('done') && byName('button[type=submit]', '发送'))
     await wait('the end of the transcript in view', () => gap() <= 32)
     return { before, after: gap() }`,
   )
@@ -758,7 +768,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     window.walkAskRow = document.querySelector('.omne-session-item[aria-current=true] .omne-session-item-title')?.textContent
     if (!window.walkAskRow) throw new Error('no session row is selected while the conversation shows')
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'ask me')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     const area = await wait('the cards of this session', () => dock())
     await wait('three numbers above the cards', () => marks(area).length === 3)
     const seen = []
@@ -853,7 +863,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     submit.click()
     await wait('the cards gone from the conversation', () => dock() === null)
     await wait('the reply after the answers', () => transcript().includes(${JSON.stringify(AFTER_ASK)}))
-    await wait('the run to settle', () => byText('button[type=submit]', '发送'))
+    await wait('the run to settle', () => byName('button[type=submit]', '发送'))
     await wait('the count gone', () =>
       document.querySelector('.shell-nav-link[data-page=decisions] .shell-nav-badge').textContent.trim() === '')
     await press('.shell-nav-link', '待你决定')
@@ -868,7 +878,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     '另一轮在「待你决定」页里答：对话页的卡随之收起，会话自己接着走完',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'ask once more')
-    await press('button[type=submit]', '发送')
+    await pressNamed('button[type=submit]', '发送')
     await wait('the card in the conversation', () => dock()?.querySelector('.hitl-card'))
     return 'asked'`,
     () => {

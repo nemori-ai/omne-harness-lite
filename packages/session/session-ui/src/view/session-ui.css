@@ -822,6 +822,3 @@
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
 }
-.omne-search-more {
-  align-self: flex-start;
-}

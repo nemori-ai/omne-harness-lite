@@ -23,9 +23,14 @@ import {
   toolResultEntry,
   userEntry,
 } from './fixtures/frames.ts'
+import { iconButton } from './fixtures/icon-button.ts'
+import { stubInView } from './fixtures/in-view.ts'
 import { mountModule } from './fixtures/shell.tsx'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -296,15 +301,22 @@ describe('the search page', () => {
     const detail = within(end).getByRole('button', { name: '详情' })
     expect(detail.getAttribute('aria-expanded')).toBe('false')
     expect(end.textContent).toContain('索引建到 1/3')
-    fireEvent.click(within(end).getByRole('button', { name: '接着搜' }))
+    const goOn = iconButton(end, '接着搜', 'retry')
+    expect(goOn.previousElementSibling?.previousElementSibling?.className).toBe('omne-search-note')
+    fireEvent.click(goOn)
     await settle()
     expect(search.mock.calls[1]![0]).toMatchObject({ cursor: 'c-2' })
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
     expect(document.querySelector('.omne-search-end')).toBeNull()
   })
 
-  it('asks by pattern, for the person only and with case when the switches say so; more when through', async () => {
-    const { ask, search } = shown([found([]), found([], { next: 'c', complete: true })])
+  it('asks by pattern, for the person only and with case when the switches say so; reads on when through', async () => {
+    const view = stubInView()
+    const { ask, search } = shown([
+      found([]),
+      found([hit('1')], { next: 'c', complete: true }),
+      found([hit('2')]),
+    ])
     fireEvent.click(screen.getByRole('button', { name: '正则' }))
     expect(screen.getByLabelText('要找的词或正则').getAttribute('placeholder')).toBe('一条正则')
     fireEvent.click(screen.getByRole('checkbox', { name: '只看我说的' }))
@@ -315,8 +327,37 @@ describe('the search page', () => {
       kinds: ['message.user'],
     })
     await ask('a+b')
-    expect(screen.getByRole('button', { name: '更多' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '更多' })).toBeNull()
     expect(screen.queryByRole('button', { name: '接着搜' })).toBeNull()
+    act(() => view.enter())
+    act(() => view.enter())
+    await settle()
+    expect(search).toHaveBeenCalledTimes(3)
+    expect(search.mock.calls[2]![0]).toMatchObject({
+      cursor: 'c',
+      content: { kind: 'regex', pattern: 'a+b', caseSensitive: true },
+    })
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    expect(view.watched()).toEqual([])
+    act(() => view.enter())
+    await settle()
+    expect(search).toHaveBeenCalledTimes(3)
+  })
+
+  it('reading on that is refused says so under the field, keeps what was found, and reads no more', async () => {
+    const view = stubInView()
+    const { ask, search } = shown([found([hit('1')], { next: 'c' }), { outcome: 'denied' }])
+    await ask('受理')
+    act(() => view.enter())
+    await settle()
+    expect(search).toHaveBeenCalledTimes(2)
+    expect(screen.getByText(refusalText({ outcome: 'denied' } as never))).toBeTruthy()
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: /更多|接着搜|重试/u })).toBeNull()
+    expect(view.watched()).toEqual([])
+    act(() => view.enter())
+    await settle()
+    expect(search).toHaveBeenCalledTimes(2)
   })
 
   it('keeps every change of the form when two of them come in one task', async () => {

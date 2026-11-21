@@ -1,5 +1,12 @@
 import type { AttachedEntry } from '@omne-harness/shell-contract'
-import { Button, focusSurface, InkBubble, Segmented, type Box } from '@omne-harness/ui-kit'
+import {
+  focusSurface,
+  FoldIcon,
+  IconButton,
+  InkBubble,
+  Segmented,
+  type Box,
+} from '@omne-harness/ui-kit'
 import {
   useCallback,
   useContext,
@@ -64,9 +71,9 @@ export function SidePanel({ entries }: { readonly entries: readonly SideEntry[] 
           </h3>
         )}
         {docked && frame !== null ? (
-          <Button variant="ghost" onClick={() => frame.toggle(false)}>
-            收起侧边区
-          </Button>
+          <IconButton label="收起侧边区" tooltipSide="left" onClick={() => frame.toggle(false)}>
+            <FoldIcon aria-hidden="true" data-icon-reversed="" />
+          </IconButton>
         ) : null}
       </div>
       <div

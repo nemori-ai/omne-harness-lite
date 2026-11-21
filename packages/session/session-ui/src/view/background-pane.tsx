@@ -7,10 +7,12 @@ import {
   EmptyState,
   FactList,
   FactRow,
+  IconButton,
   InlineNotice,
   LoadingIndicator,
   LoadingState,
   StateWord,
+  StopIcon,
   type StateLabel,
 } from '@omne-harness/ui-kit'
 import {
@@ -96,10 +98,14 @@ function CallRow({
           <StateWord state={STATE_WORD[call.status]} />
         </DisclosureTrigger>
         {stoppable ? (
-          <Button variant="ghost" size="compact" aria-busy={stopping || undefined} onClick={stop}>
-            {stopping ? <LoadingIndicator size="sm" /> : null}
-            停止
-          </Button>
+          <IconButton
+            label="停止"
+            size="icon-compact"
+            aria-busy={stopping || undefined}
+            onClick={stop}
+          >
+            {stopping ? <LoadingIndicator size="sm" /> : <StopIcon aria-hidden="true" />}
+          </IconButton>
         ) : null}
       </div>
       {said === null ? null : (
