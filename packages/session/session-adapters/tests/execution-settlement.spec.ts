@@ -1,17 +1,24 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   decodeActionId,
+  decodeAgentExecutionId,
   type AgentJournal,
   type AgentOperationId,
   type AgentReceivedCommits,
   type FailureCandidate,
   type FinishIntent,
   type Material,
+  type ModelReceptionTargets,
   type PendingCall,
   type ReceivedEntry,
+  type ToolReceptionTargets,
 } from '@omne-harness/agent-contract'
 import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
-import { agentReceivedCommitsKey } from '@omne-harness/agent-cordis-contract/cordis'
+import {
+  agentModelReceptionTargetsKey,
+  agentReceivedCommitsKey,
+  agentToolReceptionTargetsKey,
+} from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -904,6 +911,44 @@ describe('the Session acknowledges an execution once it has received all of it',
   })
 })
 
+describe('a delivery pushed to the consumption position of a settled execution', () => {
+  it('resolves to the settlement, whose evidence is the receipt on the tombstone, for a Model and a Tool call alike; an execution no Run started is still refused', async () => {
+    const s = await scene('settled-targets')
+    const f = await interpreting(s)
+    await endWithFailure(s, f.c.journal(), refusedByModel())
+    await f.interpret()
+    await settled(s)
+    const receipt = JSON.parse(
+      String(
+        s.controls?.select(`SELECT receipt FROM er_execution WHERE execution = '${s.execution}'`)
+          .rows[0]?.[0],
+      ),
+    ) as unknown
+    const models = f.c.ctx.get(agentModelReceptionTargetsKey) as ModelReceptionTargets<string>
+    const tools = f.c.ctx.get(agentToolReceptionTargetsKey) as ToolReceptionTargets<string>
+    const model = sampleReceivedModelResult(s.access.tenant, 'settled')
+    if (model.delivery.producer !== 'model') throw new Error('fixture: a Model result')
+    const tool = toolCall(s.access.tenant, 'settled')
+    const asked = {
+      access: s.access,
+      consumer: { ...model.consumer, work: s.execution },
+      execution: s.execution,
+    }
+    const answer = { ok: { kind: 'settled', evidence: receipt } }
+    expect(await models.resolve({ ...asked, reference: model.delivery.key.reference })).toEqual(
+      answer,
+    )
+    expect(await tools.resolve({ ...asked, reference: tool.pending.reference })).toEqual(answer)
+    const never = ok(decodeAgentExecutionId('never-started'))
+    expect(
+      await models.resolve({ ...asked, execution: never, reference: model.delivery.key.reference }),
+    ).toMatchObject({ failure: { kind: 'denied' } })
+    expect(
+      await tools.resolve({ ...asked, execution: never, reference: tool.pending.reference }),
+    ).toMatchObject({ failure: { kind: 'denied' } })
+  })
+})
+
 describe('an Agent event that registers a call and processes its result kept before that event', () => {
   it.each(['tool', 'model'] as const)(
     'a %s call: the interpretation commits the binding first without moving its position, the entries consumption writes the delivery, then the rest of the event commits; the execution settles',
@@ -923,6 +968,7 @@ describe('an Agent event that registers a call and processes its result kept bef
       expect(order.bound).toBeGreaterThanOrEqual(0)
       expect(order.bound).toBeLessThan(order.delivered)
       expect(order.delivered).toBeLessThan(order.processed)
+      expect(order.entries.filter(entry => entry.kind === 'call.bound')).toHaveLength(1)
       expect(order.entries.map(entry => entry.kind)).toContain('run.terminal')
     },
   )
@@ -968,6 +1014,11 @@ describe('an Agent event that registers a call and processes its result kept bef
     expect(associated).toBeGreaterThan(order.bound)
     expect(associated).toBeLessThan(order.delivered)
     expect(order.delivered).toBeLessThan(order.processed)
+    expect(
+      order.entries
+        .filter(entry => entry.kind === 'call.bound')
+        .map(entry => entry.body['association'] !== null),
+    ).toEqual([false, true])
   })
 
   it('the binding part whose reply is lost is sent again under its own operation and recalled; a restarted interpretation finds the binding in the session and does not send it again', async () => {
@@ -1013,13 +1064,12 @@ describe('an Agent event that registers a call and processes its result kept bef
     const order = callOrder(s)
     expect(order.bound).toBeLessThan(order.delivered)
     expect(order.delivered).toBeLessThan(order.processed)
-    expect(
-      order.entries.slice(0, order.delivered).filter(entry => entry.kind === 'call.bound'),
-    ).toHaveLength(1)
+    expect(order.entries.filter(entry => entry.kind === 'call.bound')).toHaveLength(1)
     const whole = sent.find(observation =>
       observation.consequences.some(item => item.kind === 'producer'),
     )
     expect(whole?.sequence).not.toBeNull()
+    expect(whole?.consequences.map(item => item.kind)).toEqual(['producer'])
     expect(whole?.operation).not.toBe(bindings[0]!.operation)
   })
 })

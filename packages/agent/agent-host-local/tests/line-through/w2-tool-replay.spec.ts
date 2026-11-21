@@ -3,7 +3,7 @@ import { expect, it } from 'vitest'
 import { ok } from './world.ts'
 import { openW2World, replyText, toolCallBlock } from './w2-world.ts'
 
-it('refuses a saved Tool result pushed again for its settled execution, and keeps it out of the next Run', async () => {
+it('answers saved to a Tool result pushed again for its settled execution, and keeps it out of the next Run', async () => {
   const release = Promise.withResolvers<void>()
   const w = await openW2World({
     reception: 'routed',
@@ -36,7 +36,7 @@ it('refuses a saved Tool result pushed again for its settled execution, and keep
       delivery,
       signal: new AbortController().signal,
     })
-    expect(again).toEqual({ failure: { kind: 'denied' } })
+    expect(again).toEqual({ ok: { key: delivery.key, evidence: expect.any(Object) } })
     expect(await w.settled(first.execution)).toBe(true)
     const during = ok(await w.probeEntries.read({ ...secondAccess, after: null, limit: 100 }))
     expect(during.caughtUp).toBe(true)

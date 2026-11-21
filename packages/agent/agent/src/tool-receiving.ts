@@ -7,6 +7,7 @@ import {
   type AgentOperationId,
   type Failure,
   type ReceivedCommitValue,
+  type ReceptionSettled,
   type Reply,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -156,7 +157,7 @@ export function createAgentToolReceiver<P>(
   async function admit(
     access: Access<P>,
     value: ToolDelivery<ContentBlock>,
-  ): Promise<Outcome<ToolReceptionTarget, ToolDeliveryFailure>> {
+  ): Promise<Outcome<ToolReceptionTarget | ReceptionSettled, ToolDeliveryFailure>> {
     let resolved
     try {
       resolved = await dependencies.targets.resolve(targetQuery(access, value))
@@ -170,6 +171,7 @@ export function createAgentToolReceiver<P>(
           : { kind: 'unavailable', dependency: 'association' },
       )
     if (resolved.ok === null) return invalid('key.reference', 'not-accepted')
+    if ('kind' in resolved.ok) return succeed(resolved.ok)
     const target = structuredClone(resolved.ok)
     let allowed
     try {
@@ -261,7 +263,7 @@ export function createAgentToolReceiver<P>(
   async function admitPush(
     access: Access<P>,
     value: ToolDelivery<ContentBlock>,
-  ): Promise<Outcome<ToolReceptionTarget, ToolDeliveryFailure>> {
+  ): Promise<Outcome<ToolReceptionTarget | ReceptionSettled, ToolDeliveryFailure>> {
     if (!tenantCodec.encode(access.tenant).ok) return fail({ kind: 'denied' })
     const ref = resolveToolInvocationRef(value.key.reference, access.tenant)
     if ('failure' in ref)
@@ -361,6 +363,8 @@ export function createAgentToolReceiver<P>(
       value = structuredClone(input.delivery)
     const admitted = await admitPush(access, value)
     if ('failure' in admitted) return admitted
+    if ('kind' in admitted.ok)
+      return succeed(structuredClone({ key: value.key, evidence: admitted.ok.evidence }))
     const key = keyOf(access, value),
       tenant = tenantKey(access)
     let current = state.receptions.get(key)

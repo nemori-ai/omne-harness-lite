@@ -75,22 +75,42 @@ function sessionCommitsOffBound(rounds: readonly RoundCount[]): string[] {
   })
 }
 
-function commitsGrowing(early: readonly RoundCount[], late: readonly RoundCount[]): string[] {
-  const participants = new Set(
-    [...early, ...late].flatMap(count => Object.keys(count.storageCommits)),
-  )
-  return [...participants]
-    .filter(participant => !SESSION_COMMITS.includes(participant))
-    .flatMap(participant => {
-      const commits = (count: RoundCount) => count.storageCommits[participant] ?? 0
-      const highestEarly = Math.max(...early.map(commits))
-      const lowestLate = Math.min(...late.map(commits))
-      return lowestLate > highestEarly
-        ? [
-            `storageCommits.${participant}: every late round above the early highest ${String(highestEarly)}, the late lowest ${String(lowestLate)}`,
-          ]
-        : []
-    })
+const SHIFTING_READS: readonly string[] = ['session.calls-left', 'execution-record.items']
+
+type Shifting = Readonly<{ name: string; of: (count: RoundCount) => number }>
+
+function shiftingCounts(rounds: readonly RoundCount[]): Shifting[] {
+  const participants = new Set(rounds.flatMap(count => Object.keys(count.storageCommits)))
+  return [
+    ...[...participants]
+      .filter(participant => !SESSION_COMMITS.includes(participant))
+      .map(participant => ({
+        name: `storageCommits.${participant}`,
+        of: (count: RoundCount) => count.storageCommits[participant] ?? 0,
+      })),
+    ...SHIFTING_READS.flatMap(handler => [
+      {
+        name: `storageReads.${handler}`,
+        of: (count: RoundCount) => count.storageReads[handler] ?? 0,
+      },
+      {
+        name: `storageReadRows.${handler}`,
+        of: (count: RoundCount) => count.storageReadRows[handler] ?? 0,
+      },
+    ]),
+  ]
+}
+
+function shiftingGrows(early: readonly RoundCount[], late: readonly RoundCount[]): string[] {
+  return shiftingCounts([...early, ...late]).flatMap(({ name, of }) => {
+    const highestEarly = Math.max(...early.map(of))
+    const lowestLate = Math.min(...late.map(of))
+    return lowestLate > highestEarly
+      ? [
+          `${name}: every late round above the early highest ${String(highestEarly)}, the late lowest ${String(lowestLate)}`,
+        ]
+      : []
+  })
 }
 
 const earlyOf = (completed: readonly RoundCount[]) =>
@@ -113,7 +133,9 @@ const TIMED_HANDLERS: readonly string[] = [
 
 const untimed = (counts: Readonly<Record<string, number>>): Record<string, number> =>
   Object.fromEntries(
-    Object.entries(counts).filter(([handler]) => !TIMED_HANDLERS.includes(handler)),
+    Object.entries(counts).filter(
+      ([handler]) => !TIMED_HANDLERS.includes(handler) && !SHIFTING_READS.includes(handler),
+    ),
   )
 
 function timedOf(count: RoundCount): Record<string, number> {
@@ -319,7 +341,7 @@ describe('J6: fixed round counts', () => {
       expect(partsOverBound('plain', completed, w.counters.partsRounds)).toEqual([])
       expect(timedGrowthOf('plain', completed)).toEqual({ growing: [], controlMissed: [] })
       expect(sessionCommitsOffBound(windowsOf(completed))).toEqual([])
-      expect(commitsGrowing(earlyOf(completed), lateOf(completed))).toEqual([])
+      expect(shiftingGrows(earlyOf(completed), lateOf(completed))).toEqual([])
       expect(lateOf(completed).map(stable)).toEqual(earlyOf(completed).map(stable))
     },
   )
@@ -346,7 +368,7 @@ describe('J6: fixed round counts', () => {
       expect(partsOverBound('tool', completed, w.counters.partsRounds)).toEqual([])
       expect(timedGrowthOf('tool', completed)).toEqual({ growing: [], controlMissed: [] })
       expect(sessionCommitsOffBound(windowsOf(completed))).toEqual([])
-      expect(commitsGrowing(earlyOf(completed), lateOf(completed))).toEqual([])
+      expect(shiftingGrows(earlyOf(completed), lateOf(completed))).toEqual([])
       expect(lateOf(completed).map(stable)).toEqual(earlyOf(completed).map(stable))
     },
   )

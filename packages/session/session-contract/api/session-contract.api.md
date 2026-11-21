@@ -45,6 +45,7 @@
 - `ClockSample` · `values.d.ts`
 - `CommitReceipt` · `faces.d.ts`
 - `CommittedBatch` · `judgments.d.ts`
+- `CommittedBinding` · `committed-bindings.d.ts`
 - `CompactionCommitState` · `compaction-commit.d.ts`
 - `CompactionContextRead` · `faces.d.ts`
 - `Completion` · `faces.d.ts`
@@ -327,6 +328,7 @@
 - `batchEvidence` · `batch-evidence.d.ts`
 - `bindingOf` · `call-settlement.d.ts`
 - `boundCall` · `call-settlement.d.ts`
+- `boundConsumptions` · `committed-bindings.d.ts`
 - `budgetTermsOf` · `input-sources.d.ts`
 - `callKeysIn` · `call-settlement.d.ts`
 - `callKeysOutside` · `call-settlement.d.ts`
@@ -336,6 +338,7 @@
 - `commandDigest` · `decide.d.ts`
 - `commandInput` · `input-sources.d.ts`
 - `commitWithinBudget` · `input-sources.d.ts`
+- `committedBindings` · `committed-bindings.d.ts`
 - `compactionCallChangeOf` · `work-entry-state.d.ts`
 - `compactionContextForView` · `model-view.d.ts`
 - `consumptionIdOf` · `decide-results.d.ts`
@@ -425,6 +428,7 @@
 - `waitingCalls` · `intake-reads.d.ts`
 - `wakingInputs` · `intake.d.ts`
 - `withIntakeTerms` · `input-sources.d.ts`
+- `withoutCommitted` · `committed-bindings.d.ts`
 - `workspaceSelection` · `workspace-selection.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
@@ -1029,6 +1033,20 @@ export type SessionCallWait = Readonly<{
     consumption: ConsumptionId;
     position: string;
 }>;
+```
+
+## 声明文件 `committed-bindings.d.ts`
+
+```ts
+import type { ConsumptionId } from './identity.ts';
+import type { WorkSnapshot } from './values.ts';
+export type CommittedBinding = Readonly<{
+    kind: 'call-registration' | 'call-association';
+    consumption: ConsumptionId;
+}>;
+export declare function boundConsumptions(snapshot: Pick<WorkSnapshot, 'callRegistrations'>, consumptions: Iterable<ConsumptionId>): ConsumptionId[];
+export declare function committedBindings(bound: Iterable<ConsumptionId>): CommittedBinding[];
+export declare function withoutCommitted<T>(items: readonly T[], committed: readonly CommittedBinding[], kindOf: (item: T) => string): T[];
 ```
 
 ## 声明文件 `compaction-commit.d.ts`
@@ -2579,6 +2597,8 @@ export type { InitializationRegistration } from './initialization-registration.t
 export type { InitializationRequirement } from './initialization-requirements.ts';
 export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, InputAdmissionMember, ExecutionHistoryBoundary, SessionFactBoundary, SessionBatchRecord, SessionAttemptRecord, SessionTakenRecord, SessionHistoryReads, SessionInputScope, InputAdmissionPage, SessionInputAdmission, SessionExecutionPrefix, SessionPrefixFact, SessionUninterpretedCall, } from './history-values.ts';
 export { uninterpretedCalls } from './uninterpreted-calls.ts';
+export { boundConsumptions, committedBindings, withoutCommitted } from './committed-bindings.ts';
+export type { CommittedBinding } from './committed-bindings.ts';
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
 export { bindingOf, boundCall, callKeysIn, callKeysOutside, callWithLate, lendCalls, type SessionCallBinding, type SessionCall, type SessionCallKeys, type SessionLateCallFact, type SettledCallLookup, } from './call-settlement.ts';
 export { readCallRegistration } from './call-registration.ts';
@@ -4001,8 +4021,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:6c447882605c138b9312d156e2a0f489d07af870df5d2bf33557b309debb8f90";
-export declare const SESSION_RELEASE_DIGEST = "sha256:6c447882605c138b9312d156e2a0f489d07af870df5d2bf33557b309debb8f90";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:449379688120e46448ea892460ca51e71c10f3998c74cc50c759a74eb2db0666";
+export declare const SESSION_RELEASE_DIGEST = "sha256:449379688120e46448ea892460ca51e71c10f3998c74cc50c759a74eb2db0666";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

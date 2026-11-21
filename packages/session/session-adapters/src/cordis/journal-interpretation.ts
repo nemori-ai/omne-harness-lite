@@ -9,10 +9,14 @@ import type {
 import { agentJournalEntriesKey, agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { committedBindings, withoutCommitted } from '@omne-harness/session-contract'
 import type {
+  ConsumptionId,
+  ProducerRef,
   Reply,
   RunId,
   SessionAccess,
+  SessionCallBinding,
   SessionFailure,
   SessionId,
   SessionLogCommitObservation,
@@ -85,6 +89,7 @@ type Ports<P> = ReceivedAllPorts<P> &
       target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
     ): Promise<InterpretationRead>
     entries: AgentJournalEntries<P>['read']
+    readCall(access: SessionAccess<P>, producer: ProducerRef): Reply<SessionCallBinding | null>
     commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
     interpreted(target: JournalInterpretationTarget): void
     stopped(): boolean
@@ -127,8 +132,13 @@ function operationOf(
   return `ad02_${digest}` as SessionOperationId
 }
 
+const isBinding = (
+  item: SessionLogConsequence,
+): item is Extract<SessionLogConsequence, { kind: 'call-registration' | 'call-association' }> =>
+  item.kind === 'call-registration' || item.kind === 'call-association'
+
 function unbound(work: WorkSnapshot, item: SessionLogConsequence): boolean {
-  if (item.kind !== 'call-registration' && item.kind !== 'call-association') return false
+  if (!isBinding(item)) return false
   const held = work.callRegistrations?.find(record => record.consumption === item.consumption)
   return item.kind === 'call-registration'
     ? held === undefined
@@ -190,6 +200,21 @@ function createJournalInterpretation<P>(
     return succeed(false)
   }
 
+  async function boundIn(
+    access: SessionAccess<P>,
+    consequences: readonly SessionLogConsequence[],
+  ): Promise<Answer<ConsumptionId[]>> {
+    if (!consequences.some(isBinding)) return succeed([])
+    const bound: ConsumptionId[] = []
+    for (const item of consequences) {
+      if (item.kind !== 'producer') continue
+      const call = await ports.readCall(access, item.binding.producer)
+      if ('failure' in call) return call
+      if (call.ok?.consumption === item.consumption) bound.push(item.consumption)
+    }
+    return succeed(bound)
+  }
+
   async function round(
     access: SessionAccess<P>,
     tenantText: string,
@@ -213,9 +238,12 @@ function createJournalInterpretation<P>(
       if (event.consequences?.every(item => item.kind === 'observed') === true) continue
       const awaits = await awaitsDelivery(access, work.ok, progress.run, target.execution, event)
       if ('failure' in awaits) return awaits
+      const all = event.consequences ?? []
+      const bound = awaits.ok ? succeed([]) : await boundIn(access, all)
+      if ('failure' in bound) return bound
       const consequences = awaits.ok
-        ? (event.consequences ?? []).filter(item => unbound(work.ok, item))
-        : (event.consequences ?? [])
+        ? all.filter(item => unbound(work.ok, item))
+        : withoutCommitted(all, committedBindings(bound.ok), item => item.kind)
       if (awaits.ok && consequences.length === 0)
         return succeed({ readThrough, committed: sent.count, waiting: 0 })
       const value = {
@@ -319,6 +347,7 @@ export function createSessionJournalInterpretationPlugin<P>(
         const warn = (line: string) => logger.warn(line)
         const interpret = createJournalInterpretation<P>(input, {
           readWork: access => session.work.readWork(access),
+          readCall: (access, producer) => session.work.readCall({ ...access, producer }),
           read: target => readExecutionInterpretation({ storage, tenantDomainLookup }, target),
           entries: value => entries.read(value),
           commitLog: value =>
