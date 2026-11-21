@@ -169,6 +169,46 @@ describe('read-history', () => {
       expect(third).toEqual({ tenant: tenantText, session: sessionId, cursor: 'cursor-2' })
     })
 
+    it('asks for the prefix of a forked session with --inherited, and says whose entries follow', async () => {
+      const inherited = { ...page([history.user], 'cursor-1'), from: 'source-session-0001' }
+      const service = await serve(historyService([inherited, page([history.call], null)]))
+      await loginOwningSession(service)
+      const text = await cli(['read-history', '--session', sessionId, '--inherited'])
+      expect(text.code).toBe(0)
+      expect(bodyOf(reads(service)[0])).toEqual({
+        tenant: tenantText,
+        session: sessionId,
+        cursor: null,
+        direction: 'forward',
+        pageBytes: '65536',
+        inherited: true,
+      })
+      expect(bodyOf(reads(service)[1])).toEqual({
+        tenant: tenantText,
+        session: sessionId,
+        cursor: 'cursor-1',
+      })
+      const lines = text.stdout.split('\n')
+      expect(lines[0]).toBe('--- inherited: session source-session-0001 ---')
+      expect(lines[1]).toMatch(/^#1 message\.user: /u)
+      expect(lines).toContain('--- this session ---')
+      expect(lines.indexOf('--- this session ---')).toBeLessThan(
+        lines.findIndex(line => line.startsWith('#3 ')),
+      )
+      const json = await cli(['read-history', '--session', sessionId, '--inherited', '--json'])
+      const printed = JSON.parse(json.stdout) as { body: { entries: Record<string, unknown>[] } }
+      expect(printed.body.entries[0]).toMatchObject({ inheritedFrom: 'source-session-0001' })
+      expect(printed.body.entries[1]).not.toHaveProperty('inheritedFrom')
+    })
+
+    it('prints no line about a source for a history read without --inherited', async () => {
+      const service = await serve(historyService([page([history.user, history.call], null)]))
+      await loginOwningSession(service)
+      const text = await cli(['read-history', '--session', sessionId])
+      expect(text.stdout).not.toContain('---')
+      expect(bodyOf(reads(service)[0])).not.toHaveProperty('inherited')
+    })
+
     it('uses the cursor of each page as given, and a fresh messageId for each request', async () => {
       const service = await serve(historyService(pages))
       await loginOwningSession(service)

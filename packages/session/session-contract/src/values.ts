@@ -256,6 +256,7 @@ export type SessionCreation = Readonly<{
   initialization?: InitializationSources
   relation?: Relation
   attendance?: Attendance
+  fork?: import('./fork.ts').SessionFork
 }>
 export type InitializationSource = Readonly<{
   item: string

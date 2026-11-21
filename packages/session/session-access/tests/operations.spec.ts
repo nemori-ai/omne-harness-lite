@@ -471,6 +471,34 @@ describe('read-history', () => {
     expect(next).toMatchObject({ body: { upper: '1' } })
   })
 
+  it('asks for the prefix of a forked session when the request does, and says whose entries a page holds', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.session.controls.addEntry(session as SessionId, {
+      id: 'e1',
+      kind: 'message.user',
+      payload: 'e1',
+    })
+    const asked = { ...first(session), inherited: true }
+    const page = await ops(world)['read-history'](as(login()), asked)
+    expect(page).toMatchObject({
+      outcome: 'succeeded',
+      body: { entries: [{ entryId: 'e1' }], from: 'source-session' },
+    })
+    expect(world.session.controls.calls()[1]?.input).toEqual({
+      kinds: ['message.user', 'message.assistant'],
+      pageBytes: 1024,
+      inherited: true,
+    })
+    const plain = await ops(world)['read-history'](as(login()), {
+      ...first(session),
+      inherited: false,
+    })
+    expect(plain).toMatchObject({ outcome: 'succeeded' })
+    expect((plain as { body: object }).body).not.toHaveProperty('from')
+    expect(world.session.controls.calls()[2]?.input).not.toHaveProperty('inherited')
+  })
+
   it('answers invalid to pageBytes over the deployment bound without calling Session', async () => {
     const world = createWorld({ maxPageBytes: 1000 })
     const session = await created(world)

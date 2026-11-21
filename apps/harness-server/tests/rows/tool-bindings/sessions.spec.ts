@@ -130,6 +130,21 @@ describe('the Sessions binding of the release', () => {
     })
   })
 
+  it('asks for the prefix of a forked session only when the call does, and hands on whose entries a page holds', async () => {
+    const page = { entries: [], next: 'k-2', exhausted: false, from: 'ses_parent' }
+    const begin = vi.fn(async (input: { inherited?: true }) => ({
+      ok: input.inherited === true ? page : { entries: [], next: null, exhausted: true },
+    }))
+    const { bound } = world({ begin })
+    const ask = { session: 'ses_b', cursor: null, direction: 'forward', pageBytes: 100 } as const
+    const plain = await bound.read(ask)
+    expect(begin.mock.calls[0]?.[0]).not.toHaveProperty('inherited')
+    expect(plain).toEqual({ ok: { entries: [], next: null, exhausted: true } })
+    const inherited = await bound.read({ ...ask, inherited: true })
+    expect(begin.mock.calls[1]?.[0]).toMatchObject({ inherited: true, direction: 'forward' })
+    expect(inherited).toEqual({ ok: page })
+  })
+
   it('narrows both lists by what the call gives, and gives each session what it is to others', async () => {
     const { bound, fns } = world()
     const given = {

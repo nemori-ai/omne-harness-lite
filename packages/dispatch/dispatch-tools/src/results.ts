@@ -42,11 +42,7 @@ const REFUSALS: Readonly<Record<Refusal, readonly [Kind, string]>> = {
   ],
   'context-unavailable': [
     'unsupported',
-    'the copy of this conversation that spawn hands over cannot be given now; use delegate and write the context into the instruction',
-  ],
-  'context-too-large': [
-    'capacity',
-    'this conversation is longer than spawn hands over; use delegate and write what the agent needs into the instruction',
+    'this conversation has no moment to fork at now; use delegate and write the context into the instruction',
   ],
   conflict: ['conflict', 'this call already asked for another dispatch'],
   'to-self': ['invalid', 'a message goes to another session, not to your own'],

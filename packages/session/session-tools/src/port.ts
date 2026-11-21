@@ -37,6 +37,8 @@ export type SessionsHistoryPage = Readonly<{
   entries: readonly SessionsEntry[]
   next: string | null
   exhausted: boolean
+  /** On a page of the conversation a forked session started from: the session those entries are of. */
+  from?: string
 }>
 export type SessionsHit = Readonly<{
   session: string
@@ -67,6 +69,8 @@ export type SessionsReadInput = Readonly<{
   cursor: string | null
   direction: 'forward' | 'backward'
   pageBytes: number
+  /** First the conversation a forked session started from. */
+  inherited?: true
 }>
 export type SessionsSearchInput = Readonly<{
   content:

@@ -2,7 +2,8 @@ import { z } from 'zod'
 import { blobDigest, canonicalText } from '../codec.ts'
 import { modelViewPrefix } from '../model-view-identity.ts'
 import { MAX_COMPACTION_ROWS, readCompactionWindow } from './compaction-window.ts'
-import { handler, oneRow, rowsOf, scopeOf, text } from './support.ts'
+import { viewOf } from './fork.ts'
+import { handler, oneRow, scopeOf, text } from './support.ts'
 
 const historyShape = z.object({
   epoch: z.string(),
@@ -33,12 +34,8 @@ export default handler('session.compaction-input-check', (raw, port) => {
   const current = readCompactionWindow(port, { ...scope, epoch, upper: null, coverTo: null })
   if (current.kind !== 'context') return { kind: 'unavailable' }
   const window = current.value
-  const stored = rowsOf(
-    port,
-    `SELECT entry, seq FROM sl_model_view
-    WHERE tenant = ? AND session = ? AND epoch = ? ORDER BY seq LIMIT ?`,
-    [scope.tenant, scope.session, epoch, BigInt(MAX_COMPACTION_ROWS + 1)],
-  )
+  const view = viewOf(port, scope, epoch)
+  const stored = view.rows(0n, view.upper(), MAX_COMPACTION_ROWS + 1, 'entry, seq')
   const rows = [...window.covered, ...window.after]
   const messages = new Map(
     rows.filter(row => row.message !== null).map(row => [String(row.ref), row.message]),

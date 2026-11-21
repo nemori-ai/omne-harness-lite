@@ -416,6 +416,7 @@ export declare const sessionProtocol: {
                         readonly revision: string;
                     }[];
                     readonly exhausted: boolean;
+                    readonly from?: string;
                     readonly next: string | null;
                     readonly scannedThrough: string;
                     readonly upper: string;
@@ -431,6 +432,7 @@ export declare const sessionProtocol: {
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly cursor: null;
                 readonly direction: "backward" | "forward";
+                readonly inherited?: boolean;
                 readonly pageBytes: string;
                 readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;

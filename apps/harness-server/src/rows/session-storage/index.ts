@@ -224,6 +224,7 @@ function unregisteredTenantIsAbsent<P>(
       next: guard('history.next', view.history.next),
       since: guard('history.since', view.history.since),
       readModelView: guard('history.readModelView', view.history.readModelView),
+      readForkPoint: guard('history.readModelView', view.history.readForkPoint),
       readCompactionContext: guard(
         'history.readCompactionContext',
         view.history.readCompactionContext,
