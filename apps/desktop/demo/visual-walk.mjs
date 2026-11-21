@@ -1,5 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { setTimeout as pause } from 'node:timers/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
@@ -73,6 +74,11 @@ const ACCOUNT = { loginIdentifier: 'visual', credential: 'visual-walk-pw-3b81' }
 const WAY_IN = windowOf('1440x900')
 /** How long a scene stays still after its animations ended, before the shot. */
 const SETTLE_MS = 600
+/**
+ * The ink a journey leaves on the seat it left dries on the ink's own clock (ui-kit `WRITE.leftDry`, 2200 ms), which
+ * `document.getAnimations()` does not see: after a step that can send the figure on a journey, wait it out.
+ */
+const INK_DRY_MS = 2400
 /** What the strong notification of the told note says: the reference's sentence (07-told-home), so the two compare. */
 const TOLD_TITLE = '时间到了：该给阳台的花浇水啦。'
 
@@ -599,9 +605,11 @@ async function shootScene(walk, scene, done) {
   if (windows.length === 0) return
   await apply(browser, { theme: themes[0], width: WAY_IN, size: 'medium' })
   await perform(walk, scene.act)
+  await pause(INK_DRY_MS)
   for (const combination of combinations(windows)) {
     await apply(browser, combination)
     await perform(walk, scene.each ?? (scene.specimen ? undefined : 'await rest()'))
+    if (scene.each !== undefined) await pause(INK_DRY_MS)
     const suffix = combination.size === 'medium' ? '' : `-${combination.size}`
     const file = join(
       shots,
