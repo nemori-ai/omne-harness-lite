@@ -146,6 +146,15 @@ export async function waitForExecutionChange<P>(input: WaitInput<P>): Promise<Wo
   }
   const run = async (): Promise<Woken> => {
     try {
+      if (input.waits.some(wait => wait.kind === 'human'))
+        tasks.push(
+          (async () => {
+            for await (const _ of ports.cards.changes({ ...access, signal: controller.signal })) {
+              if (!controller.signal.aborted) changed()
+              return
+            }
+          })().catch(() => undefined),
+        )
       const started = await start()
       if ('failure' in started) return started
       const from = started.ok

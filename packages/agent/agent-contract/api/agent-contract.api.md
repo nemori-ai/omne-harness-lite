@@ -3220,6 +3220,9 @@ export interface DecisionCards<P> {
             kind: 'pending';
         }>;
     }>[]>;
+    changes(input: Access<P> & Readonly<{
+        signal: AbortSignal;
+    }>): AsyncIterable<void>;
 }
 export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance';
 export type AdmissionDecision = Readonly<{

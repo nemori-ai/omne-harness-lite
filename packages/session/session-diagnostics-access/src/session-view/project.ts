@@ -22,7 +22,7 @@ import type {
   SessionToolCallDiagnostic,
 } from '../view-types.ts'
 import type { HistoryEntry } from '@omne-harness/session-contract'
-import type { DiagnosticPage, ToolLookup } from '@omne-harness/tool-contract'
+import type { DiagnosticPage, ToolStreamSelection } from '@omne-harness/tool-contract'
 import type { CallAccount, SourceAnswer } from './sources.ts'
 
 export const PROJECTED_KINDS: readonly string[] = Object.freeze([
@@ -295,7 +295,7 @@ export type ModelAnswers = Readonly<{
   dispatches: SourceAnswer<readonly DispatchRecord[]> | null
 }>
 export type ToolAnswers = Readonly<{
-  lookup: SourceAnswer<ToolLookup>
+  current: SourceAnswer<ToolStreamSelection>
   account: SourceAnswer<CallAccount>
   diagnostics: SourceAnswer<DiagnosticPage>
 }>
@@ -555,10 +555,9 @@ function accountViewOf(account: CallAccount): SessionCallAccountView {
   }
 }
 
-function toolStateOf(lookup: ToolAnswers['lookup']): SessionToolCallDiagnostic['state'] {
-  if (lookup.kind === 'gap') return unknown(lookup.reason)
-  if (lookup.value.kind === 'not-accepted') return unknown('not-accepted')
-  const { state } = lookup.value
+function toolStateOf(current: ToolAnswers['current']): SessionToolCallDiagnostic['state'] {
+  if (current.kind === 'gap') return unknown(current.reason)
+  const { state } = current.value
   const terminal = state.phase === 'settled' ? state.terminal : null
   return {
     kind: 'found',
@@ -594,24 +593,22 @@ function toolCallOf(
   facts: readonly SessionFactCount[],
 ): Projected<SessionToolCallDiagnostic> {
   const reference = call.reference ?? call.position
-  const lookup = answers?.lookup ?? { kind: 'gap', reason: 'not-recorded' }
+  const current = answers?.current ?? { kind: 'gap', reason: 'not-recorded' }
   const account = answers?.account ?? { kind: 'gap', reason: 'not-recorded' }
   const diagnostics = toolDiagnosticsOf(
     reference,
     answers?.diagnostics ?? { kind: 'gap', reason: 'not-recorded' },
   )
   const gaps: SessionDiagnosticGap[] = []
-  if (lookup.kind === 'gap')
-    gaps.push({ source: 'tool', subject: reference, reason: lookup.reason })
-  else if (lookup.value.kind === 'not-accepted')
-    gaps.push({ source: 'tool', subject: reference, reason: 'not-accepted' })
+  if (current.kind === 'gap')
+    gaps.push({ source: 'tool', subject: reference, reason: current.reason })
   if (account.kind === 'gap')
     gaps.push({ source: 'tool', subject: reference, reason: account.reason })
   gaps.push(...diagnostics.gaps)
   return {
     value: {
       reference,
-      state: toolStateOf(lookup),
+      state: toolStateOf(current),
       account: account.kind === 'gap' ? unknown(account.reason) : accountViewOf(account.value),
       facts,
       diagnostics: diagnostics.value,

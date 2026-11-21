@@ -58,8 +58,7 @@ function present<T>(service: T | undefined, name: string): T {
 function diagnosticPorts(ctx: Context): DiagnosticPorts<Principal> {
   const calls = () => present(ctx.get(modelRuntimeKey), 'modelRuntime').calls
   const attempts = () => present(ctx.get(modelDiagnosticsKey), 'modelDiagnostics')
-  const tools = () =>
-    present(ctx.get(toolRuntimeKey) as ToolRuntime | undefined, 'toolRuntime').queries
+  const tools = () => present(ctx.get(toolRuntimeKey) as ToolRuntime | undefined, 'toolRuntime')
   return {
     modelCalls: {
       inspect: input => calls().inspect(input),
@@ -67,9 +66,9 @@ function diagnosticPorts(ctx: Context): DiagnosticPorts<Principal> {
     },
     modelDiagnostics: { list: input => attempts().list(input) },
     toolQueries: {
-      lookup: input => tools().lookup(input),
-      account: input => tools().account(input),
-      readDiagnostics: input => tools().readDiagnostics(input),
+      current: input => tools().instances.current(input),
+      account: input => tools().queries.account(input),
+      readDiagnostics: input => tools().queries.readDiagnostics(input),
     },
   }
 }

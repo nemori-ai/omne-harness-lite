@@ -14,12 +14,14 @@ class DecisionCardsImpl extends DecisionCardsService<unknown> {
   readonly lookup: DecisionCards<unknown>['lookup']
   readonly read: DecisionCards<unknown>['read']
   readonly invalidate: DecisionCards<unknown>['invalidate']
+  readonly changes: DecisionCards<unknown>['changes']
   constructor(ctx: Context, delegate: DecisionCards<unknown>) {
     super(ctx)
     this.present = input => delegate.present(input)
     this.lookup = input => delegate.lookup(input)
     this.read = input => delegate.read(input)
     this.invalidate = input => delegate.invalidate(input)
+    this.changes = input => delegate.changes(input)
   }
 }
 

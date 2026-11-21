@@ -396,5 +396,41 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
     return succeed(results)
   }
 
-  return { present, lookup, read, invalidate }
+  return { present, lookup, read, invalidate, changes: cardChanges(input.host) }
+}
+
+function cardChanges(hostOf: AgentCardsInput['host']): DecisionCards<unknown>['changes'] {
+  return async function* (request) {
+    const host = hostOf()
+    const tenantText = tenantCodec.encode(request.tenant)
+    if (host === null || !tenantText.ok) return
+    let heard = false
+    let ended = request.signal.aborted
+    let wake = (): void => {}
+    const end = () => {
+      ended = true
+      wake()
+    }
+    const stop = host.changes.subscribe(tenantText.value, {
+      changed: () => {
+        heard = true
+        wake()
+      },
+      closed: end,
+    })
+    request.signal.addEventListener('abort', end, { once: true })
+    try {
+      while (!ended)
+        if (heard) {
+          heard = false
+          yield
+        } else
+          await new Promise<void>(resolve => {
+            wake = resolve
+          })
+    } finally {
+      request.signal.removeEventListener('abort', end)
+      stop()
+    }
+  }
 }
