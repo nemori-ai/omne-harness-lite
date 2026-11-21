@@ -1767,16 +1767,16 @@ describe('what the model read of each block', () => {
     records: DispatchRecords[string],
     answer: Parameters<typeof requestsOf>[0],
     options: Readonly<{
-      attempts?: readonly string[]
+      attempts?: readonly string[] | 'unavailable'
       kinds?: readonly string[]
       entries?: readonly HistoryEntry[]
     }> = {},
   ) {
-    const model = modelDouble(
-      { m1: settledCall('c1') },
-      { c1: attemptsPage(options.attempts ?? ['d1', 'd2']) },
-      { c1: records },
-    )
+    const listed =
+      options.attempts === 'unavailable'
+        ? { failure: { kind: 'unavailable' } }
+        : attemptsPage(options.attempts ?? ['d1', 'd2'])
+    const model = modelDouble({ m1: settledCall('c1') }, { c1: listed }, { c1: records })
     const requests = requestsOf(answer)
     const page = await project({
       entries: options.entries ?? oneCall,
@@ -1818,6 +1818,18 @@ describe('what the model read of each block', () => {
       direction: 'backward',
     })
     expect(page.gaps).toEqual([])
+  })
+
+  it('the attempts of a call that cannot be listed leave an original unread: no reads, and the gap says so', async () => {
+    const { call, page } = await readsWith(
+      succeed([]),
+      succeed([choice('b1', 'original'), choice('b3', 'derived')]),
+      {
+        attempts: 'unavailable',
+      },
+    )
+    expect(call.reads).toEqual([])
+    expect(page.gaps.length).toBeGreaterThan(0)
   })
 
   it('reads back past newer messages whose media were not chosen, and tells media apart by storage and key', async () => {
