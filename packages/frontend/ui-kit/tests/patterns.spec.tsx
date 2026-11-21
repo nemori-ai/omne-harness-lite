@@ -5,7 +5,6 @@ import {
   ActionTooltip,
   Ago,
   CodeSurface,
-  CopyButton,
   CountPill,
   Disclosure,
   DoneIcon,
@@ -25,7 +24,6 @@ import {
   ReceiptPill,
   SaveReceipt,
   STATE_LABELS,
-  Shimmer,
   StateWord,
   StatusMark,
   StatusPill,
@@ -37,6 +35,8 @@ import {
   formatInstant,
   formatRelative,
 } from '../src/index.ts'
+import { CopyButton } from '../src/patterns/ai/copy-button.tsx'
+import { Shimmer } from '../src/patterns/ai/shimmer.tsx'
 
 beforeAll(() => {
   Object.assign(Element.prototype, {

@@ -365,7 +365,7 @@ async function walk(browser, origin, proofs, elsewhere) {
   await step(
     '空的会话列表',
     `
-    return await wait('the empty list', () => byText('.omne-sessions-note', '还没有会话。')?.textContent)`,
+    return await wait('the empty list', () => byText('.omne-sessions .empty-state-title', '新的会话会出现在这里。')?.textContent)`,
   )
   await step(
     '新建会话',
