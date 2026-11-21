@@ -403,8 +403,10 @@ const HELPERS = `
     await wait('the sidebar ' + width, () => sidebar.dataset.width === width && sidebar.dataset.labels === labels)
     await settle()
   }
+  /** The seat and the agent's name in the middle of the header: one control, found by its name. */
   const sideControl = () =>
-    document.querySelector('section[data-page=conversation]:not([hidden]) button.omne-session-figure')
+    [...document.querySelectorAll('section[data-page=conversation]:not([hidden]) header button[aria-controls]')]
+      .find(button => button.textContent.trim() === 'Agent')
   const bubble = () => document.querySelector('.omne-session-side[data-presentation=bubble]')
   /** Where the page is wide enough at this size (1160 × the size factor), the side content docks instead. */
   const docked = () => document.querySelector(
@@ -416,6 +418,7 @@ const HELPERS = `
       () => bubble()?.dataset.ink === 'open' || docked() !== null)
     await settle()
   }
+  /** The side folds again, docked or as the bubble: every scene starts from the column at rest (it opens folded). */
   const closeSide = async () => {
     const control = sideControl()
     if (control?.getAttribute('aria-expanded') === 'true') control.click()
@@ -733,7 +736,7 @@ const SCENES = [
     title: '后台调用：「后台」页签里展开着，有输出与停止的进度',
     act: `await fresh(); await say(${JSON.stringify(BACKGROUND_ASK)}, '构建在后台跑着')`,
     each: ON_BACKGROUND,
-    leave: `if (bubble() !== null) await closeSide()`,
+    leave: `await closeSide()`,
   },
   {
     id: 'T1-told',
@@ -765,17 +768,19 @@ const SCENES = [
     act: `await openSession('请总结')`,
     ready: `await rest(); await openSide()`,
     find: `document.querySelector('section[data-page=conversation]:not([hidden]) .omne-session-side [aria-label="收起侧边区"]')`,
+    leave: `await closeSide()`,
   }),
   ...tipScenes('T3-tip-usage-more', '用量面板顶上 ⋯ 的提示', {
     act: `await openSession('请总结')`,
     ready: `await rest(); await openSide()`,
     find: `document.querySelector('section[data-page=conversation]:not([hidden]) .omne-session-side [aria-label="更多操作"]')`,
+    leave: `await closeSide()`,
   }),
   ...tipScenes('T4-tip-background-stop', '后台调用的停止钮的提示', {
     act: `await fresh(); await say(${JSON.stringify(BACKGROUND_ASK)}, '构建在后台跑着')`,
     ready: ON_BACKGROUND,
     find: `document.querySelector('section[data-page=conversation]:not([hidden]) .omne-session-side [aria-label="停止"]')`,
-    leave: `if (bubble() !== null) await closeSide()`,
+    leave: `await closeSide()`,
   }),
   {
     id: 'K1-specimen',
