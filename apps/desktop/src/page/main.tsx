@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { ShellLogin } from '@omne-harness/shell-contract'
-import { colorSchemeQuery, createThemeController } from '@omne-harness/ui-kit'
+import { colorSchemeQuery, createSizeController, createThemeController } from '@omne-harness/ui-kit'
 import type { ForwardingBridge } from '../shared/channel.ts'
 import { missingAtForwarding } from '../shared/wire.ts'
 import { assembly } from './assembly.tsx'
@@ -9,8 +9,10 @@ import { connectPageBridge, httpChannel } from './bridge.ts'
 import { watchConnectivity } from './connectivity.ts'
 import { shellPlugin } from './shell/service.ts'
 import { Shell } from './shell/shell.tsx'
+import { bindSizeKeys, storedSizePreference } from './shell/size.ts'
 import { LOGIN_EXPIRED_TEXT, createShellState } from './shell/state.ts'
 import { storedThemePreference } from './shell/theme.ts'
+import { markWindowChrome } from './shell/window-chrome.ts'
 import { startClientTree } from './tree.ts'
 import './styles.css'
 
@@ -24,6 +26,9 @@ const shellLogin = (bridge: ForwardingBridge): ShellLogin => ({
 async function main(): Promise<void> {
   const element = document.getElementById('root')
   if (element === null) return
+  markWindowChrome(document.documentElement, navigator.userAgent)
+  const size = createSizeController(storedSizePreference(() => window.localStorage))
+  bindSizeKeys(window, size, /Mac/.test(navigator.platform) ? 'mac' : 'other')
   const bridge = await connectPageBridge(httpChannel(window.location.origin))
   const watched = watchConnectivity(bridge.transport)
   const state = createShellState(shellLogin(bridge), {
@@ -36,11 +41,9 @@ async function main(): Promise<void> {
   })
   await tree.install(shellPlugin(state))
   for (const module of assembly.modules) await tree.install(module)
-  const theme = createThemeController({
-    ...storedThemePreference(() => window.localStorage),
-    system: colorSchemeQuery(),
-  })
-  const initial = theme.start()
+  const preference = storedThemePreference(() => window.localStorage)
+  const theme = createThemeController({ ...preference, system: colorSchemeQuery() })
+  theme.start()
   const missing = missingAtForwarding(assembly.protocols, bridge.forwardingProtocols()).map(
     key => `${key.name}/v${key.major}`,
   )
@@ -50,7 +53,8 @@ async function main(): Promise<void> {
         appName="omne"
         state={state}
         connectivity={watched}
-        theme={{ initial, select: choice => theme.select(choice) }}
+        theme={{ initial: preference.read(), select: choice => theme.select(choice) }}
+        size={size}
         missingAtForwarding={missing}
       />
     </StrictMode>,

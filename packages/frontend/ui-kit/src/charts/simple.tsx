@@ -1,6 +1,13 @@
 import { cn } from '../lib/utils.ts'
 import { formatNumber, formatPercent } from './format.ts'
-import { ChartFrame, markClass, Unknown, type ChartFormat } from './frame.tsx'
+import {
+  CHART_COPY,
+  ChartFrame,
+  markClass,
+  Unknown,
+  type ChartCopy,
+  type ChartFormat,
+} from './frame.tsx'
 
 export type SharePart = Readonly<{ key: string; label: string; value: number | null }>
 
@@ -24,10 +31,12 @@ export function ShareBar({
   label,
   parts,
   format = formatNumber,
+  copy = CHART_COPY,
 }: {
   readonly label: string
   readonly parts: readonly SharePart[]
   readonly format?: ChartFormat
+  readonly copy?: ChartCopy
 }): React.JSX.Element {
   const segments = segmentsOf(parts)
   const total = segments.reduce((sum, segment) => sum + segment.value, 0)
@@ -38,14 +47,17 @@ export function ShareBar({
       label={label}
       state={total > 0 ? 'drawn' : unknown === 0 ? 'empty' : 'unknown'}
       className="omne-share"
+      copy={copy}
       table={
         <table>
           <tbody>
             {parts.map(part => (
               <tr key={part.key}>
                 <th scope="row">{part.label}</th>
-                <td>{part.value === null ? <Unknown /> : format(part.value)}</td>
-                <td>{part.value === null || total === 0 ? <Unknown /> : share(part.value)}</td>
+                <td>{part.value === null ? <Unknown copy={copy} /> : format(part.value)}</td>
+                <td>
+                  {part.value === null || total === 0 ? <Unknown copy={copy} /> : share(part.value)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -78,66 +90,9 @@ export function ShareBar({
             {segment.label}
           </li>
         ))}
-        {unknown > 0 && <li className="omne-share-unknown">未知 {unknown} 项</li>}
+        {unknown > 0 && <li className="omne-share-unknown">{copy.unknownCount(unknown)}</li>}
       </ul>
     </ChartFrame>
-  )
-}
-
-export function ReadingMeter({
-  label,
-  percent,
-  mark = null,
-  caption,
-  unknownReason,
-}: {
-  readonly label: string
-  readonly percent: number | null
-  readonly mark?: number | null
-  readonly caption?: string
-  readonly unknownReason?: string
-}): React.JSX.Element {
-  if (percent === null)
-    return (
-      <div className="omne-meter" role="group" aria-label={label} data-state="unknown">
-        <span className="omne-meter-label">{label}</span>
-        <span className="omne-meter-value">
-          <Unknown />
-        </span>
-        {unknownReason !== undefined && <span className="omne-meter-caption">{unknownReason}</span>}
-      </div>
-    )
-  const filled = Math.min(Math.max(percent, 0), 100)
-  return (
-    <div className="omne-meter" data-state={percent > 100 ? 'over' : 'drawn'}>
-      <span className="omne-meter-label">{label}</span>
-      <svg
-        className="omne-meter-track"
-        viewBox="0 0 100 6"
-        preserveAspectRatio="none"
-        role="meter"
-        aria-label={label}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent}
-        aria-valuetext={`${formatNumber(percent)}%`}
-      >
-        <rect className="omne-meter-rail" fill="currentColor" x={0} y={0} width={100} height={6} />
-        <rect className={markClass(0)} fill="currentColor" x={0} y={0} width={filled} height={6} />
-        {mark !== null && (
-          <rect
-            className="omne-meter-mark"
-            fill="currentColor"
-            x={Math.min(mark, 100) - 0.5}
-            y={0}
-            width={1}
-            height={6}
-          />
-        )}
-      </svg>
-      <span className="omne-meter-value">{formatNumber(percent)}%</span>
-      {caption !== undefined && <span className="omne-meter-caption">{caption}</span>}
-    </div>
   )
 }
 
@@ -161,9 +116,11 @@ function runsOf(values: readonly (number | null)[], low: number, span: number): 
 export function Sparkline({
   label,
   values,
+  copy = CHART_COPY,
 }: {
   readonly label: string
   readonly values: readonly (number | null)[]
+  readonly copy?: ChartCopy
 }): React.JSX.Element {
   const known = values.filter((value): value is number => typeof value === 'number')
   if (known.length === 0)
@@ -171,15 +128,17 @@ export function Sparkline({
       <span
         className="omne-spark"
         role="img"
-        aria-label={`${label}：没有可用的数`}
+        aria-label={`${label}：${copy.unknown}`}
         data-state={values.length === 0 ? 'empty' : 'unknown'}
       >
-        <Unknown />
+        <Unknown copy={copy} />
       </span>
     )
   const low = Math.min(...known)
   const span = Math.max(...known) - low || 1
-  const summary = values.map(value => (value === null ? '未知' : formatNumber(value))).join('、')
+  const summary = values
+    .map(value => (value === null ? copy.unknownValue : formatNumber(value)))
+    .join('、')
   return (
     <svg
       className={cn('omne-spark', markClass(0))}
@@ -199,15 +158,17 @@ export function StatBlock({
   label,
   value,
   detail,
+  copy = CHART_COPY,
 }: {
   readonly label: string
   readonly value: string | null
   readonly detail?: string
+  readonly copy?: ChartCopy
 }): React.JSX.Element {
   return (
     <div className="omne-stat" role="group" aria-label={label}>
       <span className="omne-stat-label">{label}</span>
-      <span className="omne-stat-value">{value === null ? <Unknown /> : value}</span>
+      <span className="omne-stat-value">{value === null ? <Unknown copy={copy} /> : value}</span>
       {detail !== undefined && <span className="omne-stat-detail">{detail}</span>}
     </div>
   )

@@ -19,6 +19,7 @@ export const calendarUiModule = defineUiModule<Record<string, ClientOf<CalendarP
       id: CALENDAR_PAGE_ID,
       title: '日历',
       order: CALENDAR_PAGE_ORDER,
+      icon: 'appointment',
       render: ({ scope }) =>
         scope === undefined ? null : <CalendarPage client={client} tenant={scope} />,
     })

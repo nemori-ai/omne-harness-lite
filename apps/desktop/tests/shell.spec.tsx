@@ -1,14 +1,8 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { Context, type Plugin } from '@deepseek-ai/cordis'
+import type { Context, Plugin } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
-import type {
-  LoginCredentials,
-  LogoutResult,
-  ShellLogin,
-  ShellLoginState,
-} from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import {
@@ -18,120 +12,27 @@ import {
 } from '@omne-harness/assets-ui/cordis'
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
-import type { ResolvedTheme, ThemeChoice } from '@omne-harness/ui-kit'
-import type { Connectivity } from '../src/page/connectivity.ts'
 import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
-import { DesktopShell, shellPlugin } from '../src/page/shell/service.ts'
-import { NO_LOGIN_TEXT, Shell } from '../src/page/shell/shell.tsx'
-import { LOGOUT_UNKNOWN_TEXT, createShellState } from '../src/page/shell/state.ts'
-import { fakeGate, fakePage, fakeSidebar } from './support/fake-modules.tsx'
+import { NO_LOGIN_TEXT } from '../src/page/shell/shell.tsx'
+import { RECONNECTING_TEXT } from '../src/page/shell/sidebar.tsx'
+import { LOGOUT_UNKNOWN_TEXT } from '../src/page/shell/state.ts'
+import { fakeSidebar } from './support/fake-modules.tsx'
+import {
+  CHAT,
+  SETTINGS,
+  chatPage,
+  current,
+  home,
+  navTitles,
+  section,
+  settle,
+  setup,
+} from './support/shell-setup.tsx'
 
 afterEach(() => cleanup())
 
-const CHAT = 'fake:chat'
-const SETTINGS = 'fake:settings'
-const chatPage = fakePage({
-  id: 'chat',
-  title: '对话',
-  order: 0,
-  service: CHAT,
-  icon: 'conversation',
-})
-const settingsPage = fakePage({ id: 'settings', title: '设置', order: 20, service: SETTINGS })
-
-function source<T>(initial: T) {
-  let value = initial
-  const listeners = new Set<(value: T) => void>()
-  return {
-    current: () => value,
-    subscribe(listener: (value: T) => void) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
-    set(next: T) {
-      value = next
-      for (const listener of Array.from(listeners)) listener(next)
-    },
-  }
-}
-
-const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 const TENANT_TEXT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
-
-async function setup(
-  options: {
-    login?: ShellLoginState
-    modules?: readonly Plugin.Object[]
-    logout?: LogoutResult
-    connectivity?: Connectivity
-    missingAtForwarding?: readonly string[]
-  } = {},
-) {
-  const login = source<ShellLoginState>(options.login ?? 'signed-out')
-  const connectivity = source<Connectivity>(options.connectivity ?? 'connected')
-  const handedOver: LoginCredentials[] = []
-  const chosen: ThemeChoice[] = []
-  const inner: ShellLogin = {
-    state: login.current,
-    subscribe: login.subscribe,
-    login: async credentials => {
-      handedOver.push(credentials)
-      return 'signed-in'
-    },
-    logout: async () => {
-      login.set('signing-out')
-      await settle()
-      login.set('signed-out')
-      return options.logout ?? 'signed-out'
-    },
-  }
-  const state = createShellState(inner)
-  const root = new Context()
-  await root.plugin(shellPlugin(state))
-  for (const module of options.modules ?? [fakeGate(), chatPage, settingsPage])
-    await root.plugin(module)
-  const theme = {
-    initial: 'light' as ResolvedTheme,
-    select(choice: ThemeChoice): ResolvedTheme {
-      chosen.push(choice)
-      return choice === 'dark' ? 'dark' : 'light'
-    },
-  }
-  render(
-    <Shell
-      appName="omne"
-      state={state}
-      connectivity={connectivity}
-      theme={theme}
-      {...(options.missingAtForwarding === undefined
-        ? {}
-        : { missingAtForwarding: options.missingAtForwarding })}
-    />,
-  )
-  const provide = async (name: string) => {
-    let withdraw: () => void = () => {}
-    await act(async () => {
-      withdraw = root.reflect.provide(name, {})
-      await settle()
-    })
-    return async () => {
-      await act(async () => {
-        withdraw()
-        await settle()
-      })
-    }
-  }
-  const service = root.get('shell') as unknown as DesktopShell
-  return { login, connectivity, state, root, provide, handedOver, chosen, service }
-}
-
-const navTitles = () =>
-  [...document.querySelectorAll('.shell-nav-link')].map(link => link.textContent)
-const current = () => document.querySelector('[aria-current="page"]')?.textContent
-const section = (id: string) => document.querySelector<HTMLElement>(`section[data-page="${id}"]`)
 
 describe('外壳：登录之外', () => {
   it('没登录只显示登录门里的那一项，不画侧栏与页面', async () => {
@@ -188,12 +89,26 @@ describe('外壳：登录之外', () => {
 })
 
 describe('外壳：连接', () => {
-  it.each(['signed-out', 'signed-in'] as const)('%s 时连接断开，主区上方一条提示', async login => {
-    const t = await setup({ login })
-    expect(screen.queryByRole('alert')).toBeNull()
-    act(() => t.connectivity.set('disconnected'))
-    expect(screen.getByRole('alert').textContent).toContain('连不上服务。正在按间隔重新连接')
-  })
+  it.each(['signed-out', 'signed-in'] as const)(
+    '%s 时连接断开：一行中性的字写原因、说正在重连，带活动标记；连上了这行就走',
+    async login => {
+      const t = await setup({ login })
+      expect(screen.queryByRole('status', { name: RECONNECTING_TEXT })).toBeNull()
+      act(() => t.connectivity.set('disconnected'))
+      const line = screen.getByRole('status', { name: RECONNECTING_TEXT })
+      expect(line.textContent).toBe('连不上服务。正在重连……')
+      expect(line.querySelector('[data-loading-indicator]')).not.toBeNull()
+      expect(screen.queryByRole('alert')).toBeNull()
+      if (login === 'signed-in')
+        expect(document.querySelector('.shell-sidebar')?.contains(line)).toBe(true)
+      else
+        expect(
+          document.querySelector('.shell-outside')?.firstElementChild?.nextElementSibling,
+        ).toBe(line)
+      act(() => t.connectivity.set('connected'))
+      expect(screen.queryByRole('status', { name: RECONNECTING_TEXT })).toBeNull()
+    },
+  )
 
   it.each(['signed-out', 'signed-in'] as const)(
     '%s 时转发层少了页面要用的协议：主区上方写应用的版本旧了、需要重启，列出少的那几样；不少时不写',
@@ -208,22 +123,28 @@ describe('外壳：连接', () => {
     },
   )
 
-  it('侧栏显示连接状态', async () => {
-    const t = await setup({ login: 'signed-in' })
-    expect(document.querySelector('[data-connectivity]')?.textContent).toBe('已连接')
-    act(() => t.connectivity.set('disconnected'))
-    expect(document.querySelector('[data-connectivity]')?.textContent).toBe('连不上服务')
-  })
+  it.each(['signed-out', 'signed-in'] as const)(
+    '%s 时连接正常：外壳不写任何连接状态，没有字也没有点',
+    async login => {
+      await setup({ login, connectivity: 'connected' })
+      const text = document.body.textContent ?? ''
+      for (const word of ['已连接', '连接中', '连不上', '重连', '连接正常'])
+        expect(text).not.toContain(word)
+      expect(document.querySelector('[data-connectivity]')).toBeNull()
+      expect(document.querySelector('.shell-reconnecting')).toBeNull()
+    },
+  )
 })
 
 describe('外壳：页面', () => {
-  it('页面按次序列在侧栏，缺省显示次序最前的一页', async () => {
+  it('次序最前的一页由家代表，别的页按次序列在导航里；缺省显示次序最前的一页', async () => {
     const t = await setup({ login: 'signed-in' })
     await t.provide(SETTINGS)
-    expect(navTitles()).toEqual(['设置'])
+    expect(navTitles()).toEqual([])
+    expect(current()).toBe('家')
     await t.provide(CHAT)
-    expect(navTitles()).toEqual(['对话', '设置'])
-    expect(current()).toBe('对话')
+    expect(navTitles()).toEqual(['设置'])
+    expect(current()).toBe('家')
     expect(section('chat')!.hidden).toBe(false)
     expect(section('settings')!.hidden).toBe(true)
   })
@@ -233,11 +154,11 @@ describe('外壳：页面', () => {
     await t.provide(CHAT)
     await t.provide(SETTINGS)
     const chat = screen.getByText('对话占位')
-    fireEvent.click(screen.getByRole('button', { name: '设置' }))
+    fireEvent.click(screen.getByRole('link', { name: '设置' }))
     expect(current()).toBe('设置')
     expect(section('chat')!.hidden).toBe(true)
     expect(document.body.contains(chat)).toBe(true)
-    fireEvent.click(screen.getByRole('button', { name: '对话' }))
+    fireEvent.click(home()!)
     expect(screen.getByText('对话占位')).toBe(chat)
   })
 
@@ -245,12 +166,12 @@ describe('外壳：页面', () => {
     const t = await setup({ login: 'signed-in' })
     await t.provide(CHAT)
     const withdraw = await t.provide(SETTINGS)
-    fireEvent.click(screen.getByRole('button', { name: '设置' }))
+    fireEvent.click(screen.getByRole('link', { name: '设置' }))
     await withdraw()
     expect(section('settings')).toBeNull()
-    expect(current()).toBe('对话')
+    expect(current()).toBe('家')
     await t.provide(SETTINGS)
-    expect(current()).toBe('对话')
+    expect(current()).toBe('家')
   })
 
   it('一页都没有时主区空着', async () => {
@@ -269,6 +190,24 @@ describe('外壳：页面', () => {
     expect(current()).toBe('设置')
     act(() => t.service.navigate('absent'))
     expect(current()).toBe('设置')
+  })
+
+  it('服务的 page 是现在显示的那一页，跟着切换与撤下变；它只能读，不能切换', async () => {
+    const t = await setup({ login: 'signed-in' })
+    expect(t.service.page.get()).toBeUndefined()
+    await t.provide(CHAT)
+    const withdraw = await t.provide(SETTINGS)
+    expect(t.service.page.get()).toBe('chat')
+    const seen: (string | undefined)[] = []
+    const stop = t.service.page.subscribe(page => seen.push(page))
+    fireEvent.click(screen.getByRole('link', { name: '设置' }))
+    act(() => t.service.navigate('chat'))
+    act(() => t.service.navigate('settings'))
+    await withdraw()
+    stop()
+    act(() => t.service.navigate('chat'))
+    expect(seen).toEqual(['settings', 'chat', 'settings', 'chat'])
+    expect(Object.keys(t.service.page).sort()).toEqual(['get', 'subscribe'])
   })
 
   it('外壳的服务也是读位置的接口', async () => {
@@ -307,14 +246,6 @@ describe('外壳：侧栏区与租户', () => {
     act(() => t.login.set('signing-out'))
     expect(t.state.scope.get()).toBeUndefined()
   })
-
-  it('明暗切换交给主题控制器', async () => {
-    const t = await setup({ login: 'signed-in' })
-    fireEvent.click(screen.getByRole('button', { name: '换成深色' }))
-    expect(t.chosen).toEqual(['dark'])
-    fireEvent.click(screen.getByRole('button', { name: '换成浅色' }))
-    expect(t.chosen).toEqual(['dark', 'light'])
-  })
 })
 
 describe('外壳：附着位置与页面标记', () => {
@@ -344,6 +275,7 @@ describe('外壳：附着位置与页面标记', () => {
           id: 'host',
           title: '宿主',
           order: 0,
+          icon: 'topics',
           render: (): ReactNode => shell.attached(anchor, subject),
         })
       },
@@ -423,13 +355,27 @@ describe('外壳：附着位置与页面标记', () => {
       inject: [],
       apply(shell) {
         shell.contribute('pages', {
+          id: 'first',
+          title: '家的页',
+          order: 0,
+          icon: 'topics',
+          render: () => null,
+        })
+        shell.contribute('pages', {
           id: 'badged',
           title: '待办',
-          order: 0,
+          order: 1,
+          icon: 'topics',
           badge: ({ scope }) => (text === null ? null : `${text}${scope ?? ''}`),
           render: () => null,
         })
-        shell.contribute('pages', { id: 'plain', title: '无标记', order: 1, render: () => null })
+        shell.contribute('pages', {
+          id: 'plain',
+          title: '无标记',
+          order: 2,
+          icon: 'topics',
+          render: () => null,
+        })
       },
     })
     const t = await setup({ login: 'signed-in', modules: [module] })
@@ -474,6 +420,7 @@ describe('外壳：宿主自己排版', () => {
           id: 'host',
           title: '宿主',
           order: 0,
+          icon: 'topics',
           render: (): ReactNode =>
             shell.arranged(anchor, subject, entries => (
               <ul data-tabs={entries.length}>
@@ -623,7 +570,7 @@ describe('外壳：一项坏了只坏这一项', () => {
       name: `page-${id}`,
       inject: [],
       apply(shell) {
-        shell.contribute('pages', { id, title: `页${id}`, order, render })
+        shell.contribute('pages', { id, title: `页${id}`, order, icon: 'topics', render })
       },
     })
 
@@ -650,7 +597,8 @@ describe('外壳：一项坏了只坏这一项', () => {
     expect(ITEM_FAILED_TEXT).toBe('这一块读不出')
     expect(failed().map(node => node.textContent)).toEqual(['这一块读不出'])
     expect(attachedIds()).toEqual(['good'])
-    expect(navTitles()).toEqual(['页host'])
+    expect(navTitles()).toEqual([])
+    expect(section('host')).not.toBeNull()
   })
 
   it('附着的一项返回的组件在渲染当中抛出：也只坏这一项', async () => {
@@ -691,6 +639,7 @@ describe('外壳：一项坏了只坏这一项', () => {
               id: 'host',
               title: '宿主',
               order: 0,
+              icon: 'topics',
               render: (): ReactNode =>
                 shell.arranged('a', 's1', entries => (
                   <ul>
@@ -723,7 +672,7 @@ describe('外壳：一项坏了只坏这一项', () => {
         fakeSidebar({ id: 'side', order: 0, text: '侧栏占位' }),
       ],
     })
-    expect(navTitles()).toEqual(['页bad', '页fine'])
+    expect(navTitles()).toEqual(['页fine'])
     expect(section('bad')?.querySelector('.shell-item-failed')?.textContent).toBe(ITEM_FAILED_TEXT)
     expect(section('fine')?.querySelector('[data-fine]')).not.toBeNull()
     expect(document.querySelector('[data-placeholder="侧栏占位"]')).not.toBeNull()
@@ -764,20 +713,24 @@ describe('外壳：一项坏了只坏这一项', () => {
       t.state.scope.set(TENANT_TEXT)
       await settle()
     })
-    expect(navTitles()).toEqual(['资产', '设置'])
+    expect(navTitles()).toEqual(['设置'])
     const page = section('assets')!
     expect([...page.querySelectorAll('[role=tab]')].map(tab => tab.textContent)).toEqual([
       'bad',
       'good',
     ])
     expect(failed().map(node => node.textContent)).toEqual([ITEM_FAILED_TEXT])
+    expect(
+      failed().map(node => node.getAttribute('data-tone')),
+      'a known failure, not amber',
+    ).toEqual(['danger'])
     expect(page.querySelector('[role=tabpanel]:not([hidden]) .shell-item-failed')).not.toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: 'good' }))
     expect(
       page.querySelector('[role=tabpanel]:not([hidden]) [data-category="good"]'),
     ).not.toBeNull()
     expect(failed()).toHaveLength(1)
-    fireEvent.click(screen.getByRole('button', { name: '设置' }))
+    fireEvent.click(screen.getByRole('link', { name: '设置' }))
     await act(async () => {
       await settle()
     })
@@ -822,7 +775,8 @@ describe('外壳：一项坏了只坏这一项', () => {
     expect(document.querySelector('.shell-gate .shell-item-failed')?.textContent).toBe(
       ITEM_FAILED_TEXT,
     )
-    expect(document.querySelector('.shell-brand-outside')?.textContent).toBe('omne')
+    expect(document.querySelector('[data-figure-seat="gate"]')).not.toBeNull()
+    expect(screen.queryByText('omne')).toBeNull()
   })
 
   it('页面的小标记抛出：标记不画，导航与页面照常', async () => {
@@ -834,9 +788,17 @@ describe('外壳：一项坏了只坏这一项', () => {
           inject: [],
           apply(shell) {
             shell.contribute('pages', {
+              id: 'first',
+              title: '首页',
+              order: 0,
+              icon: 'topics',
+              render: () => null,
+            })
+            shell.contribute('pages', {
               id: 'badged',
               title: '待办',
-              order: 0,
+              order: 1,
+              icon: 'topics',
               badge: boom,
               render: () => <p data-fine="">好的一页</p>,
             })
@@ -1149,7 +1111,8 @@ describe('外壳：去掉界面模块', () => {
     expect(screen.getByText(NO_LOGIN_TEXT)).toBeTruthy()
     act(() => t.login.set('signed-in'))
     await t.provide(CHAT)
-    expect(navTitles()).toEqual(['对话'])
+    expect(navTitles()).toEqual([])
+    expect(current()).toBe('家')
     expect(screen.getByText('对话占位')).toBeTruthy()
   })
 })

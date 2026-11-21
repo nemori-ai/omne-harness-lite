@@ -13,16 +13,16 @@
   flex-shrink: 0;
   max-width: 100%;
   align-items: center;
-  gap: 2px;
-  padding: 2px;
+  gap: calc(var(--spacing) * 0.5);
+  padding: calc(var(--spacing) * 0.5);
   border-radius: var(--omne-radius-control);
   background: var(--omne-surface-panel-soft);
   box-shadow: inset var(--omne-elevation-hairline);
 }
 .omne-segmented > [data-segmented-thumb] {
   position: absolute;
-  top: 2px;
-  bottom: 2px;
+  top: calc(var(--spacing) * 0.5);
+  bottom: calc(var(--spacing) * 0.5);
   left: 0;
   border-radius: var(--omne-radius-chip);
   background: var(--omne-surface-overlay);
@@ -34,10 +34,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: calc(var(--spacing) * 1.5);
   min-width: 0;
   min-height: var(--omne-control-height-compact);
-  padding: 0 12px;
+  padding: 0 calc(var(--spacing) * 3);
   border-radius: var(--omne-radius-chip);
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-ui);

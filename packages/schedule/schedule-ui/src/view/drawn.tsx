@@ -1,8 +1,18 @@
-import { Button, EmptyState, LoadingState } from '@omne-harness/ui-kit'
+import { InlineNotice, LoadingState, RetryIcon, type Tone } from '@omne-harness/ui-kit'
 import type { ReactNode } from 'react'
-import { UNREADABLE_TEXT, type Reading } from '../model/reading.ts'
+import { UNREADABLE_TEXT, type Reading, type Unreadable } from '../model/reading.ts'
 
-/** Draws one reading: its value, the domain's refusal, or why nothing could be read, with a retry. */
+/** The tone of each reason nothing could be read: a known trouble is a caution or a failure, an unknown one neutral. */
+const UNREADABLE_TONE: Readonly<Record<Unreadable, Tone>> = {
+  denied: 'neutral',
+  'basis-unavailable': 'caution',
+  'protocol-rejected': 'danger',
+  unavailable: 'caution',
+  uncertain: 'neutral',
+  'not-sent': 'danger',
+}
+
+/** Draws one reading: its value, the domain's refusal, or why nothing could be read with 重试, in the block it is for. */
 export function Drawn<T>({
   reading,
   reread,
@@ -16,18 +26,23 @@ export function Drawn<T>({
 }>): ReactNode {
   switch (reading.kind) {
     case 'reading':
-      return <LoadingState label="读取中" />
+      return (
+        <p>
+          <LoadingState label="读取中" />
+        </p>
+      )
     case 'read':
       return children(reading.value)
     case 'refused':
-      return <EmptyState role="status" title={refused(reading.outcome, reading.body)} />
+      return <InlineNotice tone="neutral">{refused(reading.outcome, reading.body)}</InlineNotice>
     case 'unreadable':
       return (
-        <EmptyState
-          role="alert"
-          title={`读不出：${UNREADABLE_TEXT[reading.reason]}`}
-          action={<Button onClick={reread}>重读</Button>}
-        />
+        <InlineNotice
+          tone={UNREADABLE_TONE[reading.reason]}
+          action={{ label: '重试', icon: RetryIcon, onClick: reread }}
+        >
+          {`读不出：${UNREADABLE_TEXT[reading.reason]}`}
+        </InlineNotice>
       )
   }
 }

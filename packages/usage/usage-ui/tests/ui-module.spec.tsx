@@ -11,7 +11,7 @@ import {
   usageWidget,
 } from '../src/cordis.tsx'
 import { stubDom, TENANT } from './fixtures/dom.ts'
-import { fakeUsage } from './fixtures/fake-usage.ts'
+import { fakeUsage, KNOWN_OCCUPANCY, type Answer, type Call } from './fixtures/fake-usage.ts'
 import { startShell, type ReferenceShell } from './fixtures/reference-shell.tsx'
 
 beforeAll(stubDom)
@@ -44,6 +44,24 @@ async function mounted() {
 const anchored = (shell: ReferenceShell, anchor: string) =>
   shell.items('attached').filter(item => item.anchor === anchor)
 
+/** The status item of a session drawn over a usage client whose occupancy answer is `occupancy`. */
+async function statusWith(occupancy: () => Answer | Promise<never>) {
+  const { root, shell } = await startShell()
+  shell.tenant = TENANT
+  const answer = (call: Call) =>
+    call.operation === 'read-context-occupancy' ? (occupancy() as Answer) : undefined
+  root.reflect.provide(SERVICE, fakeUsage(answer).client)
+  await root.plugin(createUsageUiModule({ sessionSide, sessionStatus }))
+  render(<>{anchored(shell, 'session.status')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
+  await settle()
+  return document.querySelector<HTMLElement>('.usage-panel[data-position="status"]')
+}
+
+const known = (percent: string, compactAtPercent: string | null): Answer => ({
+  outcome: 'succeeded',
+  body: { ...KNOWN_OCCUPANCY, percent, compactAtPercent },
+})
+
 describe('the usage interface module in its three places (C27)', () => {
   it('injects the usage protocol client by the name of usage/v1', () => {
     expect(createUsageUiModule().inject).toEqual(['shell', SERVICE])
@@ -73,7 +91,7 @@ describe('the usage interface module in its three places (C27)', () => {
     cleanup()
     render(<>{anchored(shell, 'session.status')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
     await settle()
-    expect(screen.getByRole('meter', { name: '上下文' }).getAttribute('aria-valuenow')).toBe('0.75')
+    expect(document.querySelector('.usage-percent [aria-hidden="true"]')?.textContent).toBe('0.75%')
     expect(
       document.querySelector('.usage-panel[data-position="status"] .usage-panel-bar'),
     ).toBeNull()
@@ -83,7 +101,7 @@ describe('the usage interface module in its three places (C27)', () => {
     })
   })
 
-  it('draws the summary and the two token cards across the session tab, and the occupancy with its moment and mark', async () => {
+  it('draws the summary and the two token cards across the session tab', async () => {
     const { shell } = await mounted()
     render(<>{anchored(shell, 'session.side')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
     await settle()
@@ -103,31 +121,80 @@ describe('the usage interface module in its three places (C27)', () => {
         '.usage-panel[data-position="session"] .usage-card[data-widget="usage.summary"]',
       )?.textContent,
     ).toContain('0.0123 USD')
-    cleanup()
-    render(<>{anchored(shell, 'session.status')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
-    await settle()
-    expect(document.querySelector('.omne-meter-mark')?.getAttribute('x')).toBe('79.5')
-    expect(document.querySelector('.omne-meter-caption')?.textContent).toMatch(
-      /^截至上一次请求（\d{2}\/\d{2} \d{2}:\d{2} · openai\/gpt-5\.6-sol）$/u,
-    )
   })
 
-  it('says why the occupancy is unknown', async () => {
-    const { root, shell } = await startShell()
-    shell.tenant = TENANT
-    root.reflect.provide(
-      SERVICE,
-      fakeUsage(() => ({
-        outcome: 'succeeded',
-        body: { kind: 'unknown', reason: 'window-unknown' },
-      })).client,
-    )
-    await root.plugin(createUsageUiModule({ sessionSide, sessionStatus }))
-    render(<>{anchored(shell, 'session.status')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
+  it('writes the summary in a session’s side as a table of facts, name at the left and value at the right, and keeps the row of figures on the page', async () => {
+    const { shell } = await mounted()
+    render(<>{anchored(shell, 'session.side')[0]?.render({ scope: TENANT, subject: SESSION })}</>)
+    await settle()
+    const side = document.querySelector('.usage-panel[data-position="session"]')
+    const facts = side?.querySelector('.usage-card[data-widget="usage.summary"] dl.fact-list')
+    expect(facts?.getAttribute('aria-label')).toBe('概览')
+    expect([...(facts?.querySelectorAll('dt') ?? [])].map(term => term.textContent)).toEqual([
+      '费用',
+      'Token（输入与输出）',
+      '模型请求',
+      '缓存命中率',
+      '首字延迟（中位）',
+    ])
+    expect([...(facts?.querySelectorAll('dd') ?? [])].map(value => value.textContent)).toEqual([
+      '0.0123 USD1 笔未知',
+      '3,600',
+      '3',
+      '25%',
+      '310 毫秒',
+    ])
+    expect(side?.querySelector('.omne-stat')).toBeNull()
+    cleanup()
+    render(<>{shell.items('pages')[0]?.render({ scope: TENANT })}</>)
     await settle()
     expect(
-      document.querySelector('.omne-meter[data-state="unknown"] .omne-meter-caption')?.textContent,
-    ).toBe('这个型号的窗口未知')
+      document.querySelectorAll('.usage-panel[data-position="tenant"] .omne-stat'),
+    ).toHaveLength(5)
+    expect(document.querySelector('.usage-panel[data-position="tenant"] .fact-list')).toBeNull()
+  })
+
+  it('in the status, a known occupancy is one quiet number; what it is, as of when, is in its hint', async () => {
+    const status = await statusWith(() => ({ outcome: 'succeeded', body: KNOWN_OCCUPANCY }))
+    const figure = status?.querySelector<HTMLElement>('.usage-percent')
+    const said = figure?.getAttribute('title') ?? ''
+    expect(said).toMatch(
+      /^上下文 0\.75%，截至上一次请求（\d{2}\/\d{2} \d{2}:\d{2} · openai\/gpt-5\.6-sol）$/u,
+    )
+    expect(figure?.querySelector('[aria-hidden="true"]')?.textContent).toBe('0.75%')
+    expect(screen.getByText(said).className).toBe('sr-only')
+    expect(status?.textContent).toBe(`0.75%${said}`)
+    expect(figure?.dataset['tone']).toBeUndefined()
+    expect(status?.querySelector('[role="meter"], svg')).toBeNull()
+  })
+
+  it.each([
+    ['past the compaction mark', '80.5', '80', 'caution'],
+    ['past 100% with no mark', '120', null, 'caution'],
+    ['at the compaction mark', '80', '80', undefined],
+    ['at 100% with no mark', '100', null, undefined],
+  ])('the number is amber %s, else muted', async (_case, percent, mark, tone) => {
+    const status = await statusWith(() => known(percent, mark))
+    expect(status?.querySelector<HTMLElement>('.usage-percent')?.dataset['tone']).toBe(tone)
+  })
+
+  it.each([
+    ['there is no request yet', () => ({ outcome: 'succeeded', body: { kind: 'none-yet' } })],
+    [
+      'the usage is unknown',
+      () => ({ outcome: 'succeeded', body: { kind: 'unknown', reason: 'usage-unknown' } }),
+    ],
+    [
+      'the window is unknown',
+      () => ({ outcome: 'succeeded', body: { kind: 'unknown', reason: 'window-unknown' } }),
+    ],
+    ['the read is refused', () => ({ outcome: 'denied' })],
+    ['the read is still on its way', () => new Promise<never>(() => {})],
+  ])('draws nothing in the status when %s', async (_case, occupancy) => {
+    const status = await statusWith(occupancy as () => Answer | Promise<never>)
+    expect(status).not.toBeNull()
+    expect(status?.textContent).toBe('')
+    expect(status?.querySelector('.usage-percent, [role="meter"], svg, [role="status"]')).toBeNull()
   })
 
   it('does not load without the usage protocol, unloads when it is withdrawn and loads again when it is back', async () => {

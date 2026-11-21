@@ -40,7 +40,11 @@ function noChange(basis: WaitBasis, result: RequestPlan['result']): RequestPlan 
 function conflict(basis: WaitBasis, reason: string): RequestPlan {
   return noChange(basis, { kind: 'conflict', operationRef: basis.binding.operationRef, reason })
 }
-function register(command: RegisterRequest, basis: WaitBasis): RequestPlan {
+function register(
+  command: RegisterRequest,
+  basis: WaitBasis,
+  askedAt: string | undefined,
+): RequestPlan {
   if (basis.state !== 'prepared' || basis.requestRef) return conflict(basis, 'wait-not-prepared')
   if (
     command.preparationRef !== basis.preparationRef ||
@@ -69,6 +73,7 @@ function register(command: RegisterRequest, basis: WaitBasis): RequestPlan {
     displayContext: command.displayContext,
     cards,
     ...(command.actionBasis ? { actionBasis: command.actionBasis } : {}),
+    ...(askedAt === undefined ? {} : { askedAt }),
   }
   return {
     binding: basis.binding,
@@ -213,8 +218,9 @@ export function planRequest(
   input: ReturnType<typeof SqlCommandSchema.parse>,
   basis: WaitBasis,
   port: ReadPort,
+  askedAt?: string,
 ): RequestPlan {
-  if (input.method === 'registerRequest') return register(input.command, basis)
+  if (input.method === 'registerRequest') return register(input.command, basis, askedAt)
   if (!basis.requestRef) {
     return input.method === 'invalidateWait' && basis.state === 'terminal'
       ? noChange(basis, {

@@ -10,7 +10,6 @@
   flex-wrap: wrap;
   gap: 2px;
   margin-bottom: var(--omne-space-page);
-  border-bottom: 1px solid var(--omne-line-subtle);
 }
 
 .assets-page-tab {

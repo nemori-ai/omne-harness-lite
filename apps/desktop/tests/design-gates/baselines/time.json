@@ -1,0 +1,6 @@
+{
+  "gate": "time",
+  "entries": {
+    "packages/usage/usage-ui/src/view/widgets.tsx | Intl.DateTimeFormat": 3
+  }
+}

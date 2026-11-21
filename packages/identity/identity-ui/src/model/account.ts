@@ -7,7 +7,7 @@ export type AccountState =
   | { readonly kind: 'idle' }
   | { readonly kind: 'reading' }
   | { readonly kind: 'read'; readonly tenant: string; readonly short: string }
-  | { readonly kind: 'failed'; readonly text: string }
+  | { readonly kind: 'failed'; readonly text: string; readonly tone: 'neutral' | 'caution' }
 
 export type TenantQuery = Pick<ClientOf<IdentityProtocol>, 'query-current-tenant'>
 
@@ -45,10 +45,12 @@ export function tenantText(tenant: TenantId): string {
 const shorten = (text: string): string =>
   text.length <= 14 ? text : `${text.slice(0, 8)}…${text.slice(-4)}`
 
-function failedText(outcome: string): string {
-  if (outcome === 'denied') return FAILED_TEXT.denied
-  if (outcome === 'uncertain') return FAILED_TEXT.uncertain
-  return FAILED_TEXT.unavailable
+/** A known fact (the service is unavailable) is said in the attention tone; a result not known yet is neutral. */
+function failed(outcome: string): AccountState {
+  if (outcome === 'denied') return { kind: 'failed', text: FAILED_TEXT.denied, tone: 'neutral' }
+  if (outcome === 'uncertain')
+    return { kind: 'failed', text: FAILED_TEXT.uncertain, tone: 'neutral' }
+  return { kind: 'failed', text: FAILED_TEXT.unavailable, tone: 'caution' }
 }
 
 export function createAccountModel(ports: AccountPorts): AccountModel {
@@ -66,8 +68,7 @@ export function createAccountModel(ports: AccountPorts): AccountModel {
     enter(READING)
     const answer = await ports.query['query-current-tenant']({})
     if (disposed || mine !== generation) return
-    if (answer.outcome !== 'succeeded')
-      return enter({ kind: 'failed', text: failedText(answer.outcome) })
+    if (answer.outcome !== 'succeeded') return enter(failed(answer.outcome))
     const tenant = tenantText(answer.body.tenantId)
     ports.scope.set(tenant)
     enter({ kind: 'read', tenant, short: shorten(answer.body.tenantId.organization.text) })

@@ -49,6 +49,7 @@ function contribute(shell: ShellService, hub: InboxHub): void {
     id: PAGE_ID,
     title: '通知',
     order: PAGE_ORDER,
+    icon: 'mail',
     badge: ({ scope }) =>
       scope === undefined ? null : <UnresolvedBadge hub={hub} tenant={scope} />,
     render: ({ scope, subject }) =>

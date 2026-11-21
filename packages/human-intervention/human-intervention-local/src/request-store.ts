@@ -12,8 +12,8 @@ type SqlPort = Pick<ParticipantPort, 'execute'>
 export function insertRequest(port: SqlPort, record: RequestRecord, audience: ReadAudience) {
   const { ref, origin } = record
   const inserted = port.execute(
-    `INSERT INTO hi_requests_v2(tenant_ref,request_id,origin_kind,session_ref,run_ref,tool_call_ref,origin_ref,wait_owner,wait_id,incarnation,destination,position_ref,adoption_ref,display_context,action_basis_json,audience_digest,card_count)
- VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO hi_requests_v2(tenant_ref,request_id,origin_kind,session_ref,run_ref,tool_call_ref,origin_ref,wait_owner,wait_id,incarnation,destination,position_ref,adoption_ref,display_context,action_basis_json,audience_digest,card_count,asked_at)
+ VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
       stringCell(ref.tenantRef),
       stringCell(ref.requestId),
@@ -29,6 +29,7 @@ export function insertRequest(port: SqlPort, record: RequestRecord, audience: Re
       record.actionBasis ? canonical(record.actionBasis) : null,
       audience.audienceDigest,
       record.cards.length,
+      record.askedAt === undefined ? null : stringCell(record.askedAt),
     ],
   )
   const sequence = insertedSequence(inserted)

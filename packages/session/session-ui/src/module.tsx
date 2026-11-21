@@ -6,6 +6,7 @@ import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { Fragment } from 'react'
 import { ArchiveStore } from './model/archive.ts'
 import { EntryFocus } from './model/entry-focus.ts'
+import { SessionFigure } from './model/figure.ts'
 import { HistorySearchStore } from './model/history-search.ts'
 import { BackgroundCallsStore } from './model/background-calls.ts'
 import { ModelSelectionStore, type ModelChoiceHolder } from './model/model-selection.ts'
@@ -16,6 +17,7 @@ import { sessionCallDetail, sessionDock, sessionSide, sessionStatus } from './po
 import { ArchiveAction, ArchivedSessions } from './view/archive.tsx'
 import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
 import { ConversationPage } from './view/conversation-page.tsx'
+import { FigureReport } from './view/figure-report.tsx'
 import { HistorySearch } from './view/history-search.tsx'
 import { ModelAction } from './view/model-selection.tsx'
 import { EntryFocusContext } from './view/shown-entry.ts'
@@ -49,8 +51,22 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
     const archive = new ArchiveStore(client)
     const modes = new PermissionModeStore(client)
     const held = new SessionWorkStore(client)
+    // The composer reads how many calls wait for a person from what the session work last read; it asks nothing.
+    const waitingCalls = {
+      subscribe: (tenant: string, session: string, listener: () => void) =>
+        held.subscribe(tenant, session, listener),
+      count: (tenant: string, session: string) => {
+        const calls = held.read(tenant, session).calls
+        return calls.kind === 'read' ? calls.items.length : 0
+      },
+    }
     const search = new HistorySearchStore(client)
     const focus = new EntryFocus()
+    const figure = new SessionFigure(report => shell.figure(report))
+    const conversationShown = {
+      get: () => shell.page.get() === CONVERSATION_PAGE,
+      subscribe: (listener: () => void) => shell.page.subscribe(listener),
+    }
     sessionDock.contribute(shell, {
       id: 'background-calls',
       order: 10,
@@ -65,9 +81,9 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
       render: ({ scope }) => (
         <SessionListPanel
           workspaces={workspaces}
-          models={models}
           scope={scope}
           onShow={() => shell.navigate(CONVERSATION_PAGE)}
+          conversationShown={conversationShown}
         />
       ),
     })
@@ -86,6 +102,12 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
       icon: 'conversation',
       render: ({ scope }) => (
         <EntryFocusContext.Provider value={focus}>
+          <FigureReport
+            workspaces={workspaces}
+            scope={scope}
+            background={background}
+            figure={figure}
+          />
           <ConversationPage
             workspaces={workspaces}
             scope={scope}
@@ -99,15 +121,21 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
                 <>
                   <ModelAction store={models} tenant={scope} session={session} />
                   <PermissionModeAction store={modes} tenant={scope} session={session} />
-                  <ArchiveAction
-                    store={archive}
-                    workspaces={workspaces}
-                    tenant={scope}
-                    session={session}
-                  />
                 </>
               )
             }
+            more={(session, say) =>
+              scope === undefined ? null : (
+                <ArchiveAction
+                  store={archive}
+                  workspaces={workspaces}
+                  tenant={scope}
+                  session={session}
+                  say={say}
+                />
+              )
+            }
+            waitingCalls={waitingCalls}
             dock={session =>
               sessionDock.slot(shell, { session }, entries =>
                 entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
@@ -146,6 +174,7 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
       title: '搜索',
       order: 1,
       icon: 'search',
+      group: 'utility',
       render: ({ scope }) => (
         <HistorySearch
           store={search}

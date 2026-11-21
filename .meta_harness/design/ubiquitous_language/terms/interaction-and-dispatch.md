@@ -729,7 +729,7 @@
 - **出处**：[PF-016 §4 交付面](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
   [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
   [§5.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 13） ·
-  [桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述)（rev 4）
+  [桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述)（rev 5）
 - **⚠️ 别混**：**不是[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)。**
   据点是这些会话事实**所在的那一处**，交付面**什么都不持有**；
   同一处据点上**可以同时开着好几处**在用它
@@ -872,16 +872,17 @@
 ### UL-asset-page · 资产页 · Asset Page
 
 > **中**：**桌面应用里人管理本租户各类资产的那一部分。**
-> 它按资产的类别分开，每一类一个页签。它自己只有页标题与页签；页签下面是那一类的[资产类别页面](#ul-asset-category-page--资产类别页面--asset-category-page)。
+> 它按资产的类别分开，每一类在左边的一条栏里占一行。它自己只有页标题与这条栏；选中一行，右边是那一类的[资产类别页面](#ul-asset-category-page--资产类别页面--asset-category-page)。
 > 一份资产自己的设置在这里改，不在「设置」那一部分。
 >
 > **EN**: **The part of the desktop application where a person manages the assets of the tenant.**
-> It is divided by asset category, one tab for each category. The page itself has only a title
-> and the tabs. Under each tab is the asset category page of that category. A person changes the
+> It is divided by asset category, and each category has one row in a rail on the left. The page
+> itself has only a title and this rail. When a row is selected, the asset category page of that
+> category shows on the right. A person changes the
 > settings of an asset here, not in the Settings part.
 
 - **形态**：位置
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 4）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 5）
 - **别混**：不是「设置」那一部分：设置只放不属于任何一份资产的设置项。
   不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)：它是资产的界面模块放进外壳「页面」这个位置里的一项。
 
@@ -901,7 +902,7 @@
 > has at most one page.
 
 - **形态**：视图
-- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 4）
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 5）
 - **别混**：不是资产本身，也不存任何事实：页面上的每个值取自服务端此刻的答复。
   有没有这一页只说明这次部署装没装这一类的界面，不说明这个人许不许用这一类资产。
 - **注意**：它是放进资产页的[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)的一项[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)。
@@ -927,6 +928,139 @@
 - **别混**：不是[公开协议](architecture-core-and-extension.md#ul-public-protocol--公开协议--public-protocol)：它不隔着网络，在客户端的同一棵插件树上。
   不是[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)：拓展点让贡献流向宿主，它让宿主的能力流向贡献方。
   规则不由它判：一项能不能改、秘密给不给，都由服务端的答复说。
+
+---
+
+### UL-agent-figure · Agent 形 · Agent Figure
+
+> **中**：**桌面应用里代表 agent 的那一个墨圆**：一支毛笔写出，留一个口。
+> 一个窗口里同一时刻只有一个。它坐在[形座位](#ul-figure-seat--形座位--figure-seat)上，用自己的笔画说出它代表的会话此刻在做什么，并在口外写出[待答数](#ul-awaiting-answer-count--待答数--awaiting-answer-count)。
+> 人看着某个会话时，它代表这个会话的 agent；人没在看任何会话时，它代表这个租户的全部会话。
+> 它不存任何事实：它的样子每次从会话报出的状态与待答数算出。简称形。
+>
+> **EN**: **The one ink circle that stands for the agent in the desktop application.** One brush
+> stroke writes it, and it has an open gap. A window shows exactly one at a time. It sits on a figure
+> seat. Its own strokes show what the session it stands for is doing now. It writes the
+> awaiting-answer count outside its gap. When the person looks at a session, it stands for the agent
+> of that session. When the person looks at no session, it stands for all sessions of the tenant.
+> It keeps no facts. Each time, the application computes its look from the state that sessions
+> report and from the awaiting-answer count.
+
+- **形态**：视图
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 5）
+- **别混**：不是图标、头像或产品标志。不是 agent 本身：形只是 agent 在桌面应用里的样子，不带 agent 的任何事实。
+
+---
+
+### UL-figure-seat · 形座位 · Figure Seat
+
+> **中**：**界面里给 [Agent 形](#ul-agent-figure--agent-形--agent-figure)留出的一处固定位置。**
+> 座位自己不画任何东西，只给出一个中点。桌面应用有三个：登录门的上方（门）、侧栏的左上角（家）、对话页的头部（对话头）。
+> 几个座位同时看得见时，形坐优先级最高的那一个；形离开的座位上什么都不留。
+>
+> **EN**: **A fixed place in the interface for the agent figure.** A seat draws nothing
+> itself and only gives a centre point. The desktop application has three seats. The gate is above
+> the sign-in gate. Home is the top-left corner of the sidebar. The conversation header is in the
+> header of the conversation page. When several seats are visible, the figure sits on the one with the
+> highest priority. A seat that the figure left shows nothing.
+
+- **形态**：位置
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 5）
+- **别混**：不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)：插入位置里放的是界面模块的一项；座位上只坐形。
+
+---
+
+### UL-figure-port · 形口 · Figure Port
+
+> **中**：**[界面外壳](#ul-app-shell--界面外壳--app-shell)交给[界面模块](#ul-ui-module--界面模块--ui-module)的一个口**：
+> 界面模块经它报出它代表的会话此刻在做什么，以及它算出的[待答数](#ul-awaiting-answer-count--待答数--awaiting-answer-count)；外壳把各个模块的报告合起来，画出 [Agent 形](#ul-agent-figure--agent-形--agent-figure)。
+> 报告绑在报告方的作用域上，报告方卸载时撤掉。报告只交数据，没有结果。
+>
+> **EN**: **A port that the app shell gives to UI modules.** Through it, a UI module reports what
+> the session it stands for is doing now. It also reports the awaiting-answer count that it
+> computed. The shell
+> combines the reports of all modules and draws the agent figure. A report is bound to the scope of
+> the module that made it and is withdrawn when that module unloads. A report hands over data only
+> and has no result.
+
+- **形态**：位置
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 5）
+- **别混**：不是[资产治理口](#ul-asset-governance-port--资产治理口--asset-governance-port)：那个口让宿主的事实与操作流向贡献方；形口让贡献方的数据流向外壳。
+  报了一条不表示人看到了。
+- **注意**：它是[宿主交给贡献方的口](../../../../docs/architecture/cross-cutting-concepts.md#宿主交给贡献方的口)的一个，宿主是界面外壳。
+
+---
+
+### UL-awaiting-answer-count · 待答数 · Awaiting-Answer Count
+
+> **中**：**一个租户的[决策池](#ul-decision-pool--决策池--decision-pool)里此刻等着人回答的[决策卡片](#ul-decision-card--决策卡片--decision-card)的张数**，即待答的问询与放行。
+> 桌面应用把它用琥珀色写在 [Agent 形](#ul-agent-figure--agent-形--agent-figure)的口外，导航里「待你决定」后面是同一个数。
+> 没了结的[通知](#ul-notification--通知--notification)与[告知笺](#ul-told-note--告知笺--told-note)都不算进去。
+>
+> **EN**: **The number of decision cards that wait for an answer in the decision pool of one tenant
+> now**: the open inquiries and release cards. The desktop application writes it in amber outside
+> the gap of the agent figure, and the same number follows the decision page in the navigation.
+> Unresolved notifications and told notes do not count.
+
+- **形态**：视图
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 5）
+- **别混**：不是通知的未了结条数：那个数不要人回答，界面上用中性的样子显示。
+
+---
+
+### UL-ink-bubble · 墨框 · Ink Bubble
+
+> **中**：**[Agent 形](#ul-agent-figure--agent-形--agent-figure)展开给人看的内容外面的那一圈墨边。**
+> 边从形的口写出，边合上之后内容才出现；收起时内容先走，墨沿来路卷回口里。内容长了在边里面滚，边不动。
+> 墨有浓淡两种：浓的用在一两句话，淡的用在一大块内容。
+>
+> **EN**: **The ink edge around content that the agent figure unfolds for the person.** The figure
+> writes the edge out of its gap, and the content appears only after the edge closes. On
+> close, the content leaves first and the ink rolls back into the gap along its path. Long content
+> scrolls inside the edge, and the edge does not move. The ink has two strengths: full for one or
+> two sentences, light for a large block of content.
+
+- **形态**：视图
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 5）
+- **别混**：应用自己的菜单、下拉、提示、确认与常驻在版面里的东西都不是墨框，它们用应用的平样式。
+
+---
+
+### UL-told-note · 告知笺 · Told Note
+
+> **中**：**一个界面部分要临时告诉人一件事时，[Agent 形](#ul-agent-figure--agent-形--agent-figure)在家旁边用浓墨的[墨框](#ul-ink-bubble--墨框--ink-bubble)写出的一句话**，最多三行。
+> 同一时刻只有最新的一条。人点它就去它指的那一处；人去了那一处或点掉它，它收回。它不按时间消失。
+> 它不存任何东西：写过一条不表示人看到了，关掉窗口它就没有了。
+>
+> **EN**: **One sentence that the agent figure writes next to home in a full-ink ink bubble.** A
+> part of the interface uses it to tell the person something for a moment. It has at most three
+> lines. Only
+> the newest one shows at a time. When the person presses it, the application goes to the place it
+> points to. When the person goes there or dismisses it, it folds back. It does not disappear on a
+> timer. It keeps nothing: a told note written does not mean that the person saw it, and closing
+> the window removes it.
+
+- **形态**：视图
+- **出处**：[桌面应用「Agent 在屏幕上的形」](../../product/desktop-application/design.md#agent-在屏幕上的形)（rev 5）
+- **别混**：不是[通知](#ul-notification--通知--notification)：通知在收件箱里有记录，告知笺只是一次提醒的样子。
+
+---
+
+### UL-size-tier · 字号档 · Size Tier
+
+> **中**：**桌面应用里整个界面的字与尺寸一起放大、缩小的档位**，恰有四档：小楷、中楷、大楷、老花，缺省是中楷。
+> 换一档，版式不变，[Agent 形](#ul-agent-figure--agent-形--agent-figure)的大小跟着变。人选的那一档是一项[观感偏好](#ul-look-and-feel-preference--观感偏好--look-and-feel-preference)。
+>
+> **EN**: **The level at which all text and sizes of the desktop application interface grow or
+> shrink together.** There are exactly four: 小楷, 中楷, 大楷 and 老花, and 中楷 is the default.
+> A change of level keeps the layout and changes the size of the agent figure with it. The level
+> that the person chose is a look-and-feel preference.
+
+- **形态**：属性
+- **出处**：[桌面应用「观感」](../../product/desktop-application/design.md#观感)（rev 5）
+- **别混**：不是窗口或浏览器的缩放：那会把整页当一张图放大，形与版式的规则都不再成立。
+
+---
 
 ### UL-notification · 通知 · Notification
 

@@ -1,7 +1,7 @@
 import { watch } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, session, type BrowserWindow } from 'electron'
+import { app, Menu, session, type BrowserWindow } from 'electron'
 import { DEFAULT_SERVER } from '../shared/server.ts'
 import { serveAppProtocol } from './app-protocol.ts'
 import { APP_HOST, INTERNAL_ORIGIN } from './app-url.ts'
@@ -28,8 +28,32 @@ function reloadOnRebuild(pageRoot: string, current: () => BrowserWindow | undefi
   })
 }
 
+// The default View menu zooms the whole page on Command or Control with = - 0; the page takes
+// those keys for its size tiers, so the View menu keeps every standard item except the zoom roles.
+function setAppMenu(): void {
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      ...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
+      { role: 'fileMenu' },
+      { role: 'editMenu' },
+      {
+        role: 'viewMenu',
+        submenu: [
+          { role: 'reload' },
+          { role: 'forceReload' },
+          { role: 'toggleDevTools' },
+          { type: 'separator' },
+          { role: 'togglefullscreen' },
+        ],
+      },
+      { role: 'windowMenu' },
+    ]),
+  )
+}
+
 async function start(): Promise<void> {
   await app.whenReady()
+  setAppMenu()
   const pageRoot = fileURLToPath(new URL('../page/', import.meta.url))
   const appSession = session.fromPartition(APP_PARTITION)
   // One utility process for the app, not per window: it outlives windows, reloads and crashes.

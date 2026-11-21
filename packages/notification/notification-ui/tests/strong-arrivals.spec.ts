@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { INITIAL, type Entry, type State } from '../src/model/inbox-machine.ts'
-import { arrivals, UNREAD_LEDGER } from '../src/model/strong-arrivals.ts'
+import { arrivals, arrivalToast, UNREAD_LEDGER } from '../src/model/strong-arrivals.ts'
 import { dismissed, entry, seen, superseded } from './fixtures/entries.ts'
 
 const ready = (entries: readonly Entry[]): State => ({
@@ -58,5 +58,17 @@ describe('arrivals', () => {
     const base = arrivals(UNREAD_LEDGER, ready([strong('a', 1)])).ledger
     expect(arrivals(base, ready([strong('a', 1)])).ledger).toBe(base)
     expect(arrivals(base, ready([])).ledger).toBe(base)
+  })
+})
+
+describe('arrivalToast', () => {
+  it('tells the title alone and goes to the entry on the panel', () => {
+    const told = arrivalToast(strong('e1', 1, { title: '该给阳台的花浇水了' }), 'notifications')
+    expect(told).toEqual({
+      id: told.id,
+      tone: 'attention',
+      title: '该给阳台的花浇水了',
+      action: { label: '去看看', page: 'notifications', subject: told.id },
+    })
   })
 })

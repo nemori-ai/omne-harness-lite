@@ -15,6 +15,7 @@
 @import './patterns/code-surface.css';
 @import './patterns/confirm/confirm.css';
 @import './charts/charts.css';
+@import './ink/ink.css';
 @import './styles/prose.css';
 @source ".";
 @source "../node_modules/streamdown/dist";

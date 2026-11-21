@@ -58,6 +58,16 @@ describe('the content of a release card', () => {
     ])
   })
 
+  it('gives every option the role of its answer: the two that release nothing reject, the three that release approve', () => {
+    expect(releaseCard(action, all).options.map(option => [option.id, option.role])).toEqual([
+      ['deny-once', 'reject'],
+      ['allow-once', 'approve'],
+      ['allow-session', 'approve'],
+      ['allow-always', 'approve'],
+      ['deny-always', 'reject'],
+    ])
+  })
+
   it('carries what the tool said this call would do as it was given, and nothing when there is none', () => {
     expect(releaseCard(action, all)).not.toHaveProperty('detail')
     const given = {

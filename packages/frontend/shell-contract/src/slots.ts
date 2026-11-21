@@ -23,11 +23,16 @@ export type GateItem = Readonly<{
   render: (props: GateProps) => ReactNode
 }>
 
+/** The part of the sidebar an item sits in: `primary` at the top, `utility` at the foot. */
+type SidebarGroup = 'primary' | 'utility'
+
 export type PageItem = Readonly<{
   id: string
   title: string
   order: number
-  icon?: string
+  /** A name in the icon set: all a page keeps when the sidebar folds to a rail. */
+  icon: string
+  group?: SidebarGroup
   badge?: (props: ScopedProps) => ReactNode
   render: (props: PageProps) => ReactNode
 }>
@@ -35,6 +40,9 @@ export type PageItem = Readonly<{
 export type SidebarItem = Readonly<{
   id: string
   order: number
+  group?: SidebarGroup
+  /** What the item draws when the sidebar folds to a rail; without it the rail leaves it out. */
+  rail?: (props: ScopedProps) => ReactNode
   render: (props: ScopedProps) => ReactNode
 }>
 

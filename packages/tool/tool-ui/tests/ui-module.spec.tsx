@@ -22,6 +22,11 @@ const detail = definePoint<{ readonly session: string; readonly call: string }>(
 
 afterEach(cleanup)
 
+// happy-dom cancels a notice's arrival animation on unmount; the look is not under test here.
+Object.assign(Element.prototype, {
+  animate: () => ({ cancel: () => undefined, finished: Promise.resolve() }),
+})
+
 const attached = (root: Context) =>
   (root.shell as unknown as { items(slot: 'attached'): { id: string }[] })
     .items('attached')
@@ -79,16 +84,58 @@ describe('the output of a call as the view keeps it (C26, C24)', () => {
     stop()
   })
 
-  it('says when there is no output yet, or when it cannot be read', async () => {
+  it('says when there is no output yet; reading it is the activity mark with its words', async () => {
     const { CallOutput } = await import('../src/index.ts')
-    for (const [answer, words] of [
-      [{ outcome: 'succeeded', body: { kind: 'none' } }, '还没有可读的输出'],
-      [{ outcome: 'basis-unavailable' }, '输出现在读不到：basis-unavailable'],
-    ] as const) {
-      const store = new CallOutputStore(client([answer]).client as never, 60_000)
-      render(<CallOutput store={store} tenant={TENANT} reference="ref-2" />)
-      expect(await screen.findByText(words)).toBeTruthy()
+    const store = new CallOutputStore(
+      client([{ outcome: 'succeeded', body: { kind: 'none' } }]).client as never,
+      60_000,
+    )
+    render(<CallOutput store={store} tenant={TENANT} reference="ref-2" />)
+    const reading = screen.getByRole('status', { name: '正在读输出…' })
+    expect(reading.querySelector('[data-loading-indicator]')).not.toBeNull()
+    // The empty line is weak ink, said at caption size (SPEC 界面模块).
+    expect((await screen.findByText('还没有可读的输出')).className).toContain('text-ink-muted')
+  })
+
+  it('an output it cannot read is said in words, its outcome kept in 详情; a refusal or an unknown is neutral', async () => {
+    const { CallOutput } = await import('../src/index.ts')
+    const tones: (string | null)[] = []
+    for (const outcome of ['basis-unavailable', 'denied', 'uncertain']) {
+      const store = new CallOutputStore(client([{ outcome }]).client as never, 60_000)
+      render(<CallOutput store={store} tenant={TENANT} reference="ref-3" />)
+      const notice = (await screen.findByText('输出现在读不到。')).closest('[data-inline-notice]')
+      expect(notice?.textContent).not.toContain(`读不到：${outcome}`)
+      expect(screen.getByRole('button', { name: '详情' })).toBeTruthy()
+      expect(notice?.querySelector('code')?.textContent).toBe(outcome)
+      tones.push(notice?.getAttribute('data-tone') ?? null)
       cleanup()
     }
+    expect(tones).toEqual(['caution', 'neutral', 'neutral'])
+  })
+
+  it('the output is a code surface named 调用的输出; while open a neutral 输出还在写, once sealed nothing', async () => {
+    const { CallOutput } = await import('../src/index.ts')
+    const fake = client([
+      {
+        outcome: 'succeeded',
+        body: { kind: 'open', from: '0', through: '4', total: '4', text: 'one\n' },
+      },
+      {
+        outcome: 'succeeded',
+        body: { kind: 'sealed', from: '4', through: '8', total: '8', text: 'two\n' },
+      },
+    ])
+    const store = new CallOutputStore(fake.client as never, 60_000)
+    render(<CallOutput store={store} tenant={TENANT} reference="ref-4" />)
+    const output = await screen.findByRole('group', { name: '调用的输出' })
+    const surface = output.querySelector('.code-surface')
+    expect(surface?.querySelector('pre')?.textContent).toBe('one\n')
+    const word = output.querySelector('[data-state-word]')
+    expect([word?.textContent, word?.getAttribute('data-tone')]).toEqual(['输出还在写', 'neutral'])
+    expect(word?.querySelector('[data-loading-indicator]')).toBeNull()
+    await act(async () => store.refresh(TENANT, 'ref-4'))
+    expect(surface?.querySelector('pre')?.textContent).toBe('one\ntwo\n')
+    expect(output.querySelector('[data-state-word]')).toBeNull()
+    expect(output.textContent).not.toContain('输出已写完')
   })
 })

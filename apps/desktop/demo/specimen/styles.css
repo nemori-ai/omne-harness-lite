@@ -1,0 +1,65 @@
+@import '@omne-harness/ui-kit/styles.css';
+@source '.';
+
+.specimen-family {
+  display: grid;
+  gap: var(--omne-space-block);
+  padding-block: var(--omne-space-section);
+  border-top: 1px solid var(--omne-line-subtle);
+}
+.page-header + .specimen-family {
+  padding-top: 0;
+  border-top: 0;
+}
+.specimen-list-reading {
+  height: calc(var(--spacing) * 120);
+  border: 1px solid var(--omne-line-subtle);
+}
+.specimen-list-reading > .list-reading {
+  height: 100%;
+}
+.specimen-family > h2 {
+  margin: 0;
+  font-size: var(--omne-text-lead);
+  font-weight: var(--omne-weight-strong);
+  line-height: var(--omne-leading-title);
+}
+.specimen-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+.specimen-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--omne-space-inline);
+}
+.specimen-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16em, 1fr));
+  align-items: start;
+  gap: var(--omne-space-block);
+}
+.specimen-punctuation {
+  margin: 0;
+  max-width: 70ch;
+}
+.specimen-punctuation[data-specimen-punctuation='reading'] {
+  font-family: var(--omne-font-reading);
+  font-size: var(--omne-text-body);
+  line-height: var(--omne-leading-reading);
+  letter-spacing: var(--omne-reading-tracking);
+}
+.specimen-punctuation[data-specimen-punctuation='ui'] {
+  font-family: var(--omne-font-ui);
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-ui);
+}
+
+.specimen-decision {
+  width: 100%;
+  max-width: calc(var(--spacing) * 185);
+  margin: 0 auto;
+  padding: calc(var(--spacing) * 8) calc(var(--spacing) * 1.5);
+}

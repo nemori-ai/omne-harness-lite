@@ -22,13 +22,13 @@ export const MODE_LABELS: Readonly<Record<PermissionMode, string>> = {
   'bypass-permissions': '跳过询问',
 }
 
-// A change not known to have landed is said as not known; the mode shown is read again (C2).
-export function changeText(answer: Answer<'change-permission-mode'>): string {
+// A change that took says nothing: the dropdown shows the mode read again. One not known to have landed is said as
+// not known (C2).
+export function changeText(answer: Answer<'change-permission-mode'>): string | null {
   switch (answer.outcome) {
     case 'succeeded':
-      return `已改为「${MODE_LABELS[answer.body.mode]}」`
     case 'no-change':
-      return `本来就是「${MODE_LABELS[answer.body.mode]}」`
+      return null
     case 'conflict':
       return '模式刚被改过，已重新读取，请再选一次'
     case 'unknown':
@@ -76,7 +76,7 @@ export class PermissionModeStore {
     )
   }
 
-  async change(tenant: string, session: string, mode: PermissionMode): Promise<string> {
+  async change(tenant: string, session: string, mode: PermissionMode): Promise<string | null> {
     const owner = readTenantText(tenant)
     const shown = this.read(tenant, session)
     if (owner === undefined) return '没有送达：租户读不懂'

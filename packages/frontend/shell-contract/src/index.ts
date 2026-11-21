@@ -1,5 +1,16 @@
 export { createSlotStore, type SlotStore } from './slot-store.ts'
 export {
+  createFigureStore,
+  type FigureBoard,
+  type FigureDoing,
+  type FigureMoment,
+  type FigureMomentKind,
+  type FigureReport,
+  type FigureStore,
+  type FigureView,
+  type MergedFigure,
+} from './figure-store.ts'
+export {
   createToastStore,
   type ShownToast,
   type Toast,

@@ -12,10 +12,31 @@
   font-weight: 100 800;
   font-display: block;
 }
+@font-face {
+  font-family: 'Omne Punctuation';
+  src: url('../../resources/fonts/omne-punctuation/omne-punctuation-regular.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  unicode-range:
+    U+3001-3002, U+3008-3011, U+3014-3015, U+FF01, U+FF08-FF09, U+FF0C, U+FF1A-FF1B, U+FF1F, U+FF3B,
+    U+FF3D, U+FF5B, U+FF5D;
+}
+@font-face {
+  font-family: 'Omne Punctuation';
+  src: url('../../resources/fonts/omne-punctuation/omne-punctuation-bold.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 500 900;
+  font-display: block;
+  unicode-range:
+    U+3001-3002, U+3008-3011, U+3014-3015, U+FF01, U+FF08-FF09, U+FF0C, U+FF1A-FF1B, U+FF1F, U+FF3B,
+    U+FF3D, U+FF5B, U+FF5D;
+}
 
 :root {
   --omne-font-han:
-    'LXGW WenKai', 'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif CJK SC', 'Songti SC', 'SimSun';
+    'Omne Punctuation', 'LXGW WenKai', 'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif CJK SC',
+    'Songti SC', 'SimSun';
   --omne-font-ui: 'Inter', var(--omne-font-han), -apple-system, sans-serif;
   --omne-font-reading: 'Charter', var(--omne-font-han), Georgia, serif;
   --omne-font-mono: 'JetBrains Mono', var(--omne-font-han), monospace;

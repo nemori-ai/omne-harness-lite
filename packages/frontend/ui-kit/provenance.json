@@ -1,16 +1,130 @@
 {
   "repository": "https://github.com/pandazki/super-assistant",
-  "commit": "3b967f58768714d57cd1bacf67b599d2aa7a8f53",
+  "commit": "83c1616f44d000d1f333e929bfd94d31dff847da",
+  "realigned": {
+    "from": "3b967f58768714d57cd1bacf67b599d2aa7a8f53",
+    "changed": [
+      "desktop/src/renderer/src/design/use-object-transition.ts",
+      "desktop/src/renderer/src/design/icons/brush.ts",
+      "desktop/src/renderer/src/components/ai/receipt-pill.tsx",
+      "desktop/src/renderer/src/i18n/state-labels.ts"
+    ]
+  },
   "authorization": "Project owner, 2026-11-13: design language, visuals, motion, assets, fonts and front-end stack may be reused.",
   "licenses": {
     "LICENSE.shadcn": "MIT, copyright shadcn; the base controls derive from shadcn/ui new-york-v4",
     "resources/fonts/LICENSE.Inter": "SIL OFL 1.1",
     "resources/fonts/LICENSE.JetBrainsMono": "SIL OFL 1.1",
-    "resources/fonts/LICENSE.LXGWWenKai": "SIL OFL 1.1; LXGW WenKai 1.7.0 from the lxgw-wenkai-webfont package",
+    "resources/fonts/LICENSE.LXGWWenKai": "SIL OFL 1.1; LXGW WenKai 1.250 (font name table) from the lxgw-wenkai-webfont 1.7.0 package; the copyright lines are those of upstream OFL.txt at v1.250",
+    "resources/fonts/LICENSE.OmnePunctuation": "SIL OFL 1.1; Omne Punctuation is a Modified Version of LXGW WenKai 1.250, released under its own name",
     "upstream_repository": "The upstream repository carries no LICENSE file; reuse rests on the authorization above."
   },
   "not_taken": [
     "TsangerJinKai02 fonts (licence forbids shipping as an application asset)"
+  ],
+  "modified": [
+    {
+      "path": "resources/fonts/omne-punctuation/omne-punctuation-regular.woff2",
+      "sha256": "aa710571525920997eb6eb5d502462a2ef88b992d99cd6f27c878e9ccab30089",
+      "family": "Omne Punctuation",
+      "postscript_name": "OmnePunctuation-Regular",
+      "from": "LXGW WenKai 1.250 (name ID 5: Version 1.250;January 17, 2023), the bundled pieces below; glyph outlines copied, then only the advance and the horizontal position changed",
+      "pieces": [
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-5.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-100.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-101.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-102.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-103.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-105.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-106.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-110.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-115.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-116.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-117.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-118.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-regular-subset-119.woff2"
+      ],
+      "bearings_from": "TsangerJinKai02-W04 at desktop/src/renderer/public/fonts/TsangerJinKai02-W04.woff2 (git blob 2f4d995b49b8a73787eec9c700f7ccb60659b7db), read only for its side bearings (advance minus tight outline bounds); nothing of it is shipped",
+      "change": "Ink extents are tight outline bounds. Both side bearings come from the same Tsanger glyph and the ink width from WenKai: the outline moves by shift units so that its left edge sits at the Tsanger left bearing, and advance_to = left_bearing + WenKai ink width + right_bearing. Name table: new family, full and PostScript names, no reserved upstream name; OS/2 vendor NONE; vertical metrics and layout tables dropped",
+      "glyphs": [
+        {"code_point": "U+FF0C", "character": "，", "piece": "lxgwwenkai-regular-subset-119.woff2", "left_bearing": 78, "left_from": "Tsanger", "right_bearing": 360, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 568, "shift": -23},
+        {"code_point": "U+3002", "character": "。", "piece": "lxgwwenkai-regular-subset-119.woff2", "left_bearing": 77, "left_from": "Tsanger", "right_bearing": 338, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 689, "shift": 0},
+        {"code_point": "U+3001", "character": "、", "piece": "lxgwwenkai-regular-subset-119.woff2", "left_bearing": 102, "left_from": "Tsanger", "right_bearing": 352, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 672, "shift": 31},
+        {"code_point": "U+FF1A", "character": "：", "piece": "lxgwwenkai-regular-subset-119.woff2", "left_bearing": 142, "left_from": "Tsanger", "right_bearing": 337, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 584, "shift": -53},
+        {"code_point": "U+FF1B", "character": "；", "piece": "lxgwwenkai-regular-subset-115.woff2", "left_bearing": 61, "left_from": "Tsanger", "right_bearing": 377, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 562, "shift": -115},
+        {"code_point": "U+FF01", "character": "！", "piece": "lxgwwenkai-regular-subset-118.woff2", "left_bearing": 162, "left_from": "Tsanger", "right_bearing": 380, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 647, "shift": -11},
+        {"code_point": "U+FF1F", "character": "？", "piece": "lxgwwenkai-regular-subset-117.woff2", "left_bearing": 96, "left_from": "Tsanger", "right_bearing": 210, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 738, "shift": 26},
+        {"code_point": "U+300C", "character": "「", "piece": "lxgwwenkai-regular-subset-110.woff2", "left_bearing": 187, "left_from": "Tsanger", "right_bearing": 45, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 452, "shift": -537},
+        {"code_point": "U+300D", "character": "」", "piece": "lxgwwenkai-regular-subset-110.woff2", "left_bearing": 84, "left_from": "Tsanger", "right_bearing": 211, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 515, "shift": 28},
+        {"code_point": "U+300E", "character": "『", "piece": "lxgwwenkai-regular-subset-106.woff2", "left_bearing": 183, "left_from": "Tsanger", "right_bearing": 36, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 488, "shift": -498},
+        {"code_point": "U+300F", "character": "』", "piece": "lxgwwenkai-regular-subset-105.woff2", "left_bearing": 37, "left_from": "Tsanger", "right_bearing": 199, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 505, "shift": -13},
+        {"code_point": "U+FF08", "character": "（", "piece": "lxgwwenkai-regular-subset-118.woff2", "left_bearing": 172, "left_from": "Tsanger", "right_bearing": 30, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 425, "shift": -537},
+        {"code_point": "U+FF09", "character": "）", "piece": "lxgwwenkai-regular-subset-118.woff2", "left_bearing": 66, "left_from": "Tsanger", "right_bearing": 173, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 462, "shift": -2},
+        {"code_point": "U+300A", "character": "《", "piece": "lxgwwenkai-regular-subset-116.woff2", "left_bearing": 127, "left_from": "Tsanger", "right_bearing": 10, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 567, "shift": -392},
+        {"code_point": "U+300B", "character": "》", "piece": "lxgwwenkai-regular-subset-116.woff2", "left_bearing": 67, "left_from": "Tsanger", "right_bearing": 167, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 664, "shift": 16},
+        {"code_point": "U+3008", "character": "〈", "piece": "lxgwwenkai-regular-subset-100.woff2", "left_bearing": 168, "left_from": "Tsanger", "right_bearing": 36, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 490, "shift": -494},
+        {"code_point": "U+3009", "character": "〉", "piece": "lxgwwenkai-regular-subset-101.woff2", "left_bearing": 48, "left_from": "Tsanger", "right_bearing": 170, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 504, "shift": -4},
+        {"code_point": "U+3010", "character": "【", "piece": "lxgwwenkai-regular-subset-117.woff2", "left_bearing": 192, "left_from": "Tsanger", "right_bearing": 31, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 462, "shift": -529},
+        {"code_point": "U+3011", "character": "】", "piece": "lxgwwenkai-regular-subset-117.woff2", "left_bearing": 83, "left_from": "Tsanger", "right_bearing": 180, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 503, "shift": 44},
+        {"code_point": "U+3014", "character": "〔", "piece": "lxgwwenkai-regular-subset-103.woff2", "left_bearing": 165, "left_from": "Tsanger", "right_bearing": 34, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 413, "shift": -557},
+        {"code_point": "U+3015", "character": "〕", "piece": "lxgwwenkai-regular-subset-103.woff2", "left_bearing": 67, "left_from": "Tsanger", "right_bearing": 198, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 479, "shift": 3},
+        {"code_point": "U+FF3B", "character": "［", "piece": "lxgwwenkai-regular-subset-102.woff2", "left_bearing": 182, "left_from": "Tsanger", "right_bearing": 30, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 432, "shift": -535},
+        {"code_point": "U+FF3D", "character": "］", "piece": "lxgwwenkai-regular-subset-101.woff2", "left_bearing": 43, "left_from": "Tsanger", "right_bearing": 198, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 461, "shift": -20},
+        {"code_point": "U+FF5B", "character": "｛", "piece": "lxgwwenkai-regular-subset-5.woff2", "left_bearing": 166, "left_from": "Tsanger", "right_bearing": 44, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 466, "shift": -511},
+        {"code_point": "U+FF5D", "character": "｝", "piece": "lxgwwenkai-regular-subset-5.woff2", "left_bearing": 52, "left_from": "Tsanger", "right_bearing": 150, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 458, "shift": -15}
+      ]
+    },
+    {
+      "path": "resources/fonts/omne-punctuation/omne-punctuation-bold.woff2",
+      "sha256": "4d4e3d686bca3ab417c791ef5f2aee3df5923ffaee18aa9c90b94b49f43f0052",
+      "family": "Omne Punctuation",
+      "postscript_name": "OmnePunctuation-Bold",
+      "from": "LXGW WenKai 1.250 (name ID 5: Version 1.250;January 17, 2023), the bundled pieces below; glyph outlines copied, then only the advance and the horizontal position changed",
+      "pieces": [
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-5.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-100.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-101.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-102.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-103.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-105.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-106.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-110.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-115.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-116.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-117.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-118.woff2",
+        "resources/fonts/lxgw-wenkai/lxgwwenkai-bold-subset-119.woff2"
+      ],
+      "bearings_from": "TsangerJinKai02-W05 at desktop/src/renderer/public/fonts/TsangerJinKai02-W05.woff2 (git blob 6cd79d8753dd9aee1f943aa7ec8fbf734416708c), read only for its side bearings (advance minus tight outline bounds); nothing of it is shipped",
+      "change": "Ink extents are tight outline bounds. Both side bearings come from the same Tsanger glyph and the ink width from WenKai: the outline moves by shift units so that its left edge sits at the Tsanger left bearing, and advance_to = left_bearing + WenKai ink width + right_bearing. Name table: new family, full and PostScript names, no reserved upstream name; OS/2 vendor NONE; vertical metrics and layout tables dropped",
+      "glyphs": [
+        {"code_point": "U+FF0C", "character": "，", "piece": "lxgwwenkai-bold-subset-119.woff2", "left_bearing": 72, "left_from": "Tsanger", "right_bearing": 356, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 570, "shift": -23},
+        {"code_point": "U+3002", "character": "。", "piece": "lxgwwenkai-bold-subset-119.woff2", "left_bearing": 78, "left_from": "Tsanger", "right_bearing": 326, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 690, "shift": 7},
+        {"code_point": "U+3001", "character": "、", "piece": "lxgwwenkai-bold-subset-119.woff2", "left_bearing": 102, "left_from": "Tsanger", "right_bearing": 361, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 693, "shift": 37},
+        {"code_point": "U+FF1A", "character": "：", "piece": "lxgwwenkai-bold-subset-119.woff2", "left_bearing": 140, "left_from": "Tsanger", "right_bearing": 325, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 582, "shift": -49},
+        {"code_point": "U+FF1B", "character": "；", "piece": "lxgwwenkai-bold-subset-115.woff2", "left_bearing": 56, "left_from": "Tsanger", "right_bearing": 381, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 573, "shift": -114},
+        {"code_point": "U+FF01", "character": "！", "piece": "lxgwwenkai-bold-subset-118.woff2", "left_bearing": 151, "left_from": "Tsanger", "right_bearing": 386, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 654, "shift": -16},
+        {"code_point": "U+FF1F", "character": "？", "piece": "lxgwwenkai-bold-subset-117.woff2", "left_bearing": 96, "left_from": "Tsanger", "right_bearing": 208, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 748, "shift": 32},
+        {"code_point": "U+300C", "character": "「", "piece": "lxgwwenkai-bold-subset-110.woff2", "left_bearing": 186, "left_from": "Tsanger", "right_bearing": 46, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 464, "shift": -532},
+        {"code_point": "U+300D", "character": "」", "piece": "lxgwwenkai-bold-subset-110.woff2", "left_bearing": 91, "left_from": "Tsanger", "right_bearing": 210, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 533, "shift": 41},
+        {"code_point": "U+300E", "character": "『", "piece": "lxgwwenkai-bold-subset-106.woff2", "left_bearing": 178, "left_from": "Tsanger", "right_bearing": 36, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 495, "shift": -497},
+        {"code_point": "U+300F", "character": "』", "piece": "lxgwwenkai-bold-subset-105.woff2", "left_bearing": 35, "left_from": "Tsanger", "right_bearing": 204, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 520, "shift": -9},
+        {"code_point": "U+FF08", "character": "（", "piece": "lxgwwenkai-bold-subset-118.woff2", "left_bearing": 176, "left_from": "Tsanger", "right_bearing": 24, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 435, "shift": -527},
+        {"code_point": "U+FF09", "character": "）", "piece": "lxgwwenkai-bold-subset-118.woff2", "left_bearing": 66, "left_from": "Tsanger", "right_bearing": 175, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 476, "shift": 4},
+        {"code_point": "U+300A", "character": "《", "piece": "lxgwwenkai-bold-subset-116.woff2", "left_bearing": 116, "left_from": "Tsanger", "right_bearing": 9, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 567, "shift": -397},
+        {"code_point": "U+300B", "character": "》", "piece": "lxgwwenkai-bold-subset-116.woff2", "left_bearing": 64, "left_from": "Tsanger", "right_bearing": 160, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 666, "shift": 19},
+        {"code_point": "U+3008", "character": "〈", "piece": "lxgwwenkai-bold-subset-100.woff2", "left_bearing": 156, "left_from": "Tsanger", "right_bearing": 43, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 497, "shift": -500},
+        {"code_point": "U+3009", "character": "〉", "piece": "lxgwwenkai-bold-subset-101.woff2", "left_bearing": 48, "left_from": "Tsanger", "right_bearing": 167, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 513, "shift": 2},
+        {"code_point": "U+3010", "character": "【", "piece": "lxgwwenkai-bold-subset-117.woff2", "left_bearing": 186, "left_from": "Tsanger", "right_bearing": 30, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 476, "shift": -529},
+        {"code_point": "U+3011", "character": "】", "piece": "lxgwwenkai-bold-subset-117.woff2", "left_bearing": 63, "left_from": "Tsanger", "right_bearing": 185, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 509, "shift": 39},
+        {"code_point": "U+3014", "character": "〔", "piece": "lxgwwenkai-bold-subset-103.woff2", "left_bearing": 157, "left_from": "Tsanger", "right_bearing": 35, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 418, "shift": -559},
+        {"code_point": "U+3015", "character": "〕", "piece": "lxgwwenkai-bold-subset-103.woff2", "left_bearing": 70, "left_from": "Tsanger", "right_bearing": 190, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 486, "shift": 12},
+        {"code_point": "U+FF3B", "character": "［", "piece": "lxgwwenkai-bold-subset-102.woff2", "left_bearing": 186, "left_from": "Tsanger", "right_bearing": 36, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 454, "shift": -525},
+        {"code_point": "U+FF3D", "character": "］", "piece": "lxgwwenkai-bold-subset-101.woff2", "left_bearing": 43, "left_from": "Tsanger", "right_bearing": 203, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 478, "shift": -14},
+        {"code_point": "U+FF5B", "character": "｛", "piece": "lxgwwenkai-bold-subset-5.woff2", "left_bearing": 175, "left_from": "Tsanger", "right_bearing": 47, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 490, "shift": -496},
+        {"code_point": "U+FF5D", "character": "｝", "piece": "lxgwwenkai-bold-subset-5.woff2", "left_bearing": 52, "left_from": "Tsanger", "right_bearing": 156, "right_from": "Tsanger", "advance_from": 1000, "advance_to": 476, "shift": -9}
+      ]
+    }
   ],
   "sources": [
     {
@@ -27,11 +141,11 @@
     },
     {
       "path": "desktop/src/renderer/src/design/use-object-transition.ts",
-      "sha256": "e7e116036b63157a1a7e59a37f04b72e0cb9ab6ee5debcc9e4e882d6fd2c8254"
+      "sha256": "6e332b42523aa303644a8fc1b3e754b933d8603455e0bde0672ccdf11155a595"
     },
     {
       "path": "desktop/src/renderer/src/design/icons/brush.ts",
-      "sha256": "fdb23af3d7d8568e42fdf52d2e9653b35584744eae479c3decb1185ed8abf805"
+      "sha256": "a1beffff350bec605030139c896a3cf25438f026449bdd25d878cb3c2a3893f8"
     },
     {
       "path": "desktop/src/renderer/src/design/icons/glyphs.ts",
@@ -147,7 +261,7 @@
     },
     {
       "path": "desktop/src/renderer/src/components/ai/receipt-pill.tsx",
-      "sha256": "0675ecea1764f52617898c13e5f2871621e61c3fa7a43390f63d57d525085187"
+      "sha256": "07d7bee101b1f014d4726316951d9a389f208424ba961dd5217fb61fe3151092"
     },
     {
       "path": "desktop/src/renderer/src/components/ai/shimmer.tsx",
@@ -179,7 +293,7 @@
     },
     {
       "path": "desktop/src/renderer/src/i18n/state-labels.ts",
-      "sha256": "10961d0a2dc10dbffcafe277baa8b6a13de4f54edd6f5591c4a3d8bd0b836629"
+      "sha256": "10795f25b6d46d95d07882ee21399ebdc153e8d4abfba8e5385159dd63fa2153"
     },
     {
       "path": "desktop/src/renderer/src/components/disclosure.tsx",
@@ -274,6 +388,10 @@
       "sha256": "4c34c3a3ec0e87daf2d60d46a88f428863d1690a8e92fbcb9496850c27e30a25"
     },
     {
+      "path": "desktop/src/renderer/src/conversation/decision-card.css",
+      "sha256": "96da44ced8684828dfedb3682ce1a5fe0a2c5dd469bf2dafb5b1f0c30cf85e52"
+    },
+    {
       "path": "desktop/src/renderer/src/theme/controller.ts",
       "sha256": "255ff32dda2b2b4e05add11142ebc702210986168468ce0ada652c883c0774bd"
     },
@@ -306,6 +424,114 @@
       "files": 194,
       "sha256": "39ca9c767772280f9621aa43d130e60f388b84b918f2db98291b572592ea946c",
       "sha256_of": "the output of `sha256sum *.woff2` run in that directory"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/casual.ts",
+      "sha256": "b63ef2153863ad15ac3f71399205cbbe0844d4319c874581c02a0b7a5af15707"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/writing.ts",
+      "sha256": "5f334f83af3219306b3dfd46669da301b89d03174b1e17f4d6ca72c8cb78ba61"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/ink.ts",
+      "sha256": "a25f10fb534f901e8f13bd51e120659bcd2a0123254466896097321f9c2d084b"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/brush-weight.ts",
+      "sha256": "056ced2f1b6b4092285694e4c3c48b1b67e85554dc31ed952f4592d0000e7629"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/bristle.ts",
+      "sha256": "73481dfbed44602d1482989ca4f8e62bd0933849b07d9e43b4246a46fdcb6400"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/ink-canvas.ts",
+      "sha256": "39510af379ce6a0687943c6048a1263c3209659918073c15bcd2669a7eed8e0f"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/clock.ts",
+      "sha256": "a3d8465b1bd3c5517eb54a9cb4ed027630f62f235d92dfabe2fd33859e18ceb4"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/carry.ts",
+      "sha256": "6885a2718215d915cba975fe7d9a0b83d1f448c4ae675b274b0179c7992e0718"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/observation-frame.tsx",
+      "sha256": "065916fec01481f4b74ae34fd3ea3b31416a9f55ee97539fa5e53373fe596440"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/travel.ts",
+      "sha256": "1345c8a185bc02e79f2daff1e7bdc61439cf862cee23171df9c610e4135a3868"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/body.ts",
+      "sha256": "0cc53ac2533c82b67fafaa0d0918165dfa69cb14e031594f4a74fd9c7834cbff"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/doing-ink.ts",
+      "sha256": "ef0ca318acd2dc6e99cf9396e97c97079574af9e4217aad686498bbb97a6ba19"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/pieces.ts",
+      "sha256": "6895f89b1c81c415208403696eca8d6447199fee0a5b98e4527135d6f522a711"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/doing.ts",
+      "sha256": "755efabbd28afea6de97936f9f908938b731b11c61b2331f9e20395719bacf7e"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/note-ink.ts",
+      "sha256": "2f74cc4aedbd788c1e71e83db766fec53b8d0f468140eafc8062347f1cde7bf3"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/note-bubble.tsx",
+      "sha256": "10114966344d5f67fccdcf18b0c505991f814d9cbd2e0fd4fd0ef859cef1426c"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/ink-bubble.tsx",
+      "sha256": "611f0244aba5db4a093fda3d29a6c0121e50cf936963c89bc28018725cb4c400"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/spirit-ink.tsx",
+      "sha256": "375ea11fc7bdb6a38b5d53d297b26e6df2ac9df8f3312673f89c5f58a1cfa19d"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/spirit-journeys.tsx",
+      "sha256": "c03a1d637a95a27268e143aa8579f32a6a4b6b3483a6260d2d06238107ad3b01"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/spirit-stage.tsx",
+      "sha256": "c6b6deca9d410c083dfd30411e5bdcf575bbfff2a039aeefbcca99bed9c7ccf4"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/seat.tsx",
+      "sha256": "c1dae480a4539f6816ef2cfda08ee4ca10b015f4b53d9477f2c17f4ac6e1a4fc"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/host.ts",
+      "sha256": "65b0a7087ff616eac1edbc02a43c9f1988ec1808e169e5e412dcb3f62dc1166f"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/store.ts",
+      "sha256": "c44b60594c046b629a69b39c88209537912eed16afdf8e46a68efa216d9c4ab8"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/spirit.css",
+      "sha256": "a8bb65ffeeb74c75221ecb4bf172c6e50ad1e04c2bceba9e75c6f6785d7eccae"
+    },
+    {
+      "path": "desktop/src/renderer/src/spirit/ink-bubble.css",
+      "sha256": "36d22123c4df737006ccb1e2a8602ccf1fd175d17d0cf370112179cdc876927b"
+    },
+    {
+      "path": "desktop/src/renderer/src/assistant/told-note.tsx",
+      "sha256": "7dc64c315446a5d411478e24d25e5da90ed70448e7b9e76675fe85d1c92ad843"
+    },
+    {
+      "path": "desktop/src/renderer/src/assistant/told-note.css",
+      "sha256": "89156db707bc11f89d6960ee89e6b8570c9670822daab682fd063b01aa52bbd6"
     }
   ]
 }

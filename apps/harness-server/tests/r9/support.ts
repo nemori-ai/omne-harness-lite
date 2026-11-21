@@ -573,6 +573,8 @@ export function startServer(options: {
   port: number
   startupTimeoutMs?: number
   extraCaPath?: string
+  /** Keep only about this many characters of the newest output, cut at a line; a long walk would outgrow a string. */
+  logTail?: number
 }): Promise<ServerHandle> {
   const args = [
     serverBin,
@@ -599,8 +601,14 @@ export function startServer(options: {
   })
   let stdout = ''
   let stderr = ''
-  child.stdout.setEncoding('utf8').on('data', (chunk: string) => (stdout += chunk))
-  child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk))
+  const kept = (text: string): string => {
+    const tail = options.logTail
+    if (tail === undefined || text.length <= 2 * tail) return text
+    const cut = text.slice(-tail)
+    return cut.slice(cut.indexOf('\n') + 1)
+  }
+  child.stdout.setEncoding('utf8').on('data', (chunk: string) => (stdout = kept(stdout + chunk)))
+  child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr = kept(stderr + chunk)))
   child.stdin.on('error', () => {})
   const closed = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
   const outcome = async (): Promise<ServerOutcome> => ({

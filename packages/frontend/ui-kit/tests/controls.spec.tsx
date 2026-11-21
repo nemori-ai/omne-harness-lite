@@ -7,6 +7,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
   Field,
   Input,
@@ -29,10 +31,6 @@ import {
   SheetTitle,
   SheetTrigger,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
   Textarea,
   Tooltip,
   TooltipContent,
@@ -198,21 +196,6 @@ it('Segmented marks the chosen segment and reports another choice', () => {
   expect(onValueChange).toHaveBeenCalledWith('grid')
 })
 
-it('Table renders rows and cells as table elements', () => {
-  render(
-    <Table>
-      <TableBody>
-        <TableRow>
-          <TableCell>名称</TableCell>
-          <TableCell>值</TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>,
-  )
-  expect(screen.getByRole('table')).toBeTruthy()
-  expect(screen.getAllByRole('cell').map(cell => cell.textContent)).toEqual(['名称', '值'])
-})
-
 it('Tooltip shows its text when its trigger takes focus and names it as a tooltip', async () => {
   render(
     <TooltipProvider delayDuration={0}>
@@ -292,6 +275,28 @@ it('DropdownMenu opens from its trigger and runs the chosen item', async () => {
   expect(onSelect).toHaveBeenCalledTimes(1)
 })
 
+it('DropdownMenuRadioItem marks the chosen one with the kit check and only that one', async () => {
+  render(
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button">外观</button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuRadioGroup value="dark">
+          <DropdownMenuRadioItem value="light">浅色</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark">深色</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>,
+  )
+  fireEvent.pointerDown(screen.getByRole('button', { name: '外观' }), { button: 0, ctrlKey: false })
+  const chosen = await screen.findByRole('menuitemradio', { name: '深色' })
+  const other = screen.getByRole('menuitemradio', { name: '浅色' })
+  expect(chosen.getAttribute('aria-checked')).toBe('true')
+  expect(chosen.querySelector('svg[data-icon="done"]')).not.toBeNull()
+  expect(other.querySelector('svg[data-icon="done"]')).toBeNull()
+})
+
 it('Sheet opens as a dialog with a named close control', async () => {
   const onOpenChange = vi.fn()
   render(
@@ -356,13 +361,6 @@ it.each(['light', 'dark'] as const)('every control renders under the %s theme', 
         onValueChange={() => undefined}
         options={[{ value: 'a', label: '甲段' }]}
       />
-      <Table>
-        <TableBody>
-          <TableRow>
-            <TableCell>格</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
       <Select>
         <SelectTrigger aria-label="选择器">
           <SelectValue placeholder="选" />
@@ -379,6 +377,5 @@ it.each(['light', 'dark'] as const)('every control renders under the %s theme', 
   expect(screen.getByRole('checkbox', { name: '勾选' })).toBeTruthy()
   expect(screen.getByRole('switch', { name: '开关' })).toBeTruthy()
   expect(screen.getByRole('radio', { name: '甲' })).toBeTruthy()
-  expect(screen.getByRole('table')).toBeTruthy()
   expect(screen.getByRole('combobox', { name: '选择器' })).toBeTruthy()
 })

@@ -96,6 +96,11 @@ export class InboxDriver {
     this.dispatch({ kind: 'close' })
   }
 
+  /** Reads the opened notification again after its body could not be read. */
+  reread(): void {
+    this.dispatch({ kind: 'reread' })
+  }
+
   dispose(): void {
     this.#disposed = true
     this.#stop()
@@ -137,6 +142,13 @@ export class InboxDriver {
         const { token, ref } = effect
         void notSent(() => client['read-notification']({ ...target, ...ref })).then(answer =>
           this.dispatch({ kind: 'read-answered', token, answer }),
+        )
+        return
+      }
+      case 'sources': {
+        const { token } = effect
+        void notSent(() => client['list-sources']({ tenant: this.#tenant })).then(answer =>
+          this.dispatch({ kind: 'sources-answered', token, answer }),
         )
         return
       }
