@@ -162,7 +162,9 @@ async function world(options: { root?: boolean } = {}): Promise<World> {
   await writeFile(join(outside, 'secret'), 'secret-bytes')
   await writeFile(join(base, 'root-evil', 'secret'), 'evil-bytes')
   const engine = createHostFilesEngine(
-    options.root === false ? { stateDirectory: state } : { root, stateDirectory: state },
+    options.root === false
+      ? { stateDirectory: state }
+      : { scope: { read: root, write: root }, stateDirectory: state },
   )
   return {
     base,
@@ -467,7 +469,10 @@ it('keeps unrooted writes through an ancestor link and parent segments', async (
 it('refuses rooted effects while P2 is unknown and retries after its directory exists', async () => {
   const w = await world()
   const stateDirectory = join(w.base, 'later-state')
-  const files = createHostFilesEngine({ root: w.root, stateDirectory }).facilityFor('probe')
+  const files = createHostFilesEngine({
+    scope: { read: w.root, write: w.root },
+    stateDirectory,
+  }).facilityFor('probe')
   const write = {
     ...request(join(w.root, 'ok.txt'), w.okToken, 'probe-write'),
     mode: 'replace' as const,
@@ -763,7 +768,9 @@ it('answers unavailable for every operation when the root cannot be opened, and 
   const base = await realpath(await mkdtemp(join(tmpdir(), 'omne-exec-root-')))
   bases.push(base)
   await writeFile(join(base, 'file.txt'), 'x')
-  const engine = createHostFilesEngine({ root: join(base, 'no-such-root') })
+  const engine = createHostFilesEngine({
+    scope: { read: join(base, 'no-such-root'), write: join(base, 'no-such-root') },
+  })
   const f = engine.facilityFor('unavailable')
   const named = await hostObjectToken(join(base, 'file.txt'))
   expect(await f.read(request(join(base, 'file.txt'), named, 'read'))).toEqual(
@@ -775,13 +782,15 @@ it('answers unavailable for every operation when the root cannot be opened, and 
 })
 
 it('rejects a root that is not an absolute path when the engine is made', () => {
-  expect(() => createHostFilesEngine({ root: 'relative/root' })).toThrow(TypeError)
+  expect(() =>
+    createHostFilesEngine({ scope: { read: 'relative/root', write: 'relative/root' } }),
+  ).toThrow(TypeError)
   expect(() => createHostFilesEngine({ stateDirectory: 'relative/state' })).toThrow(TypeError)
 })
 
-it('tells whether the engine has a root', () => {
-  expect(createHostFilesEngine().hasRoot).toBe(false)
-  expect(createHostFilesEngine({ root: tmpdir() }).hasRoot).toBe(true)
+it('tells the files scope of the engine', () => {
+  expect(createHostFilesEngine().scope).toEqual({})
+  expect(createHostFilesEngine({ scope: { write: tmpdir() } }).scope).toEqual({ write: tmpdir() })
 })
 
 it('does not change the accepted behaviour for a path with an ancestor link when no root is configured', async () => {

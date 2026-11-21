@@ -28,6 +28,7 @@ it('exports on the root only the names members outside the Tool group import, an
     'encodeToolOperationRef',
     'judgeToolDelivery',
     'offeredDefinition',
+    'pinnedFiles',
     'projectResidentReferences',
     'readToolOperationRef',
     'residentToolFacts',

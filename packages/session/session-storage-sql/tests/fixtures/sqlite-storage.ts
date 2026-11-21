@@ -1,5 +1,6 @@
 import readPermissionMode from '../../src/worker/read-permission-mode.ts'
 import callLeftMigration from '../../src/worker/call-left-migration.ts'
+import forkMigration from '../../src/worker/fork-migration.ts'
 import compactionIndexMigration from '../../src/worker/compaction-index-migration.ts'
 import readEntryMessage from '../../src/worker/read-entry-message.ts'
 import readCompactionContext from '../../src/worker/read-compaction-context.ts'
@@ -61,8 +62,10 @@ import readExecutionRetired from '../../src/worker/read-execution-retired.ts'
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
+import readInheritedHistory from '../../src/worker/read-inherited-history.ts'
 import readInput from '../../src/worker/read-input.ts'
 import readModelSelection from '../../src/worker/read-model-selection.ts'
+import readForkPoint from '../../src/worker/read-fork-point.ts'
 import readModelView from '../../src/worker/read-model-view.ts'
 import readPending from '../../src/worker/read-pending.ts'
 import readSearchEntries from '../../src/worker/read-search-entries.ts'
@@ -103,6 +106,8 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readInput,
   readModelSelection,
   readHistory,
+  readInheritedHistory,
+  readForkPoint,
   readModelView,
   readPending,
   readSearchSessions,
@@ -153,6 +158,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   itemMigration,
   compactionIndexMigration,
   callLeftMigration,
+  forkMigration,
 ]
 
 export type StorageCall =

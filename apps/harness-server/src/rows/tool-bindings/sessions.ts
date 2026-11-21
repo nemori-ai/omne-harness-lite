@@ -163,7 +163,7 @@ export function createBoundSessions(parent: Parent, ports: SessionsBindingPorts)
       }
       return { failure: { kind: 'not-found' } }
     },
-    async read({ session, cursor, direction, pageBytes }) {
+    async read({ session, cursor, direction, pageBytes, inherited }) {
       const history = ports.history()
       if (history === undefined) return absent('the session history')
       if (!(await admitted())) return { failure: { kind: 'denied' } }
@@ -176,6 +176,7 @@ export function createBoundSessions(parent: Parent, ports: SessionsBindingPorts)
               from: null,
               direction,
               pageBytes,
+              ...(inherited === true ? { inherited: true as const } : {}),
             })
           : await history.next({ ...target, cursor })
       if ('failure' in page) return { failure: failureOf(page.failure) }
@@ -184,7 +185,8 @@ export function createBoundSessions(parent: Parent, ports: SessionsBindingPorts)
         kind: entry.kind,
         payload: JSON.parse(writeJsonText(entry.payload)) as unknown,
       }))
-      return { ok: { entries, next: page.ok.next, exhausted: page.ok.exhausted } }
+      const { next, exhausted, from } = page.ok
+      return { ok: { entries, next, exhausted, ...(from === undefined ? {} : { from }) } }
     },
     async search(input) {
       const search = ports.search()

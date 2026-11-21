@@ -2,6 +2,7 @@ import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { describe, expect, it } from 'vitest'
 import { organizationCodec, workspaceEquals } from '@omne-harness/legal-identity'
 import {
+  pinnedFiles,
   type FixedToolRequest,
   type ToolDefinition,
   type ToolInvokeRequest,
@@ -403,7 +404,10 @@ describe('request judgment', () => {
     const workspace = testingWorkspace(WORKSPACE_TEXT)
     const plain = { path: '/srv/default', workspace: null }
     const attached = { path: '/srv/blog', workspace: { id: workspace, instance: 'wsi_blog' } }
-    for (const directory of [plain, attached]) {
+    const scoped = [{ write: '/srv/blog' }, {}, { read: '/srv/blog', write: '/srv/blog' }].map(
+      files => ({ ...attached, files }),
+    )
+    for (const directory of [plain, attached, ...scoped]) {
       const fixed = judgeFixedToolRequest({ ...request(), directory })
       if ('failure' in fixed) throw new Error(JSON.stringify(fixed.failure))
       expect(fixed.ok.directory).toEqual(directory)
@@ -453,6 +457,21 @@ describe('request judgment', () => {
         'an unknown member',
         { ...plain, root: '/srv' },
         { field: 'directory.root', reason: 'unknown-field' },
+      ],
+      [
+        'files that are not a scope',
+        { ...attached, files: '/srv' },
+        { field: 'directory.files', reason: 'type' },
+      ],
+      [
+        'an empty root',
+        { ...attached, files: { write: '' } },
+        { field: 'directory.files.write', reason: 'empty' },
+      ],
+      [
+        'a scope with another side',
+        { ...attached, files: { root: '/srv' } },
+        { field: 'directory.files.root', reason: 'unknown-field' },
       ],
     ]
     for (const [label, directory, expected] of bad) {
@@ -583,3 +602,10 @@ it.each(['self', 'ancestor'] as const)(
     expect(judged).toHaveProperty('failure.reason', 'cycle')
   },
 )
+
+it('a call pinned to a directory reads and writes below it unless its scope was pinned too', () => {
+  const plain = { path: '/srv/blog', workspace: null }
+  expect(pinnedFiles(plain)).toEqual({ read: '/srv/blog', write: '/srv/blog' })
+  expect(pinnedFiles({ ...plain, files: { write: '/srv/blog' } })).toEqual({ write: '/srv/blog' })
+  expect(pinnedFiles({ ...plain, files: {} })).toEqual({})
+})

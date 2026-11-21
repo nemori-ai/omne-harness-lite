@@ -325,6 +325,7 @@ function requestSource(ctx: Context) {
     operatorSettings: () => ({}),
     interaction: async () => fail('no meta command in this test'),
     workingDirectory: async () => succeed({ state: 'default', directory: pinnedTo }),
+    outsideFiles: async () => 'none',
   })
 }
 

@@ -182,21 +182,14 @@ describe('what is refused when it is asked for', () => {
     )
   })
 
-  it('a spawn whose context copy cannot be given or is too long, while a delegate needs none', async () => {
+  it('a spawn whose session has no moment to fork at, while a delegate needs none', async () => {
     const w = world()
     w.copies.answer({ kind: 'none' })
     expect(await w.registry.dispatch(w.ctx(), { ...ASK, mode: 'spawn' })).toEqual(
       refused('context-unavailable'),
     )
-    w.copies.answer({ kind: 'too-large' })
-    expect(await w.registry.dispatch(w.ctx(), { ...ASK, mode: 'spawn' })).toEqual(
-      refused('context-too-large'),
-    )
     expect(valueOf(await w.registry.dispatch(w.ctx(), ASK)).state).toBe('started')
-    expect(w.copies.asked).toEqual([
-      [TENANT, PARENT, 'call-1'],
-      [TENANT, PARENT, 'call-1'],
-    ])
+    expect(w.copies.asked).toEqual([[TENANT, PARENT, 'call-1']])
   })
 
   it('fixes the moment of the conversation when a spawn is accepted, and keeps it when the same call asks again', async () => {

@@ -737,6 +737,38 @@ describe('session commands', () => {
     expect(await cli(['read-model-selection'])).toMatchObject({ code: 2 })
   })
 
+  it('read-workspace-selection reads the workspace one session stands at and its directory', async () => {
+    const body = {
+      workspace: null,
+      state: 'default',
+      directory: '/srv/default',
+      reason: null,
+      revision: '4',
+    }
+    const service = await serve(seen =>
+      seen.operation === 'issue-login'
+        ? { outcome: 'succeeded', body: loginBody(seen) }
+        : { outcome: 'succeeded', body },
+    )
+    await loginOwningSession(service)
+    const result = await cli(['read-workspace-selection', '--session', sessionId])
+    expect(service.seen.at(-1)?.path).toBe('/api/session/v1/read-workspace-selection')
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, session: sessionId })
+    expect(parsed(result.stdout)).toMatchObject({
+      outcome: 'succeeded',
+      body,
+      request: { messageId: expect.any(String), tenant: tenantText },
+    })
+    expect(await cli(['read-workspace-selection'])).toMatchObject({ code: 2 })
+    // A session this state directory never created needs its tenant named.
+    const elsewhere = 'f'.repeat(64)
+    expect(await cli(['read-workspace-selection', '--session', elsewhere])).toMatchObject({
+      code: 2,
+    })
+    await cli(['read-workspace-selection', '--session', elsewhere, '--tenant', tenantText])
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, session: elsewhere })
+  })
+
   it('list-models asks Model for the models of the login tenant, or of the tenant given (C24)', async () => {
     const service = await serve()
     await loginOwningSession(service)

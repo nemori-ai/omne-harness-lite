@@ -8,7 +8,6 @@ export type AcceptRefusal =
   | 'too-deep'
   | 'too-many-open'
   | 'context-unavailable'
-  | 'context-too-large'
   | 'conflict'
 
 /** What is known when a dispatch is asked for. Each fact has its own owner; this only judges. */
@@ -21,8 +20,8 @@ export type AcceptFacts = Readonly<{
   /** How many dispatches of the dispatching session are accepted or started. */
   open: number
   maxOpen: number
-  /** Whether the copy of the context of the dispatching call can be given. Only `spawn` needs it. */
-  contextCopy: 'given' | 'none' | 'too-large'
+  /** Whether the moment of the dispatching call to fork the session at is known. Only `spawn` needs it. */
+  contextCopy: 'given' | 'none'
 }>
 
 export type AcceptDecision =
@@ -39,7 +38,6 @@ const CHECKS: readonly (readonly [(facts: AcceptFacts) => boolean, AcceptRefusal
   [facts => facts.mode !== 'handoff' && facts.dispatcher.depth >= MAX_DISPATCH_DEPTH, 'too-deep'],
   [facts => facts.open >= facts.maxOpen, 'too-many-open'],
   [facts => facts.mode === 'spawn' && facts.contextCopy === 'none', 'context-unavailable'],
-  [facts => facts.mode === 'spawn' && facts.contextCopy === 'too-large', 'context-too-large'],
 ]
 
 /** A request that does not hold when it is asked for is refused with the first reason that fits. */

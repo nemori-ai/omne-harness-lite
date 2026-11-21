@@ -159,8 +159,12 @@ function snapshotReads<P>(
 function modelViewReads<P>(
   reads: Reads<P>,
   caller: SessionCallerClass,
-): Pick<SessionFaces<P>['history'], 'readCompactionContext' | 'readModelView'> {
+): Pick<SessionFaces<P>['history'], 'readCompactionContext' | 'readModelView' | 'readForkPoint'> {
   return {
+    readForkPoint: value =>
+      reads.session(caller, 'history.readModelView', value, view =>
+        view.history.readForkPoint(accessOf(value)),
+      ),
     readCompactionContext: value =>
       reads.session(caller, 'history.readCompactionContext', value, view =>
         view.history.readCompactionContext({
@@ -306,6 +310,7 @@ export function createFaces<P>(
             from: value.from,
             direction: value.direction,
             pageBytes: value.pageBytes,
+            ...(value.inherited === true ? { inherited: true } : {}),
           }),
         ),
       ),

@@ -1,3 +1,4 @@
+import type { FilesScope } from '@omne-harness/execution-environment-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import type { Modality } from '@omne-harness/modality'
@@ -156,10 +157,11 @@ export type ToolInvocation = Readonly<{
   source: DurableEvidence
 }>
 export type ToolEnvironmentDeclaration = Readonly<{ adoption: Adoption; value: JsonValue }>
-/** Where a call works by default, with the workspace instance it belongs to when there is one. */
+/** Where a call works by default, its workspace instance, and the files it may touch (see `pinnedFiles`). */
 export type ToolCallDirectory = Readonly<{
   path: string
   workspace: Readonly<{ id: WorkspaceId; instance: string }> | null
+  files?: FilesScope
 }>
 export type ToolCallFields = Readonly<{
   command: string | null

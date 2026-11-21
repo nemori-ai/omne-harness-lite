@@ -557,6 +557,12 @@ importers:
       '@omne-harness/usage-ui':
         specifier: workspace:*
         version: link:../../packages/usage/usage-ui
+      '@omne-harness/workspace-protocol':
+        specifier: workspace:*
+        version: link:../../packages/workspace/workspace-protocol
+      '@omne-harness/workspace-ui':
+        specifier: workspace:*
+        version: link:../../packages/workspace/workspace-ui
       eventsource-parser:
         specifier: 'catalog:'
         version: 3.1.1
@@ -2785,6 +2791,18 @@ importers:
       '@omne-harness/dispatch':
         specifier: workspace:*
         version: link:../dispatch
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/dynamis/dynamis:
+    devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -5901,6 +5919,9 @@ importers:
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../common/exchange-refs
+      '@omne-harness/execution-environment-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-contract
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -6693,6 +6714,9 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+      '@omne-harness/settings':
+        specifier: workspace:*
+        version: link:../../assets/settings
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract
@@ -6762,6 +6786,61 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/workspace/workspace-ui:
+    dependencies:
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
+      '@omne-harness/ui-kit':
+        specifier: workspace:*
+        version: link:../../frontend/ui-kit
+      '@omne-harness/workspace-protocol':
+        specifier: workspace:*
+        version: link:../workspace-protocol
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      happy-dom:
+        specifier: 'catalog:'
+        version: 21.0.4
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

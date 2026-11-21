@@ -634,22 +634,38 @@ it('marks the held-facility retirement case not applicable without the necessary
   expect(await runConformanceCase(test)).toMatchObject({ status: 'not-applicable' })
 })
 
-it('a placement and the request for one may name a files root: a non-empty path, or nothing', async () => {
+it('a placement and the request for one may name a files scope: a non-empty root for either side, or nothing', async () => {
   const wanted = { scope, requirement }
   const params = contract.resolvePlacementParamsSchema['~standard']
   const result = contract.resolvePlacementResultSchema['~standard']
-  expect(await params.validate([access, { ...wanted, filesRoot: '/srv/blog' }])).toMatchObject({
-    value: [access, { ...wanted, filesRoot: '/srv/blog' }],
-  })
-  expect(await result.validate({ ...placement, filesRoot: '/srv/blog' })).toMatchObject({
-    value: { ...placement, filesRoot: '/srv/blog' },
-  })
-  const bare = await result.validate(placement)
-  expect('value' in bare && 'filesRoot' in (bare.value as object)).toBe(false)
-  for (const filesRoot of ['', null, 7]) {
-    expect(await params.validate([access, { ...wanted, filesRoot }])).toHaveProperty('issues')
-    expect(await result.validate({ ...placement, filesRoot })).toHaveProperty('issues')
+  for (const filesScope of [
+    { read: '/srv/blog', write: '/srv/blog' },
+    { write: '/srv/blog' },
+    { read: '/srv' },
+    {},
+  ]) {
+    expect(await params.validate([access, { ...wanted, filesScope }])).toMatchObject({
+      value: [access, { ...wanted, filesScope }],
+    })
+    expect(await result.validate({ ...placement, filesScope })).toMatchObject({
+      value: { ...placement, filesScope },
+    })
   }
+  const bare = await result.validate(placement)
+  expect('value' in bare && 'filesScope' in (bare.value as object)).toBe(false)
+  for (const filesScope of [
+    { read: '' },
+    { write: null },
+    { read: 7 },
+    { root: '/srv/blog' },
+    '/srv/blog',
+    null,
+  ]) {
+    expect(await params.validate([access, { ...wanted, filesScope }])).toHaveProperty('issues')
+    expect(await result.validate({ ...placement, filesScope })).toHaveProperty('issues')
+  }
+  // The single files root is gone: a placement naming one is not a placement.
+  expect(await result.validate({ ...placement, filesRoot: '/srv/blog' })).toHaveProperty('issues')
 })
 
 it('rejects cyclic scope parents as issues and accepts a finite parent chain', async () => {

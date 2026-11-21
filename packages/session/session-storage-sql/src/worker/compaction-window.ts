@@ -6,7 +6,8 @@ import {
   type Message,
   type PairingWitness,
 } from '@omne-harness/message'
-import { big, oneRow, rowsOf, text, type Executor } from './support.ts'
+import { entryOwners, SegmentUnreadable, viewOf } from './fork.ts'
+import { big, oneRow, text, type Executor } from './support.ts'
 import { viewMessageText } from './shared-messages.ts'
 
 export const MAX_COMPACTION_ROWS = 100_000
@@ -15,17 +16,27 @@ export type CompactionWindowRead =
   | Readonly<{ kind: 'behind' | 'invalid-bounds' }>
   | Readonly<{ kind: 'epoch-changed'; current: { epoch: string; upper: string } }>
 
-export function readCompactionWindow(
-  port: Executor,
-  input: Readonly<{
-    tenant: string
-    session: string
-    epoch: string
-    upper: string | null
-    coverTo: string | null
-  }>,
-): CompactionWindowRead {
+type WindowInput = Readonly<{
+  tenant: string
+  session: string
+  epoch: string
+  upper: string | null
+  coverTo: string | null
+}>
+
+/** The window of a session over its view, wherever the rows of the view stand: none while one is not there. */
+export function readCompactionWindow(port: Executor, input: WindowInput): CompactionWindowRead {
+  try {
+    return windowOf(port, input)
+  } catch (error) {
+    if (error instanceof SegmentUnreadable) return { kind: 'behind' }
+    throw error
+  }
+}
+
+function windowOf(port: Executor, input: WindowInput): CompactionWindowRead {
   const scope = [input.tenant, input.session]
+  const session = { tenant: input.tenant, session: input.session }
   const head = oneRow(
     port,
     `SELECT j.tail, j.epoch, c.covered, c.origin, c.protection
@@ -36,12 +47,8 @@ export function readCompactionWindow(
   if (head === undefined || head['covered'] === null || big(head['covered']) !== big(head['tail']))
     return { kind: 'behind' }
   const epoch = text(head['epoch'])
-  const last = oneRow(
-    port,
-    'SELECT seq FROM sl_model_view WHERE tenant = ? AND session = ? AND epoch = ? ORDER BY seq DESC LIMIT 1',
-    [...scope, epoch],
-  )
-  const upper = last === undefined ? 0n : big(last['seq'])
+  const view = viewOf(port, session, epoch)
+  const upper = view.upper()
   const selectedUpper = input.upper ?? String(upper)
   if (input.epoch !== epoch)
     return { kind: 'epoch-changed', current: { epoch, upper: String(upper) } }
@@ -52,12 +59,7 @@ export function readCompactionWindow(
     BigInt(selectedUpper) > BigInt(MAX_COMPACTION_ROWS)
   )
     return { kind: 'invalid-bounds' }
-  const stored = rowsOf(
-    port,
-    `SELECT entry, message FROM sl_model_view
-    WHERE tenant = ? AND session = ? AND epoch = ? AND seq <= ? ORDER BY seq LIMIT ?`,
-    [...scope, epoch, BigInt(selectedUpper), BigInt(MAX_COMPACTION_ROWS + 1)],
-  )
+  const stored = view.rows(0n, BigInt(selectedUpper), MAX_COMPACTION_ROWS + 1, 'entry, message')
   if (stored.length !== Number(selectedUpper)) return { kind: 'behind' }
   const messages = new Map<string, CoveredEntry>()
   for (const row of stored) {
@@ -93,12 +95,13 @@ export function readCompactionWindow(
   if (end < 0 || (prior !== undefined && BigInt(prior.ref) > BigInt(coverTo)))
     return { kind: 'invalid-bounds' }
   const pairings: PairingWitness[] = []
+  const ownerOf = entryOwners(port, session)
   for (const row of ordered) {
     if (row.message?.role !== 'tool') continue
     const paired = oneRow(
       port,
       'SELECT call_entry FROM sl_message_pairing WHERE tenant = ? AND session = ? AND result = ? LIMIT 1',
-      [...scope, row.ref],
+      [input.tenant, ownerOf(BigInt(row.ref)), row.ref],
     )
     if (paired === undefined) return { kind: 'behind' }
     const call =

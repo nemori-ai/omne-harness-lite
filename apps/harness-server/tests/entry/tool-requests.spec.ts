@@ -10,6 +10,8 @@ import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { workspaceCodec } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { WorkingDirectory } from '@omne-harness/session-adapters'
+import type { FilesScope } from '@omne-harness/execution-environment-contract'
+import type { OutsideFiles } from '@omne-harness/workspace-local'
 import type { SessionFaces, WorkSnapshot } from '@omne-harness/session-contract'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import type {
@@ -134,6 +136,7 @@ async function world() {
     interaction: async () =>
       succeed({ attendance: 'attended', humanInteraction: true, child: false }),
     workingDirectory: async () => succeed({ state: 'default', directory: '/srv/default' }),
+    outsideFiles: async () => 'none',
   }
   return { fixture, ports, principalA, principalB, snapshot, definitions }
 }
@@ -377,11 +380,94 @@ describe('the trusted Tool request source', () => {
     expect(attached.directory).toEqual({
       path: '/srv/blog',
       workspace: { id: okOf(parsedWorkspace(blog), 'workspace'), instance: 'wsi_blog' },
+      files: { read: '/srv/blog', write: '/srv/blog' },
     })
     expect(okOf(judgeToolInvokeRequest(attached), 'judge').directory).toEqual(attached.directory)
     // It is read when the call is described, to answer a call that has none, and again to pin it.
     const access = { principal: principalA, tenant: TENANT_A, session: expect.any(String) }
     expect(read).toEqual([access, access])
+  })
+
+  describe('the files a call may read and write, pinned when it is prepared (table two)', () => {
+    const blog = 'wsp_00000000000000000000000001'
+    const attachedTo: WorkingDirectory = {
+      state: 'attached',
+      workspace: blog,
+      instance: 'wsi_blog',
+      directory: '/srv/blog',
+    }
+    const reads = (setting: OutsideFiles | null) => {
+      const asked: unknown[] = []
+      return {
+        asked,
+        outsideFiles: async (tenant: unknown) => (asked.push(tenant), setting),
+      }
+    }
+
+    it.each<[OutsideFiles, FilesScope]>([
+      ['none', { read: '/srv/blog', write: '/srv/blog' }],
+      ['read', { write: '/srv/blog' }],
+      ['read-write', {}],
+    ])('a session with a usable workspace and the setting %s', async (setting, files) => {
+      const { ports, principalA } = await world()
+      const setting$ = reads(setting)
+      const source: ToolRequestPorts = {
+        ...ports,
+        workingDirectory: async () => succeed(attachedTo),
+        outsideFiles: setting$.outsideFiles,
+      }
+      const request = okOf(await prepared(source, principalA), 'prepared') as ToolInvokeRequest
+      expect(request.directory?.files).toEqual(files)
+      expect(setting$.asked).toEqual([TENANT_A, TENANT_A])
+      // The setting changing after the call was prepared does not change what it was pinned to.
+      const pinned = structuredClone(request.directory)
+      setting$.asked.length = 0
+      expect(request.directory).toEqual(pinned)
+      expect(setting$.asked).toEqual([])
+    })
+
+    it('is unavailable, neither allowed nor refused, when the setting cannot be read', async () => {
+      const { ports, principalA } = await world()
+      const source = createReleaseToolRequests({
+        ...ports,
+        workingDirectory: async () => succeed(attachedTo),
+        outsideFiles: reads(null).outsideFiles,
+      })
+      expect(await source.describe(actionInput(principalA))).toEqual({
+        failure: {
+          kind: 'unavailable',
+          owner: TOOL_REQUESTS_OWNER,
+          diagnostic: 'the setting for files outside the workspace is not readable',
+        },
+      })
+    })
+
+    it.each<[string, WorkingDirectory | null]>([
+      ['no workspace', { state: 'default', directory: '/srv/default' }],
+      [
+        'a workspace that cannot be used',
+        { state: 'unusable', workspace: blog, instance: 'wsi_blog', reason: 'not-permitted' },
+      ],
+      ['no working directory', null],
+    ])('a session with %s does not read the setting', async (_name, value) => {
+      const { ports, principalA } = await world()
+      const setting$ = reads('read-write')
+      const source = createReleaseToolRequests({
+        ...ports,
+        workingDirectory: async () => succeed(value),
+        outsideFiles: setting$.outsideFiles,
+      })
+      const described = await source.describe(actionInput(principalA))
+      expect(setting$.asked).toEqual([])
+      if (value?.state === 'default') {
+        const request = okOf(
+          await prepared({ ...ports, outsideFiles: setting$.outsideFiles }, principalA),
+          'prepared',
+        ) as ToolInvokeRequest
+        expect(request.directory).toEqual({ path: '/srv/default', workspace: null })
+        expect(setting$.asked).toEqual([])
+      } else expect(described).toMatchObject({ ok: { kind: 'answered' } })
+    })
   })
 
   it.each<[string, WorkingDirectory | null, string]>([

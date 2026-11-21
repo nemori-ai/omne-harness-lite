@@ -153,6 +153,9 @@ describe('the agent of a session moves the session with SwitchWorkspace', () => 
       const exitCode = await onReleaseTree(options, async tree => {
         const at = await registered(tree, blog)
         const session = await sessionIn(tree, at)
+        // The working copy is made beside the workspace, outside it: the tenant allows that first.
+        const allow = ['setting', 'set', '--independent', 'workspace/outside-files', 'access']
+        await ok(tree, [...allow, '--value', '"read-write"'])
         const { answers, entries } = await ran(
           tree,
           session,

@@ -2,18 +2,21 @@ import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { link, lstat, mkdir, open, readdir, rename, rmdir, unlink } from 'node:fs/promises'
 import type { FileHandle } from 'node:fs/promises'
-import type {
-  EnvironmentBinding,
-  FacilityResult,
-  FileIdentity,
-  FileEntry,
-  FileInformation,
-  FileRequest,
-  FileSystemFacility,
-  FileTarget,
-  FileVersion,
-  HandleGeneration,
-  ObjectToken,
+import {
+  fileEffects,
+  type EnvironmentBinding,
+  type FacilityResult,
+  type FileEffect,
+  type FileIdentity,
+  type FileEntry,
+  type FileInformation,
+  type FileRequest,
+  type FileSystemFacility,
+  type FileTarget,
+  type FileVersion,
+  type HandleGeneration,
+  type ObjectToken,
+  type ScopedFileOperation,
 } from '@omne-harness/execution-environment-contract'
 import {
   changeFailure,
@@ -36,8 +39,9 @@ import {
   type CloseHandle,
   type Failure,
   type FileStats,
-  type HostPaths,
   type Located,
+  type ScopedPaths,
+  type Target,
   type Outcome,
 } from './host-paths.ts'
 
@@ -63,8 +67,21 @@ export function hostFilesLimits(overrides: Partial<HostFilesLimits> = {}): HostF
   return Object.freeze(limits)
 }
 
+/** The paths of a request, each with the effect the operation has on it. */
+function targetsOf(
+  operation: ScopedFileOperation,
+  path: string,
+  target?: string,
+): readonly Target[] {
+  const effects: Readonly<{ path: FileEffect; target?: FileEffect }> = fileEffects[operation]
+  const source: Target = { path, effect: effects.path }
+  return target === undefined || effects.target === undefined
+    ? [source]
+    : [source, { path: target, effect: effects.target }]
+}
+
 export type FileTreeEnvironment = Readonly<{
-  paths: HostPaths
+  paths: ScopedPaths
   limits: HostFilesLimits
   close: CloseHandle
   issue(object: ObjectToken): HandleGeneration
@@ -144,14 +161,18 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     modifiedMs: Number(stat.mtimeMs),
   })
 
+  /** The checks before an operation touches anything: binding, paths, names, then the scope. */
   async function begin(
-    requestId: string,
-    bindingKind: EnvironmentBinding['kind'],
-    targets: readonly string[],
-    nameds: readonly (ObjectToken | null)[],
+    operation: ScopedFileOperation,
+    request: Readonly<{ requestId: string; binding: EnvironmentBinding } & FileTarget> & {
+      readonly target?: FileTarget
+    },
   ): Promise<FacilityResult<never> | undefined> {
-    if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
-    if (!targets.every(isHostPath)) return reject(requestId, 'invalidInput')
+    const { requestId, target } = request
+    const targets = targetsOf(operation, request.path, target?.path)
+    const nameds = target === undefined ? [request.named] : [request.named, target.named]
+    if (request.binding.kind !== 'host_machine') return reject(requestId, 'unsupported')
+    if (!targets.every(target => isHostPath(target.path))) return reject(requestId, 'invalidInput')
     if (nameds.some(named => named === null || named.token === ''))
       return reject(requestId, 'notAuthorized')
     await env.drain()
@@ -185,11 +206,11 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     request: Parameters<FileSystemFacility<unknown>['list']>[0],
   ): ReturnType<FileSystemFacility<unknown>['list']> {
     const { requestId } = request
-    const early = await begin(requestId, request.binding.kind, [request.path], [request.named])
+    const early = await begin('list', request)
     if (early !== undefined) return early
     const page = pageOf(request.offset, request.limit, limits.listPageLimit)
     if (page === undefined) return reject(requestId, 'invalidInput')
-    const opened = await paths.openDirectory(request.path, 'target')
+    const opened = await paths('read').openDirectory(request.path, 'target')
     if (!opened.ok) return failed(requestId, opened.failure, 'unresolved')
     const directory = opened.value
     try {
@@ -227,12 +248,12 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     request: Parameters<FileSystemFacility<unknown>['search']>[0],
   ): ReturnType<FileSystemFacility<unknown>['search']> {
     const { requestId } = request
-    const early = await begin(requestId, request.binding.kind, [request.path], [request.named])
+    const early = await begin('search', request)
     if (early !== undefined) return early
     const page = pageOf(request.offset, request.limit, limits.listPageLimit)
     if (page === undefined || request.pattern.byteLength === 0)
       return reject(requestId, 'invalidInput')
-    const opened = await paths.openDirectory(request.path, 'target')
+    const opened = await paths('read').openDirectory(request.path, 'target')
     if (!opened.ok) return failed(requestId, opened.failure, 'notFound')
     const start = opened.value
     try {
@@ -271,7 +292,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
         try {
           const stat = await file.stat({ bigint: true })
           if (!stat.isFile()) return 'continue'
-          if (paths.rooted && stat.nlink > 1n) return 'notAuthorized'
+          if (paths('read').rooted && stat.nlink > 1n) return 'notAuthorized'
           const bytes = await file.readFile()
           spent.bytes += bytes.byteLength
           const at = bytes.indexOf(pattern)
@@ -391,7 +412,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     request: Parameters<FileSystemFacility<unknown>['mkdir']>[0],
   ): ReturnType<FileSystemFacility<unknown>['mkdir']> {
     const { requestId } = request
-    const located = await paths.locate(request.path)
+    const located = await paths('write').locate(request.path)
     if (!located.ok) return failed(requestId, located.failure, 'notFound')
     const { parent, name, isRoot } = located.value
     try {
@@ -416,7 +437,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     request: Parameters<FileSystemFacility<unknown>['mkdir']>[0],
   ): ReturnType<FileSystemFacility<unknown>['mkdir']> {
     const { requestId } = request
-    const found = await paths.nearestAncestor(request.path)
+    const found = await paths('write').nearestAncestor(request.path)
     if (!found.ok) return failed(requestId, found.failure, 'notFound')
     let current = found.value.ancestor
     let made = 0
@@ -448,12 +469,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
   async function mkdirRequest(
     request: Parameters<FileSystemFacility<unknown>['mkdir']>[0],
   ): ReturnType<FileSystemFacility<unknown>['mkdir']> {
-    const early = await begin(
-      request.requestId,
-      request.binding.kind,
-      [request.path],
-      [request.named],
-    )
+    const early = await begin('mkdir', request)
     if (early !== undefined) return early
     return request.parents ? mkdirChain(request) : mkdirOne(request)
   }
@@ -578,9 +594,9 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     request: Parameters<FileSystemFacility<unknown>['remove']>[0],
   ): ReturnType<FileSystemFacility<unknown>['remove']> {
     const { requestId } = request
-    const early = await begin(requestId, request.binding.kind, [request.path], [request.named])
+    const early = await begin('remove', request)
     if (early !== undefined) return early
-    const located = await paths.locate(request.path)
+    const located = await paths('write').locate(request.path)
     if (!located.ok) return failed(requestId, located.failure, 'notFound')
     const { parent, name, isRoot } = located.value
     try {
@@ -588,7 +604,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       const found = await removalTarget(request, parent, name)
       if ('kind' in found) return found
       const { stat, object } = found
-      if (paths.rooted && stat.dev !== (await parent.stat({ bigint: true })).dev)
+      if (paths('write').rooted && stat.dev !== (await parent.stat({ bigint: true })).dev)
         return reject(requestId, 'notAuthorized')
       const target = fdPath(parent, name)
       if (stat.isDirectory() && request.recursive)
@@ -652,7 +668,11 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     return { stat }
   }
 
-  async function openEndpoints(request: EndpointRequest): Promise<Opened> {
+  async function openEndpoints(
+    request: EndpointRequest,
+    operation: 'move' | 'copy',
+  ): Promise<Opened> {
+    const effects = fileEffects[operation]
     const { requestId } = request
     const held: FileHandle[] = []
     const releaseAll = async () => {
@@ -662,13 +682,13 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
       await releaseAll()
       return { kind: 'refused', result }
     }
-    const source = await paths.locate(request.path)
+    const source = await paths(effects.path).locate(request.path)
     if (!source.ok) return refused(failed(requestId, source.failure, 'notFound'))
     held.push(source.value.parent)
     try {
       const sourceStat = await checkSource(request, source.value)
       if ('kind' in sourceStat) return await refused(sourceStat)
-      const target = await paths.locate(request.target.path)
+      const target = await paths(effects.target).locate(request.target.path)
       if (!target.ok) return await refused(failed(requestId, target.failure, 'notFound'))
       held.push(target.value.parent)
       const checked = await checkTarget(request, target.value)
@@ -692,14 +712,9 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     request: Parameters<FileSystemFacility<unknown>['move']>[0],
   ): ReturnType<FileSystemFacility<unknown>['move']> {
     const { requestId } = request
-    const early = await begin(
-      requestId,
-      request.binding.kind,
-      [request.path, request.target.path],
-      [request.named, request.target.named],
-    )
+    const early = await begin('move', request)
     if (early !== undefined) return early
-    const opened = await openEndpoints(request)
+    const opened = await openEndpoints(request, 'move')
     if (opened.kind === 'refused') return opened.result
     const { source, target, sourceStat } = opened.endpoints
     const from = fdPath(source.parent, source.name)
@@ -756,15 +771,9 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
   async function copy(
     request: Parameters<FileSystemFacility<unknown>['copy']>[0],
   ): ReturnType<FileSystemFacility<unknown>['copy']> {
-    const { requestId } = request
-    const early = await begin(
-      requestId,
-      request.binding.kind,
-      [request.path, request.target.path],
-      [request.named, request.target.named],
-    )
+    const early = await begin('copy', request)
     if (early !== undefined) return early
-    const opened = await openEndpoints(request)
+    const opened = await openEndpoints(request, 'copy')
     if (opened.kind === 'refused') return opened.result
     try {
       return await copyBetween(request, opened.endpoints)
@@ -808,7 +817,7 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     const stat = await input.stat({ bigint: true })
     if (!stat.isFile() || tokenOf(stat).token !== tokenOf(sourceStat).token)
       return reject(requestId, 'conflict')
-    if (paths.rooted && stat.nlink > 1n) return reject(requestId, 'notAuthorized')
+    if (paths('read').rooted && stat.nlink > 1n) return reject(requestId, 'notAuthorized')
     const mode = Number(stat.mode & 0o777n)
     const result = request.replace
       ? await copyReplacing(requestId, input, target, mode)

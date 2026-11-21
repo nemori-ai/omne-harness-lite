@@ -19,6 +19,7 @@ import type {
   PrincipalFacts,
   RequestJournal,
   ModelTargets,
+  WorkspaceSelections,
   WorkspaceTargets,
   RunFailureCauses,
   SessionAccessFaces,
@@ -43,6 +44,8 @@ export type SessionAccessPluginInput<S = SessionAccessSettings> = Readonly<{
   modelTargets?: (ctx: Context) => ModelTargets | undefined
   /** Whether an instance may be attached; the release adapts Workspace's verification to it. */
   workspaceTargets?: (ctx: Context) => WorkspaceTargets | undefined
+  /** The workspace a session stands at and its working directory; the release reads them. */
+  workspaceSelections?: (ctx: Context) => WorkspaceSelections | undefined
   permissionModes?: (ctx: Context) => SessionPermissionModes | undefined
   prepareCreation?: (input: SessionCreateInput) => SessionCreateInput
 }>
@@ -122,6 +125,7 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
               causes: () => input.causes?.(ctx),
               modelTargets: () => input.modelTargets?.(ctx),
               workspaceTargets: () => input.workspaceTargets?.(ctx),
+              workspaceSelections: () => input.workspaceSelections?.(ctx),
               permissionModes: () => input.permissionModes?.(ctx),
               principals,
               facts: input.facts,

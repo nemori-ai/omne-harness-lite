@@ -77,6 +77,7 @@ export type {
   HistoryEntry,
   HistoryPage,
   ModelViewBasis,
+  ForkPointRead,
   ModelViewRead,
   ModelViewRow,
   OperationResolution,
@@ -425,6 +426,17 @@ export type {
   StopView,
 } from './background-calls.ts'
 export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts'
+export {
+  forkPointAfterRows,
+  forkPointText,
+  judgeForkPoint,
+  ownPositionAfter,
+  parseForkPoint,
+  type ForkFacts,
+  type ForkPoint,
+  type ForkPointJudgment,
+  type SessionFork,
+} from './fork.ts'
 export {
   sourceRequestIdentities,
   type SourceRequest,

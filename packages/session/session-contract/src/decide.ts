@@ -60,7 +60,7 @@ import { decideProducerFact } from './decide-receive.ts'
 import { admitInput, readsWithTerms } from './decide-intake.ts'
 import type { AdmittedSource } from './input-sources.ts'
 import { residentEntries, completeEvidence } from './decision-support.ts'
-import { judgeStanding } from './standing.ts'
+import { judgeFork, judgeStanding } from './standing.ts'
 import { closingEntries } from './run-closure.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
 import { digestOf } from './operations.ts'
@@ -186,6 +186,8 @@ function decideCreate(
     return invalid('creation.modes.source', 'incomplete adoption')
   const standing = judgeStanding(command.input.session, creation, reads.related)
   if ('kind' in standing) return standing
+  const forked = judgeFork(creation, reads.fork)
+  if (forked !== null) return forked
   const initialized = decideInitializationCreate(command, guards, standing.tree)
   if (initialized.kind !== 'entries') return initialized
   const out = [...initialized.entries]

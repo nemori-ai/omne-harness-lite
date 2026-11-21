@@ -169,6 +169,7 @@ const readHistory = {
       cursor: { rule: nothing },
       direction: { rule: literal('forward', 'backward') },
       pageBytes: { rule: { kind: 'page-bytes' } },
+      inherited: { rule: boolean, optional: true },
     }),
     object({ ...target, cursor: { rule: text } }),
   ],
@@ -190,6 +191,7 @@ const historyPage = object({
   next: { rule: nullable(text) },
   exhausted: { rule: boolean },
   scannedThrough: { rule: anyText },
+  from: { rule: text, optional: true },
 })
 
 const waiting = object({
@@ -712,6 +714,25 @@ export const sessionProtocol = defineProtocol({
         frozen: empty,
         'not-found': empty,
         conflict: empty,
+      },
+      countsAsAccess: true,
+    },
+    'read-workspace-selection': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({
+            workspace: { rule: nullable(workspaceTarget) },
+            state: { rule: literal('default', 'attached', 'unusable') },
+            directory: { rule: nullable(text) },
+            reason: { rule: nullable(text) },
+            revision: { rule: anyText },
+          }),
+        ),
+        'not-found': empty,
       },
       countsAsAccess: true,
     },

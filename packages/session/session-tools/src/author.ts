@@ -142,11 +142,12 @@ const READS: { readonly [K in Exclude<SessionsArguments['kind'], 'help'>]: Read<
       cursor: args.cursor,
       direction,
       pageBytes,
+      ...(args.inherited ? { inherited: true as const } : {}),
     })
     if ('failure' in read) return failureText(read.failure, args.session)
-    const { entries, exhausted, next } = read.ok
+    const { entries, exhausted, next, from } = read.ok
     const material = entries.map(({ position, kind, payload }) => ({
-      session: args.session,
+      session: from ?? args.session,
       position,
       kind,
       material: payload,

@@ -10,6 +10,7 @@ import { filesCommands } from './commands.ts'
 import type { FilesAuthorEnvironment } from './environment.ts'
 import { editFiles } from './files-edits.ts'
 import { openLimitFields, openLimits, openPicture, type OpenLimits } from './files-open.ts'
+import { explainedRefusal } from './files-refusal.ts'
 import { pictureResult } from './pictures.ts'
 import {
   placedFiles,
@@ -131,16 +132,24 @@ async function executeFiles(
   environment: FilesAuthorEnvironment,
   maximum: number,
 ): Promise<string> {
-  const { value, note } = await placed(environment, (files, directory) =>
-    executeCommand(command, args, files, maximum, directory),
+  const { value, note } = await placed(environment, async (files, directory) =>
+    explainedRefusal(await executeCommand(command, args, files, maximum, directory), {
+      command,
+      args,
+      scope: environment.scope,
+      directory,
+    }),
   )
   return `${value}${note}`
 }
 async function openFile(args: Arguments, environment: FilesAuthorEnvironment, limits: OpenLimits) {
   const path = args.text('path')
-  const { value: opened, note } = await placed(environment, (files, directory) =>
-    openPicture(path, headerOf(path, directory), { files, media: environment.media }, limits),
-  )
+  const { value: opened, note } = await placed(environment, async (files, directory) => {
+    const header = headerOf(path, directory)
+    const done = await openPicture(path, header, { files, media: environment.media }, limits)
+    const said = { command: 'open', args, scope: environment.scope, directory }
+    return { ...done, text: explainedRefusal(done.text, said) }
+  })
   return pictureResult('Files.open', { ...opened, text: `${opened.text}${note}` }, 'text')
 }
 async function executeCommand(

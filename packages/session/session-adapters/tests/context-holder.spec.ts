@@ -384,6 +384,7 @@ async function assembled(options: Assembly = {}) {
       push: (call: Omit<SessionCall, 'plugin'>) => sessionCalls.push({ plugin, ...call }),
     }
     return {
+      readForkPoint: async () => succeed({ kind: 'none' }),
       begin: async input => {
         calls.push({ method: 'begin', input, caller })
         if (!reader || !owns(input)) return fail({ kind: 'denied', action: 'history.begin' })

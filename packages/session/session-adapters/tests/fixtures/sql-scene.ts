@@ -11,6 +11,7 @@ import {
 } from '@omne-harness/agent-contract'
 import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { judgeMessage } from '@omne-harness/message'
 import { fail } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
@@ -308,6 +309,8 @@ export type SqlSceneOptions = Readonly<{
   cancellation?: 'installed'
   manifest?: string
   instance?: 'slot'
+  /** The session of the scene is forked from the whole view of another session made first. */
+  forked?: true
 }>
 
 export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = {}) {
@@ -440,7 +443,8 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   const view = journals.forSession(access)
   const fresh = () => createSessionLogJournal<string>(journalOptions).forSession(access)
 
-  const value = creation({ initial: ordinaryInput('input-1') })
+  const source = options.forked === true ? await forkSource(port, access) : null
+  const value = creation({ initial: ordinaryInput('input-1'), ...source?.standing })
   const create: SessionCommand = {
     kind: 'create',
     input: {
@@ -526,6 +530,76 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
     decided,
     close,
     tenantText,
+    source,
+  }
+}
+
+type ScenePort = ReturnType<typeof createSessionStorage<string>>
+
+/** A session with one row in its view, and the standing of a child forked from that whole view. */
+async function forkSource(port: ScenePort, child: SessionAccess<string>) {
+  const access = memoryAccess('tester', `${child.session}-source`)
+  const at = { tenant: access.tenant, session: access.session }
+  const create: SessionCommand = {
+    kind: 'create',
+    input: { ...at, operation: operationId('create-source'), creation: creation() },
+  }
+  const fixture = initializationFixtureFacts(create, null, adoptedInitializationFixture(create))
+  ok(await port.commit({ access, command: create, guards: [initializationFixtureGuard(fixture)] }))
+  const reminder = judgeMessage({
+    id: 'msg_abcdefghijklmnopqrstuv',
+    role: 'system_reminder',
+    blocks: [
+      {
+        kind: 'text',
+        id: 'said',
+        text: 'said before',
+        visibility: { toHuman: false, toModel: true },
+      },
+    ],
+  })
+  if (!('ok' in reminder)) throw new Error('the reminder fixture is invalid')
+  const told: SessionCommand = {
+    kind: 'commitDerived',
+    input: {
+      ...at,
+      operation: operationId('remind-source'),
+      expected: ok(await port.readWork(access)).revision,
+      value: { kind: 'context-reminder', message: reminder.ok, source: evidence('source-row') },
+    },
+  }
+  ok(await port.commit({ access, command: told, guards: [] }))
+  const view = async () => {
+    const page = ok(
+      await port.history.readModelView({ ...access, basis: null, after: null, pageBytes: 100000 }),
+    )
+    if (page.kind !== 'page') throw new Error('the view of the source is expected')
+    return page
+  }
+  const page = await view()
+  const history = ok(
+    await port.history.begin({
+      ...access,
+      kinds: [],
+      from: null,
+      direction: 'forward',
+      pageBytes: 10_000_000,
+    }),
+  )
+  const [first, last] = [history.entries[0], history.entries.at(-1)]
+  if (first === undefined || last === undefined) throw new Error('the source has no entry')
+  const point = { ...page.basis, position: last.id }
+  const relation = { kind: 'child', parent: access.session, basis: evidence('dispatch') } as const
+  return {
+    access,
+    origin: first.id,
+    rows: page.rows,
+    view,
+    standing: {
+      relation,
+      attendance: 'unattended' as const,
+      fork: { source: access.session, point },
+    },
   }
 }
 

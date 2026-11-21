@@ -86,6 +86,10 @@
 - `ExecutionRef` · `values.d.ts`
 - `ExecutionStatus` · `ports.d.ts`
 - `ExternalCompletion` · `faces.d.ts`
+- `ForkFacts` · `fork.d.ts`
+- `ForkPoint` · `fork.d.ts`
+- `ForkPointJudgment` · `fork.d.ts`
+- `ForkPointRead` · `faces.d.ts`
 - `FreezeVerdict` · `values.d.ts`
 - `GuardCommand` · `ports.d.ts`
 - `HistoryEntry` · `faces.d.ts`
@@ -239,6 +243,7 @@
 - `SessionFactBoundary` · `history-values.d.ts`
 - `SessionFactKind` · `history-values.d.ts`
 - `SessionFailure` · `faces.d.ts`
+- `SessionFork` · `fork.d.ts`
 - `SessionFrozen` · `values.d.ts`
 - `SessionHistory` · `faces.d.ts`
 - `SessionHistoryIndex` · `history-values.d.ts`
@@ -353,6 +358,8 @@
 - `expectedHolds` · `judgments.d.ts`
 - `expectedRevision` · `judgments.d.ts`
 - `foldInputFate` · `input-fate.d.ts`
+- `forkPointAfterRows` · `fork.d.ts`
+- `forkPointText` · `fork.d.ts`
 - `incompleteAuthorization` · `authorizations.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
 - `inputFateOfRows` · `intake-reads.d.ts`
@@ -364,6 +371,7 @@
 - `judgeAdvance` · `judgments.d.ts`
 - `judgeBackgroundOutcome` · `background-outcome.d.ts`
 - `judgeCompletion` · `judgments.d.ts`
+- `judgeForkPoint` · `fork.d.ts`
 - `judgeIdle` · `judgments.d.ts`
 - `judgeIntakeBlocks` · `before-intake.d.ts`
 - `judgeRunStart` · `judgments.d.ts`
@@ -375,6 +383,8 @@
 - `onceAuthorizationOf` · `authorizations.d.ts`
 - `openWork` · `judgments.d.ts`
 - `originalContent` · `before-intake.d.ts`
+- `ownPositionAfter` · `fork.d.ts`
+- `parseForkPoint` · `fork.d.ts`
 - `parseInputSourceName` · `input-sources.d.ts`
 - `pendingAcceptances` · `intake-reads.d.ts`
 - `pendingInputOf` · `intake-reads.d.ts`
@@ -2168,6 +2178,7 @@ export type HistoryPage = Readonly<{
     next: string | null;
     exhausted: boolean;
     annotations: readonly HistoryEntry[];
+    from?: SessionId;
 }>;
 export type ModelViewBasis = Readonly<{
     epoch: string;
@@ -2197,7 +2208,14 @@ export type CompactionContextRead = Readonly<{
     kind: 'epoch-changed';
     current: ModelViewBasis;
 }>;
+export type ForkPointRead = Readonly<{
+    kind: 'point';
+    point: import('./fork.ts').ForkPoint;
+}> | Readonly<{
+    kind: 'none';
+}>;
 export interface SessionHistory<P> {
+    readForkPoint(input: SessionAccess<P>): Reply<ForkPointRead>;
     readCompactionContext(input: SessionAccess<P> & Readonly<{
         basis: ModelViewBasis;
         coverTo: RecordEntryRef | null;
@@ -2207,6 +2225,7 @@ export interface SessionHistory<P> {
         from: EntryId | null;
         direction: 'forward' | 'backward';
         pageBytes: number;
+        inherited?: true;
     }>): Reply<HistoryPage>;
     next(input: SessionAccess<P> & Readonly<{
         cursor: string;
@@ -2288,6 +2307,39 @@ export type SessionFaces<P> = Readonly<{
     history: SessionHistory<P>;
 }>;
 export {};
+```
+
+## 声明文件 `fork.d.ts`
+
+```ts
+import type { Message } from '@omne-harness/message';
+import type { SessionId } from './identity.ts';
+export type ForkPoint = Readonly<{
+    epoch: string;
+    upper: string;
+    position: string;
+}>;
+export type SessionFork = Readonly<{
+    source: SessionId;
+    point: ForkPoint;
+}>;
+export type ForkFacts = Readonly<{
+    rows: string | null;
+    next: Message['role'] | null;
+    current: boolean;
+    running: boolean;
+    floor: string;
+    tail: string;
+}>;
+export type ForkPointJudgment = 'boundary' | 'unknown-epoch' | 'out-of-bounds' | 'not-a-boundary';
+export declare function judgeForkPoint(point: ForkPoint, facts: ForkFacts): ForkPointJudgment;
+export declare function ownPositionAfter(last: string | null, point: ForkPoint | null): bigint;
+export declare function forkPointAfterRows(epoch: string, newest: readonly Readonly<{
+    seq: string;
+    role: string;
+}>[], tail: string): ForkPoint | null;
+export declare function forkPointText(point: ForkPoint): string;
+export declare function parseForkPoint(text: string): ForkPoint | null;
 ```
 
 ## 声明文件 `frontier-state.d.ts`
@@ -2494,7 +2546,7 @@ export type AdvanceRef = Readonly<{
 export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, TodoItemId, } from './identity.ts';
 export { requiredWorkEntries, compactionCallChangeOf } from './work-entry-state.ts';
 export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InitializationSource, InitializationSources, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, Attendance, SessionTree, ResidentTool, ResultConsumption, RoutedInput, RunEnd, RunFailure, RunState, RunTerminal, ScopeReleaseDisposition, BackgroundDisposition, SessionCreation, SessionFrozen, SessionWaiting, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
-export type { AdmittedMessage, DeliveredInputs, CommitReceipt, CompactionContextRead, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionDirectory, SessionFaces, SessionFailure, SessionHistory, ArchivedBy, SessionListFilter, SessionListItem, SessionListPage, SessionListRelation, UnarchivedLifecycle, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, StartedRun, } from './faces.ts';
+export type { AdmittedMessage, DeliveredInputs, CommitReceipt, CompactionContextRead, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ForkPointRead, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionDirectory, SessionFaces, SessionFailure, SessionHistory, ArchivedBy, SessionListFilter, SessionListItem, SessionListPage, SessionListRelation, UnarchivedLifecycle, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, StartedRun, } from './faces.ts';
 export { INGRESS_FAMILIES, deriveDriveOperation, deriveIngressOperation, deriveSessionOperation, type DriveOperationElements, type IngressFamily, type SessionOperationElements, } from './operations.ts';
 export type { ControlOperationResolution, SavedModelSelection, SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionControlReceipt, SessionModelSelection, SessionRunLookup, } from './control-values.ts';
 export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInterpretation, SessionEntriesItem, SessionEntriesObservation, SessionEntriesProgress, SessionEntriesReceipt, SessionEntriesStart, SessionLogCommitObservation, SessionLogReceipt, } from './interpretation-values.ts';
@@ -2546,6 +2598,7 @@ export { rebuildSessionPermissions, type SessionPermissionHistory } from './perm
 export { backgroundCallView, shortCallId } from './background-calls.ts';
 export type { BackgroundCallLabel, BackgroundCallResolution, BackgroundCallRecord, BackgroundCallSource, BackgroundCallState, BackgroundCallStatus, BackgroundCallStop, BackgroundCallView, StopInitiator, StopView, } from './background-calls.ts';
 export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts';
+export { forkPointAfterRows, forkPointText, judgeForkPoint, ownPositionAfter, parseForkPoint, type ForkFacts, type ForkPoint, type ForkPointJudgment, type SessionFork, } from './fork.ts';
 export { sourceRequestIdentities, type SourceRequest, type SourceRequestIdentities, } from './source-requests.ts';
 export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts';
 export { PENDING_PAGE_LIMIT, PENDING_PREVIEW_CHARS, inputFateOfRows, pendingAcceptances, pendingInputOf, pendingPageOf, previewOf, waitingCalls, type PendingInput, type PendingPage, type WaitingCall, } from './intake-reads.ts';
@@ -3157,6 +3210,7 @@ export type DecideReads = Readonly<{
     compactionEpoch?: string;
     children?: readonly SessionId[];
     related?: import('./standing.ts').RelatedSession | null;
+    fork?: import('./fork.ts').ForkFacts;
     idleObservation?: IdleObservation;
     idleCoverage?: IdleCoverage;
     frozenReceipt?: CommitReceipt;
@@ -3208,12 +3262,13 @@ import type { WorkSnapshot } from './values.ts';
 export type MaterializedModelView = Readonly<{
     epoch: string;
     rows: readonly ModelViewRow[];
+    past?: ReadonlyMap<string, readonly ModelViewRow[]>;
 }>;
 export declare function isAcceptedInputRecord(entries: readonly Pick<HistoryEntry, 'kind'>[], index: number): boolean;
 export declare function viewMessageOf(entries: readonly HistoryEntry[], index: number): Message | null;
-export declare function materializeModelView(previous: MaterializedModelView, committed: readonly HistoryEntry[], history: readonly HistoryEntry[]): MaterializedModelView;
-export declare function compactionReads(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, through: string): CompactionContext | null;
-export declare function compactionContextForView(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, rows: readonly ModelViewRow[], upper: number, through: string | null): CompactionContext | null;
+export declare function materializeModelView(previous: MaterializedModelView, committed: readonly HistoryEntry[]): MaterializedModelView;
+export declare function compactionReads(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, through: string, inherited?: number): CompactionContext | null;
+export declare function compactionContextForView(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, rows: readonly ModelViewRow[], upper: number, through: string | null, inherited?: number): CompactionContext | null;
 ```
 
 ## 声明文件 `observation-validation.d.ts`
@@ -3946,8 +4001,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:72a400555c2f5e02c24b5628a232760fc9aa0b1dd18c0b7f6b51ff1454f1e1aa";
-export declare const SESSION_RELEASE_DIGEST = "sha256:72a400555c2f5e02c24b5628a232760fc9aa0b1dd18c0b7f6b51ff1454f1e1aa";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:6c447882605c138b9312d156e2a0f489d07af870df5d2bf33557b309debb8f90";
+export declare const SESSION_RELEASE_DIGEST = "sha256:6c447882605c138b9312d156e2a0f489d07af870df5d2bf33557b309debb8f90";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4055,6 +4110,7 @@ export declare function sourceRequestIdentities(request: SourceRequest): SourceR
 ## 声明文件 `standing.d.ts`
 
 ```ts
+import { type ForkFacts } from './fork.ts';
 import type { SessionId, SessionOperationId } from './identity.ts';
 import type { Decision, EncodedEntry } from './judgments.ts';
 import type { Attendance, Relation, SessionCreation, SessionTree, WorkSnapshot } from './values.ts';
@@ -4088,6 +4144,10 @@ export type ChildRecord = Readonly<{
 export declare function childRecorded(created: Created): ChildRecord | null;
 export declare function relatedAsRecorded(creation: Pick<SessionCreation, 'relation'>, tree: SessionTree | undefined): Readonly<{
     related?: RelatedSession;
+}>;
+export declare function judgeFork(creation: Pick<SessionCreation, 'fork' | 'relation'>, facts: ForkFacts | undefined): Decision | null;
+export declare function forkAsRecorded(creation: Pick<SessionCreation, 'fork'>): Readonly<{
+    fork?: ForkFacts;
 }>;
 export {};
 ```
@@ -4225,6 +4285,98 @@ import { type SessionTransactionsFixture } from './testing-transactions.ts';
 export declare function sessionEntriesConformance<P>(): readonly ConformanceCase<SessionTransactionsFixture<P>>[];
 ```
 
+## 声明文件 `testing-fork.d.ts`
+
+```ts
+import { type ForkFacts, type SessionFork } from './fork.ts';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { ForkPointRead, HistoryEntry, HistoryPage, SessionFailure } from './faces.ts';
+import type { EntryId, SessionId, SessionRevision } from './identity.ts';
+import type { EncodedEntry } from './judgments.ts';
+import { type MaterializedModelView } from './model-view.ts';
+import type { SessionCommand } from './ports.ts';
+import { type Cursor } from './testing-history-cursor.ts';
+import type { WorkSnapshot } from './values.ts';
+export type MemoryFork = Readonly<{
+    fork: SessionFork;
+    inherited: readonly HistoryEntry[];
+    prefix: readonly string[];
+    owners: ReadonlyMap<string, SessionId>;
+}>;
+type Held = Readonly<{
+    snapshot: WorkSnapshot;
+    modelView: MaterializedModelView;
+    entries: readonly HistoryEntry[];
+    fork?: MemoryFork;
+}>;
+export declare function chainOf(store: Pick<Held, 'entries' | 'fork'>): readonly HistoryEntry[];
+export declare function entryIdAt(store: Pick<Held, 'entries' | 'fork'>, index: number): EntryId;
+export type ForkStart = Readonly<{
+    facts: ForkFacts;
+    modelView: MaterializedModelView;
+    fork: MemoryFork;
+}>;
+type KeyOf = (tenant: TenantId, session: SessionId) => Outcome<string, SessionFailure>;
+export declare function startOf(stores: ReadonlyMap<string, Held>, keyOf: KeyOf, command: SessionCommand, readable: boolean): ForkStart | undefined;
+export declare const reads: (start: ForkStart | undefined) => Readonly<{
+    fork?: ForkFacts;
+}>;
+export declare const kept: (store: Pick<Held, 'fork'> | undefined, start?: ForkStart) => Readonly<{
+    fork?: MemoryFork;
+}>;
+export declare function numbered(store: Pick<Held, 'entries' | 'fork'> | undefined, start: ForkStart | undefined, revision: SessionRevision, entries: readonly EncodedEntry[]): HistoryEntry[];
+export declare const compactionOf: (store: Held, through: string) => Readonly<{
+    origin: import("@omne-harness/message").RecordEntryRef;
+    base: import("@omne-harness/message").CompactionBase;
+    covered: readonly import("@omne-harness/message").CoveredEntry[];
+    after: readonly import("@omne-harness/message").CoveredEntry[];
+    open: readonly import("@omne-harness/message").RecordEntryRef[];
+}> | null;
+export declare const chained: <S extends Held>(store: S) => S & {
+    entries: readonly Readonly<{
+        id: EntryId;
+        revision: SessionRevision;
+        kind: string;
+        schema: import("@omne-harness/exchange-refs").Adoption;
+        payload: import("@omne-harness/json-text").JsonValue;
+        origin: Readonly<{
+            owner: string;
+            via: string | null;
+            source: import("@omne-harness/exchange-refs").DurableEvidence;
+        }>;
+    }>[];
+    inherited: number;
+};
+export declare function pointRead(store: Outcome<Held, SessionFailure>, key: Outcome<string, SessionFailure>): Outcome<ForkPointRead, SessionFailure>;
+type HistoryAsk = Readonly<{
+    inherited?: true;
+    from: unknown;
+    direction: string;
+}>;
+export declare function inheritedRefusal(input: HistoryAsk): SessionFailure | null;
+export declare function prefixPage(store: Held, cursor: Cursor, issued: Set<string>): HistoryPage | null;
+export {};
+```
+
+## 声明文件 `testing-history-cursor.d.ts`
+
+```ts
+import type { SessionId } from './identity.ts';
+export type Cursor = Readonly<{
+    tenant: string;
+    session: SessionId;
+    kinds: readonly string[];
+    direction: 'forward' | 'backward';
+    upper: number;
+    scanned: number;
+    pageBytes: number;
+    inherited?: number;
+}>;
+export declare function encodeCursor(cursor: Cursor): string;
+export declare function decodeCursor(text: string): Cursor | null;
+```
+
 ## 声明文件 `testing-history-source.d.ts`
 
 ```ts
@@ -4327,6 +4479,7 @@ export declare function memoryCompactionContext<P>(store: Readonly<{
     entries: readonly HistoryEntry[];
     snapshot: WorkSnapshot;
     modelView: MaterializedModelView;
+    inherited?: number;
 }>, key: Outcome<string, SessionFailure>, input: CompactionContextInput<P>): Answer<P, 'readCompactionContext'>;
 export {};
 ```
@@ -4470,12 +4623,14 @@ import type { DecideReads, OperationRecord } from './judgments.ts';
 import { type MaterializedModelView } from './model-view.ts';
 import type { SessionCommand } from './ports.ts';
 import * as gone from './testing-calls-left.ts';
+import { type MemoryFork } from './testing-fork.ts';
 import type { WorkSnapshot } from './values.ts';
 type Held = Readonly<{
     snapshot: WorkSnapshot;
     left: gone.CallsLeft;
     modelView: MaterializedModelView;
     entries: HistoryEntry[];
+    fork?: MemoryFork;
 }>;
 type KeyOf = (tenant: TenantId, session: SessionId) => Outcome<string, SessionFailure>;
 export declare function relatedReads<S extends Held>(stores: ReadonlyMap<string, S>, keyOf: KeyOf, command: SessionCommand): Pick<DecideReads, 'related'>;
@@ -4521,6 +4676,7 @@ export interface MemorySessionLogTransactions<P> extends MemorySessionTransactio
     readonly controls: MemorySessionTransactions<P>['controls'] & Readonly<{
         project(observation: SessionLogObservation, operation: SessionOperationId): Promise<Outcome<CommitReceipt, SessionFailure>>;
         directoryAvailable(available: boolean): void;
+        forkSourceAvailable(available: boolean): void;
         recordCallTerminal(tenant: TenantId, session: SessionId, terminal: SessionCallTerminal): void;
     }>;
 }
@@ -4605,6 +4761,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         initialization?: import("./values.ts").InitializationSources;
         relation?: import("./values.ts").Relation;
         attendance?: import("./values.ts").Attendance;
+        fork?: import('./fork.ts').SessionFork;
     }>) => Promise<Outcome<Readonly<{
         receipt: CommitReceipt;
         state: WorkSnapshot;
@@ -5153,6 +5310,7 @@ export type SessionCreation = Readonly<{
     initialization?: InitializationSources;
     relation?: Relation;
     attendance?: Attendance;
+    fork?: import('./fork.ts').SessionFork;
 }>;
 export type InitializationSource = Readonly<{
     item: string;

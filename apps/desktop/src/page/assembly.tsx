@@ -34,12 +34,14 @@ import {
   sessionSide,
   sessionStatus,
   sessionUiModule,
+  sessionWorkspaceChoicesKey,
 } from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
 import { createToolUiModule } from '@omne-harness/tool-ui/cordis'
 import { storedLayouts } from '@omne-harness/usage-ui'
 import { createUsageUiModule } from '@omne-harness/usage-ui/cordis'
 import '@omne-harness/usage-ui/usage-ui.css'
+import { workspaceChoicesKey, workspaceUiModule } from '@omne-harness/workspace-ui/cordis'
 import { domainProtocols } from '../shared/protocols.ts'
 import { handOver } from './hand-over.ts'
 
@@ -64,6 +66,8 @@ export const assembly: Assembly = {
     createToolUiModule({ callDetail: sessionCallDetail }),
     modelUiModule,
     handOver(sessionModelChoicesKey, modelChoicesKey),
+    workspaceUiModule,
+    handOver(sessionWorkspaceChoicesKey, workspaceChoicesKey),
     createUsageUiModule({
       sessionSide,
       sessionStatus,

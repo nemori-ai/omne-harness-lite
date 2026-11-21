@@ -260,6 +260,7 @@ export function createRoundCounters() {
       }
       return {
         readCompactionContext: input => history.readCompactionContext(input),
+        readForkPoint: input => history.readForkPoint(input),
         begin: async input => entries(await history.begin(input)) as never,
         next: async input => entries(await history.next(input)) as never,
         since: async input => entries(await history.since(input)) as never,

@@ -87,9 +87,9 @@
       "packages/session/session-adapters/src/testing/factory.ts": 1239,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1263,
       "packages/session/session-adapters/src/testing/journal.ts": 4190,
-      "packages/session/session-adapters/src/testing/session.ts": 1221,
-      "packages/session/session-contract/src/testing-transactions.ts": 2506,
-      "packages/session/session-storage-sql/src/worker/participant.ts": 1034,
+      "packages/session/session-adapters/src/testing/session.ts": 1194,
+      "packages/session/session-contract/src/testing-transactions.ts": 2468,
+      "packages/session/session-storage-sql/src/worker/participant.ts": 1026,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
       "packages/tool/tool-host-local/src/start-coordinator.ts": 1037,
@@ -119,7 +119,7 @@
       },
       "apps/harness-server/src/rows/tool-runtime/environment.ts": {
         "count": 1,
-        "longest": 164
+        "longest": 163
       },
       "apps/harness-server/src/run.ts": {
         "count": 1,
@@ -287,11 +287,11 @@
       },
       "packages/execution/execution-environment-host-local/src/host-file-tree.ts": {
         "count": 1,
-        "longest": 751
+        "longest": 743
       },
       "packages/execution/execution-environment-host-local/src/host-files.ts": {
         "count": 2,
-        "longest": 654
+        "longest": 643
       },
       "packages/execution/execution-environment-host-local/src/host-paths.ts": {
         "count": 2,
@@ -327,7 +327,7 @@
       },
       "packages/execution/execution-environment-host-local/src/macos-files/facility.ts": {
         "count": 1,
-        "longest": 221
+        "longest": 179
       },
       "packages/execution/execution-environment-host-local/src/windows-execution/index.ts": {
         "count": 2,
@@ -343,7 +343,7 @@
       },
       "packages/execution/execution-environment-host-local/src/windows-files/facility.ts": {
         "count": 1,
-        "longest": 346
+        "longest": 339
       },
       "packages/execution/execution-environment-host-local/src/windows-files/helper.ts": {
         "count": 1,
@@ -543,7 +543,7 @@
       },
       "packages/session/session-adapters/src/testing/session.ts": {
         "count": 2,
-        "longest": 896
+        "longest": 867
       },
       "packages/session/session-contract/src/projection.ts": {
         "count": 1,
@@ -567,7 +567,7 @@
       },
       "packages/session/session-contract/src/testing-transactions.ts": {
         "count": 5,
-        "longest": 831
+        "longest": 819
       },
       "packages/session/session-observation/src/observation.ts": {
         "count": 2,
@@ -659,7 +659,7 @@
       },
       "packages/tool/tool-host-local/src/execution-environment.ts": {
         "count": 1,
-        "longest": 348
+        "longest": 342
       },
       "packages/tool/tool-host-local/src/executor-binding.ts": {
         "count": 2,
