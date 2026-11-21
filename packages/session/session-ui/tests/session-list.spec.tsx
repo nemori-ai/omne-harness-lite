@@ -104,7 +104,7 @@ describe('会话列表的行', () => {
     await settle()
     fireEvent.click(screen.getByRole('button', { name: '乙' }))
     await settle()
-    const rows = within(list()).getAllByRole('button')
+    const rows = within(within(list()).getByRole('list')).getAllByRole('button')
     expect(rows.every(row => row.closest('[data-glide-menu]') !== null)).toBe(true)
     expect(rows.every(row => row.hasAttribute('data-glide-row'))).toBe(true)
     expect(rows.map(row => row.getAttribute('data-selected'))).toEqual(['false', 'true'])
@@ -120,7 +120,7 @@ describe('会话列表的行', () => {
     fireEvent.click(screen.getByRole('button', { name: '乙' }))
     await settle()
     const marks = () =>
-      within(list())
+      within(within(list()).getByRole('list'))
         .getAllByRole('button')
         .map(row => [row.getAttribute('data-selected'), row.getAttribute('aria-current')])
     expect(marks()).toEqual([
@@ -284,6 +284,7 @@ describe('会话列表的末尾：进了视野就接着读，不放「更多」'
     expect(
       within(list())
         .getAllByRole('button')
+        .filter(button => !button.hasAttribute('data-segment'))
         .map(button => button.textContent),
     ).toEqual(['甲', '重试'])
     expect(view.watched()).toEqual([])
