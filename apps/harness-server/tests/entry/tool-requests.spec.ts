@@ -96,19 +96,24 @@ async function world() {
   const issue = sessionWorkIssuerOf(fixture.env)
   const principalA = okOf(issue({ tenant: TENANT_A, session: 'ses-a' }), 'issue A')
   const principalB = okOf(issue({ tenant: TENANT_B, session: 'ses-b' }), 'issue B')
+  const inspect: ToolCatalog<unknown>['inspect'] = async input => {
+    const definition = definitions.get(input.name)
+    if (definition === undefined)
+      return fail({ kind: 'invalid', field: 'name', reason: 'unknown-tool' })
+    const availability: ToolAvailability = {
+      kind: 'available',
+      definition,
+      executor: entryOf(fixture.manifest, input.name).module.executor,
+      layer: { kind: 'official' },
+    }
+    return succeed(availability)
+  }
   const catalog: ToolCatalog<unknown> = {
-    inspect: async input => {
-      const definition = definitions.get(input.name)
-      if (definition === undefined)
-        return fail({ kind: 'invalid', field: 'name', reason: 'unknown-tool' })
-      const availability: ToolAvailability = {
-        kind: 'available',
-        definition,
-        executor: entryOf(fixture.manifest, input.name).module.executor,
-        layer: { kind: 'official' },
-      }
-      return succeed(availability)
-    },
+    inspect,
+    inspectEach: async input =>
+      succeed(
+        await Promise.all(input.names.map(name => inspect({ ...input, name, command: null }))),
+      ),
     usage: async () => fail({ kind: 'unavailable', dependency: 'test', diagnostic: 'unused' }),
     search: async () => fail({ kind: 'unavailable', dependency: 'test', diagnostic: 'unused' }),
   }

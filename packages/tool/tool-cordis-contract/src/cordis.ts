@@ -446,6 +446,7 @@ export abstract class ToolCatalogService<P> extends Service implements ToolCatal
     super(ctx, ToolCatalogService.provide)
   }
   abstract readonly inspect: ToolCatalog<P>['inspect']
+  abstract readonly inspectEach: ToolCatalog<P>['inspectEach']
   abstract readonly usage: ToolCatalog<P>['usage']
   abstract readonly search: ToolCatalog<P>['search']
 }

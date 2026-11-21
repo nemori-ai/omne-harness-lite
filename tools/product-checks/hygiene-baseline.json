@@ -647,7 +647,7 @@
       },
       "packages/tool/tool-host-local/src/catalog.ts": {
         "count": 1,
-        "longest": 193
+        "longest": 177
       },
       "packages/tool/tool-host-local/src/control-subject-adapter.ts": {
         "count": 1,

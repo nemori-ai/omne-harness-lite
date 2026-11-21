@@ -146,6 +146,7 @@ it('reads the current catalog and returns a command-tool overview without asking
         return succeed({ entries: [{ ...known, resident: true }], next: null })
       },
       inspect: async () => succeed(known),
+      inspectEach: async () => succeed([succeed(known)]),
       usage: async () => {
         usages++
         return fail({ kind: 'denied', action: 'usage' })
