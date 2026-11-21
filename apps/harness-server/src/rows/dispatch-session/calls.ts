@@ -14,6 +14,7 @@ import {
   definitionResolverOf,
 } from '../agent-adoptions/definition-mappings.ts'
 import { sessionModesInstallationKey } from '../session-ad03/modes.ts'
+import { readForkPointOf } from './fork-point.ts'
 
 const OWNER = 'harness-server/dispatch-session'
 const absent = (what: string): { failure: SessionFailure } => ({
@@ -125,9 +126,8 @@ export function sessionCallsOf(ctx: Context, ports: SessionCallPorts): SessionCa
       const as = await asSession(tenant, session)
       const service = reader()
       if (typeof as === 'string' || service === undefined) return UNAVAILABLE
-      const read = await service.history.readForkPoint({ principal: as.principal, tenant, session })
-      if (!('ok' in read)) return UNAVAILABLE
-      return { kind: 'read', value: read.ok.kind === 'point' ? read.ok.point : null }
+      const access = { principal: as.principal, tenant, session }
+      return readForkPointOf(input => service.history.readForkPoint(input), access)
     },
   }
 }
