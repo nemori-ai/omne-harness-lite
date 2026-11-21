@@ -153,7 +153,7 @@ describe('material for a verified principal', () => {
         },
       }),
       await material(system, {
-        kind: 'setRelation',
+        kind: 'setResident',
         input: createCommand().input,
       } as unknown as SessionCommand),
       await material(system, {

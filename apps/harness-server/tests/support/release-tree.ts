@@ -546,6 +546,13 @@ export type ToolCallLedger = Readonly<{
   released: boolean
 }>
 
+/** Every record of the Tool ledger as text: for a result a test must find, whatever session history shows. */
+export function toolLedgerText(storageRoot: string): string {
+  return ledgerRows(storageRoot)
+    .map(row => JSON.stringify(row.record))
+    .join('\n')
+}
+
 export function toolLedger(storageRoot: string): readonly ToolCallLedger[] {
   const rows = ledgerRows(storageRoot)
   const queued = new Set(

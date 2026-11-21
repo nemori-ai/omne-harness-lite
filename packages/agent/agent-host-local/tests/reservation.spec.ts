@@ -59,7 +59,14 @@ it('the real runtime keeps an opening slot out of idle reclamation, then release
   })
   opened.push(host)
   host.controls.adoptions.define(definitions.first, {
-    definition: { category: 'AgentDefinition', name: 'test', references: [], attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'test',
+      references: [],
+      attributes: [],
+    },
     evaluator: agentEvaluator,
     extensions: [],
   })
@@ -103,7 +110,14 @@ it('an invoke awaiting access cannot admit after idle reclamation starts', async
   })
   opened.push(host)
   host.controls.adoptions.define(definitions.first, {
-    definition: { category: 'AgentDefinition', name: 'test', references: [], attributes: [] },
+    definition: {
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      name: 'test',
+      references: [],
+      attributes: [],
+    },
     evaluator: agentEvaluator,
     extensions: [],
   })

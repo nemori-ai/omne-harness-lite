@@ -139,7 +139,7 @@ const MUTATING = new Set([
   'create',
   'completeInitialization',
   'change',
-  'setRelation',
+  'setResident',
   'configureAutoArchive',
   'considerAutoArchive',
   'recordIdle',
@@ -253,7 +253,7 @@ describe('role-neutral-member-cells', () => {
 
   it('includes the two cells R2-D204 opened for the own login, so restoring them to pending turns this red', () => {
     const ids = cells.map(cell => cell.id)
-    expect(ids).toContain('session.setRelation.login')
+    expect(ids).toContain('session.setResident.login')
     expect(ids).toContain('session.configureAutoArchive.login')
   })
 

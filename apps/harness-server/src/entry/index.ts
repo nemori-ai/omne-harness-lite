@@ -4,6 +4,7 @@ import type { EntryObjectModule } from '../types.ts'
 import { agentClock } from './agent-clock.ts'
 import { agentHostPrincipal } from './agent-host-principal.ts'
 import { cursorSigning } from './cursor-signing.ts'
+import { dispatchPrincipal } from './dispatch-principal.ts'
 import { executionAuthorities, scopedRuntimeContextTrust } from './execution-wiring.ts'
 import { identityClock } from './identity-clock.ts'
 import { governanceInstallationPrincipals } from './governance-installation-principals.ts'
@@ -35,6 +36,7 @@ export const entryObjects: readonly EntryObjectModule[] = [
   agentHostPrincipal,
   toolResidencyPrincipal,
   tenantDomainScannerPrincipal,
+  dispatchPrincipal,
   toolReleaseRegistrant,
   toolContributionAuthority,
   toolClock,

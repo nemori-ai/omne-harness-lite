@@ -433,7 +433,7 @@ export function createSessionProviderFaces(
     recordIdle: unimplemented,
     completeInitialization: unimplemented,
     change: unimplemented,
-    setRelation: unimplemented,
+    setResident: unimplemented,
     configureAutoArchive: unimplemented,
     considerAutoArchive: unimplemented,
     interrupt: unimplemented,

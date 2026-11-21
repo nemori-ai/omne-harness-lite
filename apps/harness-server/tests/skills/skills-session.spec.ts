@@ -145,6 +145,7 @@ describe('Skills in a real coding session', () => {
       )
       expect(exits).toEqual([0, 0, 0])
       expect([...declared].sort()).toEqual([
+        'Agents',
         'Ask',
         'BkgToolCalls',
         'Calendar',

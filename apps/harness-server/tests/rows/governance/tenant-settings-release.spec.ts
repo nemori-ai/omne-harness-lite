@@ -27,6 +27,10 @@ it('a login principal sets the Shell run permission to deny on the release tree 
       expect(
         permissions.map(value => `${nameOf(value.owner)}/${value.item}:${value.default}`).sort(),
       ).toEqual([
+        'Agents/dispatch:auto',
+        'Agents/message:auto',
+        'Agents/read:auto',
+        'Agents/report:auto',
         'BkgToolCalls/invoke:auto',
         'Calendar/invoke:auto',
         'Files/read:auto',

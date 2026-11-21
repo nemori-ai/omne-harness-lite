@@ -80,7 +80,7 @@ afterEach(() => {
 })
 
 describe('serve: the release tree of doubles', () => {
-  it('the release tree of 92 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 95 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
       const port = await freePort()
@@ -176,6 +176,9 @@ describe('serve: the release tree of doubles', () => {
         'runtime-context-tenant-scope:real',
         'session-intake-budget:real',
         'session-observation:real',
+        'dispatch:real',
+        'dispatch-session:real',
+        'dispatch-tool:real',
         'server-entry:real',
         'identity-access:real',
         'session-access:real',
@@ -197,9 +200,9 @@ describe('serve: the release tree of doubles', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 94,
+        enabledRows: 97,
         barrierCalls: 1,
-        implementations: { real: 92, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 95, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])

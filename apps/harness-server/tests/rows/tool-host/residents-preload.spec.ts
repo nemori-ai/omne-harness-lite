@@ -18,6 +18,7 @@ import {
 } from './support.ts'
 
 const CODING = [
+  'Agents',
   'Ask',
   'BkgToolCalls',
   'Calendar',

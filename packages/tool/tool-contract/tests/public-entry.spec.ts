@@ -27,6 +27,7 @@ it('exports on the root only the names members outside the Tool group import, an
     'encodeToolInvocationRef',
     'encodeToolOperationRef',
     'judgeToolDelivery',
+    'offeredDefinition',
     'projectResidentReferences',
     'readToolOperationRef',
     'residentToolFacts',
@@ -39,6 +40,7 @@ it('exports on the root only the names members outside the Tool group import, an
     'toolCategoryDisplay',
     'toolGatesOf',
     'toolsCapabilityOf',
+    'unmetConditions',
   ])
 })
 

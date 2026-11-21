@@ -27,8 +27,11 @@ function document(text: string): JsonValue {
   return read.value
 }
 
-function bodyOf(content: unknown): JsonValue {
-  return document(JSON.stringify(content))
+const STANDING = { type: 'non-master', summary: 'Reviews a change against its spec.' }
+
+/** A body with the type and the summary every definition carries, unless the content states them. */
+function bodyOf(content: object, standing: object = STANDING): JsonValue {
+  return document(JSON.stringify({ ...standing, ...content }))
 }
 
 const ref = (category: string, name: string, resident?: unknown) =>
@@ -105,6 +108,23 @@ const rows: readonly Row[] = [
     label: 'instruction with an unknown key',
     content: { ...legal, instructions: [{ id: 'role', text: 'A', order: 1 }] },
     rejected: 'unknown-field',
+  },
+  { label: 'the type master', content: { ...legal, type: 'master' } },
+  {
+    label: 'a type outside the two',
+    content: { ...legal, type: 'lead' },
+    rejected: 'invalid-type',
+  },
+  { label: 'a type that is not text', content: { ...legal, type: 7 }, rejected: 'invalid-type' },
+  {
+    label: 'a summary that says nothing',
+    content: { ...legal, summary: ' ' },
+    rejected: 'invalid-summary',
+  },
+  {
+    label: 'a summary that is not text',
+    content: { ...legal, summary: 7 },
+    rejected: 'invalid-summary',
   },
   {
     label: 'missing name',
@@ -317,6 +337,7 @@ describe('judge agrees with judgeAgentDefinition', () => {
     const bodyJudgment = contract.judge(bodyOf(content))
     const definitionJudgment = await judgeAgentDefinition({
       category: 'AgentDefinition',
+      ...STANDING,
       ...content,
     })
 
@@ -343,6 +364,8 @@ describe('judge agrees with judgeAgentDefinition', () => {
         'invalid-instructions',
         'invalid-permission-bounds',
         'invalid-resident',
+        'invalid-summary',
+        'invalid-type',
         'unknown-attribute',
         'unknown-field',
       ].sort(),
@@ -352,6 +375,27 @@ describe('judge agrees with judgeAgentDefinition', () => {
         expect(() => contract.references(bodyOf(row.content))).not.toThrow()
       else expect(() => contract.references(bodyOf(row.content))).toThrow(TypeError)
     }
+  })
+})
+
+describe('the type and the summary are members every body states', () => {
+  const content = { name: 'reviewer', references: [], attributes: [] }
+
+  it('refuses a body without a type, and a body without a summary', () => {
+    const { judge } = agentBodyContract()
+    expect(judge(bodyOf(content, { summary: STANDING.summary }))).toEqual({
+      ok: false,
+      rejected: 'invalid-type',
+    })
+    expect(judge(bodyOf(content, { type: STANDING.type }))).toEqual({
+      ok: false,
+      rejected: 'invalid-summary',
+    })
+  })
+
+  it('names the two members in the schema of the category', () => {
+    expect(JSON.stringify(agentBodyContract().schema)).toContain('master|non-master')
+    expect(JSON.stringify(agentBodyContract().schema)).toContain('summary')
   })
 })
 
@@ -373,7 +417,12 @@ describe('judge differences that come from the body entry', () => {
       ok: false,
       rejected: 'unknown-field',
     })
-    const definition = await judgeAgentDefinition({ category: 'AgentDefinition', ...content })
+    const definition = await judgeAgentDefinition({
+      category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
+      ...content,
+    })
     expect(definition.kind).toBe('accepted')
   })
 
@@ -421,6 +470,8 @@ describe('a capability that does not name both of its parts', () => {
   it('is also an incomplete reference to the judgment of a whole definition, which calls it malformed', async () => {
     const definition = await judgeAgentDefinition({
       category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
       name: 'a',
       references: [{ capability: { name: 's' } }],
       attributes: [],

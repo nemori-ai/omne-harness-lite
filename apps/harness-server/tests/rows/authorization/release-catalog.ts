@@ -30,6 +30,7 @@ const CONSTRUCTION: Readonly<Record<string, unknown>> = {
   Schedules: { resultMaxBytes: 64 },
   Notifications: { resultMaxBytes: 64 },
   Sessions: { resultMaxBytes: 4096 },
+  Agents: { resultMaxBytes: 4096 },
   SwitchWorkspace: { resultMaxBytes: 4096 },
   Screen: {
     resultMaxBytes: 4096,

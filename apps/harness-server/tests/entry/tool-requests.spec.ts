@@ -126,7 +126,8 @@ async function world() {
     scopeBinding: () => bindings,
     release: () => releaseOf(fixture.root),
     operatorSettings: () => ({}),
-    interaction: async () => succeed({ humanInteraction: true }),
+    interaction: async () =>
+      succeed({ attendance: 'attended', humanInteraction: true, child: false }),
     workingDirectory: async () => succeed({ state: 'default', directory: '/srv/default' }),
   }
   return { fixture, ports, principalA, principalB, snapshot, definitions }
@@ -679,6 +680,8 @@ const ASK = JSON.stringify({
 describe('the meta-capability host: Ask runs only while the session lets the model ask a person', () => {
   const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
   type Interaction = Readonly<{ humanInteraction: boolean }> | null
+  const facts = (value: NonNullable<Interaction>) =>
+    ({ attendance: 'attended', child: false, ...value }) as const
 
   async function hosted(interaction: () => Interaction) {
     const { ports, principalA } = await world()
@@ -688,7 +691,7 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
       interaction: async access => {
         reads.push(access)
         const value = interaction()
-        return value === null ? fail('the publication is not there') : succeed(value)
+        return value === null ? fail('the publication is not there') : succeed(facts(value))
       },
     })
     const call = (name: string, args: string) => actionInput(principalA, TENANT_A, name, args)
@@ -711,7 +714,7 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
     expect(await source.describe(call('Ask', ASK))).toEqual({
       ok: {
         kind: 'answered',
-        text: 'Ask: the command "ask" is not available now. This session does not let you ask a person (collaboration mode). Continue without the answer, or stop and report what you need.',
+        text: 'Ask: the command "ask" is not available here: no person can be asked for an answer in this session now. Continue without it, or stop and report what you need.',
       },
     })
   })
@@ -733,8 +736,7 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
     expect(await source.describe(call('Ask', ASK))).toMatchObject({
       failure: {
         kind: 'unavailable',
-        diagnostic:
-          'the human interaction of the session is unreadable: the publication is not there',
+        diagnostic: 'the standing of the session is unreadable: the publication is not there',
       },
     })
     reads.length = 0

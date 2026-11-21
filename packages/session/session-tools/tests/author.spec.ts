@@ -93,6 +93,12 @@ const summary = {
   lastActivityAt: '2026-11-18T10:00:00.000Z',
   archivedAt: null,
   archivedBy: null,
+  relation: 'child',
+  parent: 'ses_a',
+  origin: null,
+  depth: 1,
+  attendance: 'unattended',
+  definition: 'coding',
 }
 const failing = (failure: SessionsFailure) => async () => ({ failure })
 function reads(overrides: Partial<Record<keyof BoundSessions, unknown>> = {}) {
@@ -156,6 +162,8 @@ describe('the Sessions declaration', () => {
   it.each([
     ['list', { tenant: 'other' }],
     ['list', { limit: 51 }],
+    ['list', { relation: 'sibling' }],
+    ['list', { attendance: 'nobody' }],
     ['show', {}],
     ['read', { session: '' }],
     ['search', {}],
@@ -183,6 +191,10 @@ describe('the Sessions reads', () => {
     expect(calls.list).toHaveBeenCalledWith({
       archived: false,
       title: null,
+      relation: null,
+      parent: null,
+      attendance: null,
+      definition: null,
       cursor: null,
       limit: 20,
     })
@@ -196,16 +208,29 @@ describe('the Sessions reads', () => {
         last_activity_at: '2026-11-18T10:00:00.000Z',
         archived_at: null,
         archived_by: null,
+        relation: 'child',
+        parent: 'ses_a',
+        handed_from: null,
+        depth: 1,
+        attendance: 'unattended',
+        definition: 'coding',
       },
     ])
+    const narrowed = {
+      relation: 'child',
+      parent: 'ses_a',
+      attendance: 'unattended',
+      definition: 'coding',
+    }
     await fixture().run(
       'list',
-      { archived: true, title: 'Trip', cursor: 'c-2', limit: 5 },
+      { archived: true, title: 'Trip', cursor: 'c-2', limit: 5, ...narrowed },
       sessions,
     )
     expect(calls.list).toHaveBeenLastCalledWith({
       archived: true,
       title: 'Trip',
+      ...narrowed,
       cursor: 'c-2',
       limit: 5,
     })

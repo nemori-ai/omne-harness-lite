@@ -36,6 +36,7 @@ import {
   type ToolCatalog,
   type ToolConsumerProfile,
   type ToolInvokeRequest,
+  type ToolDefinition,
 } from '@omne-harness/tool-contract'
 import { commandAddedModalities } from '@omne-harness/tool-contract/provider'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
@@ -47,7 +48,7 @@ import {
   readPublishedNeed,
   readPublishedView,
 } from '../rows/session-ad03/published-view.ts'
-import { judgeMetaCommand, type SessionInteractionRead } from './meta-capabilities.ts'
+import { judgeCallConditions, type SessionInteractionRead } from './meta-capabilities.ts'
 import { toolOperatorSettingsKey } from '../rows/tool-host/operator-settings.ts'
 import { toolLimitsOf } from './tool-limits.ts'
 import { releaseOf, type ToolRelease } from './tool-release.ts'
@@ -235,7 +236,7 @@ async function answeredInstead(
 ): Promise<Outcome<ToolCallAnswer | null, Failure>> {
   const products = await unavailableByProducts(asked, command)
   if ('failure' in products || products.ok !== null) return products
-  return closedBySession(ports, asked.input, session, command)
+  return closedBySession(ports, asked.input, session, { definition: asked.definition, command })
 }
 
 async function unavailableByProducts(
@@ -284,10 +285,10 @@ async function closedBySession(
   ports: ToolRequestPorts,
   input: DescribeInput,
   session: SessionId,
-  command: string | null,
+  call: Readonly<{ definition: ToolDefinition; command: string | null }>,
 ): Promise<Outcome<ToolCallAnswer | null, Failure>> {
   const access = { principal: input.principal, tenant: input.tenant, session }
-  const verdict = await judgeMetaCommand(ports, access, input.original.name, command)
+  const verdict = await judgeCallConditions(ports, access, call.definition, call.command)
   switch (verdict.kind) {
     case 'unreadable':
       return unavailable(verdict.diagnostic)

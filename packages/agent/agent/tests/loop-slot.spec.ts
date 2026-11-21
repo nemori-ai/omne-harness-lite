@@ -22,6 +22,8 @@ function adopt(
   assembly.controls.adoptions.define(adoption('definition'), {
     definition: {
       category: 'AgentDefinition',
+      type: 'master',
+      summary: 'Works on what the person asks for.',
       name: 'test',
       references: [],
       attributes: [],

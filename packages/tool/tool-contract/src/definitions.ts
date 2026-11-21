@@ -90,9 +90,16 @@ export type ToolCommandDeclaration = Readonly<{
   background?: ToolCommandBackground
   release?: ToolCommandRelease
   modalities?: readonly Modality[]
+  conditions?: ToolCallConditions
 }>
+export type ToolCallConditions = readonly string[]
 export type ToolImplementationShape =
-  | Readonly<{ kind: 'function'; parameters: ParameterContract; returns: ToolReturnDeclaration }>
+  | Readonly<{
+      kind: 'function'
+      parameters: ParameterContract
+      returns: ToolReturnDeclaration
+      conditions?: ToolCallConditions
+    }>
   | Readonly<{
       kind: 'commands'
       encoding: CommandCallEncoding

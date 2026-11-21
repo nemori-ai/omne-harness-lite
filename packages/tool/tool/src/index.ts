@@ -19,6 +19,11 @@ export {
   type ToolBodyScope,
   type ToolBodyScopeInput,
 } from './body-write-scope.ts'
+export {
+  routeToolDecisions,
+  type ToolDecisionRoute,
+  type ToolDecisionRoutesInput,
+} from './decision-routes.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { backgroundAllowed } from './ledger-background.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'

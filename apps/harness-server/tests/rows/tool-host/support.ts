@@ -93,6 +93,7 @@ export const TEST_CONSTRUCTION = Object.freeze({
   Schedules: { resultMaxBytes: 4096 },
   Notifications: { resultMaxBytes: 4096 },
   Sessions: { resultMaxBytes: 4096 },
+  Agents: { resultMaxBytes: 4096 },
   SwitchWorkspace: { resultMaxBytes: 4096 },
   Screen: {
     resultMaxBytes: 4096,

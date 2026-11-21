@@ -116,7 +116,6 @@ interface SessionContext {
   readonly newId: () => string
 }
 
-/** A command that stops before its call: a usage error, or a local fault such as an unreadable file. */
 type Stop = Readonly<{ usage: string }> | Readonly<{ local: string }>
 
 type Built = {
@@ -614,42 +613,77 @@ type By = NonNullable<ArchivedFilters['by']>
 const BY = ['person', 'auto', 'parent'] as const
 const LIMIT = /^[1-9][0-9]*$/
 
-function archivedFilters(
-  values: Option,
-): (ArchivedFilters & { given: TenantId | undefined }) | undefined {
+type ListFilters = BodyOf<SessionProtocol['operations']['list-sessions']>
+const RELATIONS = ['main', 'child', 'handoff'] as const
+const ATTENDANCES = ['attended', 'unattended'] as const
+const RELATION_OPTIONS = ['--relation', '--parent', '--attendance', '--definition'] as const
+const PAGE_OPTIONS = ['--tenant', '--cursor', '--limit', ...RELATION_OPTIONS] as const
+
+const RELATION_USAGE =
+  '[--relation <kind>] [--parent <id>] [--attendance <who>] [--definition <name>]'
+
+const oneOf = <T extends string>(allowed: readonly T[], value: string | undefined) =>
+  value === undefined ? null : allowed.includes(value as T) ? (value as T) : undefined
+
+const present = <T extends object>(value: T) =>
+  Object.fromEntries(Object.entries(value).filter(([, member]) => member !== undefined)) as {
+    [K in keyof T]?: Exclude<T[K], undefined>
+  }
+
+/** What both lists read alike: the tenant, the page, and the relation filters that were given. */
+function listFilters(values: Option): (ListFilters & { given: TenantId | undefined }) | undefined {
   const given = tenantOption(values)
-  const from = instantOption(values, '--since')
-  const to = instantOption(values, '--before')
-  const by = values.get('--by') ?? null
   const limit = values.get('--limit')
-  if (given === null || from === undefined || to === undefined) return undefined
-  if (by !== null && !BY.includes(by as (typeof BY)[number])) return undefined
+  const relation = oneOf(RELATIONS, values.get('--relation'))
+  const attendance = oneOf(ATTENDANCES, values.get('--attendance'))
+  if (given === null || relation === undefined || attendance === undefined) return undefined
   if (limit !== undefined && !LIMIT.test(limit)) return undefined
   return {
     given,
     tenant: given as TenantId,
     cursor: values.get('--cursor') ?? null,
-    ...(limit === undefined ? {} : { limit: Number(limit) }),
-    from,
-    to,
-    by: by as By | null,
-    titleContains: values.get('--title') ?? null,
+    ...present({
+      limit: limit === undefined ? undefined : Number(limit),
+      relation: relation ?? undefined,
+      parent: values.get('--parent'),
+      attendance: attendance ?? undefined,
+      definition: values.get('--definition'),
+    }),
   }
+}
+
+function archivedFilters(
+  values: Option,
+): (ArchivedFilters & { given: TenantId | undefined }) | undefined {
+  const page = listFilters(values)
+  const from = instantOption(values, '--since')
+  const to = instantOption(values, '--before')
+  const by = values.get('--by') ?? null
+  if (page === undefined || from === undefined || to === undefined) return undefined
+  if (by !== null && !BY.includes(by as (typeof BY)[number])) return undefined
+  return { ...page, from, to, by: by as By | null, titleContains: values.get('--title') ?? null }
+}
+
+const listSessions: TenantCommand<NonNullable<ReturnType<typeof listFilters>>> = {
+  kind: 'tenant',
+  name: 'list-sessions',
+  accepted: [...PAGE_OPTIONS, serverOption],
+  required: [],
+  parse: listFilters,
+  tenant: parsed => parsed.given,
+  build: ({ given: _given, ...filters }, { tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link => link.call(sessionProtocol, 'list-sessions', { ...filters, tenant }, messageId),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
 }
 
 const listArchivedSessions: TenantCommand<NonNullable<ReturnType<typeof archivedFilters>>> = {
   kind: 'tenant',
   name: 'list-archived-sessions',
-  accepted: [
-    '--tenant',
-    '--cursor',
-    '--limit',
-    '--since',
-    '--before',
-    '--by',
-    '--title',
-    serverOption,
-  ],
+  accepted: [...PAGE_OPTIONS, '--since', '--before', '--by', '--title', serverOption],
   required: [],
   parse: archivedFilters,
   tenant: parsed => parsed.given,
@@ -928,9 +962,17 @@ export const productionCommands: readonly CommandSpec[] = [
     run: (args, output, environment) => runSession(changePermissionMode, args, output, environment),
   },
   {
+    name: 'list-sessions',
+    usage: RELATION_USAGE,
+    summary:
+      'List the sessions that are not archived, each with its relation (main, child or handoff) and who attends it (attended or unattended).',
+    run: (args, output, environment) => runSession(listSessions, args, output, environment),
+  },
+  {
     name: 'list-archived-sessions',
     usage: '[--since <instant>] [--before <instant>] [--by person|auto|parent] [--title <text>]',
-    summary: 'List the archived sessions, the latest archived first.',
+    summary:
+      'List the archived sessions, the latest archived first. It takes the filters of list-sessions too.',
     run: (args, output, environment) => runSession(listArchivedSessions, args, output, environment),
   },
   callsCommand,

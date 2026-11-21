@@ -18,6 +18,7 @@
 - `ArchiveCollapse` · 包 `@omne-harness/session-contract`
 - `ArchivedBy` · 包 `@omne-harness/session-contract`
 - `AttemptId` · 包 `@omne-harness/session-contract`
+- `Attendance` · 包 `@omne-harness/session-contract`
 - `AuthorizationConsumer` · 包 `@omne-harness/session-contract`
 - `AuthorizationContext` · 包 `@omne-harness/session-contract`
 - `AuthorizationExpression` · 包 `@omne-harness/session-contract`
@@ -40,6 +41,7 @@
 - `CONTEXT_SCOPE_KINDS` · 包 `@omne-harness/session-contract`
 - `CallBinding` · 包 `@omne-harness/session-contract`
 - `CallRegistrationView` · 包 `@omne-harness/session-contract`
+- `ChildRecord` · 包 `@omne-harness/session-contract`
 - `ClockSample` · 包 `@omne-harness/session-contract`
 - `CommitReceipt` · 包 `@omne-harness/session-contract`
 - `CommittedBatch` · 包 `@omne-harness/session-contract`
@@ -69,6 +71,7 @@
 - `DerivedInputKind` · 包 `@omne-harness/session-contract`
 - `DerivedMessage` · 包 `@omne-harness/session-contract`
 - `DirectCallControl` · 包 `@omne-harness/session-contract`
+- `DirectoryStanding` · 包 `@omne-harness/session-contract`
 - `DriveFailure` · 包 `@omne-harness/session-contract`
 - `DriveOperationElements` · 包 `@omne-harness/session-contract`
 - `DriveReceipt` · 包 `@omne-harness/session-contract`
@@ -127,6 +130,7 @@
 - `IntakeSubject` · 包 `@omne-harness/session-contract`
 - `IntakeTerms` · 包 `@omne-harness/session-contract`
 - `IntakeVerdict` · 包 `@omne-harness/session-contract`
+- `MAX_SESSION_DEPTH` · 包 `@omne-harness/session-contract`
 - `ModelViewBasis` · 包 `@omne-harness/session-contract`
 - `ModelViewRead` · 包 `@omne-harness/session-contract`
 - `ModelViewRow` · 包 `@omne-harness/session-contract`
@@ -148,9 +152,12 @@
 - `ProducerFact` · 包 `@omne-harness/session-contract`
 - `ProducerRef` · 包 `@omne-harness/session-contract`
 - `ProductionEvidenceCommand` · 包 `@omne-harness/session-contract`
+- `RELATIONS_TO_REFERENCE` · 包 `@omne-harness/session-contract`
 - `RecoveryTask` · 包 `@omne-harness/session-contract`
 - `ReduceResult` · 包 `@omne-harness/session-contract`
+- `RelatedSession` · 包 `@omne-harness/session-contract`
 - `Relation` · 包 `@omne-harness/session-contract`
+- `RelationToReference` · 包 `@omne-harness/session-contract`
 - `ReleasedScope` · 包 `@omne-harness/session-contract`
 - `Reply` · 包 `@omne-harness/session-contract`
 - `ResidentAdoption` · 包 `@omne-harness/session-contract`
@@ -251,8 +258,10 @@
 - `SessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `SessionInternalPrincipals` · 包 `@omne-harness/session-contract`
 - `SessionLateCallFact` · 包 `@omne-harness/session-contract`
+- `SessionListFilter` · 包 `@omne-harness/session-contract`
 - `SessionListItem` · 包 `@omne-harness/session-contract`
 - `SessionListPage` · 包 `@omne-harness/session-contract`
+- `SessionListRelation` · 包 `@omne-harness/session-contract`
 - `SessionLogCommitObservation` · 包 `@omne-harness/session-contract`
 - `SessionLogConsequence` · 包 `@omne-harness/session-contract`
 - `SessionLogObservation` · 包 `@omne-harness/session-contract`
@@ -282,6 +291,7 @@
 - `SessionTakenRecord` · 包 `@omne-harness/session-contract`
 - `SessionTodos` · 包 `@omne-harness/session-contract`
 - `SessionTransactionPort` · 包 `@omne-harness/session-contract`
+- `SessionTree` · 包 `@omne-harness/session-contract`
 - `SessionUninterpretedCall` · 包 `@omne-harness/session-contract`
 - `SessionWaiting` · 包 `@omne-harness/session-contract`
 - `SessionWork` · 包 `@omne-harness/session-contract`
@@ -303,6 +313,7 @@
 - `TodoMutationReceipt` · 包 `@omne-harness/session-contract`
 - `TodoPage` · 包 `@omne-harness/session-contract`
 - `TodoPageCursor` · 包 `@omne-harness/session-contract`
+- `UnarchivedLifecycle` · 包 `@omne-harness/session-contract`
 - `VisibleTodoItem` · 包 `@omne-harness/session-contract`
 - `Waiting` · 包 `@omne-harness/session-contract`
 - `WaitingCall` · 包 `@omne-harness/session-contract`
@@ -325,6 +336,7 @@
 - `callKeysOutside` · 包 `@omne-harness/session-contract`
 - `callWithLate` · 包 `@omne-harness/session-contract`
 - `cancellationDriveOf` · 包 `@omne-harness/session-contract`
+- `childRecorded` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
 - `commandInput` · 包 `@omne-harness/session-contract`
 - `commitWithinBudget` · 包 `@omne-harness/session-contract`
@@ -365,6 +377,7 @@
 - `judgeIntakeBlocks` · 包 `@omne-harness/session-contract`
 - `judgeRunStart` · 包 `@omne-harness/session-contract`
 - `judgeSessionIntake` · 包 `@omne-harness/session-contract`
+- `judgeStanding` · 包 `@omne-harness/session-contract`
 - `judgeWaiting` · 包 `@omne-harness/session-contract`
 - `lendCalls` · 包 `@omne-harness/session-contract`
 - `mutationAccessRequest` · 包 `@omne-harness/session-contract`
@@ -388,6 +401,9 @@
 - `rebuildSessionPermissions` · 包 `@omne-harness/session-contract`
 - `reduce` · 包 `@omne-harness/session-contract`
 - `reduceAuthorizations` · 包 `@omne-harness/session-contract`
+- `relatedOf` · 包 `@omne-harness/session-contract`
+- `relatedSessionOf` · 包 `@omne-harness/session-contract`
+- `relationToReference` · 包 `@omne-harness/session-contract`
 - `requiredWorkEntries` · 包 `@omne-harness/session-contract`
 - `resolveCascade` · 包 `@omne-harness/session-contract`
 - `resolveControlScope` · 包 `@omne-harness/session-contract`
@@ -402,6 +418,7 @@
 - `sessionModesBlock` · 包 `@omne-harness/session-contract`
 - `shortCallId` · 包 `@omne-harness/session-contract`
 - `sourceRequestIdentities` · 包 `@omne-harness/session-contract`
+- `standingOf` · 包 `@omne-harness/session-contract`
 - `uninterpretedCalls` · 包 `@omne-harness/session-contract`
 - `waitingCalls` · 包 `@omne-harness/session-contract`
 - `wakingInputs` · 包 `@omne-harness/session-contract`
