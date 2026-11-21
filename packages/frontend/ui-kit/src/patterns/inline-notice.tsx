@@ -23,7 +23,6 @@ const TONE_ICON: Record<Tone, Icon> = {
   good: DoneIcon,
 }
 
-/** The notice's one recovery. A retry leads with the retry glyph, as the source's failure notice does. */
 export interface NoticeAction {
   readonly label: string
   readonly onClick: () => void
