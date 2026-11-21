@@ -30,3 +30,18 @@
   align-items: start;
   gap: var(--omne-space-block);
 }
+.specimen-punctuation {
+  margin: 0;
+  max-width: 70ch;
+}
+.specimen-punctuation[data-specimen-punctuation='reading'] {
+  font-family: var(--omne-font-reading);
+  font-size: var(--omne-text-body);
+  line-height: var(--omne-leading-reading);
+  letter-spacing: var(--omne-reading-tracking);
+}
+.specimen-punctuation[data-specimen-punctuation='ui'] {
+  font-family: var(--omne-font-ui);
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-ui);
+}

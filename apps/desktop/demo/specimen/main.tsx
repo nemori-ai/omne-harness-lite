@@ -79,6 +79,9 @@ const PROSE = [
   '```',
 ].join('\n')
 
+const PUNCTUATION =
+  '「先别急着关窗。」她说：「夜里降温快——尤其是凌晨两点到五点……你确定吗？」我点点头（其实没太确定），把《节气手册》合上；窗外的风、雨、雷声，一阵比一阵近！'
+
 const SERIES = [
   { key: 'input', label: '输入' },
   { key: 'output', label: '输出' },
@@ -279,6 +282,14 @@ function Specimen() {
       </Family>
       <Family title="代码面">
         <CodeSurface name="sh" text={'pnpm run build\npnpm run dev -- --port 8081'} />
+      </Family>
+      <Family title="全角标点">
+        <p className="specimen-punctuation" data-specimen-punctuation="reading">
+          {PUNCTUATION}
+        </p>
+        <p className="specimen-punctuation" data-specimen-punctuation="ui">
+          {PUNCTUATION}
+        </p>
       </Family>
       <Family title="Markdown">
         <Prose text={PROSE} />

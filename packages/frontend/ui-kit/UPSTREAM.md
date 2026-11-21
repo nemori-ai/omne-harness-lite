@@ -12,6 +12,7 @@
 | 图标 | `design/icons/{brush,glyphs,glyph,index}.ts`、`icons.css` | `src/icons/`、`src/styles/icons.css` |
 | 字体 | `public/fonts/` 的 Inter、JetBrains Mono 与各自的 OFL 文本，`assets/fonts/fonts.css` | `resources/fonts/`、`src/styles/fonts.css` |
 | 霞鹜文楷 | `public/fonts/lxgw-wenkai/`（1.7.0，常规与粗体，按字符范围切成 194 片）与它的 OFL 文本，`assets/fonts/wenkai.css` | `resources/fonts/lxgw-wenkai/`、`resources/fonts/LICENSE.LXGWWenKai`、`src/styles/wenkai.css`（只改了字体文件的地址）。约 9 MB，负责人 2026-11-15 定纳入。它排在中文字体栈的第一位，页面只取用到的那几片 |
+| 全角标点 | 不取来源的文件，只照 `public/fonts/TsangerJinKai02-W04.woff2`（粗体照 `-W05`）每个字形墨两边的边距 | `resources/fonts/omne-punctuation/` 的常规与粗体两个文件、`resources/fonts/LICENSE.OmnePunctuation`、`src/styles/fonts.css` 的两条 `@font-face` 与 `--omne-font-han` 的第一位。为什么：来源的仓耳今楷把全角标点做成按比例宽，霞鹜文楷画成 1 em，标点后面空出大半个字；人看到的是墨两边的空白（OD-15）。怎样改：从随包的霞鹜文楷 1.250（网页字体包 1.7.0）的切片里取 25 个全角标点的字形，两边的边距都取仓耳今楷同一字形的，墨宽仍是霞鹜文楷的（墨的范围按轮廓的实际外沿算）：整个字形平移到仓耳今楷的左边距，前进宽度 = 仓耳今楷的左边距 + 霞鹜文楷的墨宽 + 仓耳今楷的右边距。破折号、省略号与「～」不改。上游较新的版本保留了 `LXGW`、`霞鹜` 等名字，附加许可不放行改宽度，所以用自己的家族名 `Omne Punctuation` 发，name 表里不带这些名字；194 片原文件不动。重做：用 fontTools，读 [provenance.json](provenance.json) 的 `modified` 修改表（每个码位的两边边距、取自哪个字体、新前进宽度、平移量），每个码位从表里那一片复制字形，水平平移 `shift`，前进宽度写 `advance_to`，左边距取平移后的 xMin；换家族名、全名与 PostScript 名，存成 woff2 |
 | 基础控件 | `components/ui/*.tsx`（十三个）、`components/ui.tsx`、`lib/utils.ts`、`keyboard/focus.ts` | `src/controls/`、`src/lib/` |
 | 通用件 | `components/ai/*`、`disclosure`、`empty-state`、`loading-state`、`loading-ink`、`page-header`、`page-column`、`save-receipt`、`fact-list`、`code-surface`、`confirm/*`、`icon-button`、`inline-notice`、`ago`、`conversation/time.ts`，连同各自的 CSS | `src/patterns/` |
 | 流式 Markdown | `conversation/prose.tsx`、`code-highlight.ts`、`markdown-diagrams.ts`，`conversation.css` 里 Markdown 的规则 | `src/prose/`、`src/styles/prose.css` |
@@ -109,10 +110,10 @@
 
 ## 没取的
 
-- 仓颉今楷：许可不许作为应用资产发布。
+- 仓耳今楷：许可不许作为应用资产发布。
 - 对话的气泡、输入框、转写区、会话列表、设置页的版式，壳的导航与侧栏。它们归各领域的界面模块与应用的外壳。
 - `lucide-react`、`tw-animate-css`、路由库、react-query、多语言库。
 
 ## 许可
 
-基础控件改自 shadcn/ui 的 new-york-v4 风格，MIT，声明在 [LICENSE.shadcn](LICENSE.shadcn)，这些文件的第一行写了许可标识。Inter、JetBrains Mono 与霞鹜文楷是 SIL OFL 1.1，许可文本放在 `resources/fonts/` 里字体旁边。
+基础控件改自 shadcn/ui 的 new-york-v4 风格，MIT，声明在 [LICENSE.shadcn](LICENSE.shadcn)，这些文件的第一行写了许可标识。Inter、JetBrains Mono、霞鹜文楷与由它改出的 Omne Punctuation 是 SIL OFL 1.1，许可文本放在 `resources/fonts/` 里字体旁边。
