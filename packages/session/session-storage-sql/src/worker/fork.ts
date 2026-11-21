@@ -172,6 +172,18 @@ const roleOf = (message: string): ForkFacts['next'] =>
   message.startsWith('{') ? (JSON.parse(message) as { role: ForkFacts['next'] }).role : 'compaction'
 
 type Source = Readonly<{ session: string; epoch: string; running: boolean }>
+const COUNT = /^[1-9][0-9]*$/u
+const most = (values: readonly bigint[]): bigint =>
+  values.reduce((left, right) => (right > left ? right : left))
+
+/** No entry of the rows up to the one at the point lies above this: its own entry, the summary the
+ * epoch is named after, the position the source forked at. */
+function floorOf(last: Row | undefined, epoch: string, fork: Fork | undefined): bigint {
+  const anchor = COUNT.test(epoch.slice('epoch:'.length))
+    ? BigInt(epoch.slice('epoch:'.length))
+    : 0n
+  return most([BigInt(text(last?.['entry'] ?? '0')), anchor, fork?.position ?? 0n])
+}
 
 export function forkFacts(
   port: Executor,
@@ -182,29 +194,43 @@ export function forkFacts(
   const scope = { tenant, session: source.session }
   const fork = forkOf(port, scope)
   const tail = String(tailOf(port, scope, fork))
+  const unknown = {
+    rows: null,
+    next: null,
+    current: false,
+    running: source.running,
+    floor: '0',
+    tail,
+  }
   const prefix = modelViewPrefix(tenant, source.session)
-  const facts = { current: false, running: source.running, floor: '0', tail, next: null }
-  if (!point.epoch.startsWith(prefix)) return { ...facts, rows: null }
+  if (!point.epoch.startsWith(prefix)) return unknown
   const epoch = point.epoch.slice(prefix.length)
   const view = viewOf(port, scope, epoch)
   const rows = view.upper()
   const current = epoch === source.epoch
-  if (rows === 0n && !current) return { ...facts, rows: null }
-  if (!/^[1-9][0-9]*$/u.test(point.upper)) return { ...facts, rows: String(rows), current }
+  if (rows === 0n && !current) return unknown
+  const shown = { ...unknown, rows: String(rows), current }
+  if (!COUNT.test(point.upper) || BigInt(point.upper) > rows) return shown
   const upper = BigInt(point.upper)
-  const around = upper > rows ? [] : view.rows(upper - 1n, upper + 1n, 2, 'seq, entry, message')
-  const anchor = /^epoch:[1-9][0-9]*$/u.test(epoch) ? BigInt(epoch.slice('epoch:'.length)) : 0n
-  const floor = [BigInt(text(around[0]?.['entry'] ?? '0')), anchor, fork?.position ?? 0n].reduce(
-    (most, value) => (value > most ? value : most),
-  )
+  const [last, next] = view.rows(upper - 1n, upper + 1n, 2, 'seq, entry, message')
   return {
-    rows: String(rows),
-    next: around[1] === undefined ? null : roleOf(text(around[1]['message'])),
-    current,
-    running: source.running,
-    floor: String(floor),
-    tail,
+    ...shown,
+    next: next === undefined ? null : roleOf(text(next['message'])),
+    floor: String(floorOf(last, epoch, fork)),
   }
+}
+
+type Flat = Readonly<{ upto: bigint; session: string; epoch: string }>
+
+/** The segments of the first `upper` rows of an epoch of a source: its own cut there, then the source itself. */
+function flattened(port: Executor, source: Scope, epoch: string, upper: bigint): Flat[] {
+  const flat: Flat[] = []
+  for (const piece of segmentsOf(port, source, epoch)) {
+    if (piece.upto === null || (flat.at(-1)?.upto ?? 0n) >= upper) continue
+    flat.push({ ...piece, upto: piece.upto < upper ? piece.upto : upper })
+  }
+  if ((flat.at(-1)?.upto ?? 0n) < upper) flat.push({ upto: upper, session: source.session, epoch })
+  return flat
 }
 
 /** Writes what a create with a source starts its session from: nothing for any other command. */
@@ -232,13 +258,7 @@ export function startFork(port: Executor, scope: Scope, command: SessionCommand)
       text(head['origin']),
     ],
   )
-  const flat: Readonly<{ upto: bigint; session: string; epoch: string }>[] = []
-  for (const piece of segmentsOf(port, source, epoch)) {
-    if (piece.upto === null || (flat.at(-1)?.upto ?? 0n) >= upper) continue
-    flat.push({ ...piece, upto: piece.upto < upper ? piece.upto : upper })
-  }
-  if ((flat.at(-1)?.upto ?? 0n) < upper) flat.push({ upto: upper, session: fork.source, epoch })
-  for (const piece of flat)
+  for (const piece of flattened(port, source, epoch, upper))
     port.execute(
       'INSERT INTO sl_view_segment (tenant, session, epoch, upto, src_session, src_epoch) VALUES (?, ?, ?, ?, ?, ?)',
       [scope.tenant, scope.session, FIRST_EPOCH, piece.upto, piece.session, piece.epoch],

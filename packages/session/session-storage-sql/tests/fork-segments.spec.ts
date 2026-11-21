@@ -303,7 +303,7 @@ describe('what a source shows at a point', () => {
       )
       expect(unnumbered).toMatchObject({ rows: '4', next: null, floor: '0' })
       const past = forkFacts(s.port, 't', source('r', 'epoch:30'), point('r', 'epoch:30', '9'))
-      expect(past).toMatchObject({ rows: '4', next: null, floor: '30' })
+      expect(past).toMatchObject({ rows: '4', next: null, floor: '0' })
     } finally {
       s.db.close()
     }

@@ -107,8 +107,8 @@ export function maintainModelView(
       current = next
       continue
     }
-    const last = viewHead(port, { tenant, session }, current)
-    writeRow(current, (last?.seq ?? 0n) + 1n, entry.id, message, last?.digest ?? '')
+    const last = viewHead(port, { tenant, session }, current) ?? { seq: 0n, digest: '' }
+    writeRow(current, last.seq + 1n, entry.id, message, last.digest)
   }
   return current
 }
