@@ -192,6 +192,24 @@ describe('外壳：页面', () => {
     expect(current()).toBe('设置')
   })
 
+  it('服务的 page 是现在显示的那一页，跟着切换与撤下变；它只能读，不能切换', async () => {
+    const t = await setup({ login: 'signed-in' })
+    expect(t.service.page.get()).toBeUndefined()
+    await t.provide(CHAT)
+    const withdraw = await t.provide(SETTINGS)
+    expect(t.service.page.get()).toBe('chat')
+    const seen: (string | undefined)[] = []
+    const stop = t.service.page.subscribe(page => seen.push(page))
+    fireEvent.click(screen.getByRole('link', { name: '设置' }))
+    act(() => t.service.navigate('chat'))
+    act(() => t.service.navigate('settings'))
+    await withdraw()
+    stop()
+    act(() => t.service.navigate('chat'))
+    expect(seen).toEqual(['settings', 'chat', 'settings', 'chat'])
+    expect(Object.keys(t.service.page).sort()).toEqual(['get', 'subscribe'])
+  })
+
   it('外壳的服务也是读位置的接口', async () => {
     const t = await setup({ login: 'signed-in' })
     await t.provide(CHAT)

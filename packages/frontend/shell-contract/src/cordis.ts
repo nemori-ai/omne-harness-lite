@@ -8,6 +8,8 @@ import type { Toast, ToastBoard } from './toast-store.ts'
 
 type Withdrawing = Readonly<{ withdraw(owner: object): void }>
 
+const NO_PAGE = { get: () => undefined, subscribe: () => () => undefined }
+
 /** @owner packages/frontend/shell-contract */
 export abstract class ShellService extends Service {
   static readonly provide = 'shell'
@@ -75,6 +77,13 @@ export abstract class ShellService extends Service {
   }
 
   abstract navigate(pageId: string, subject?: string): void
+
+  get page(): Readonly<{
+    get(): string | undefined
+    subscribe(listener: (page: string | undefined) => void): () => void
+  }> {
+    return NO_PAGE
+  }
 
   abstract attached(anchor: string, subject: string): ReactNode
 
