@@ -22,6 +22,7 @@ import {
   PageColumn,
   PageHeader,
   ReceiptPill,
+  RetryIcon,
   SaveReceipt,
   STATE_LABELS,
   StateWord,
@@ -156,6 +157,15 @@ it('InlineNotice runs its action, dismisses, and shows its detail behind a discl
   expect(onDismiss).toHaveBeenCalledTimes(1)
   fireEvent.click(screen.getByRole('button', { name: '详情' }))
   expect(screen.getByText('code 7')).toBeTruthy()
+})
+
+it('InlineNotice leads its action with the glyph it is given, and with none otherwise', () => {
+  render(<InlineNotice action={{ label: '重试', onClick: vi.fn(), icon: RetryIcon }}>没读到</InlineNotice>)
+  const retry = screen.getByRole('button', { name: '重试' })
+  expect(retry.querySelector('svg[data-icon="retry"]')?.getAttribute('aria-hidden')).toBe('true')
+  cleanup()
+  render(<InlineNotice action={{ label: '知道了', onClick: vi.fn() }}>已读</InlineNotice>)
+  expect(screen.getByRole('button', { name: '知道了' }).querySelector('svg')).toBeNull()
 })
 
 it('LoadingIndicator is decorative and LoadingState names itself', () => {
