@@ -9,6 +9,7 @@
 | `styles.css` 里壳的那一段：`.app-shell`、`.shell-sidebar`、品牌行、导航行、`.shell-secondary`、`.shell-workspace`，以及 768px 以上的折叠轨道 | `489f671735b0c91da06e972491c71a1346c6a4d641e1936ce85c9de3844a5565` | `src/page/styles.css` |
 | `shell/shell.css` 的 `.shell-workspace { overflow: clip }` | `1d206fe746261f1f0c24fb4463287a612ba9a0b66cd265ab3ed18b0a08bad782` | `src/page/styles.css` |
 | `shell/sidebar-motion.ts` | `5f1474e223fb426641a07314573d4354b0b90cff1c74f78c3019de20defc704d` | `src/page/shell/sidebar-motion.ts` |
+| 侧栏底部的排法，按提交 `83c1616f44d000d1f333e929bfd94d31dff847da`（这份 `styles.css` 与上面的同一字节）：`styles.css` 的 `.shell-utility-nav`、`.shell-footer-meta`、`.shell-system-actions` 与窄条里它们竖排成一列；`shell/navigation.tsx`（`b28ca92299adc8d736d8625ed1eb7551d4aaa2913652709236e665281da845cc`）底部两样的次序。来源的换行排法改成两列的网格（OD-22），最后一行左边是侧栏区的 `utility` 项，右边是「外观」 | `489f671735b0c91da06e972491c71a1346c6a4d641e1936ce85c9de3844a5565` | `src/page/styles.css` 的 `.shell-utility-nav`、`.shell-footer-row`；`src/page/shell/sidebar.tsx` 的 `SidebarBody` |
 
 ## 改了哪几样
 

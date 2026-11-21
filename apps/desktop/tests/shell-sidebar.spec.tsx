@@ -194,8 +194,8 @@ describe('外壳：放不下时滚', () => {
 })
 
 describe('外壳：侧栏的两段', () => {
-  it('utility 段的页、「外观」与侧栏区的 utility 项在底部；primary 段在上面', async () => {
-    await setup({
+  const twoSegments = () =>
+    setup({
       login: 'signed-in',
       modules: [
         PAGES,
@@ -205,6 +205,9 @@ describe('外壳：侧栏的两段', () => {
         ),
       ],
     })
+
+  it('primary 段在上面；底部是 utility 段的页面的网格，最后一行左边是侧栏区的 utility 项，右边是「外观」', async () => {
+    await twoSegments()
     const top = document.querySelector<HTMLElement>('.shell-navigation-main')!
     const foot = document.querySelector<HTMLElement>('.shell-secondary')!
     const primary = within(top).getByRole('navigation', { name: '页面' })
@@ -214,19 +217,53 @@ describe('外壳：侧栏的两段', () => {
         .map(row => row.textContent),
     ).toEqual(['资料', '日程'])
     expect(top.querySelector('[data-side-text="list"]')).not.toBeNull()
-    expect(
-      within(within(foot).getByRole('navigation', { name: '次要页面' }))
-        .getAllByRole('link')
-        .map(row => row.textContent),
-    ).toEqual(['设置', '用量'])
-    const order = [...foot.querySelectorAll('[data-page], [data-appearance], [data-item]')].map(
-      node =>
-        node.getAttribute('data-page') ??
-        node.getAttribute('data-item') ??
-        (node.hasAttribute('data-appearance') ? '外观' : ''),
-    )
-    expect(order).toEqual(['settings', 'usage', '外观', 'account'])
     expect(top.querySelector('[data-item="account"]')).toBeNull()
+    const grid = within(foot).getByRole('navigation', { name: '次要页面' })
+    expect(grid.classList.contains('shell-utility-nav')).toBe(true)
+    expect(
+      within(grid)
+        .getAllByRole('link')
+        .map(cell => cell.textContent),
+    ).toEqual(['设置', '用量'])
+    const last = foot.lastElementChild as HTMLElement
+    expect(last.classList.contains('shell-footer-row')).toBe(true)
+    expect([...last.children].map(side => side.className)).toEqual([
+      'shell-footer-items',
+      expect.stringContaining('shell-appearance'),
+    ])
+    expect(last.firstElementChild!.querySelector('[data-side-text="account"]')).not.toBeNull()
+    expect(last.lastElementChild).toBe(screen.getByRole('button', { name: '外观' }))
+  })
+
+  it('网格的每一格是图标加名字的安静钮，不在导航行滑动的底里；选中的一格自己画底，侧栏里仍恰好一处选中', async () => {
+    await twoSegments()
+    const grid = screen.getByRole('navigation', { name: '次要页面' })
+    for (const cell of within(grid).getAllByRole('link')) {
+      expect(cell.parentElement).toBe(grid)
+      expect(cell.querySelector('svg')).not.toBeNull()
+      expect(cell.querySelector('.shell-link-label')?.textContent).toBe(cell.textContent)
+      expect(cell.getAttribute('data-control')).toBe('row')
+      expect(cell.hasAttribute('data-glide-row')).toBe(false)
+    }
+    expect(grid.querySelector('[data-glide-menu]')).toBeNull()
+    const selected = () => [...document.querySelectorAll('[data-selected="true"]')]
+    fireEvent.click(within(grid).getByRole('link', { name: '用量' }))
+    expect(current()).toBe('用量')
+    expect(selected()).toEqual([within(grid).getByRole('link', { name: '用量' })])
+    fireEvent.click(screen.getByRole('link', { name: '资料' }))
+    expect(selected()).toEqual([screen.getByRole('link', { name: '资料' })])
+  })
+
+  it('「外观」是一个图标钮：名字与提示都是「外观」，不写字', async () => {
+    await twoSegments()
+    const appearance = screen.getByRole('button', { name: '外观' })
+    expect(appearance.textContent).toBe('')
+    expect(appearance.querySelector('svg')).not.toBeNull()
+    fireEvent.keyDown(window, { key: 'Tab' })
+    await act(async () => {
+      appearance.focus()
+    })
+    expect((await screen.findByRole('tooltip')).textContent).toBe('外观')
   })
 })
 

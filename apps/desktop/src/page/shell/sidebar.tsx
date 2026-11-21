@@ -11,7 +11,6 @@ import {
 import type { PageItem, SidebarItem } from '@omne-harness/shell-contract'
 import {
   ActionTooltip,
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
@@ -156,6 +155,7 @@ function PageRow(props: {
   selected: boolean
   expanded: boolean
   choose: (id: string) => void
+  glide: boolean
 }) {
   const { page, scope, selected } = props
   const Icon = ICONS[page.icon] ?? UnknownIcon
@@ -172,7 +172,7 @@ function PageRow(props: {
         ref={row}
         href={hrefOf(page.id)}
         className={props.selected ? 'shell-nav-link active' : 'shell-nav-link'}
-        data-glide-row=""
+        data-glide-row={props.glide ? '' : undefined}
         data-control="row"
         data-selected={props.selected}
         aria-current={props.selected ? 'page' : undefined}
@@ -199,21 +199,26 @@ function PageRows(props: {
   shown: string | undefined
   expanded: boolean
   choose: (id: string) => void
+  grid: boolean
 }) {
-  return (
+  const rows = props.pages.map(page => (
+    <PageRow
+      key={page.id}
+      page={page}
+      scope={props.scope}
+      selected={page.id === props.shown}
+      expanded={props.expanded}
+      choose={props.choose}
+      glide={!props.grid}
+    />
+  ))
+  return props.grid ? (
+    <nav className="shell-utility-nav" aria-label={props.label}>
+      {rows}
+    </nav>
+  ) : (
     <nav className="shell-nav" aria-label={props.label}>
-      <GlideMenu className="shell-nav-rows">
-        {props.pages.map(page => (
-          <PageRow
-            key={page.id}
-            page={page}
-            scope={props.scope}
-            selected={page.id === props.shown}
-            expanded={props.expanded}
-            choose={props.choose}
-          />
-        ))}
-      </GlideMenu>
+      <GlideMenu className="shell-nav-rows">{rows}</GlideMenu>
     </nav>
   )
 }
@@ -241,17 +246,15 @@ function Appearance(props: { theme: ThemeSwitch; size: SizeSwitch; expanded: boo
     listener => size.subscribe(() => listener()),
     () => size.current(),
   )
+  const side = props.expanded ? 'top' : 'right'
   return (
     <DropdownMenu>
-      <RowHint expanded={props.expanded} label="外观">
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="shell-utility-button" data-appearance="">
-            <ViewIcon aria-hidden="true" />
-            <span className="shell-link-label">外观</span>
-          </Button>
-        </DropdownMenuTrigger>
-      </RowHint>
-      <DropdownMenuContent side="top" align="start">
+      <DropdownMenuTrigger asChild>
+        <IconButton label="外观" tooltipSide={side} className="shell-appearance" data-appearance="">
+          <ViewIcon aria-hidden="true" />
+        </IconButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side={side} align="end">
         <DropdownMenuLabel>主题</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={choice}
@@ -304,7 +307,7 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
     items
       .filter(item => segmentOf(item) === segment)
       .map(item => <SidebarEntry key={item.id} item={item} scope={scope} expanded={expanded} />)
-  const rows = (label: string, list: readonly PageItem[]) => (
+  const rows = (label: string, list: readonly PageItem[], grid: boolean) => (
     <PageRows
       label={label}
       pages={list}
@@ -312,6 +315,7 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
       shown={props.shown}
       expanded={expanded}
       choose={props.choose}
+      grid={grid}
     />
   )
   return (
@@ -322,13 +326,15 @@ function SidebarBody(props: SidebarProps & { expanded: boolean; choose: (id: str
     >
       <Reconnecting connectivity={props.connectivity} />
       <div className="shell-navigation-main">
-        {rows('页面', primary)}
+        {rows('页面', primary, false)}
         <div className="shell-sidebar-primary">{entries('primary')}</div>
       </div>
       <div className="shell-secondary">
-        {utility.length === 0 ? null : rows('次要页面', utility)}
-        <Appearance theme={props.theme} size={props.size} expanded={expanded} />
-        {entries('utility')}
+        {utility.length === 0 ? null : rows('次要页面', utility, true)}
+        <div className="shell-footer-row">
+          <div className="shell-footer-items">{entries('utility')}</div>
+          <Appearance theme={props.theme} size={props.size} expanded={expanded} />
+        </div>
       </div>
     </div>
   )

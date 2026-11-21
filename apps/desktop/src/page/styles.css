@@ -191,8 +191,7 @@ body,
   gap: 1px;
 }
 
-.shell-nav-link,
-.shell-utility-button {
+.shell-nav-link {
   position: relative;
   display: flex;
   align-items: center;
@@ -215,16 +214,14 @@ body,
   cursor: pointer;
 }
 
-.shell-nav-link > svg,
-.shell-utility-button > svg {
+.shell-nav-link > svg {
   width: var(--omne-icon-label);
   height: var(--omne-icon-label);
   flex: none;
 }
 
 .shell-nav-link:hover,
-.shell-nav-link.active,
-.shell-utility-button:hover {
+.shell-nav-link.active {
   color: var(--omne-ink-primary);
 }
 
@@ -244,7 +241,7 @@ body,
 }
 
 .shell-navigation-content[data-expanded='false']
-  :is([data-glide-highlight], .shell-nav-link, .shell-utility-button),
+  :is([data-glide-highlight], .shell-nav-link, .shell-appearance),
 .shell-sidebar[data-labels='hidden'] .shell-fold {
   border-radius: var(--omne-radius-pill);
 }
@@ -254,7 +251,7 @@ body,
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  gap: 1px;
+  gap: var(--omne-space-inline);
   margin-top: var(--omne-space-block);
   padding-top: var(--omne-space-block);
 }
@@ -270,6 +267,55 @@ body,
 
 .shell-sidebar-item {
   min-width: 0;
+}
+
+/* The foot (SPEC 页面, OD-22): the utility pages in a grid of two columns; a cell is a quiet row of its own, so its
+   selected ground is drawn here, the same ground the gliding rows have. The last row holds the sidebar slot's
+   utility items on the left, free to grow upward, and the appearance button on the right. On the rail every one of
+   them is a circle in one column. */
+.shell-utility-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px var(--omne-space-inline);
+}
+
+.shell-utility-nav > .shell-nav-link[data-selected='true'] {
+  background-color: var(--omne-selected);
+}
+
+.shell-footer-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--omne-space-inline);
+}
+
+.shell-footer-items {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+
+.shell-appearance {
+  flex: none;
+  color: var(--omne-ink-muted);
+}
+
+.shell-navigation-content[data-expanded='false'] .shell-utility-nav {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.shell-navigation-content[data-expanded='false'] .shell-footer-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.shell-navigation-content[data-expanded='false'] .shell-appearance {
+  align-self: center;
+  width: var(--omne-nav-row-height);
+  height: var(--omne-nav-row-height);
 }
 
 .shell-menu {
