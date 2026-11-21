@@ -395,7 +395,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'hold on')
     await press('button[type=submit]', '发送')
-    await wait('the held run', () => transcript().includes('正在生成'))
+    await wait('the held run', () => transcript().includes(${JSON.stringify(REPLY[1].slice(0, 8))}) && document.querySelector('button[data-action=stop]'))
     await press('button', '停止')
     const confirm = await wait('the stop to settle', () => byText('button', '再确认停止') ?? byText('button[type=submit]', '发送'))
     if (confirm.textContent.trim() === '再确认停止') confirm.click()
