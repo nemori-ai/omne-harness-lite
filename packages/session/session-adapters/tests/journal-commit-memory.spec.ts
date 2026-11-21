@@ -36,6 +36,7 @@ describe('the generation memory of the Journal commit', () => {
       domain: domain('tenant-a'),
       combination,
       operation: 'op',
+      recall: undefined,
       commands: [],
       generations,
     })
@@ -48,6 +49,7 @@ describe('the generation memory of the Journal commit', () => {
       domain: domain('tenant-b'),
       combination,
       operation: 'op',
+      recall: undefined,
       commands: [],
       generations,
     })

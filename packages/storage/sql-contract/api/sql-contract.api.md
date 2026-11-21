@@ -33,7 +33,6 @@
 - `MigrationDescriptor` · `types.d.ts`
 - `MigrationRef` · `types.d.ts`
 - `NotCommittedV2` · `types.d.ts`
-- `NotRecallableV2` · `types.d.ts`
 - `OperationIdentityV1` · `types.d.ts`
 - `ParticipantDescriptor` · `types.d.ts`
 - `ParticipatedEntry` · `types.d.ts`
@@ -55,6 +54,8 @@
 - `RegistrationKey` · `types.d.ts`
 - `RejectionNature` · `rejection.d.ts`
 - `RolledBackV2` · `types.d.ts`
+- `SettledV2` · `types.d.ts`
+- `SettlementProofsV2` · `types.d.ts`
 - `SqlIdentity` · `types.d.ts`
 - `SqlMaterialCatalog` · `types.d.ts`
 - `SqlStorage` · `types.d.ts`
@@ -513,22 +514,24 @@ export type CommitReceiptV2 = ReceiptV2 & Readonly<{
     recalled: boolean;
 }>;
 export type CommitResultV2 = CommitReceiptV2 | UnknownV2 | IdentityConflictV2 | CommitRejectedV2;
+export type SettlementProofsV2 = Readonly<{
+    writerGenerationExcluded: true;
+    oldTransactionTerminated: true;
+    databaseRecoveryFinished: true;
+    authoritativeReadSucceeded: true;
+    operationNotQueued: true;
+}>;
 export type NotCommittedV2 = Readonly<{
     kind: 'not_committed';
     identity: SqlIdentity;
-    proofs: Readonly<{
-        writerGenerationExcluded: true;
-        oldTransactionTerminated: true;
-        databaseRecoveryFinished: true;
-        authoritativeReadSucceeded: true;
-        operationNotQueued: true;
-    }>;
+    proofs: SettlementProofsV2;
 }>;
-export type NotRecallableV2 = Readonly<{
-    kind: 'not_recallable';
+export type SettledV2 = Readonly<{
+    kind: 'settled';
     identity: SqlIdentity;
+    proofs: SettlementProofsV2;
 }>;
-export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2 | NotRecallableV2;
+export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2 | SettledV2;
 export type RegistrationKey = Readonly<{
     scope: StorageScope;
     transactionDomain: string;

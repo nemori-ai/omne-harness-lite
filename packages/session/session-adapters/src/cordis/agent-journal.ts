@@ -61,7 +61,6 @@ import type {
 import {
   commitJournal,
   refusalFailure,
-  standingOf,
   type GenerationMemory,
   type JournalCombination,
 } from '../journal-commit.ts'
@@ -140,6 +139,7 @@ import {
   readOperation,
   readOutput,
   readerOf,
+  recordedStanding,
   type Reader,
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
@@ -1002,12 +1002,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     let changed = false
     for (const [at, held] of book.held) {
       if (held.standing !== 'unknown') continue
-      const standing = await standingOf(
-        options.storage,
-        domain,
-        held.storageOperation,
-        held.attempt,
-      )
+      const standing = await recordedStanding(options.storage, domain, book.tenantText, held)
       if (standing === 'committed') book.held.delete(at)
       else if (standing === 'not-run') {
         held.standing = 'excluded'
@@ -1246,6 +1241,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         domain,
         combination: options.combination,
         operation,
+        recall: 'never',
         commands: [executionRecordBlobFacts({ tenant: book.tenant, blobs: chunk })],
         generations,
       })
@@ -1359,6 +1355,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       domain,
       combination: options.combination,
       operation,
+      recall: 'never',
       commands,
       generations,
     })

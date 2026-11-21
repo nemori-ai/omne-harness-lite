@@ -109,9 +109,9 @@ export function observation(
   switch (result.kind) {
     case 'not_committed':
       return { kind: 'notCommitted', operationRef: operationRef(query.address) }
-    // No identity of this member declares `recall: 'never'`, so `not_recallable` says nothing here.
+    // No identity of this member declares `recall: 'never'`, so `settled` says nothing here.
     case 'unknown':
-    case 'not_recallable':
+    case 'settled':
       return { kind: 'unknown', operationRef: operationRef(query.address) }
     case 'committed':
     case 'rolled_back':

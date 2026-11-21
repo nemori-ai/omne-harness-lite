@@ -687,6 +687,86 @@ const refusing =
       diagnostic: null,
     } as never)
 
+function lateLanding(s: SqlScene) {
+  const queries: string[] = []
+  let next: 'run' | 'late' | 'drop' = 'run'
+  let late: (() => Promise<unknown>) | null = null
+  const storage: SqlStorage = {
+    database: s.storage.database,
+    registerCombination: input => s.storage.registerCombination(input),
+    read: (request, options) => s.storage.read(request, options),
+    commit: request => {
+      const now = next
+      next = 'run'
+      if (now === 'run') return s.storage.commit(request)
+      if (now === 'late') late = () => s.storage.commit(request)
+      return Promise.resolve({ kind: 'unknown', identity: request.identity, diagnostic: now })
+    },
+    query: async identity => {
+      const land = late
+      late = null
+      if (land !== null) await land()
+      const answer = await s.storage.query(identity)
+      queries.push(`${identity.recall ?? 'recallable'} ${answer.kind}`)
+      return answer
+    },
+  }
+  const journal = createSessionLogJournal<string>({
+    storage,
+    tenantDomainLookup: { lookup: () => Promise.resolve({ kind: 'ready', domain: s.domain }) },
+    sessionAccessCheck: {
+      check: check =>
+        Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${check.operation}`) }),
+    },
+    combination: s.combination,
+  }).forSession(s.access).journal
+  const faultNext = (fault: 'late' | 'drop') => {
+    next = fault
+  }
+  return { journal, queries, faultNext }
+}
+
+describe('an unknown write is decided from the execution record once the storage settles', () => {
+  it('a write that lands while the storage is asked is recognised from er_operation and is not written again', async () => {
+    const { s, open } = await opened('settled-landed')
+    const landing = lateLanding(s)
+    const request = await messageRequest(s, open.authority, 'message-landed')
+    const before = count(s, 'er_operation')
+    landing.faultNext('late')
+    expect(await landing.journal.commit(request)).toEqual({
+      failure: { kind: 'commit-unknown', operation: request.operation },
+    })
+    expect(count(s, 'er_operation')).toBe(before)
+    const ask = () =>
+      landing.journal.query({ ...s.access, execution: s.execution, operation: request.operation })
+    expect(ok(await ask())).toMatchObject({ kind: 'committed' })
+    expect(landing.queries).toEqual(['never settled'])
+    expect(count(s, 'er_operation')).toBe(before + 1)
+    const recalled = ok(await landing.journal.commit(request))
+    expect(ok(await ask())).toEqual({ kind: 'committed', receipt: recalled })
+    expect(count(s, 'er_operation')).toBe(before + 1)
+  })
+
+  it('a write that never ran is excluded once the storage settles and er_operation has no row, and its retry writes once', async () => {
+    const { s, open } = await opened('settled-dropped')
+    const landing = lateLanding(s)
+    const request = await messageRequest(s, open.authority, 'message-never-ran')
+    const before = count(s, 'er_operation')
+    landing.faultNext('drop')
+    expect(await landing.journal.commit(request)).toEqual({
+      failure: { kind: 'commit-unknown', operation: request.operation },
+    })
+    const ask = () =>
+      landing.journal.query({ ...s.access, execution: s.execution, operation: request.operation })
+    expect(ok(await ask())).toMatchObject({ kind: 'excluded' })
+    expect(landing.queries).toEqual(['never settled'])
+    expect(count(s, 'er_operation')).toBe(before)
+    const loaded = await load(s)
+    ok(await landing.journal.commit({ ...request, expected: loaded.revision }))
+    expect(count(s, 'er_operation')).toBe(before + 1)
+  })
+})
+
 describe('the publication report (SPEC 发布观测)', () => {
   it('reports each publication once, with the bytes of the commands the storage was given', async () => {
     const { s, open } = await opened('report-committed')

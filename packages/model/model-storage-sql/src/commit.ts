@@ -584,8 +584,10 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     protocolVersion: '2',
     operationKey: key,
   })
-  const generation = (domain: DomainRef, operation: ModelOperationId, at: number) =>
-    identityOf(domain, operation, `${operation}#${at}`)
+  const generation = (domain: DomainRef, operation: ModelOperationId, at: number): SqlIdentity => ({
+    ...identityOf(domain, operation, `${operation}#${at}`),
+    recall: 'never',
+  })
   const generationsKey = (domain: DomainRef, operation: ModelOperationId): string =>
     JSON.stringify([
       domain.scope.kind === 'tenant' ? domain.scope.tenant : null,
@@ -593,28 +595,15 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
       operation,
     ])
 
-  async function freeGeneration(
-    domain: DomainRef,
-    operation: ModelOperationId,
-  ): Promise<number | 'unknown' | 'committed'> {
-    const key = generationsKey(domain, operation)
-    let at = generations.first(key)
-    let found = await storage.query(generation(domain, operation, at))
-    while (found.kind === 'rolled_back') {
-      generations.saw(key, at, found.kind)
-      at += 1
-      found = await storage.query(generation(domain, operation, at))
-    }
-    generations.saw(key, at, found.kind)
-    if (found.kind === 'not_committed') return at
-    return found.kind === 'not_recallable' ? 'unknown' : found.kind
+  async function settled(domain: DomainRef, operation: ModelOperationId): Promise<boolean> {
+    const at = generations.first(generationsKey(domain, operation))
+    return (await storage.query(generation(domain, operation, at))).kind === 'settled'
   }
 
   async function settleUnresolved(domain: DomainRef, scope: CallScope): Promise<void> {
     for (const [operation, binding] of unresolved.of(scope.tenant)) {
       if (binding.call !== scope.call) continue
-      if ((await freeGeneration(domain, operation)) !== 'unknown')
-        unresolved.remove(scope.tenant, operation)
+      if (await settled(domain, operation)) unresolved.remove(scope.tenant, operation)
     }
   }
 

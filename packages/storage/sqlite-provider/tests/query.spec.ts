@@ -86,6 +86,57 @@ describe('query on a ready domain', () => {
   })
 })
 
+describe('query of an identity that is never recalled', () => {
+  const never = (key = 'key-1') => identity({ operationKey: key, recall: 'never' })
+
+  it('answers settled with all five proofs after the commit, which left no receipt', async () => {
+    const { storage, control } = await ready()
+    expect((await storage.commit(commitRequest(built, { identity: never() }))).kind).toBe(
+      'committed',
+    )
+    expect(await storage.query(never())).toEqual({
+      kind: 'settled',
+      identity: never(),
+      proofs: {
+        writerGenerationExcluded: true,
+        oldTransactionTerminated: true,
+        databaseRecoveryFinished: true,
+        authoritativeReadSucceeded: true,
+        operationNotQueued: true,
+      },
+    })
+    await control.close({ initiator: 'disposal' })
+    const db = new DatabaseSync(domainFile(), { readOnly: true })
+    try {
+      expect(db.prepare('select count(*) as n from _sql_receipt').all()).toEqual([{ n: 0 }])
+    } finally {
+      db.close()
+    }
+  })
+
+  it('does not answer from a receipt kept under the same key by a recallable identity', async () => {
+    const { storage } = await ready()
+    await storage.commit(commitRequest(built))
+    expect((await storage.query(never())).kind).toBe('settled')
+  })
+
+  it('answers unknown while a commit of it is in flight', async () => {
+    const { storage } = await ready({ lockWaitMs: 1500 })
+    const blocker = new DatabaseSync(domainFile())
+    blocker.exec('begin immediate')
+    try {
+      const pending = storage.commit(commitRequest(built, { identity: never() }))
+      const asked = await storage.query(never())
+      expect(asked).toMatchObject({ kind: 'unknown', diagnostic: 'operation_pending' })
+      expect((await pending).kind).toBe('unknown')
+    } finally {
+      blocker.exec('rollback')
+      blocker.close()
+    }
+    expect((await storage.query(never())).kind).toBe('settled')
+  })
+})
+
 describe('query answers unknown', () => {
   it('for an absent domain and for a domain of another scope', async () => {
     const { storage } = await ready()

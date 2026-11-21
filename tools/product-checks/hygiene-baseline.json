@@ -79,9 +79,9 @@
       "packages/execution/execution-environment/src/registry.ts": 1046,
       "packages/identity/identity/src/testing/governance-contract.ts": 2224,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
-      "packages/model/model-storage-sql/src/commit.ts": 1109,
+      "packages/model/model-storage-sql/src/commit.ts": 1098,
       "packages/model/model/src/commands/commands.ts": 1054,
-      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1768,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 1765,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1148,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
       "packages/session/session-adapters/src/testing/factory.ts": 1239,
@@ -89,7 +89,7 @@
       "packages/session/session-adapters/src/testing/journal.ts": 4190,
       "packages/session/session-adapters/src/testing/session.ts": 1221,
       "packages/session/session-contract/src/testing-transactions.ts": 2516,
-      "packages/session/session-storage-sql/src/worker/participant.ts": 1084,
+      "packages/session/session-storage-sql/src/worker/participant.ts": 1079,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
       "packages/tool/tool-host-local/src/start-coordinator.ts": 1037,
@@ -459,7 +459,7 @@
       },
       "packages/model/model-storage-sql/src/commit.ts": {
         "count": 1,
-        "longest": 298
+        "longest": 287
       },
       "packages/model/model/src/commands/commands.ts": {
         "count": 2,
@@ -507,7 +507,7 @@
       },
       "packages/session/session-adapters/src/cordis/agent-journal.ts": {
         "count": 1,
-        "longest": 1137
+        "longest": 1134
       },
       "packages/session/session-adapters/src/cordis/context-holder.ts": {
         "count": 1,
@@ -515,7 +515,7 @@
       },
       "packages/session/session-adapters/src/cordis/message-handoff.ts": {
         "count": 1,
-        "longest": 424
+        "longest": 423
       },
       "packages/session/session-adapters/src/cordis/tool-log-consumption.ts": {
         "count": 1,

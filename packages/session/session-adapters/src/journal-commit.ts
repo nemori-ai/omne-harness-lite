@@ -28,11 +28,14 @@ const UNSUPPORTED: ReadonlySet<CommitRejectReason> = new Set([
 export const refusalFailure = (reason: CommitRejectReason): Failure =>
   UNSUPPORTED.has(reason) ? { kind: 'unsupported' } : { kind: 'invalid', field: 'storage', reason }
 
+export type JournalRecall = SqlIdentity['recall']
+
 export type JournalCommitInput = Readonly<{
   storage: SqlStorage
   domain: DomainRef
   combination: JournalCombination
   operation: string
+  recall: JournalRecall
   commands: readonly FactCommandV2[]
   generations: GenerationMemory
 }>
@@ -46,12 +49,18 @@ const memoryKey = (domain: DomainRef, operation: string): string =>
     operation,
   ].join('\0')
 
-const identityOf = (domain: DomainRef, operation: string, attempt: number): SqlIdentity => ({
+const identityOf = (
+  domain: DomainRef,
+  operation: string,
+  attempt: number,
+  recall: JournalRecall,
+): SqlIdentity => ({
   scope: domain.scope,
   transactionDomain: domain.transactionDomain,
   operation,
   protocolVersion: '2',
   operationKey: `${operation}#${String(attempt)}`,
+  ...(recall === undefined ? {} : { recall }),
 })
 
 export async function commitJournal(input: JournalCommitInput): Promise<JournalCommitResult> {
@@ -77,7 +86,7 @@ async function commitGeneration(
   attempt: number,
 ): Promise<JournalCommitResult | 'rolled back'> {
   const request: CommitRequestV2 = {
-    identity: identityOf(input.domain, input.operation, attempt),
+    identity: identityOf(input.domain, input.operation, attempt, input.recall),
     ...input.combination,
     commands: input.commands,
   }
@@ -111,24 +120,26 @@ function beforeAccept(reason: CommitRejectReason, attempt: number): JournalCommi
 }
 
 // not-run does not prove the generation was sent and dropped: the storage cannot tell that from never sent. Only a caller that knows it sent it may read it so.
-export type GenerationStanding = 'committed' | 'not-run' | 'unknown'
+export type GenerationStanding = 'committed' | 'not-run' | 'settled' | 'unknown'
 
 export async function standingOf(
   storage: SqlStorage,
   domain: DomainRef,
   operation: string,
   attempt: number,
+  recall: JournalRecall,
 ): Promise<GenerationStanding> {
   try {
-    const found = await storage.query(identityOf(domain, operation, attempt))
+    const found = await storage.query(identityOf(domain, operation, attempt, recall))
     switch (found.kind) {
       case 'committed':
         return 'committed'
       case 'rolled_back':
       case 'not_committed':
         return 'not-run'
+      case 'settled':
+        return 'settled'
       case 'unknown':
-      case 'not_recallable':
         return 'unknown'
     }
   } catch {

@@ -77,6 +77,7 @@ export function receiptOf(
 }
 
 export function runQuery(state: WorkerState, identity: SqlIdentity): QueryReply {
+  if (identity.recall === 'never') return { kind: 'none' }
   const receipt = readReceipt(state.db as DatabaseSync, identity)
   return receipt === null ? { kind: 'none' } : { kind: 'receipt', receipt }
 }

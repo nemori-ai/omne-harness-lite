@@ -14,6 +14,7 @@ import {
 } from '@omne-harness/session-storage-sql/participants'
 import type { DomainRef, JsonValue, ReadRequest, SqlStorage } from '@omne-harness/sql-contract'
 import { decodeRows, type FactRow, type PublishedBatch } from '../journal/index.ts'
+import { standingOf, type GenerationStanding } from '../journal-commit.ts'
 
 export const READ_ATTEMPTS = 3
 
@@ -277,6 +278,24 @@ export async function readOperation(
     execution: decoded.execution as AgentExecutionId,
     batch: split,
   }
+}
+
+export async function recordedStanding(
+  storage: SqlStorage,
+  domain: DomainRef,
+  tenant: string,
+  held: Readonly<{ storageOperation: string; attempt: number }>,
+): Promise<GenerationStanding> {
+  const { storageOperation, attempt } = held
+  const standing = await standingOf(storage, domain, storageOperation, attempt, 'never')
+  if (standing !== 'settled') return standing
+  const found = await readOperation(
+    readerOf(storage, domain),
+    tenant,
+    storageOperation as AgentOperationId,
+  )
+  if (found.kind === 'read') return 'committed'
+  return found.kind === 'none' ? 'not-run' : 'unknown'
 }
 
 // The payload of a block; null when the store does not hold it or does not answer.

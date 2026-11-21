@@ -319,7 +319,17 @@ it('answers unknown and commits nothing when the original operation cannot be re
     },
     query(identity) {
       return notRecallable
-        ? Promise.resolve({ kind: 'not_recallable', identity })
+        ? Promise.resolve({
+            kind: 'settled',
+            identity,
+            proofs: {
+              writerGenerationExcluded: true,
+              oldTransactionTerminated: true,
+              databaseRecoveryFinished: true,
+              authoritativeReadSucceeded: true,
+              operationNotQueued: true,
+            },
+          })
         : storage.query(identity)
     },
   }))

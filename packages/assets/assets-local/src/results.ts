@@ -18,7 +18,7 @@ export function receiptResult(
   if (!equal(result.identity, identity(domain, operationId))) return unknown
   switch (result.kind) {
     case 'unknown':
-    case 'not_recallable':
+    case 'settled':
       return unknown
     case 'not_committed':
       return { kind: 'not_found' }

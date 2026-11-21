@@ -66,7 +66,7 @@ export function recognizeSubmission(
     case 'not_committed':
       return { kind: 'not-committed', proof: result }
     case 'unknown':
-    case 'not_recallable':
+    case 'settled':
       return { kind: 'unknown', identity: envelope.identity }
     case 'rejected_before_accept':
       return unavailable()
