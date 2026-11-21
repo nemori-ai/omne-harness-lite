@@ -108,6 +108,11 @@ function useFormDrops(root: RefObject<HTMLElement | null>, tray: AttachmentTray 
 }
 
 const STILL: RecorderState = { kind: 'idle', problem: null }
+const SAYING: Readonly<Partial<Record<RecorderState['kind'], string>>> = {
+  opening: '松开结束',
+  recording: '松开结束',
+  encoding: '在转成 WAV…',
+}
 const HOLD_KEYS = new Set([' ', 'Enter'])
 
 function useRecorder(tray: AttachmentTray | null, microphone: Microphone) {
@@ -158,6 +163,7 @@ function RecordButton({
       {state.kind === 'idle' && state.problem !== null ? (
         <span role="status">{state.problem}</span>
       ) : null}
+      {SAYING[state.kind] === undefined ? null : <span role="status">{SAYING[state.kind]}</span>}
     </>
   )
 }
@@ -172,16 +178,9 @@ function Chip({ item, onRemove, onRetry }: ChipProps) {
       <span className="omne-media-chip-name">{item.name}</span>
       <span className="omne-media-chip-status">{statusOf(item)}</span>
       {retryable ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="compact"
-          aria-label={`重试 ${item.name}`}
-          onClick={onRetry}
-        >
+        <IconButton type="button" size="icon-compact" label={`重试 ${item.name}`} onClick={onRetry}>
           <RetryIcon />
-          重试
-        </Button>
+        </IconButton>
       ) : null}
       <Button
         type="button"
