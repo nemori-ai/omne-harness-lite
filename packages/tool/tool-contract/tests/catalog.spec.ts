@@ -19,6 +19,7 @@ function facts(): AvailabilityFacts {
     inputCompatible: true,
     outputCompatible: true,
     attachmentsReadable: true,
+    productsStorable: true,
   }
 }
 
@@ -83,6 +84,17 @@ describe('tool availability', () => {
     expect(evaluateToolAvailability(unreadable)).toMatchObject({
       kind: 'known-unavailable',
       reason: 'input-incompatible; attachments-unreadable',
+    })
+  })
+
+  it('is unavailable when what it produces has nowhere to be stored, and says so after the other gaps', () => {
+    const unstorable: AvailabilityFacts = { ...facts(), productsStorable: false }
+    expect(evaluateToolAvailability(unstorable)).toMatchObject({
+      kind: 'known-unavailable',
+      reason: 'products-unstorable',
+    })
+    expect(evaluateToolAvailability({ ...unstorable, outputCompatible: false })).toMatchObject({
+      reason: 'output-incompatible; products-unstorable',
     })
   })
 })

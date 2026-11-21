@@ -35,6 +35,7 @@
 - `BackgroundDisposition` · `values.d.ts`
 - `BackgroundOutcomeJudgment` · `background-outcome.d.ts`
 - `BatchId` · `identity.d.ts`
+- `BeforeIntakeRegistry` · `before-intake.d.ts`
 - `BoundedClose` · `values.d.ts`
 - `BudgetTerms` · `input-sources.d.ts`
 - `CONTEXT_SCOPE_KINDS` · `context-scopes.d.ts`
@@ -123,8 +124,12 @@
 - `InputSourceRegistry` · `input-sources.d.ts`
 - `InputSources` · `input-sources.d.ts`
 - `IntakeBasis` · `input-sources.d.ts`
+- `IntakeBlockRefusal` · `before-intake.d.ts`
+- `IntakeProcessor` · `before-intake.d.ts`
+- `IntakeScreening` · `before-intake.d.ts`
 - `IntakeSubject` · `input-sources.d.ts`
 - `IntakeTerms` · `input-sources.d.ts`
+- `IntakeVerdict` · `before-intake.d.ts`
 - `MAX_SESSION_DEPTH` · `standing.d.ts`
 - `ModelViewBasis` · `faces.d.ts`
 - `ModelViewRead` · `faces.d.ts`
@@ -172,6 +177,7 @@
 - `ScopeReleaseDisposition` · `values.d.ts`
 - `ScopeReleasePort` · `ports.d.ts`
 - `ScopeReleaseReadback` · `ports.d.ts`
+- `Screened` · `before-intake.d.ts`
 - `SessionAccess` · `identity.d.ts`
 - `SessionAccessCheck` · `access.d.ts`
 - `SessionAccessDecision` · `access.d.ts`
@@ -330,6 +336,7 @@
 - `contextScopesOf` · `context-scopes.d.ts`
 - `controlAnswer` · `call-control.d.ts`
 - `controlRoutes` · `call-control.d.ts`
+- `createBeforeIntakeRegistry` · `before-intake.d.ts`
 - `createInputSourceRegistry` · `input-sources.d.ts`
 - `decide` · `decide.d.ts`
 - `decideCompactionCommit` · `compaction-commit.d.ts`
@@ -356,6 +363,7 @@
 - `judgeBackgroundOutcome` · `background-outcome.d.ts`
 - `judgeCompletion` · `judgments.d.ts`
 - `judgeIdle` · `judgments.d.ts`
+- `judgeIntakeBlocks` · `before-intake.d.ts`
 - `judgeRunStart` · `judgments.d.ts`
 - `judgeSessionIntake` · `intake.d.ts`
 - `judgeStanding` · `standing.d.ts`
@@ -364,6 +372,7 @@
 - `mutationAccessRequest` · `access.d.ts`
 - `onceAuthorizationOf` · `authorizations.d.ts`
 - `openWork` · `judgments.d.ts`
+- `originalContent` · `before-intake.d.ts`
 - `parseInputSourceName` · `input-sources.d.ts`
 - `pendingAcceptances` · `intake-reads.d.ts`
 - `pendingInputOf` · `intake-reads.d.ts`
@@ -392,6 +401,7 @@
 - `routeInput` · `judgments.d.ts`
 - `runCancelledBy` · `decision-support.d.ts`
 - `runStartInputs` · `intake.d.ts`
+- `screenInput` · `before-intake.d.ts`
 - `sessionInputBytes` · `intake.d.ts`
 - `sessionIntakeLimits` · `intake.d.ts`
 - `sessionModesBlock` · `block.d.ts`
@@ -765,6 +775,70 @@ export {};
 import type { DurableEvidence } from './identity.ts';
 import type { CommittedBatch } from './judgments.ts';
 export declare function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence;
+```
+
+## 声明文件 `before-intake.d.ts`
+
+```ts
+import { type Message, type MessageContentBlock } from '@omne-harness/message';
+import type { InputId, SessionAccess, SessionOperationId } from './identity.ts';
+import type { InputSourceName } from './input-sources.ts';
+type ContentBlock = MessageContentBlock;
+type BlockId = ContentBlock['id'];
+export type IntakeScreening<P> = Readonly<{
+    original: Message;
+    effective: Message;
+    source: InputSourceName;
+    request: Readonly<{
+        input: InputId;
+        operation: SessionOperationId;
+    }>;
+    access: SessionAccess<P>;
+}>;
+export type IntakeVerdict = Readonly<{
+    kind: 'pass';
+    effective?: Message;
+}> | Readonly<{
+    kind: 'block';
+    block?: BlockId;
+    reason: string;
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export type IntakeProcessor<P> = Readonly<{
+    name: string;
+    run(input: IntakeScreening<P>): Promise<IntakeVerdict>;
+}>;
+export type BeforeIntakeRegistry<P> = Readonly<{
+    register(processor: IntakeProcessor<P>): () => void;
+    current(): readonly IntakeProcessor<P>[];
+}>;
+export declare function createBeforeIntakeRegistry<P>(): BeforeIntakeRegistry<P>;
+export declare function originalContent<M extends Message>(message: M): M;
+export type Screened = Readonly<{
+    kind: 'screened';
+    effective: Message;
+}> | Readonly<{
+    kind: 'blocked';
+    processor: string;
+    block: BlockId | null;
+    reason: string;
+}> | Readonly<{
+    kind: 'unavailable';
+    processor: string;
+    diagnostic: string;
+}>;
+export declare function screenInput<P>(input: Readonly<{
+    processors: readonly IntakeProcessor<P>[];
+}> & Omit<IntakeScreening<P>, 'effective'>): Promise<Screened>;
+export type IntakeBlockRefusal = Readonly<{
+    kind: 'inline' | 'unmeasured';
+    index: number;
+    block: BlockId;
+}>;
+export declare function judgeIntakeBlocks(message: Message): IntakeBlockRefusal | null;
+export {};
 ```
 
 ## 声明文件 `block.d.ts`
@@ -2469,6 +2543,7 @@ export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts
 export { sourceRequestIdentities, type SourceRequest, type SourceRequestIdentities, } from './source-requests.ts';
 export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts';
 export { PENDING_PAGE_LIMIT, PENDING_PREVIEW_CHARS, inputFateOfRows, pendingAcceptances, pendingInputOf, pendingPageOf, previewOf, waitingCalls, type PendingInput, type PendingPage, type WaitingCall, } from './intake-reads.ts';
+export { createBeforeIntakeRegistry, judgeIntakeBlocks, originalContent, screenInput, type BeforeIntakeRegistry, type IntakeBlockRefusal, type IntakeProcessor, type IntakeScreening, type IntakeVerdict, type Screened, } from './before-intake.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -3858,8 +3933,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:438b0cfbdfc3634c6f76ff72811e6785b742304d309484d4ef5467001a3899be";
-export declare const SESSION_RELEASE_DIGEST = "sha256:438b0cfbdfc3634c6f76ff72811e6785b742304d309484d4ef5467001a3899be";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:5c8aa5d73f0468d5472e34507bbf2a3d0584c44876663fb8a65a75ba7166e29d";
+export declare const SESSION_RELEASE_DIGEST = "sha256:5c8aa5d73f0468d5472e34507bbf2a3d0584c44876663fb8a65a75ba7166e29d";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

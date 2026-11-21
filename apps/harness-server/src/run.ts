@@ -409,6 +409,8 @@ export type RunServeOptions = Readonly<{
   entryObjects?: readonly EntryObjectModule[]
   manifests?: ReadonlyMap<RowId, RowManifest>
   visibility?: Visibility
+  /** How the host row chooses its screen backend; absent: by the system this process runs on. */
+  hostScreen?: Parameters<typeof createExecutionHostBinding>[1]
 }>
 
 export type ServeResult = Readonly<{
@@ -689,7 +691,7 @@ async function runServeWithHostFiles(
   const { stderr } = options
   // Sealed after `shutdown-result`; every writer below gets this one.
   const write = sealedAfterShutdownResult(options.write, stderr)
-  const executionHost = createExecutionHostBinding(hostFiles)
+  const executionHost = createExecutionHostBinding(hostFiles, options.hostScreen)
   const telemetry = createTelemetryBinding({
     write,
     stderr,

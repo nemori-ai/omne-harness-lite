@@ -1,3 +1,4 @@
+import { originalContent } from './before-intake.ts'
 import { decidePermissionAssignment } from './permission-state.ts'
 import { incompleteAuthorization } from './authorizations.ts'
 import {
@@ -779,10 +780,22 @@ function decideDerived(
   ])
 }
 
+/** A replay is compared by what its sender brought: the facts an intake adds are not part of it. */
+function asBrought(input: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...input }
+  for (const key of ['value', 'urgent']) {
+    const routed = out[key] as Partial<Extract<RoutedInput, { kind: 'ordinary' }>> | undefined
+    if (routed?.kind === 'ordinary' && Array.isArray(routed.message?.blocks))
+      out[key] = { ...routed, message: originalContent(routed.message) }
+  }
+  return out
+}
+
 export function commandDigest(command: SessionCommand): string {
-  const { operation: _operation, ...rest } = command.input as Record<string, unknown> & {
+  const { operation: _operation, ...given } = command.input as Record<string, unknown> & {
     operation: SessionOperationId
   }
+  const rest = asBrought(given)
   const input =
     command.kind === 'create'
       ? {

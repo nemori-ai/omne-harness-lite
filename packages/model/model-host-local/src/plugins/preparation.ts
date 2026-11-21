@@ -10,17 +10,17 @@ import {
   type PreparationBindingSource,
   type SupplierPort,
 } from '@omne-harness/model'
-import type {
-  FixedModelRequest,
-  ModalityRequirement,
-  ModelFailure,
-  ModelPreparationLease,
-  ModelPreparationResources,
-  ModelProfile,
-  ParameterAdoption,
-  ProfileScope,
-  ReplayDeclaration,
-  Reply,
+import {
+  profileCovers,
+  type FixedModelRequest,
+  type ModelFailure,
+  type ModelPreparationLease,
+  type ModelPreparationResources,
+  type ModelProfile,
+  type ParameterAdoption,
+  type ProfileScope,
+  type ReplayDeclaration,
+  type Reply,
 } from '@omne-harness/model-contract'
 import {
   judgeFixedModelRequest,
@@ -59,18 +59,13 @@ function scopeFailure(scope: ProfileScope, tenant: TenantId): ModelFailure | nul
   }
 }
 
-function covers(profile: ModelProfile, required: ModalityRequirement): boolean {
-  const input: readonly string[] = profile.definition.input
-  return required.modalities.every(modality => input.includes(modality))
-}
-
 function qualify(input: PrepareInput): ModelFailure | null {
   if (!tenantCodec.encode(input.tenant).ok) return { kind: 'denied', action: 'tenant' }
   const scope = scopeFailure(input.profile.identity.scope, input.tenant)
   if (scope !== null) return scope
   if (input.profile.availability === 'withdrawn')
     return { kind: 'invalid', field: 'profile', reason: 'withdrawn' }
-  if (!covers(input.profile, input.required))
+  if (!profileCovers(input.profile.definition, input.required))
     return { kind: 'invalid', field: 'required.modalities', reason: 'modality' }
   return null
 }

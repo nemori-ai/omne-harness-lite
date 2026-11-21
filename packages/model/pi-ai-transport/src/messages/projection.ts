@@ -1,3 +1,4 @@
+import { sentImage, type MediaView } from '../media.ts'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
@@ -54,6 +55,7 @@ export type MessagesProjectionInput = Readonly<{
   toolChoice: FixedModelRequest['toolChoice']
   replayOff: boolean
   resent: ReadonlySet<ChatMessageId>
+  media: MediaView
 }>
 
 type Built = {
@@ -77,30 +79,15 @@ function contentJson(
   input: MessagesProjectionInput,
 ): Outcome<JsonValue | null, TransportFailure> {
   if (!block.visibility.toModel) return { ok: null }
-  if ('ref' in block) return unsupported(path, input.adapter)
-  switch (block.kind) {
-    case 'text':
-      return { ok: object({ type: text('text'), text: text(block.text) }) }
-    case 'image': {
-      const image = input.record.wire.image
-      if (image === null || !image.mediaTypes.includes(block.mediaType))
-        return unsupported(path, input.adapter)
-      const source = object({
-        type: text('base64'),
-        media_type: text(block.mediaType),
-        data: text(block.inline),
-      })
-      return { ok: object({ type: text('image'), source }) }
-    }
-    case 'voice':
-    case 'file':
-    case 'thinking':
-      return unsupported(path, input.adapter)
-    default: {
-      const _exhaustive: never = block
-      return _exhaustive
-    }
-  }
+  if (block.kind === 'text') return { ok: object({ type: text('text'), text: text(block.text) }) }
+  const sent = sentImage(block, input.record.wire.image?.mediaTypes, input.media)
+  if (sent === null) return unsupported(path, input.adapter)
+  const source = object({
+    type: text('base64'),
+    media_type: text(sent.mime),
+    data: text(sent.data),
+  })
+  return { ok: object({ type: text('image'), source }) }
 }
 
 export function projectMessages(

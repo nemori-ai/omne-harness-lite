@@ -7,15 +7,10 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import { run, value } from './run-author.ts'
-import { filesFixture } from './fixtures/files.ts'
+import { filesConstruction, filesFixture } from './fixtures/files.ts'
 
 it('publishes declared commands and the same complete help table', async () => {
-  const author = value(
-    createFilesAuthor({
-      kind: 'object',
-      entries: [{ key: 'resultMaxBytes', value: { kind: 'number', lexeme: '32768' } }],
-    }),
-  )
+  const author = value(createFilesAuthor(filesConstruction()))
   const adoption = { owner: 'test', name: 'Files', revision: '1', digest: 'sha256:files' }
   const definition = deriveDefinition(
     { asset: { name: 'Files', adoption }, requiredCapabilities: [] },
@@ -47,7 +42,14 @@ it('publishes declared commands and the same complete help table', async () => {
   const menu = await run(author, 'help', {}, filesFixture().environment)
   expect(menu.startsWith('done Files help\nCall with ')).toBe(true)
   for (const command of commands) expect(menu).toContain(`\n${command} {`)
-  expect(menu).toContain('unsupported')
+  expect(menu).toContain(
+    '\nopen {path} - Open one static PNG, JPEG or WebP picture so the model sees it. Returns ToolResult',
+  )
+  expect(author.facts.implements.commands.find(item => item.name === 'open')?.modalities).toEqual([
+    'image',
+  ])
+  expect(author.facts.implements.commands.filter(item => 'modalities' in item)).toHaveLength(1)
+  expect(author.facts.declarations.outputModalities).toEqual(['text'])
   const write = await run(author, 'help', { name: 'write' }, filesFixture().environment)
   expect(write).toContain(
     'Usage: Files {"command": "write", "params": {path, text, mode=create|replace, parents?, expected_version?}}',
@@ -66,6 +68,23 @@ it('publishes declared commands and the same complete help table', async () => {
   const codec = registration.operations.find(([name]) => name === 'write')![1].author.parameters
   const partial = codec.parse({ original: '{"pa', effective: '{"pa', complete: false })
   expect(partial).toMatchObject({ failure: { kind: 'incomplete' } })
+})
+
+it('checks the text a command returns against the byte budget, and codes it as strict UTF-8', () => {
+  const author = value(createFilesAuthor(filesConstruction({ resultMaxBytes: 8 })))
+  const registration = readToolRegistration(author)
+  if (registration?.kind !== 'commands') throw new Error('commands')
+  const read = registration.operations.find(([name]) => name === 'read')![1].author
+  if (read.kind !== 'ordinary') throw new Error('ordinary')
+  const check = (candidate: unknown) => read.output.check({ value: candidate } as never)
+  expect(check('12345678')).toEqual({ ok: '12345678' })
+  expect(check('123456789')).toEqual({ failure: { reason: 'bounded-text-required' } })
+  expect(check('中中中')).toEqual({ failure: { reason: 'bounded-text-required' } })
+  expect(check(8)).toEqual({ failure: { reason: 'bounded-text-required' } })
+  expect(read.codec.encode('中')).toEqual({ ok: new TextEncoder().encode('中') })
+  expect(read.codec.encode(1 as never)).toEqual({ failure: { reason: 'text-required' } })
+  expect(read.codec.decode(new TextEncoder().encode('中'))).toEqual({ ok: '中' })
+  expect(read.codec.decode(new Uint8Array([0xff]))).toEqual({ failure: { reason: 'invalid-utf8' } })
 })
 
 it('creates missing parents before a write only when asked', async () => {

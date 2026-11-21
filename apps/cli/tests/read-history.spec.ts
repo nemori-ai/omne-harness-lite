@@ -291,6 +291,43 @@ describe('read-history', () => {
       )
     })
 
+    it('shows a block that is not words by its kind, its media type and its size', async () => {
+      const ref = (mediaType: string, bytes: string) => ({
+        storage: 'local',
+        key: 'k',
+        mediaType,
+        bytes,
+        digest: 'sha256:d',
+      })
+      const pictured = entry(
+        '7',
+        'message.user',
+        message(
+          'user',
+          block({ kind: 'text', text: 'look' }),
+          block({ kind: 'image', ref: ref('image/png', '2048'), transcript: null }),
+          block({ kind: 'file', ref: ref('application/pdf', '3145728'), transcript: null }),
+          block({ kind: 'voice', ref: ref('audio/wav', '512'), transcript: 'hello there' }),
+          block({ kind: 'image', mediaType: 'image/png', inline: 'AAAA' }),
+          block({ kind: 'hologram' }),
+        ),
+      )
+      const service = await serve(historyService([page([pictured], null)]))
+      await loginOwningSession(service)
+      const result = await cli(['read-history', '--session', sessionId])
+      expect(result.stdout).toBe(
+        [
+          '#7 message.user: look',
+          '    [image image/png 2.0 KB]',
+          '    [file application/pdf 3.0 MB]',
+          '    [voice audio/wav 512 B] hello there',
+          '    [image image/png]',
+          '    [hologram]',
+          '',
+        ].join('\n'),
+      )
+    })
+
     it('shows the command of a one-slot call after the tool name, and other calls as they are', async () => {
       const call = (callId: string, name: string, args: unknown) =>
         block({ kind: 'tool_call', callId, name, arguments: args })

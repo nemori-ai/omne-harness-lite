@@ -1,4 +1,5 @@
 import type { AvailabilityFacts, ToolPresentation } from './authoring.ts'
+import type { Modality } from '@omne-harness/modality'
 import type { ToolAvailability, ToolDefinition } from './definitions.ts'
 
 export function presentTool(definition: ToolDefinition): ToolPresentation {
@@ -14,6 +15,17 @@ export function presentTool(definition: ToolDefinition): ToolPresentation {
     programmable: definition.programmable === true,
     commands: Object.freeze(commands),
   })
+}
+
+/** What the result of the named command carries beyond the modalities the tool declares. */
+export function commandAddedModalities(
+  definition: ToolDefinition,
+  command: string | null,
+): readonly Modality[] {
+  if (definition.kind !== 'commands') return []
+  const own = definition.declarations.outputModalities
+  const added = definition.commands.find(entry => entry.name === command)?.modalities ?? []
+  return added.filter(modality => !own.includes(modality))
 }
 
 type Condition = (facts: AvailabilityFacts) => readonly string[]
@@ -33,6 +45,7 @@ const AVAILABILITY_CONDITIONS: readonly Condition[] = [
   unmet(facts => facts.inputCompatible, 'input-incompatible'),
   unmet(facts => facts.outputCompatible, 'output-incompatible'),
   unmet(facts => facts.attachmentsReadable, 'attachments-unreadable'),
+  unmet(facts => facts.productsStorable, 'products-unstorable'),
 ]
 
 export function evaluateToolAvailability(facts: AvailabilityFacts): ToolAvailability {

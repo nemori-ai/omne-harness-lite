@@ -33,6 +33,7 @@
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/execution-environment": "workspace:*",
     "@omne-harness/execution-environment-contract": "workspace:*",
+    "@omne-harness/screen": "workspace:*",
     "@omne-harness/execution-environment-cordis-contract": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",

@@ -24,6 +24,7 @@ import {
 import {
   ModelCommandsService,
   ModelCredentialService,
+  ModelMediaSourceService,
   ModelSendBoundaryService,
 } from '@omne-harness/model-cordis-contract/cordis'
 import {
@@ -633,6 +634,37 @@ describe('the plugin and its dependencies', () => {
     await commands.dispose()
     expect(ctx.modelSendBoundary).toBeUndefined()
     expect(watch.events).toContain('resources-closed')
+    await watch.dispose()
+  })
+
+  it('reads media from the source in the tree at that moment, and loads without one', async () => {
+    class Pictures extends ModelMediaSourceService {
+      readonly open: ModelMediaSourceService['open'] = async () => ({
+        failure: { kind: 'material-unavailable' },
+      })
+    }
+    const scene = sceneOf(REQUEST, 'media-source')
+    const watch = observing()
+    const ctx = new Context()
+    await ctx.plugin(SpyCredential)
+    await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+    let current: (() => unknown) | undefined
+    const Stage = sendStagePluginOver({
+      options: optionsOf(scene),
+      assemble: config => {
+        current = config.media
+        return assembleOver({ config, factories: watch.factories })
+      },
+    })
+    await ctx.plugin(Stage, SETTINGS)
+    expect(ctx.modelSendBoundary).toBeInstanceOf(ModelSendBoundaryService)
+    expect(current?.()).toBeNull()
+    const pictures = await ctx.plugin(Pictures)
+    // A service is a proxy that refuses the properties a matcher probes, so it is compared here.
+    expect(current?.() instanceof Pictures).toBe(true)
+    await pictures.dispose()
+    expect(current?.()).toBeNull()
+    expect(ctx.modelSendBoundary).toBeInstanceOf(ModelSendBoundaryService)
     await watch.dispose()
   })
 

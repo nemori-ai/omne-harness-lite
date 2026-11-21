@@ -35,6 +35,7 @@
 - `BackgroundDisposition` · 包 `@omne-harness/session-contract`
 - `BackgroundOutcomeJudgment` · 包 `@omne-harness/session-contract`
 - `BatchId` · 包 `@omne-harness/session-contract`
+- `BeforeIntakeRegistry` · 包 `@omne-harness/session-contract`
 - `BoundedClose` · 包 `@omne-harness/session-contract`
 - `BudgetTerms` · 包 `@omne-harness/session-contract`
 - `CONTEXT_SCOPE_KINDS` · 包 `@omne-harness/session-contract`
@@ -123,8 +124,12 @@
 - `InputSourceRegistry` · 包 `@omne-harness/session-contract`
 - `InputSources` · 包 `@omne-harness/session-contract`
 - `IntakeBasis` · 包 `@omne-harness/session-contract`
+- `IntakeBlockRefusal` · 包 `@omne-harness/session-contract`
+- `IntakeProcessor` · 包 `@omne-harness/session-contract`
+- `IntakeScreening` · 包 `@omne-harness/session-contract`
 - `IntakeSubject` · 包 `@omne-harness/session-contract`
 - `IntakeTerms` · 包 `@omne-harness/session-contract`
+- `IntakeVerdict` · 包 `@omne-harness/session-contract`
 - `MAX_SESSION_DEPTH` · 包 `@omne-harness/session-contract`
 - `ModelViewBasis` · 包 `@omne-harness/session-contract`
 - `ModelViewRead` · 包 `@omne-harness/session-contract`
@@ -172,6 +177,7 @@
 - `ScopeReleaseDisposition` · 包 `@omne-harness/session-contract`
 - `ScopeReleasePort` · 包 `@omne-harness/session-contract`
 - `ScopeReleaseReadback` · 包 `@omne-harness/session-contract`
+- `Screened` · 包 `@omne-harness/session-contract`
 - `SessionAccess` · 包 `@omne-harness/session-contract`
 - `SessionAccessCheck` · 包 `@omne-harness/session-contract`
 - `SessionAccessDecision` · 包 `@omne-harness/session-contract`
@@ -341,6 +347,7 @@
 - `contextScopesOf` · 包 `@omne-harness/session-contract`
 - `controlAnswer` · 包 `@omne-harness/session-contract`
 - `controlRoutes` · 包 `@omne-harness/session-contract`
+- `createBeforeIntakeRegistry` · 包 `@omne-harness/session-contract`
 - `createInputSourceRegistry` · 包 `@omne-harness/session-contract`
 - `decide` · 包 `@omne-harness/session-contract`
 - `decideCompactionCommit` · 包 `@omne-harness/session-contract`
@@ -367,6 +374,7 @@
 - `judgeBackgroundOutcome` · 包 `@omne-harness/session-contract`
 - `judgeCompletion` · 包 `@omne-harness/session-contract`
 - `judgeIdle` · 包 `@omne-harness/session-contract`
+- `judgeIntakeBlocks` · 包 `@omne-harness/session-contract`
 - `judgeRunStart` · 包 `@omne-harness/session-contract`
 - `judgeSessionIntake` · 包 `@omne-harness/session-contract`
 - `judgeStanding` · 包 `@omne-harness/session-contract`
@@ -375,6 +383,7 @@
 - `mutationAccessRequest` · 包 `@omne-harness/session-contract`
 - `onceAuthorizationOf` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
+- `originalContent` · 包 `@omne-harness/session-contract`
 - `parseInputSourceName` · 包 `@omne-harness/session-contract`
 - `pendingAcceptances` · 包 `@omne-harness/session-contract`
 - `pendingInputOf` · 包 `@omne-harness/session-contract`
@@ -403,6 +412,7 @@
 - `routeInput` · 包 `@omne-harness/session-contract`
 - `runCancelledBy` · 包 `@omne-harness/session-contract`
 - `runStartInputs` · 包 `@omne-harness/session-contract`
+- `screenInput` · 包 `@omne-harness/session-contract`
 - `sessionInputBytes` · 包 `@omne-harness/session-contract`
 - `sessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `sessionModesBlock` · 包 `@omne-harness/session-contract`
@@ -422,6 +432,7 @@
 - `SessionAccessCheckService` · `cordis.d.ts`
 - `SessionAdoptedRequestsService` · `cordis.d.ts`
 - `SessionAdoptionSourceService` · `cordis.d.ts`
+- `SessionBeforeIntakeService` · `cordis.d.ts`
 - `SessionCallControlService` · `cordis.d.ts`
 - `SessionCallStatesService` · `cordis.d.ts`
 - `SessionClockService` · `cordis.d.ts`
@@ -455,6 +466,8 @@
 - `sessionAdoptedRequestsKey` · `cordis.d.ts`
 - `sessionAdoptionSourceKey` · `cordis.d.ts`
 - `sessionAgentDriveKey` · `cordis.d.ts`
+- `sessionBeforeIntakeKey` · `cordis.d.ts`
+- `sessionBeforeIntakePlugin` · `cordis.d.ts`
 - `sessionCallControlKey` · `cordis.d.ts`
 - `sessionCallStatesKey` · `cordis.d.ts`
 - `sessionClockKey` · `cordis.d.ts`
@@ -570,7 +583,7 @@ export interface SessionScopeLookup {
 ```ts
 import { type Context, type Plugin, Service } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import { type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSources, type SessionDerivedInputs } from '@omne-harness/session-contract';
+import { type BeforeIntakeRegistry, type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSources, type IntakeProcessor, type SessionDerivedInputs } from '@omne-harness/session-contract';
 import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallControl, SessionCallStates, SessionCallerClass, SessionClock, SessionContextInput, SessionDirectory, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 import type { SessionAdoptedRequests } from './adopted-request.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
@@ -785,6 +798,15 @@ export declare class SessionInputSourcesService extends Service implements Input
 }
 export declare const sessionInputSourcesKey = "sessionInputSources";
 export declare const sessionInputSourcesPlugin: Plugin.Object;
+export declare class SessionBeforeIntakeService extends Service implements Pick<BeforeIntakeRegistry<unknown>, 'current'> {
+    static readonly provide = "sessionBeforeIntake";
+    private readonly registry;
+    constructor(ctx: Context);
+    register(processor: IntakeProcessor<unknown>): void;
+    current(): readonly IntakeProcessor<unknown>[];
+}
+export declare const sessionBeforeIntakeKey = "sessionBeforeIntake";
+export declare const sessionBeforeIntakePlugin: Plugin.Object;
 export declare abstract class SessionDerivedInputsService extends Service implements SessionDerivedInputs {
     static readonly provide = "sessionDerivedInputs";
     constructor(ctx: Context);
@@ -795,6 +817,7 @@ declare module '@deepseek-ai/cordis' {
     interface Context {
         session: SessionService<unknown>;
         sessionInputSources: SessionInputSourcesService;
+        sessionBeforeIntake: SessionBeforeIntakeService;
         sessionDerivedInputs: SessionDerivedInputsService;
         sessionAccessCheck: SessionAccessCheckService<unknown>;
         sessionTransactions: SessionTransactionPortService<unknown>;

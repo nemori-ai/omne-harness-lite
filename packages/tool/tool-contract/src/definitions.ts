@@ -1,5 +1,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity'
+import type { Modality } from '@omne-harness/modality'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { SchemaRef } from '@omne-harness/schema-provider'
 import type { ToolDeclarations } from './authoring.ts'
@@ -88,6 +89,7 @@ export type ToolCommandDeclaration = Readonly<{
   returns: ToolReturnDeclaration
   background?: ToolCommandBackground
   release?: ToolCommandRelease
+  modalities?: readonly Modality[]
   conditions?: ToolCallConditions
 }>
 export type ToolCallConditions = readonly string[]

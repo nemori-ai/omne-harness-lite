@@ -1,4 +1,4 @@
-import type { ContentBlock } from '@omne-harness/content-block'
+import type { ContentBlock, ContentReference, MediaFacts } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { SchemaIssue } from '@omne-harness/schema-provider'
@@ -33,6 +33,13 @@ export type ToolPrimitiveFailure = Readonly<{ reason: string }> &
       }>
     | Readonly<{ kind: 'unavailable' | 'unknown'; operation: string }>
   )
+export type ToolMediaProduct = Readonly<{ ref: ContentReference; facts: MediaFacts }>
+/** Where an author hands over a product for the model to perceive; the host names the holder. */
+export interface ToolMediaSink {
+  put(
+    input: Readonly<{ mediaType: string; bytes: Uint8Array }>,
+  ): Promise<Outcome<ToolMediaProduct, ToolPrimitiveFailure>>
+}
 declare const toolWaitContract: unique symbol
 export type ToolWaitProtocolDefinition<A, K extends 'ask' | 'resource'> = Readonly<{
   kind: K

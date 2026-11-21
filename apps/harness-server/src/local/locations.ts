@@ -21,6 +21,7 @@ export type ServerLocations = Readonly<{
   defaultWorkspace: string
   assetsRoot: string
   historyIndexRoot: string
+  mediaRoot: string
 }>
 
 export type Located =
@@ -89,6 +90,7 @@ export function resolveLocations(input: LocationInput): Located {
       defaultWorkspace: path.join(stateDir, 'workspace'),
       assetsRoot: path.join(stateDir, 'assets'),
       historyIndexRoot: path.join(stateDir, 'history-index'),
+      mediaRoot: path.join(stateDir, 'media'),
     },
   }
 }

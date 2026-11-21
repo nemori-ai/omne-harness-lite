@@ -296,6 +296,9 @@ catalogs:
     node-pty:
       specifier: 1.1.0
       version: 1.1.0
+    node-screenshots:
+      specifier: 0.2.8
+      version: 0.2.8
     oxfmt:
       specifier: 0.73.0
       version: 0.73.0
@@ -402,6 +405,9 @@ importers:
       '@omne-harness/identity-protocol':
         specifier: workspace:*
         version: link:../../packages/identity/identity-protocol
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../../packages/media/media-protocol
       '@omne-harness/model-protocol':
         specifier: workspace:*
         version: link:../../packages/model/model-protocol
@@ -484,6 +490,12 @@ importers:
       '@omne-harness/mcp-ui':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-ui
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../../packages/media/media-protocol
+      '@omne-harness/media-ui':
+        specifier: workspace:*
+        version: link:../../packages/media/media-ui
       '@omne-harness/model-protocol':
         specifier: workspace:*
         version: link:../../packages/model/model-protocol
@@ -725,6 +737,30 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../packages/common/legal-identity
+      '@omne-harness/media':
+        specifier: workspace:*
+        version: link:../../packages/media/media
+      '@omne-harness/media-access':
+        specifier: workspace:*
+        version: link:../../packages/media/media-access
+      '@omne-harness/media-adapters':
+        specifier: workspace:*
+        version: link:../../packages/media/media-adapters
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../../packages/media/media-contract
+      '@omne-harness/media-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/media/media-cordis-contract
+      '@omne-harness/media-image':
+        specifier: workspace:*
+        version: link:../../packages/media/media-image
+      '@omne-harness/media-storage-local':
+        specifier: workspace:*
+        version: link:../../packages/media/media-storage-local
+      '@omne-harness/media-storage-sql':
+        specifier: workspace:*
+        version: link:../../packages/media/media-storage-sql
       '@omne-harness/model':
         specifier: workspace:*
         version: link:../../packages/model/model
@@ -996,6 +1032,9 @@ importers:
       '@omne-harness/mcp-host-local':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-host-local
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../../packages/media/media-protocol
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
@@ -2832,6 +2871,9 @@ importers:
       '@omne-harness/runtime-context-contract':
         specifier: workspace:*
         version: link:../../context/runtime-context-contract
+      '@omne-harness/screen':
+        specifier: workspace:*
+        version: link:../screen
       node-pty:
         specifier: 'catalog:'
         version: 1.1.0
@@ -2857,6 +2899,22 @@ importers:
       sharp:
         specifier: 'catalog:'
         version: 0.35.3(@types/node@24.13.6)
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/execution/screen:
+    dependencies:
+      node-screenshots:
+        specifier: 'catalog:'
+        version: 0.2.8
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -3598,6 +3656,298 @@ importers:
 
   packages/mcp/mcp-ui:
     dependencies:
+      '@omne-harness/shell-contract':
+        specifier: workspace:*
+        version: link:../../frontend/shell-contract
+      '@omne-harness/ui-kit':
+        specifier: workspace:*
+        version: link:../../frontend/ui-kit
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      happy-dom:
+        specifier: 'catalog:'
+        version: 21.0.4
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/media/media:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
+      '@omne-harness/media-cordis-contract':
+        specifier: workspace:*
+        version: link:../media-cordis-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/media/media-access:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../media-protocol
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/media/media-adapters:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
+      '@omne-harness/media-cordis-contract':
+        specifier: workspace:*
+        version: link:../media-cordis-contract
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/model-cordis-contract':
+        specifier: workspace:*
+        version: link:../../model/model-cordis-contract
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../../session/session-contract
+      '@omne-harness/session-cordis-contract':
+        specifier: workspace:*
+        version: link:../../session/session-cordis-contract
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      '@omne-harness/tool-cordis-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-cordis-contract
+    devDependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/media':
+        specifier: workspace:*
+        version: link:../media
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/media/media-contract:
+    dependencies:
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/exchange-refs':
+        specifier: workspace:*
+        version: link:../../common/exchange-refs
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/media/media-cordis-contract:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.1.0
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/media/media-image:
+    dependencies:
+      '@omne-harness/image':
+        specifier: workspace:*
+        version: link:../../execution/image
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.3(@types/node@24.13.6)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/media/media-protocol:
+    dependencies:
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+    devDependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/media/media-storage-local:
+    dependencies:
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/media/media-storage-sql:
+    dependencies:
+      '@omne-harness/media-contract':
+        specifier: workspace:*
+        version: link:../media-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+    devDependencies:
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/media/media-ui:
+    dependencies:
+      '@omne-harness/client-assembly':
+        specifier: workspace:*
+        version: link:../../access/client-assembly
+      '@omne-harness/media-protocol':
+        specifier: workspace:*
+        version: link:../media-protocol
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../access/sdk
       '@omne-harness/shell-contract':
         specifier: workspace:*
         version: link:../../frontend/shell-contract
@@ -5618,6 +5968,9 @@ importers:
       '@omne-harness/human-intervention-tool':
         specifier: workspace:*
         version: link:../../human-intervention/human-intervention-tool
+      '@omne-harness/image':
+        specifier: workspace:*
+        version: link:../../execution/image
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -5643,6 +5996,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.3(@types/node@24.13.6)
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -11077,6 +11433,68 @@ packages:
   node-releases@2.0.57:
     resolution: {integrity: sha512-kQK9LGGFiHtrWiNhZtA7Qbw17AQz+dmsEKODRIVTXA9+e5MS/2gZEBhYJt13GrAz5/IOZKddH/0Z3TP/Zgo+yw==}
     engines: {node: '>=18'}
+
+  node-screenshots-darwin-arm64@0.2.8:
+    resolution: {integrity: sha512-CEJE47gG2ceTc1fQRE3T/8lBwCGFJ+0iJiP+CQgCUAll4kKd32DQ7lCANqUseo96/xi6HuDOlrjLkAp7x2TzFw==}
+    engines: {node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
+    cpu: [arm64]
+    os: [darwin]
+
+  node-screenshots-darwin-x64@0.2.8:
+    resolution: {integrity: sha512-3WIw4QaEP3pIUtSYh2NThwmzQl00H1bTPwPS7sYRLihAzB3NA/FOnIqRmvtadI0KEnnRGX4apdZgIhfXtgbNZA==}
+    engines: {node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
+    cpu: [x64]
+    os: [darwin]
+
+  node-screenshots-linux-arm64-gnu@0.2.8:
+    resolution: {integrity: sha512-aXJKtekSzQLJX6hh/VT5gilyloiN3DE4oE5xu9z7nLcTPyfC089dqVoERXJxnT+aqSQzx0KkI2te8BZNkjaMtQ==}
+    engines: {node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  node-screenshots-linux-loong64-gnu@0.2.8:
+    resolution: {integrity: sha512-+982Yn7L7XID/FhYR6W6S2IVTLiueOBcHs/BP1Te5W6MtwlIIRg593zFh5HPQp7G+IaHqEXQzQj6D7kjJhXzsQ==}
+    engines: {node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
+    cpu: [loong64]
+    os: [linux]
+    libc: [glibc]
+
+  node-screenshots-linux-x64-gnu@0.2.8:
+    resolution: {integrity: sha512-xF0hLfPMm9NEF4WtiQnbCyCUxU15M25lFkBzK4WS1CGOcxM7e30tvvwyYfmrMp3OtW/hESQFtiTb4cjKcOdaSA==}
+    engines: {node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  node-screenshots-linux-x64-musl@0.2.8:
+    resolution: {integrity: sha512-mu/sVwDMt2yQM5ql2rtyQm+mq6Im2ycQLzQxXFXVJOB+k5A+Hk9h65J+G+Iy3rn1uNrYVDjgUQGvIkgpkIonCg==}
+    engines: {node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  node-screenshots-win32-arm64-msvc@0.2.8:
+    resolution: {integrity: sha512-g7nnuoJO2yjO8Ovr+Uz9e+LYJMlYc5eqoGPQq7U7NK1LVc2DpyCJ18VT8WdP2f098lfHvE12D3X7Es8NLFjiPg==}
+    engines: {node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
+    cpu: [arm64]
+    os: [win32]
+
+  node-screenshots-win32-ia32-msvc@0.2.8:
+    resolution: {integrity: sha512-Qsh4Ggs7MzO2XuDPFMRcRxRuiUGxxtHEFuqAfLFL1DiOfBIhLpukZ8JUHlEBdzjPxMFFRJw/4nOm0tnyHP/fiQ==}
+    engines: {node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
+    cpu: [ia32]
+    os: [win32]
+
+  node-screenshots-win32-x64-msvc@0.2.8:
+    resolution: {integrity: sha512-DdFORB74FghM1L6UtE1TltIR2H0CCCmfQEa8gp2CTSdtBr2b0TKL7ZlbEV6x/wVKRFT59w7Kd6BULdeMmp0X2w==}
+    engines: {node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
+    cpu: [x64]
+    os: [win32]
+
+  node-screenshots@0.2.8:
+    resolution: {integrity: sha512-7O2ab89hkUgiXkrYj9iYCbJjY1iFJqIyZt0vuVtHFKlnajeFoyW+hur4CPxwwrnCUK0ahr0WLWQ5A6rCzF8rWQ==}
+    engines: {node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
 
   node@runtime:26.13.1:
     resolution:
@@ -16766,6 +17184,45 @@ snapshots:
       node-addon-api: 7.1.1
 
   node-releases@2.0.57: {}
+
+  node-screenshots-darwin-arm64@0.2.8:
+    optional: true
+
+  node-screenshots-darwin-x64@0.2.8:
+    optional: true
+
+  node-screenshots-linux-arm64-gnu@0.2.8:
+    optional: true
+
+  node-screenshots-linux-loong64-gnu@0.2.8:
+    optional: true
+
+  node-screenshots-linux-x64-gnu@0.2.8:
+    optional: true
+
+  node-screenshots-linux-x64-musl@0.2.8:
+    optional: true
+
+  node-screenshots-win32-arm64-msvc@0.2.8:
+    optional: true
+
+  node-screenshots-win32-ia32-msvc@0.2.8:
+    optional: true
+
+  node-screenshots-win32-x64-msvc@0.2.8:
+    optional: true
+
+  node-screenshots@0.2.8:
+    optionalDependencies:
+      node-screenshots-darwin-arm64: 0.2.8
+      node-screenshots-darwin-x64: 0.2.8
+      node-screenshots-linux-arm64-gnu: 0.2.8
+      node-screenshots-linux-loong64-gnu: 0.2.8
+      node-screenshots-linux-x64-gnu: 0.2.8
+      node-screenshots-linux-x64-musl: 0.2.8
+      node-screenshots-win32-arm64-msvc: 0.2.8
+      node-screenshots-win32-ia32-msvc: 0.2.8
+      node-screenshots-win32-x64-msvc: 0.2.8
 
   node@runtime:26.13.1: {}
 

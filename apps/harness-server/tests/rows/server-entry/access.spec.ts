@@ -275,6 +275,7 @@ describe('the serve process with the release', () => {
         'calendar/v1',
         'human-intervention/v1',
         'identity/v1',
+        'media/v1',
         'model/v1',
         'notification/v1',
         'schedule/v1',

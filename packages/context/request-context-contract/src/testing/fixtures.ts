@@ -30,7 +30,6 @@ import {
   type MemoryContextSources,
 } from './sources.js'
 import {
-  createMemoryConversionResults,
   createScriptedInputMeter,
   createScriptedPreparationResources,
   type ScriptedPreparationResources,
@@ -250,7 +249,6 @@ export function createAssemblyFixture(options: AssemblyFixtureOptions = {}): Ass
     target,
     values: groups,
     history,
-    conversions: createMemoryConversionResults<string>(),
     preparation,
   })
   const policies = options.policies ?? fixturePolicies()

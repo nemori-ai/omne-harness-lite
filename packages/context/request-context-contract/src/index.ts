@@ -8,8 +8,18 @@ export {
 } from './schema.js'
 export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './declare-tools.js'
 export { declareTools } from './declare-tools.js'
-export type { ConversionIndex, RepresentationResult } from './representation.js'
-export { chooseRepresentations } from './representation.js'
+export type {
+  BlockPosition,
+  NativeCapability,
+  NativeRequirement,
+  RepresentationResult,
+} from './representation.js'
+export {
+  chooseRepresentations,
+  modalityOfBlock,
+  nativeRequirement,
+  unmetBy,
+} from './representation.js'
 export type { ProjectedMessage, ProjectedHistory, HumanProjection } from './projection.js'
 export { project, projectForHuman, projectMessageForModel } from './projection.js'
 export type { CompactionSettingsValue } from './blocks.js'
@@ -81,8 +91,6 @@ export type {
   HistoryReadResult,
   CompactionContextResult,
   HistorySource,
-  ConversionIndexResult,
-  ConversionResultSource,
   CompactionPolicy,
   CompactionPolicyPort,
   RepresentationPolicyConfig,
@@ -129,6 +137,8 @@ export type {
   BudgetBreach,
   FitVerdict,
   RepresentationChoice,
+  RepresentationOption,
+  RepresentationSource,
   RequestLayers,
   RequestCandidate,
   AssemblyFailure,
