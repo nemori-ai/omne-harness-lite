@@ -10,6 +10,14 @@ const picked = (name: string, bytes: number[], type = 'image/png'): PickedFile =
 })
 const A = picked('a.png', [1, 2, 3, 4, 5])
 const B = picked('b.png', [6, 7, 8])
+/** The same file, read a little later: its upload begins after the others. */
+const late = (file: PickedFile): PickedFile => ({
+  ...file,
+  read: async () => {
+    await new Promise(resolve => setTimeout(resolve, 1))
+    return file.read()
+  },
+})
 
 async function settled(): Promise<void> {
   // The digest of the bytes is computed off the microtask queue: wait for timers too.
@@ -81,24 +89,33 @@ describe('一份草稿的附件区', () => {
     expect(seen).toEqual([0, 2, 4, 5, 'ready'])
   })
 
-  it('一份失败时整份草稿没备好，交回的只有备好的；去掉失败的那份就备好了', async () => {
-    const media = fakeMedia(2)
-    media.once('begin-upload', () => undefined)
-    media.once('begin-upload', () => ({ outcome: 'limited', body: { limit: 2 } }))
-    const { tray, shown, last } = trayOver(media)
-    tray.add([A, B])
-    await settled()
-    expect(shown()).toEqual([
-      ['a.png', 'ready', 'blob:a.png'],
-      ['b.png', 'failed', 'blob:b.png'],
-    ])
-    const [, failed] = tray.read()
-    expect(failed?.state).toEqual({ kind: 'failed', reason: '超过大小上限' })
-    expect(last()).toMatchObject({ attachments: [{ ref: refOf('id-1', 5) }], ready: false })
-    tray.remove(failed?.id ?? '')
-    expect(shown()).toEqual([['a.png', 'ready', 'blob:a.png']])
-    expect(last()).toMatchObject({ attachments: [{ ref: refOf('id-1', 5) }], ready: true })
-  })
+  it.each([
+    ['先选的先发起', [A, B]],
+    ['后选的先发起', [late(A), B]],
+  ])(
+    '一份失败时整份草稿没备好，交回的只有备好的；去掉失败的那份就备好了（%s）',
+    async (_, files) => {
+      const media = fakeMedia(2)
+      // The two uploads start in no fixed order: the answer goes by what is asked, not by who asks first.
+      const overLimit = (body: { bytes: number }) =>
+        body.bytes === B.size ? { outcome: 'limited', body: { limit: 2 } } : undefined
+      media.once('begin-upload', overLimit)
+      media.once('begin-upload', overLimit)
+      const { tray, shown, last } = trayOver(media)
+      tray.add(files)
+      await settled()
+      expect(shown()).toEqual([
+        ['a.png', 'ready', 'blob:a.png'],
+        ['b.png', 'failed', 'blob:b.png'],
+      ])
+      const [, failed] = tray.read()
+      expect(failed?.state).toEqual({ kind: 'failed', reason: '超过大小上限' })
+      expect(last()).toMatchObject({ attachments: [{ ref: refOf('id-1', 5) }], ready: false })
+      tray.remove(failed?.id ?? '')
+      expect(shown()).toEqual([['a.png', 'ready', 'blob:a.png']])
+      expect(last()).toMatchObject({ attachments: [{ ref: refOf('id-1', 5) }], ready: true })
+    },
+  )
 
   it('不是图片的文件不上传，直接说只能附加图片', async () => {
     const media = fakeMedia(2)
