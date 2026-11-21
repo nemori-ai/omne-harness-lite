@@ -43,6 +43,8 @@ export type ReleaseCardOption = Readonly<{
   offered: boolean
   /** The answer lasts beyond this one call. */
   lasting: boolean
+  /** Whether the answer releases the action. */
+  role: 'approve' | 'reject'
 }>
 
 export type ReleaseCard = Readonly<{
@@ -101,6 +103,7 @@ export function releaseCard(action: ReleaseCardAction, offer: ReleaseOffer): Rel
     scope: scopeOf(id, gate),
     offered: offer[id],
     lasting: id !== 'deny-once' && id !== 'allow-once',
+    role: id === 'deny-once' || id === 'deny-always' ? 'reject' : 'approve',
   })
   const [first, ...rest] = RELEASE_OPTIONS
   return {
