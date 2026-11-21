@@ -26,7 +26,9 @@ forwarding process and a headless Chromium; it seeds the acceptance data, then s
 window and size asked for, named <scene>-<theme>-<width>[-<size>].png. A scene that means something only in some
 windows says which; in the others it prints SKIP <scene> <width>. Each shot prints how far the page scrolls
 sideways; the specimen scene prints the page policy violations it saw. The scenes that end the login (A2-expired)
-or stop the walk's own server (A7-disconnected) run after the other signed-in scenes, the server one last.
+or stop the walk's own server (A7-disconnected) run after the other signed-in scenes, the server one last. Two
+scenes start their own conversation: B2-working, where the scripted model holds its reply halfway until the scene
+ends, and B9-background, whose call runs in the background until the walk's server stops.
 
   --shots <dir>        where the pictures go (a fresh temporary folder by default)
   --scenes <a,b>       only these scenes (by id); --list prints them, ※ marks the ones the acceptance asks
@@ -139,6 +141,46 @@ const ASK_THIRD = JSON.stringify({
   },
 })
 const SHELL = JSON.stringify({ command: 'execute', params: { script: 'echo visual-walk' } })
+/** A one-shot command whose result has some fifty lines (B4-tool-long). */
+const LONG_SHELL = JSON.stringify({
+  command: 'execute',
+  intent: '跑一遍构建，看每个包的结果',
+  params: {
+    script:
+      "i=1; while [ $i -le 48 ]; do printf 'build %02d/48  packages/module-%02d  ok  %d ms\\n' $i $i $((i * 37 % 400 + 120)); i=$((i + 1)); done",
+  },
+})
+/**
+ * A command the model runs in the background (B9-background): three lines of output, then it waits. It runs until the
+ * walk's server stops, which closes its retention scope and stops it.
+ */
+const BACKGROUND_INTENT = '看着页面的构建，改了就重建'
+const BACKGROUND_SHELL = JSON.stringify({
+  command: 'execute',
+  intent: BACKGROUND_INTENT,
+  params: {
+    script:
+      "printf 'watching src/ for changes\\nbuilt the page in 812 ms\\nwaiting for the next change\\n'; sleep 900",
+    run_in_background: true,
+  },
+})
+/** The reply of the working turn (B2-working): the head comes at once, the tail when the scene lets it go. */
+const SLOW_HEAD = [
+  '## 迁移说明\n\n',
+  '这一次把配置从 `config.json` 搬到 `settings.toml`，分三步做：\n\n',
+  '1. 先读出旧文件里的每一项；\n',
+]
+const SLOW_TAIL = ['2. 再按新的名字写进新文件；\n', '3. 最后核对一遍，删掉旧文件。\n']
+/** What the person says to the conversations of the B scenes; the scripted model knows each by its whole sentence. */
+const REST_ASK = '把开发服务器换到一个空闲的端口'
+const LONG_ASK = '跑一遍构建，把每个包的结果列出来'
+const SLOW_ASK = '慢慢写一份迁移说明'
+const BACKGROUND_ASK = '把页面的构建放到后台盯着'
+/** The releases of the replies held halfway, until the scene that asked for one leaves. */
+const held = []
+const releaseHeld = () => {
+  for (const release of held.splice(0)) release()
+}
 
 const sse = events => events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')
 const piece = (body, content) => ({
@@ -160,6 +202,25 @@ const call = (index, id, name, argumentsText) => ({
   function: { name, arguments: argumentsText },
 })
 
+/** Streams the head of a reply and holds the rest until `releaseHeld`: the gateway writes `rest` after `after`. */
+function halfway(body) {
+  const { promise, resolve } = Promise.withResolvers()
+  held.push(resolve)
+  return {
+    body: sse(SLOW_HEAD.map(text => piece(body, text))),
+    rest: {
+      after: promise,
+      body: `${sse([...SLOW_TAIL.map(text => piece(body, text)), STOP])}data: [DONE]\n\n`,
+    },
+  }
+}
+
+function afterTool(said) {
+  if (said.includes(LONG_ASK)) return '构建跑完了：48 个包都通过。'
+  if (said.includes(BACKGROUND_ASK)) return '构建在后台跑着，跑完了我再告诉你。'
+  return '命令跑完了，输出是 visual-walk。'
+}
+
 function answer({ body }) {
   const request = JSON.parse(body)
   const messages = request.messages ?? []
@@ -172,8 +233,15 @@ function answer({ body }) {
       contentType: 'application/json',
       body: JSON.stringify({ error: { message: 'the input is rejected', code: 400 } }),
     }
-  if (last?.role === 'tool')
-    return { ...reply, body: final(body, '命令跑完了，输出是 visual-walk。') }
+  if (said.includes(SLOW_ASK)) return { ...reply, ...halfway(body) }
+  if (last?.role === 'tool') return { ...reply, body: final(body, afterTool(said)) }
+  if (said.includes(LONG_ASK))
+    return { ...reply, body: calls(body, [call(0, 'call_shell_long', 'Shell', LONG_SHELL)]) }
+  if (said.includes(BACKGROUND_ASK))
+    return {
+      ...reply,
+      body: calls(body, [call(0, 'call_shell_background', 'Shell', BACKGROUND_SHELL)]),
+    }
   if (said.includes('工具'))
     return { ...reply, body: calls(body, [call(0, 'call_shell_visual', 'Shell', SHELL)]) }
   if (said.includes('问我'))
@@ -212,10 +280,15 @@ const HELPERS = `
     button.click()
   }
   const transcript = () => document.querySelector('section[data-page=conversation]')?.innerText ?? ''
+  const conversation = () => document.querySelector('section[data-page=conversation]:not([hidden])')
   const say = async (text, until) => {
     fill(await wait('the composer', () => document.querySelector('textarea[aria-label="输入消息"]')), text)
     await press('button[type=submit]', '发送')
     await wait(until, () => transcript().includes(until))
+  }
+  const fresh = async () => {
+    await press('button', '新建会话')
+    await wait('the composer', () => document.querySelector('textarea[aria-label="输入消息"]'))
   }
   const openSession = async title => {
     const row = await wait('the session ' + title, () =>
@@ -346,16 +419,16 @@ async function seed(browser) {
     browser,
     `
     await signIn('第一次使用', ${JSON.stringify(ACCOUNT)})
-    const fresh = async () => {
-      await press('button', '新建会话')
-      await wait('the composer', () => document.querySelector('textarea[aria-label="输入消息"]'))
-    }
     await fresh()
     await say('请总结一下这一轮做了什么', '这一轮做了什么')
     await say('请调用工具跑一下命令', '命令跑完了')
     await say('这一句会失败', '这一轮失败了')
     await fresh()
     await say('有几件事要问我', 'Agent 在问你')
+    await fresh()
+    await say(${JSON.stringify(REST_ASK)}, '没有动别的设置')
+    await fresh()
+    await say(${JSON.stringify(LONG_ASK)}, '构建跑完了')
     await fresh()
     return 'seeded'`,
   )
@@ -523,6 +596,75 @@ const SCENES = [
     act: `await openSession('请总结')`,
     each: `await closeSide(); await openSide()`,
     leave: `await closeSide()`,
+  },
+  {
+    id: 'B1-rest',
+    title: '静止的对话：转写停在一轮完成的回复上',
+    act: `
+      await openSession(${JSON.stringify(REST_ASK)})
+      await wait('the finished reply', () => transcript().includes('没有动别的设置'))`,
+  },
+  {
+    id: 'B2-working',
+    title: '在做的一轮：回复流到一半，形在写',
+    act: `await fresh(); await say(${JSON.stringify(SLOW_ASK)}, '先读出旧文件里的每一项')`,
+    each: `
+      await rest()
+      if (transcript().includes('删掉旧文件')) throw new Error('the held reply finished before the shot')
+      // The end of the transcript in view: the deepest element that holds the last line streamed so far.
+      const streamed = [...conversation().querySelectorAll('*')].findLast(item =>
+        item.textContent.includes('先读出旧文件里的每一项'))
+      streamed.scrollIntoView({ block: 'nearest' })
+      await settle()`,
+    leave: [
+      () => releaseHeld(),
+      `await wait('the held reply to finish', () => transcript().includes('删掉旧文件'))`,
+    ],
+  },
+  {
+    id: 'B4-tool-long',
+    title: '长的工具输出：过程行展开着，几十行的结果在代码面里',
+    act: `await openSession(${JSON.stringify(LONG_ASK)})`,
+    each: `
+      await rest()
+      const line = await wait('the Shell call’s line', () =>
+        [...conversation().querySelectorAll('[aria-expanded]')].find(item => item.textContent.includes('Shell')))
+      if (line.getAttribute('aria-expanded') !== 'true') line.click()
+      await wait('the call unfolded', () => line.getAttribute('aria-expanded') === 'true')
+      await settle()
+      line.scrollIntoView({ block: 'start' })
+      await settle()`,
+  },
+  {
+    id: 'B5-failed',
+    title: '一轮失败了：失败的那一轮与它下面的通知',
+    act: `await openSession('请总结')`,
+    each: `
+      await rest()
+      const retry = await wait('the failure’s retry', () => byText('section[data-page=conversation]:not([hidden]) button', '重试'))
+      retry.scrollIntoView({ block: 'nearest' })
+      await settle()`,
+  },
+  {
+    id: 'B9-background',
+    title: '后台调用：「后台」页签里展开着，有输出与停止的进度',
+    act: `await fresh(); await say(${JSON.stringify(BACKGROUND_ASK)}, '构建在后台跑着')`,
+    each: `
+      if (bubble() !== null) await closeSide()
+      await rest()
+      await openSide()
+      const side = conversation().querySelector('.omne-session-side')
+      const tab = await wait('the side’s 后台 tab', () =>
+        [...side.querySelectorAll('[data-segment]')].find(item => item.textContent.trim().startsWith('后台')))
+      if (tab.getAttribute('aria-pressed') !== 'true') tab.click()
+      const intent = ${JSON.stringify(BACKGROUND_INTENT)}
+      await wait('the background call', () => side.innerText.includes(intent))
+      // Unfold the call where its line folds; a pane that shows every call unfolded has nothing to press.
+      const line = [...side.querySelectorAll('[aria-expanded]')].find(item => item.textContent.includes(intent))
+      if (line !== undefined && line.getAttribute('aria-expanded') !== 'true') line.click()
+      await wait('the call’s output', () => side.innerText.includes('waiting for the next change'))
+      await settle()`,
+    leave: `if (bubble() !== null) await closeSide()`,
   },
   {
     id: 'T1-told',
@@ -803,6 +945,7 @@ async function main() {
   } finally {
     browser?.close()
     stopChrome(chrome)
+    releaseHeld()
     await stack.stop()
     rmSync(profile, { recursive: true, force: true })
     if (specimenRoot !== undefined) rmSync(specimenRoot, { recursive: true, force: true })
