@@ -10,6 +10,8 @@ import type {
 import { createScriptedEngine } from '@omne-harness/media-contract/testing'
 import { PNG, T1, T2, failureOf, ok, png, wav, world, type World } from './world.ts'
 
+type Listener = Parameters<AbortSignal['addEventListener']>[1]
+
 const ENGINE = 'voice.fixture'
 const definitionOf = (revision: string) => ({ name: 'voice', revision })
 const CONVERTED: EngineOutput = { kind: 'converted', text: 'hello there', derived: [] }
@@ -54,11 +56,11 @@ function counted(signal: AbortSignal = live()) {
   let left = 0
   const add = signal.addEventListener.bind(signal)
   const remove = signal.removeEventListener.bind(signal)
-  signal.addEventListener = ((type: string, ...rest: [EventListener]) => {
+  signal.addEventListener = ((type: string, ...rest: [Listener]) => {
     if (type === 'abort') left += 1
     add(type, ...rest)
   }) as typeof signal.addEventListener
-  signal.removeEventListener = ((type: string, ...rest: [EventListener]) => {
+  signal.removeEventListener = ((type: string, ...rest: [Listener]) => {
     if (type === 'abort') left -= 1
     remove(type, ...rest)
   }) as typeof signal.removeEventListener
