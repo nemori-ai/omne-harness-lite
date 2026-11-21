@@ -148,10 +148,38 @@ describe('a view is its segments in order, then its own rows', () => {
     }
   })
 
+  it('reads a range with one statement for each piece it touches, and probes segments in the first epoch only', () => {
+    const s = scene()
+    try {
+      const statements: string[] = []
+      const counted = {
+        ...s.port,
+        execute: (sql: string, params?: Parameters<typeof s.port.execute>[1]) => {
+          statements.push(sql.includes('sl_view_segment') ? 'segments' : 'rows')
+          return s.port.execute(sql, params)
+        },
+      }
+      const g = viewOf(counted, at('g'), 'epoch:0')
+      expect(statements).toEqual(['segments'])
+      expect(entriesOf(g.rows(0n, 3n, 1))).toEqual(['30'])
+      expect(statements).toEqual(['segments', 'rows'])
+      expect(entriesOf(g.rows(0n, 2n, 10))).toEqual(['30', '25'])
+      expect(statements).toEqual(['segments', 'rows', 'rows'])
+      expect(entriesOf(g.rows(2n, 3n, 10))).toEqual(['50'])
+      expect(statements).toHaveLength(4)
+      statements.length = 0
+      viewOf(counted, at('r'), 'epoch:30').rows(0n, 4n, 10)
+      expect(statements).toEqual(['rows'])
+    } finally {
+      s.db.close()
+    }
+  })
+
   it('finds the row of an entry in its own rows or in a segment, within the bound of the segment', () => {
     const s = scene()
     try {
       const g = viewOf(s.port, at('g'), 'epoch:0')
+      expect(viewOf(s.port, at('c'), 'epoch:0').rowOf('50')?.['seq']).toBe(3n)
       expect(g.rowOf('25')?.['seq']).toBe(2n)
       expect(g.rowOf('50')?.['seq']).toBe(3n)
       expect(g.rowOf('60')).toBeUndefined()
@@ -178,7 +206,10 @@ describe('a view is its segments in order, then its own rows', () => {
       s.port.execute("DELETE FROM sl_model_view WHERE session = 'c' AND seq = 3", [])
       const g = viewOf(s.port, at('g'), 'epoch:0')
       expect(() => g.rows(0n, 3n, 10)).toThrow(SegmentUnreadable)
-      expect(() => viewHead(s.port, at('g'), 'epoch:0')).toThrow(SegmentUnreadable)
+      expect(() => g.rows(0n, 3n, 10)).toThrow('rows of a segment under c are not there')
+      expect(() => viewHead(s.port, at('g'), 'epoch:0')).toThrow(
+        'the last row of a segment under c is not there',
+      )
     } finally {
       s.db.close()
     }
@@ -291,7 +322,18 @@ describe('what a source shows at a point', () => {
     const s = scene()
     try {
       const other = { ...point('r', 'epoch:30', '2'), epoch: external('c', 'epoch:30') }
-      expect(forkFacts(s.port, 't', source('r', 'epoch:30'), other).rows).toBeNull()
+      expect(forkFacts(s.port, 't', source('r', 'epoch:30'), other)).toEqual({
+        rows: null,
+        next: null,
+        current: false,
+        running: true,
+        floor: '0',
+        tail: '40',
+      })
+      for (const upper of ['2x', 'x2'])
+        expect(
+          forkFacts(s.port, 't', source('r', 'epoch:30'), point('r', 'epoch:30', upper)),
+        ).toMatchObject({ rows: '4', next: null, floor: '0' })
       expect(
         forkFacts(s.port, 't', source('r', 'epoch:30'), point('r', 'epoch:7', '1')).rows,
       ).toBeNull()

@@ -222,13 +222,11 @@ type Flat = Readonly<{ upto: bigint; session: string; epoch: string }>
 const least = (left: bigint, right: bigint): bigint => (left < right ? left : right)
 
 function flattened(port: Executor, source: Scope, epoch: string, upper: bigint): Flat[] {
-  const flat = segmentsOf(port, source, epoch)
-    .filter(piece => piece.above < upper)
-    .map(({ session, epoch: from, upto }) => ({
-      session,
-      epoch: from,
-      upto: least(upto ?? upper, upper),
-    }))
+  const flat = segmentsOf(port, source, epoch).map(({ session, epoch: from, upto }) => ({
+    session,
+    epoch: from,
+    upto: least(upto ?? upper, upper),
+  }))
   const covered = flat.at(-1)?.upto ?? 0n
   return covered < upper ? [...flat, { upto: upper, session: source.session, epoch }] : flat
 }

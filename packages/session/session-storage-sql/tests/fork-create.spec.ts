@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sessionId } from '@omne-harness/session-contract/testing'
+import { creation, operationId, sessionId } from '@omne-harness/session-contract/testing'
 import { canonicalText, sha256 } from '../src/codec.ts'
 import { app, TENANT_A, type App } from './fixtures/app.ts'
 import {
@@ -57,6 +57,46 @@ describe('a forked session reads the rows of its source and writes none of them 
     const own = positions(a, 'child-1')
     expect(own[0]).toBe(BigInt(point.position) + 1n)
     expect(own.every(position => position > BigInt(point.position))).toBe(true)
+  })
+
+  it('takes the origin of the chain of its source for its compactions, and keeps it', async () => {
+    const a = await source(3)
+    const origin = (session: string) =>
+      a.provider.select(
+        DOMAIN,
+        'SELECT origin FROM sl_compaction_head WHERE tenant = ? AND session = ?',
+        [T, session],
+      ).rows[0]?.[0]
+    expect(origin('session-1')).toBe('1')
+    ok(await remind(a, 'session-1', 'again'), 'a second batch of the source')
+    expect(origin('session-1')).toBe('1')
+    ok(
+      await a.create(TENANT_A, 'child-1', childOf('session-1', await wholeOf(a, 'session-1'))),
+      'fork',
+    )
+    expect(origin('child-1')).toBe('1')
+    ok(await remind(a, 'child-1', 'own'), 'a second batch of the forked session')
+    expect(origin('child-1')).toBe('1')
+    ok(
+      await a.create(TENANT_A, 'grand-1', childOf('child-1', await wholeOf(a, 'child-1'))),
+      'layer 2',
+    )
+    expect(origin('grand-1')).toBe('1')
+  })
+
+  it('starts the prefix digest of a session without a source from nothing', async () => {
+    const a = await source(0)
+    ok(await remind(a, 'session-1', 'first'), 'remind')
+    const [first] = (await rowsOf(a, 'session-1')).rows
+    expect(first?.prefixDigest).toBe(
+      sha256(
+        canonicalText({
+          prefix: '',
+          entry: first?.entry,
+          message: JSON.parse(JSON.stringify(first?.message)),
+        }),
+      ),
+    )
   })
 
   it('goes on with the seq and the prefix digest of the last row of the prefix', async () => {
@@ -181,6 +221,25 @@ describe('the prefix stays as it was, and is all there or not read at all (SF-1,
     expect(whole.rows.map(row => row.seq)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8'])
   })
 
+  it('gives a page two hundred rows at most, across the rows of the source and its own', async () => {
+    const a = await source(205)
+    ok(
+      await a.create(TENANT_A, 'child-1', childOf('session-1', await wholeOf(a, 'session-1'))),
+      'fork',
+    )
+    ok(await remind(a, 'child-1', 'own'), 'remind')
+    const page = await a.port.history.readModelView({
+      ...a.access(TENANT_A, 'child-1'),
+      basis: null,
+      after: null,
+      pageBytes: 10_000_000,
+    })
+    if (!('ok' in page) || page.ok.kind !== 'page') throw new Error(JSON.stringify(page))
+    expect(page.ok.rows).toHaveLength(200)
+    expect(page.ok.next).not.toBeNull()
+    expect((await rowsOf(a, 'child-1')).rows).toHaveLength(206)
+  })
+
   it('answers unavailable, not a part of the view, when a row of the prefix cannot be read', async () => {
     const a = await source(4)
     const point = await wholeOf(a, 'session-1')
@@ -231,6 +290,37 @@ describe('a create with a source is judged against what the source shows', () =>
     expect(count(a, 'sl_entry', 'session-1')).toBe(entries)
   })
 
+  it('refuses the whole view of a source whose Run is unfinished', async () => {
+    const a = await source(3)
+    ok(await a.accept(TENANT_A, 'session-1', 'first'), 'accept')
+    const started = await a.port.commit({
+      access: a.access(TENANT_A),
+      command: {
+        kind: 'startRun',
+        input: {
+          tenant: TENANT_A,
+          session: sessionId('session-1'),
+          operation: operationId('start'),
+          entry: 'interactive',
+          candidate: creation().definition.candidate,
+          instance: { owner: 'agent', id: 'instance-1' },
+        },
+      },
+      guards: [],
+    })
+    ok(started, 'start a Run of the source')
+    const answer = await a.create(
+      TENANT_A,
+      'child-1',
+      childOf('session-1', await wholeOf(a, 'session-1')),
+    )
+    expect(failureOf(answer)).toEqual({
+      kind: 'invalid',
+      field: 'creation.fork.point',
+      reason: 'not-a-boundary',
+    })
+  })
+
   it('forks before an assistant message of a source', async () => {
     const a = await source(2)
     seedRows(a, 'session-1', 1, 'assistant')
@@ -276,14 +366,17 @@ describe('a session forked from a forked session stands on two segments at most 
   })
 
   it('cuts the segment of its source when the point lies inside what the source inherited', async () => {
-    const a = await source(2)
+    const a = await source(1)
     seedRows(a, 'session-1', 1, 'assistant')
-    const first = { ...(await wholeOf(a, 'session-1')), upper: '2' }
+    seedRows(a, 'session-1', 1, 'user')
+    seedRows(a, 'session-1', 1, 'assistant')
+    const first = { ...(await wholeOf(a, 'session-1')), upper: '3' }
     ok(await a.create(TENANT_A, 'child-1', childOf('session-1', first)), 'layer 1')
-    const inside = { ...(await wholeOf(a, 'child-1')), upper: '2' }
+    expect(segments(a, 'child-1')).toEqual([['epoch:0', 3n, 'session-1', 'epoch:0']])
+    const inside = { ...(await wholeOf(a, 'child-1')), upper: '1' }
     ok(await a.create(TENANT_A, 'grand-1', childOf('child-1', inside)), 'layer 2')
-    expect(segments(a, 'grand-1')).toEqual([['epoch:0', 2n, 'session-1', 'epoch:0']])
-    expect((await rowsOf(a, 'grand-1')).rows).toEqual((await rowsOf(a, 'child-1')).rows)
+    expect(segments(a, 'grand-1')).toEqual([['epoch:0', 1n, 'session-1', 'epoch:0']])
+    expect((await rowsOf(a, 'grand-1')).rows).toEqual((await rowsOf(a, 'child-1')).rows.slice(0, 1))
   })
 })
 
