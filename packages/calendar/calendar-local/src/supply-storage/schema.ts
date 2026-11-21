@@ -51,11 +51,27 @@ export const journalRunSchema = z.discriminatedUnion('state', [
   z.strictObject({ state: z.literal('pending'), run: runSchema }),
   z.strictObject({ state: z.literal('completed'), run: settledRunSchema }),
 ])
-export const completionSchema = operationQuerySchema.extend({
-  operationRef: text,
-  completedAt: instantSchema,
-  disposition: z.enum(['published', 'noChange', 'withheld', 'rejected']),
-})
+export const completionSchema = z.discriminatedUnion('kind', [
+  operationQuerySchema.extend({
+    kind: z.literal('recorded'),
+    operationRef: text,
+    completedAt: instantSchema,
+    disposition: z.enum(['published', 'noChange', 'withheld', 'rejected']),
+  }),
+  operationQuerySchema.extend({
+    kind: z.literal('refused'),
+    completedAt: instantSchema,
+    reason: z.enum([
+      'invalid',
+      'operationKeyConflict',
+      'generationConflict',
+      'versionConflict',
+      'contentHashConflict',
+      'staleSeed',
+      'authorityRejected',
+    ]),
+  }),
+])
 export const probeQuerySchema = scopeSchema.extend({
   operationKey: key,
   fingerprint: contentHashSchema,

@@ -38,16 +38,23 @@ export async function finishRun(
   outcome: CalendarOperationObservation,
   now: Instant,
 ): Promise<CalendarSupplyOutcome> {
-  if (outcome.kind === 'recorded') {
-    try {
+  try {
+    if (outcome.kind === 'recorded')
       await deps.journal.completeRun({
         ...query,
+        kind: 'recorded',
         operationRef: outcome.receipt.operationRef,
         completedAt: now,
         disposition: outcome.receipt.disposition,
       })
-    } catch {}
-  }
+    else if (outcome.kind === 'rejected' && outcome.reason !== 'providerUnavailable')
+      await deps.journal.completeRun({
+        ...query,
+        kind: 'refused',
+        completedAt: now,
+        reason: outcome.reason,
+      })
+  } catch {}
   return outcome
 }
 export async function commitPrepared(

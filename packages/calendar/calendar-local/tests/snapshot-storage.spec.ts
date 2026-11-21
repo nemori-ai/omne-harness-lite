@@ -150,6 +150,7 @@ it('a snapshot held by a candidate, published, and carried by a supply run is st
   expect(
     await w.journal.completeRun({
       ...queryOf(published),
+      kind: 'recorded',
       operationRef: recorded.receipt.operationRef,
       completedAt: instant,
       disposition: 'published',
@@ -240,6 +241,52 @@ it('recovery after a reopen finishes a run cut after its disposition and a run c
   await close(w)
   expect(cellsHolding(root, 'marker-of-the-published-run')).toEqual(['ca_snapshots.snapshot'])
   expect(cellsHolding(root, 'marker-of-the-later-run')).toEqual(['ca_snapshots.snapshot'])
+})
+
+it('a run whose command persistence refused for good completes as refused, is not recovered again, and its snapshot is not kept', async () => {
+  const w = await joint()
+  const stale = marked(command('v2', 5, 'stale'), 'marker-of-the-refused-run')
+  expect(await w.journal.prepareRun({ command: stale, preparedAt: instant })).toMatchObject({
+    kind: 'ok',
+  })
+  let commits = 0
+  const application = createCalendarSupplyApplication({
+    repository: w.repository,
+    persistence: {
+      ...w.persistence,
+      commitDisposition(value) {
+        commits += 1
+        return w.persistence.commitDisposition(value)
+      },
+    },
+    journal: w.journal,
+    materials: w.materials,
+    authority: { check: async () => ({ kind: 'allowed', authorityGuardRefs: ['fixture-grant'] }) },
+    sourceAdapters: [],
+    independenceRegistry: [],
+    clock: { now: () => instant },
+  })
+  expect(await application.recover(systemContext, { limit: 10 })).toMatchObject({
+    kind: 'ok',
+    value: [{ kind: 'ok', value: { kind: 'rejected', reason: 'generationConflict' } }],
+  })
+  expect(commits).toBe(1)
+  expect(await w.journal.readRun(queryOf(stale))).toMatchObject({
+    kind: 'ok',
+    value: { state: 'completed' },
+  })
+  expect(await w.journal.pending({ systemScopeRef: scope, limit: 10 })).toEqual({
+    kind: 'ok',
+    value: [],
+  })
+  expect(
+    await w.journal.health({ systemScopeRef: scope, calendarId: stale.address.calendarId }),
+  ).toMatchObject({ kind: 'ok', value: { pendingRuns: [], consecutiveFailures: 1 } })
+  expect(await application.recover(systemContext, { limit: 10 })).toEqual({ kind: 'ok', value: [] })
+  expect(commits).toBe(1)
+  const root = w.root
+  await close(w)
+  expect(cellsHolding(root, 'marker-of-the-refused-run')).toEqual([])
 })
 
 it('the version, the candidate and the page of candidates read back the whole snapshot', async () => {

@@ -15,6 +15,7 @@ function completion(
   disposition: 'published' | 'noChange' | 'withheld' | 'rejected',
 ) {
   return {
+    kind: 'recorded' as const,
     address: prepared.command.address,
     expectedFingerprint: prepared.command.expectedFingerprint,
     operationRef: ref(prepared),

@@ -16,6 +16,7 @@ import type {
   CalendarOperationQuery,
   CalendarPendingReaction,
   CalendarPersistence,
+  CalendarPersistenceFailure,
   CalendarReadResult,
   CalendarRepository,
 } from '../persistence.ts'
@@ -91,11 +92,18 @@ export type CalendarJournalRun =
 export type CalendarJournalResult<T> =
   | Readonly<{ kind: 'ok'; value: T }>
   | Readonly<{ kind: 'conflict' | 'unavailable' | 'unknown'; reason: string }>
-export type CalendarRunCompletion = Readonly<{
-  operationRef: string
-  completedAt: Instant
-  disposition: 'published' | 'noChange' | 'withheld' | 'rejected'
-}>
+export type CalendarRunCompletion =
+  | Readonly<{
+      kind: 'recorded'
+      operationRef: string
+      completedAt: Instant
+      disposition: 'published' | 'noChange' | 'withheld' | 'rejected'
+    }>
+  | Readonly<{
+      kind: 'refused'
+      completedAt: Instant
+      reason: Exclude<CalendarPersistenceFailure['reason'], 'providerUnavailable'>
+    }>
 export type CalendarJournalHealth = Readonly<{
   sources: readonly CalendarSourceStanding[]
   consecutiveFailures: number
