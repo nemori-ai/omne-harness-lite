@@ -138,12 +138,19 @@ describe('ADD COLUMN in a migration', () => {
     }
   })
 
-  it('denies the quick check of a table the owner does not own, and of the whole file', () => {
+  // Each on its own gateway: a refused statement closes the port, and every later one would throw for that.
+  it.each([
+    ['a read of a table it neither owns nor requires', 'select v from t_b'],
+    ['another pragma on an owned table', 'pragma table_info(t_a)'],
+    ['the quick check of a table it does not own', 'pragma quick_check(t_b)'],
+    ['the quick check of the whole file', 'pragma quick_check'],
+    ['the quick check read as a table', "select * from pragma_quick_check('t_b')"],
+    ['a column added to a table it does not own', 'alter table t_b add column w text'],
+  ])('denies %s', (_, sql) => {
     const { gateway, db } = gatewayOf(['t_a'])
     try {
-      expect(() => gateway.execute('alter table t_b add column w text', [])).toThrow()
-      expect(() => gateway.execute('pragma quick_check', [])).toThrow()
-      expect(() => gateway.execute('select * from pragma_quick_check', [])).toThrow()
+      expect(() => gateway.execute(sql, [])).toThrow(/not authorized|is prohibited/u)
+      expect(gateway.violated).toBe(true)
     } finally {
       gateway.close()
       db.close()
