@@ -754,8 +754,19 @@ describe('session commands', () => {
     const result = await cli(['read-workspace-selection', '--session', sessionId])
     expect(service.seen.at(-1)?.path).toBe('/api/session/v1/read-workspace-selection')
     expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, session: sessionId })
-    expect(parsed(result.stdout)).toMatchObject({ outcome: 'succeeded', body })
+    expect(parsed(result.stdout)).toMatchObject({
+      outcome: 'succeeded',
+      body,
+      request: { messageId: expect.any(String), tenant: tenantText },
+    })
     expect(await cli(['read-workspace-selection'])).toMatchObject({ code: 2 })
+    // A session this state directory never created needs its tenant named.
+    const elsewhere = 'f'.repeat(64)
+    expect(await cli(['read-workspace-selection', '--session', elsewhere])).toMatchObject({
+      code: 2,
+    })
+    await cli(['read-workspace-selection', '--session', elsewhere, '--tenant', tenantText])
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, session: elsewhere })
   })
 
   it('list-models asks Model for the models of the login tenant, or of the tenant given (C24)', async () => {
