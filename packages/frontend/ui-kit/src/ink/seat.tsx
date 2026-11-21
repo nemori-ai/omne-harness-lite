@@ -45,6 +45,47 @@ export function besideOf(seat: HTMLElement): SeatBeside | undefined {
   }
 }
 
+const sameBox = (a: DOMRect, b: DOMRect): boolean =>
+  a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height
+
+function watchBox(element: HTMLElement, changed: () => void): () => void {
+  let watching: IntersectionObserver | null = null
+  const arm = (shown: number): void => {
+    watching?.disconnect()
+    watching = null
+    const box = element.getBoundingClientRect()
+    if (box.width < 1 || box.height < 1) return
+    const root = document.documentElement
+    const insets = [box.top, root.clientWidth - box.right, root.clientHeight - box.bottom, box.left]
+    let first = true
+    const observer = new IntersectionObserver(
+      entries => {
+        if (watching !== observer) return
+        const ratio = entries.at(-1)?.intersectionRatio ?? 0
+        const opening = first
+        first = false
+        if (opening && ratio === shown && sameBox(box, element.getBoundingClientRect())) return
+        changed()
+        arm(opening ? ratio : 1)
+      },
+      { rootMargin: insets.map(inset => `${-Math.floor(inset)}px`).join(' '), threshold: shown },
+    )
+    observer.observe(element)
+    watching = observer
+  }
+  const resized = new ResizeObserver(() => {
+    changed()
+    arm(1)
+  })
+  resized.observe(element)
+  arm(1)
+  return () => {
+    resized.disconnect()
+    watching?.disconnect()
+    watching = null
+  }
+}
+
 export function FigureSeat({
   name,
   priority = 1,
@@ -60,10 +101,9 @@ export function FigureSeat({
     const seat = element.current
     if (seat === null || store === null) return undefined
     const leave = store.seatAt(name, { element: seat, priority, beside: () => besideOf(seat) })
-    const observer = new ResizeObserver(store.hostChanged)
-    observer.observe(seat)
+    const unwatch = watchBox(seat, store.hostChanged)
     return () => {
-      observer.disconnect()
+      unwatch()
       leave()
     }
   }, [store, name, priority])
