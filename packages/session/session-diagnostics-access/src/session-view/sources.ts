@@ -1,8 +1,4 @@
-import type {
-  AgentJournalReading,
-  Failure as AgentFailure,
-  FinishIntent,
-} from '@omne-harness/agent-contract'
+import type { Failure as AgentFailure } from '@omne-harness/agent-contract'
 import type { Access } from '@omne-harness/legal-identity'
 import type {
   DispatchRecord,
@@ -21,7 +17,6 @@ import type {
 } from '@omne-harness/tool-contract'
 import type { SessionDiagnosticUnknown } from '../view-types.ts'
 
-export type AgentFinishReader<P> = Pick<AgentJournalReading<P>, 'readFinish'>
 export type ModelCallInspector<P> = Pick<ModelCalls<P>, 'inspect' | 'dispatches'>
 export type ModelAttemptReader<P> = ModelDiagnostics<P>
 export type ToolCallReader<P> = Pick<
@@ -34,7 +29,6 @@ export type CallAccount = Extract<
 >['ok']
 
 export type DiagnosticPorts<P> = Readonly<{
-  agentJournal?: AgentFinishReader<P>
   modelCalls?: ModelCallInspector<P>
   modelDiagnostics?: ModelAttemptReader<P>
   toolQueries?: ToolCallReader<P>
@@ -100,7 +94,6 @@ async function answerOf<T>(
 }
 
 export interface DiagnosticSources {
-  readFinish(execution: string): Promise<SourceAnswer<FinishIntent | null>>
   inspectModelCall(reference: string): Promise<SourceAnswer<Lookup>>
   listModelAttempts(call: string): Promise<SourceAnswer<ModelDiagnosticsPage>>
   listModelDispatches(call: string): Promise<SourceAnswer<readonly DispatchRecord[]>>
@@ -110,13 +103,8 @@ export interface DiagnosticSources {
 }
 
 export function sourcesOf<P>(access: Access<P>, ports: DiagnosticPorts<P>): DiagnosticSources {
-  const { agentJournal, modelCalls, modelDiagnostics, toolQueries } = ports
-  const readFinish = agentJournal?.readFinish?.bind(agentJournal)
+  const { modelCalls, modelDiagnostics, toolQueries } = ports
   return {
-    readFinish: execution =>
-      readFinish === undefined
-        ? Promise.resolve(UNSUPPORTED)
-        : answerOf(() => readFinish({ ...access, execution: execution as never }), 'execution'),
     inspectModelCall: reference =>
       modelCalls === undefined
         ? Promise.resolve(UNSUPPORTED)

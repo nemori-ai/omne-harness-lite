@@ -10,9 +10,11 @@ import type {
   AgentEvent,
   Authority,
   CommandReceipt,
+  FailureCandidate,
   PendingCall,
   ProducedResult as AgentResult,
 } from '@omne-harness/agent-contract'
+import { intentOf } from './journal-finishing.ts'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { uninterpretedCalls } from '@omne-harness/session-contract'
@@ -28,6 +30,8 @@ import type {
   SessionCallRegistration,
   CallBinding,
   ProducedResult,
+  RunEnd,
+  RunFailure,
   WorkSnapshot,
   DurableEvidence,
   SessionBatchRecord,
@@ -244,6 +248,49 @@ function takenConsequences(
   ]
 }
 
+function runFailureOf(failure: FailureCandidate): RunFailure {
+  switch (failure.kind) {
+    case 'node-failed':
+      return {
+        kind: failure.kind,
+        node: failure.node,
+        category: failure.category,
+        failureKind: failure.failureKind,
+      }
+    case 'model-refused':
+      return { kind: failure.kind, failure: failure.failure.kind }
+    case 'no-reply':
+      return {
+        kind: failure.kind,
+        cause: failure.fault?.cause ?? null,
+        upstreamStatus: failure.fault?.upstreamStatus ?? null,
+        diagnostic: failure.fault?.diagnostic ?? null,
+      }
+    case 'cannot-fit':
+      return { kind: failure.kind, reason: failure.reason }
+    case 'request-rejected':
+    case 'compaction-invalid':
+    case 'compaction-failed':
+    case 'message-rejected':
+    case 'extension-stop':
+    case 'guard':
+      return { kind: failure.kind }
+    default: {
+      const exhaustive: never = failure
+      return exhaustive
+    }
+  }
+}
+
+function runEndOf(execution: MemoryExecution): RunEnd | null {
+  const intent = intentOf(execution.finishing)
+  if (intent === undefined) return null
+  return {
+    conclusion: intent.conclusion.kind,
+    failure: intent.failure === null ? null : runFailureOf(intent.failure),
+  }
+}
+
 export function normalizeAgentEvent(
   root: CommonRoot,
   execution: MemoryExecution,
@@ -272,6 +319,7 @@ export function normalizeAgentEvent(
                 : 'cancelled',
           cause: body.conclusion.kind === 'complete' ? null : body.conclusion.cause,
           disposition: body.disposition,
+          end: runEndOf(execution),
         },
       ]
     case 'waiting': {

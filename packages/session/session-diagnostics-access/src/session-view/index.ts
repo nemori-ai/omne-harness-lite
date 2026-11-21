@@ -24,7 +24,6 @@ export { createDiagnosticsCursors } from './cursor.ts'
 export type { DiagnosticsCursors, DiagnosticsCursorState } from './cursor.ts'
 export { PROJECTED_KINDS } from './project.ts'
 export type {
-  AgentFinishReader,
   DiagnosticPorts,
   ModelAttemptReader,
   ModelCallInspector,
@@ -145,8 +144,6 @@ async function answersOf(
   skeleton: RunSkeleton,
   projected: number,
 ): Promise<RunAnswers> {
-  const ended = skeleton.terminal !== null && skeleton.terminal.outcome !== 'completed'
-  const finish = ended ? await sources.readFinish(skeleton.execution) : null
   const models = new Map<string, ModelAnswers>()
   const tools = new Map<string, ToolAnswers>()
   for (const call of skeleton.calls.slice(0, projected)) {
@@ -155,7 +152,7 @@ async function answersOf(
       models.set(call.position, await modelAnswersOf(sources, call.reference))
     else tools.set(call.position, await toolAnswersOf(sources, call.reference))
   }
-  return { finish, models, tools }
+  return { models, tools }
 }
 
 export async function projectSessionDiagnostics<P>(

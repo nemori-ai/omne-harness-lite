@@ -156,7 +156,9 @@
 - `RouteJudgment` · 包 `@omne-harness/session-contract`
 - `RoutedInput` · 包 `@omne-harness/session-contract`
 - `RunBoundaryView` · 包 `@omne-harness/session-contract`
+- `RunEnd` · 包 `@omne-harness/session-contract`
 - `RunExecution` · 包 `@omne-harness/session-contract`
+- `RunFailure` · 包 `@omne-harness/session-contract`
 - `RunId` · 包 `@omne-harness/session-contract`
 - `RunStartJudgment` · 包 `@omne-harness/session-contract`
 - `RunState` · 包 `@omne-harness/session-contract`

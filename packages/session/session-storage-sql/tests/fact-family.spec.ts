@@ -98,6 +98,7 @@ function nth(n: number, over: Partial<ExecutionRecordWrite> = {}): ExecutionReco
     tenant: TENANT_A,
     session: sessionId(SESSION),
     execution,
+    settles: false,
     expected: n === 1 ? null : String(n - 1),
     revision: String(n),
     published: String(n - 1),
@@ -112,6 +113,7 @@ function nth(n: number, over: Partial<ExecutionRecordWrite> = {}): ExecutionReco
         revision: String(n),
         receipt: evidence(`agent/${execution}/${String(n)}`),
         emittedThrough: String(n),
+        acknowledged: '0',
         ended: null,
       },
     ],
@@ -278,13 +280,16 @@ describe('one publication appends one batch', () => {
     expect(a.provider.select('dom_0', 'SELECT published FROM er_root').rows).toEqual([[1n]])
   })
 
-  it('the participant only appends facts: no statement updates, replaces or deletes a fact row', () => {
+  it('the participant only appends facts and deletes them only with their settled execution', () => {
     const source = readFileSync(
       new URL('../src/worker/execution-record.ts', import.meta.url),
       'utf8',
     )
     expect(source).toMatch(/'INSERT INTO er_fact \(/u)
-    expect(source).not.toMatch(/(UPDATE|DELETE FROM|REPLACE INTO|OR IGNORE INTO) er_fact\b/u)
+    expect(source).not.toMatch(/(UPDATE|REPLACE INTO|OR IGNORE INTO) er_fact\b/u)
+    expect(source.match(/DELETE FROM er_fact\b[^']*/gu)).toEqual([
+      'DELETE FROM er_fact WHERE tenant = ? AND execution = ?',
+    ])
   })
 
   it('the statements of a later publication carry as many bytes as an earlier one: nothing is rewritten', () => {
@@ -705,6 +710,7 @@ describe('the reads of the fact family', () => {
             revision: '1',
             receipt: evidence('agent/exe_2/1'),
             emittedThrough: '1',
+            acknowledged: '0',
             ended: null,
           },
         ],
@@ -721,6 +727,7 @@ describe('the reads of the fact family', () => {
             revision: '2',
             receipt: evidence('agent/exe_1/2'),
             emittedThrough: '3',
+            acknowledged: '0',
             ended: { sequence: '3', source: evidence('agent/exe_1/event/3') },
           },
         ],

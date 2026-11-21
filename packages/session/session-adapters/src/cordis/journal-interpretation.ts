@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
-import type { AgentExecutionId } from '@omne-harness/agent-contract'
+import type { AgentExecutionId, AgentJournal } from '@omne-harness/agent-contract'
+import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -20,8 +21,9 @@ import { sessionKey, sessionTransactionsKey } from '@omne-harness/session-cordis
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
-import { readExecutionInterpretation, type InterpretationRead } from './agent-journal.ts'
+import { readExecutionInterpretation, type InterpretationRead } from './journal-state.ts'
 import { subscribePublished } from './published-queue.ts'
+import { acknowledgeReceived, type ReceivedAllPorts } from './received-all.ts'
 
 const OWNER = 'session-adapters/journal-interpretation'
 const ROUNDS = 2
@@ -66,14 +68,14 @@ export type SessionJournalInterpretationInput<P> = Readonly<{
   retry?: JournalInterpretationRetry
 }>
 
-type Ports<P> = Readonly<{
-  readWork(access: SessionAccess<P>): Reply<WorkSnapshot>
-  read(
-    target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
-  ): Promise<InterpretationRead>
-  commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
-  stopped(): boolean
-}>
+type Ports<P> = ReceivedAllPorts<P> &
+  Readonly<{
+    read(
+      target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
+    ): Promise<InterpretationRead>
+    commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
+    stopped(): boolean
+  }>
 
 type Answer<T> = Outcome<T, SessionFailure>
 
@@ -183,6 +185,11 @@ function createJournalInterpretation<P>(
     const access = { principal: principal.ok, tenant: target.tenant, session: target.session }
     for (let left = ROUNDS; ; left -= 1) {
       const answer = await round(access, tenantText.value, target)
+      if ('ok' in answer)
+        await acknowledgeReceived(ports, access, {
+          tenantText: tenantText.value,
+          execution: target.execution,
+        })
       if ('ok' in answer || answer.failure.kind !== 'changed' || left <= 1) return answer
     }
   }
@@ -228,6 +235,7 @@ export function createSessionJournalInterpretationPlugin<P>(
         [sessionTransactionsKey]: null,
         [storageKey]: null,
         [tenantDomainLookupKey]: null,
+        [agentJournalKey]: null,
         [sessionKey]: { caller: 'coordinator' as const },
       },
       apply(ctx: Context) {
@@ -237,6 +245,7 @@ export function createSessionJournalInterpretationPlugin<P>(
         const transactions = ctx[sessionTransactionsKey]
         const storage = ctx[storageKey]
         const tenantDomainLookup = ctx[tenantDomainLookupKey]
+        const journal = ctx[agentJournalKey] as unknown as AgentJournal<P>
         const logger = ctx.logger(OWNER)
         const interpret = createJournalInterpretation<P>(input, {
           readWork: access => session.work.readWork(access),
@@ -245,6 +254,9 @@ export function createSessionJournalInterpretationPlugin<P>(
             transactions.commitLog === undefined
               ? Promise.resolve(unavailable('the Session transactions offer no commitLog'))
               : transactions.commitLog(value),
+          load: value => journal.load(value),
+          acknowledge: value => journal.acknowledge(value),
+          warn: line => logger.warn(line),
           stopped: () => stopped,
         })
         const guarded = async (target: JournalInterpretationTarget): Reply<JournalInterpreted> => {

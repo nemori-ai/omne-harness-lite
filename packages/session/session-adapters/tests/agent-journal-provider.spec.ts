@@ -36,7 +36,7 @@ import {
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import { succeed } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   SessionAccess,
   SessionAccessDecision,
@@ -1351,7 +1351,9 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
       checkpoint: s.checkpoint,
       installation: installation?.installation ?? null,
       acceptInput: async label => {
-        const interpreter = await cordisScene(s)
+        const interpreter = await cordisScene(s, {
+          acknowledge: () => async () => fail({ kind: 'unsupported' }),
+        })
         disposers.push(() => interpreter.dispose())
         const interpretation = createSessionJournalInterpretationPlugin<string>({
           coordinator: async () => succeed(s.access.principal),

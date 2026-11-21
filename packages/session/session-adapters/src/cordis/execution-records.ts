@@ -4,7 +4,7 @@ import type { SessionId } from '@omne-harness/session-contract'
 import { handoffKey, type AttachmentView, type HandoffView } from '../journal/index.ts'
 import type { HandoffRecord, MemoryExecution } from '../testing/journal.ts'
 import { attachmentsOf, handoffParts, handoffRefs } from '../testing/journal-records.ts'
-import { resolvedOf, type JournalStateSource } from './agent-journal.ts'
+import { resolvedOf, type JournalStateSource } from './journal-state.ts'
 import { fetchBlobClosure } from './block-read.ts'
 import { readItems, readOpenItems, type ItemScope } from './item-read.ts'
 import { blobRowDigest } from './journal-batch.ts'
@@ -55,6 +55,7 @@ export async function readExecutionRecords(
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
     const own = await readOpenItems(resolved.read, scope, ['exec', 'attachment'])
     if (own.kind === 'unavailable') return own
+    if (own.kind === 'settled') return { kind: 'read', execution: null }
     const exec = own.items.find(item => item.family === 'exec')?.body as
       | Readonly<{ opened: unknown }>
       | undefined

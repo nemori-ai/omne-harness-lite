@@ -1,6 +1,5 @@
 import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import type { FinishIntent } from '@omne-harness/agent-contract'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import type { JsonValue } from '@omne-harness/json-text'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -27,7 +26,6 @@ import { collectRuns } from '../src/session-view/project.ts'
 import type { CallAccount } from '../src/session-view/sources.ts'
 
 type P = ActingForTenantPrincipal
-type Fail<T> = Promise<Outcome<T, { kind: string }>>
 
 const parsedTenant = tenantCodec.parse(
   JSON.stringify({
@@ -119,6 +117,7 @@ const terminal = (
   run: string,
   outcome: 'completed' | 'failed' | 'cancelled',
   record: string | null = null,
+  end: unknown = null,
 ) =>
   entry(id, 'run.terminal', {
     terminal: { run, outcome, evidence: evidence('t') },
@@ -126,7 +125,9 @@ const terminal = (
     cause: record === null ? null : evidence(record),
     disposition: null,
     bounded: null,
+    end,
   })
+const failedWith = (failure: unknown, conclusion = 'fail') => ({ conclusion, failure })
 const message = (id: string, role: string, text: string) =>
   entry(id, `message.${role}`, { message: { role, blocks: [{ kind: 'text', text }] } })
 
@@ -250,30 +251,6 @@ function toolDouble(
     },
   }
   return { calls, toolQueries: toolQueries as never }
-}
-
-function agentDouble(answers: Record<string, Outcome<FinishIntent | null, { kind: string }>>) {
-  const reads: string[] = []
-  return {
-    reads,
-    agentJournal: {
-      readFinish: async (input: { execution: string }): Fail<FinishIntent | null> => {
-        reads.push(input.execution)
-        return answers[input.execution] ?? fail({ kind: 'denied', action: 'readFinish' })
-      },
-    } as never,
-  }
-}
-
-function intent(failure: unknown, conclusion: unknown = { kind: 'fail', cause: evidence('c') }) {
-  return {
-    candidate: 'op-f1',
-    conclusion,
-    inputWatermark: evidence('w'),
-    obligations: null,
-    beforeTerminal: null,
-    failure,
-  } as unknown as FinishIntent
 }
 
 const settledCall = (call: string, attempts?: unknown): Outcome<Lookup, never> =>
@@ -537,10 +514,9 @@ describe('the Run skeleton and the call branches', () => {
       { t1: toolAccount() },
       { t1: diagnostics },
     )
-    const agent = agentDouble({})
     const page = await project({
       entries: completedRun,
-      ports: { ...model, ...tool, ...agent },
+      ports: { ...model, ...tool },
     })
     expect(page.runs).toHaveLength(1)
     const run = page.runs[0]!
@@ -619,7 +595,6 @@ describe('the Run skeleton and the call branches', () => {
     expect(page.upper).toBe('9')
     expect(page.exhausted).toBe(true)
     expect(page.continueFrom).toBeNull()
-    expect(agent.reads).toEqual([])
     expect(model.calls.listed).toEqual(['c1'])
     expect(model.calls.dispatched).toEqual(['c1'])
     expect(tool.calls.diagnosed).toEqual([{ reference: 't1', after: null }])
@@ -656,7 +631,7 @@ describe('the Run skeleton and the call branches', () => {
         registered,
         terminal('e8', 'r1', 'completed'),
       ],
-      ports: { ...model, ...toolDouble({}, {}), ...agentDouble({}) },
+      ports: { ...model, ...toolDouble({}, {}) },
     })
     const run = page.runs[0]!
     expect(run.calls).toEqual({ registered: '1', projected: '1' })
@@ -784,22 +759,16 @@ describe('the Run skeleton and the call branches', () => {
     const entries = [
       started('e1', 'r1'),
       bound('e2', 'model', 'm2'),
-      terminal('e3', 'r1', 'failed', 'model-refused: denied'),
+      terminal(
+        'e3',
+        'r1',
+        'failed',
+        'model-refused: denied',
+        failedWith({ kind: 'model-refused', failure: 'denied' }),
+      ),
     ]
     const model = modelDouble({ m2: succeed({ kind: 'not-accepted', operation: 'op' }) as never })
-    const agent = agentDouble({
-      'exec-r1': succeed(
-        intent({
-          kind: 'model-refused',
-          call: 'c2',
-          failure: { kind: 'denied', action: 'admit' },
-          step: null,
-          at: '0',
-          source: evidence('f'),
-        }),
-      ),
-    })
-    const page = await project({ entries, ports: { ...model, ...agent } })
+    const page = await project({ entries, ports: { ...model } })
     const run = page.runs[0]!
     expect(run.terminal).toEqual({
       outcome: 'failed',
@@ -822,38 +791,26 @@ describe('the Run skeleton and the call branches', () => {
     const entries = [
       started('e1', 'r1'),
       bound('e2', 'model', 'm3'),
-      terminal('e3', 'r1', 'failed', 'no-reply'),
+      terminal(
+        'e3',
+        'r1',
+        'failed',
+        'no-reply',
+        failedWith({
+          kind: 'no-reply',
+          cause: 'upstream-unavailable',
+          upstreamStatus: '504',
+          diagnostic: 'in-band-error',
+        }),
+      ),
     ]
-    const fault = {
-      cause: 'upstream-unavailable',
-      diagnostic: 'in-band-error',
-      upstreamStatus: '504',
-    }
     const model = modelDouble(
       { m3: settledCall('c3') },
       {
         c3: dispatchPage({ kind: 'failed', cause: 'upstream-unavailable', upstreamStatus: '504' }),
       },
     )
-    const agent = agentDouble({
-      'exec-r1': succeed(
-        intent({
-          kind: 'no-reply',
-          call: 'c3',
-          result: {
-            producer: { kind: 'model', call: 'c3' },
-            version: 'v',
-            delivery: null,
-            source: evidence('r'),
-          },
-          fault,
-          step: null,
-          at: '0',
-          source: evidence('f'),
-        }),
-      ),
-    })
-    const page = await project({ entries, ports: { ...model, ...agent } })
+    const page = await project({ entries, ports: { ...model } })
     const run = page.runs[0]!
     const structured = run.terminal?.cause.structured
     expect(structured).toEqual({
@@ -874,17 +831,17 @@ describe('the Run skeleton and the call branches', () => {
     expect(JSON.stringify(page)).not.toContain('in-band-error')
   })
 
-  it('reads the finish of a cancelled Run and writes no-failure with the conclusion', async () => {
-    const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'cancelled', 'cancelled by user')]
-    const agent = agentDouble({
-      'exec-r1': succeed(intent(null, { kind: 'cancelled', cause: evidence('x') })),
-    })
-    const page = await project({ entries, ports: { ...agent } })
+  it('reads the end of a cancelled Run from its terminal entry and writes no-failure with the conclusion', async () => {
+    const entries = [
+      started('e1', 'r1'),
+      terminal('e2', 'r1', 'cancelled', 'cancelled by user', failedWith(null, 'cancelled')),
+    ]
+    const page = await project({ entries, ports: {} })
     expect(page.runs[0]!.terminal?.cause.structured).toEqual({
       kind: 'no-failure',
       conclusion: 'cancelled',
     })
-    expect(agent.reads).toEqual(['exec-r1'])
+    expect(page.gaps).toEqual([])
   })
 })
 
@@ -907,15 +864,14 @@ describe('gaps', () => {
       },
       { 't-unavailable': toolAccount() },
     )
-    const agent = agentDouble({ 'exec-r1': fail({ kind: 'unsupported' }) })
-    const page = await project({ entries, ports: { ...model, ...tool, ...agent } })
+    const page = await project({ entries, ports: { ...model, ...tool } })
     expect(page.gaps).toEqual([
-      { source: 'agent', subject: 'exec-r1', reason: 'unsupported' },
+      { source: 'session', subject: 'r1', reason: 'not-recorded' },
       { source: 'model', subject: 'm-denied', reason: 'denied' },
       { source: 'tool', subject: 't-unavailable', reason: 'unavailable' },
     ])
     const run = page.runs[0]!
-    expect(run.terminal?.cause.structured).toEqual({ kind: 'unknown', reason: 'unsupported' })
+    expect(run.terminal?.cause.structured).toEqual({ kind: 'unknown', reason: 'not-recorded' })
     expect(run.modelCalls[0]!.call).toEqual({ kind: 'unknown', reason: 'denied' })
     expect(run.toolCalls[0]!.state).toEqual({ kind: 'unknown', reason: 'unavailable' })
     expect(run.toolCalls[0]!.account).toMatchObject({ kind: 'account', receipt: 'received' })
@@ -977,24 +933,6 @@ describe('gaps', () => {
       })
       expect(page.gaps).toEqual([{ source: 'tool', subject: 't1', reason }])
     })
-
-    it.each([
-      [{ kind: 'invalid', field: 'execution', reason: 'not an execution' }, 'not-found'],
-      [{ kind: 'invalid', field: 'tenant', reason: 'x' }, 'unavailable'],
-      [{ kind: 'stale-advance' }, 'unavailable'],
-      [{ kind: 'not-ready' }, 'unavailable'],
-      [{ kind: 'terminal' }, 'unavailable'],
-      [{ kind: 'busy' }, 'unavailable'],
-      [{ kind: 'changed' }, 'unavailable'],
-      [{ kind: 'commit-unknown', operation: 'op' }, 'unavailable'],
-      [{ kind: 'conflict', operation: 'op' }, 'unavailable'],
-    ] as const)('Agent readFinish %j -> %s', async (failure, reason) => {
-      const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'failed', 'x')]
-      const agent = agentDouble({ 'exec-r1': fail(failure) })
-      const page = await project({ entries, ports: { ...agent } })
-      expect(page.runs[0]!.terminal?.cause.structured).toEqual({ kind: 'unknown', reason })
-      expect(page.gaps).toEqual([{ source: 'agent', subject: 'exec-r1', reason }])
-    })
   })
 
   it('turns a throwing source into an unavailable gap without failing the page', async () => {
@@ -1013,17 +951,17 @@ describe('gaps', () => {
     expect(page.runs[0]!.terminal).toBeNull()
   })
 
-  it.each([
-    ['no agent port', {}],
-    ['an agent port without readFinish', { agentJournal: {} as never }],
-  ])('writes an unknown cause with reason unsupported given %s', async (_name, ports) => {
-    const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'failed', 'x')]
-    const page = await project({ entries, ports })
+  it('writes an end the terminal entry names in no known form as unknown unsupported', async () => {
+    const entries = [
+      started('e1', 'r1'),
+      terminal('e2', 'r1', 'failed', 'x', failedWith({ kind: 'exotic' })),
+    ]
+    const page = await project({ entries, ports: {} })
     expect(page.runs[0]!.terminal?.cause.structured).toEqual({
       kind: 'unknown',
       reason: 'unsupported',
     })
-    expect(page.gaps).toEqual([{ source: 'agent', subject: 'exec-r1', reason: 'unsupported' }])
+    expect(page.gaps).toEqual([])
   })
 
   it('writes unsupported gaps for the Model and Tool branches when their ports are absent', async () => {
@@ -1095,36 +1033,22 @@ describe('gaps', () => {
 
 describe('what never reaches the view', () => {
   it('carries no fault diagnostic, message body, tool argument or account place', async () => {
-    const entries = [...completedRun.slice(0, 7), terminal('e8', 'r1', 'failed', 'no-reply')]
-    const fault = {
+    const failure = {
+      kind: 'no-reply',
       cause: 'stream-lost',
       diagnostic: 'SECRET-FAULT-DIAGNOSTIC',
       upstreamStatus: null,
     }
+    const entries = [
+      ...completedRun.slice(0, 7),
+      terminal('e8', 'r1', 'failed', 'no-reply', failedWith(failure)),
+    ]
     const model = modelDouble(
       { m1: settledCall('c1') },
       { c1: dispatchPage({ kind: 'failed', cause: 'stream-lost', upstreamStatus: null }) },
     )
     const tool = toolDouble({ t1: settledTool('tool-1') }, { t1: toolAccount() })
-    const agent = agentDouble({
-      'exec-r1': succeed(
-        intent({
-          kind: 'no-reply',
-          call: 'c1',
-          result: {
-            producer: { kind: 'model', call: 'c1' },
-            version: 'v',
-            delivery: null,
-            source: evidence('r'),
-          },
-          fault,
-          step: null,
-          at: '0',
-          source: evidence('f'),
-        }),
-      ),
-    })
-    const page = await project({ entries, ports: { ...model, ...tool, ...agent } })
+    const page = await project({ entries, ports: { ...model, ...tool } })
     const text = JSON.stringify({ runs: page.runs, gaps: page.gaps })
     for (const secret of [
       'SECRET-FAULT-DIAGNOSTIC',
@@ -1216,27 +1140,24 @@ describe('read only', () => {
 })
 
 describe('the values the owners give', () => {
-  it('writes a finish Agent has not recorded as unknown not-recorded, with the gap', async () => {
+  it('writes a terminal entry without the end as unknown not-recorded, with the gap', async () => {
     const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'failed', 'x')]
-    const agent = agentDouble({ 'exec-r1': succeed(null) })
-    const page = await project({ entries, ports: { ...agent } })
+    const page = await project({ entries, ports: {} })
     expect(page.runs[0]!.terminal?.cause.structured).toEqual({
       kind: 'unknown',
       reason: 'not-recorded',
     })
-    expect(page.gaps).toEqual([{ source: 'agent', subject: 'exec-r1', reason: 'not-recorded' }])
+    expect(page.gaps).toEqual([{ source: 'session', subject: 'r1', reason: 'not-recorded' }])
   })
 
   it.each([
     [
-      {
-        kind: 'node-failed',
-        node: 'E4',
-        category: 'invariant',
-        failureKind: 'unavailable',
-        diagnostic: 'secret raw exception',
-      },
       { kind: 'node-failed', node: 'E4', category: 'invariant', failureKind: 'unavailable' },
+      { kind: 'node-failed', node: 'E4', category: 'invariant', failureKind: 'unavailable' },
+    ],
+    [
+      { kind: 'node-failed', node: 'E4', category: 'elsewhere', failureKind: 'unavailable' },
+      { kind: 'unknown', reason: 'unsupported' },
     ],
     [
       { kind: 'cannot-fit', reason: 'after-compaction' },
@@ -1269,21 +1190,20 @@ describe('the values the owners give', () => {
     ],
     [{ kind: 'extension-stop', diagnostic: 'private-failure-text' }, { kind: 'extension-stop' }],
     [
-      { kind: 'model-refused', call: 'c1', failure: { kind: 'exotic' } },
+      { kind: 'model-refused', failure: 'exotic' },
       { kind: 'model-refused', failure: { kind: 'unknown', reason: 'unsupported' } },
     ],
     [
-      { kind: 'model-refused', call: 'c1', failure: { kind: 'denied', action: 'admit' } },
+      { kind: 'model-refused', failure: 'denied' },
       { kind: 'model-refused', failure: 'denied' },
     ],
     [
-      { kind: 'no-reply', call: 'c1' },
+      { kind: 'no-reply', cause: null, upstreamStatus: null, diagnostic: null },
       { kind: 'no-reply', cause: null, upstreamStatus: null },
     ],
   ])('writes the closed fields of the failure %j as %j', async (failure, structured) => {
-    const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'failed', 'x')]
-    const agent = agentDouble({ 'exec-r1': succeed(intent(failure)) })
-    const page = await project({ entries, ports: { ...agent } })
+    const entries = [started('e1', 'r1'), terminal('e2', 'r1', 'failed', 'x', failedWith(failure))]
+    const page = await project({ entries, ports: {} })
     expect(page.runs[0]!.terminal?.cause.structured).toEqual(structured)
     expect(page.gaps).toEqual([])
   })

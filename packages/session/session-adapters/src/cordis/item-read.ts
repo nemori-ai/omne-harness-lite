@@ -33,6 +33,8 @@ export type ItemsRead =
   | Readonly<{ kind: 'read'; published: number; items: readonly ExecutionItem[] }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
+export type OpenItemsRead = ItemsRead | Readonly<{ kind: 'settled'; published: number }>
+
 const unread = (diagnostic: string): ItemsRead => ({ kind: 'unavailable', diagnostic })
 
 export function contentsOf(items: readonly ExecutionItem[], into: Map<string, string>): void {
@@ -52,7 +54,7 @@ export async function readOpenItems(
   families: readonly string[] | null,
   all = false,
   under: string | null = null,
-): Promise<ItemsRead> {
+): Promise<OpenItemsRead> {
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
     let after: ExecutionItemKey | null = null
     let published: string | null = null
@@ -71,6 +73,7 @@ export async function readOpenItems(
       if (page === null) return unread('the open items of the execution do not decode')
       if (page.kind === 'denied') return { kind: 'read', published: 0, items: [] }
       if (page.kind === 'missing') return unread('the Agent records of the session are older')
+      if (page.kind === 'settled') return { kind: 'settled', published: Number(page.published) }
       if (published !== null && page.published !== published) break
       published = page.published
       items.push(...page.items)
@@ -102,6 +105,7 @@ async function readItemsPage(
   if (found === null) return unread('the items of the execution do not decode')
   if (found.kind === 'denied') return { kind: 'read', published: 0, items: [] }
   if (found.kind === 'missing') return unread('the Agent records of the session are older')
+  if (found.kind === 'settled') return { kind: 'read', published: 0, items: [] }
   return { kind: 'page', published: found.published, items: found.items, rest: found.rest }
 }
 
@@ -165,10 +169,11 @@ async function readAsked(
   for (const ref of wanted.filter(ref => ref.under === true)) {
     const found = await readOpenItems(read, scope, [ref.family], true, ref.item)
     if (found.kind === 'unavailable') return found.diagnostic
-    items.push(...found.items)
+    const held = found.kind === 'settled' ? [] : found.items
+    items.push(...held)
     lender.fetched.set(
       underText(ref),
-      found.items.map(item => item.item),
+      held.map(item => item.item),
     )
   }
   return items
@@ -274,6 +279,7 @@ export type OpenViewRead =
       published: number
       views: readonly ExecutionView[]
       full: readonly ExecutionView[]
+      settled: readonly string[]
       contents: ReadonlyMap<string, string>
     }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
@@ -288,18 +294,27 @@ export async function readOpenView(
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
     const views: ExecutionView[] = []
     const full: ExecutionView[] = []
+    const settled: string[] = []
     const contents = new Map<string, string>()
     let head: number | null = null
     let moved = false
     for (const execution of executions) {
       let found = await readOpenItems(read, { ...scope, execution }, null)
       if (found.kind === 'unavailable') return found
+      if (found.kind === 'settled') {
+        settled.push(execution)
+        continue
+      }
       if (found.items.length === 0) continue
       const id = execution as AgentExecutionId
       let finishes = finishing(viewOfItems(id, found.items))
       if (finishes) {
         found = await readOpenItems(read, { ...scope, execution }, null, true)
         if (found.kind === 'unavailable') return found
+        if (found.kind === 'settled') {
+          settled.push(execution)
+          continue
+        }
         finishes = finishing(viewOfItems(id, found.items))
       }
       if (head !== null && found.published !== head) {
@@ -316,7 +331,8 @@ export async function readOpenView(
       )
       if (finishes) full.push(viewOfItems(id, found.items))
     }
-    if (!moved) return { kind: 'read', published: head ?? published, views, full, contents }
+    if (!moved)
+      return { kind: 'read', published: head ?? published, views, full, settled, contents }
   }
   return {
     kind: 'unavailable',

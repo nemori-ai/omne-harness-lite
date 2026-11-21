@@ -87,6 +87,7 @@ export function boundariesOf(
         revision: String(execution.revision),
         receipt,
         emittedThrough: String(execution.events.length),
+        acknowledged: String(execution.acknowledged),
         ended:
           last !== undefined && last.body.kind === 'ended'
             ? { sequence: last.sequence, source: last.cause }

@@ -1,4 +1,5 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
+import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { createSessionJournalInterpretationPlugin } from '@omne-harness/session-adapters/cordis'
 import {
   sessionKey,
@@ -15,6 +16,7 @@ const INJECTS = [
   sessionTransactionsKey,
   storageKey,
   tenantDomainLookupKey,
+  agentJournalKey,
 ]
 
 const plugin: Plugin.Object = {

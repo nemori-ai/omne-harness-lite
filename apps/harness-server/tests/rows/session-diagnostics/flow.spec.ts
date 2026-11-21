@@ -26,6 +26,8 @@ import {
   type ServerHandle,
   type ServerOutcome,
 } from '../../r9/support.ts'
+import { executionRecords } from '../../support/execution-records.ts'
+import { pollUntil } from '../../support/release-tree.ts'
 import { readFileSync } from 'node:fs'
 import {
   answer504,
@@ -170,6 +172,12 @@ describe('session diagnostics over real processes: the two smoke failures', () =
       sessions.upstream = await createSession(bob)
       await sendInput(bob, sessions.upstream, 'the upstream answers 504')
 
+      await untilRunEnded(bob, sessions.upstream, RUN_END_TIMEOUT_MS)
+      await pollUntil(
+        'every ended execution to settle and leave its records',
+        () => executionRecords(scratch.storageRoot),
+        records => records.settled >= 1 && records.unsettled === 0 && records.facts === 0,
+      )
       const { run, body } = await untilRunEnded(bob, sessions.upstream, RUN_END_TIMEOUT_MS)
       expect(run['terminal']).toMatchObject({ outcome: 'failed' })
       expect(structuredCauseOf(run)).toEqual({

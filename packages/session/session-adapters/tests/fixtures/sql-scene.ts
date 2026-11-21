@@ -19,6 +19,7 @@ import type {
   SessionCommand,
   SessionFaces,
   SessionTransactionPort,
+  WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
@@ -669,6 +670,10 @@ export type CordisSceneOptions = Readonly<{
     inner: NonNullable<SessionTransactionPort<string>['commitLog']>,
   ) => NonNullable<SessionTransactionPort<string>['commitLog']>
   transactions?: 'absent'
+  acknowledge?: (
+    inner: AgentJournal<unknown>['acknowledge'],
+  ) => AgentJournal<unknown>['acknowledge']
+  work?: (snapshot: WorkSnapshot) => WorkSnapshot
 }>
 
 export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {}) {
@@ -712,8 +717,15 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
         typeof caller === 'string' && !admitted[operation].includes(caller)
           ? (Promise.resolve(fail({ kind: 'denied', action: operation })) as Promise<T>)
           : read(input)
+    const shown = options.work
     return {
-      readWork: gate('readWork', s.port.readWork),
+      readWork: gate('readWork', (input: Parameters<typeof s.port.readWork>[0]) =>
+        s.port
+          .readWork(input)
+          .then(answer =>
+            'ok' in answer && shown !== undefined ? { ok: shown(answer.ok) } : answer,
+          ),
+      ),
       readCurrentScope: gate('readCurrentScope', s.port.readCurrentScope),
       readCall: gate('readWork', s.port.readCall),
       readModelSelection: gate('readModelSelection', s.port.readModelSelection),
@@ -756,7 +768,18 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
   await mount(Access)
   await mount(Session)
   if (options.transactions !== 'absent') await mount(Transactions)
-  const journal = await mount(SessionLogAgentJournalProvider, s.combination)
+  const acknowledging = options.acknowledge
+  class Journal extends SessionLogAgentJournalProvider {
+    constructor(
+      scope: Context,
+      config: ConstructorParameters<typeof SessionLogAgentJournalProvider>[1],
+    ) {
+      super(scope, config)
+      if (acknowledging !== undefined)
+        Object.defineProperty(this, 'acknowledge', { value: acknowledging(this.acknowledge) })
+    }
+  }
+  const journal = await mount(Journal, s.combination)
   const face = <T>(key: string) => {
     const found: unknown = ctx.get(key)
     if (found === undefined) throw new Error(`${key} is not provided`)

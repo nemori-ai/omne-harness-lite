@@ -1,4 +1,3 @@
-import type { FinishIntent } from '@omne-harness/agent-contract'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
   DispatchInstants,
@@ -52,6 +51,16 @@ const CONTROL_STATES = ['committed', 'propagating', 'reconciled'] as const
 const CALL_KINDS = ['model', 'tool'] as const
 const REFUSALS = ['denied', 'invalid', 'unsupported', 'capacity'] as const
 const FIT_REASONS = ['fixed', 'protected-floor', 'after-compaction'] as const
+const NODE_CATEGORIES = ['exception', 'invariant', 'unsupported-path', 'rejected'] as const
+const CONCLUSIONS = ['complete', 'fail', 'cancelled'] as const
+const PLAIN_FAILURES = [
+  'request-rejected',
+  'compaction-invalid',
+  'compaction-failed',
+  'message-rejected',
+  'extension-stop',
+  'guard',
+] as const
 const RELEASE_REASONS = ['ended', 'bounded', 'cancelled', 'released', 'superseded'] as const
 
 function member(value: JsonValue | undefined, key: string): JsonValue | undefined {
@@ -103,6 +112,7 @@ export type RunSkeleton = Readonly<{
   terminal: Readonly<{
     outcome: 'completed' | 'failed' | 'cancelled'
     record: string | null
+    end: JsonValue | null
   }> | null
   calls: readonly CallRegistration[]
   messages: ReadonlyMap<string, number>
@@ -194,8 +204,13 @@ const FOLDERS: Readonly<Record<string, Folder>> = {
   },
   'run.terminal': (draft, entry) => {
     const outcome = oneOf(textAt(entry.payload, 'terminal', 'outcome'), RUN_OUTCOMES)
-    if (outcome !== undefined)
-      draft.terminal = { outcome, record: textAt(entry.payload, 'cause', 'record') ?? null }
+    if (outcome === undefined) return
+    const end = member(entry.payload, 'end')
+    draft.terminal = {
+      outcome,
+      record: textAt(entry.payload, 'cause', 'record') ?? null,
+      end: end === undefined || end.kind === 'null' ? null : end,
+    }
   },
   'control.requested': (draft, entry) => {
     draft.controls.push(controlOf(entry, 'requested'))
@@ -285,7 +300,6 @@ export type ToolAnswers = Readonly<{
   diagnostics: SourceAnswer<DiagnosticPage>
 }>
 export type RunAnswers = Readonly<{
-  finish: SourceAnswer<FinishIntent | null> | null
   models: ReadonlyMap<string, ModelAnswers>
   tools: ReadonlyMap<string, ToolAnswers>
 }>
@@ -296,49 +310,53 @@ const unknown = (reason: SessionDiagnosticUnknown['reason']): SessionDiagnosticU
   reason,
 })
 
-function causeOf(finish: RunAnswers['finish']): SessionRunCause {
-  if (finish === null) return { kind: 'none' }
-  if (finish.kind === 'gap') return unknown(finish.reason)
-  const intent = finish.value
-  if (intent === null) return unknown('not-recorded')
-  const { failure } = intent
-  if (failure === null) return { kind: 'no-failure', conclusion: intent.conclusion.kind }
-  switch (failure.kind) {
-    case 'node-failed':
-      return {
-        kind: 'node-failed',
-        node: failure.node,
-        category: failure.category,
-        failureKind: failure.failureKind,
-      }
+const textOrNull = (value: JsonValue | undefined, key: string): string | null =>
+  textAt(value, key) ?? null
+
+function failureOf(failure: JsonValue): SessionRunCause {
+  const kind = textAt(failure, 'kind')
+  switch (kind) {
+    case 'node-failed': {
+      const category = oneOf(textAt(failure, 'category'), NODE_CATEGORIES)
+      const node = textAt(failure, 'node')
+      const failureKind = textAt(failure, 'failureKind')
+      return category === undefined || node === undefined || failureKind === undefined
+        ? unknown('unsupported')
+        : { kind, node, category, failureKind }
+    }
     case 'model-refused':
       return {
-        kind: 'model-refused',
-        failure: oneOf(failure.failure.kind, REFUSALS) ?? unknown('unsupported'),
+        kind,
+        failure: oneOf(textAt(failure, 'failure'), REFUSALS) ?? unknown('unsupported'),
       }
     case 'no-reply':
       return {
-        kind: 'no-reply',
-        cause: failure.fault?.cause ?? null,
-        upstreamStatus: failure.fault?.upstreamStatus ?? null,
+        kind,
+        cause: textOrNull(failure, 'cause'),
+        upstreamStatus: textOrNull(failure, 'upstreamStatus'),
       }
     case 'cannot-fit':
       return {
-        kind: 'cannot-fit',
-        reason: oneOf(failure.reason, FIT_REASONS) ?? unknown('unsupported'),
+        kind,
+        reason: oneOf(textAt(failure, 'reason'), FIT_REASONS) ?? unknown('unsupported'),
       }
-    case 'request-rejected':
-    case 'compaction-invalid':
-    case 'compaction-failed':
-    case 'message-rejected':
-    case 'extension-stop':
-    case 'guard':
-      return { kind: failure.kind }
     default: {
-      const exhaustive: never = failure
-      return exhaustive
+      const plain = oneOf(kind, PLAIN_FAILURES)
+      return plain === undefined ? unknown('unsupported') : { kind: plain }
     }
   }
+}
+
+function causeOf(terminal: NonNullable<RunSkeleton['terminal']>): SessionRunCause {
+  if (terminal.outcome === 'completed') return { kind: 'none' }
+  const { end } = terminal
+  if (end === null) return unknown('not-recorded')
+  const failure = member(end, 'failure')
+  if (failure === undefined || failure.kind === 'null') {
+    const conclusion = oneOf(textAt(end, 'conclusion'), CONCLUSIONS)
+    return conclusion === undefined ? unknown('unsupported') : { kind: 'no-failure', conclusion }
+  }
+  return failureOf(failure)
 }
 
 const millisecondsOf = (
@@ -658,10 +676,9 @@ export function projectRun(
   answers: RunAnswers,
 ): Projected<SessionRunDiagnostic> {
   const gaps: SessionDiagnosticGap[] = []
-  if (answers.finish?.kind === 'gap')
-    gaps.push({ source: 'agent', subject: skeleton.execution, reason: answers.finish.reason })
-  else if (answers.finish?.kind === 'value' && answers.finish.value === null)
-    gaps.push({ source: 'agent', subject: skeleton.execution, reason: 'not-recorded' })
+  const ending = skeleton.terminal
+  if (ending !== null && ending.outcome !== 'completed' && ending.end === null)
+    gaps.push({ source: 'session', subject: skeleton.run, reason: 'not-recorded' })
   const calls = skeleton.calls.slice(0, projected)
   const facts = attributeFacts(skeleton, calls)
   const modelCalls: SessionModelCallDiagnostic[] = []
@@ -694,7 +711,7 @@ export function projectRun(
           ? null
           : {
               outcome: terminal.outcome,
-              cause: { record: terminal.record, structured: causeOf(answers.finish) },
+              cause: { record: terminal.record, structured: causeOf(terminal) },
             },
       calls: { registered: String(skeleton.calls.length), projected: String(projected) },
       modelCalls,

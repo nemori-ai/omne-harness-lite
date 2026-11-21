@@ -71,10 +71,12 @@ export function itemScope(
   if (gate.kind !== 'held') return { kind: 'answer', answer: gate }
   const owner = oneRow(
     port,
-    'SELECT session FROM er_execution WHERE tenant = ? AND execution = ? LIMIT 1',
+    'SELECT session, settled FROM er_execution WHERE tenant = ? AND execution = ? LIMIT 1',
     [scope.tenant, execution],
   )
   if (owner !== undefined && text(owner['session']) !== scope.session)
     return { kind: 'answer', answer: { kind: 'denied' } }
+  if (owner !== undefined && owner['settled'] !== null)
+    return { kind: 'answer', answer: { kind: 'settled', published: String(gate.published) } }
   return { kind: 'scope', scope, execution, published: gate.published }
 }

@@ -46,6 +46,7 @@ import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
 import { entriesAfter, entriesBatch, progressOf, savedProgress } from './entries-window.ts'
 import { subscribePublished } from './published-queue.ts'
+import { acknowledgeReceived, type ReceivedAllPorts } from './received-all.ts'
 
 const OWNER = 'session-adapters/tool-log'
 const CHANNEL = 'tool-received'
@@ -444,6 +445,23 @@ function createToolLogConsumption(
   }
 }
 
+function acknowledgingCommitted(
+  consume: (target: ToolLogTarget) => Reply<ToolLogConsumed>,
+  ports: ReceivedAllPorts<unknown>,
+): (target: ToolLogTarget) => Reply<ToolLogConsumed> {
+  return async target => {
+    const answer = await consume(target)
+    const tenantText = tenantCodec.encode(target.tenant)
+    if ('ok' in answer && answer.ok.committed && tenantText.ok)
+      await acknowledgeReceived(
+        ports,
+        { principal: target.principal, tenant: target.tenant, session: target.session },
+        { tenantText: tenantText.value, execution: target.execution },
+      )
+    return answer
+  }
+}
+
 type Issue = Readonly<{ message: string; path: readonly string[] }>
 
 function parseConfig(
@@ -494,22 +512,24 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
         const materials = ctx[agentMaterialsKey]
         const transactions = ctx[sessionTransactionsKey]
         const logger = ctx.logger(OWNER)
-        const consume = createToolLogConsumption(
-          input,
-          {
-            readWork: access => session.work.readWork(access),
-            readCall: (access, producer) => session.work.readCall({ ...access, producer }),
-            load: value => journal.load(value),
-            entries: value => entries.read(value),
-            receivedOf: value => entries.receivedOf(value),
-            read: value => materials.read(value),
-            commitEntries: value => transactions.commitEntries(value),
-            stopped: () => stopped,
-          },
-          {
+        const ports: Ports & ReceivedAllPorts<unknown> = {
+          readWork: access => session.work.readWork(access),
+          readCall: (access, producer) => session.work.readCall({ ...access, producer }),
+          load: value => journal.load(value),
+          acknowledge: value => journal.acknowledge(value),
+          warn: line => logger.warn(line),
+          entries: value => entries.read(value),
+          receivedOf: value => entries.receivedOf(value),
+          read: value => materials.read(value),
+          commitEntries: value => transactions.commitEntries(value),
+          stopped: () => stopped,
+        }
+        const consume = acknowledgingCommitted(
+          createToolLogConsumption(input, ports, {
             timeoutMs: config?.timeoutMs ?? TIMEOUT_MS,
             retryBackoffMs: config?.retryBackoffMs ?? RETRY_BACKOFF_MS,
-          },
+          }),
+          ports,
         )
         const guarded = async (target: ToolLogTarget): Reply<ToolLogConsumed> => {
           try {

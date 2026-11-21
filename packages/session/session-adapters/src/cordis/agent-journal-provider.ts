@@ -60,10 +60,7 @@ const LOGGER = 'session-adapters/agent-journal'
 const ROUTE_CACHE_ENTRIES = 4096
 
 export type ExecutionRoutedJournalOptions<P> = SessionLogJournalOptions<P> &
-  Readonly<{
-    routeCacheEntries?: number
-    published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
-  }>
+  Readonly<{ routeCacheEntries?: number }>
 
 type Journal<P> = AgentJournal<P>
 type RoutedJournal<P> = Journal<P> & Required<Pick<Journal<P>, 'readFinish'>>

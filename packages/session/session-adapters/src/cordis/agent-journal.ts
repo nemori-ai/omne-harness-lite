@@ -29,8 +29,6 @@ import {
   type SessionCommand,
   type SessionFailure,
   type SessionId,
-  type SessionControlEvidence,
-  type SessionLogConsequence,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
@@ -69,6 +67,7 @@ import {
   emptySessionView,
   receiptOf as batchReceiptOf,
   type ParticipationKind,
+  settled as settledView,
   type PublishedBatch,
   type RequestView,
   type SessionJournalView,
@@ -132,7 +131,6 @@ import {
 import { projectRecords, type ProjectionContext } from '../testing/journal-records.ts'
 import {
   readBlob,
-  readEvents,
   readOpenExecutions,
   readTouched,
   readOperation,
@@ -143,6 +141,8 @@ import {
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
 import { createModelTelling, type ModelReminders } from './model-telling.ts'
+import { createTenantSweep, evict, forget, reclaimedCommit } from './settled-executions.ts'
+import { resolveDomain } from './journal-state.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -154,6 +154,7 @@ export type SessionLogJournalOptions<P> = Readonly<{
   fault?: Fault
   report?: (report: JournalPublicationReport) => void
   reminders?: ModelReminders<P> | undefined
+  published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
 }>
 
 export type JournalPublicationReport = Readonly<{
@@ -230,6 +231,7 @@ type Book<P> = {
   copy: Copy<P> | null
   published: number | null
   readonly loaded: Set<string>
+  readonly settled: Set<string>
   scratch: Scratch | null
   queue: Promise<void>
   users: number
@@ -325,99 +327,6 @@ export function materialSessionOf(
     : null
 }
 
-export type InterpretableEvent = Readonly<{
-  sequence: string
-  source: DurableEvidence
-  consequences: readonly SessionLogConsequence[] | null
-  control: SessionControlEvidence | null
-}>
-
-export type ExecutionInterpretation = Readonly<{
-  revision: string
-  head: DurableEvidence
-  emittedThrough: string
-  events: readonly InterpretableEvent[]
-}>
-
-export type InterpretationRead =
-  | Readonly<{ kind: 'read'; execution: ExecutionInterpretation | null }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-
-type DomainResolution =
-  | Readonly<{ kind: 'ready'; domain: DomainRef }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-
-async function resolveDomain(
-  lookup: TenantDomainLookup,
-  tenant: string,
-): Promise<DomainResolution> {
-  let found
-  try {
-    found = await lookup.lookup({ tenant })
-  } catch (error) {
-    return { kind: 'unavailable', diagnostic: `the tenant domain lookup threw: ${String(error)}` }
-  }
-  if (found.kind === 'ready') return { kind: 'ready', domain: found.domain }
-  return {
-    kind: 'unavailable',
-    diagnostic:
-      found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
-  }
-}
-
-export type JournalStateSource = Readonly<{
-  storage: SqlStorage
-  tenantDomainLookup: TenantDomainLookup
-}>
-
-type Resolved = Readonly<{ domain: DomainRef; tenant: string; read: Reader }>
-
-export async function resolvedOf(
-  options: JournalStateSource,
-  tenant: TenantId,
-): Promise<Resolved | Readonly<{ kind: 'unavailable'; diagnostic: string }>> {
-  const text = tenantCodec.encode(tenant)
-  if (!text.ok)
-    return { kind: 'unavailable', diagnostic: 'the tenant was not minted by legal-identity' }
-  const resolved = await resolveDomain(options.tenantDomainLookup, text.value)
-  if (resolved.kind === 'unavailable') return resolved
-  return {
-    domain: resolved.domain,
-    tenant: text.value,
-    read: readerOf(options.storage, resolved.domain),
-  }
-}
-
-export async function readExecutionInterpretation(
-  options: JournalStateSource,
-  target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
-): Promise<InterpretationRead> {
-  const resolved = await resolvedOf(options, target.tenant)
-  if ('kind' in resolved) return resolved
-  const read = await readEvents(
-    resolved.read,
-    { tenant: resolved.tenant, session: target.session },
-    target.execution,
-    target.after,
-  )
-  if (read.kind === 'absent') return { kind: 'read', execution: null }
-  if (read.kind === 'unavailable') return read
-  return {
-    kind: 'read',
-    execution: {
-      revision: read.revision,
-      head: read.receipt as unknown as DurableEvidence,
-      emittedThrough: read.emittedThrough,
-      events: read.events.map(event => ({
-        sequence: event.sequence,
-        source: event.source as unknown as DurableEvidence,
-        consequences: event.consequences as unknown as readonly SessionLogConsequence[] | null,
-        control: event.control as unknown as SessionControlEvidence | null,
-      })),
-    },
-  }
-}
-
 // The views of these executions as the store holds them open, in place of what the book held.
 function adopt<P>(
   book: Book<P>,
@@ -433,6 +342,10 @@ function adopt<P>(
       if (key.startsWith(`${view.execution}\0`)) book.origins.delete(key)
   }
   for (const view of found.full) book.full.set(view.execution, view)
+  for (const execution of found.settled) {
+    executions.delete(execution as AgentExecutionId)
+    forget(book, execution)
+  }
   book.view = { head: Math.max(book.view.head, published), executions }
   book.published = Math.max(book.published ?? 0, published)
   book.copy = null
@@ -556,6 +469,7 @@ type Published<P, T> = Readonly<{
   after: CommonRoot
   prepared: Prepared
   execution: string
+  settles: boolean
   written: Written
   prior: ExecutionRevision | null
   scratch: Scratch
@@ -629,6 +543,35 @@ function finishChanged<P, T>(job: Settling<P, T>): Settled<T> {
   return { kind: 'answer', value: succeed(changed) as Outcome<T, Failure> }
 }
 
+async function queryCold<P>(
+  book: Book<P>,
+  input: Parameters<AgentJournal<P>['query']>[0],
+  answer: Awaited<ReturnType<AgentJournal<P>['query']>>,
+  using: Readonly<{
+    domain: () => Promise<Outcome<DomainRef, Failure>>
+    storage: SqlStorage
+    mint: Parameters<typeof batchReceiptOf>[0]
+  }>,
+): Promise<typeof answer> {
+  const terminal = 'failure' in answer && answer.failure.kind === 'terminal'
+  if (!terminal && ('failure' in answer || answer.ok.kind !== 'unknown')) return answer
+  const domain = await using.domain()
+  if ('failure' in domain) return answer
+  const found = await readOperation(
+    readerOf(using.storage, domain.ok),
+    book.tenantText,
+    storageOperation(input.execution, input.operation) as AgentOperationId,
+  )
+  if (found.kind !== 'read' && found.kind !== 'reclaimed') return answer
+  if (found.session !== book.session || found.execution !== input.execution) return answer
+  if (found.kind === 'reclaimed') return reclaimedCommit<P>(input, found) ?? answer
+  if (terminal || found.batch.batch === null) return answer
+  return succeed({
+    kind: 'committed',
+    receipt: batchReceiptOf(using.mint, book.view, found.batch.batch),
+  })
+}
+
 export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>) {
   const books = new Map<string, Book<P>>()
   const counts = publishedCountsOf(options.storage)
@@ -656,6 +599,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         copy: null,
         published: null,
         loaded: new Set(),
+        settled: new Set(),
         scratch: null,
         queue: Promise.resolve(),
         users: 0,
@@ -688,6 +632,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         resting.blobs.clear()
         resting.parsed.clear()
         resting.loaded.clear()
+        resting.settled.clear()
         resting.full.clear()
       }
       resting = null
@@ -708,11 +653,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return run
   }
 
+  const sweepOnOpen = createTenantSweep({ ...options, generations })
+
   async function domainOf(book: Book<P>): Promise<Outcome<DomainRef, Failure>> {
     const resolved = await resolveDomain(options.tenantDomainLookup, book.tenantText)
-    return resolved.kind === 'ready'
-      ? succeed(resolved.domain)
-      : fail(unavailable(resolved.diagnostic))
+    if (resolved.kind !== 'ready') return fail(unavailable(resolved.diagnostic))
+    await sweepOnOpen(book.tenant, book.tenantText, resolved.domain)
+    return succeed(resolved.domain)
   }
 
   const scopeOf = (book: Book<P>) => ({ tenant: book.tenantText, session: book.session })
@@ -1032,6 +979,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const read = readerOf(options.storage, domain)
     const found = await readOpenView(read, scopeOf(book), [execution], book.published ?? 0)
     if (found.kind === 'unavailable') return fail(unavailable(found.diagnostic))
+    if (found.settled.includes(execution)) forget(book, execution)
+    if (book.settled.has(execution)) return fail({ kind: 'terminal' })
     book.loaded.add(execution)
     if (found.views.length > 0) adopt(book, found, found.published)
     if (book.copy !== null) return succeed(book.copy)
@@ -1331,6 +1280,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       }
     const blobs = await storeBlobsFirst(book, domain, execution, prepared.blobs)
     if ('failure' in blobs) return { kind: 'answer', value: blobs }
+    const settles = settledView(prepared.view.executions.get(execution as AgentExecutionId))
     const commands = sessionCommitCommands([
       executionRecordFacts({
         tenant: book.tenant,
@@ -1346,6 +1296,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         ...prepared.itemRows,
         boundaries: boundariesOf(changed, heads),
         admissions: admissionsOf(written, own, own && heads.get(own.id), scratch),
+        settles,
       }),
       ...scratch.checks.map(check => sessionCheckFacts(check)),
       ...scratch.commands.map(command => sessionCommandFacts(command, [])),
@@ -1367,6 +1318,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         after,
         prepared,
         execution,
+        settles,
         written,
         prior: prior === undefined ? null : revisionOf(prior.revision),
         scratch,
@@ -1483,7 +1435,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
     book.origins = heldOrigins(job.copy.cell.state().agent.callOrigins, book.view)
     // Records project the open view: once an open item closes or finishing ends, they are rebuilt.
-    book.copy = dropped || closesOpen(prepared.changes) ? null : job.copy
+    book.copy = job.settles || dropped || closesOpen(prepared.changes) ? null : job.copy
+    if (job.settles) evict(book, execution as AgentExecutionId)
     turn(book.turns)
     for (const at of book.held.keys()) {
       const record = job.after.agent.operations.get(at)
@@ -1582,13 +1535,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       for (let lost = 0; lost < LOST_RACES;) {
         let synced = await sync(book, domain.ok)
         if ('failure' in synced) return synced
-        if (
-          typeof named === 'string' &&
-          !ROUTE_ONLY.has(method) &&
-          !book.loaded.has(named) &&
-          !book.view.executions.has(named as AgentExecutionId)
-        )
-          synced = await loadExecution(book, domain.ok, named)
+        if (typeof named === 'string' && !ROUTE_ONLY.has(method)) {
+          if (book.settled.has(named)) return fail({ kind: 'terminal' })
+          if (!book.loaded.has(named) && !book.view.executions.has(named as AgentExecutionId))
+            synced = await loadExecution(book, domain.ok, named)
+        }
         if ('failure' in synced) return synced
         const copy = synced.ok
         const snapshot = READS.has(method) ? succeed(null) : await snapshotOf(book, domain.ok)
@@ -1631,27 +1582,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         }
       }
       return fail(unavailable('the Agent records of the session kept changing'))
-    })
-  }
-
-  async function queryCold(
-    book: Book<P>,
-    input: Parameters<AgentJournal<P>['query']>[0],
-    answer: Awaited<ReturnType<AgentJournal<P>['query']>>,
-  ): Promise<typeof answer> {
-    if ('failure' in answer || answer.ok.kind !== 'unknown') return answer
-    const domain = await domainOf(book)
-    if ('failure' in domain) return answer
-    const found = await readOperation(
-      readerOf(options.storage, domain.ok),
-      book.tenantText,
-      storageOperation(input.execution, input.operation) as AgentOperationId,
-    )
-    if (found.kind !== 'read' || found.batch.batch === null) return answer
-    if (found.session !== book.session || found.execution !== input.execution) return answer
-    return succeed({
-      kind: 'committed',
-      receipt: batchReceiptOf(mintOf(book), book.view, found.batch.batch),
     })
   }
 
@@ -1706,7 +1636,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         run(input, 'inputAcceptance', core => core.port.inputAcceptance(input)),
       query: async input => {
         const answer = await run(input, 'query', core => core.port.query(input))
-        return book === null ? answer : queryCold(book, input, answer)
+        return book === null
+          ? answer
+          : queryCold(book, input, answer, {
+              domain: () => domainOf(book),
+              storage: options.storage,
+              mint: mintOf(book),
+            })
       },
       output: {
         read: input => run(input, 'output.read', core => core.port.output.read(input)),

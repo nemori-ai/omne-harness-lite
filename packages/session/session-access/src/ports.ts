@@ -9,9 +9,11 @@ import type {
   Adoption,
   DurableEvidence,
   Modes,
+  RunId,
   SavedModelSelection,
   SessionAccess,
   SessionHistory,
+  SessionId,
   SessionManagement,
   SessionWork,
 } from '@omne-harness/session-contract'
@@ -120,7 +122,7 @@ export type RunFailureReading =
 
 export interface RunFailureCauses {
   read(
-    input: Readonly<{ principal: Principal; tenant: TenantId; execution: string }>,
+    input: Readonly<{ principal: Principal; tenant: TenantId; session: SessionId; run: RunId }>,
   ): Promise<RunFailureReading>
 }
 

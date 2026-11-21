@@ -51,6 +51,8 @@ export type {
   ResidentTool,
   ResultConsumption,
   RoutedInput,
+  RunEnd,
+  RunFailure,
   RunState,
   RunTerminal,
   ScopeReleaseDisposition,

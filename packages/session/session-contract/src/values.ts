@@ -83,6 +83,29 @@ export type InputBatch = Readonly<{
   watermark: DurableEvidence
   ordered: readonly InputId[]
 }>
+export type RunFailure =
+  | Readonly<{ kind: 'node-failed'; node: string; category: string; failureKind: string }>
+  | Readonly<{ kind: 'model-refused'; failure: string }>
+  | Readonly<{
+      kind: 'no-reply'
+      cause: string | null
+      upstreamStatus: string | null
+      diagnostic: string | null
+    }>
+  | Readonly<{ kind: 'cannot-fit'; reason: string }>
+  | Readonly<{
+      kind:
+        | 'request-rejected'
+        | 'compaction-invalid'
+        | 'compaction-failed'
+        | 'message-rejected'
+        | 'extension-stop'
+        | 'guard'
+    }>
+export type RunEnd = Readonly<{
+  conclusion: 'complete' | 'fail' | 'cancelled'
+  failure: RunFailure | null
+}>
 export type RunTerminal = Readonly<{
   run: RunId
   outcome: 'completed' | 'failed' | 'cancelled'

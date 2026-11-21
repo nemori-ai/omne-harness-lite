@@ -101,6 +101,13 @@ const keyOf = (fact: Parameters<typeof factKey>[0]): string => {
 export const finishing = (view: ExecutionView): boolean =>
   view.cursor.state === 'settling' || view.finish.ended !== null
 
+export function settled(view: ExecutionView | undefined): boolean {
+  if (view === undefined || view.finish.ended === null || view.acknowledged < view.emitted)
+    return false
+  for (const obligation of view.finish.obligations.values()) if (!obligation.settled) return false
+  return true
+}
+
 type Open = (entry: Entry, view: ExecutionView, item: string) => boolean
 
 function openIn(family: ItemFamily, entry: Entry, view: ExecutionView, item: string): boolean {

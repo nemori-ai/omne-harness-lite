@@ -13,6 +13,7 @@ import type {
   CallBinding,
   ControlProgress,
   InputBatch,
+  RunEnd,
   RunTerminal,
   Waiting,
   WorkSnapshot,
@@ -75,6 +76,7 @@ export type SessionLogConsequence =
       outcome: RunTerminal['outcome']
       cause: DurableEvidence | null
       disposition: DurableEvidence
+      end: RunEnd | null
     }>
   | Readonly<{ kind: 'observed' }>
 export type SessionLogObservation = Omit<SessionAccess<never>, 'principal'> &
@@ -261,9 +263,8 @@ function projectObservation(
         else {
           out.push(
             ...terminalEntries(draft, terminal, observation.source, {
+              ...consequence,
               sequence: observation.sequence,
-              cause: consequence.cause,
-              disposition: consequence.disposition,
             }).map(entry => ({ ...entry, origin })),
           )
         }

@@ -32,6 +32,7 @@ type Boundary = Readonly<{
   revision: string
   receipt: JsonValue
   emittedThrough: string
+  acknowledged: string
   ended: JsonValue
 }>
 type Event = Readonly<{ sequence: string; kinds: readonly string[]; projection: Json }>
@@ -73,6 +74,7 @@ type Write = Readonly<{
   discards: readonly ItemKey[]
   boundaries: readonly Boundary[]
   admissions: readonly Admission[]
+  settles: boolean
 }>
 
 const INTEGER = /^(0|[1-9][0-9]{0,17})$/
@@ -103,13 +105,17 @@ function tenantOf(raw: JsonValue | undefined): string | null {
 }
 
 function parseBoundary(item: Json): Boundary | null {
-  const { execution, revision, emittedThrough } = item
-  return isText(execution) && isInteger(revision) && isInteger(emittedThrough)
+  const { execution, revision, emittedThrough, acknowledged } = item
+  return isText(execution) &&
+    isInteger(revision) &&
+    isInteger(emittedThrough) &&
+    isInteger(acknowledged)
     ? {
         execution,
         revision,
         receipt: item['receipt'] ?? null,
         emittedThrough,
+        acknowledged,
         ended: item['ended'] ?? null,
       }
     : null
@@ -271,7 +277,9 @@ function parseWrite(raw: JsonValue | undefined): Write | string {
   const keys = items.map(item => JSON.stringify([item.execution, item.family, item.item]))
   const twice = keys.find((key, at) => keys.indexOf(key) !== at)
   if (twice !== undefined) return `the item ${twice} is written twice`
-  return { ...head, facts, blobs, items, contents, discards, boundaries, admissions }
+  const settles = raw['settles'] ?? false
+  if (typeof settles !== 'boolean') return 'the settles flag'
+  return { ...head, facts, blobs, items, contents, discards, boundaries, admissions, settles }
 }
 
 const json = (value: JsonValue): string => JSON.stringify(value)
@@ -368,7 +376,7 @@ function writeIndex(port: Executor, write: Write): void {
   const { tenant, session } = write
   for (const boundary of write.boundaries)
     port.execute(
-      'INSERT OR REPLACE INTO er_execution (tenant, execution, session, revision, receipt, emitted_through, ended) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT OR REPLACE INTO er_execution (tenant, execution, session, revision, receipt, emitted_through, ended, acknowledged) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
         tenant,
         boundary.execution,
@@ -377,6 +385,7 @@ function writeIndex(port: Executor, write: Write): void {
         json(boundary.receipt),
         BigInt(boundary.emittedThrough),
         boundary.ended === null ? null : json(boundary.ended),
+        BigInt(boundary.acknowledged),
       ],
     )
   for (const admission of write.admissions) {
@@ -432,14 +441,14 @@ function publish(port: Executor, write: Write): ParticipantReply {
   const published = root === undefined ? 0n : big(root['published'])
   const head = oneRow(
     port,
-    'SELECT session, revision FROM er_execution WHERE tenant = ? AND execution = ? LIMIT 1',
+    'SELECT session, revision, settled FROM er_execution WHERE tenant = ? AND execution = ? LIMIT 1',
     [tenant, execution],
   )
   const current = head === undefined ? null : text(head['revision'])
   if (
     published !== BigInt(write.published) ||
     current !== write.expected ||
-    (head !== undefined && text(head['session']) !== session)
+    (head !== undefined && (text(head['session']) !== session || head['settled'] !== null))
   )
     return {
       kind: 'conflict',
@@ -462,7 +471,35 @@ function publish(port: Executor, write: Write): ParticipantReply {
     session,
     next,
   ])
+  if (write.settles) reclaim(port, tenant, execution, next)
   return { kind: 'participated', response: { published: String(next), digest: write.digest } }
+}
+
+function reclaim(port: Executor, tenant: string, execution: string, pub: bigint): void {
+  const key = [tenant, execution]
+  port.execute('DELETE FROM er_fact WHERE tenant = ? AND execution = ?', key)
+  port.execute('DELETE FROM er_item WHERE tenant = ? AND execution = ?', key)
+  port.execute('DELETE FROM er_item_content WHERE tenant = ? AND execution = ?', key)
+  port.execute('DELETE FROM er_preadmission WHERE tenant = ? AND execution = ?', key)
+  const marked = port.execute(
+    'UPDATE er_execution SET settled = ? WHERE tenant = ? AND execution = ? AND ended IS NOT NULL',
+    [pub, ...key],
+  )
+  if (marked.changes !== 1n) throw new Error('a settling publication names no ended execution')
+}
+
+function sweep(port: Executor, raw: JsonValue | undefined): ParticipantReply {
+  const tenant = isJson(raw) ? tenantOf(raw['tenant']) : null
+  if (tenant === null) return unsupported('the sweep is malformed')
+  port.execute(
+    `DELETE FROM er_operation WHERE tenant = ? AND execution IN
+      (SELECT execution FROM er_execution WHERE tenant = ? AND settled IS NOT NULL)`,
+    [tenant, tenant],
+  )
+  const swept = port.execute('DELETE FROM er_execution WHERE tenant = ? AND settled IS NOT NULL', [
+    tenant,
+  ])
+  return { kind: 'participated', response: { swept: String(swept.changes) } }
 }
 
 function blobs(port: Executor, raw: JsonValue | undefined): ParticipantReply {
@@ -601,8 +638,9 @@ const participant: ParticipantModule = {
   execute(facts, port) {
     if (facts['intent'] === 'preadmission') return preadmission(port, facts)
     if (facts['intent'] === 'blobs') return blobs(port, facts['write'])
+    if (facts['intent'] === 'sweep') return sweep(port, facts['write'])
     if (facts['intent'] !== 'publish')
-      return unsupported('the facts are neither a publication, blocks nor a preadmission')
+      return unsupported('the facts are neither a publication, blocks, a sweep nor a preadmission')
     const write = parseWrite(facts['write'])
     if (typeof write === 'string') return unsupported(`the publication is malformed: ${write}`)
     return publish(port, write)

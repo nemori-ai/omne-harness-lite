@@ -24,6 +24,7 @@ import type {
   InitializationResult,
   Participation,
   RecoveryTask,
+  RunEnd,
   RunTerminal,
   SessionCreation,
   ResidentAdoption,
@@ -185,6 +186,7 @@ export type SessionEntry =
       cause: DurableEvidence | null
       disposition: DurableEvidence | null
       bounded: BoundedClose | null
+      end: RunEnd | null
     }>
   | Readonly<{ kind: 'session.tool-resident-admitted'; resident: ResidentTool }>
   | Readonly<{

@@ -1,7 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Principal } from '@omne-harness/access-cordis-contract'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
-import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { modelDiagnosticsKey, modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
@@ -57,15 +56,11 @@ function present<T>(service: T | undefined, name: string): T {
 }
 
 function diagnosticPorts(ctx: Context): DiagnosticPorts<Principal> {
-  const journal = () => present(ctx.get(agentJournalKey), 'agentJournal')
   const calls = () => present(ctx.get(modelRuntimeKey), 'modelRuntime').calls
   const attempts = () => present(ctx.get(modelDiagnosticsKey), 'modelDiagnostics')
   const tools = () =>
     present(ctx.get(toolRuntimeKey) as ToolRuntime | undefined, 'toolRuntime').queries
   return {
-    agentJournal: {
-      readFinish: input => present(journal().readFinish, 'agentJournal.readFinish')(input),
-    },
     modelCalls: {
       inspect: input => calls().inspect(input),
       dispatches: input => calls().dispatches(input),

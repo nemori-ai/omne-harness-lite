@@ -28,6 +28,7 @@ import {
 import { closedBindingOf } from './binding-targets.ts'
 import { createInputRanges } from './input-ranges.ts'
 import { issueFacts, LEDGER_KINDS, obligationChanges, touchedBy } from './obligation-ledger.ts'
+import { acknowledgedFacts } from './obligation-ledger.ts'
 import {
   fixAnswer,
   keptAnswer,
@@ -3148,9 +3149,8 @@ export function createJournal<P>(
         const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         const through = sequenceOf(input.through)
-        if (through === undefined || through < 1 || through > execution.events.length) {
+        if (through === undefined || through < 1 || through > execution.events.length)
           return answer(fail(invalid('through', 'beyond the emitted events')))
-        }
         if (through <= execution.acknowledged)
           return recognitionBatch(
             reachedStamp(state(), execution.id, execution.acknowledgedAt),
@@ -3159,7 +3159,7 @@ export function createJournal<P>(
           )
         return {
           kind: 'batch',
-          facts: [{ kind: 'ack.through', sequence: through }],
+          facts: acknowledgedFacts(viewOf(execution.id).finish.obligations, through),
           blobs: [],
           kinds: [],
           derive: receiptIn,

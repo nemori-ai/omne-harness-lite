@@ -514,7 +514,7 @@ describe('reading again is recognized', () => {
     })
 
     expect(ok(await f.consume())).toMatchObject({ committed: true, progress: { through: '1' } })
-    expect(f.reads.work).toBe(2)
+    expect(f.reads.work).toBe(3)
   })
 })
 

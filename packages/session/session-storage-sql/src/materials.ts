@@ -339,7 +339,7 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'execution-record.facts',
     file: 'read-execution-batches',
-    tables: ['sl_journal', 'er_root', 'er_fact'],
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', 'er_operation'],
     protocol: EXECUTION_RECORD_PROTOCOL,
     migrations: factMigrations,
   },
@@ -360,7 +360,7 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'execution-record.operation',
     file: 'read-execution-operation',
-    tables: ['er_operation', 'er_fact'],
+    tables: ['er_operation', 'er_fact', 'er_execution'],
     protocol: EXECUTION_RECORD_PROTOCOL,
     migrations: [recordMigrationRef, factBlobMigrationRef],
   },
@@ -392,6 +392,13 @@ export const HANDLERS: readonly Handler[] = [
     tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', ...ITEM_TABLES],
     protocol: EXECUTION_RECORD_PROTOCOL,
     migrations: itemMigrations,
+  },
+  {
+    handler: 'execution-record.retired',
+    file: 'read-execution-retired',
+    tables: ['er_execution'],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [recordMigrationRef],
   },
   {
     handler: 'execution-record.preadmission',

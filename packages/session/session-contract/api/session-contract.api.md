@@ -156,7 +156,9 @@
 - `RouteJudgment` · `judgments.d.ts`
 - `RoutedInput` · `values.d.ts`
 - `RunBoundaryView` · `run-boundary.d.ts`
+- `RunEnd` · `values.d.ts`
 - `RunExecution` · `values.d.ts`
+- `RunFailure` · `values.d.ts`
 - `RunId` · `identity.d.ts`
 - `RunStartJudgment` · `judgments.d.ts`
 - `RunState` · `values.d.ts`
@@ -1261,7 +1263,7 @@ export declare function decide(previous: WorkSnapshot | null, command: SessionCo
 
 ```ts
 import type { DurableEvidence, RunId, SessionOperationId } from './identity.ts';
-import type { WorkSnapshot, ResidentAdoption, RunTerminal } from './values.ts';
+import type { WorkSnapshot, ResidentAdoption, RunEnd, RunTerminal } from './values.ts';
 import type { HistoryEntry, SessionFailure } from './faces.ts';
 import type { Decision, EncodedEntry } from './judgments.ts';
 export declare const rejected: (failure: SessionFailure) => Decision;
@@ -1278,6 +1280,7 @@ export declare function terminalEntries(snapshot: WorkSnapshot, terminal: RunTer
     sequence: string | null;
     cause: DurableEvidence | null;
     disposition: DurableEvidence;
+    end: RunEnd | null;
 }>): EncodedEntry[];
 ```
 
@@ -1310,7 +1313,7 @@ import type { JsonValue } from '@omne-harness/json-text';
 import { type TenantId, type WorkspaceId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
 import type { Adoption, AgentInstanceRef, AttemptId, ConsumptionId, DurableEvidence, InputId, RunId, SessionId, SessionOperationId, TodoItemId } from './identity.ts';
-import type { BoundedClose, InitializationResult, Participation, RecoveryTask, RunTerminal, SessionCreation, ResidentAdoption, ResidentTool, DeclarationChange, Relation, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, ProducerRef, InputBatch, Waiting, ExecutionRef, BackgroundDisposition } from './values.ts';
+import type { BoundedClose, InitializationResult, Participation, RecoveryTask, RunEnd, RunTerminal, SessionCreation, ResidentAdoption, ResidentTool, DeclarationChange, Relation, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, ProducerRef, InputBatch, Waiting, ExecutionRef, BackgroundDisposition } from './values.ts';
 import type { EntryClass, HistoryEntry } from './faces.ts';
 import type { AdmittedSource } from './input-sources.ts';
 import type { EncodedEntry } from './judgments.ts';
@@ -1435,6 +1438,7 @@ export type SessionEntry = Readonly<{
     cause: DurableEvidence | null;
     disposition: DurableEvidence | null;
     bounded: BoundedClose | null;
+    end: RunEnd | null;
 }> | Readonly<{
     kind: 'session.tool-resident-admitted';
     resident: ResidentTool;
@@ -2329,7 +2333,7 @@ export type AdvanceRef = Readonly<{
 ```ts
 export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, TodoItemId, } from './identity.ts';
 export { requiredWorkEntries, compactionCallChangeOf } from './work-entry-state.ts';
-export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InitializationSource, InitializationSources, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, BackgroundDisposition, SessionCreation, SessionFrozen, SessionWaiting, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
+export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InitializationSource, InitializationSources, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunEnd, RunFailure, RunState, RunTerminal, ScopeReleaseDisposition, BackgroundDisposition, SessionCreation, SessionFrozen, SessionWaiting, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
 export type { AdmittedMessage, DeliveredInputs, CommitReceipt, CompactionContextRead, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionDirectory, SessionFaces, SessionFailure, SessionHistory, ArchivedBy, SessionListItem, SessionListPage, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, StartedRun, } from './faces.ts';
 export { INGRESS_FAMILIES, deriveDriveOperation, deriveIngressOperation, deriveSessionOperation, type DriveOperationElements, type IngressFamily, type SessionOperationElements, } from './operations.ts';
 export type { ControlOperationResolution, SavedModelSelection, SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionControlReceipt, SessionModelSelection, SessionRunLookup, } from './control-values.ts';
@@ -3638,7 +3642,7 @@ import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
 import type { SessionHistoryReads } from './history-values.ts';
 import { type SessionControlEvidence } from './control-normalization.ts';
 import type { DurableEvidence, RunId, SessionAccess, ConsumptionId, SessionOperationId } from './identity.ts';
-import type { CallBinding, ControlProgress, InputBatch, RunTerminal, Waiting, WorkSnapshot, ProducedResult } from './values.ts';
+import type { CallBinding, ControlProgress, InputBatch, RunEnd, RunTerminal, Waiting, WorkSnapshot, ProducedResult } from './values.ts';
 import type { Decision } from './judgments.ts';
 export type SessionLogConsequence = Readonly<{
     kind: 'call-registration';
@@ -3678,6 +3682,7 @@ export type SessionLogConsequence = Readonly<{
     outcome: RunTerminal['outcome'];
     cause: DurableEvidence | null;
     disposition: DurableEvidence;
+    end: RunEnd | null;
 }> | Readonly<{
     kind: 'observed';
 }>;
@@ -3770,8 +3775,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:b9eb7326d07ad276c1cb6b3afb75baf5f7172e42f0f9cee5bfdb7a23ada4e7ab";
-export declare const SESSION_RELEASE_DIGEST = "sha256:b9eb7326d07ad276c1cb6b3afb75baf5f7172e42f0f9cee5bfdb7a23ada4e7ab";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:800420992a6abd201763b5c1cfde7715eb006dabd57e16aa942998ba392ca5e6";
+export declare const SESSION_RELEASE_DIGEST = "sha256:800420992a6abd201763b5c1cfde7715eb006dabd57e16aa942998ba392ca5e6";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4652,6 +4657,29 @@ export type InputBatch = Readonly<{
     id: BatchId;
     watermark: DurableEvidence;
     ordered: readonly InputId[];
+}>;
+export type RunFailure = Readonly<{
+    kind: 'node-failed';
+    node: string;
+    category: string;
+    failureKind: string;
+}> | Readonly<{
+    kind: 'model-refused';
+    failure: string;
+}> | Readonly<{
+    kind: 'no-reply';
+    cause: string | null;
+    upstreamStatus: string | null;
+    diagnostic: string | null;
+}> | Readonly<{
+    kind: 'cannot-fit';
+    reason: string;
+}> | Readonly<{
+    kind: 'request-rejected' | 'compaction-invalid' | 'compaction-failed' | 'message-rejected' | 'extension-stop' | 'guard';
+}>;
+export type RunEnd = Readonly<{
+    conclusion: 'complete' | 'fail' | 'cancelled';
+    failure: RunFailure | null;
 }>;
 export type RunTerminal = Readonly<{
     run: RunId;

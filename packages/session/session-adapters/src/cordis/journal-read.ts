@@ -11,6 +11,7 @@ import {
   type ExecutionBatch,
   type ExecutionEvent,
   type ExecutionFact,
+  type ExecutionTombstone,
 } from '@omne-harness/session-storage-sql/participants'
 import type { DomainRef, JsonValue, ReadRequest, SqlStorage } from '@omne-harness/sql-contract'
 import { decodeRows, type FactRow, type PublishedBatch } from '../journal/index.ts'
@@ -127,6 +128,7 @@ export async function readTouched(read: Reader, scope: Scope, after: number): Pr
       published = page.published
       for (const stored of page.batches)
         for (const fact of stored.facts) executions.add(fact.execution)
+      for (const reclaimed of page.reclaimed ?? []) executions.add(reclaimed.execution)
       if (page.next === null) return { kind: 'read', published: Number(published), executions }
       from = page.next
     }
@@ -248,6 +250,13 @@ export async function readEvents(
 
 export type OperationRead =
   | Readonly<{ kind: 'read'; session: string; execution: AgentExecutionId; batch: ReadBatch }>
+  | Readonly<{
+      kind: 'reclaimed'
+      session: string
+      execution: AgentExecutionId
+      published: string
+      tombstone: ExecutionTombstone
+    }>
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
@@ -266,6 +275,14 @@ export async function readOperation(
   if (decoded === null) return { kind: 'none' }
   if (decoded === 'malformed')
     return { kind: 'unavailable', diagnostic: 'the batch of the operation does not decode' }
+  if (decoded.reclaimed !== undefined)
+    return {
+      kind: 'reclaimed',
+      session: decoded.session,
+      execution: decoded.execution as AgentExecutionId,
+      published: decoded.published,
+      tombstone: decoded.reclaimed,
+    }
   const split = splitBatch(
     { tenant, session: decoded.session },
     { published: decoded.published, operation, facts: decoded.facts },
@@ -294,7 +311,7 @@ export async function recordedStanding(
     tenant,
     storageOperation as AgentOperationId,
   )
-  if (found.kind === 'read') return 'committed'
+  if (found.kind === 'read' || found.kind === 'reclaimed') return 'committed'
   return found.kind === 'none' ? 'not-run' : 'unknown'
 }
 
