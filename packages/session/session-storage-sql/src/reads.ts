@@ -213,15 +213,7 @@ async function inheritedRead<P>(
   if (out['kind'] === 'unreadable')
     return failure(unavailable('the entries behind the prefix cannot be read'))
   if (out['kind'] !== 'page')
-    return historyRead(
-      context,
-      access,
-      action,
-      { mode: 'begin', from: null },
-      kinds,
-      'forward',
-      pageBytes,
-    )
+    return historyRead(context, access, action, {}, kinds, 'forward', pageBytes)
   const token = await seal(
     context.cursor,
     { kind: 'history', tenant: read.ok.tenant, session: access.session },
