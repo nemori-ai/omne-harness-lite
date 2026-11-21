@@ -468,20 +468,22 @@
 }
 /* The page's one scrolling face; its scroller reaches out past the column by the bar's gutter, so rows land on the
    column's edges where the composer stands (conversation.css `.conversation-transcript`). In a short window its
-   floor gives way first, so the composer stays whole. */
+   floor gives way first, so the waiting cards and the whole composer keep their room. */
 .omne-conversation {
   display: flex;
   flex-direction: column;
   flex: 1 1 0;
-  min-height: min(160px, 25dvh);
+  min-height: min(160px, 15dvh);
   margin-inline: calc(-1 * var(--omne-scrollbar-size));
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable both-edges;
   padding: 8px 0 24px;
 }
+/* The cards above the composer give way before the composer does, and scroll inside themselves. */
 .omne-session-dock {
-  flex: none;
+  flex: 0 1 auto;
+  min-height: 0;
   max-height: 70%;
   overflow-y: auto;
   overscroll-behavior: contain;
