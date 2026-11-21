@@ -321,16 +321,20 @@ const HELPERS = `
   const sideControl = () =>
     document.querySelector('section[data-page=conversation]:not([hidden]) button.omne-session-figure')
   const bubble = () => document.querySelector('.omne-session-side[data-presentation=bubble]')
+  /** Where the page is wide enough at this size (1160 × the size factor), the side content docks instead. */
+  const docked = () => document.querySelector(
+    'section[data-page=conversation]:not([hidden]) .omne-session-side[data-presentation=docked][data-open=true]')
   const openSide = async () => {
     const control = await wait('the figure and name in the header as a control', sideControl)
     if (control.getAttribute('aria-expanded') !== 'true') control.click()
-    await wait('the light ink bubble written', () => bubble()?.dataset.ink === 'open')
+    await wait('the light ink bubble written, or the side docked at this size',
+      () => bubble()?.dataset.ink === 'open' || docked() !== null)
     await settle()
   }
   const closeSide = async () => {
     const control = sideControl()
     if (control?.getAttribute('aria-expanded') === 'true') control.click()
-    await wait('the bubble folded away', () => bubble() === null)
+    await wait('the bubble folded away and the side undocked', () => bubble() === null && docked() === null)
   }
   const reconnecting = () => [...document.querySelectorAll('.shell-reconnecting')].find(shown)
 `
