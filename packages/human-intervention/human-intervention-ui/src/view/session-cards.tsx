@@ -1,4 +1,5 @@
 import type { TenantId } from '@omne-harness/public-contract'
+import { RetryIcon } from '@omne-harness/ui-kit'
 import type { JSX } from 'react'
 import { sheetOf } from '../model/cards-machine.ts'
 import type { CardsHub } from '../model/cards-hub.ts'
@@ -32,20 +33,14 @@ function Cards({
   const { driver, state } = useCards(hub, tenant)
   const sheet = sheetOf(state, session)
   const failed = state.read.kind === 'failed' ? state.read.notice : null
-  const waiting = sheet.entries.length
-  if (waiting === 0 && sheet.closed.length === 0 && failed === null) return null
+  if (sheet.entries.length === 0 && sheet.closed.length === 0 && failed === null) return null
   return (
     <section className="hitl-session-cards" role="region" aria-label={SESSION_CARDS_LABEL}>
       {failed === null ? null : (
         <NoticeLine
           notice={{ kind: failed.kind, text: `这个会话的问题读不出来：${failed.text}` }}
-          action={{ label: '重试', onClick: () => driver.readList() }}
+          action={{ label: '重试', icon: RetryIcon, onClick: () => driver.readList() }}
         />
-      )}
-      {waiting === 0 ? null : (
-        <p className="hitl-wait-hint" role="status">
-          {`Agent 在等你回答 ${waiting} 个问题。在这里发的消息会排队，不算回答。`}
-        </p>
       )}
       <CardArea driver={driver} state={state} group={session} />
     </section>
