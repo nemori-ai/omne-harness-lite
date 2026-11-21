@@ -1,13 +1,14 @@
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { HistoryEntry, SessionFailure } from './faces.ts'
-import type { EntryId, SessionId, SessionRevision } from './identity.ts'
+import type { SessionId, SessionRevision } from './identity.ts'
 import type { DecideReads, OperationRecord } from './judgments.ts'
 import { materializeModelView, type MaterializedModelView } from './model-view.ts'
 import type { SessionCommand } from './ports.ts'
 import { reduce } from './reduce.ts'
 import { childRecorded, relatedOf, relatedSessionOf } from './standing.ts'
 import * as gone from './testing-calls-left.ts'
+import { entryIdAt, type MemoryFork } from './testing-fork.ts'
 import type { WorkSnapshot } from './values.ts'
 
 type Held = Readonly<{
@@ -15,6 +16,7 @@ type Held = Readonly<{
   left: gone.CallsLeft
   modelView: MaterializedModelView
   entries: HistoryEntry[]
+  fork?: MemoryFork
 }>
 type KeyOf = (tenant: TenantId, session: SessionId) => Outcome<string, SessionFailure>
 
@@ -48,7 +50,7 @@ export function recordChild<S extends Held>(
   const [key, parent] = relatedStore(stores, keyOf, command) ?? []
   if (record === null || key === undefined || parent === undefined) return
   const revision = String(BigInt(parent.snapshot.revision) + 1n) as SessionRevision
-  const id = String(parent.entries.length + 1) as EntryId
+  const id = entryIdAt(parent, 0)
   const entries: HistoryEntry[] = [{ ...record.entry, id, revision }]
   const reduced = reduce(parent.snapshot, { revision, entries }, undefined, gone.lookupOf(parent))
   if (reduced.kind === 'quarantined') throw new Error(reduced.diagnostic)
@@ -56,7 +58,7 @@ export function recordChild<S extends Held>(
   stores.set(key, {
     ...parent,
     snapshot: reduced.snapshot,
-    modelView: materializeModelView(parent.modelView, entries, all),
+    modelView: materializeModelView(parent.modelView, entries),
     entries: all,
     left: gone.leftAfter(parent, reduced),
   })

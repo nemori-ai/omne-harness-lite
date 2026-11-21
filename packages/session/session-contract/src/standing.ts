@@ -1,5 +1,6 @@
 import { completeEvidence, invalid, originOf, rejected, sourceOf } from './decision-support.ts'
 import { encodeEntry } from './entries.ts'
+import { judgeForkPoint, type ForkFacts } from './fork.ts'
 import type { SessionId, SessionOperationId } from './identity.ts'
 import type { Decision, EncodedEntry } from './judgments.ts'
 import { digestOf } from './operations.ts'
@@ -126,4 +127,33 @@ export function relatedAsRecorded(
   const stood =
     tree === undefined ? { root: session, depth: 0 } : { root: tree.root, depth: tree.depth - 1 }
   return { related: { session, lifecycle: 'dormant', tree: stood } }
+}
+
+/** A fork is of a child from its parent, at a point the parent shows as a request boundary. */
+export function judgeFork(
+  creation: Pick<SessionCreation, 'fork' | 'relation'>,
+  facts: ForkFacts | undefined,
+): Decision | null {
+  const { fork, relation } = creation
+  if (fork === undefined) return null
+  if (relation?.kind !== 'child' || relation.parent !== fork.source)
+    return invalid('creation.fork.source', 'not the parent of the session')
+  if (facts === undefined)
+    return rejected({
+      kind: 'unavailable',
+      owner: '@omne-harness/session-contract',
+      diagnostic: 'the source of the fork was not read',
+    })
+  const judged = judgeForkPoint(fork.point, facts)
+  return judged === 'boundary' ? null : invalid('creation.fork.point', judged)
+}
+
+/** The source as a recorded create saw it: its point stood before an assistant message. */
+export function forkAsRecorded(
+  creation: Pick<SessionCreation, 'fork'>,
+): Readonly<{ fork?: ForkFacts }> {
+  const point = creation.fork?.point
+  if (point === undefined) return {}
+  const seen = { rows: point.upper, next: 'assistant', current: true, running: true } as const
+  return { fork: { ...seen, floor: point.position, tail: point.position } }
 }

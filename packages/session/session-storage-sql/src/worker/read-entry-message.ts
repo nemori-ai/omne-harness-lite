@@ -2,6 +2,7 @@ import { encodeValue, plainOf } from '../codec.ts'
 import { judgeMessage, projectMessage } from '@omne-harness/message'
 import { modelViewPrefix } from '../model-view-identity.ts'
 import { readSharedEntry } from './shared-messages.ts'
+import { entrySession, viewOf } from './fork.ts'
 import { handler, oneRow, packed, scopeOf, text } from './support.ts'
 
 export default handler('session.entry-message', (raw, port) => {
@@ -25,17 +26,15 @@ export default handler('session.entry-message', (raw, port) => {
       `${modelViewPrefix(scope.tenant, scope.session)}${text(head['epoch'])}` !== input.epoch
     )
       return { kind: 'changed' }
-    const visible = oneRow(
-      port,
-      'SELECT seq FROM sl_model_view WHERE tenant = ? AND session = ? AND epoch = ? AND entry = ? LIMIT 1',
-      [scope.tenant, scope.session, text(head['epoch']), input.entry],
-    )
+    const visible = viewOf(port, scope, text(head['epoch'])).rowOf(input.entry)
     if (visible === undefined) return { kind: 'absent' }
   }
+  // An entry at or below the fork of the session was written by a session up its chain.
+  const position = BigInt(input.entry)
   const row = oneRow(
     port,
     'SELECT entry FROM sl_entry WHERE tenant = ? AND session = ? AND position = ? LIMIT 1',
-    [scope.tenant, scope.session, BigInt(input.entry)],
+    [scope.tenant, entrySession(port, scope, position), position],
   )
   if (row === undefined) return { kind: 'absent' }
   const entry = readSharedEntry(port, scope.tenant, packed(row['entry']))

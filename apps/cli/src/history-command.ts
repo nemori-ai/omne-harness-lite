@@ -10,7 +10,7 @@ import {
   unrecognized,
   usageError,
 } from './command-support.ts'
-import { renderEntry, type RawEntry } from './history-render.ts'
+import { renderEntries, type RawEntry } from './history-render.ts'
 import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { exitCodeOf } from './report.ts'
@@ -23,14 +23,19 @@ type Page = {
   readonly entries: readonly RawEntry[]
   readonly next: string | null
   readonly exhausted: boolean
+  readonly from: string | undefined
 }
 
 function pageOf(body: unknown): Page | undefined {
   if (typeof body !== 'object' || body === null) return undefined
-  const { entries, next, exhausted } = body as Record<string, unknown>
+  const { entries, next, exhausted, from } = body as Record<string, unknown>
   if (!Array.isArray(entries) || typeof exhausted !== 'boolean') return undefined
   if (next !== null && typeof next !== 'string') return undefined
-  return { entries: entries as RawEntry[], next, exhausted }
+  // An entry of the prefix of a forked session carries the session whose log holds it.
+  const source = typeof from === 'string' ? from : undefined
+  const tagged =
+    source === undefined ? entries : entries.map(entry => ({ ...entry, inheritedFrom: source }))
+  return { entries: tagged as RawEntry[], next, exhausted, from: source }
 }
 
 type Reading =
@@ -48,6 +53,7 @@ interface HistoryRequest {
   readonly tenant: TenantId
   readonly session: string
   readonly pageBytes: string
+  readonly inherited: boolean
   readonly newId: () => string
 }
 
@@ -56,7 +62,9 @@ async function readAll(
   request: HistoryRequest,
   firstMessageId: string,
 ): Promise<Reading> {
-  const { tenant, session } = request
+  const { tenant, session, pageBytes } = request
+  const plain = { tenant, session, cursor: null, direction: 'forward', pageBytes } as const
+  const first = request.inherited ? { ...plain, inherited: true } : plain
   const entries: RawEntry[] = []
   let cursor: string | null = null
   for (let page = 1; ; page += 1) {
@@ -65,9 +73,7 @@ async function readAll(
     const result = await link.call(
       sessionProtocol,
       'read-history',
-      cursor === null
-        ? { tenant, session, cursor, direction: 'forward', pageBytes: request.pageBytes }
-        : { tenant, session, cursor },
+      cursor === null ? first : { tenant, session, cursor },
       messageId,
     )
     if (result === undefined) return { kind: 'refused' }
@@ -116,7 +122,7 @@ export async function runReadHistory(
   const read = readOptions(args, {
     accepted: ['--session', '--tenant', '--page-bytes', serverOption],
     required: ['--session'],
-    switches: ['--json'],
+    switches: ['--json', '--inherited'],
   })
   if (read.kind === 'unrecognized') return usageError(output, unrecognized(name))
   if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))
@@ -136,7 +142,7 @@ export async function runReadHistory(
   const messageId = newId()
   const reading = await readAll(
     loaded.link,
-    { tenant: owner, session, pageBytes, newId },
+    { tenant: owner, session, pageBytes, inherited: read.values.has('--inherited'), newId },
     messageId,
   )
   if (reading.kind === 'refused') return usageError(output, unrecognized(name))
@@ -146,7 +152,7 @@ export async function runReadHistory(
     output.stdout(
       read.values.has('--json')
         ? `${JSON.stringify(resultObject(reading, { messageId, tenant: encodeTenantText(owner) }))}\n`
-        : entries.map(renderEntry).join(''),
+        : renderEntries(entries),
     )
   } catch {
     output.stderr(`omne ${name}: cannot write standard output\n`)

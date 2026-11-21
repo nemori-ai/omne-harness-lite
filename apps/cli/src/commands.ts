@@ -820,8 +820,9 @@ export const productionCommands: readonly CommandSpec[] = [
   },
   {
     name: 'read-history',
-    usage: '--session <id>',
-    summary: 'Read the whole history of a session.',
+    usage: '--session <id> [--inherited]',
+    summary:
+      'Read the whole history of a session; --inherited first reads what a forked session started with.',
     run: runReadHistory,
   },
   {

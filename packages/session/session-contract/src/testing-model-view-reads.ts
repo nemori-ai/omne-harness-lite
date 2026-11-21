@@ -60,6 +60,7 @@ export function memoryCompactionContext<P>(
     entries: readonly HistoryEntry[]
     snapshot: WorkSnapshot
     modelView: MaterializedModelView
+    inherited?: number
   }>,
   key: Outcome<string, SessionFailure>,
   input: CompactionContextInput<P>,
@@ -77,6 +78,7 @@ export function memoryCompactionContext<P>(
     view.rows,
     upper,
     input.coverTo,
+    store.inherited,
   )
   if (value === null)
     return fail({ kind: 'invalid', field: 'coverTo', reason: 'outside the current window' })

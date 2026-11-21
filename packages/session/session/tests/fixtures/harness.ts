@@ -167,6 +167,10 @@ export async function harness(options: HarnessOptions) {
             log('history.readModelView')
             return view.history.readModelView(input)
           },
+          readForkPoint: input => {
+            log('history.readForkPoint')
+            return view.history.readForkPoint(input)
+          },
         },
       }
     },

@@ -6,6 +6,7 @@ import {
   insertOperation,
   storeEvidence,
 } from './commit-write.ts'
+import { positioned } from './positions.ts'
 import { runCompactionCommand } from './compaction-command.ts'
 import { writePermissionCurrent } from './permission-current.ts'
 import { writeCompactionIndex } from './compaction-index.ts'
@@ -636,7 +637,7 @@ function publishCommand(
 ): ParticipantReply {
   const { command, evidence } = received
   const { tenant, session, operation, journal, previous } = start
-  const { tail, seq, revision, entries } = positioned(port, start, batch)
+  const { tail, seq, revision, entries } = positioned(port, start, batch.entries, command)
   const reduced = reduce(
     batch.prepared,
     { revision, entries } as never,
@@ -698,15 +699,6 @@ function publishCommand(
         })
   const settled = participated(result, false, work, committed)
   return withChildRecord(port, received, tenant, settled)
-}
-
-function positioned(port: ParticipantPort, start: CommandStart, batch: CommandBatch) {
-  const { tenant, session, journal } = start
-  const tail = journal === undefined ? 0n : big(journal['tail'])
-  const seq = journal === undefined ? 1n : big(journal['commit_seq']) + 1n
-  const revision = String(tail + 1n)
-  const entries = assignPositions(port, { tenant, session }, revision, batch.entries)
-  return { tail, seq, revision, entries }
 }
 
 function moveJournal(
