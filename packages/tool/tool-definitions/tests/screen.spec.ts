@@ -15,7 +15,11 @@ import {
   type ToolMessageContentBlock,
   type ToolPrimitiveFailure,
 } from '@omne-harness/tool-contract/provider'
-import { createScreenAuthor, type ScreenAuthorEnvironment } from '@omne-harness/tool-definitions'
+import {
+  createScreenAuthor,
+  screenToolModule,
+  type ScreenAuthorEnvironment,
+} from '@omne-harness/tool-definitions'
 import { run, runRaw, value } from './run-author.ts'
 
 type Result = ToolResult<ToolMessageContentBlock>
@@ -248,6 +252,26 @@ describe('Screen capture refuses, stores nothing, and answers one line', () => {
     )
   })
 
+  it('not found says which screen only when one was named, and only for that reason', async () => {
+    expect(
+      await refused(w => {
+        w.script.capture = async id => ({ kind: 'rejected', requestId: id, reason: 'notFound' })
+      }),
+    ).toBe('rejected request="fixture" reason=notFound')
+    expect(
+      await refused(
+        w => {
+          w.script.capture = async id => ({
+            kind: 'rejected',
+            requestId: id,
+            reason: 'invalidInput',
+          })
+        },
+        { screen: 'right' },
+      ),
+    ).toBe('rejected request="fixture" reason=invalidInput')
+  })
+
   it('any other answer of the facility, as it is', async () => {
     expect(
       await refused(w => {
@@ -308,7 +332,28 @@ describe('Screen capture says what the store answered', () => {
   })
 })
 
+describe('Screen gives back what it opened', () => {
+  it('takes frame after frame where only one picture may be open at a time', async () => {
+    const { capture, puts } = world({ imageConcurrency: 1 })
+    for (const _ of [1, 2, 3])
+      expect(textOf(await capture())).toMatch(/^<image>\|done Screen capture /u)
+    expect(puts).toHaveLength(3)
+  })
+})
+
 describe('the declaration of Screen', () => {
+  it('is the tool Screen of this package, and its help is under that name', async () => {
+    expect(screenToolModule.executor).toMatchObject({
+      owner: '@omne-harness/tool-definitions',
+      name: 'Screen',
+      revision: '1',
+    })
+    const { author } = world()
+    expect(value(screenToolModule.createAuthor(construction())).facts).toEqual(author.facts)
+    const environment = { screen: {}, media: {} } as unknown as ScreenAuthorEnvironment
+    expect(await run(author, 'help', {}, environment)).toMatch(/^done Screen help\n/u)
+  })
+
   it('needs a placement with the screen facility; capture adds a picture to its result; both commands are behind one gate that asks', () => {
     const { author } = world()
     const definition = deriveDefinition(

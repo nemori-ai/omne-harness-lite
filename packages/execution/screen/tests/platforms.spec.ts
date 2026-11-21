@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { diagnoseScreen, macosScreenPermission, screenBackendFor } from '@omne-harness/screen'
-import { libraryOf, MACOS_RECORDED } from './fixtures/libraries.ts'
+import {
+  libraryOf,
+  MACOS_RECORDED,
+  MACOS_TWO_SCREENS,
+  PIXELS_TWO_SCREENS,
+} from './fixtures/libraries.ts'
 
 const loaded = async () => libraryOf(MACOS_RECORDED).library
 const env = (values: Record<string, string>) => values as NodeJS.ProcessEnv
@@ -66,6 +71,18 @@ describe('the backend is chosen by the operating system', () => {
     })
   })
 
+  it('reads the sizes the library gives as logical points on macOS and as pixels elsewhere', async () => {
+    const sizes = async (platform: NodeJS.Platform, raws: Parameters<typeof libraryOf>[0]) => {
+      const load = async () => libraryOf(raws).library
+      const backend = await screenBackendFor(platform, { load, env: env({ DISPLAY: ':0' }) })
+      return (await backend!.list()).map(monitor => monitor.pixels)
+    }
+    expect((await sizes('darwin', MACOS_TWO_SCREENS))[0]).toEqual({ width: 3024, height: 1964 })
+    const given = PIXELS_TWO_SCREENS.map(raw => ({ width: raw.width, height: raw.height }))
+    expect(await sizes('win32', PIXELS_TWO_SCREENS)).toEqual(given)
+    expect(await sizes('linux', PIXELS_TWO_SCREENS)).toEqual(given)
+  })
+
   it('a system with no backend, and a system whose library does not load, have none', async () => {
     expect(await screenBackendFor('freebsd', { load: loaded })).toBeUndefined()
     expect(await screenBackendFor('darwin', { load: async () => undefined })).toBeUndefined()
@@ -92,6 +109,19 @@ describe('the diagnosis one runs on a machine', () => {
           origin: { x: 0, y: 0 },
         },
       ],
+    })
+  })
+
+  it('lists no screen, and says the check could not be done, when the library cannot list', async () => {
+    const load = async () => ({
+      monitors: (): never => {
+        throw new Error('no display')
+      },
+    })
+    expect(await diagnoseScreen('win32', { load })).toMatchObject({
+      backend: 'node-screenshots/win32',
+      check: { kind: 'unknown', reason: 'the screens cannot be listed: no display' },
+      screens: [],
     })
   })
 

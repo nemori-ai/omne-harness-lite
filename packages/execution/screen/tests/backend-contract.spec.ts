@@ -131,6 +131,11 @@ describe('the geometry of a listing holds together, or it says what does not', (
     ],
     ['a scale of zero', [{ ...screen, scale: 0 }], 'screen "a" has the scale 0'],
     [
+      'a second screen that is wrong behind a first that is right',
+      [screen, { ...screen, id: 'b', primary: false, scale: 0 }],
+      'screen "b" has the scale 0',
+    ],
+    [
       'an origin that is no number',
       [{ ...screen, origin: { x: Number.NaN, y: 0 } }],
       'screen "a" has no place on the desktop',
@@ -169,6 +174,15 @@ describe('the check a backend runs on itself: it fails closed', () => {
     })
   })
 
+  it('fails when the listing names a primary screen and still does not hold together', async () => {
+    const [only] = await sound().list()
+    const twice = [only!, { ...only!, primary: false }]
+    expect(await selfCheck(over({ list: async () => twice }))).toEqual({
+      kind: 'failed',
+      reason: 'the identifier "2" is listed twice',
+    })
+  })
+
   it('fails when a frame of the primary screen is not the size the listing gives', async () => {
     const wrongUnits = backendOver('pixels', MACOS_TWO_SCREENS).backend
     expect(await selfCheck(wrongUnits)).toEqual({
@@ -188,6 +202,17 @@ describe('the check a backend runs on itself: it fails closed', () => {
       kind: 'failed',
       reason: 'the image of a frame is not a PNG',
     })
+  })
+
+  it('takes bytes for a PNG only by the whole signature, and only when the size can be read', async () => {
+    const whole = new Uint8Array(await pngBytes(1024, 768))
+    const oneByteOff = Uint8Array.from(whole)
+    oneByteOff[1] = 0x51
+    const signatureOnly = whole.slice(0, 8)
+    for (const png of [oneByteOff, signatureOnly])
+      expect(
+        await selfCheck(over({ capture: async () => ({ png, width: 1024, height: 768 }) })),
+      ).toEqual({ kind: 'failed', reason: 'the image of a frame is not a PNG' })
   })
 
   it('fails when the primary screen it listed cannot be captured by its identifier', async () => {

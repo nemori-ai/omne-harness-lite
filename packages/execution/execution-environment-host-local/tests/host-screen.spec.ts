@@ -171,7 +171,11 @@ describe('the backend checks itself with one frame before the facility hands any
     const { backend, state, shot } = backendOf()
     const wrong: ScreenBackend = { ...backend, capture: async () => shot(128, 80) }
     const facility = createScreenFacility(wrong)
-    for (const answer of [await facility.list(request()), await capture(facility)])
+    for (const answer of [
+      await facility.list(request()),
+      await capture(facility),
+      await facility.list(request()),
+    ])
       expect(answer).toMatchObject({ kind: 'rejected', reason: 'unavailable' })
     expect(state.captures).toBe(0)
   })
@@ -187,6 +191,32 @@ describe('the backend checks itself with one frame before the facility hands any
     expect(await capture(facility)).toMatchObject({ kind: 'rejected', reason: 'unavailable' })
     fail = false
     expect(await capture(facility)).toMatchObject({ kind: 'done' })
+  })
+
+  it('a screen that is gone between the listing and the frame is not found', async () => {
+    const { backend } = backendOf()
+    let calls = 0
+    const unplugged: ScreenBackend = {
+      ...backend,
+      capture: async input => (++calls > 1 ? 'not-found' : backend.capture(input)),
+    }
+    expect(await capture(createScreenFacility(unplugged), 'right')).toMatchObject({
+      kind: 'rejected',
+      reason: 'notFound',
+    })
+  })
+
+  it('a frame of the right width and another height is not handed out', async () => {
+    const { backend, shot } = backendOf()
+    let calls = 0
+    const squashed: ScreenBackend = {
+      ...backend,
+      capture: async input => (++calls > 1 ? shot(48, 24) : backend.capture(input)),
+    }
+    expect(await capture(createScreenFacility(squashed), 'right')).toMatchObject({
+      kind: 'rejected',
+      reason: 'unavailable',
+    })
   })
 
   it('a frame that is not the size of the region asked for is not handed out', async () => {
