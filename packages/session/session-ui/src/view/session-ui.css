@@ -725,10 +725,10 @@
   padding: var(--spacing) 0 var(--omne-space-inline) calc(var(--spacing) * 5.5);
 }
 /* Reasoning: the reading face at the interface size in weak ink, no bubble, its own measure; headings inside it are
-   not raised (conversation.css `.conversation-run-reasoning`). */
+   not raised (conversation.css `.conversation-run-reasoning`: 62ch in the source's face, which is 31.3em). */
 .omne-process-reading {
   min-width: 0;
-  max-width: 62ch;
+  max-width: 31.3em;
   color: var(--omne-ink-muted);
   font-family: var(--omne-font-reading);
   font-size: var(--omne-text-ui);
@@ -787,11 +787,14 @@
    deepens the hairline and draws no ring. It never grows past its cap; inside it only the words scroll
    (conversation-patterns.css `.assistant-composer`, conversation.css `.conversation-composer`). The source's px are
    drawn at the size (its size-lengths step), so here they are steps of `--spacing`. */
+/* The source keeps 12 (at the size step) between the transcript and the composer (conversation.css
+   `.conversation-composer` margin-top); the column's gap gives part of it. */
 .omne-composer {
   display: flex;
   flex: none;
   flex-direction: column;
   gap: calc(var(--spacing) * 2);
+  margin-top: calc(var(--spacing) * 3 - var(--omne-space-inline));
   max-height: min(46dvh, calc(var(--spacing) * 100));
   padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
   border-radius: var(--omne-radius-window);

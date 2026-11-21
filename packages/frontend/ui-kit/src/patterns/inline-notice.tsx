@@ -80,7 +80,7 @@ export function InlineNotice({
     >
       <ToneIcon aria-hidden="true" className="mt-px size-4 shrink-0" />
       <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-        {title !== undefined && <p className="font-medium">{title}</p>}
+        {title !== undefined && <p>{title}</p>}
         {children}
         {detail !== undefined && detail !== '' && (
           <Disclosure label={detailLabel}>

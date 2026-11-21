@@ -135,6 +135,7 @@ it('InlineNotice carries its tone, title and body, and an alert role for a failu
   expect(notice.getAttribute('data-tone')).toBe('danger')
   expect(notice.textContent).toContain('保存失败')
   expect(notice.textContent).toContain('磁盘已满')
+  expect(screen.getByText('保存失败').className).toBe('')
 })
 
 it('InlineNotice runs its action, dismisses, and shows its detail behind a disclosure', () => {
