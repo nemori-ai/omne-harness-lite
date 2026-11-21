@@ -21,17 +21,24 @@ export type ForkPointJudgment = 'boundary' | 'unknown-epoch' | 'out-of-bounds' |
 
 const COUNT = /^[1-9][0-9]*$/u
 
+function withinBounds(point: ForkPoint, facts: ForkFacts & { rows: string }): boolean {
+  if (!COUNT.test(point.upper) || !COUNT.test(point.position)) return false
+  const position = BigInt(point.position)
+  return (
+    BigInt(point.upper) <= BigInt(facts.rows) &&
+    position >= BigInt(facts.floor) &&
+    position <= BigInt(facts.tail)
+  )
+}
+
 /** A point is legal on a request boundary: before an assistant message, or the whole view of an idle source. */
 export function judgeForkPoint(point: ForkPoint, facts: ForkFacts): ForkPointJudgment {
-  if (facts.rows === null) return 'unknown-epoch'
-  if (!COUNT.test(point.upper) || !COUNT.test(point.position)) return 'out-of-bounds'
-  const upper = BigInt(point.upper)
-  const position = BigInt(point.position)
-  if (upper > BigInt(facts.rows)) return 'out-of-bounds'
-  if (position < BigInt(facts.floor) || position > BigInt(facts.tail)) return 'out-of-bounds'
+  const { rows } = facts
+  if (rows === null) return 'unknown-epoch'
+  if (!withinBounds(point, { ...facts, rows })) return 'out-of-bounds'
   if (facts.next === 'assistant') return 'boundary'
-  const whole = facts.next === null && upper === BigInt(facts.rows)
-  return whole && facts.current && !facts.running ? 'boundary' : 'not-a-boundary'
+  const idleWhole = facts.next === null && point.upper === rows && facts.current && !facts.running
+  return idleWhole ? 'boundary' : 'not-a-boundary'
 }
 
 /** The position of the next entry a session writes: after its own last, or after the point it forked at. */
