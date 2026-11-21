@@ -710,37 +710,37 @@ async function walk(browser, origin, proofs, elsewhere) {
   )
   phase = 'tool'
   await step(
-    '工具卡的参数是人读的样子',
+    '工具调用是一行过程行，展开后参数是人读的名与值',
     `
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'run the tool')
     await press('button[type=submit]', '发送')
-    await wait('the tool card', () =>
-      [...document.querySelectorAll('section[data-page=conversation] .omne-card')].find(item => item.querySelector('code')?.textContent === 'Shell'))
+    const live = () => [...document.querySelectorAll('section[data-page=conversation] .omne-process')].find(item => item.querySelector('code.omne-process-name')?.textContent === 'Shell')
+    await wait('the tool call line', live)
     await wait('the run to settle', () => transcript().includes('done') && byText('button[type=submit]', '发送'))
-    const live = () => [...document.querySelectorAll('section[data-page=conversation] .omne-card')].find(item => item.querySelector('code')?.textContent === 'Shell')
-    const trigger = await wait('the card trigger', () => live().querySelector('button[aria-expanded]'))
+    const trigger = await wait('the line trigger', () => live().querySelector('button[aria-expanded]'))
     if (trigger.getAttribute('aria-expanded') === 'false') trigger.click()
-    await wait('the card open', () => live().querySelector('button[aria-expanded=true]'))
-    const card = live()
+    await wait('the line open', () => live().querySelector('button[aria-expanded=true]'))
+    const line = live()
     const list = await wait('the visible arguments list', () => {
-      const found = card.querySelector('ul.omne-arguments')
+      const found = line.querySelector('dl[aria-label="参数"]')
       return found && found.innerText.includes('echo walk-args') ? found : undefined
     })
-    const pairs = [...list.querySelectorAll('.omne-argument-name, .omne-argument-value')].map(item => item.textContent)
-    for (const expected of ['command', 'execute', 'params', 'script', 'echo walk-args'])
-      if (!pairs.includes(expected)) throw new Error('the card does not show ' + expected + ' as its own element: ' + JSON.stringify(pairs))
-    const label = [...card.querySelectorAll('.omne-card-label')].find(item => item.textContent === '参数')
-    if (label?.nextElementSibling !== list) throw new Error('the arguments are not a key/value list: ' + label?.nextElementSibling?.outerHTML)
-    if (/[{}"]/.test(list.innerText)) throw new Error('the arguments show raw JSON: ' + list.innerText)
-    return { pairs, arguments: list.innerText }`,
+    const rows = Object.fromEntries([...list.querySelectorAll('.fact-list-row')].map(row => [row.querySelector('dt').textContent, row.querySelector('dd')]))
+    for (const name of ['command', 'params'])
+      if (!(name in rows)) throw new Error('the arguments do not name ' + name + ': ' + JSON.stringify(Object.keys(rows)))
+    if (rows.command.textContent !== 'execute') throw new Error('a plain value is not shown as itself: ' + rows.command.textContent)
+    const nested = rows.params.querySelector('[data-nested]')
+    if (!nested || nested.textContent.includes('\\n') || !nested.textContent.includes('echo walk-args')) throw new Error('a nested value is not one summary line: ' + rows.params.innerHTML)
+    if (line.querySelector('pre:not(.code-surface pre)')) throw new Error('the line shows a bare pre')
+    return { names: Object.keys(rows), params: nested.textContent }`,
   )
   await step(
-    '卡片展开之后才送达的滚动事件，不让转写区停止跟随',
+    '过程行展开之后才送达的滚动事件，不让转写区停止跟随',
     `
     const scroller = document.querySelector('section[data-page=conversation] .omne-conversation')
     const gap = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight
     const before = gap()
-    if (before <= 32) throw new Error('the open card does not push the end out of view, so this step cannot tell: gap ' + before)
+    if (before <= 32) throw new Error('the open line does not push the end out of view, so this step cannot tell: gap ' + before)
     scroller.dispatchEvent(new Event('scroll'))
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'one more message')
     await press('button[type=submit]', '发送')
@@ -754,6 +754,9 @@ async function walk(browser, origin, proofs, elsewhere) {
   await step(
     '一轮里并行的两次 Ask：对话页出现三张问询卡，题号、等待提示与导航上的张数',
     `
+    // The row of this session is selected only while its conversation shows; remember which row it is.
+    window.walkAskRow = document.querySelector('.omne-session-item[aria-current=true] .omne-session-item-title')?.textContent
+    if (!window.walkAskRow) throw new Error('no session row is selected while the conversation shows')
     fill(document.querySelector('textarea[aria-label="输入消息"]'), 'ask me')
     await press('button[type=submit]', '发送')
     const area = await wait('the cards of this session', () => dock())
@@ -810,7 +813,9 @@ async function walk(browser, origin, proofs, elsewhere) {
     const shown = id => document.querySelector('section[data-page=' + id + ']')?.hidden === false
     await goHome()
     await wait('the home to go to the decisions page while answers wait', () => shown('decisions'))
-    ;(await wait('the open session in the list', () => document.querySelector('.omne-session-item[aria-current=true]'))).click()
+    if (document.querySelector('.omne-session-item[aria-current=true]')) throw new Error('a session row stays selected while the decisions page shows')
+    ;(await wait('the asking session in the list', () => [...document.querySelectorAll('.omne-session-item')].find(row => row.querySelector('.omne-session-item-title')?.textContent === window.walkAskRow))).click()
+    await wait('its row selected again', () => document.querySelector('.omne-session-item[aria-current=true] .omne-session-item-title')?.textContent === window.walkAskRow)
     await wait('the conversation page', () => shown('conversation'))
     const area = await wait('the cards of this session', () => dock())
     const showing = () => shownCard(area)?.getAttribute('aria-label')
