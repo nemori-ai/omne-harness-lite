@@ -23,7 +23,7 @@ export function CallOutput({
     case 'unread':
       return <LoadingState label="正在读输出…" />
     case 'none':
-      return <p>还没有可读的输出</p>
+      return <p className="text-xs text-ink-muted">还没有可读的输出</p>
     case 'unreadable':
       return (
         <InlineNotice tone={NEUTRAL.has(view.reason) ? 'neutral' : 'caution'} detail={view.reason}>

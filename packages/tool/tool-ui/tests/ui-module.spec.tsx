@@ -93,7 +93,8 @@ describe('the output of a call as the view keeps it (C26, C24)', () => {
     render(<CallOutput store={store} tenant={TENANT} reference="ref-2" />)
     const reading = screen.getByRole('status', { name: '正在读输出…' })
     expect(reading.querySelector('[data-loading-indicator]')).not.toBeNull()
-    expect(await screen.findByText('还没有可读的输出')).toBeTruthy()
+    // The empty line is weak ink, said at caption size (SPEC 界面模块).
+    expect((await screen.findByText('还没有可读的输出')).className).toContain('text-ink-muted')
   })
 
   it('an output it cannot read is said in words, its outcome kept in 详情; a refusal or an unknown is neutral', async () => {

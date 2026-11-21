@@ -273,7 +273,7 @@ Tool 为别人实现的端口（它提供的）：
 - 选项给了 `callDetail` 时，模块往这个[拓展点](../../.meta_harness/design/ubiquitous_language/terms/architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)里放一项：标识 `tool-call-output`，次序 0，收到的对象是 `{ session, call }`。桌面应用把会话的 `sessionCallDetail` 交给它，于是每项后台调用的输出出现在会话「后台」页签里那一项的下面。本成员只写自己要的对象形状，不导入会话的界面模块。外壳还没给租户时什么都不画。
 - 输出按调用引用经 `read-call-output` 读：视图挂着时从上一次读到的位置接着读，每 2 秒一次；同一个调用的几处视图共用一份存放，最后一处卸下时停下。屏幕上至多留最新的 `KEPT_CHARS`（8000）个字符，更早的不显示。
 - 观感照[视觉规范](../../.meta_harness/agents/skills/visual-standard/canonical/SKILL.md)；颜色与语气的规则见[规则与 token 的索引](../../.meta_harness/agents/skills/visual-standard/canonical/references/rules-index.md)的 C3、C4。输出是会话后台调用那一行原地展开的内容，不是单独的一块；那一行的其余部分（命令与预览、停止的三段进度、最后一行输出）归会话的界面模块，输出排在最后。下面每一句通知都写明语气：注意是 `InlineNotice` 的 `caution`，琥珀；中性是 `neutral`。正常的状态不画字。
-  - 有输出：`CodeSurface`，等宽，自己滚；顶上的字滚走时出现一条细线。可访问名称是「调用的输出」。新读到的字接在后面，不逐字动。
+  - 有输出：`CodeSurface`，等宽，自己滚；顶上一行写格式，它与正文之间一条细线，正文在细线下面滚。可访问名称是「调用的输出」。新读到的字接在后面，不逐字动。
   - 输出还在写：`CodeSurface` 下面一个中性的状态词「输出还在写」，不是动画。写完了不画字。
   - 还没读到第一次：活动标记（`LoadingIndicator`）加「正在读输出…」。
   - 空：一行弱墨的说明字「还没有可读的输出」（中性）。
