@@ -310,6 +310,7 @@ export function createFaces<P>(
             from: value.from,
             direction: value.direction,
             pageBytes: value.pageBytes,
+            ...(value.inherited === true ? { inherited: true } : {}),
           }),
         ),
       ),

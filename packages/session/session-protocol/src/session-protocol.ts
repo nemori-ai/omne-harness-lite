@@ -169,6 +169,7 @@ const readHistory = {
       cursor: { rule: nothing },
       direction: { rule: literal('forward', 'backward') },
       pageBytes: { rule: { kind: 'page-bytes' } },
+      inherited: { rule: boolean, optional: true },
     }),
     object({ ...target, cursor: { rule: text } }),
   ],
@@ -190,6 +191,7 @@ const historyPage = object({
   next: { rule: nullable(text) },
   exhausted: { rule: boolean },
   scannedThrough: { rule: anyText },
+  from: { rule: text, optional: true },
 })
 
 const waiting = object({

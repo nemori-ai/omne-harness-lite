@@ -146,6 +146,27 @@ describe('the Agents tool on the release tree', () => {
         const context = told.filter(text => text.includes('Runtime context: '))
         expect(context[0]).toContain('Runtime context: the current values')
 
+        // A person reads the conversation it started with through the command line, under its source.
+        const read = [
+          'read-history',
+          '--session',
+          dispatch.session,
+          '--tenant',
+          savedTenant(tree.home),
+        ]
+        const plain = await tree.cli(read)
+        expect(plain.status, plain.stderr).toBe(0)
+        expect(plain.stdout).not.toContain('the code word is HERON')
+        const whole = await tree.cli([...read, '--inherited'])
+        expect(whole.status, whole.stderr).toBe(0)
+        const lines = whole.stdout.split('\n')
+        expect(lines[0]).toBe(`--- inherited: session ${parent} ---`)
+        expect(whole.stdout).toContain('the code word is HERON')
+        expect(lines.indexOf('--- this session ---')).toBeGreaterThan(
+          lines.findIndex(line => line.includes('agents: spawn now')),
+        )
+        expect(whole.stdout.endsWith(plain.stdout)).toBe(true)
+
         // Its first model request is given the conversation of the dispatcher, then its own rows.
         expect(Buffer.byteLength(seen.child)).toBeGreaterThan(200_000)
         const said = seen.child.indexOf('the code word is HERON')

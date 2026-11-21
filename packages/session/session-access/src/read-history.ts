@@ -37,6 +37,7 @@ function pageOf(page: HistoryPage) {
     exhausted: page.exhausted,
     scannedThrough: page.scannedThrough,
     upper: page.upper,
+    ...(page.from === undefined ? {} : { from: page.from }),
   }
 }
 
@@ -58,6 +59,7 @@ export async function readHistory(
           from: null,
           direction: body.direction,
           pageBytes: Number(body.pageBytes),
+          ...(body.inherited === true ? { inherited: true as const } : {}),
         })
       : faces.history.next({ ...access, cursor: body.cursor }),
   )

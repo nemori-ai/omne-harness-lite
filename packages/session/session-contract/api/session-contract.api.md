@@ -2173,6 +2173,7 @@ export type HistoryPage = Readonly<{
     next: string | null;
     exhausted: boolean;
     annotations: readonly HistoryEntry[];
+    from?: SessionId;
 }>;
 export type ModelViewBasis = Readonly<{
     epoch: string;
@@ -2219,6 +2220,7 @@ export interface SessionHistory<P> {
         from: EntryId | null;
         direction: 'forward' | 'backward';
         pageBytes: number;
+        inherited?: true;
     }>): Reply<HistoryPage>;
     next(input: SessionAccess<P> & Readonly<{
         cursor: string;
@@ -3993,8 +3995,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:6507af4f1b08eed99ef691534b6a8161811e286967260dbbc1ebd10a05f5cba3";
-export declare const SESSION_RELEASE_DIGEST = "sha256:6507af4f1b08eed99ef691534b6a8161811e286967260dbbc1ebd10a05f5cba3";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:456e52243a85924983cdb5eb84a007b50b0373716c16f15845edec894120265a";
+export declare const SESSION_RELEASE_DIGEST = "sha256:456e52243a85924983cdb5eb84a007b50b0373716c16f15845edec894120265a";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4283,15 +4285,18 @@ export declare function sessionEntriesConformance<P>(): readonly ConformanceCase
 import { type ForkFacts, type SessionFork } from './fork.ts';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ForkPointRead, HistoryEntry, SessionFailure } from './faces.ts';
+import type { ForkPointRead, HistoryEntry, HistoryPage, SessionFailure } from './faces.ts';
 import type { EntryId, SessionId, SessionRevision } from './identity.ts';
 import type { EncodedEntry } from './judgments.ts';
 import { type MaterializedModelView } from './model-view.ts';
 import type { SessionCommand } from './ports.ts';
+import { type Cursor } from './testing-history-cursor.ts';
 import type { WorkSnapshot } from './values.ts';
 export type MemoryFork = Readonly<{
     fork: SessionFork;
     inherited: readonly HistoryEntry[];
+    prefix: readonly string[];
+    owners: ReadonlyMap<string, SessionId>;
 }>;
 type Held = Readonly<{
     snapshot: WorkSnapshot;
@@ -4338,7 +4343,32 @@ export declare const chained: <S extends Held>(store: S) => S & {
     inherited: number;
 };
 export declare function pointRead(store: Outcome<Held, SessionFailure>, key: Outcome<string, SessionFailure>): Outcome<ForkPointRead, SessionFailure>;
+type HistoryAsk = Readonly<{
+    inherited?: true;
+    from: unknown;
+    direction: string;
+}>;
+export declare function inheritedRefusal(input: HistoryAsk): SessionFailure | null;
+export declare function prefixPage(store: Held, cursor: Cursor, issued: Set<string>): HistoryPage | null;
 export {};
+```
+
+## 声明文件 `testing-history-cursor.d.ts`
+
+```ts
+import type { SessionId } from './identity.ts';
+export type Cursor = Readonly<{
+    tenant: string;
+    session: SessionId;
+    kinds: readonly string[];
+    direction: 'forward' | 'backward';
+    upper: number;
+    scanned: number;
+    pageBytes: number;
+    inherited?: number;
+}>;
+export declare function encodeCursor(cursor: Cursor): string;
+export declare function decodeCursor(text: string): Cursor | null;
 ```
 
 ## 声明文件 `testing-history-source.d.ts`

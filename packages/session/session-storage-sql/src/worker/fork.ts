@@ -70,6 +70,7 @@ function segmentsOf(port: Executor, scope: Scope, epoch: string): Piece[] {
 }
 
 export type View = Readonly<{
+  inherited: bigint
   upper(): bigint
   rows(after: bigint, upper: bigint, limit: number, columns?: string): Row[]
   rowOf(entry: string): Row | undefined
@@ -81,6 +82,7 @@ export function viewOf(port: Executor, scope: Scope, epoch: string): View {
   const own: Piece = { session: scope.session, epoch, above: inherited, upto: null }
   const key = (piece: Piece) => [scope.tenant, piece.session, piece.epoch]
   return {
+    inherited,
     upper() {
       const last = oneRow(
         port,
@@ -173,7 +175,7 @@ const tailOf = (port: Executor, scope: Scope, fork: Fork | undefined): bigint =>
   return head === undefined || head['p'] === null ? (fork?.position ?? 0n) : big(head['p'])
 }
 
-const roleOf = (message: string): ForkFacts['next'] =>
+export const roleOf = (message: string): ForkFacts['next'] =>
   message.startsWith('{') ? (JSON.parse(message) as { role: ForkFacts['next'] }).role : 'compaction'
 
 type Source = Readonly<{ session: string; epoch: string; running: boolean }>

@@ -163,7 +163,9 @@ export async function readModelSelection<P>(
 
 function page(out: HandlerOutput, next: string | null): Outcome<HistoryPage, SessionFailure> {
   try {
+    const from = out['from']
     return succeed({
+      ...(typeof from === 'string' ? { from: from as SessionId } : {}),
       source: OWNER,
       interpreter: out['interpreter'] as never,
       upper: out['upper'] as never,
@@ -185,12 +187,61 @@ type HistoryState = Readonly<{
   direction: 'forward' | 'backward'
   kinds: readonly string[]
   pageBytes: number
+  /** Set while the read gives the prefix of a forked session: the seq of the last row given. */
+  inherited?: string
 }>
+
+type HistoryAction = 'history.begin' | 'history.next' | 'history.since'
+
+/** One page of the entries behind the prefix; when the prefix is given, the first page of the own log. */
+async function inheritedRead<P>(
+  context: Context<P>,
+  access: SessionAccess<P>,
+  action: HistoryAction,
+  state: Pick<HistoryState, 'kinds' | 'pageBytes'> & Readonly<{ after: string }>,
+): Reply<HistoryPage> {
+  const { kinds, pageBytes, after } = state
+  if (!Number.isInteger(pageBytes) || pageBytes < 1)
+    return failure({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
+  const read = await sessionRead(context, access, action, 'session.history-inherited', {
+    after,
+    kinds: [...kinds],
+    pageBytes,
+  })
+  if ('failure' in read) return read
+  const out = read.ok.out
+  if (out['kind'] === 'unreadable')
+    return failure(unavailable('the entries behind the prefix cannot be read'))
+  if (out['kind'] !== 'page')
+    return historyRead(
+      context,
+      access,
+      action,
+      { mode: 'begin', from: null },
+      kinds,
+      'forward',
+      pageBytes,
+    )
+  const token = await seal(
+    context.cursor,
+    { kind: 'history', tenant: read.ok.tenant, session: access.session },
+    {
+      edge: '0',
+      upper: '0',
+      direction: 'forward',
+      kinds,
+      pageBytes,
+      inherited: String(out['last']),
+    } satisfies HistoryState,
+  )
+  if ('failure' in token) return token
+  return page({ ...out, scannedThrough: '0', exhausted: false, annotations: [] }, token.ok)
+}
 
 async function historyRead<P>(
   context: Context<P>,
   access: SessionAccess<P>,
-  action: 'history.begin' | 'history.next' | 'history.since',
+  action: HistoryAction,
   input: Readonly<Record<string, JsonValue>>,
   kinds: readonly string[],
   direction: 'forward' | 'backward',
@@ -231,6 +282,21 @@ async function historyRead<P>(
   return page(out, token.ok)
 }
 
+/** A read from the start: with the prefix asked for, the entries behind it come first. */
+async function beginHistory<P>(
+  context: Context<P>,
+  input: Parameters<SessionHistory<P>['begin']>[0],
+): Reply<HistoryPage> {
+  const { kinds, direction, pageBytes, from } = input
+  if (input.inherited !== true) {
+    const begin = { mode: 'begin', from }
+    return historyRead(context, input, 'history.begin', begin, kinds, direction, pageBytes)
+  }
+  if (from !== null || direction !== 'forward')
+    return failure({ kind: 'invalid', field: 'inherited', reason: 'only forward from the start' })
+  return inheritedRead(context, input, 'history.begin', { kinds, pageBytes, after: '0' })
+}
+
 export function historyFace<P>(context: Context<P>): SessionHistory<P> {
   return {
     readCompactionContext: async input => {
@@ -269,16 +335,7 @@ export function historyFace<P>(context: Context<P>): SessionHistory<P> {
         value: out['value'] as Extract<CompactionContextRead, { kind: 'context' }>['value'],
       })
     },
-    begin: input =>
-      historyRead(
-        context,
-        input,
-        'history.begin',
-        { mode: 'begin', from: input.from },
-        input.kinds,
-        input.direction,
-        input.pageBytes,
-      ),
+    begin: input => beginHistory(context, input),
     since: input =>
       historyRead(
         context,
@@ -300,6 +357,11 @@ export function historyFace<P>(context: Context<P>): SessionHistory<P> {
         input.cursor,
       )
       if ('failure' in state) return state
+      if (state.ok.inherited !== undefined)
+        return inheritedRead(context, input, 'history.next', {
+          ...state.ok,
+          after: state.ok.inherited,
+        })
       return historyRead(
         context,
         input,

@@ -7,17 +7,32 @@ import {
 } from './fork.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { ForkPointRead, HistoryEntry, ModelViewRow, SessionFailure } from './faces.ts'
+import type {
+  ForkPointRead,
+  HistoryEntry,
+  HistoryPage,
+  ModelViewRow,
+  SessionFailure,
+} from './faces.ts'
 import type { EntryId, SessionId, SessionRevision } from './identity.ts'
 import type { EncodedEntry } from './judgments.ts'
 import { compactionReads, type MaterializedModelView } from './model-view.ts'
 import type { SessionCommand } from './ports.ts'
+import { encodeCursor, type Cursor } from './testing-history-cursor.ts'
+import { TESTING_OWNER } from './testing-values.ts'
+import { decodeEntry, SESSION_INTERPRETER } from './entries.ts'
 import type { WorkSnapshot } from './values.ts'
 
 // The fork of the memory transaction double: a forked store holds the rows of its prefix as its
 // first epoch and the entries of the source chain behind them, which no reduction ever reads.
 
-export type MemoryFork = Readonly<{ fork: SessionFork; inherited: readonly HistoryEntry[] }>
+/** `prefix` names the entries of the rows it started from, in their order; `owners` the session of each. */
+export type MemoryFork = Readonly<{
+  fork: SessionFork
+  inherited: readonly HistoryEntry[]
+  prefix: readonly string[]
+  owners: ReadonlyMap<string, SessionId>
+}>
 
 type Held = Readonly<{
   snapshot: WorkSnapshot
@@ -26,7 +41,6 @@ type Held = Readonly<{
   fork?: MemoryFork
 }>
 
-/** The entries a reference of the session may name: those behind its prefix, then its own. */
 export function chainOf(store: Pick<Held, 'entries' | 'fork'>): readonly HistoryEntry[] {
   return store.fork === undefined ? store.entries : [...store.fork.inherited, ...store.entries]
 }
@@ -88,17 +102,19 @@ export function startOf(
   const rows = prefixOf(source, key.ok, fork.point)
   const named = new Set(rows.map(row => String(row.entry)))
   const inherited = chainOf(source).filter((entry, index) => index === 0 || named.has(entry.id))
+  const owners = new Map(
+    inherited.map(entry => [entry.id, source.fork?.owners.get(entry.id) ?? fork.source]),
+  )
   return {
     facts: memoryForkFacts(source, key.ok, fork.point),
     modelView: { epoch: 'epoch:0', rows },
-    fork: { fork, inherited },
+    fork: { fork, inherited, prefix: rows.map(row => String(row.entry)), owners },
   }
 }
 
 export const reads = (start: ForkStart | undefined): Readonly<{ fork?: ForkFacts }> =>
   start === undefined ? {} : { fork: start.facts }
 
-/** The fork a store keeps: the one it has, or the one its create starts it from. */
 export const kept = (
   store: Pick<Held, 'fork'> | undefined,
   start?: ForkStart,
@@ -139,4 +155,49 @@ export function pointRead(
   const tail = String(tailOf(store.ok))
   const point = forkPointAfterRows(`${key.ok}/${view.epoch}`, newest, tail)
   return succeed(point === null ? { kind: 'none' } : { kind: 'point', point })
+}
+
+type HistoryAsk = Readonly<{ inherited?: true; from: unknown; direction: string }>
+
+export function inheritedRefusal(input: HistoryAsk): SessionFailure | null {
+  if (input.inherited !== true || (input.from === null && input.direction === 'forward'))
+    return null
+  return { kind: 'invalid', field: 'inherited', reason: 'only forward from the start' }
+}
+
+/** The next page of the prefix: the entries of one source session. Null: the read goes on in the own log. */
+export function prefixPage(store: Held, cursor: Cursor, issued: Set<string>): HistoryPage | null {
+  const { fork } = store
+  if (fork === undefined) return null
+  const kindOf = (entry: HistoryEntry): string => {
+    const decoded = decodeEntry(entry)
+    return 'ok' in decoded && 'message' in decoded.ok ? `message.${decoded.ok.message.role}` : ''
+  }
+  const wanted = fork.prefix
+    .map(id => fork.inherited.find(entry => entry.id === id))
+    .filter(entry => entry !== undefined)
+    .filter(entry => cursor.kinds.length === 0 || cursor.kinds.includes(kindOf(entry)))
+  const groups: { from: SessionId; entries: HistoryEntry[] }[] = []
+  for (const entry of wanted) {
+    const from = fork.owners.get(entry.id) ?? fork.fork.source
+    const last = groups.at(-1)
+    if (last?.from === from) last.entries.push(entry)
+    else groups.push({ from, entries: [entry] })
+  }
+  const given = cursor.inherited ?? 0
+  const group = groups[given]
+  if (group === undefined) return null
+  const token = encodeCursor({ ...cursor, inherited: given + 1 })
+  issued.add(token)
+  return {
+    source: TESTING_OWNER,
+    interpreter: SESSION_INTERPRETER,
+    upper: store.snapshot.revision,
+    entries: group.entries,
+    from: group.from,
+    scannedThrough: '0',
+    next: token,
+    exhausted: false,
+    annotations: [],
+  }
 }

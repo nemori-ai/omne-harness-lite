@@ -48,6 +48,7 @@ type SessionRequestBodies = {
         readonly cursor: null
         readonly direction: 'forward' | 'backward'
         readonly pageBytes: string
+        readonly inherited?: boolean
       })
     | (Target & { readonly cursor: string })
   'cancel-run': Target & {
@@ -77,6 +78,7 @@ type SessionSuccessBodies = {
     readonly next: string | null
     readonly exhausted: boolean
     readonly scannedThrough: string
+    readonly from?: string
   }
   'cancel-run':
     | { readonly kind: 'requested'; readonly controlId: string; readonly run: string }

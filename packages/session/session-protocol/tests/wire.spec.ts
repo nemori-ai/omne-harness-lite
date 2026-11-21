@@ -42,6 +42,7 @@ const validBodies: Samples = {
   'query-send-input': [{ ...target, acceptId: 'accept' }],
   'read-history': [
     { ...target, cursor: null, direction: 'backward', pageBytes: '65536' },
+    { ...target, cursor: null, direction: 'forward', pageBytes: '65536', inherited: true },
     { ...target, cursor: 'opaque-cursor' },
   ],
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'graceful' }],
@@ -75,6 +76,7 @@ const invalidBodies: Samples = {
     { ...target, cursor: 'opaque-cursor', direction: 'forward', pageBytes: '65536' },
     { ...target, cursor: null, direction: 'sideways', pageBytes: '65536' },
     { ...target, cursor: null, direction: 'forward', pageBytes: '0' },
+    { ...target, cursor: null, direction: 'forward', pageBytes: '65536', inherited: 'yes' },
   ],
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'soon' }],
   'archive-session': [{ ...target }, { ...target, controlId: 'control', run: 'run-1' }],
@@ -103,6 +105,14 @@ const successBodies: Samples = {
       upper: '7',
     },
     { entries: [], next: 'next-cursor', exhausted: false, scannedThrough: '', upper: '7' },
+    {
+      entries: [{ entryId: '22', revision: '3', kind: 'message.user', payload: {} }],
+      next: 'next-cursor',
+      exhausted: false,
+      scannedThrough: '0',
+      upper: '7',
+      from: 'another-session-0001',
+    },
   ],
   'archive-session': [
     { kind: 'archived', controlId: 'control', runs: 1, backgroundCalls: 0 },

@@ -283,6 +283,12 @@ export const HANDLERS: readonly Handler[] = [
     maxRowsRead: 128,
   },
   {
+    handler: 'session.history-inherited',
+    file: 'read-inherited-history',
+    tables: ['sl_journal', 'sl_model_view', 'sl_entry', 'sl_blob', ...FORK_TABLES],
+    migrations: [...factMigrations, FORK_MIGRATION],
+  },
+  {
     handler: 'session.model-view',
     file: 'read-model-view',
     tables: ['sl_journal', 'sl_model_view', 'sl_blob', ...FORK_TABLES],

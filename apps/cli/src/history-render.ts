@@ -100,3 +100,21 @@ export function renderEntry(entry: RawEntry): string {
   const body = renderBody(kind, entry['payload']).split('\n').join('\n    ')
   return `#${word(entry['entryId'])} ${kind}: ${body}\n`
 }
+
+/** The entries as lines; where the session whose log holds them changes, one line says whose follow. */
+export function renderEntries(entries: readonly RawEntry[]): string {
+  const lines: string[] = []
+  let last: unknown
+  for (const entry of entries) {
+    const source = entry['inheritedFrom']
+    if (source !== last)
+      lines.push(
+        typeof source === 'string'
+          ? `--- inherited: session ${source} ---\n`
+          : '--- this session ---\n',
+      )
+    last = source
+    lines.push(renderEntry(entry))
+  }
+  return lines.join('')
+}

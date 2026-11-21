@@ -12,7 +12,7 @@ Commands
   omne create-session --definition <name> [--model <route>] [--workspace <id> --instance <id>]                            Create a session, in a workspace when one is named.
   omne send-input --session <id> [--text <text>] [--attach <file>]... [--model <route>]                                   Send a user message to a session: words, files (each --attach is uploaded first), or both.
   omne interrupt-input --session <id> [--text <text>] [--attach <file>]... [--model <route>]                              Send an urgent user message: it releases what the run waits for, or is ordinary.
-  omne read-history --session <id>                                                                                        Read the whole history of a session.
+  omne read-history --session <id> [--inherited]                                                                          Read the whole history of a session; --inherited first reads what a forked session started with.
   omne search (--text <literal> | --words <words> | --regex <pattern>)                                                    Search the history of all sessions of the tenant.
   omne read-session-diagnostics --session <id>                                                                            Read the diagnostics of the runs of a session.
   omne read-pending --session <id> [--after <position>] [--limit <n>]                                                     List the inputs a session accepted that no run took yet, the oldest first.

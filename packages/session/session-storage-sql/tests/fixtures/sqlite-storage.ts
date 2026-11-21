@@ -61,6 +61,7 @@ import readExecutionOperation from '../../src/worker/read-execution-operation.ts
 import readExecutionSession from '../../src/worker/read-execution-session.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
+import readInheritedHistory from '../../src/worker/read-inherited-history.ts'
 import readInput from '../../src/worker/read-input.ts'
 import readModelSelection from '../../src/worker/read-model-selection.ts'
 import readForkPoint from '../../src/worker/read-fork-point.ts'
@@ -104,6 +105,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readInput,
   readModelSelection,
   readHistory,
+  readInheritedHistory,
   readForkPoint,
   readModelView,
   readPending,

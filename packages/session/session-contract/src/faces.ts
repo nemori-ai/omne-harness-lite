@@ -401,6 +401,7 @@ export type HistoryPage = Readonly<{
   next: string | null
   exhausted: boolean
   annotations: readonly HistoryEntry[]
+  from?: SessionId
 }>
 export type ModelViewBasis = Readonly<{ epoch: string; upper: string }>
 export type ModelViewRow = Readonly<{
@@ -436,6 +437,7 @@ export interface SessionHistory<P> {
         from: EntryId | null
         direction: 'forward' | 'backward'
         pageBytes: number
+        inherited?: true
       }>,
   ): Reply<HistoryPage>
   next(input: SessionAccess<P> & Readonly<{ cursor: string }>): Reply<HistoryPage>

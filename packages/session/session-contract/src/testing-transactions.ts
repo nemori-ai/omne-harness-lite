@@ -76,6 +76,7 @@ import { controlAnswer } from './call-control.ts'
 import { materializeModelView, type MaterializedModelView } from './model-view.ts'
 import { memoryCompactionContext, memoryModelViewPage } from './testing-model-view-reads.ts'
 import * as forks from './testing-fork.ts'
+import { decodeCursor, encodeCursor, type Cursor } from './testing-history-cursor.ts'
 import { SESSION_INTERPRETER, decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
@@ -150,16 +151,6 @@ type Store = {
   readonly inputs: Map<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>
 }
 
-type Cursor = Readonly<{
-  tenant: string
-  session: SessionId
-  kinds: readonly string[]
-  direction: 'forward' | 'backward'
-  upper: number
-  scanned: number
-  pageBytes: number
-}>
-
 export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> {
   readonly durability: 'none'
   readonly commitLog: NonNullable<SessionTransactionPort<P>['commitLog']>
@@ -219,26 +210,6 @@ function keyOf(tenant: TenantId, session: SessionId): Outcome<string, SessionFai
 
 function entryBytes(entry: HistoryEntry): number {
   return Buffer.byteLength(canonicalText(entry), 'utf8')
-}
-
-function encodeCursor(cursor: Cursor): string {
-  return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url')
-}
-
-function decodeCursor(text: string): Cursor | null {
-  try {
-    const parsed: unknown = JSON.parse(Buffer.from(text, 'base64url').toString('utf8'))
-    if (typeof parsed !== 'object' || parsed === null) return null
-    const cursor = parsed as Record<string, unknown>
-    if (typeof cursor['tenant'] !== 'string' || typeof cursor['session'] !== 'string') return null
-    if (!Array.isArray(cursor['kinds']) || typeof cursor['upper'] !== 'number') return null
-    if (typeof cursor['scanned'] !== 'number' || typeof cursor['pageBytes'] !== 'number')
-      return null
-    if (cursor['direction'] !== 'forward' && cursor['direction'] !== 'backward') return null
-    return cursor as Cursor
-  } catch {
-    return null
-  }
 }
 
 export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[] {
@@ -964,6 +935,9 @@ export function createMemorySessionTransactionPair<P>(
       }
     }
 
+    const prefixed = (store: Store, cursor: Cursor, inherited: boolean | undefined): HistoryPage =>
+      (inherited ? forks.prefixPage(store, cursor, issuedCursors) : null) ?? page(store, cursor)
+
     const history: SessionHistory<P> = {
       readCompactionContext: async input => {
         const store = await storeOf(input, 'history.readCompactionContext')
@@ -987,17 +961,10 @@ export function createMemorySessionTransactionPair<P>(
           if (input.direction === 'forward') scanned = at + 1
           else upper = at
         }
-        return succeed(
-          page(store.ok, {
-            tenant,
-            session: input.session,
-            kinds: input.kinds,
-            direction: input.direction,
-            upper,
-            scanned,
-            pageBytes: input.pageBytes,
-          }),
-        )
+        const { session, kinds, direction, pageBytes } = input
+        const cursor = { tenant, session, kinds, direction, upper, scanned, pageBytes }
+        const wrong = forks.inheritedRefusal(input)
+        return wrong === null ? succeed(prefixed(store.ok, cursor, input.inherited)) : fail(wrong)
       },
       next: async input => {
         const store = await storeOf(input, 'history.next')
@@ -1011,7 +978,7 @@ export function createMemorySessionTransactionPair<P>(
           cursor.session !== input.session
         )
           return fail({ kind: 'invalid', field: 'cursor', reason: 'not a cursor of this session' })
-        return succeed(page(store.ok, cursor))
+        return succeed(prefixed(store.ok, cursor, cursor.inherited !== undefined))
       },
       since: async input => {
         const store = await storeOf(input, 'history.since')
