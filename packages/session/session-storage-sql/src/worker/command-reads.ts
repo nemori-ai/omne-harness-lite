@@ -14,6 +14,7 @@ import {
 import type { ParticipantPort, ParticipantReply } from '@omne-harness/sql-contract/worker'
 import { canonicalText, sha256 } from '../codec.ts'
 import type { CoveringSnapshot } from './log.ts'
+import { forkFacts } from './fork.ts'
 import { big, definite, oneRow, packed, rowsOf, text } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
@@ -146,10 +147,15 @@ function relatedReads(
   command: SessionCommand,
   tenant: string,
   covering: CoveringSnapshot,
-): Pick<Reads, 'related'> | ParticipantReply {
+): Pick<Reads, 'related' | 'fork'> | ParticipantReply {
   const other = command.kind === 'create' ? relatedSessionOf(command.input.creation) : null
   if (other === null) return {}
   const journal = journalOf(port, { tenant, session: other }, covering)
   if (journal !== null && 'kind' in journal) return journal
-  return { related: journal === null ? null : relatedOf(journal.work) }
+  if (journal === null) return { related: null }
+  const fork = command.kind === 'create' ? command.input.creation.fork : undefined
+  if (fork?.source !== other) return { related: relatedOf(journal.work) }
+  const running = journal.work.run.kind === 'active'
+  const source = { session: other, epoch: journal.epoch, running }
+  return { related: relatedOf(journal.work), fork: forkFacts(port, tenant, source, fork.point) }
 }

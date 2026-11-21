@@ -360,6 +360,8 @@ export function historyFace<P>(context: Context<P>): SessionHistory<P> {
         } satisfies ModelViewRead)
       if (out['kind'] === 'invalid-bounds')
         return failure({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
+      if (out['kind'] === 'unreadable')
+        return failure(unavailable('a segment of the model view cannot be read'))
       const next = out['next'] as string | null
       const token = next === null ? null : await seal(context.cursor, binding, { after: next })
       if (token !== null && 'failure' in token) return token

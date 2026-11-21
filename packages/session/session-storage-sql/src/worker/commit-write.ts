@@ -11,7 +11,8 @@ import {
 import { blobDigest, canonicalText, plainOf, sha256 } from '../codec.ts'
 import { writeEntryText } from '../entry-codec.ts'
 import { sharedEntryText, viewMessageText } from './shared-messages.ts'
-import { big, definite, oneRow, rowsOf, text } from './support.ts'
+import { viewHead, viewOf } from './fork.ts'
+import { definite, oneRow, text } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_VIEW_ROWS = 100_000
@@ -74,12 +75,10 @@ export function maintainModelView(
     )
       continue
     if (message.role === 'compaction') {
-      const old = rowsOf(
-        port,
-        'SELECT entry, message FROM sl_model_view WHERE tenant = ? AND session = ? AND epoch = ? ORDER BY seq LIMIT ?',
-        [tenant, session, current, BigInt(limit + 1)],
-      )
-      if (old.length > limit) return null
+      const view = viewOf(port, { tenant, session }, current)
+      const upper = view.upper()
+      if (upper > BigInt(limit)) return null
+      const old = view.rows(0n, upper, limit, 'entry, message')
       const covers = BigInt(String(message.covers?.to ?? 0))
       const indexed = new Map(old.map(row => [text(row['entry']), row]))
       const kept = (message.retained ?? []).map(ref => {
@@ -108,18 +107,8 @@ export function maintainModelView(
       current = next
       continue
     }
-    const last = oneRow(
-      port,
-      'SELECT seq, prefix_digest FROM sl_model_view WHERE tenant = ? AND session = ? AND epoch = ? ORDER BY seq DESC LIMIT 1',
-      [tenant, session, current],
-    )
-    writeRow(
-      current,
-      last === undefined ? 1n : big(last['seq']) + 1n,
-      entry.id,
-      message,
-      last === undefined ? '' : text(last['prefix_digest']),
-    )
+    const last = viewHead(port, { tenant, session }, current)
+    writeRow(current, (last?.seq ?? 0n) + 1n, entry.id, message, last?.digest ?? '')
   }
   return current
 }

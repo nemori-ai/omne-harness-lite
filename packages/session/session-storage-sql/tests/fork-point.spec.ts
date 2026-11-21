@@ -43,6 +43,11 @@ function scene(roles: readonly string[], epoch = 'epoch:0') {
       ],
     )
   }
+  // One entry more than the view has rows: the position of a point is the tail of the log.
+  port.execute(
+    'INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ['t', 's', BigInt(10 * roles.length + 5), 1n, 'call.bound', new Uint8Array([0]), 1n],
+  )
   const read = () => {
     statements.length = 0
     const out = readForkPoint.read({ tenant: 't', session: 's' }, counted as never)
@@ -56,7 +61,7 @@ it('answers the rows before the latest assistant message and the tail of the log
   try {
     expect(s.read().out).toEqual({
       kind: 'point',
-      point: { epoch: 'epoch:0', upper: '3', position: '60' },
+      point: { epoch: 'epoch:0', upper: '3', position: '65' },
     })
   } finally {
     s.db.close()
@@ -69,12 +74,12 @@ it('reads the same few rows however long the view before them is', () => {
   try {
     const [a, b] = [few.read(), long.read()]
     expect(a.out).toMatchObject({ kind: 'point', point: { upper: '1' } })
-    expect(b.out).toMatchObject({ kind: 'point', point: { upper: '10000', position: '100020' } })
+    expect(b.out).toMatchObject({ kind: 'point', point: { upper: '10000', position: '100025' } })
     expect(b.statements).toEqual(a.statements)
-    expect(a.statements).toHaveLength(3)
+    expect(a.statements).toHaveLength(4)
     const window = long.port.execute(
       `EXPLAIN QUERY PLAN ${b.statements.find(sql => sql.includes('sl_model_view'))}`,
-      ['t', 's', 'epoch:0', BigInt(FORK_POINT_WINDOW)] as never,
+      ['t', 's', 'epoch:0', 0n, BigInt(FORK_POINT_WINDOW)] as never,
     )
     const plan = window.rows.map(row => String(row.at(-1))).join('; ')
     expect(plan).toBe(

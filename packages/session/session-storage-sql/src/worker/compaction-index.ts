@@ -7,6 +7,7 @@ import {
 } from '@omne-harness/session-contract'
 import type { Message } from '@omne-harness/message'
 import { plainOf } from '../codec.ts'
+import { forkOf } from './fork.ts'
 import { big, oneRow, text, type Executor } from './support.ts'
 
 export function writeCompactionIndex(
@@ -28,7 +29,9 @@ export function writeCompactionIndex(
   )
   if (previous !== null && (old === undefined || big(old['covered']) !== BigInt(previous.revision)))
     throw new Error('the compaction index does not cover the previous log revision')
-  const origin = old === undefined ? entries[0]?.id : text(old['origin'])
+  const first =
+    old === undefined ? (forkOf(port, { tenant, session })?.origin ?? entries[0]?.id) : null
+  const origin = first ?? text(old?.['origin'])
   if (origin === undefined) throw new Error('the compaction index has no origin')
   let lastUser =
     old?.['last_user'] === undefined || old['last_user'] === null ? null : text(old['last_user'])

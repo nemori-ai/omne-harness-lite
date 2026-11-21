@@ -1,5 +1,6 @@
 import readPermissionMode from '../../src/worker/read-permission-mode.ts'
 import callLeftMigration from '../../src/worker/call-left-migration.ts'
+import forkMigration from '../../src/worker/fork-migration.ts'
 import compactionIndexMigration from '../../src/worker/compaction-index-migration.ts'
 import readEntryMessage from '../../src/worker/read-entry-message.ts'
 import readCompactionContext from '../../src/worker/read-compaction-context.ts'
@@ -153,6 +154,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   itemMigration,
   compactionIndexMigration,
   callLeftMigration,
+  forkMigration,
 ]
 
 export type StorageCall =
