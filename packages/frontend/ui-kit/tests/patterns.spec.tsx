@@ -276,6 +276,21 @@ it('StateWord says the shared word, or the caller words for a named fact', () =>
   expect(screen.getByText('出错了').getAttribute('data-tone')).toBe('danger')
 })
 
+it('the table says a session being set up, a frozen one and output still being written, each neutral', () => {
+  const said = (['initializing', 'frozen', 'outputOpen'] as const).map(state => {
+    const { container } = render(<StateWord state={state} />)
+    const word = container.querySelector('[data-state-word]')
+    const seen = [word?.textContent, word?.getAttribute('data-tone')]
+    cleanup()
+    return seen
+  })
+  expect(said).toEqual([
+    ['正在初始化', 'neutral'],
+    ['已冻结', 'neutral'],
+    ['输出还在写', 'neutral'],
+  ])
+})
+
 it('StatusPill carries its fact and tone and the word', () => {
   const { container } = render(
     <StatusPill fact="waiting" token="待批">
