@@ -204,9 +204,9 @@ describe('Screen on the release tree, over a machine with two screens (C20)', ()
   )
 })
 
-describe('on a machine with no screen backend, Screen is unavailable and other tools go on (C20, C22)', () => {
+describe('where Screen cannot work it says why, and what can work goes on (C20, C22)', () => {
   it(
-    'a call of Screen is answered as unavailable and does not run; Files reads as before',
+    'on a machine with no screen backend a call of Screen is answered as unavailable and does not run; Files reads as before',
     { tags: ['slow'], timeout: 480_000 },
     async () => {
       const { received, script } = calling()
@@ -221,6 +221,28 @@ describe('on a machine with no screen backend, Screen is unavailable and other t
         expect(received.filter(request => request.rawBody.includes('image_url'))).toEqual([])
         const read = await called(tree, session, 'Files list .', 2)
         expect(read.results.at(-1)).toMatch(/^done /u)
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'the release tree without the row media-tool-store: capture answers that nothing can store its product; screens runs',
+    { tags: ['slow'], timeout: 480_000 },
+    async () => {
+      const { received, script } = calling()
+      const hostScreen = offering(twoScreens())
+      const options = { script, ...bypass, hostScreen, withoutRows: ['media-tool-store'] }
+      const exitCode = await onReleaseTree(options, async tree => {
+        const session = await emptySession(tree)
+        const { entries, results } = await called(tree, session, 'Screen capture')
+        expect(results).toEqual([
+          'Screen: the command "capture" is not available now (products-unstorable). This deployment has nowhere to store what the command produces. Continue without it.',
+        ])
+        expect(picturesOf(entries)).toEqual([])
+        const listed = await called(tree, session, 'Screen screens', 2)
+        expect(listed.results.at(-1)).toContain('screen="left" name="Built-in" primary=true')
+        expect(received.filter(request => request.rawBody.includes('image_url'))).toEqual([])
       })
       expect(exitCode).toBe(0)
     },

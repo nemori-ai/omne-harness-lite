@@ -86,6 +86,7 @@ const residentNames = [
   'Notifications',
   'Sessions',
   'SwitchWorkspace',
+  'Screen',
   'Skills',
 ]
 const releaseDistribution = JSON.parse(
