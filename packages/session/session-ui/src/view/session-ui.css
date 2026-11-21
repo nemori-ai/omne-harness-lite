@@ -466,14 +466,14 @@
   margin: 0 auto;
   padding-top: var(--omne-space-inline);
 }
-/* The transcript is the page's one scrolling face. Its scroller keeps the bar's gutter on both edges and reaches out
-   past the column by that gutter, so every row lands on the column's own edges, where the composer stands
-   (conversation.css `.conversation-transcript`). */
+/* The page's one scrolling face; its scroller reaches out past the column by the bar's gutter, so rows land on the
+   column's edges where the composer stands (conversation.css `.conversation-transcript`). In a short window its
+   floor gives way first, so the composer stays whole. */
 .omne-conversation {
   display: flex;
   flex-direction: column;
   flex: 1 1 0;
-  min-height: 160px;
+  min-height: min(160px, 25dvh);
   margin-inline: calc(-1 * var(--omne-scrollbar-size));
   overflow-y: auto;
   overscroll-behavior: contain;
