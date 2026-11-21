@@ -103,7 +103,10 @@ export function createUsageReads(client: UsageClient, zone: () => string): Usage
   }
 }
 
-/** The answer to one read, read again whenever the reads are refreshed. */
+/**
+ * The answer to one read, read again whenever the reads are refreshed. A refresh is quiet: the last answer to the
+ * same question stays until the new one comes; only a different question starts from loading.
+ */
 export function useLoaded<T>(
   reads: UsageReads,
   key: string,
@@ -119,11 +122,11 @@ export function useLoaded<T>(
   useEffect(() => {
     let live = true
     void read().then(loaded => {
-      if (live) setState({ key: token, loaded })
+      if (live) setState({ key, loaded })
     })
     return () => {
       live = false
     }
   }, [token])
-  return state.key === token ? state.loaded : { kind: 'loading' }
+  return state.key === key ? state.loaded : { kind: 'loading' }
 }
