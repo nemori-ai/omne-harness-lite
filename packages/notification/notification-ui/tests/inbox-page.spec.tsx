@@ -439,15 +439,11 @@ describe('the inbox page', () => {
     expect((await fake.next('list-inbox')).body).toMatchObject({ filter: 'unresolved' })
   })
 
-  it('has no refresh: the list follows its observation, and the header holds only the filter', async () => {
+  it('has no refresh: the list follows its observation, and the header holds no control', async () => {
     const { rendered } = await shown([entry('e1', 1)])
     expect(screen.queryByRole('button', { name: /刷新/ })).toBeNull()
     const header = rendered.container.querySelector('header')!
-    expect(
-      within(header)
-        .getAllByRole('button')
-        .map(button => button.textContent),
-    ).toEqual(['未了结', '全部'])
+    expect(within(header).queryAllByRole('button')).toEqual([])
   })
 
   it('reads again when a frame says the inbox may have changed', async () => {
