@@ -126,38 +126,32 @@ export function FoldedChoice({
   )
 }
 
-/** The title keeps eight characters, the ellipsis and half a character for the rounding of the widths. */
-const TITLE_ROOM = 9.5
-
 const sum = (values: readonly number[]): number => values.reduce((total, value) => total + value, 0)
 const widthOf = (element: Element): number => (element as HTMLElement).offsetWidth
-const gapOf = (element: Element): number =>
-  Number.parseFloat(getComputedStyle(element).columnGap) || 0
+const lengthOf = (value: string): number => Number.parseFloat(value) || 0
 
-/** The fewest folds that fit; a folded choice keeps its unseen box, so every width is the natural one. */
+/** The fewest folds that fit the end in its own column, as wide as the title's either side of the figure, with the
+ *  room it keeps clear at its far side. A folded choice keeps its unseen box, so every width is the natural one. */
 function foldFor(
   row: HTMLElement,
   title: HTMLElement,
   end: HTMLElement,
   choices: ReadonlyMap<FoldRank, HTMLElement>,
 ): number {
-  const type = getComputedStyle(title)
-  const character =
-    (Number.parseFloat(type.fontSize) || 0) + (Number.parseFloat(type.letterSpacing) || 0)
-  const others = [...row.children].filter(child => child !== title && child !== end)
-  const fixed =
-    Math.min(title.scrollWidth, TITLE_ROOM * character) +
-    sum(others.map(widthOf)) +
-    gapOf(row) * (others.length + 1)
+  const middle = [...row.children].filter(child => child !== title && child !== end)
+  const column =
+    (row.clientWidth - sum(middle.map(widthOf)) - 2 * lengthOf(getComputedStyle(row).columnGap)) / 2
+  const endStyle = getComputedStyle(end)
   const held = new Set<Element>(choices.values())
   const rest = [...end.children].filter(child => !held.has(child))
   for (let folded = 0; folded < 2; folded += 1) {
     const inline = [...choices].filter(([rank]) => rank > folded).map(([, element]) => element)
     const right =
+      lengthOf(endStyle.marginInlineEnd) +
       sum(rest.map(widthOf)) +
       sum(inline.map(widthOf)) +
-      gapOf(end) * Math.max(0, rest.length + inline.length - 1)
-    if (fixed + right <= row.clientWidth) return folded
+      lengthOf(endStyle.columnGap) * Math.max(0, rest.length + inline.length - 1)
+    if (right <= column) return folded
   }
   return 2
 }

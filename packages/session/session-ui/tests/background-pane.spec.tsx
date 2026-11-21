@@ -376,6 +376,7 @@ describe('pressing the hint opens the side area on 后台 (C26)', () => {
     stubRoom(1440)
     await openedWithCalls()
     expect(side()?.dataset['presentation']).toBe('docked')
+    fireEvent.click(screen.getByRole('button', { name: 'Agent' }))
     fireEvent.click(screen.getByRole('button', { name: '笔记' }))
     fireEvent.click(screen.getByRole('button', { name: '收起侧边区' }))
     expect(side()?.dataset['open']).toBe('false')

@@ -145,7 +145,7 @@ it('页头：会话还不在列表里时，主标题是「新会话」', async (
   expect(within(heading()).getByRole('heading').textContent).toBe('新会话')
 })
 
-it('对话头：页头里放形的座位，名字 header、优先级 2，在标题旁；还没有租户、还没有会话时也在', async () => {
+it('对话头：页头里放形的座位，名字 header、优先级 2，在正中、名字在它右边；还没有租户、还没有会话时也在', async () => {
   const fake = createFakeClient()
   const { rerender } = await mountModule(fake.client, undefined)
   const seat = () => heading().querySelector('[data-figure-seat]')
@@ -158,15 +158,22 @@ it('对话头：页头里放形的座位，名字 header、优先级 2，在标�
   expect(seats.length).toBeGreaterThan(0)
   expect(seats.every(props => props.name === 'header' && props.priority === 2)).toBe(true)
   expect(seat()?.closest('.omne-session-figure')?.textContent).toBe('Agent')
+  expect(seat()?.nextElementSibling?.textContent).toBe('Agent')
+  expect([...heading().children].map(child => child.className)).toEqual([
+    'omne-session-title',
+    'omne-session-figure',
+    'omne-session-bar-end',
+  ])
   expect(seat()?.closest('.omne-session-heading')).toBeNull()
 })
 
 /**
- * The layout a browser would give the heading, which happy-dom does not: the title's words want 400, a character of
- * the title is 20, the figure and its name 120, the model 200, the permissions 150, the `⋯` 32; the bar's gap 16,
- * the right end's 8. The title keeps 9.5 characters (eight, the ellipsis and room for rounding): 190.
+ * The layout a browser would give the heading, which happy-dom does not: the figure and its name 120, the model 200,
+ * the permissions 150, the `⋯` 32; the bar's gap 16, the right end's 8, and `corner` kept clear at the end's far
+ * side. The title and the end each have a side column, (row − 120 − 2 × 16) / 2: the end wants 398, 240 with the
+ * permissions folded, 32 with both.
  */
-function layOut(row: number): void {
+function layOut(row: number, corner = 0): void {
   const isMore = (element: Element) =>
     element.matches('[aria-label="更多"]') ||
     (element.parentElement?.classList.contains('omne-session-bar-end') === true &&
@@ -187,19 +194,14 @@ function layOut(row: number): void {
   ) {
     return this.classList.contains('omne-session-bar') ? row : 0
   })
-  vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockImplementation(function (this: Element) {
-    return this.classList.contains('omne-session-title') ? 400 : 0
-  })
   const computed = window.getComputedStyle.bind(window)
   vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
     const real = computed(element, pseudo)
-    const own: Record<string, string> = element.classList.contains('omne-session-title')
-      ? { fontSize: '20px', letterSpacing: '0px' }
-      : element.classList.contains('omne-session-bar')
-        ? { columnGap: '16px' }
-        : element.classList.contains('omne-session-bar-end')
-          ? { columnGap: '8px' }
-          : {}
+    const own: Record<string, string> = element.classList.contains('omne-session-bar')
+      ? { columnGap: '16px' }
+      : element.classList.contains('omne-session-bar-end')
+        ? { columnGap: '8px', marginInlineEnd: `${corner}px` }
+        : {}
     return new Proxy(real, {
       get: (target, key) => {
         if (typeof key === 'string' && key in own) return own[key]
@@ -234,17 +236,18 @@ const foldedItems = (menu: HTMLElement) =>
     .map(item => item.textContent)
     .filter(text => text?.startsWith('模型') === true || text?.startsWith('权限处理') === true)
 
-it('头部放不下：标题留 8 个字，先把权限处理、再把模型收进「更多」，菜单里写当前的值', async () => {
-  const cases: readonly (readonly [number, readonly string[], readonly string[]])[] = [
-    [800, ['模型', '权限处理'], []],
-    [600, ['模型'], ['权限处理需要时问我']],
-    [400, [], ['模型openai/gpt-x', '权限处理需要时问我']],
+it('头部三栏放不下：右端只用自己那一栏，留出远端让开的宽，先把权限处理、再把模型收进「更多」，菜单里写当前的值', async () => {
+  const cases: readonly (readonly [number, number, readonly string[], readonly string[]])[] = [
+    [1000, 0, ['模型', '权限处理'], []],
+    [800, 0, ['模型'], ['权限处理需要时问我']],
+    [560, 0, [], ['模型openai/gpt-x', '权限处理需要时问我']],
+    [1000, 100, ['模型'], ['权限处理需要时问我']],
   ]
-  for (const [row, bar, folded] of cases) {
-    layOut(row)
+  for (const [row, corner, bar, folded] of cases) {
+    layOut(row, corner)
     const fake = createFakeClient()
     await openWithChoices(fake)
-    expect([row, shownInBar()]).toEqual([row, bar])
+    expect([row, corner, shownInBar()]).toEqual([row, corner, bar])
     const hidden = [...heading().querySelectorAll('.omne-session-choice[data-folded]')]
     expect(hidden.every(choice => choice.getAttribute('aria-hidden') === 'true')).toBe(true)
     expect(hidden.every(choice => choice.hasAttribute('inert'))).toBe(true)
@@ -255,7 +258,7 @@ it('头部放不下：标题留 8 个字，先把权限处理、再把模型收�
 })
 
 it('收进「更多」的权限处理照样能改：选一个值就发，回执落在页头', async () => {
-  layOut(400)
+  layOut(560)
   const fake = createFakeClient()
   await openWithChoices(fake)
   const menu = await openMore()
