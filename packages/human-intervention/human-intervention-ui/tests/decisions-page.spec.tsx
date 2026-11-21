@@ -118,7 +118,7 @@ it('V2 问题卡是纸上的一节：种类行、标题、说明、谁在问，�
   ).toBeTruthy()
   expect(question.queryByRole('textbox')).toBeNull()
   expect(submitButton().disabled).toBe(true)
-  expect(screen.getByRole('button', { name: '还差 1 题' })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /还差|另有/ })).toBeNull()
   expect(screen.queryByRole('tablist')).toBeNull()
   expect(document.querySelectorAll('.hitl-paper')).toHaveLength(1)
 })

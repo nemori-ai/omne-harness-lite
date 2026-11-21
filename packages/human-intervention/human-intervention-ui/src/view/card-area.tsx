@@ -52,14 +52,16 @@ function Foot({
   readonly submit: () => void
 }): JSX.Element {
   const quiet = useId()
-  const firstMissing = sheet.missing[0]
+  const unanswered = sheet.missing.length > 0 ? sheet.missing : sheet.ready ? [] : sheet.open
+  const first = unanswered[0]
   const firstOpen = sheet.open[0]
   const said = sheet.running || armed
+  const linked = !sheet.running && sheet.entries.length > 1
   return (
     <div className="hitl-foot">
-      {sheet.running ? null : firstMissing !== undefined ? (
-        <Button variant="link" className="hitl-missing" onClick={() => go(firstMissing)}>
-          {`还差 ${sheet.missing.length} 题`}
+      {!linked ? null : first !== undefined ? (
+        <Button variant="link" className="hitl-missing" onClick={() => go(first)}>
+          {`还差 ${unanswered.length} 题`}
         </Button>
       ) : firstOpen === undefined ? null : (
         <Button variant="link" className="hitl-missing" onClick={() => go(firstOpen)}>

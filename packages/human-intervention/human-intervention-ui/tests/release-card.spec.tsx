@@ -144,13 +144,27 @@ it('lets one answered release card be submitted while the others stay unanswered
   })
   const submit = screen.getByRole('button', { name: '提交' }) as HTMLButtonElement
   expect(submit.disabled).toBe(true)
-  expect(screen.getByText('另有 3 张放行卡没答，可以先提交已答的')).toBeTruthy()
+  expect(screen.getByRole('button', { name: '还差 3 题' })).toBeTruthy()
+  expect(screen.queryByText(/另有/)).toBeNull()
   await act(async () => {
     ;(screen.getAllByRole('radio')[0] as HTMLButtonElement).click()
   })
   expect(submit.disabled).toBe(false)
   expect(screen.getByText('另有 2 张放行卡没答，可以先提交已答的')).toBeTruthy()
   expect(screen.getAllByRole('article')).toHaveLength(3)
+})
+
+it('draws no link at the foot of a sheet with one section', async () => {
+  const fake = createFakeClient()
+  render(<DecisionsPage hub={new CardsHub({ client: fake.client })} tenant={TENANT} />)
+  const call = await fake.next('list-cards')
+  call.answer(page([releaseItem('r1')]))
+  await act(async () => {
+    for (let round = 0; round < 5; round += 1) await Promise.resolve()
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+  expect(screen.getByRole('button', { name: '提交' })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /还差|另有/ })).toBeNull()
 })
 
 it('draws a kind it does not know with the common body, so the card is not lost', async () => {
