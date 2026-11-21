@@ -14,10 +14,18 @@
     "dist"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json && vite build",
-    "window": "node scripts/window.mjs",
-    "dev": "node scripts/dev.mjs",
-    "typecheck": "tsc -p tsconfig.test.json",
+    "build": "rm -rf dist/forwarding dist/port-fetch dist/shared dist/standalone && tsc -p tsconfig.build.json && node scripts/build.ts",
+    "build:test": "node scripts/build.ts test",
+    "dev": "node scripts/dev.ts",
+    "start": "node scripts/start.ts",
+    "start:test": "node scripts/start-test.ts",
+    "package": "electron-builder --dir --config electron-builder.release.mjs --publish never",
+    "package:test": "electron-builder --dir --config electron-builder.test.mjs --publish never",
+    "dist": "electron-builder --config electron-builder.release.mjs --publish never",
+    "verify:build": "node scripts/verify-build.ts",
+    "verify:release": "node scripts/verify-release.ts",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc -p tsconfig.test.json && tsc -p tsconfig.e2e.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
@@ -63,7 +71,9 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@electron/fuses": "catalog:",
     "@omne-harness/utc-instant": "workspace:*",
+    "@playwright/test": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@testing-library/dom": "catalog:",
     "@testing-library/react": "catalog:",
@@ -72,6 +82,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "electron": "catalog:",
+    "electron-builder": "catalog:",
     "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",

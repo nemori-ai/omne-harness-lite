@@ -7,7 +7,7 @@ import {
   type PortFetch,
   type PortStats,
 } from '../port-fetch/index.ts'
-import type { Logger } from './log.ts'
+import { type Logger, writeStderr, writeStdout } from './log.ts'
 
 export interface ServerProcessOptions {
   utilityPath: string
@@ -60,8 +60,9 @@ function electronDeps(options: ServerProcessOptions): ServerProcessDeps {
         serviceName: 'omne-forwarding',
         env: { ...stringEnv(process.env), ...options.env },
       })
-      child.stdout?.on('data', (chunk: Buffer) => process.stdout.write(chunk))
-      child.stderr?.on('data', (chunk: Buffer) => process.stderr.write(chunk))
+      // The utility's own JSON lines, passed through a sink that survives a closed reader.
+      child.stdout?.on('data', writeStdout)
+      child.stderr?.on('data', writeStderr)
       return child
     },
     channel: () => new MessageChannelMain(),
@@ -150,7 +151,12 @@ class Lifecycle {
   }
 
   #onSpawn(inst: Instance): void {
-    if (this.instance !== inst || inst.exited || this.#isStopping) return
+    if (inst.exited) return
+    // Electron cannot kill a child before it exists: one retired or stopped meanwhile is killed now.
+    if (this.instance !== inst || this.#isStopping) {
+      inst.child.kill()
+      return
+    }
     inst.spawned = true
     try {
       const { port1, port2 } = this.#deps.channel()
