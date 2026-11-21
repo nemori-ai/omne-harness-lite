@@ -42,7 +42,7 @@ import { calendarCommand } from './calendar-command.ts'
 import { usageCommands } from './usage-command.ts'
 import { scheduleCommand } from './schedule-command.ts'
 import { notificationCommand } from './notification-command.ts'
-import { mediaCommand, readUpload, sendUpload } from './media-command.ts'
+import { mediaCommand, prepareUpload, readUpload, sendUpload } from './media-command.ts'
 import { workspaceCommand } from './workspace-command.ts'
 import { callsCommand } from './calls-command.ts'
 
@@ -395,6 +395,15 @@ const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => (
           if (ref === null) {
             refused = read.file
             return result
+          }
+          const prepared = await prepareUpload({ link, tenant, newId }, ref)
+          if ('unready' in prepared)
+            return {
+              local: `the attachment ${read.file} is not ready (its preprocessing: ${prepared.unready}); the input was not sent`,
+            }
+          if ('result' in prepared) {
+            refused = read.file
+            return prepared.result
           }
           attachments.push({ kind: attachmentKind(read.mediaType), ref })
         }

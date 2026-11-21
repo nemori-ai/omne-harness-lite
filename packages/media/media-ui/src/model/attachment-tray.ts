@@ -1,4 +1,5 @@
 import type { TenantId } from '@omne-harness/public-contract'
+import { prepareMedium, type Prepared } from './prepare.ts'
 import { uploadMedium, type MediaClient, type Reference } from './upload.ts'
 
 export type PickedFile = Readonly<{
@@ -15,15 +16,18 @@ export type DraftOffer = Readonly<{
   session: string
   draft: string
   source: string
-  attachments: readonly Readonly<{ kind: 'image'; ref: Reference }>[]
+  attachments: readonly Readonly<{ kind: AttachmentKind; ref: Reference }>[]
   ready: boolean
 }>
 export type Drafts = Readonly<{ offer(offer: DraftOffer): void }>
 
+export type AttachmentKind = 'image' | 'voice' | 'file'
+
 export type AttachmentState =
   | Readonly<{ kind: 'uploading'; sent: number }>
-  | Readonly<{ kind: 'ready'; ref: Reference }>
-  | Readonly<{ kind: 'failed'; reason: string }>
+  | Readonly<{ kind: 'preparing'; ref: Reference }>
+  | (Readonly<{ kind: 'ready'; ref: Reference }> & Prepared)
+  | Readonly<{ kind: 'failed'; reason: string; ref?: Reference }>
 
 export type Attachment = Readonly<{
   id: string
@@ -46,8 +50,22 @@ export type TrayDeps = Readonly<{
 }>
 
 export const IMAGE_TYPES: readonly string[] = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+export const ACCEPTED_TYPES: readonly string[] = [
+  ...IMAGE_TYPES,
+  'audio/wav',
+  'audio/x-wav',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/ogg',
+  'audio/webm',
+  'audio/flac',
+  'audio/aac',
+  'application/pdf',
+]
 const SOURCE = 'media'
-const NOT_AN_IMAGE = '只能附加图片（PNG、JPEG、WebP、GIF）'
+const NOT_ACCEPTED = '只能附加图片、语音或 PDF'
+const kindOf = (mediaType: string): AttachmentKind =>
+  mediaType.startsWith('image/') ? 'image' : mediaType.startsWith('audio/') ? 'voice' : 'file'
 
 /** The attachments of one draft: each uploads as it is picked, and the draft is told what is ready. */
 export class AttachmentTray {
@@ -70,13 +88,13 @@ export class AttachmentTray {
   add(files: readonly PickedFile[]): void {
     if (this.#disposed) return
     const added = files.map((file): Attachment => {
-      const image = IMAGE_TYPES.includes(file.type)
+      const accepted = ACCEPTED_TYPES.includes(file.type)
       return {
         id: this.#deps.newId(),
         name: file.name,
         bytes: file.size,
-        preview: image ? this.#deps.preview(file) : null,
-        state: image ? { kind: 'uploading', sent: 0 } : { kind: 'failed', reason: NOT_AN_IMAGE },
+        preview: IMAGE_TYPES.includes(file.type) ? this.#deps.preview(file) : null,
+        state: accepted ? { kind: 'uploading', sent: 0 } : { kind: 'failed', reason: NOT_ACCEPTED },
       }
     })
     this.#changed([...this.#items, ...added])
@@ -91,6 +109,13 @@ export class AttachmentTray {
     if (gone === undefined) return
     if (gone.preview !== null) this.#deps.release(gone.preview)
     this.#changed(this.#items.filter(item => item.id !== id))
+  }
+
+  /** Asks the server again to make the representation of one that failed to be prepared. */
+  retry(id: string): void {
+    const item = this.#items.find(each => each.id === id)
+    if (item?.state.kind !== 'failed' || item.state.ref === undefined) return
+    void this.#prepare(id, item.state.ref)
   }
 
   /** The draft is gone: uploads in flight stop, and nothing more is offered. */
@@ -127,8 +152,18 @@ export class AttachmentTray {
       progress: sent => this.#set(id, { kind: 'uploading', sent }),
       cancelled: () => !this.#held(id),
     })
-    if (outcome.kind === 'committed') this.#set(id, { kind: 'ready', ref: outcome.ref })
+    if (outcome.kind === 'committed') await this.#prepare(id, outcome.ref)
     if (outcome.kind === 'failed') this.#set(id, { kind: 'failed', reason: outcome.reason })
+  }
+
+  async #prepare(id: string, ref: Reference): Promise<void> {
+    this.#set(id, { kind: 'preparing', ref })
+    const { client, tenant } = this.#deps
+    const prepared = await prepareMedium(client, tenant, ref)
+    this.#set(
+      id,
+      prepared.kind === 'failed' ? prepared : { kind: 'ready', ref, ...prepared.prepared },
+    )
   }
 
   #changed(items: readonly Attachment[]): void {
@@ -139,7 +174,7 @@ export class AttachmentTray {
       draft,
       source: SOURCE,
       attachments: items.flatMap(({ state }) =>
-        state.kind === 'ready' ? [{ kind: 'image' as const, ref: state.ref }] : [],
+        state.kind === 'ready' ? [{ kind: kindOf(state.ref.mediaType), ref: state.ref }] : [],
       ),
       ready: items.every(item => item.state.kind === 'ready'),
     })

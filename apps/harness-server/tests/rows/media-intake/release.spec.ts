@@ -94,7 +94,7 @@ describe('the two rows of the processing before intake', () => {
         expect(JSON.stringify(await historyOf(tree, session))).not.toContain('"inline"')
         expect(await client['describe-media']({ tenant, ref })).toEqual({
           outcome: 'succeeded',
-          body: { state: 'held', facts: FACTS },
+          body: { state: 'held', facts: FACTS, preprocess: { kind: 'not-needed' } },
         })
         expect(await send(tree, session, 'pictured', blocks)).toEqual({
           outcome: 'succeeded',
@@ -148,7 +148,10 @@ describe('the two rows of the processing before intake', () => {
         })
         expect(
           await other.client['describe-media']({ tenant: other.tenant, ref: foreign }),
-        ).toEqual({ outcome: 'succeeded', body: { state: 'staged', facts: FACTS } })
+        ).toEqual({
+          outcome: 'succeeded',
+          body: { state: 'staged', facts: FACTS, preprocess: { kind: 'not-needed' } },
+        })
       })
       expect(exitCode).toBe(0)
     },

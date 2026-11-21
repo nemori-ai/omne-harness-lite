@@ -94,8 +94,10 @@ describe('输入框的附件区', () => {
     const { shell, offers } = await mounted(media)
     render(tray(shell))
     await settle()
-    const input = screen.getByLabelText('选择图片') as HTMLInputElement
-    expect(input.accept).toBe('image/png,image/jpeg,image/webp,image/gif')
+    const input = screen.getByLabelText('选择附件') as HTMLInputElement
+    expect(input.accept).toBe(
+      'image/png,image/jpeg,image/webp,image/gif,audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/ogg,audio/webm,audio/flac,audio/aac,application/pdf',
+    )
     fireEvent.change(input, { target: { files: [png('a.png', [1, 2, 3, 4, 5])] } })
     expect(screen.getByText('a.png')).not.toBeNull()
     expect(screen.getByRole('img', { name: 'a.png 的预览' }).getAttribute('src')).toBe(
@@ -113,23 +115,69 @@ describe('输入框的附件区', () => {
     expect(media.calls[0]?.body['tenant']).toEqual(TENANT)
   })
 
-  it('点「附加图片」打开选文件；去掉一份之后它不再交回', async () => {
+  it('点附加按钮打开选文件；去掉一份之后它不再交回', async () => {
     const media = fakeMedia(2)
     const { shell, offers } = await mounted(media)
     render(tray(shell))
     await settle()
-    const input = screen.getByLabelText('选择图片') as HTMLInputElement
+    const input = screen.getByLabelText('选择附件') as HTMLInputElement
     let opened = 0
     input.click = () => {
       opened += 1
     }
-    fireEvent.click(screen.getByRole('button', { name: '附加图片' }))
+    fireEvent.click(screen.getByRole('button', { name: '附加图片、语音或 PDF' }))
     expect(opened).toBe(1)
     fireEvent.change(input, { target: { files: [png('a.png', [1, 2, 3])] } })
     await settle()
     fireEvent.click(screen.getByRole('button', { name: '去掉 a.png' }))
     expect(screen.queryByText('a.png')).toBeNull()
     expect(offers.at(-1)).toMatchObject({ attachments: [], ready: true })
+  })
+
+  it('语音传完先显示在转换，转出来的文字显示在附件上；转换失败时显示原因与重试', async () => {
+    const media = fakeMedia(2)
+    const gate = Promise.withResolvers<unknown>()
+    const definition = { name: 'voice', revision: '1' }
+    const engine = { name: 'voice.transcribe', revision: '1' }
+    media.once('prepare-media', () => gate.promise)
+    media.once('prepare-media', () => ({
+      outcome: 'succeeded',
+      body: { preprocess: { kind: 'failed', reason: 'timeout' } },
+    }))
+    const { shell, offers } = await mounted(media)
+    render(tray(shell))
+    await settle()
+    const input = screen.getByLabelText('选择附件') as HTMLInputElement
+    const wav = (name: string) => new File([new Uint8Array([1, 2, 3])], name, { type: 'audio/wav' })
+    fireEvent.change(input, { target: { files: [wav('memo.wav')] } })
+    await settle()
+    expect(screen.getByText('在转换…')).not.toBeNull()
+    gate.resolve({
+      outcome: 'succeeded',
+      body: {
+        preprocess: {
+          kind: 'done',
+          representation: {
+            outcome: 'converted',
+            definition,
+            engine,
+            text: '今天下午三点开会',
+            others: [],
+          },
+        },
+      },
+    })
+    await settle()
+    expect(screen.getByText('已转出：今天下午三点开会')).not.toBeNull()
+    expect(offers.at(-1)).toMatchObject({ ready: true, attachments: [{ kind: 'voice' }] })
+    fireEvent.change(input, { target: { files: [wav('late.wav')] } })
+    await settle()
+    expect(screen.getByText('转换超时')).not.toBeNull()
+    expect(offers.at(-1)).toMatchObject({ ready: false })
+    fireEvent.click(screen.getByRole('button', { name: '重试 late.wav' }))
+    await settle()
+    expect(screen.queryByRole('button', { name: '重试 late.wav' })).toBeNull()
+    expect(offers.at(-1)).toMatchObject({ ready: true })
   })
 
   it('贴图与拖入：在输入框的表单上贴进或拖进的图片也附加上；只贴文字时不拦', async () => {
@@ -154,7 +202,7 @@ describe('输入框的附件区', () => {
     const { shell } = await mounted(media)
     const view = render(tray(shell))
     await settle()
-    fireEvent.change(screen.getByLabelText('选择图片'), {
+    fireEvent.change(screen.getByLabelText('选择附件'), {
       target: { files: [png('kept.png', [1, 2, 3])] },
     })
     await settle()
@@ -174,7 +222,7 @@ describe('输入框的附件区', () => {
     const { shell } = await mounted(media)
     const view = render(tray(shell))
     await settle()
-    fireEvent.change(screen.getByLabelText('选择图片'), {
+    fireEvent.change(screen.getByLabelText('选择附件'), {
       target: { files: [png('big.png', [1, 2, 3])] },
     })
     await settle()

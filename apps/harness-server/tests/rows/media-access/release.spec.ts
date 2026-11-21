@@ -136,7 +136,7 @@ describe('the six media rows', () => {
           })
           expect(await client['describe-media']({ tenant, ref })).toEqual({
             outcome: 'succeeded',
-            body: { state: 'staged', facts },
+            body: { state: 'staged', facts, preprocess: { kind: 'not-needed' } },
           })
 
           const pages: Uint8Array[] = []

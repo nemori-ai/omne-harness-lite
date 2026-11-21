@@ -2,8 +2,8 @@ import type { TenantId } from '@omne-harness/public-contract'
 import { AttachIcon, Button, DeleteIcon } from '@omne-harness/ui-kit'
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import {
+  ACCEPTED_TYPES,
   AttachmentTray,
-  IMAGE_TYPES,
   type Attachment,
   type Drafts,
   type PickedFile,
@@ -21,10 +21,19 @@ export type AttachmentTrayProps = Readonly<{
 const NONE: readonly Attachment[] = []
 const idle = () => () => undefined
 
+const READY: Readonly<Record<'none' | 'converted' | 'inconvertible', string>> = {
+  none: '已备好',
+  converted: '已转出文字（较长，另存了一份）',
+  inconvertible: '已备好，没有可转出的文字',
+}
+
 function statusOf(item: Attachment): string {
-  if (item.state.kind === 'ready') return '已备好'
-  if (item.state.kind === 'failed') return item.state.reason
-  const percent = item.bytes === 0 ? 0 : Math.floor((item.state.sent / item.bytes) * 100)
+  const { state } = item
+  if (state.kind === 'ready')
+    return state.text === null ? READY[state.outcome] : `已转出：${state.text}`
+  if (state.kind === 'failed') return state.reason
+  if (state.kind === 'preparing') return '在转换…'
+  const percent = item.bytes === 0 ? 0 : Math.floor((state.sent / item.bytes) * 100)
   return `上传中 ${String(percent)}%`
 }
 
@@ -88,12 +97,26 @@ function useFormDrops(root: RefObject<HTMLElement | null>, tray: AttachmentTray 
   }, [root, tray])
 }
 
-function Chip({ item, onRemove }: { readonly item: Attachment; readonly onRemove: () => void }) {
+type ChipProps = Readonly<{ item: Attachment; onRemove: () => void; onRetry: () => void }>
+
+function Chip({ item, onRemove, onRetry }: ChipProps) {
+  const retryable = item.state.kind === 'failed' && item.state.ref !== undefined
   return (
     <li className="omne-media-chip" data-state={item.state.kind}>
       {item.preview === null ? null : <img src={item.preview} alt={`${item.name} 的预览`} />}
       <span className="omne-media-chip-name">{item.name}</span>
       <span className="omne-media-chip-status">{statusOf(item)}</span>
+      {retryable ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="compact"
+          aria-label={`重试 ${item.name}`}
+          onClick={onRetry}
+        >
+          重试
+        </Button>
+      ) : null}
       <Button
         type="button"
         variant="ghost"
@@ -107,7 +130,7 @@ function Chip({ item, onRemove }: { readonly item: Attachment; readonly onRemove
   )
 }
 
-/** The attachments of the message being written: pick, paste or drop a picture; each uploads at once. */
+/** The attachments of the message being written: pick, paste or drop a picture, speech or a PDF; each uploads at once. */
 export function AttachmentTrayView(props: AttachmentTrayProps) {
   const tray = useTray(props)
   const items = useSyncExternalStore(tray?.subscribe ?? idle, tray?.read ?? (() => NONE))
@@ -119,7 +142,12 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
       {items.length === 0 ? null : (
         <ul className="omne-media-chips">
           {items.map(item => (
-            <Chip key={item.id} item={item} onRemove={() => tray?.remove(item.id)} />
+            <Chip
+              key={item.id}
+              item={item}
+              onRemove={() => tray?.remove(item.id)}
+              onRetry={() => tray?.retry(item.id)}
+            />
           ))}
         </ul>
       )}
@@ -128,8 +156,8 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
         type="file"
         hidden
         multiple
-        aria-label="选择图片"
-        accept={IMAGE_TYPES.join(',')}
+        aria-label="选择附件"
+        accept={ACCEPTED_TYPES.join(',')}
         onChange={event => {
           attach(tray, event.target.files)
           event.target.value = ''
@@ -139,11 +167,11 @@ export function AttachmentTrayView(props: AttachmentTrayProps) {
         type="button"
         variant="ghost"
         size="compact"
-        aria-label="附加图片"
+        aria-label="附加图片、语音或 PDF"
         onClick={() => input.current?.click()}
       >
         <AttachIcon />
-        图片
+        附件
       </Button>
     </div>
   )

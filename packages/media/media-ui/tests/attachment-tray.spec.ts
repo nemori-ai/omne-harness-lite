@@ -86,7 +86,7 @@ describe('一份草稿的附件区', () => {
     })
     tray.add([A])
     await settled()
-    expect(seen).toEqual([0, 2, 4, 5, 'ready'])
+    expect(seen).toEqual([0, 2, 4, 5, 'preparing', 'ready'])
   })
 
   it.each([
@@ -117,14 +117,14 @@ describe('一份草稿的附件区', () => {
     },
   )
 
-  it('不是图片的文件不上传，直接说只能附加图片', async () => {
+  it('图片、语音与 PDF 之外的文件不上传，直接说收哪几种', async () => {
     const media = fakeMedia(2)
     const { tray, last } = trayOver(media)
-    tray.add([picked('notes.pdf', [1, 2], 'application/pdf')])
+    tray.add([picked('notes.txt', [1, 2], 'text/plain')])
     await settled()
     expect(tray.read()[0]?.state).toEqual({
       kind: 'failed',
-      reason: '只能附加图片（PNG、JPEG、WebP、GIF）',
+      reason: '只能附加图片、语音或 PDF',
     })
     expect(media.calls).toEqual([])
     expect(last()).toMatchObject({ attachments: [], ready: false })
@@ -237,5 +237,153 @@ describe('附件区的边角', () => {
     stop()
     tray.add([picked('more.pdf', [2], 'application/pdf')])
     expect(told).toBe(1)
+  })
+})
+
+describe('附件的预处理', () => {
+  const definition = { name: 'voice', revision: '1' }
+  const engine = { name: 'voice.transcribe', revision: '1' }
+  const SPEECH = picked('memo.wav', [1, 2, 3], 'audio/wav')
+  const DOCUMENT = picked('report.pdf', [4, 5, 6], 'application/pdf')
+  const preparing = (preprocess: unknown) => () => ({ outcome: 'succeeded', body: { preprocess } })
+  const done = (representation: unknown) => preparing({ kind: 'done', representation })
+
+  it('传完就请服务端备好表示：在转换时没备好，转出来的文字显示在附件上，按种类交回', async () => {
+    const media = fakeMedia(2)
+    media.once(
+      'prepare-media',
+      done({ outcome: 'converted', definition, engine, text: '今天下午三点开会', others: [] }),
+    )
+    const { tray, last } = trayOver(media)
+    tray.add([SPEECH])
+    await settled()
+    expect(tray.read()[0]?.state).toEqual({
+      kind: 'ready',
+      ref: { ...refOf('id-1', 3), mediaType: 'audio/wav' },
+      outcome: 'converted',
+      text: '今天下午三点开会',
+    })
+    expect(tray.read()[0]?.preview).toBeNull()
+    expect(last()).toMatchObject({ attachments: [{ kind: 'voice' }], ready: true })
+    const prepared = media.calls.find(call => call.operation === 'prepare-media')
+    expect(prepared?.body).toEqual({
+      tenant: TENANT,
+      ref: { ...refOf('id-1', 3), mediaType: 'audio/wav' },
+    })
+    expect(media.operations().indexOf('prepare-media')).toBeGreaterThan(
+      media.operations().indexOf('commit-upload'),
+    )
+  })
+
+  it('文字多到另存时只说转出来了；转不出也算备好；图片不需要转换', async () => {
+    const media = fakeMedia(2)
+    const words = { ...refOf('w', 9), mediaType: 'text/plain' }
+    media.once(
+      'prepare-media',
+      done({ outcome: 'converted', definition, engine, text: words, others: [] }),
+    )
+    media.once('prepare-media', done({ outcome: 'inconvertible', definition, engine }))
+    const { tray, last } = trayOver(media)
+    tray.add([DOCUMENT])
+    await settled()
+    tray.add([picked('scan.pdf', [7], 'application/pdf')])
+    await settled()
+    tray.add([A])
+    await settled()
+    expect(
+      tray.read().map(item => item.state.kind === 'ready' && [item.state.outcome, item.state.text]),
+    ).toEqual([
+      ['converted', null],
+      ['inconvertible', null],
+      ['none', null],
+    ])
+    expect(last()).toMatchObject({
+      attachments: [{ kind: 'file' }, { kind: 'file' }, { kind: 'image' }],
+      ready: true,
+    })
+  })
+
+  it('转换失败时说原因，整份草稿没备好；重试一次再请服务端备好', async () => {
+    const media = fakeMedia(2)
+    media.once('prepare-media', preparing({ kind: 'failed', reason: 'engine-unavailable' }))
+    const { tray, last } = trayOver(media)
+    tray.add([SPEECH])
+    await settled()
+    const [item] = tray.read()
+    expect(item?.state).toMatchObject({ kind: 'failed', reason: '转换的服务现在不可用' })
+    expect(last()).toMatchObject({ attachments: [], ready: false })
+    tray.retry(item?.id ?? '')
+    expect(tray.read()[0]?.state.kind).toBe('preparing')
+    await settled()
+    expect(tray.read()[0]?.state).toMatchObject({ kind: 'ready', outcome: 'none' })
+    expect(last()).toMatchObject({ ready: true })
+    expect(media.operations().filter(name => name === 'prepare-media')).toHaveLength(2)
+  })
+
+  it.each([
+    ['basis-unavailable', '现在查不到该怎么转换'],
+    ['engine-error', '转换出错'],
+    ['timeout', '转换超时'],
+    ['invalid-result', '转换的结果不对'],
+    ['outcome-unknown', '不知道转换有没有成功'],
+    ['cancelled', '转换被取消'],
+  ])('转换失败（%s）说「%s」', async (reason, words) => {
+    const media = fakeMedia(2)
+    media.once('prepare-media', preparing({ kind: 'failed', reason }))
+    const { tray } = trayOver(media)
+    tray.add([SPEECH])
+    await settled()
+    expect(tray.read()[0]?.state).toMatchObject({ kind: 'failed', reason: words })
+  })
+
+  it('答复丢了就照原样再请一次；一直不知道就停下，可以重试', async () => {
+    const media = fakeMedia(2)
+    media.once('prepare-media', () => ({ outcome: 'unknown', body: {} }))
+    const { tray } = trayOver(media)
+    tray.add([SPEECH])
+    await settled()
+    expect(tray.read()[0]?.state).toMatchObject({ kind: 'ready', outcome: 'none' })
+    expect(media.operations().filter(name => name === 'prepare-media')).toHaveLength(2)
+    const stuck = fakeMedia(2)
+    for (let round = 0; round < 3; round += 1)
+      stuck.once('prepare-media', () => ({ outcome: 'basis-unavailable' }))
+    const other = trayOver(stuck)
+    other.tray.add([SPEECH])
+    await settled()
+    expect(other.tray.read()[0]?.state).toMatchObject({
+      kind: 'failed',
+      reason: '服务端现在备不好这份附件',
+    })
+    expect(stuck.operations().filter(name => name === 'prepare-media')).toHaveLength(3)
+  })
+
+  it('服务端说这份媒体不在了，就不能重试；重试一份不在的或没有失败的什么都不做', async () => {
+    const media = fakeMedia(2)
+    media.once('prepare-media', () => ({ outcome: 'not-found', body: {} }))
+    const { tray, offers } = trayOver(media)
+    tray.add([SPEECH])
+    await settled()
+    const [item] = tray.read()
+    expect(item?.state).toEqual({ kind: 'failed', reason: '这份附件在服务端已经不在了' })
+    const before = offers.length
+    tray.retry(item?.id ?? '')
+    tray.retry('no-such-id')
+    expect(offers).toHaveLength(before)
+  })
+
+  it('转换中去掉或草稿收走：迟到的结果不再交回', async () => {
+    const media = fakeMedia(2)
+    const gate = Promise.withResolvers<unknown>()
+    media.once('prepare-media', () => gate.promise)
+    const { tray, offers, shown } = trayOver(media)
+    tray.add([SPEECH])
+    await settled()
+    expect(shown()).toEqual([['memo.wav', 'preparing', null]])
+    tray.remove(tray.read()[0]?.id ?? '')
+    const before = offers.length
+    gate.resolve({ outcome: 'succeeded', body: { preprocess: { kind: 'not-needed' } } })
+    await settled()
+    expect(offers).toHaveLength(before)
+    expect(shown()).toEqual([])
   })
 })

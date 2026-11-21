@@ -120,6 +120,21 @@ export async function sendUpload(
   return { result: committed, ref }
 }
 
+export async function prepareUpload(
+  context: Sender,
+  ref: Reference,
+): Promise<
+  | Readonly<{ ready: true }>
+  | Readonly<{ result: CallResult | undefined }>
+  | Readonly<{ unready: string }>
+> {
+  const result = await call(context, 'prepare-media', { tenant: context.tenant, ref })
+  if (!succeeded(result)) return { result }
+  const { preprocess } = result.body as { preprocess: { kind: string; reason?: string } }
+  if (preprocess.kind === 'not-needed' || preprocess.kind === 'done') return { ready: true }
+  return { unready: preprocess.reason ?? preprocess.kind }
+}
+
 async function put(context: Context, values: Option): Promise<Ending> {
   const file = values.get('--file') ?? ''
   const read = await readUpload(file, values.get('--media-type'))
