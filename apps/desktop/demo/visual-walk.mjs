@@ -697,8 +697,13 @@ const DECISION_HELPERS = `
     sectionOf('开发服务器用哪个端口？') !== undefined && sectionOf('新分支叫什么？') !== undefined
   const sectionOf = title => [...(paper()?.querySelectorAll('article') ?? [])].find(item =>
     item.querySelector('h3')?.textContent.trim() === title)
-  const pick = (section, label) => [...section.querySelectorAll('[role=radio]')].find(row =>
-    row.querySelector('.omne-choice-label')?.textContent.trim() === label).click()
+  const pick = (section, label) => {
+    const row = [...section.querySelectorAll('[role=radio]')].find(item =>
+      item.querySelector('.omne-choice-label')?.textContent.trim() === label)
+    // A row in a closed fold (这一类动作, 自己写，或不回答): the fold is opened first, as a person would.
+    row.closest('[inert]')?.closest('.omne-disclosure')?.querySelector('.omne-disclosure-trigger')?.click()
+    row.click()
+  }
   const keyOn = (target, key) => target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
 `
 /** The session's permission mode through its heading select, opened and chosen with the keys. */
@@ -800,6 +805,112 @@ async function measureDecision(walk) {
   print(`MEASURE ${JSON.stringify(measured)}`)
 }
 
+/**
+ * R7b W1, a paper of one release card answered with its options as buttons, drawn on the specimen page from card
+ * data (`?decision=release`): the release card the walk's server lists does not carry its options' roles and the
+ * time it was asked until the authorization side gives them, so the glyphs and the time are shown from the
+ * specimen's card. C2-decision-roles is the paper at rest (against 08-decision-live); C2-decision-lasting opens
+ * 这一类动作 and chooses a lasting option, so 取消 and an armed 提交 stand in for the buttons; C2-decision-own opens
+ * 自己写，或不回答 and writes the person's own words. C2-decision-rows is the specimen's two-section paper in rows,
+ * its release section's rows not chosen, under the pointer, chosen and not offered, for the close crop of the rows.
+ */
+function onDecisionSpecimen(query, ...steps) {
+  return [
+    walk => navigate(walk.browser, `${walk.stack.origin}specimen/index.html?${query}`),
+    `${DECISION_HELPERS}
+      await wait('the specimen', () => document.querySelector('[data-specimen=ready] .hitl-paper article'))`,
+    ...steps.map(step => `${DECISION_HELPERS}\n${step}`),
+  ]
+}
+
+const LEAVE_SPECIMEN = [
+  pointerAt(1, 1),
+  walk => navigate(walk.browser, walk.stack.origin),
+  `await wait('the sidebar', () => document.querySelector('.shell-sidebar'))`,
+]
+
+/** The row of the specimen's release section the pointer rests on, for C2-decision-rows. */
+const ROW_UNDER_POINTER = `[...document.querySelectorAll('.hitl-paper article[data-kind=release] [role=radio]')]
+  .find(item => item.querySelector('.omne-choice-label')?.textContent.trim() === '以后都放行')`
+
+function releaseVerdictScenes() {
+  const release = `[...document.querySelectorAll('.hitl-paper article')].find(item => item.dataset.kind === 'release')`
+  return [
+    {
+      id: 'C2-decision-roles',
+      title: '样张：一张放行卡是钮式，钮的字形照角色，种类行尾是提问的时间（对 08-decision-live）',
+      tiers: true,
+      onSpecimen: true,
+      act: onDecisionSpecimen('decision=release'),
+      each: 'await settle()',
+      leave: LEAVE_SPECIMEN,
+    },
+    {
+      id: 'C2-decision-lasting',
+      title: '样张：钮式下打开「这一类动作」并选了一档，纸底换成「取消」与武装的「提交」',
+      tiers: true,
+      onSpecimen: true,
+      act: onDecisionSpecimen(
+        'decision=release',
+        `pick(${release}, '这个会话里都放行')
+        await wait('取消 and the armed 提交', () => document.querySelector('.hitl-actions [data-variant=destructive]'))`,
+      ),
+      each: 'await settle()',
+      leave: LEAVE_SPECIMEN,
+    },
+    {
+      id: 'C2-decision-own',
+      title: '样张：钮式下打开「自己写，或不回答」，选了用自己的话回答并写了字',
+      tiers: true,
+      onSpecimen: true,
+      act: onDecisionSpecimen(
+        'decision=release',
+        `const section = ${release}
+        pick(section, '用自己的话回答')
+        fill(await wait('the words', () => section.querySelector('textarea')), '先只删这一份，别的留着')
+        await wait('取消 and 提交', () => [...document.querySelectorAll('.hitl-actions button')]
+          .map(item => item.textContent.trim()).join(',') === '取消,提交')`,
+      ),
+      each: 'await settle()',
+      leave: LEAVE_SPECIMEN,
+    },
+    {
+      id: 'C2-decision-rows',
+      title: '样张：一组选择行，没选中、指针下、选中与给不出的四种（4 倍裁图用）',
+      widths: ['1440'],
+      onSpecimen: true,
+      act: onDecisionSpecimen('decision', `pick(${release}, '这个会话里都放行')`),
+      each: [
+        pointerAt(1, 1),
+        'await settle()',
+        async walk => {
+          const at = await run(
+            walk.browser,
+            `const box = (${ROW_UNDER_POINTER}).getBoundingClientRect()\n return { x: box.x + box.width / 2, y: box.y + box.height / 2 }`,
+          )
+          await pointerAt(at.x, at.y)(walk)
+        },
+        'await settle()',
+        measureRows,
+      ],
+      leave: LEAVE_SPECIMEN,
+    },
+  ]
+}
+
+/** The box of the specimen's release rows in the page, printed for the close crop. */
+async function measureRows(walk) {
+  const box = await evaluate(
+    walk.browser,
+    `(() => {
+      const rows = document.querySelector('.hitl-paper article[data-kind=release] .hitl-options')
+      const rect = rows?.getBoundingClientRect()
+      return rect && { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+    })()`,
+  )
+  print(`ROWS ${JSON.stringify(box)}`)
+}
+
 const DECISION_SCENES = [
   {
     id: 'C2-decision-one',
@@ -809,7 +920,7 @@ const DECISION_SCENES = [
       await fresh()
       await say('先说一句话', '这一轮做了什么')
       ${MODE_ASK}
-      await say(${JSON.stringify(RELEASE_ASK)}, '需要你放行')`,
+      await say(${JSON.stringify(RELEASE_ASK)}, '需要你授权')`,
     each: ['await rest()', measureDecision],
   },
   {
@@ -870,6 +981,7 @@ const DECISION_SCENES = [
       `await wait('the sidebar', () => document.querySelector('.shell-sidebar'))`,
     ],
   },
+  ...releaseVerdictScenes(),
 ]
 
 const SCENES = [

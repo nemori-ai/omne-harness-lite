@@ -14,17 +14,20 @@ beforeAll(stubAnimation)
 
 afterEach(cleanup)
 
-async function shown(item = releaseItem()) {
+async function shown(item = releaseItem(), others: readonly HumanInterventionCardItem[] = []) {
   const fake = createFakeClient()
   render(<DecisionsPage hub={new CardsHub({ client: fake.client })} tenant={TENANT} />)
   const call = await fake.next('list-cards')
-  call.answer(page([item]))
+  call.answer(page([item, ...others]))
   await act(async () => {
     for (let round = 0; round < 5; round += 1) await Promise.resolve()
     await new Promise(resolve => setTimeout(resolve, 0))
   })
-  return within(screen.getByRole('article'))
+  return within(screen.getAllByRole('article')[0]!)
 }
+
+/** A second release card on the same paper, so the paper answers in rows under one 提交. */
+const inRows = (item = releaseItem()) => shown(item, [releaseItem('card-4')])
 
 const facts = (card: Awaited<ReturnType<typeof shown>>) =>
   [...card.getByText('工具').closest('dl')!.querySelectorAll('dt')].map(term => [
@@ -43,25 +46,32 @@ function offering(...ids: readonly string[]): HumanInterventionCardItem {
 const submit = () => screen.getByRole('button', { name: '提交' }) as HTMLButtonElement
 
 describe('the release card body', () => {
-  it('says whose move it is and draws the action as a title in the interface face', async () => {
-    const card = await shown()
-    const kind = card.getByText('需要你放行').closest('.hitl-kind') as HTMLElement
+  it('says 需要你授权 and draws the action as a title in the interface face, with no description and no line of who asks', async () => {
+    const item = releaseItem()
+    const question = item.card.question
+    if (question.kind !== 'release') throw new Error('release fixture')
+    const card = await shown({
+      ...item,
+      card: { ...item.card, question: { ...question, description: '这一段不画' } },
+    })
+    const kind = card.getByText('需要你授权').closest('.hitl-kind') as HTMLElement
     expect(kind.dataset['waiting']).toBe('true')
     expect(card.getByRole('heading', { name: '要执行 Shell run，放行吗？' }).dataset['face']).toBe(
       'ui',
     )
-    expect(card.getByText('系统要你放行这一次调用')).toBeTruthy()
+    expect(card.queryByText('这一段不画')).toBeNull()
+    expect(card.queryByText(/系统要你放行/)).toBeNull()
+    expect(document.querySelector('.hitl-who, .hitl-text')).toBeNull()
   })
 
-  it('draws the call as a fact table: the tool in mono, the gate, the session and the agent', async () => {
+  it('draws the call as a fact table of the tool, in mono, and the gate only: no session or agent reference', async () => {
     const card = await shown()
     expect(facts(card)).toEqual([
       ['工具', 'Shell run ls -la'],
       ['动作类别', 'Shell：执行'],
-      ['会话', 'ses_01234567…'],
-      ['Agent', 'exe-1'],
     ])
-    expect(card.getByText('ses_01234567…').getAttribute('title')).toBe('ses_0123456789abcdef')
+    expect(card.queryByText(/ses_0123/)).toBeNull()
+    expect(card.queryByText('exe-1')).toBeNull()
     expect(card.getByText('Shell run ls -la').tagName).toBe('CODE')
     expect(card.getByText('工具').closest('dl')!.classList.contains('hitl-facts')).toBe(true)
   })
@@ -76,14 +86,15 @@ describe('the release card body', () => {
     expect(card.getByText('参数太长，只显示开头。全文摘要 digest-of-all')).toBeTruthy()
   })
 
-  it('makes the one-time options the first rows and folds the lasting three into 这一类动作', async () => {
-    const card = await shown()
+  it('in rows, makes the one-time options the first rows, then the lasting three in 这一类动作, then 自己写，或不回答', async () => {
+    const card = await inRows()
     const names = () =>
       card
-        .getAllByRole('radio')
+        .queryAllByRole('radio')
         .map(radio => radio.querySelector('.omne-choice-label')?.textContent)
-    expect(names()).toEqual(['本次不放行', '本次放行', '用自己的话回答', '不回答这一题'])
+    expect(names()).toEqual(['本次不放行', '本次放行'])
     fireEvent.click(card.getByRole('button', { name: '这一类动作' }))
+    fireEvent.click(card.getByRole('button', { name: '自己写，或不回答' }))
     expect(names()).toEqual([
       '本次不放行',
       '本次放行',
@@ -98,8 +109,9 @@ describe('the release card body', () => {
   })
 
   it('an option it does not offer is shown and cannot be chosen', async () => {
-    const card = await shown()
+    const card = await inRows()
     fireEvent.click(card.getByRole('button', { name: '这一类动作' }))
+    fireEvent.click(card.getByRole('button', { name: '自己写，或不回答' }))
     const radios = card.getAllByRole('radio') as HTMLButtonElement[]
     expect(radios.map(radio => radio.disabled)).toEqual([
       false,
@@ -114,12 +126,12 @@ describe('the release card body', () => {
 
   it('gives no option a default choice or focus', async () => {
     const card = await shown()
-    expect(card.queryByRole('radio', { checked: true })).toBeNull()
-    expect(card.getAllByRole('radio')).not.toContain(document.activeElement)
+    expect(card.queryByRole('radio', { checked: true, hidden: true })).toBeNull()
+    expect(card.getAllByRole('radio', { hidden: true })).not.toContain(document.activeElement)
   })
 
   it('arms the one submit in the danger ink while a lasting option is chosen, and keeps its fold open', async () => {
-    const card = await shown(offering('deny-once', 'allow-session'))
+    const card = await inRows(offering('deny-once', 'allow-session'))
     expect(submit().dataset['variant']).toBe('default')
     const fold = card.getByRole('button', { name: '这一类动作' })
     fireEvent.click(fold)
@@ -164,7 +176,7 @@ it('draws no link at the foot of a sheet with one section', async () => {
     for (let round = 0; round < 5; round += 1) await Promise.resolve()
     await new Promise(resolve => setTimeout(resolve, 0))
   })
-  expect(screen.getByRole('button', { name: '提交' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: '本次不放行' })).toBeTruthy()
   expect(screen.queryByRole('button', { name: /还差|另有/ })).toBeNull()
 })
 
@@ -178,5 +190,6 @@ it('draws a kind it does not know with the common body, so the card is not lost'
   expect(card.getByText('survey · Ask')).toBeTruthy()
   expect(card.getByText('用哪个分支发布？')).toBeTruthy()
   expect(card.getByText('有两个候选分支。')).toBeTruthy()
-  expect(card.getAllByRole('radio')).toHaveLength(4)
+  expect(screen.getByRole('button', { name: '主干' })).toBeTruthy()
+  expect(card.getAllByRole('radio', { hidden: true })).toHaveLength(2)
 })

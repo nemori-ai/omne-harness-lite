@@ -140,3 +140,24 @@ it('opens what a row holds below it only while that row is chosen, and leaves it
   fireEvent.click(row('主干'))
   expect(held()?.getAttribute('data-open')).toBe('false')
 })
+
+it('leaves the mark column empty on a row that is not chosen; the chosen row has the ink check on the selected block', () => {
+  render(<Rows />)
+  const markOf = (name: string) => row(name).querySelector('.omne-choice-mark')!
+  const drawn = () =>
+    screen
+      .getAllByRole('radio')
+      .map(each => each.querySelector('.omne-choice-mark')?.innerHTML ?? null)
+  expect(drawn()).toEqual(['', '', '', ''])
+  const selected = () =>
+    document.querySelector<HTMLElement>('[data-glide-highlight="selected"]')?.dataset['shown']
+  expect(selected()).toBe('false')
+  fireEvent.click(row('主干'))
+  expect(markOf('主干').querySelector('svg')?.dataset['icon']).toBe('done')
+  expect(markOf('主干').children).toHaveLength(1)
+  expect(drawn().slice(1)).toEqual(['', '', ''])
+  expect(selected()).toBe('true')
+  fireEvent.click(row('不回答这一题'))
+  expect(markOf('主干').innerHTML).toBe('')
+  expect(markOf('不回答这一题').querySelector('svg')?.dataset['icon']).toBe('done')
+})

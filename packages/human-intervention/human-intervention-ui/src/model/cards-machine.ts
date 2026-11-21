@@ -41,6 +41,7 @@ export type Entry = Readonly<{ key: string; item: HumanInterventionCardItem; sub
 export type Choice =
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'option'; optionId: string }>
+  | Readonly<{ kind: 'words' }>
   | Readonly<{ kind: 'decline' }>
 
 export type Draft = Readonly<{ choice: Choice; text: string }>
@@ -131,7 +132,8 @@ export function replyOf(draft: Draft | undefined): Reply | null {
   if (draft === undefined) return null
   if (draft.choice.kind === 'option') return { kind: 'selection', optionId: draft.choice.optionId }
   if (draft.choice.kind === 'decline') return { kind: 'decline' }
-  return draft.text.trim() === '' ? null : { kind: 'text', text: draft.text }
+  if (draft.choice.kind === 'none' || draft.text.trim() === '') return null
+  return { kind: 'text', text: draft.text }
 }
 
 export const busy = (submit: Submit): boolean =>

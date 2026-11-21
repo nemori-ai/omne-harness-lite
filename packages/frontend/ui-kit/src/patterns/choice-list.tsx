@@ -1,5 +1,6 @@
 import { createContext, useContext, useId, useLayoutEffect, useRef } from 'react'
 
+import { DoneIcon } from '../icons/index.ts'
 import { cn } from '../lib/utils.ts'
 import { GlideMenu } from './ai/glide-menu.tsx'
 import { DisclosureContent } from './disclosure.tsx'
@@ -129,7 +130,7 @@ export function ChoiceRow({
         onClick={() => choosing.choose(value)}
       >
         <span aria-hidden="true" className="omne-choice-mark">
-          <span className="omne-choice-dot" />
+          {checked ? <DoneIcon /> : null}
         </span>
         <span id={`${id}-label`} className="omne-choice-label">
           {label}

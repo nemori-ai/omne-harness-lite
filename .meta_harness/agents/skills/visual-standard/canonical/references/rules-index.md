@@ -216,7 +216,7 @@
 | 回答过的请求变成了什么 | `ReceiptPill` | 还在等的决定 |
 | 一轮的过程行 | `TraceRow` 一族 | 日常的文案 |
 | 列表行的悬停与选中 | `GlideMenu` | 列表以外的行 |
-| 从几项里选一项作答，整行是目标 | `ChoiceList`、`ChoiceRow` | 几个互斥的设置值（分段控件或下拉） |
+| 从几项里选一项作答，整行是目标 | `ChoiceList`、`ChoiceRow`：记号一列留 16 的宽，没选中时空着；选中的一行是纸色的底（与悬停、`GlideMenu` 的选中同一种）加浓墨的对勾，字是浓墨强字 | 几个互斥的设置值（分段控件或下拉） |
 | 流内内容的展开与收起 | `Disclosure`，或 `DisclosureTrigger` 加 `DisclosureContent` | 浮层；裸的 `aria-expanded` 按钮 |
 | 「已保存」一类的回执 | `SaveReceipt` | 自己就是回执的控件（N1） |
 | 只读的事实 | `FactList`、`FactRow` | 能改的字段 |
