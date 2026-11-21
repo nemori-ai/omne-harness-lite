@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, page, stateFrame } from './fixtures/frames.ts'
@@ -43,9 +43,10 @@ const pending = (inputs: readonly unknown[], next: string | null = null) => ({
 })
 const card = { owner: 'human-intervention', record: 'card_9', revision: '3', digest: 'd' }
 const calls = (items: readonly unknown[]) => ({ outcome: 'succeeded', body: { calls: items } })
-const work = () => screen.queryByRole('region', { name: '排着的与在等的' })
+const work = () => document.querySelector<HTMLElement>('section.omne-session-work')
+const fold = () => within(work()!).getByRole('button')
 
-it('读这个会话还排着的话与在等人的调用，各列出来', async () => {
+it('排着的话：一行回执重量的字「还有 n 句话排着没处理」，原地展开成这些话；在等人答的调用不另写一行', async () => {
   const fake = createFakeClient()
   await opened(fake)
   const asked = await fake.next('read-pending')
@@ -67,12 +68,33 @@ it('读这个会话还排着的话与在等人的调用，各列出来', async (
   )
   await settle()
   const region = work()!
-  expect(region.textContent).toContain('还有 2 句话排着没处理')
-  expect(region.textContent).toContain('成员：再帮我看一下第二个文件')
-  expect(region.textContent).toContain('定时：定时检查提醒')
-  expect(region.textContent).toContain('agent 停着，在等人答 1 张卡')
-  expect(region.textContent).toContain('deploy')
-  expect(region.textContent).toContain('card_9')
+  expect(screen.getByRole('region', { name: '排着的话' })).toBe(region)
+  expect(fold().textContent).toBe('还有 2 句话排着没处理')
+  expect(fold().getAttribute('aria-expanded')).toBe('false')
+  expect(fold().className).toContain('text-xs')
+  const list = region.querySelector('ul')!
+  expect(list.closest('[aria-hidden="true"]')).not.toBeNull()
+  fireEvent.click(fold())
+  expect(fold().getAttribute('aria-expanded')).toBe('true')
+  expect([...list.querySelectorAll('li')].map(item => item.textContent)).toEqual([
+    '成员：再帮我看一下第二个文件',
+    '定时：定时检查提醒',
+  ])
+  expect(region.textContent).not.toContain('在等人答')
+  expect(region.textContent).not.toContain('deploy')
+  expect(region.textContent).not.toContain('card_9')
+  expect(region.querySelector('[data-inline-notice], .omne-session-work-part')).toBeNull()
+})
+
+it('只有在等人答的调用、没有排着的话：什么都不画', async () => {
+  const fake = createFakeClient()
+  await opened(fake)
+  ;(await fake.next('read-pending')).answer(pending([]))
+  ;(await fake.next('read-waiting-calls')).answer(
+    calls([{ card, action: 'deploy', passage: 'p', position: '5', run: 'run_1' }]),
+  )
+  await settle()
+  expect(work()).toBeNull()
 })
 
 it('都没有时不占地方', async () => {
@@ -84,25 +106,29 @@ it('都没有时不占地方', async () => {
   expect(work()).toBeNull()
 })
 
-it('读不到就说读不到，不说成没有', async () => {
+it('读不到是一行中性的原因，不说成没有，也不给人看结果码', async () => {
   const fake = createFakeClient()
   await opened(fake)
   ;(await fake.next('read-pending')).answer({ outcome: 'basis-unavailable' })
   ;(await fake.next('read-waiting-calls')).answer({ outcome: 'denied' })
   await settle()
   const region = work()!
-  expect(region.textContent).toContain('还排着哪些话现在读不到：服务端暂时不能处理，稍后再试。')
-  expect(region.textContent).toContain('在等人答的调用现在读不到：没有权限，或登录已失效。')
-  expect(region.textContent).not.toContain('没处理')
+  expect(region.textContent).toBe('还排着哪些话现在读不到：服务端暂时不能处理，稍后再试。')
+  expect(region.textContent).not.toContain('basis-unavailable')
+  expect(region.querySelector('[data-tone]')).toBeNull()
 })
 
-it('一页没列完时说明还有更多', async () => {
+it('到了上界：写「至少还有 n 句话排着没处理」，展开后只列前面的', async () => {
   const fake = createFakeClient()
   await opened(fake)
   ;(await fake.next('read-pending')).answer(pending([input('in_1', '第一句')], '7'))
   ;(await fake.next('read-waiting-calls')).answer(calls([]))
   await settle()
-  expect(work()!.textContent).toContain('至少还有 1 句话排着没处理，这里只列出前面的')
+  expect(fold().textContent).toBe('至少还有 1 句话排着没处理')
+  fireEvent.click(fold())
+  expect([...work()!.querySelectorAll('li')].map(item => item.textContent)).toEqual([
+    '成员：第一句',
+  ])
 })
 
 it('会话的日志往前走了就重读，旧的答复不盖新的', async () => {

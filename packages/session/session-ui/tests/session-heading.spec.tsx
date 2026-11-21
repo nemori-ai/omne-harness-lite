@@ -160,3 +160,125 @@ it('对话头：页头里放形的座位，名字 header、优先级 2，在标�
   expect(seat()?.closest('.omne-session-figure')?.textContent).toBe('Agent')
   expect(seat()?.closest('.omne-session-heading')).toBeNull()
 })
+
+/**
+ * The layout a browser would give the heading, which happy-dom does not: the title's words want 400, a character of
+ * the title is 20, the figure and its name 120, the model 200, the permissions 150, the `⋯` 32; the bar's gap 16,
+ * the right end's 8. The title keeps 9.5 characters (eight, the ellipsis and room for rounding): 190.
+ */
+function layOut(row: number): void {
+  const isMore = (element: Element) =>
+    element.matches('[aria-label="更多"]') ||
+    (element.parentElement?.classList.contains('omne-session-bar-end') === true &&
+      element.querySelector('[aria-label="更多"]') !== null)
+  const width = (element: HTMLElement): number => {
+    if (element.classList.contains('omne-session-figure')) return 120
+    if (element.classList.contains('omne-session-choice'))
+      return element.querySelector('.omne-session-model') === null ? 150 : 200
+    return isMore(element) ? 32 : 0
+  }
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return width(this)
+  })
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.classList.contains('omne-session-bar') ? row : 0
+  })
+  vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockImplementation(function (this: Element) {
+    return this.classList.contains('omne-session-title') ? 400 : 0
+  })
+  const computed = window.getComputedStyle.bind(window)
+  vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
+    const real = computed(element, pseudo)
+    const own: Record<string, string> = element.classList.contains('omne-session-title')
+      ? { fontSize: '20px', letterSpacing: '0px' }
+      : element.classList.contains('omne-session-bar')
+        ? { columnGap: '16px' }
+        : element.classList.contains('omne-session-bar-end')
+          ? { columnGap: '8px' }
+          : {}
+    return new Proxy(real, {
+      get: (target, key) => {
+        if (typeof key === 'string' && key in own) return own[key]
+        const value = Reflect.get(target, key) as unknown
+        return typeof value === 'function' ? (value as () => unknown).bind(target) : value
+      },
+    })
+  })
+}
+
+async function openWithChoices(fake: ReturnType<typeof createFakeClient>): Promise<void> {
+  await openLong(fake)
+  ;(await fake.next('read-model-selection')).answer({
+    outcome: 'succeeded',
+    body: { model: 'openai/gpt-x', revision: '1' },
+  })
+  ;(await fake.next('read-permission-mode')).answer({
+    outcome: 'succeeded',
+    body: { mode: 'auto_permission', revision: '4' },
+  })
+  await settle()
+}
+
+const shownInBar = () =>
+  [...heading().querySelectorAll('.omne-session-choice')]
+    .filter(choice => !choice.hasAttribute('data-folded'))
+    .map(choice => (choice.querySelector('.omne-session-model') === null ? '权限处理' : '模型'))
+
+const foldedItems = (menu: HTMLElement) =>
+  within(menu)
+    .getAllByRole('menuitem')
+    .map(item => item.textContent)
+    .filter(text => text?.startsWith('模型') === true || text?.startsWith('权限处理') === true)
+
+it('头部放不下：标题留 8 个字，先把权限处理、再把模型收进「更多」，菜单里写当前的值', async () => {
+  const cases: readonly (readonly [number, readonly string[], readonly string[]])[] = [
+    [800, ['模型', '权限处理'], []],
+    [600, ['模型'], ['权限处理需要时问我']],
+    [400, [], ['模型openai/gpt-x', '权限处理需要时问我']],
+  ]
+  for (const [row, bar, folded] of cases) {
+    layOut(row)
+    const fake = createFakeClient()
+    await openWithChoices(fake)
+    expect([row, shownInBar()]).toEqual([row, bar])
+    const hidden = [...heading().querySelectorAll('.omne-session-choice[data-folded]')]
+    expect(hidden.every(choice => choice.getAttribute('aria-hidden') === 'true')).toBe(true)
+    expect(hidden.every(choice => choice.hasAttribute('inert'))).toBe(true)
+    expect(foldedItems(await openMore())).toEqual(folded)
+    cleanup()
+    vi.restoreAllMocks()
+  }
+})
+
+it('收进「更多」的权限处理照样能改：选一个值就发，回执落在页头', async () => {
+  layOut(400)
+  const fake = createFakeClient()
+  await openWithChoices(fake)
+  const menu = await openMore()
+  const trigger = within(menu).getByRole('menuitem', { name: /^权限处理/ })
+  fireEvent.keyDown(trigger, { key: 'ArrowRight' })
+  const choices = await screen.findByRole('menu', { name: /^权限处理/ })
+  fireEvent.click(within(choices).getByRole('menuitemradio', { name: '跳过询问' }))
+  const change = await fake.next('change-permission-mode')
+  expect(change.body).toMatchObject({
+    session: LONG,
+    mode: 'bypass-permissions',
+    expectedRevision: '4',
+  })
+  change.answer({ outcome: 'succeeded', body: { mode: 'bypass-permissions', revision: '5' } })
+  await settle()
+  ;(await fake.next('read-permission-mode')).answer({
+    outcome: 'succeeded',
+    body: { mode: 'bypass-permissions', revision: '5' },
+  })
+  await settle()
+  const said = [...heading().querySelectorAll('.omne-session-receipt')].map(
+    node => node.textContent,
+  )
+  expect(said).toEqual(['已改为「跳过询问」'])
+  vi.restoreAllMocks()
+})

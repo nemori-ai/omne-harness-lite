@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage, page, plainEntry, userEntry } from './fixtures/frames.ts'
@@ -42,6 +42,8 @@ const waiting = (pending: number, cause: { kind: string; detail: string | null }
   body: { waiting: { run: 'run_1', pending, cause } },
 })
 
+const notice = (block: HTMLElement) => block.querySelector('[data-inline-notice]')
+
 it('一轮失败之后：失败的那一行下面写成因、没处理的条数与「重试」；重试点名那一轮', async () => {
   const fake = createFakeClient()
   await openFailed(fake)
@@ -51,7 +53,7 @@ it('一轮失败之后：失败的那一行下面写成因、没处理的条数�
   await settle()
   const block = screen.getByRole('status', { name: '这一轮失败了' })
   expect(block.previousElementSibling?.textContent).toBe('这一轮失败了')
-  expect(block.textContent).toContain('模型没有给出有效的回复。诊断：http-400')
+  expect(block.textContent).toContain('模型没有给出有效的回复。')
   expect(block.textContent).toContain('还有 2 条消息没有处理')
 
   fireEvent.click(screen.getByRole('button', { name: '重试' }))
@@ -93,7 +95,7 @@ it('重试的结果不知道：如实显示，再问一次用同一个编号；�
   const first = await fake.next('retry-run')
   first.answer({ outcome: 'unknown' })
   await settle()
-  expect(screen.getByText(/重试的结果不知道/)).toBeTruthy()
+  expect(screen.getByText(/重试的结果不知道/).className).toBe('omne-waiting-note')
   fireEvent.click(screen.getByRole('button', { name: '再问一次' }))
   const second = await fake.next('retry-run')
   expect((second.body as { controlId: string }).controlId).toBe(
@@ -131,4 +133,39 @@ it('提示挂在等的那一轮的失败那一行下面，不挂在别的失败�
   const markers = [...document.querySelectorAll('.omne-marker')]
   expect(block.previousElementSibling?.contains(markers[1] ?? null)).toBe(true)
   expect(block.nextElementSibling?.textContent).toBe('前面的对话已压缩')
+})
+
+it('失败的语气：危险色的行内通知，人话在前，诊断收在「详情」里，不是琥珀', async () => {
+  const fake = createFakeClient()
+  await openFailed(fake)
+  ;(await fake.next('read-waiting')).answer(waiting(2, { kind: 'no-reply', detail: 'http-400' }))
+  await settle()
+  const block = screen.getByRole('status', { name: '这一轮失败了' })
+  expect(notice(block)?.getAttribute('data-tone')).toBe('danger')
+  expect(block.querySelector('[data-tone="caution"]')).toBeNull()
+  const title = notice(block)?.querySelector('p')
+  expect(title?.textContent).toBe('模型没有给出有效的回复。')
+  expect(title?.textContent).not.toContain('http-400')
+  const details = within(block).getByRole('button', { name: '详情' })
+  expect(details.getAttribute('aria-expanded')).toBe('false')
+  const region = document.getElementById(details.getAttribute('aria-controls') ?? '')
+  expect(region?.textContent).toBe('http-400')
+  fireEvent.click(details)
+  expect(details.getAttribute('aria-expanded')).toBe('true')
+})
+
+it('没有诊断时没有「详情」；重试连不上时写明原因，中性，可以再按', async () => {
+  const fake = createFakeClient()
+  await openFailed(fake)
+  ;(await fake.next('read-waiting')).answer(waiting(1, { kind: 'guard', detail: null }))
+  await settle()
+  const block = screen.getByRole('status', { name: '这一轮失败了' })
+  expect(within(block).queryByRole('button', { name: '详情' })).toBeNull()
+  fireEvent.click(within(block).getByRole('button', { name: '重试' }))
+  ;(await fake.next('retry-run')).answer({ outcome: 'unavailable' })
+  await settle()
+  const said = block.querySelector('.omne-waiting-note')
+  expect(said?.textContent).toBe('连不上服务，重试没有发出去。')
+  expect(said?.closest('[data-tone]')?.getAttribute('data-tone')).toBe('danger')
+  expect(within(block).getByRole('button', { name: '重试' })).toBeTruthy()
 })
