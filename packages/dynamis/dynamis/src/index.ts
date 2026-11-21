@@ -27,6 +27,17 @@ export {
   type PointStanding,
 } from './catalog.ts'
 export {
+  adopt,
+  bound,
+  refersTo,
+  resolve,
+  type Adoption,
+  type Binding,
+  type Bound,
+  type Missing,
+  type Reference,
+} from './reference.ts'
+export {
   empty,
   install,
   placedBy,
@@ -43,3 +54,4 @@ export {
   type Standing,
   type Unread,
 } from './registry.ts'
+export { find, render, tree, type Problem, type Tree, type TreeNode } from './tree.ts'
