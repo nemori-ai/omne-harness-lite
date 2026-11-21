@@ -332,6 +332,57 @@ describe('a retain is a defect outside a settle that holds its block', () => {
   })
 })
 
+describe('a retained record kept in the shared blocks of the tenant', () => {
+  it('the settle copies it from sl_blob into the session and leaves the shared row where it is', async () => {
+    const a = await session()
+    const shared = { ...recordOf('s'), shared: true }
+    await published(a, write({ n: 1, execution: 'exe_1', revision: 1 }, { blobs: [shared] }))
+    expect(count(a, "SELECT COUNT(*) FROM er_block WHERE execution = 'exe_1'")).toBe(0)
+    const sharedRows = `SELECT COUNT(*) FROM sl_blob WHERE digest = '${shared.digest}'`
+    expect(count(a, sharedRows)).toBe(1)
+    await published(
+      a,
+      write(
+        { n: 2, execution: 'exe_1', revision: 2, settledBy: 'gen_1' },
+        { retain: retainOf('mcall_s', 1, 's') },
+      ),
+    )
+    expect(await kept(a)).toEqual({
+      kind: 'adoption',
+      value: {
+        reference: 'mcall_s',
+        pub: '1',
+        execution: 'exe_1',
+        digest: shared.digest,
+        media: 'application/json',
+        payload: shared.payload,
+        adoption: adoptionOf('s'),
+      },
+    })
+    expect(count(a, sharedRows)).toBe(1)
+  })
+
+  it('a retained digest in neither the blocks of the execution nor the shared ones refuses the settle, and nothing of it lands', async () => {
+    const a = await session()
+    await published(a, write({ n: 1, execution: 'exe_1', revision: 1 }))
+    const refused = await commit(
+      a,
+      write(
+        { n: 2, execution: 'exe_1', revision: 2, settledBy: 'gen_1' },
+        { retain: retainOf('mcall_none', 1, 'none') },
+      ),
+    )
+    expect(refused.kind).toBe('rolled_back')
+    expect(refused.reply).toMatchObject({ kind: 'failed' })
+    expect(JSON.stringify(refused.reply)).toContain(recordOf('none').digest)
+    expect(count(a, 'SELECT MAX(published) FROM er_root')).toBe(1)
+    expect(
+      count(a, "SELECT COUNT(*) FROM er_execution WHERE execution = 'exe_1' AND settled IS NULL"),
+    ).toBe(1)
+    expect(await kept(a)).toEqual({ kind: 'adoption', value: null })
+  })
+})
+
 describe('the migration execution-record/009-adoption', () => {
   const materials = sessionStorageMaterials({
     readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES,

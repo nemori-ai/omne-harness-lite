@@ -1,5 +1,7 @@
 import type { JsonValue } from '@omne-harness/sql-contract'
+import { packText } from '@omne-harness/sql-contract/worker'
 import { canonicalText } from '../codec.ts'
+import { readBlock } from './execution-blocks.ts'
 import { big, oneRow, text, type Executor } from './support.ts'
 
 type Json = Readonly<{ readonly [key: string]: JsonValue }>
@@ -71,13 +73,9 @@ function writeChoices(port: Executor, scope: Scope, choices: readonly Choice[]):
 
 function retainAdoption(port: Executor, scope: Scope, retain: Retain): string | null {
   const { tenant, session, execution } = scope
-  const block = oneRow(
-    port,
-    'SELECT media, size, payload FROM er_block WHERE tenant = ? AND execution = ? AND digest = ? LIMIT 1',
-    [tenant, execution, retain.digest],
-  )
-  if (block === undefined)
-    return `the retained adoption names ${retain.digest}, no block of the execution`
+  const block = readBlock(port, tenant, execution, retain.digest)
+  if (block === null)
+    return `the retained adoption names ${retain.digest}, no block of the execution or the tenant`
   const held = oneRow(
     port,
     'SELECT pub FROM er_session_adoption WHERE tenant = ? AND session = ? LIMIT 1',
@@ -93,9 +91,9 @@ function retainAdoption(port: Executor, scope: Scope, retain: Retain): string | 
       retain.pub,
       execution,
       retain.digest,
-      block['media'] ?? null,
-      block['size'] ?? null,
-      block['payload'] ?? null,
+      block.media,
+      BigInt(Buffer.byteLength(block.payload)),
+      packText(block.payload),
       retain.adoption,
     ],
   )
