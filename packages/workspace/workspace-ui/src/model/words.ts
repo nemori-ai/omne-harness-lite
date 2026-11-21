@@ -23,10 +23,11 @@ const STANDINGS: Readonly<Record<WorkspaceSummaryBody['standing'], string>> = {
 export const standingText = (standing: WorkspaceSummaryBody['standing']): string =>
   STANDINGS[standing]
 
-export function availabilityText(availability: WorkspaceInstanceBody['availability']): string {
+/** An availability the state table has no word for, as a person reads it; 可用 goes through `StateWord`. */
+export function availabilityText(
+  availability: Exclude<WorkspaceInstanceBody['availability'], { kind: 'available' }>,
+): string {
   switch (availability.kind) {
-    case 'available':
-      return `可用：${availability.directory}`
     case 'unavailable':
       return `用不了：${reasonText(availability.reason)}`
     case 'unknown':
