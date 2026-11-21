@@ -18,6 +18,7 @@ import {
   stopChrome,
 } from './walk-support.mjs'
 import { SERIES } from './visual-series.mjs'
+import { raisedEdges } from '../tests/support/raised-edges.ts'
 
 const USAGE = `usage: node apps/desktop/demo/visual-walk.mjs [options]
 
@@ -25,10 +26,15 @@ The acceptance walk of the page's look: a server on a fresh state directory with
 forwarding process and a headless Chromium; it seeds the acceptance data, then shoots every scene in every theme,
 window and size asked for, named <scene>-<theme>-<width>[-<size>].png. A scene that means something only in some
 windows says which; in the others it prints SKIP <scene> <width>. Each shot prints how far the page scrolls
-sideways; the specimen scene prints the page policy violations it saw. The scenes that end the login (A2-expired)
-or stop the walk's own server (A7-disconnected) run after the other signed-in scenes, the server one last. Two
-scenes start their own conversation: B2-working, where the scripted model holds its reply halfway until the scene
-ends, and B9-background, whose call runs in the background until the walk's server stops.
+sideways; the specimen scene prints the page policy violations it saw. After every shot the walk checks that no
+raised control is cut, with its shadow and ring room, by an ancestor that clips it (FE-I37). The candidates are the
+shown elements with data-control, and besides them a segmented control's track and its raised segment (the thumb,
+which has no data-control); a candidate is raised when a border, an inset line or an outer shadow draws.
+raised-edges.json in the shots folder lists, per shot, the cuts and every raised control with its box, the last line
+of the log counts the cuts, and any cut fails the walk. The scenes that end the login (A2-expired) or stop the walk's
+own server (A7-disconnected) run after the other signed-in scenes, the server one last. Two scenes start their own
+conversation: B2-working, where the scripted model holds its reply halfway until the scene ends, and B9-background,
+whose call runs in the background until the walk's server stops.
 
   --shots <dir>        where the pictures go (a fresh temporary folder by default)
   --scenes <a,b>       only these scenes (by id); --list prints them, ※ marks the ones the acceptance asks
@@ -758,6 +764,177 @@ function combinations(windows) {
   return out
 }
 
+/**
+ * FE-I37, run in the page: every shown candidate (an element with `data-control`, and a segmented control's track and
+ * thumb, which have none; not `display: none`, not hidden, not under `aria-hidden`, the thumb's own decorative one
+ * aside) with its border box, borders, shadow and ring room, and every ancestor that clips it, the nearest
+ * first. Which of them are raised and which are cut is the judge's (tests/support/raised-edges.ts).
+ */
+function readControls() {
+  const px = value => Number.parseFloat(value) || 0
+  const round = value => Math.round(value * 100) / 100
+  const boxOf = (x, y, width, height) => ({
+    x: round(x),
+    y: round(y),
+    width: round(width),
+    height: round(height),
+  })
+  const classes = element =>
+    (typeof element.className === 'string' ? element.className : '').split(/\s+/).filter(Boolean)
+  const nameOf = element => {
+    const all = classes(element)
+    const own = all.filter(name => /^(?:omne|shell)-/.test(name))
+    const tag = element.tagName.toLowerCase()
+    if (own.length > 0) return `${tag}${own.map(name => `.${name}`).join('')}`
+    if (element.dataset.variant !== undefined)
+      return `${tag}[data-variant=${element.dataset.variant}]`
+    return `${tag}${all
+      .slice(0, 4)
+      .map(name => `.${name}`)
+      .join('')}`
+  }
+  const labelOf = element => {
+    if (element.matches('[data-segmented-thumb]')) {
+      const track = element.closest('[data-slot="segmented"]')
+      const chosen = track?.querySelector('[data-segment][aria-pressed="true"]')
+      const words = `${track?.getAttribute('aria-label') ?? ''} ${chosen?.textContent ?? ''}`
+      return `${words.replace(/\s+/g, ' ').trim()} [data-segmented-thumb]`
+    }
+    const labelledBy = (element.getAttribute('aria-labelledby') ?? '')
+      .split(/\s+/)
+      .map(id => document.getElementById(id)?.textContent ?? '')
+      .join(' ')
+    const words = [
+      element.getAttribute('aria-label'),
+      labelledBy,
+      element.textContent,
+      element.getAttribute('title'),
+      element.getAttribute('placeholder'),
+      element.getAttribute('name'),
+    ]
+      .map(text => (text ?? '').replace(/\s+/g, ' ').trim())
+      .find(text => text !== '')
+    return [words?.slice(0, 60), nameOf(element)].filter(Boolean).join(' ')
+  }
+  /** An ancestor holds a fixed descendant's containing block (and so clips it) when it transforms or contains. */
+  const holdsFixed = style =>
+    style.transform !== 'none' ||
+    style.perspective !== 'none' ||
+    style.filter !== 'none' ||
+    style.backdropFilter !== 'none' ||
+    style.containerType !== 'normal' ||
+    /\b(?:paint|layout|strict|content)\b/.test(style.contain) ||
+    /\b(?:transform|perspective|filter)\b/.test(style.willChange)
+  const clippersOf = element => {
+    const found = []
+    let position = getComputedStyle(element).position
+    for (
+      let at = element.parentElement;
+      at !== null && at !== document.body;
+      at = at.parentElement
+    ) {
+      const style = getComputedStyle(at)
+      if (style.display === 'contents') continue
+      const contains =
+        position === 'fixed'
+          ? holdsFixed(style)
+          : position === 'absolute'
+            ? style.position !== 'static' || holdsFixed(style)
+            : true
+      if (!contains) continue
+      position = style.position
+      const axis = (overflow, scroll, size, client) =>
+        overflow === 'visible'
+          ? undefined
+          : {
+              overflow,
+              position: round(scroll),
+              size,
+              client,
+              clipMargin: px(/(-?[\d.]+)px/.exec(style.overflowClipMargin)?.[1] ?? '0'),
+            }
+      const x = axis(style.overflowX, at.scrollLeft, at.scrollWidth, at.clientWidth)
+      const y = axis(style.overflowY, at.scrollTop, at.scrollHeight, at.clientHeight)
+      if (x === undefined && y === undefined) continue
+      const box = at.getBoundingClientRect()
+      const [top, right, bottom, left] = [
+        style.borderTopWidth,
+        style.borderRightWidth,
+        style.borderBottomWidth,
+        style.borderLeftWidth,
+      ].map(px)
+      const barY = Math.max(0, at.offsetWidth - at.clientWidth - Math.round(left + right))
+      const barX = Math.max(0, at.offsetHeight - at.clientHeight - Math.round(top + bottom))
+      found.push({
+        name: nameOf(at),
+        box: boxOf(
+          box.left + left,
+          box.top + top,
+          box.width - left - right - barY,
+          box.height - top - bottom - barX,
+        ),
+        ...(x === undefined ? {} : { x }),
+        ...(y === undefined ? {} : { y }),
+      })
+    }
+    return found
+  }
+  const THUMB = '[data-segmented-thumb]'
+  return [...document.querySelectorAll(`[data-control], [data-slot="segmented"], ${THUMB}`)]
+    .filter(
+      element =>
+        element.getClientRects().length > 0 &&
+        element.checkVisibility({ visibilityProperty: true, opacityProperty: true }) &&
+        (element.matches(THUMB) ? element.parentElement : element)?.closest(
+          '[aria-hidden="true"]',
+        ) === null,
+    )
+    .map(element => {
+      const style = getComputedStyle(element)
+      const box = element.getBoundingClientRect()
+      const ringRoom =
+        px(style.getPropertyValue('--omne-ring-room')) ||
+        px(style.getPropertyValue('--omne-ring-width')) +
+          px(style.getPropertyValue('--omne-ring-offset'))
+      return {
+        control:
+          element.dataset.control ?? (element.matches(THUMB) ? 'segmented-thumb' : 'segmented'),
+        label: labelOf(element),
+        box: boxOf(box.left, box.top, box.width, box.height),
+        borders: ['Top', 'Right', 'Bottom', 'Left'].map(
+          side =>
+            `${style[`border${side}Width`]} ${style[`border${side}Style`]} ${style[`border${side}Color`]}`,
+        ),
+        boxShadow: style.boxShadow,
+        ringRoom,
+        clippers: clippersOf(element),
+      }
+    })
+}
+
+/** Every shot's raised controls and cuts, written to raised-edges.json in the shots folder after each shot. */
+const edgeShots = []
+const edgeCuts = () => edgeShots.reduce((sum, shot) => sum + shot.violations.length, 0)
+
+async function checkEdges(browser, file, scene, { theme, width, size }) {
+  const { raised, violations } = raisedEdges(await evaluate(browser, `(${readControls})()`))
+  edgeShots.push({
+    shot: file.slice(shots.length + 1),
+    scene: scene.id,
+    theme,
+    width: `${width.width}x${width.height}`,
+    size,
+    violations,
+    raised,
+  })
+  writeFileSync(
+    join(shots, 'raised-edges.json'),
+    `${JSON.stringify({ cuts: edgeCuts(), shots: edgeShots }, null, 2)}\n`,
+  )
+  for (const cut of violations)
+    print(`CUT ${cut.control} "${cut.label}" by ${cut.clipper}: ${cut.side} ${cut.short}px`)
+}
+
 async function shootScene(walk, scene, done) {
   const { browser } = walk
   const windows = widths.filter(width => scene.widths?.includes(width.name) ?? true)
@@ -781,6 +958,7 @@ async function shootScene(walk, scene, done) {
       'document.documentElement.scrollWidth - document.documentElement.clientWidth',
     )
     print(`SHOT ${file} sideways ${sideways}px`)
+    await checkEdges(browser, file, scene, combination)
     done.push(file)
   }
   await perform(walk, scene.leave)
@@ -954,6 +1132,11 @@ async function main() {
     rmSync(profile, { recursive: true, force: true })
     if (specimenRoot !== undefined) rmSync(specimenRoot, { recursive: true, force: true })
   }
+  if (seriesWanted.length > 0) return
+  if (edgeCuts() > 0) process.exitCode = 1
+  print(
+    `raised edges: ${edgeCuts()} cut(s) in ${edgeShots.length} shot(s), ${join(shots, 'raised-edges.json')}`,
+  )
 }
 
 await main()

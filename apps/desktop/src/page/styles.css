@@ -68,9 +68,16 @@ body,
   width: var(--omne-sidebar-rail-width);
 }
 
-.shell-sidebar[data-labels='shown'] > :is(.shell-brand-row, .shell-navigation-content) {
+.shell-sidebar[data-labels='shown'] > .shell-brand-row {
   min-width: calc(
     var(--omne-sidebar-width) - var(--omne-sidebar-rail-width) + var(--omne-nav-row-height)
+  );
+}
+
+.shell-sidebar[data-labels='shown'] > .shell-navigation-content {
+  min-width: calc(
+    var(--omne-sidebar-width) - var(--omne-sidebar-rail-width) + var(--omne-nav-row-height) + 2 *
+      var(--omne-ring-room)
   );
 }
 
@@ -133,12 +140,15 @@ body,
   display: contents;
 }
 
+/* The two scrollers of the column reach out by the ring room and take it back as their padding (S15, K1): a raised
+   control at the column's edge keeps its edge, shadow and ring, and nothing in the column moves. */
 .shell-navigation-content {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding-top: var(--omne-space-inline);
+  margin-inline: calc(-1 * var(--omne-ring-room));
+  padding: var(--omne-space-inline) var(--omne-ring-room) 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -175,7 +185,9 @@ body,
   flex: 1 1 0;
   flex-direction: column;
   gap: var(--omne-space-inline);
-  min-height: var(--omne-nav-row-height);
+  min-height: calc(var(--omne-nav-row-height) + 2 * var(--omne-ring-room));
+  margin: calc(-1 * var(--omne-ring-room));
+  padding: var(--omne-ring-room);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
