@@ -241,6 +241,8 @@ export type SessionEntry =
       fact: import('./faces.ts').ProducerFact
       consumption?: ConsumptionId
       result?: ProducedResult | null
+      /** The call whose final delivery this execution fact writes into the log. */
+      delivered?: ConsumptionId
     }>
   | Readonly<{
       kind: 'call.result-preserved'

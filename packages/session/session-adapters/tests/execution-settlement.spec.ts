@@ -17,6 +17,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import type { Consumption, ConsumptionId, WorkSnapshot } from '@omne-harness/session-contract'
 import { evidence } from '@omne-harness/session-contract/testing'
 import { unpackText } from '@omne-harness/sql-contract/worker'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
 import { createSessionModelLogConsumptionPlugin } from '../src/cordis/model-log-consumption.ts'
@@ -248,12 +249,14 @@ async function backgroundedThenEnded(s: SqlScene, c: Scene, processed: boolean) 
   await receive('outcome', outcome, outcomeMaterial(s.access.tenant, outcome))
 }
 
-// A Model call waits and its result is kept; the execution ends without processing it. The end is
+// A Model call waits and its result is kept; the Agent processes it or ends without it. The end is
 // the last write of the Agent records.
-async function modelResultThenEnded(s: SqlScene, c: Scene) {
+async function modelResultThenEnded(s: SqlScene, c: Scene, processed: boolean) {
   const { journal, opened, authority, load, commit, receive } = await opening(s, c)
   const sample = sampleReceivedModelResult(s.access.tenant, 'late')
   const result = { ...sample, consumer: { ...sample.consumer, work: s.execution } }
+  const { key } = result.delivery
+  if (key.kind !== 'result') throw new Error('fixture: a Model result')
   const pending: Extract<PendingCall, { kind: 'model' }> = {
     kind: 'model',
     purpose: 'main',
@@ -272,8 +275,33 @@ async function modelResultThenEnded(s: SqlScene, c: Scene) {
   })
   const { material: _material, ...draft } = result
   await receive('model-result', result, modelMaterialOf(s.access.tenant, draft))
+  if (processed)
+    await commit('model-processed', {
+      checkpoint: { ...(await load()).checkpoint, calls: [] },
+      events: [
+        {
+          kind: 'producer',
+          result: {
+            producer: {
+              kind: 'model',
+              call: ok(resolveModelInvocationRef(pending.reference, s.access.tenant)).call,
+            },
+            version: String(key.result),
+            delivery: null,
+            source: evidence('model-result'),
+          },
+          consumption: pending.consumption,
+        },
+      ],
+    })
   await endOpened(s, journal, opened, refusedByModel())
 }
+
+const targetOf = (s: SqlScene) => ({
+  tenant: s.access.tenant,
+  session: s.access.session,
+  execution: s.execution,
+})
 
 async function settled(s: SqlScene): Promise<Head> {
   let head: Head | null = null
@@ -591,28 +619,49 @@ describe('the Session acknowledges an execution once it has received all of it',
     },
   )
 
-  it('a Model result kept before the interpretation bound its call, with no write of the Agent records after it: the interpretation commit wakes the model log consumption, which writes the result into the session log', async () => {
+  it('a Model result kept before the interpretation bound its call, and the Agent ended without processing it: the interpretation commit wakes the model log consumption, the call is no longer open once its result is in the session log, and the execution settles with the account kept', async () => {
     const s = await scene('settle-model-late')
     const c = await cordisScene(s)
     disposers.push(() => c.dispose())
     const coordinator = async () => succeed(s.access.principal)
     await c.mount(createSessionModelLogConsumptionPlugin<string>({ coordinator }).plugin)
-    await modelResultThenEnded(s, c)
+    await modelResultThenEnded(s, c, false)
     // The consumption answered every write before the interpretation starts: it found no binding.
     await new Promise(resolve => setTimeout(resolve, 200))
     expect(kindsOf(s)).not.toContain('call.bound')
     const interpretation = createSessionJournalInterpretationPlugin<string>({ coordinator })
     await c.mount(interpretation.plugin)
-    ok(
-      await interpretation.interpret({
-        tenant: s.access.tenant,
-        session: s.access.session,
-        execution: s.execution,
-      }),
-    )
-    await vi.waitFor(() => expect(kindsOf(s)).toContain('account.linked'), { timeout: 5000 })
+    ok(await interpretation.interpret(targetOf(s)))
+    const head = await settled(s)
+    expect(head.acknowledged).toBe(head.emitted)
     const kinds = kindsOf(s)
+    expect(kinds).toContain('account.linked')
     expect(kinds.indexOf('call.bound')).toBeLessThan(kinds.indexOf('call.execution-fact'))
+    expect(rowsOf(s, 'er_fact')).toBe(0)
+  })
+
+  it('the Agent processed the Model result and the interpretation lags: the interpretation waits for the model log consumption, so the acknowledgement does not overtake it and the account stays in the session log', async () => {
+    const s = await scene('settle-model-processed')
+    const c = await cordisScene(s)
+    disposers.push(() => c.dispose())
+    const coordinator = async () => succeed(s.access.principal)
+    await modelResultThenEnded(s, c, true)
+    const interpretation = createSessionJournalInterpretationPlugin<string>({ coordinator })
+    await c.mount(interpretation.plugin)
+    ok(await interpretation.interpret(targetOf(s)))
+    // The model log consumption is not there yet: the processing of its delivery waits for it.
+    await new Promise(resolve => setTimeout(resolve, 200))
+    expect(headOf(s)).toMatchObject({ acknowledged: '0', settled: null })
+    expect(kindsOf(s)).not.toContain('run.terminal')
+    const consumption = createSessionModelLogConsumptionPlugin<string>({ coordinator })
+    await c.mount(consumption.plugin)
+    ok(await consumption.consume(targetOf(s)))
+    const head = await settled(s)
+    expect(head.acknowledged).toBe(head.emitted)
+    const kinds = kindsOf(s)
+    expect(kinds).toContain('account.linked')
+    expect(kinds.indexOf('account.linked')).toBeLessThan(kinds.indexOf('run.terminal'))
+    expect(rowsOf(s, 'er_fact')).toBe(0)
   })
 
   it('a sweep the first opening could not finish runs again in the same generation and keeps what this generation settled: the settling operation is still recognized', async () => {

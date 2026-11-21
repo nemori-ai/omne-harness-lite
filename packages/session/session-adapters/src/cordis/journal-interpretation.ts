@@ -36,6 +36,7 @@ import { acknowledgeReceived, type ReceivedAllPorts } from './received-all.ts'
 
 const OWNER = 'session-adapters/journal-interpretation'
 const ROUNDS = 2
+const RECEIVED = { tool: 'tool-received', model: 'model-received' } as const
 const SENDS = 3
 
 export type JournalInterpretationRetry = Readonly<{
@@ -144,8 +145,8 @@ function createJournalInterpretation<P>(
     return answer
   }
 
-  // An event that processes a Tool delivery comes after the delivery: the Session interprets it
-  // once the tool log consumption wrote every received delivery of that call.
+  // An event that processes a delivery comes after the delivery: the Session interprets it once
+  // the entries consumption of the producer wrote every received delivery of that call.
   async function awaitsDelivery(
     access: SessionAccess<P>,
     work: WorkSnapshot,
@@ -153,24 +154,27 @@ function createJournalInterpretation<P>(
     execution: AgentExecutionId,
     event: InterpretableEvent,
   ): Promise<Answer<boolean>> {
-    const calls = new Set<string>()
+    const calls = new Map<keyof typeof RECEIVED, Set<string>>()
     for (const item of event.consequences ?? [])
-      if (item.kind === 'producer' && item.result !== null && item.binding.producer.kind === 'tool')
-        calls.add(item.consumption)
-    if (calls.size === 0) return succeed(false)
-    const saved = savedProgress(work, run, execution, 'tool-received')
+      if (item.kind === 'producer' && item.result !== null) {
+        const producer = item.binding.producer.kind
+        calls.set(producer, (calls.get(producer) ?? new Set()).add(item.consumption))
+      }
     const reading = { principal: access.principal, tenant: access.tenant, execution }
-    const unread = await entriesAfter(ports.entries, reading, saved?.position ?? null)
-    if ('failure' in unread)
-      return unavailable(`the entries answered ${unread.failure.kind}`, 'session-log-journal')
-    return succeed(
-      unread.ok.some(
+    for (const [producer, named] of calls) {
+      const saved = savedProgress(work, run, execution, RECEIVED[producer])
+      const unread = await entriesAfter(ports.entries, reading, saved?.position ?? null)
+      if ('failure' in unread)
+        return unavailable(`the entries answered ${unread.failure.kind}`, 'session-log-journal')
+      const waits = unread.ok.some(
         ({ entry }) =>
           entry.kind === 'received' &&
-          entry.delivery.producer === 'tool' &&
-          calls.has(entry.consumption),
-      ),
-    )
+          entry.delivery.producer === producer &&
+          named.has(entry.consumption),
+      )
+      if (waits) return succeed(true)
+    }
+    return succeed(false)
   }
 
   async function round(

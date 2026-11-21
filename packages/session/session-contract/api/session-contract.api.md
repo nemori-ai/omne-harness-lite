@@ -1505,6 +1505,7 @@ export type SessionEntry = Readonly<{
     fact: import('./faces.ts').ProducerFact;
     consumption?: ConsumptionId;
     result?: ProducedResult | null;
+    delivered?: ConsumptionId;
 }> | Readonly<{
     kind: 'call.result-preserved';
     consumption: ConsumptionId;
@@ -3775,8 +3776,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:800420992a6abd201763b5c1cfde7715eb006dabd57e16aa942998ba392ca5e6";
-export declare const SESSION_RELEASE_DIGEST = "sha256:800420992a6abd201763b5c1cfde7715eb006dabd57e16aa942998ba392ca5e6";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f0d4b8e667f5b280fbf932d183bf4bee6744cf2979724c1e056ee89748bd5b90";
+export declare const SESSION_RELEASE_DIGEST = "sha256:f0d4b8e667f5b280fbf932d183bf4bee6744cf2979724c1e056ee89748bd5b90";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4652,6 +4653,7 @@ export type Consumption = Readonly<{
     id: ConsumptionId;
     binding: CallBinding;
     results: readonly ResultConsumption[];
+    delivered?: DurableEvidence;
 }>;
 export type InputBatch = Readonly<{
     id: BatchId;
