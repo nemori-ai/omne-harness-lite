@@ -171,7 +171,7 @@ describe('the size of the content blocks of one session', () => {
 })
 
 describe('the process is killed after the joint receipt came back', () => {
-  it('a new provider on the same files answers committed for the original identity, and both sides are there', async () => {
+  it('a new provider on the same files answers settled for the original identity, and both sides are there', async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'session-joint-kill-')))
     roots.push(root)
     const child = spawn(
@@ -194,13 +194,7 @@ describe('the process is killed after the joint receipt came back', () => {
 
     const app = await open(root)
     const found = await app.storage.query(identityOf(TENANT_A, 'dom_0', 'aop_joint'))
-    expect(queryKindOf(found)).toBe('committed')
-    if (found.kind !== 'committed') return
-    expect(found.responses.map(item => item.participant)).toEqual([
-      'execution-record',
-      'session-ordinary-basis',
-      'session',
-    ])
+    expect(queryKindOf(found)).toBe('settled')
     expect(await stateOf(app)).toEqual({ published: '1', state: { receipt: 'joint' } })
     const input = await app.port.readInput({ ...app.access(TENANT_A), input: 'joint' as never })
     expect('ok' in input).toBe(true)

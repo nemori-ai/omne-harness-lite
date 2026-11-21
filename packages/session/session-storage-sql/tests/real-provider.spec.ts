@@ -105,7 +105,7 @@ describe('commit through the real write Worker', () => {
     expect(recalled.kind).toBe('committed')
     expect(
       queryKindOf(await app.storage.query(identityOf(TENANT_A, 'dom_0', CREATE_OPERATION))),
-    ).toBe('committed')
+    ).toBe('settled')
   })
 })
 
@@ -138,7 +138,7 @@ describe('the original-receipt lookup', () => {
 })
 
 describe('the process is killed after the receipt came back', () => {
-  it('a new provider on the same files answers committed for the original identity, and the original receipt', async () => {
+  it('a new provider on the same files answers settled for the original identity, and the session recalls the original receipt', async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'session-kill-')))
     roots.push(root)
     const child = spawn(
@@ -162,7 +162,7 @@ describe('the process is killed after the receipt came back', () => {
     const app = await open({ root })
     expect(
       queryKindOf(await app.storage.query(identityOf(TENANT_A, 'dom_0', CREATE_OPERATION))),
-    ).toBe('committed')
+    ).toBe('settled')
     const recalled = ok<{ kind: string }>(
       await app.port.queryOperation({
         ...app.access(TENANT_A),
@@ -207,11 +207,11 @@ describe('the access evidence through the real write Worker', () => {
 })
 
 describe('an identity that was never committed', () => {
-  it('is not_committed with all five proofs in a ready domain, and queryOperation says unknown, not not-committed', async () => {
+  it('is settled with all five proofs in a ready domain, and queryOperation says unknown, not not-committed', async () => {
     const app = await open()
     ok(await app.create(TENANT_A))
     const asked = await app.storage.query(identityOf(TENANT_A, 'dom_0', 'sop_never'))
-    expect(queryKindOf(asked)).toBe('not_committed')
+    expect(queryKindOf(asked)).toBe('settled')
     expect(asked).toMatchObject({
       proofs: {
         writerGenerationExcluded: true,
@@ -253,20 +253,20 @@ describe('close', () => {
 })
 
 describe('limits', () => {
-  it('a command over maxCommandBytes is refused before it is accepted, and its identity is then not_committed', async () => {
+  it('a command over maxCommandBytes is refused before it is accepted, and its identity is then settled', async () => {
     const app = await open({ config: { maxCommandBytes: 65536, maxRequestBytes: 131072 } })
     ok(await app.create(TENANT_A))
     const refused = failureOf(await app.accept(TENANT_A, 'session-1', 'big', 'x'.repeat(200_000)))
     expect(refused).toMatchObject({ kind: 'invalid', field: 'storage', reason: 'command_limit' })
     expect(
       queryKindOf(await app.storage.query(identityOf(TENANT_A, 'dom_0', 'sop_accept-big'))),
-    ).toBe('not_committed')
+    ).toBe('settled')
     expect(ok<{ revision: string }>(await app.port.readWork(app.access(TENANT_A))).revision).toBe(
       '1',
     )
   })
 
-  it('a full admission queue refuses the surplus, and refused identities are not_committed while accepted ones are committed', async () => {
+  it('a full admission queue refuses the surplus, and refused operations left nothing while accepted ones are committed', async () => {
     const app = await open({ config: { admissionQueueLimit: 2, groupMaxOperations: 2 } })
     const names = Array.from({ length: 10 }, (_, index) => `burst-${String(index)}`)
     const results = await Promise.all(names.map(name => app.create(TENANT_A, name)))
@@ -274,15 +274,19 @@ describe('limits', () => {
     expect(accepted).toBeGreaterThan(0)
     expect(accepted).toBeLessThan(names.length)
     for (const [index, result] of results.entries()) {
+      const name = names[index] as string
       const kind = queryKindOf(
-        await app.storage.query(
-          identityOf(TENANT_A, 'dom_0', `sop_create-${names[index]}`, 1, names[index]),
-        ),
+        await app.storage.query(identityOf(TENANT_A, 'dom_0', `sop_create-${name}`, 1, name)),
       )
-      if ('ok' in result) expect(kind).toBe('committed')
+      expect(kind).toBe('settled')
+      const resolved = await app.port.queryOperation({
+        ...app.access(TENANT_A, name),
+        operation: operationId(`create-${name}`),
+      })
+      if ('ok' in result) expect(resolved).toMatchObject({ ok: { kind: 'committed' } })
       else {
         expect(failureOf(result)['diagnostic']).toContain('queue_full')
-        expect(kind).toBe('not_committed')
+        expect(resolved).toMatchObject({ failure: { kind: 'denied' } })
       }
     }
   })

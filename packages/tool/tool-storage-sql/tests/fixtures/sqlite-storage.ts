@@ -316,9 +316,10 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
     },
     query: (identity): Promise<QueryResultV2> => {
       const domain = domainOf(identity.scope, identity.transactionDomain, false)
-      if (identity.recall === 'never') return Promise.resolve({ kind: 'not_recallable', identity })
       if (domain === null)
         return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'domain_unavailable' })
+      if (identity.recall === 'never')
+        return Promise.resolve({ kind: 'settled', identity, proofs: PROOFS })
       return Promise.resolve(
         saved(domain, identity) ?? { kind: 'not_committed', identity, proofs: PROOFS },
       )

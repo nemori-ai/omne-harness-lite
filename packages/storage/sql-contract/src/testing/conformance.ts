@@ -278,10 +278,10 @@ const SCENARIOS: readonly Scenario[] = [
         await storage.commit(commitRequest(materials, { ...all, identity: never })),
       )
       same(first.identity, never, 'the result carries the identity of the request')
-      same(
-        await storage.query(never),
-        { kind: 'not_recallable', identity: never },
-        'query does not recognize a commit that is never recalled',
+      const asked = await storage.query(never)
+      expect(
+        asked.kind === 'settled',
+        `query does not recognize a commit that is never recalled, got ${asked.kind}`,
       )
       const again = await storage.commit(
         commitRequest(materials, {
@@ -322,6 +322,42 @@ const SCENARIOS: readonly Scenario[] = [
         kindOf(other) === 'rejected_before_accept/field_missing',
         `an unknown recall value is refused, got ${kindOf(other)}`,
       )
+    },
+  },
+  {
+    id: 'C26',
+    title:
+      'a query of an identity that is never recalled answers only whether its commit is in flight',
+    async run({ storage, materials }) {
+      await registerAll(storage, materials)
+      const all = { combinationVersion: 'all-v1' }
+      const never = identity({ operationKey: 'settles', recall: 'never' })
+      committed(await storage.commit(commitRequest(materials, { ...all, identity: never })))
+      same(
+        await storage.query(never),
+        {
+          kind: 'settled',
+          identity: never,
+          proofs: {
+            writerGenerationExcluded: true,
+            oldTransactionTerminated: true,
+            databaseRecoveryFinished: true,
+            authoritativeReadSucceeded: true,
+            operationNotQueued: true,
+          },
+        },
+        'a settled identity carries all five proofs and no receipt',
+      )
+      const recallable = await storage.query(identity({ operationKey: 'settles' }))
+      expect(
+        recallable.kind === 'not_committed',
+        `the commit left no receipt under its key, got ${recallable.kind}`,
+      )
+      const flying = identity({ operationKey: 'flying', recall: 'never' })
+      const sent = storage.commit(commitRequest(materials, { ...all, identity: flying }))
+      const asked = await storage.query(flying)
+      expect(asked.kind === 'unknown', `a commit in flight is unknown, got ${asked.kind}`)
+      committed(await sent)
     },
   },
   {

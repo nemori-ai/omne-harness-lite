@@ -147,26 +147,27 @@ export type CommitReceiptV2 = ReceiptV2 & Readonly<{ recalled: boolean }>
 
 export type CommitResultV2 = CommitReceiptV2 | UnknownV2 | IdentityConflictV2 | CommitRejectedV2
 
+export type SettlementProofsV2 = Readonly<{
+  writerGenerationExcluded: true
+  oldTransactionTerminated: true
+  databaseRecoveryFinished: true
+  authoritativeReadSucceeded: true
+  operationNotQueued: true
+}>
+
 export type NotCommittedV2 = Readonly<{
   kind: 'not_committed'
   identity: SqlIdentity
-  proofs: Readonly<{
-    writerGenerationExcluded: true
-    oldTransactionTerminated: true
-    databaseRecoveryFinished: true
-    authoritativeReadSucceeded: true
-    operationNotQueued: true
-  }>
+  proofs: SettlementProofsV2
 }>
 
-export type NotRecallableV2 = Readonly<{ kind: 'not_recallable'; identity: SqlIdentity }>
+export type SettledV2 = Readonly<{
+  kind: 'settled'
+  identity: SqlIdentity
+  proofs: SettlementProofsV2
+}>
 
-export type QueryResultV2 =
-  | CommittedV2
-  | RolledBackV2
-  | UnknownV2
-  | NotCommittedV2
-  | NotRecallableV2
+export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2 | SettledV2
 
 export type RegistrationKey = Readonly<{
   scope: StorageScope

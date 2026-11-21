@@ -445,30 +445,25 @@ function runQuery(
     return { kind: 'participated', response: { kind: 'no-session' } }
   const row = oneRow(
     port,
-    'SELECT form, receipt, result FROM sl_operation WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
+    'SELECT input_digest, form, receipt, result FROM sl_operation WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
     [tenant, session, operation],
   )
-  const stored =
-    row === undefined
-      ? undefined
-      : oneRow(
-          port,
-          'SELECT evidence FROM sl_operation_evidence WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
-          [tenant, session, operation],
-        )
+  if (row === undefined) return { kind: 'participated', response: { kind: 'unknown' } }
+  const stored = oneRow(
+    port,
+    'SELECT evidence FROM sl_operation_evidence WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
+    [tenant, session, operation],
+  )
   return {
     kind: 'participated',
-    response:
-      row === undefined
-        ? { kind: 'unknown' }
-        : {
-            kind: 'operation',
-            form: text(row['form']),
-            receipt: JSON.parse(packed(row['receipt'])) as JsonValue,
-            result: JSON.parse(packed(row['result'])) as JsonValue,
-            evidence:
-              stored === undefined ? null : (JSON.parse(text(stored['evidence'])) as JsonValue),
-          },
+    response: {
+      kind: 'operation',
+      digest: text(row['input_digest']),
+      form: text(row['form']),
+      receipt: JSON.parse(packed(row['receipt'])) as JsonValue,
+      result: JSON.parse(packed(row['result'])) as JsonValue,
+      evidence: stored === undefined ? null : (JSON.parse(text(stored['evidence'])) as JsonValue),
+    },
   }
 }
 

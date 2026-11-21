@@ -148,20 +148,8 @@ function catalogOf(
   return { catalog, digest: manifestDigest(manifest.manifest) }
 }
 
-export type QueryKind = 'committed' | 'rolled_back' | 'not_committed' | 'unknown'
-export function queryKindOf(result: QueryResultV2): QueryKind {
-  switch (result.kind) {
-    case 'committed':
-      return 'committed'
-    case 'rolled_back':
-      return 'rolled_back'
-    case 'not_committed':
-      return 'not_committed'
-    case 'unknown':
-    case 'not_recallable':
-      return 'unknown'
-  }
-}
+export type QueryKind = QueryResultV2['kind']
+export const queryKindOf = (result: QueryResultV2): QueryKind => result.kind
 
 export const identityOf = (
   tenant: TenantId,
@@ -175,6 +163,7 @@ export const identityOf = (
   operation,
   protocolVersion: '2',
   operationKey: JSON.stringify([session, operation, attempt]),
+  recall: 'never',
 })
 
 export type WalSample = Readonly<{ commits: number; generation: string }>
@@ -246,7 +235,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
     database: real.database,
     registerCombination: input => real.registerCombination(input),
     commit: request => {
-      ops += 1
+      if (request.identity.operation !== 'session.lookup') ops += 1
       return real.commit(request)
     },
     query: identity => real.query(identity),

@@ -64,11 +64,11 @@ function receipt<T>(
     ? { kind: 'ok', value: parsed.data.value }
     : { kind: 'unavailable', reason: 'transactionRolledBack' }
 }
-/** No identity of this member declares `recall: 'never'`, so `not_recallable` says as little as `unknown`. */
+/** No identity of this member declares `recall: 'never'`, so `settled` says as little as `unknown`. */
 function unrecognized(
   result: QueryResultV2,
-): result is Extract<QueryResultV2, { kind: 'unknown' | 'not_recallable' }> {
-  return result.kind === 'unknown' || result.kind === 'not_recallable'
+): result is Extract<QueryResultV2, { kind: 'unknown' | 'settled' }> {
+  return result.kind === 'unknown' || result.kind === 'settled'
 }
 export async function query<T>(
   options: AccessOptions,

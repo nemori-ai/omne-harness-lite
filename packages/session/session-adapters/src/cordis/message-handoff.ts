@@ -43,6 +43,7 @@ import {
 } from '@omne-harness/session-storage-sql/participants'
 import type {
   DomainRef,
+  FactCommandV2,
   JsonValue,
   SqlStorage,
   TenantDomainLookup,
@@ -117,6 +118,12 @@ function sha256(text: string): string {
 const handoffOf = (request: HandoffRequest): string => canonical(request.reference)
 
 const entryOf = (execution: string, operation: string): string => canonical([execution, operation])
+
+const preadmissionCommit = (tenant: string, handoff: string, command: FactCommandV2) => ({
+  operation: `pre_${sha256(canonical([tenant, handoff, command.facts]))}`,
+  recall: 'never' as const,
+  commands: [command],
+})
 
 function recordEvidence(record: PreadmissionRecord): DurableEvidence {
   return {
@@ -439,8 +446,7 @@ function createMessageHandoff<P>(
       storage: ports.storage,
       domain: domain.ok,
       combination: ports.combination,
-      operation: `pre_${sha256(canonical([bound.tenantText, bound.handoff, command.facts]))}`,
-      commands: [command],
+      ...preadmissionCommit(bound.tenantText, bound.handoff, command),
       generations,
     })
     if (outcome.kind === 'refused') return fail(refusalFailure(outcome.reason))

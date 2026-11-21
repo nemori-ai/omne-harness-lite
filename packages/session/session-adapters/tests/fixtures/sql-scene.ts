@@ -221,7 +221,8 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
           diagnostic: 'dropped',
         })
       }
-      const existing = receipts.get(key(request.identity))
+      const keeps = request.identity.recall !== 'never'
+      const existing = keeps ? receipts.get(key(request.identity)) : undefined
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === inputDigestV2(request)
@@ -229,27 +230,26 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
       const receipt = execute(request)
-      receipts.set(key(request.identity), receipt)
+      if (keeps) receipts.set(key(request.identity), receipt)
       if (lose) {
         lose = false
         return Promise.resolve({ kind: 'unknown', identity: request.identity, diagnostic: 'lost' })
       }
       return Promise.resolve({ ...receipt, recalled: false })
     },
-    query: identity =>
-      Promise.resolve(
-        receipts.get(key(identity)) ?? {
-          kind: 'not_committed',
-          identity,
-          proofs: {
-            writerGenerationExcluded: true,
-            oldTransactionTerminated: true,
-            databaseRecoveryFinished: true,
-            authoritativeReadSucceeded: true,
-            operationNotQueued: true,
-          },
-        },
-      ),
+    query: identity => {
+      const proofs = {
+        writerGenerationExcluded: true,
+        oldTransactionTerminated: true,
+        databaseRecoveryFinished: true,
+        authoritativeReadSucceeded: true,
+        operationNotQueued: true,
+      } as const
+      if (identity.recall === 'never') return Promise.resolve({ kind: 'settled', identity, proofs })
+      return Promise.resolve(
+        receipts.get(key(identity)) ?? { kind: 'not_committed', identity, proofs },
+      )
+    },
     read(request) {
       reads.push(request.handler)
       const module = handlers.get(request.handler)
